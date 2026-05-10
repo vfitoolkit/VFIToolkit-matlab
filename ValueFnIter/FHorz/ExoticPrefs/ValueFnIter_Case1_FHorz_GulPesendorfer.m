@@ -31,10 +31,10 @@ end
 if isfield(vfoptions,'SemiExoStateFn')
     l_z=l_z+length(vfoptions.n_semiz);
 end
-if N_e>0
-    l_e=length(vfoptions.n_e);
-else
+if N_e==0
     l_e=0;
+else
+    l_e=length(vfoptions.n_e);
 end
 if vfoptions.experienceasset==1
     % One of the endogenous states should only be counted once. I fake this by pretending it is a z rather than a variable

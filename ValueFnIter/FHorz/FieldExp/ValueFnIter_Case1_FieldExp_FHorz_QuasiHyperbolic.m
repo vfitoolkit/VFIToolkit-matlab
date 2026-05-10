@@ -51,10 +51,10 @@ l_z=length(n_z);
 if n_z(1)==0
     l_z=0;
 end
-if N_e>0
-    l_e=length(vfoptions.n_e);
-else
+if N_e==0
     l_e=0;
+else
+    l_e=length(vfoptions.n_e);
 end
 % If no ReturnFnParamNames inputted, then figure it out from ReturnFn
 if isempty(ReturnFnParamNames)
@@ -152,21 +152,21 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     end
     
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if N_e>0
-        if N_z==0
-            V_jp=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy_jp=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-        else
-            V_jp=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy_jp=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-        end
-    else
+    if N_e==0
         if N_z==0
             V_jp=reshape(VKron,[n_a,N_j]);
             Policy_jp=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
         else
             V_jp=reshape(VKron,[n_a,n_z,N_j]);
             Policy_jp=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+        end
+    else
+        if N_z==0
+            V_jp=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+            Policy_jp=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+        else
+            V_jp=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+            Policy_jp=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
         end
     end
 
