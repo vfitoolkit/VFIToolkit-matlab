@@ -19,11 +19,11 @@ l_z=length(n_z);
 if n_z(1)==0
     l_z=0;
 end
-if isfield(vfoptions,'n_semiz')
+if isfield(vfoptions,'n_semiz') && vfoptions.n_semiz>0
     l_z=l_z+length(vfoptions.n_semiz);
 end
 l_e=0;
-if isfield(vfoptions,'n_e')
+if isfield(vfoptions,'n_e') && vfoptions.n_e>0
     l_e=length(vfoptions.n_e);
 end
 if isfield(vfoptions,'experienceasset')
