@@ -18,6 +18,7 @@ V=nan; % Matlab was complaining that V was not assigned
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 % Make sure that the inputs specifically required for mix of endogenous exit and exogenous exit have been included.
 if ~isfield(vfoptions,'exitprobabilities')
@@ -68,8 +69,8 @@ if vfoptions.lowmemory==0
         ReturnMatrix=ReturnFn;
         ReturnToExitMatrix=vfoptions.ReturnToExitFn; % It is simply assumed that you are doing this for both.
     elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnToExitFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+        ReturnToExitMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnToExitFnParamsVec);
     end
         
     %%

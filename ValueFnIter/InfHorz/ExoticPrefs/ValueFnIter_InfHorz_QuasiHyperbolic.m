@@ -15,6 +15,7 @@ V=nan; % The value function of the quasi-hyperbolic agent
 Policy=nan; % The value function of the quasi-hyperbolic agent
 
 N_d=prod(n_d);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 % N_a=prod(n_a);
 % N_z=prod(n_z);
 
@@ -51,7 +52,7 @@ if vfoptions.lowmemory==0
     % Since the return function is independent of time creating it once and then using it every iteration is good 
     % for speed, but it does use a lot of memory.
     
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid,ReturnFnParamsVec);
         
     %%
     if strcmp(vfoptions.quasi_hyperbolic,'Naive') % For Naive, just solve the standard value function problem, and then just one step following that.

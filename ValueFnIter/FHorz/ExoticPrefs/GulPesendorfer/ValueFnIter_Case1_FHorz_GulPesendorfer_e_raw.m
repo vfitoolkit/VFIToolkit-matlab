@@ -4,6 +4,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(n_e);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 if N_z==0
     l_z=0;
@@ -33,9 +34,9 @@ TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
-        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), TemptationFnParamsVec);
+        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting;
 
@@ -48,9 +49,9 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
 
-            TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, TemptationFnParamsVec);
+            TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, special_n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_val, TemptationFnParamsVec);
             MostTempting_e=max(TemptationMatrix_e,[],1);
             entireRHS_e=ReturnMatrix_e+TemptationMatrix_e-ones(N_d*N_a,1).*MostTempting_e;
 
@@ -66,9 +67,9 @@ if ~isfield(vfoptions,'V_Jplus1')
             e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_z
                 z_val=z_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_gridvals, a_grid, z_val, e_val, ReturnFnParamsVec);
 
-                TemptationMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, TemptationFnParamsVec);
+                TemptationMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, special_n_z, special_n_e, d_gridvals, a_grid, z_val, e_val, TemptationFnParamsVec);
                 MostTempting_ze=max(TemptationMatrix_ze,[],1);
                 entireRHS_ze=ReturnMatrix_ze+TemptationMatrix_ze-ones(N_d*N_a,1).*MostTempting_ze;
 
@@ -90,7 +91,7 @@ else
     V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
         
         EV=V_Jplus1.*shiftdim(pi_z_J',-1);
@@ -99,7 +100,7 @@ else
         
         entireEV=repelem(EV,N_d,1,1);
 
-        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), TemptationFnParamsVec);
+        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1,N_e);
         
@@ -118,10 +119,10 @@ else
         
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
 
-            TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, TemptationFnParamsVec);
+            TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, special_n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_val, TemptationFnParamsVec);
             MostTempting_e=max(TemptationMatrix_e,[],1);
             entireRHS_e=ReturnMatrix_e+TemptationMatrix_e-ones(N_d*N_a,1).*MostTempting_e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a,1);
                         
@@ -145,9 +146,9 @@ else
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
                 
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_gridvals, a_grid, z_val, e_val, ReturnFnParamsVec);
                 
-                TemptationMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, TemptationFnParamsVec);
+                TemptationMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, special_n_z, special_n_e, d_gridvals, a_grid, z_val, e_val, TemptationFnParamsVec);
                 MostTempting_ze=max(TemptationMatrix_ze,[],1);
                 entireRHS_ze=ReturnMatrix_ze+TemptationMatrix_ze-ones(N_d*N_a,1).*MostTempting_ze+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
                 
@@ -180,7 +181,7 @@ for reverse_j=1:N_j-1
     VKronNext_j=sum(VKronNext_j.*pi_e_J(1,1,:,jj),3);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
         
         EV=VKronNext_j.*shiftdim(pi_z_J',-1);
@@ -189,7 +190,7 @@ for reverse_j=1:N_j-1
         
         entireEV=repelem(EV,N_d,1,1);
 
-        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), TemptationFnParamsVec);
+        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1,N_e);
         
@@ -208,10 +209,10 @@ for reverse_j=1:N_j-1
         
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_gridvals, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
             
-            TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_val, TemptationFnParamsVec);
+            TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, n_z, special_n_e, d_gridvals, a_grid, z_gridvals_J(:,:,jj), e_val, TemptationFnParamsVec);
             MostTempting_e=max(TemptationMatrix_e,[],1);
             entireRHS_e=ReturnMatrix_e+TemptationMatrix_e-ones(N_d*N_a,1).*MostTempting_e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a,1);
             
@@ -235,9 +236,9 @@ for reverse_j=1:N_j-1
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
                 
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_gridvals, a_grid, z_val, e_val, ReturnFnParamsVec);
                 
-                TemptationMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, TemptationFnParamsVec);
+                TemptationMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, n_d, n_a, special_n_z, special_n_e, d_gridvals, a_grid, z_val, e_val, TemptationFnParamsVec);
                 MostTempting_ze=max(TemptationMatrix_ze,[],1);
                 entireRHS_ze=ReturnMatrix_ze+TemptationMatrix_ze-ones(N_d*N_a,1).*MostTempting_ze+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
                 

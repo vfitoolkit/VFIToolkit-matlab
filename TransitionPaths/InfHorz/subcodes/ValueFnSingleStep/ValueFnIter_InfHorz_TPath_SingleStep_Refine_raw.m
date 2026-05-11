@@ -4,6 +4,7 @@ function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_Refine_raw(Vnext,n_d,n_
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 V=zeros(N_a,N_z,'gpuArray');
 Policy_a=zeros(N_a,N_z,'gpuArray');
@@ -26,7 +27,7 @@ l_z=length(n_z);
 
 %%
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
     [ReturnMatrix,dstar]=max(ReturnMatrix,[],1); % solve for dstar
     ReturnMatrix=shiftdim(ReturnMatrix,1);
     dstar=shiftdim(dstar,1);

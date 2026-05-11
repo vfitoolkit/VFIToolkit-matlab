@@ -1,11 +1,5 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec,Refine) % Refine is an optional input
-% If no d variable, just input n_d=0 and d_grid=[]
-
-if size(d_grid,2)==1 % stacked-column % IN FUTURE, CHANGE INPUT TO BE d_gridvals
-    d_gridvals=CreateGridvals(n_d,d_grid,1);
-else
-    d_gridvals=d_grid;
-end
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,Refine) % Refine is an optional input
+% If no d variable, just input n_d=0 and d_gridvals=[]
 
 if ~exist('Refine','var')
     Refine=0;

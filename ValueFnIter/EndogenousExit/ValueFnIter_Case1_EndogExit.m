@@ -18,6 +18,7 @@ V=nan; % Matlab was complaining that V was not assigned
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 l_a=length(n_a);
 l_z=length(n_z);
@@ -49,7 +50,7 @@ if vfoptions.lowmemory==0
     % lot of memory.
     
     if vfoptions.parallel==2
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
         ReturnToExitMatrix=CreateReturnToExitFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_a, n_z, a_grid, z_gridvals, ReturnToExitFnParamsVec);
     else % CPU
         ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);

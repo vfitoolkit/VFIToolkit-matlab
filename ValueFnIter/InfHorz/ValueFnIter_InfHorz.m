@@ -34,7 +34,6 @@ if ~exist('vfoptions','var')
     end
     % Different asset types
     vfoptions.endogenousexit=0;
-    vfoptions.endotype=0; % (vector indicating endogenous state is a type)
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     vfoptions.experienceasset=0;
     vfoptions.inheritanceasset=0;
@@ -106,9 +105,6 @@ else
     if ~isfield(vfoptions,'endogenousexit')
         vfoptions.endogenousexit=0;
     end
-    if ~isfield(vfoptions,'endotype')
-        vfoptions.endotype=0; % (vector indicating endogenous state is a type)
-    end
     if ~isfield(vfoptions,'incrementaltype')
         vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     end
@@ -145,7 +141,7 @@ end
 
 
 % If setting refinement without a d variable, then just shift to standard purediscretization (as refinement only makes sense if there is a d variable)
-if strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
+if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
     if n_d(1)==0
         vfoptions.solnmethod='purediscretization';
     end
@@ -182,7 +178,7 @@ else
 end
 
 %% Check the sizes of some of the inputs
-if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'localpolicysearch')
+if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'purediscretization_refinement')
     if N_d>0 && ~all(size(d_grid)==[sum(n_d), 1]) && ~all(size(d_grid)==[prod(n_d), length(n_d)]) % if you are using d, then should be stacked-column d_grid or joint-grid d_gridvals
         error('d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
     elseif ~all(size(a_grid)==[sum(n_a), 1])
@@ -226,11 +222,7 @@ if N_z>0
     end
 end
 
-if max(vfoptions.endotype)==1
-    if ~strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
-        error('Using vfoptions.endotype only works with vfoptions.solnmethod as purediscretization_refinement2')
-    end
-end
+
 if max(vfoptions.incrementaltype)==1
     if ~strcmp(vfoptions.solnmethod,'purediscretization') 
         error('Using vfoptions.incrementaltype only works with vfoptions.solnmethod as purediscretization')
@@ -528,77 +520,10 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
 end
 
 %% VFI with Refine
-% If we get to refinement and refinement2 then there must be d variable
+% If we get to refinement then there must be d variable
 if strcmp(vfoptions.solnmethod,'purediscretization_refinement') 
     % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
     [VKron,Policy]=ValueFnIter_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
-end
-
-if strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
-    % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
-    % Refinement 2: Multigrid approach when presolving for dstar(aprime,a,z).
-    
-    % Check that the info about layers is provided
-    if ~isfield(vfoptions,'refine_pts') % points per dimension per layer
-        error('Using vfoptions.solnmethod purediscretization_refinement2 you must declare vfoptions.refine_pts')
-    else
-        if rem(vfoptions.refine_pts,2)~=1
-            error('vfoptions.refine_pts must be an odd number')
-        end
-    end
-    if ~isfield(vfoptions,'refine_iter') % number of layers
-        error('Using vfoptions.solnmethod purediscretization_refinement2 you must declare vfoptions.refine_iter')
-    end
-    
-    % Check that grid size for d variables matches the ptsperlayer and 
-    RequiredGridPoints=nGridPointsWithLayers(vfoptions);
-    for ii=1:length(n_d)
-        if n_d(ii)~=RequiredGridPoints
-            fprintf('Problem with the %i-th decision variable \n',ii)
-            fprintf('With current settings for layers (in vfoptions) you should be using %i points for each decision variable \n',RequiredGridPoints)
-            error('The number of points in the grid for the i-th variable is does not fit layers')
-        end
-    end
-    
-    if max(vfoptions.endotype)==0 % If they are all zeros, no endo types are used
-        [VKron,Policy]=ValueFnIter_Refine2(V0,l_d,N_a,N_z,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
-    else
-        % Need to seperate endogenous states from endogenous types to take advantage of them
-        n_endostate=n_a(logical(1-vfoptions.endotype));
-        n_endotype=n_a(logical(vfoptions.endotype));
-        endostate_grid=zeros(sum(n_endostate),1);
-        endotype_grid=zeros(sum(n_endotype),1);
-        endostate_c=1;
-        endotype_c=1;
-        if vfoptions.endotype(1)==1 % Endogenous type
-            endotype_grid(1:n_a(1))=a_grid(1:n_a(1));
-            endotype_c=endotype_c+1;
-        else % Endogenous state
-            endostate_grid(1:n_a(1))=a_grid(1:n_a(1));
-            endostate_c=endostate_c+1;
-        end
-        for ii=2:length(n_a)
-            if vfoptions.endotype(ii)==1 % Endogenous type
-                if endotype_c==1
-                    endotype_grid(1:n_endotype(1))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
-                else
-                    endotype_grid(1+sum(n_endotype(1:endotype_c-1)):sum(n_endotype(1:endotype_c)))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
-                end
-                endotype_c=endotype_c+1;
-            else % Endogenous state
-                if endotype_c==1
-                    endostate_grid(1:n_endostate(1))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
-                else
-                    endostate_grid(1+sum(n_endostate(1:endostate_c-1)):sum(n_endostate(1:endostate_c)))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
-                end
-                endostate_c=endostate_c+1;
-            end
-        end
-        
-        [VKron,Policy]=ValueFnIter_EndoType_Refine2(V0,l_d,prod(n_endostate),N_z,n_d,n_endostate,n_z,n_endotype,d_grid,endostate_grid,z_gridvals,endotype_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
-    end
-    % To be able to resize the output we need to treat endotype is just
-    % another endogenous state. This will happen because of how we have n_a setup.
 end
 
 

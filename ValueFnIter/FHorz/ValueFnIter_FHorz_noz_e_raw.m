@@ -3,6 +3,7 @@ function [V,Policy2]=ValueFnIter_FHorz_noz_e_raw(n_d,n_a,n_e,N_j, d_grid, a_grid
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_e=prod(n_e);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 V=zeros(N_a,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
@@ -21,7 +22,7 @@ pi_e_J=shiftdim(pi_e_J,-1); % Move to second dimension (normally -2, but no z so
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
@@ -31,7 +32,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,e_c,N_j)=Vtemp;
@@ -49,7 +50,7 @@ else
     entireEV=repelem(EV,N_d,1);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
         % (d,aprime,a,e)
         
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*repmat(V_Jplus1,1,N_a,N_e);
@@ -64,7 +65,7 @@ else
         
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a)
             
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a);
@@ -96,7 +97,7 @@ for reverse_j=1:N_j-1
     entireEV=repelem(EV,N_d,1);
     
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,e)
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
@@ -111,7 +112,7 @@ for reverse_j=1:N_j-1
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
             
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;

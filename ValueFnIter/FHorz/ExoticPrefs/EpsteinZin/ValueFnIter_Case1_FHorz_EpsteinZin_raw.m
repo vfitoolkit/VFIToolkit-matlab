@@ -3,6 +3,7 @@ function [V,Policy2]=ValueFnIter_Case1_FHorz_EpsteinZin_raw(n_d,n_a,n_z,N_j, d_g
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
@@ -68,7 +69,7 @@ end
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
@@ -83,7 +84,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
@@ -107,7 +108,7 @@ else
     
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
@@ -145,7 +146,7 @@ else
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
             
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
@@ -226,7 +227,7 @@ for reverse_j=1:N_j-1
     
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
@@ -265,7 +266,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
             
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite but not zero
