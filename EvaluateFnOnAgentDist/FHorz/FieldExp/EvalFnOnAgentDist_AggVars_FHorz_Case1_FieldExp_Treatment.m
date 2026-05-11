@@ -33,9 +33,19 @@ end
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0;
+    end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
     end
 end
 
@@ -88,7 +98,7 @@ else % Joint-grid on shocks
     jointgridz=1;
 end
 
-if isfield(simoptions,'n_e')
+if prod(simoptions.n_e)>0
     % Because of how FnsToEvaluate works I can just get the e variables and then 'combine' them with z
     eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
     eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')

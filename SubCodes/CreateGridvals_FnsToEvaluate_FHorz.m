@@ -14,7 +14,7 @@ end
 N_z=prod(n_z);
 
 % Now e (which ExogShockSetup_FHorz() created in simoptions)
-if isfield(simoptions,'n_e')
+if prod(simoptions.n_e)>0
     if simoptions.n_e(1)>0
         % Now put e into z as that is easiest way to handle it from now on
         if N_z==0

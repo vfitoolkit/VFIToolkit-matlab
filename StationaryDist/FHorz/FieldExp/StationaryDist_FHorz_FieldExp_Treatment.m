@@ -18,6 +18,9 @@ if exist('simoptions','var')==0
     simoptions.tolerance=10^(-9);
     simoptions.outputkron=0; % If 1 then leave output in Kron form
     simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -56,6 +59,13 @@ else
     if ~isfield(simoptions,'loopovere')
         simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
     end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
 end
 
 %%
@@ -63,7 +73,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=0;
-if isfield(simoptions,'n_e')
+if prod(simoptions.n_e)>0
     N_e=prod(simoptions.n_e);
 end
 if N_z>0 && N_e>0

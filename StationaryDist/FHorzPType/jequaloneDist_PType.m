@@ -35,7 +35,7 @@ end
 if ~isstruct(jequaloneDist)
     % Using matrix, reshape now to save multiple reshapes later
     % (Note that matrix implies same grids for all agents)
-    if isfield(simoptions,'n_e')
+    if prod(simoptions.n_e)>0
         if isfield(simoptions,'n_semiz')
             if prod(n_z)==0
                 if ndims(jequaloneDist)==length([n_a,simoptions.n_semiz,simoptions.n_e])

@@ -32,7 +32,7 @@ else
     rprimeFnParamNames={};
 end
 
-if isfield(simoptions,'n_e')
+if prod(simoptions.n_e)>0
     N_e=prod(simoptions.n_e);
 else
     N_e=0;

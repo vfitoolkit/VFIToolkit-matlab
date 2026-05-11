@@ -52,7 +52,7 @@ if ~isfield(simoptions,'n_e')
     end
         
     
-else %if isfield(simoptions,'n_e')
+else %if prod(simoptions.n_e)>0
     %% this time with e variables
     % If e variables are used they are treated seperately as this is faster/better
     N_e=prod(simoptions.n_e);

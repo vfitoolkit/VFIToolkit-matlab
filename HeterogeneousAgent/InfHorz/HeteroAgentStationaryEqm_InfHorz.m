@@ -60,9 +60,12 @@ end
 
 if exist('simoptions','var')==0
     %If vfoptions is not given, just use all the defaults
-    simoptions.parallel=1+(gpuDeviceCount>0);    
+    simoptions.parallel=1+(gpuDeviceCount>0);
     %Note that the defaults will be set when we call 'StationaryDist...'
     %commands and the like, so no need to set them here except for a few.
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'parallel')
@@ -72,6 +75,13 @@ else
         if ~isfield(simoptions,'gridinterplayer')
             error('When setting vfoptions.gridinterplayer you must also set simoptions.gridinterplayer')
         end
+    end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
     end
 end
 
@@ -286,7 +296,7 @@ if isstruct(FnsToEvaluate)
         l_z=l_z+length(simoptions.n_semiz);
     end
     l_e=0;
-    if isfield(simoptions,'n_e')
+    if prod(simoptions.n_e)>0
         l_e=length(simoptions.n_e);
         if simoptions.n_e(1)==0
             l_e=0;

@@ -28,12 +28,22 @@ if exist('simoptions','var')
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
 else
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.parallel=2;
     simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 end
 
 %% Not the fastest approach (as unnecessary overhead), but just loop over t (the transtion time periods) and for each one run life-cycle profile FHorz Case1 command.
@@ -67,11 +77,11 @@ end
 
 %% Set up a few things
 N_a=prod(n_a);
+N_z=prod(n_z);
+N_e=prod(simoptions.n_e);
 
-if n_z(1)>0
-    N_z=prod(n_z);
-    if isfield(simoptions,'n_e')
-        N_e=prod(simoptions.n_e);
+if N_z>0
+    if N_e>0
         AgentDistPath=reshape(AgentDistPath, [N_a,N_z,N_e,N_j,T]);
     else
         AgentDistPath=reshape(AgentDistPath, [N_a,N_z,N_j,T]);
@@ -80,10 +90,10 @@ else
     AgentDistPath=reshape(AgentDistPath, [N_a,N_j,T]);
 end
 
-if n_z(1)==0
+if N_z==0
     PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T);
 else
-    if isfield(simoptions,'n_e')
+    if N_e>0
         PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T, n_e);
     else
         PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T);
@@ -215,8 +225,8 @@ end
 for tt=1:T
         
     % Get current AgentDist
-    if n_z(1)>0
-        if isfield(simoptions,'n_e')
+    if N_z>0
+        if N_e>0
             AgentDist=AgentDistPath(:,:,:,:,tt);
         else
             AgentDist=AgentDistPath(:,:,:,tt);
@@ -229,8 +239,8 @@ for tt=1:T
     end
     % Get current Policy
     if n_d(1)>0
-        if n_z(1)>0
-            if isfield(simoptions,'n_e')
+        if N_z>0
+            if N_e>0
                 Policy=PolicyPath(:,:,:,:,:,tt); % (d,a'),a,z,e,j
             else
                 Policy=PolicyPath(:,:,:,:,tt); % (d,a'),a,z,j
@@ -239,15 +249,15 @@ for tt=1:T
             Policy=PolicyPath(:,:,:,tt); % (d,a'),a,j
         end
     else
-        if n_z(1)>0
-            if isfield(simoptions,'n_e')
+        if N_z>0
+            if N_e>0
                 Policy=PolicyPath(:,:,:,:,tt); % a,z,e,j
             else
                 Policy=PolicyPath(:,:,:,tt); % a,z,j
             end
         else
             Policy=PolicyPath(:,:,tt); % a,j
-        end        
+        end
     end
     % Get current ParamPath and PricePath
     for kk=1:length(PricePathNames)
@@ -293,7 +303,7 @@ for tt=1:T
     end
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use simoptions.ExogShockFn within  ValueFnIter command
     
-    if n_z(1)==0
+    if N_z==0
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_noz(Policy, n_d, n_a, N_j,simoptions);
     else
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,simoptions);

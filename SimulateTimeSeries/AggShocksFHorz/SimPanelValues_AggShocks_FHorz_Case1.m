@@ -23,6 +23,9 @@ if ~exist('simoptions','var')
     simoptions.simperiods=100;
     simoptions.numbersims=10^3;
     simoptions.lowmemory=0; % setting to 1 slows the simulations, but reduces memory
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'parallel')
@@ -43,6 +46,13 @@ else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0; % setting to 1 slows the simulations, but reduces memory
     end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
 end
 
 % I want to keep 'simperiods' name to fit with rest of toolkit. But
@@ -61,6 +71,7 @@ end
 
 l_a=length(n_a);
 N_z=prod(n_z);
+N_e=prod(simoptions.n_e);
 if N_z>0
     l_z=length(n_z);
 else
@@ -125,10 +136,10 @@ if isfield(simoptions,'ExogShockFn')
 end
 
 % If using e variable, do same for this
-if isfield(simoptions,'n_e')
+if N_e>0
     n_e=simoptions.n_e;
     N_e=prod(n_e);
-    if isfield(simoptions,'n_e')
+    if N_e>0
         if prod(simoptions.n_e)==0
             simoptions=rmfield(simoptions,'n_e');
         else
@@ -192,7 +203,7 @@ if isfield(simoptions,'n_e')
     end
 end
 
-if isfield(simoptions,'n_e') % Note: N_z==0 is dealt with elsewhere
+if N_e>0 % Note: N_z==0 is dealt with elsewhere
     if N_e==0
         n_ze=n_z;
         l_ze=l_z;
@@ -215,20 +226,20 @@ a_grid=gather(a_grid);
 if isfield(simoptions,'n_semiz')
     simoptions.Parameters=Parameters; % Need to be able to pass a copy of this to SimPanelIndexes
     if N_z>0
-        if isfield(simoptions,'n_e')
+        if N_e>0
             PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z], N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
         else
             PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z], N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
         end
     else
-        if isfield(simoptions,'n_e')
+        if N_e>0
             PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, simoptions.n_semiz, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
         else
             PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, simoptions.n_semiz, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
         end
     end
 else
-    if isfield(simoptions,'n_e')
+    if N_e>0
         PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
     else
         PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
@@ -300,7 +311,7 @@ else
 end
 
 for jj=1:N_j    
-    if ~isfield(simoptions,'n_e')
+    if N_e==0
         if n_d(1)==0
             [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
         else
@@ -381,7 +392,7 @@ for tt=1:simoptions.timeperiods
     % Note, having the whole N_j at this stage makes assigning the values based on the indexes vastly faster
 
     %% For sure the following could be made faster by improving how I do it
-    if ~isfield(simoptions,'n_e')
+    if N_e==0
         for jj=1:size(SimPanelIndexes_tt,2)
             SimPanelIndexes_jj=SimPanelIndexes_tt(:,jj,:);
 

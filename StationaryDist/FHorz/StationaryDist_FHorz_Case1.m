@@ -9,6 +9,9 @@ if exist('simoptions','var')==0
     simoptions.experienceassetu=0;
     simoptions.riskyasset=0;
     simoptions.residualasset=0;
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
     % Things that are really just for internal usage
     simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.outputkron=0; % If 1 then leave output in Kron form
@@ -35,6 +38,13 @@ else
     end
     if ~isfield(simoptions,'residualasset')
         simoptions.residualasset=0;
+    end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
     end
     % Things that are really just for internal usage
     if ~isfield(simoptions,'parallel')
@@ -220,7 +230,7 @@ l_a=length(n_a);
 
 N_a=prod(n_a);
 N_z=prod(n_z);
-if isfield(simoptions,'n_e')
+if prod(simoptions.n_e)>0
     N_e=prod(simoptions.n_e);
 else
     N_e=0;

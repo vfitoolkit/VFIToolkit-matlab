@@ -241,7 +241,7 @@ if isstruct(FnsToEvaluate)
         l_z=l_z+length(simoptions.n_semiz);
     end
     l_e=0;
-    if isfield(simoptions,'n_e')
+    if prod(simoptions.n_e)>0
         l_e=length(simoptions.n_e);
         if simoptions.n_e(1)==0
             l_e=0;

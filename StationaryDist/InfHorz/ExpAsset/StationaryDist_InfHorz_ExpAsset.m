@@ -50,11 +50,11 @@ l_a=length(n_a);
 
 N_a=prod(n_a);
 N_z=prod(n_z);
+N_e=prod(simoptions.n_e);
 
 
 %%
-if isfield(simoptions,'n_e')
-    N_e=prod(simoptions.n_e);
+if N_e>0
     StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z*N_e,1]);
     Policy=reshape(Policy,[size(Policy,1),N_a,N_z*N_e]);
     n_ze=[n_z,simoptions.n_e];
@@ -99,7 +99,7 @@ end
 
 %%
 % Note: N_z=0 is a different code
-if isfield(simoptions,'n_e')
+if N_e>0
     StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_e_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,N_a,N_z,N_e,pi_z,pi_e,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 else % no e
     StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,N_a,N_z,pi_z,simoptions); % zero is n_d, because we already converted Policy to only contain aprime

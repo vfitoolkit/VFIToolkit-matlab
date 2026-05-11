@@ -33,6 +33,9 @@ if exist('simoptions','var')==0
     simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -58,6 +61,13 @@ else
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
     end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
 end
 
 %%
@@ -77,7 +87,7 @@ else
     l_z=length(n_z);
 end
 
-if isfield(simoptions,'n_e')
+if prod(simoptions.n_e)>0
     n_e=simoptions.n_e;
 else
     n_e=0;
