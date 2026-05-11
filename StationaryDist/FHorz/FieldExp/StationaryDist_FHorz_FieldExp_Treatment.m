@@ -72,10 +72,7 @@ end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-N_e=0;
-if prod(simoptions.n_e)>0
-    N_e=prod(simoptions.n_e);
-end
+N_e=prod(simoptions.n_e);
 if N_z>0 && N_e>0
     N_ze=N_z*N_e;
 else

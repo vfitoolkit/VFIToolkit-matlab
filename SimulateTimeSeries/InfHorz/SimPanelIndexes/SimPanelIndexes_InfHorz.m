@@ -39,11 +39,7 @@ else
     l_z=0;
 end
 
-if prod(simoptions.n_e)>0
-    N_e=prod(simoptions.n_e);
-else
-    N_e=0;
-end
+N_e=prod(simoptions.n_e);
 if N_e==0
     l_e=0;
 else

@@ -46,11 +46,7 @@ a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
 
 
 %%
-if prod(simoptions.n_e)>0
-    N_e=prod(simoptions.n_e);
-else
-    N_e=0;
-end
+N_e=prod(simoptions.n_e);
 if ~isfield(simoptions,'n_u')
     error('To use an risky asset you must define simoptions.n_u')
 end

@@ -72,6 +72,7 @@ end
 l_a=length(n_a);
 N_z=prod(n_z);
 N_e=prod(simoptions.n_e);
+N_semiz=prod(simoptions.n_semiz);
 if N_z>0
     l_z=length(n_z);
 else
@@ -223,7 +224,7 @@ end
 d_grid=gather(d_grid);
 a_grid=gather(a_grid);
 
-if isfield(simoptions,'n_semiz')
+if N_semiz>0
     simoptions.Parameters=Parameters; % Need to be able to pass a copy of this to SimPanelIndexes
     if N_z>0
         if N_e>0
@@ -251,9 +252,8 @@ PolicyIndexesKron=gather(PolicyIndexesKron);
 simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
 
 %%
-if isfield(simoptions,'n_semiz')
+if N_semiz>0
     semiz_gridvals_J=CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j);
-    N_semiz=prod(simoptions.n_semiz);
     % From here on, can just treat semiz as another z
     if N_ze>0
         n_ze=[n_ze,simoptions.n_semiz];
