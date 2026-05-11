@@ -46,59 +46,29 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 beta0=Parameters.(vfoptions.QHadditionaldiscount);
 
 %%
-if vfoptions.lowmemory==0
-    
-    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
-    % Since the return function is independent of time creating it once and then using it every iteration is good 
-    % for speed, but it does use a lot of memory.
-    
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid,ReturnFnParamsVec);
-        
-    %%
-    if strcmp(vfoptions.quasi_hyperbolic,'Naive') % For Naive, just solve the standard value function problem, and then just one step following that.
-        if N_d==0
-            % First calculate the exponential discounting solution
-            [V,~]=ValueFnIter_nod_raw(V0, n_a, n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-            % Then the Naive quasi-hyperbolic from this
-            [V,Policy]=ValueFnIter_InfHorz_QuasiHyperbolicNaive_nod_raw(V, n_a, n_z, pi_z, beta0, ReturnMatrix);
-            Policy=shiftdim(Policy,-1);
-        else
-            % First calculate the exponential discounting solution
-            [V, ~]=ValueFnIter_raw(V0, n_d,n_a,n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
-            % Then the Naive quasi-hyperbolic from this
-            [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolicNaive_raw(V, n_d,n_a,n_z, pi_z, beta0, ReturnMatrix);
-        end
-    elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') % For Naive, just solve the standard value function problem, and then just one step following that.
-        if N_d==0
-            [V,Policy]=ValueFnIter_InfHorz_QuasiHyperbolic_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-            Policy=shiftdim(Policy,-1);
-        else
-            [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
-        end
-    end
-    
-elseif vfoptions.lowmemory==1    
+% Use the same ReturnMatrix for both the continuation value, and the value fn
+ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid,ReturnFnParamsVec);
 
-    if strcmp(vfoptions.quasi_hyperbolic,'Naive') % For Naive, just solve the standard value function problem, and then just one step following that.
-        if N_d==0
-            % First calculate the exponential discounting solution
-            [V,~]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, prod(DiscountFactorParamsVec), ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-            % Then the Naive quasi-hyperbolic from this
-            [V,Policy]=ValueFnIter_InfHorz_QuasiHyperbolicNaive_LowMem_nod_raw(V, n_a, n_z, pi_z, beta0, ReturnFn, ReturnFnParamsVec);
-            Policy=shiftdim(Policy,-1);
-        else
-            % First calculate the exponential discounting solution
-            [V, ~]=ValueFnIter_Case1_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, prod(DiscountFactorParamsVec), ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-            % Then the Naive quasi-hyperbolic from this
-            [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolicNaive_LowMem_raw(V, n_d, n_a, n_z, pi_z, beta0, ReturnFn, ReturnFnParamsVec);
-        end
-    elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') % For Naive, just solve the standard value function problem, and then just one step following that.
-        if N_d==0
-            [V,Policy]=ValueFnIter_InfHorz_QuasiHyperbolic_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-            Policy=shiftdim(Policy,-1);
-        else
-            [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic_LowMem_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-        end
+%%
+if strcmp(vfoptions.quasi_hyperbolic,'Naive') % For Naive, just solve the standard value function problem, and then just one step following that.
+    if N_d==0
+        % First calculate the exponential discounting solution
+        [V,~]=ValueFnIter_nod_raw(V0, n_a, n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        % Then the Naive quasi-hyperbolic from this
+        [V,Policy]=ValueFnIter_InfHorz_QuasiHyperbolicN_nod_raw(V, n_a, n_z, pi_z, beta0, ReturnMatrix);
+        Policy=shiftdim(Policy,-1);
+    else
+        % First calculate the exponential discounting solution
+        [V, ~]=ValueFnIter_raw(V0, n_d,n_a,n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        % Then the Naive quasi-hyperbolic from this
+        [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolicN_raw(V, n_d,n_a,n_z, pi_z, beta0, ReturnMatrix);
+    end
+elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') % For Naive, just solve the standard value function problem, and then just one step following that.
+    if N_d==0
+        [V,Policy]=ValueFnIter_InfHorz_QuasiHyperbolicS_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        Policy=shiftdim(Policy,-1);
+    else
+        [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolicS_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
     end
 end
 

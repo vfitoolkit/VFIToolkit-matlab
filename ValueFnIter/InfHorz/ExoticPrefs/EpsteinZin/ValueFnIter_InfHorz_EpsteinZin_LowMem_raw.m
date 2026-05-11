@@ -21,6 +21,7 @@ if all(size(z_grid)==[sum(n_z),1])
 elseif all(size(z_grid)==[prod(n_z),l_z])
     z_gridvals=z_grid;
 end
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 %%
 tempcounter=1;
@@ -30,7 +31,7 @@ while currdist>Tolerance
     
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_grid, a_grid, zvals,ReturnFnParamsVec);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_gridvals, a_grid, zvals,ReturnFnParamsVec);
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite but not zero
         temp2_z=ReturnMatrix_z;
