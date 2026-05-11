@@ -8,6 +8,7 @@ Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d an
 
 %%
 d_grid=gpuArray(d_grid);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 a_grid=gpuArray(a_grid);
 
 a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
@@ -19,9 +20,9 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
 
-    TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, n_d, n_a, d_grid, a_grid, TemptationFnParamsVec,0);
+    TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, n_d, n_a, d_gridvals, a_grid, TemptationFnParamsVec,0);
     MostTempting=max(TemptationMatrix,[],1);
     entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting;
 
@@ -36,12 +37,12 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
     % (d,aprime,a)
 
     entireEV=kron(V_Jplus1,ones(N_d,1));
 
-    TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, n_d, n_a, d_grid, a_grid, TemptationFnParamsVec,0);
+    TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, n_d, n_a, d_gridvals, a_grid, TemptationFnParamsVec,0);
     MostTempting=max(TemptationMatrix,[],1);
     entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
 
@@ -68,12 +69,12 @@ for reverse_j=1:N_j-1
     
     VKronNext_j=V(:,jj+1);
     
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
     % (d,aprime,a)
 
     entireEV=kron(VKronNext_j,ones(N_d,1));
 
-    TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, n_d, n_a, d_grid, a_grid, TemptationFnParamsVec,0);
+    TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, n_d, n_a, d_gridvals, a_grid, TemptationFnParamsVec,0);
     MostTempting=max(TemptationMatrix,[],1);
     entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
 
