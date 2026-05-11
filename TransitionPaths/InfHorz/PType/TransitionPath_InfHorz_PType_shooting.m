@@ -1,4 +1,4 @@
-function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FullFnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure)
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FullFnsToEvaluate, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, nGeneralEqmEqns, transpathoptions, PTypeStructure)
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
@@ -161,22 +161,27 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             for ff=1:length(AggVarNames)
                 Parameters.(AggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end
-            PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
+            for gg=1:nGeneralEqmEqns
+                PricePathNew(tt,gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+            end
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
-            for j=1:length(GeneralEqmEqns)
+            for gg=1:nGeneralEqmEqns
                 for ff=1:length(AggVarNames)
                     Parameters.(AggVarNames{ff})=AggVarsPooledPath(ff,tt);
                 end
-                GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2)).^2);
-                PricePathNew(tt,j)=fminsearch(GEeqn_temp,GEprices);
+                GEeqn_temp=@(GEprices) sum(arrayfun(@(ggc) real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{ggc}, GeneralEqmEqnParamNames(ggc).Names, Parameters)), 1:nGeneralEqmEqns).^2);
+                PricePathNew(tt,gg)=fminsearch(GEeqn_temp,GEprices);
             end
         % Note there is no GEnewprice==2, it uses a completely different code
         elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
             for ff=1:length(AggVarNames)
                 Parameters.(AggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end
-            p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
+            p_i=zeros(1,nGeneralEqmEqns,'gpuArray');
+            for gg=1:nGeneralEqmEqns
+                p_i(gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+            end
             GEcondnPath(tt,:)=p_i; % Sometimes, want to keep the GE conditions to plot them
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);

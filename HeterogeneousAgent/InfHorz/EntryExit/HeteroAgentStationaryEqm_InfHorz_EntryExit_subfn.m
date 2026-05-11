@@ -158,7 +158,14 @@ end
 if standardgeneqmcondnsused==1
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
     if isstruct(GeneralEqmEqns)
-        GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns, Parameters));
+        StdGEnames=fieldnames(GeneralEqmEqns);
+        StdGEVec=zeros(1,length(StdGEnames));
+        for gg=1:length(StdGEnames)
+            eqn=GeneralEqmEqns.(StdGEnames{gg});
+            eqnParamNames=getAnonymousFnInputNames(eqn);
+            StdGEVec(gg)=GeneralEqmConditions_Case1_v3(eqn, eqnParamNames, Parameters);
+        end
+        GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(StdGEVec);
     else
         GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames));
     end
@@ -175,7 +182,14 @@ if specialgeneqmcondnsused==1
                 % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
                 Parameters.EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[numel(V),1]));
                 % And use entrants distribution, not the stationary distn
-                GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1_v2(EntryCondnEqn, Parameters));
+                EntGEnames=fieldnames(EntryCondnEqn);
+                EntGEVec=zeros(1,length(EntGEnames));
+                for gg=1:length(EntGEnames)
+                    eqn=EntryCondnEqn.(EntGEnames{gg});
+                    eqnParamNames=getAnonymousFnInputNames(eqn);
+                    EntGEVec(gg)=GeneralEqmConditions_Case1_v3(eqn, eqnParamNames, Parameters);
+                end
+                GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(EntGEVec);
             else
                 % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
                 EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[numel(V),1]));
@@ -189,7 +203,14 @@ if specialgeneqmcondnsused==1
                 % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
                 Parameters.EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
                 % And use entrants distribution, not the stationary distn
-                GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1_v2(EntryCondnEqn, Parameters));
+                EntGEnames=fieldnames(EntryCondnEqn);
+                EntGEVec=zeros(1,length(EntGEnames));
+                for gg=1:length(EntGEnames)
+                    eqn=EntryCondnEqn.(EntGEnames{gg});
+                    eqnParamNames=getAnonymousFnInputNames(eqn);
+                    EntGEVec(gg)=GeneralEqmConditions_Case1_v3(eqn, eqnParamNames, Parameters);
+                end
+                GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(EntGEVec);
             else
                 % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
                 EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
