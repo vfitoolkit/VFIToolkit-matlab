@@ -4,7 +4,7 @@ function [VKron,Policy]=ValueFnIter_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gr
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-%% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+%% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
 % Since the return function is independent of time creating it once and
 % then using it every iteration is good for speed, but it does use a
 % lot of memory.

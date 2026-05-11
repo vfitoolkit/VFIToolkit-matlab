@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_FieldExp_PType(n_d,n_a,n_z, N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, TreatmentParams, TreatmentAgeRange, TreatmentDuration, vfoptions)
+function [V, Policy]=ValueFnIter_FHorz_FieldExp_PType(n_d,n_a,n_z, N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, TreatmentParams, TreatmentAgeRange, TreatmentDuration, vfoptions)
 
 %
 % vfoptions.verbose=1 will give feedback
@@ -138,7 +138,7 @@ for ii=1:N_i
     end
     
     if isfinite(N_j_temp)
-        [V_ii, Policy_ii]=ValueFnIter_Case1_FieldExp_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], TreatmentParams, TreatmentAgeRange, TreatmentDuration, vfoptions_temp);
+        [V_ii, Policy_ii]=ValueFnIter_FieldExp_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], TreatmentParams, TreatmentAgeRange, TreatmentDuration, vfoptions_temp);
     else % PType actually allows for infinite horizon as well
         % Infinite horizon not yet supported for Field Experiments
         error('Infinite horizon not yet supported for Field Experiments (email me if you need it)')

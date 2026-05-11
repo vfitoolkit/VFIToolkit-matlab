@@ -13,7 +13,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 % Note: There is no z, so no need to deal with z_grid and pi_z depending on age
 
 if ~isfield(vfoptions,'V_Jplus1')
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, 0, [], a_grid, [], ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, 0, [], a_grid, [], ReturnFnParamsVec);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
@@ -24,7 +24,7 @@ else
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,1]); % Using V_Jplus1
     
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, 0, [], a_grid, [], ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, 0, [], a_grid, [], ReturnFnParamsVec);
 
     entireRHS_z=ReturnMatrix+DiscountFactorParamsVec*EV; % autoexpand a into the 2nd-dim of EV
 
@@ -51,7 +51,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,jj+1);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, 0, [], a_grid, [], ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, 0, [], a_grid, [], ReturnFnParamsVec);
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % autoexpand a into the 2nd-dim of EV
 

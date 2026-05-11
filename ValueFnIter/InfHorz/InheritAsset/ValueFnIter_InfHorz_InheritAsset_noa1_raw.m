@@ -10,7 +10,7 @@ N_z=prod(n_z);
 % Policy=zeros(N_a,N_z,'gpuArray');
 
 %% Refine d1
-% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d1 and d2 and aprime)-by-a-by-z.
+% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d1 and d2 and aprime)-by-a-by-z.
 % Since the return function is independent of time creating it once and then using it every iteration is good for speed, but it does use a lot of memory.
 
 if vfoptions.lowmemory==0

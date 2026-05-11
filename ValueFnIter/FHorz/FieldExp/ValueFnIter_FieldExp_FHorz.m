@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FieldExp_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TreatmentParams, TreatmentAgeRange, TreatmentDuration, vfoptions)
+function [V, Policy]=ValueFnIter_FieldExp_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TreatmentParams, TreatmentAgeRange, TreatmentDuration, vfoptions)
 
 V=struct();
 Policy=struct();
@@ -68,7 +68,7 @@ N_e=prod(vfoptions.n_e);
 %% If quasi-hyperbolic discounting is used, send it off to be treated specially
 if isfield(vfoptions,'exoticpreferences')
     if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-        [V, Policy]=ValueFnIter_Case1_FieldExp_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_FieldExp_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         return
     end
 else

@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_FieldExp_Treatment(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel, TreatmentAgeRange, TreatmentDuration, TreatmentAgeWeights, simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_FieldExp_Treatment(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel, TreatmentAgeRange, TreatmentDuration, TreatmentAgeWeights, simoptions)
 % Parallel is an optional input. If not given, will guess based on where StationaryDist
 % Note: the input parameters should be those for the treatment group
 

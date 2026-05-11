@@ -55,15 +55,15 @@ endogenousexitcontinuationcost=CreateVectorFromParams(Parameters, vfoptions.endo
 %%
 if vfoptions.lowmemory==0
     
-    %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
     % Since the return function is independent of time creating it once and
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
     
     % Because exit is not until the end of period the return to exit is allowed to depend on aprime, and d.
     if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnFnMatrix_Case1_Disc(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnToExitFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+        ReturnToExitMatrix=CreateReturnFnMatrix_Disc_CPU(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnToExitFnParamsVec);
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
         ReturnToExitMatrix=vfoptions.ReturnToExitFn; % It is simply assumed that you are doing this for both.

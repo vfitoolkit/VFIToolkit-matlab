@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_FieldExp_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, TreatmentParams, TreatmentAgeRange, TreatmentDuration, simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_FieldExp_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, TreatmentParams, TreatmentAgeRange, TreatmentDuration, simoptions)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -381,7 +381,7 @@ for ii=1:N_i
     % Calculate the aggregate variables for the treatment-group
     simoptions_temp.outputasstructure=0;
     if isfinite(N_j_temp)
-        StatsFromDist_AggVars_Treatment_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1_FieldExp_Treatment(StationaryDist_treat_temp, PolicyIndexes_treat_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, TreatmentAgeRange, TreatmentDuration, TreatmentAgeWeights, simoptions_temp); % Note: the input parameters should be those for the treatment group
+        StatsFromDist_AggVars_Treatment_ii=EvalFnOnAgentDist_AggVars_FHorz_FieldExp_Treatment(StationaryDist_treat_temp, PolicyIndexes_treat_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, TreatmentAgeRange, TreatmentDuration, TreatmentAgeWeights, simoptions_temp); % Note: the input parameters should be those for the treatment group
     else % PType actually allows for infinite horizon as well
         error('Field experiments do not allow for infinite horizon problems')
     end
