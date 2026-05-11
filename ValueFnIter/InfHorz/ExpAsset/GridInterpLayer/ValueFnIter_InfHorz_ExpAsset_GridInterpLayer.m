@@ -8,55 +8,7 @@ N_e=prod(vfoptions.n_e);
 error('NOT WORKING YET')
 
 
-if N_e>0
-    if N_a1==0
-        if N_d1==0
-            if N_z==0
-                error('Have not yet implemented: InfHorz, no d1, no a1, no z, e,')
-            else
-                error('Have not yet implemented: InfHorz, no d1, no a1, z, e')
-            end
-        else
-            if N_z==0
-                error('Have not yet implemented: InfHorz, d1, no a1, no z, e')
-            else
-                error('Have not yet implemented: InfHorz, d1, no a1, z, e')
-            end
-        end
-    elseif isscalar(n_a1)
-        if vfoptions.divideandconquer==0
-            if N_d1==0
-                if N_z==0
-                    error('Have not yet implemented: InfHorz, no d1, a1, no z, e, divideandconquer=0')
-                else
-                    error('Have not yet implemented: InfHorz, no d1, a1, z, e, divideandconquer=0')
-                end
-            else
-                if N_z==0
-                    error('Have not yet implemented: InfHorz, d1, a1, no z, e, divideandconquer=0')
-                else
-                    error('Have not yet implemented: InfHorz, d1, a1, z, e, divideandconquer=0')
-                end
-            end
-        elseif vfoptions.divideandconquer==1
-            if N_d1==0
-                if N_z==0
-                    error('Have not yet implemented: InfHorz, no d1, a1, no z, e, divideandconquer=1')
-                else
-                    error('Have not yet implemented: InfHorz, no d1, a1, z, e, divideandconquer=1')
-                end
-            else % d1 variable
-                if N_z==0
-                    error('Have not yet implemented: InfHorz, d1, a1, no z, e, divideandconquer=1')
-                else
-                    error('Have not yet implemented: InfHorz, d1, a1, z, e, divideandconquer=1')
-                end
-            end
-        end
-    else
-        error('Have not yet implemented grid interpolation layer in model with two standard endo states and one experienceasset')
-    end
-else % no e variable
+if N_e==0
     if N_a1==0
         if N_d1==0
             if N_z==0
@@ -107,6 +59,54 @@ else % no e variable
     else
         error('Have not yet implemented grid interpolation layer in model with two standard endo states and one experienceasset')
     end
+else % e variable
+    if N_a1==0
+        if N_d1==0
+            if N_z==0
+                error('Have not yet implemented: InfHorz, no d1, no a1, no z, e,')
+            else
+                error('Have not yet implemented: InfHorz, no d1, no a1, z, e')
+            end
+        else
+            if N_z==0
+                error('Have not yet implemented: InfHorz, d1, no a1, no z, e')
+            else
+                error('Have not yet implemented: InfHorz, d1, no a1, z, e')
+            end
+        end
+    elseif isscalar(n_a1)
+        if vfoptions.divideandconquer==0
+            if N_d1==0
+                if N_z==0
+                    error('Have not yet implemented: InfHorz, no d1, a1, no z, e, divideandconquer=0')
+                else
+                    error('Have not yet implemented: InfHorz, no d1, a1, z, e, divideandconquer=0')
+                end
+            else
+                if N_z==0
+                    error('Have not yet implemented: InfHorz, d1, a1, no z, e, divideandconquer=0')
+                else
+                    error('Have not yet implemented: InfHorz, d1, a1, z, e, divideandconquer=0')
+                end
+            end
+        elseif vfoptions.divideandconquer==1
+            if N_d1==0
+                if N_z==0
+                    error('Have not yet implemented: InfHorz, no d1, a1, no z, e, divideandconquer=1')
+                else
+                    error('Have not yet implemented: InfHorz, no d1, a1, z, e, divideandconquer=1')
+                end
+            else % d1 variable
+                if N_z==0
+                    error('Have not yet implemented: InfHorz, d1, a1, no z, e, divideandconquer=1')
+                else
+                    error('Have not yet implemented: InfHorz, d1, a1, z, e, divideandconquer=1')
+                end
+            end
+        end
+    else
+        error('Have not yet implemented grid interpolation layer in model with two standard endo states and one experienceasset')
+    end
 end
 
 
@@ -124,21 +124,21 @@ if vfoptions.outputkron==0
         n_a=n_a2;
     end
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if N_e>0
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e]);
-            Policy=UnKronPolicyIndexes_Case2(PolicyKron, n_d, n_a, vfoptions.n_e, vfoptions); % Treat e as z (because no z)
-        else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e]);
-            Policy=UnKronPolicyIndexes_Case2_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, vfoptions);
-        end
-    else
+    if N_e==0
         if N_z==0
             V=reshape(VKron,[n_a,1]);
             Policy=UnKronPolicyIndexes_Case2_noz(PolicyKron, n_d, n_a, vfoptions);
         else
             V=reshape(VKron,[n_a,n_z]);
             Policy=UnKronPolicyIndexes_Case2(PolicyKron, n_d, n_a, n_z, vfoptions);
+        end
+    else
+        if N_z==0
+            V=reshape(VKron,[n_a,vfoptions.n_e]);
+            Policy=UnKronPolicyIndexes_Case2(PolicyKron, n_d, n_a, vfoptions.n_e, vfoptions); % Treat e as z (because no z)
+        else
+            V=reshape(VKron,[n_a,n_z,vfoptions.n_e]);
+            Policy=UnKronPolicyIndexes_Case2_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, vfoptions);
         end
     end
 else

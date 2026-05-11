@@ -44,11 +44,11 @@ if isfield(simoptions,'n_e')
 else
     N_e=0;
 end
-if N_e>0
+if N_e==0
+    l_e=0;
+else
     l_e=length(simoptions.n_e);
     cumsumpi_e=gather(cumsum(simoptions.pi_e,1));
-else
-    l_e=0;
 end
 
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were

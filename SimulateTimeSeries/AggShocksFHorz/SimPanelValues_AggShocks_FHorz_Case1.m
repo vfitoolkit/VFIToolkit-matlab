@@ -193,14 +193,14 @@ if isfield(simoptions,'n_e')
 end
 
 if isfield(simoptions,'n_e') % Note: N_z==0 is dealt with elsewhere
-    if N_e>0
-        n_ze=[n_z,n_e];
-        l_ze=length(n_ze);
-        N_ze=prod(n_ze);
-    else
+    if N_e==0
         n_ze=n_z;
         l_ze=l_z;
         N_ze=N_z;
+    else
+        n_ze=[n_z,n_e];
+        l_ze=length(n_ze);
+        N_ze=prod(n_ze);
     end
 else
     n_ze=n_z;
