@@ -22,126 +22,14 @@ end
 
 
 %% Exogenous shock grids
+% Switch to z_gridvals
+[z_gridvals_J, pi_z_J,vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
+% Convert z and e to age-dependent joint-grids and transtion matrix
+% output: z_gridvals_J, pi_z_J, options.e_gridvals_J, options.pi_e_J
 
-% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-% Gradually rolling these out so that all the commands build off of these
-z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
-pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
-if prod(n_z)==0 % no z
-    z_gridvals_J=[];
-elseif ndims(z_grid)==3 % already an age-dependent joint-grid
-    if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
-        z_gridvals_J=z_grid;
-    end
-    pi_z_J=pi_z;
-elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
-    for jj=1:N_j
-        z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
-    end
-    pi_z_J=pi_z;
-elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
-    z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
-    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
-elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
-    z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
-    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+if isfield(vfoptions,'n_semiz')
+    error('cannot yet handle semiz, ask on forum if you need/want')
 end
-if isfield(vfoptions,'ExogShockFn')
-    if isfield(vfoptions,'ExogShockFnParamNames')
-        for jj=1:N_j
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            pi_z_J(:,jj)=gpuArray(pi_z);
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-            else % already joint-grid
-                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-            end
-        end
-    else
-        for jj=1:N_j
-            [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-            pi_z_J(:,jj)=gpuArray(pi_z);
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-            else % already joint-grid
-                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-            end
-        end
-    end
-end
-
-% If using e variable, do same for this
-N_e=0;
-if isfield(vfoptions,'n_e')
-    if prod(vfoptions.n_e)==0
-        vfoptions=rmfield(vfoptions,'n_e');
-    else
-        n_e=vfoptions.n_e;
-        N_e=prod(n_e);
-        if isfield(vfoptions,'e_grid_J')
-            error('No longer use vfoptions.e_grid_J, instead just put the age-dependent grid in vfoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
-        end
-        if ~isfield(vfoptions,'e_grid') % && ~isfield(vfoptions,'e_grid_J')
-            error('You are using an e (iid) variable, and so need to declare vfoptions.e_grid')
-        elseif ~isfield(vfoptions,'pi_e')
-            error('You are using an e (iid) variable, and so need to declare vfoptions.pi_e')
-        end
-
-        e_gridvals_J=zeros(prod(vfoptions.n_e),length(vfoptions.n_e),'gpuArray');
-        pi_e_J=zeros(prod(vfoptions.n_e),prod(vfoptions.n_e),'gpuArray');
-        if ndims(vfoptions.e_grid)==3 % already an age-dependent joint-grid
-            if all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e),N_j])
-                e_gridvals_J=vfoptions.e_grid;
-            end
-            pi_e_J=vfoptions.pi_e;
-        elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),N_j]) % age-dependent stacked-grid
-            for jj=1:N_j
-                e_gridvals_J(:,:,jj)=CreateGridvals(vfoptions.n_e,vfoptions.e_grid(:,jj),1);
-            end
-            pi_e_J=vfoptions.pi_e;
-        elseif all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)]) % joint grid
-            e_gridvals_J=vfoptions.e_grid.*ones(1,1,N_j,'gpuArray');
-            pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
-        elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1]) % basic grid
-            e_gridvals_J=CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1).*ones(1,1,N_j,'gpuArray');
-            pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
-        end
-        if isfield(vfoptions,'ExogShockFn')
-            if isfield(vfoptions,'ExogShockFnParamNames')
-                for jj=1:N_j
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for ii=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                    end
-                    [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                    pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                    if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                        e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                    else % already joint-grid
-                        e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                    end
-                end
-            else
-                for jj=1:N_j
-                    [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.ExogShockFn(N_j);
-                    pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                    if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                        e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                    else % already joint-grid
-                        e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                    end
-                end
-            end
-        end
-    end
-end
-
 
 %% Implement new way of handling ReturnFn inputs
 if n_d(1)==0
@@ -236,13 +124,13 @@ elseif N_z==0 && N_e>0
 
         % Evaluate Return Fn (this part is essentially copy-paste from the 'EvaluateFnOnAgentDist' commands)
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
-        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_e,a_gridvals,e_gridvals_J(:,:,jj));
+        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_e,a_gridvals,vfoptions.e_gridvals_J(:,:,jj));
    
         if jj==N_j
             V(:,:,jj)=FofPolicy_jj;
         else
             beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
-            EVnext=sum(V(:,:,jj+1).*shiftdim(pi_e_J(:,jj),-1),2); % expectation over iid
+            EVnext=sum(V(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-1),2); % expectation over iid
             
             if N_d==0 %length(n_d)==1 && n_d(1)==0
                 optaprime=PolicyIndexesKron(:,:,jj);
@@ -320,13 +208,13 @@ elseif N_z>0 && N_e>0
         PolicyValuesPermute=permute(PolicyValues(:,:,:,jj),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
-        FofPolicy_jj=reshape(EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,[n_z,n_e],a_gridvals,[repmat(z_gridvals_J(:,:,jj),N_e,1), repelem(e_gridvals_J(:,:,jj),N_z,1)]),[N_a,N_z,N_e]);
+        FofPolicy_jj=reshape(EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,[n_z,n_e],a_gridvals,[repmat(z_gridvals_J(:,:,jj),N_e,1), repelem(vfoptions.e_gridvals_J(:,:,jj),N_z,1)]),[N_a,N_z,N_e]);
         
         if jj==N_j
             V(:,:,:,jj)=FofPolicy_jj;
         else
             beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
-            EVnext=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3); % expectation over iid
+            EVnext=sum(V(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-2),3); % expectation over iid
             EVnext=EVnext.*shiftdim(pi_z_J(:,:,jj)',-1); % size N_z-by-1
             EVnext(isnan(EVnext))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EVnext=sum(EVnext,2); % sum over z', leaving a singular second dimension
@@ -347,7 +235,7 @@ elseif N_z>0 && N_e>0
         
     end
     
-    %Transforming Value Fn out of Kronecker Form
+    % Transforming Value Fn out of Kronecker Form
     V=reshape(V,[n_a,n_z,n_e,N_j]);
 end
 

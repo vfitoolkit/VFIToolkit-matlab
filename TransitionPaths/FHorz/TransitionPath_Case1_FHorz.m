@@ -99,6 +99,9 @@ if exist('vfoptions','var')==0
     % Model setup
     vfoptions.exoticpreferences='None';
     vfoptions.experienceasset=0;
+    % Exogenous shocks
+    vfoptions.n_semiz=0;
+    vfoptions.n_e=0;
 else
     % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'divideandconquer')
@@ -128,6 +131,13 @@ else
     end
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
+    end
+    % Exogenous shocks
+    if ~isfield(vfoptions,'n_semiz')
+        vfoptions.n_semiz=0;
+    end
+    if ~isfield(vfoptions,'n_e')
+        vfoptions.n_e=0;
     end
 end
 vfoptions.parallel=2; % transition path is GPU only
@@ -200,12 +210,7 @@ AgentDist_initial=gather(AgentDist_initial);
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-if isfield(vfoptions, 'n_e')
-    n_e=vfoptions.n_e;
-else
-    n_e=0;
-end
-N_e=prod(n_e);
+N_e=prod(vfoptions.n_e);
 
 if N_d==0
     l_d=0;
@@ -225,7 +230,7 @@ end
 if N_e==0
     l_e=0;
 else
-    l_e=length(n_e);
+    l_e=length(vfoptions.n_e);
 end
 
 %% Implement new way of handling ReturnFn inputs
@@ -617,7 +622,7 @@ l_p=length(PricePathNames);
 %% Shooting algorithm
 if transpathoptions.GEnewprice~=2
     
-    [PricePath,GEcondnPathmatrix]=TransitionPath_FHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_z,n_e,N_j, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,z_gridvals_J,e_gridvals_J,ze_gridvals_J_fastOLG, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames,  vfoptions, simoptions, transpathoptions);
+    [PricePath,GEcondnPathmatrix]=TransitionPath_FHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_z,vfoptions.n_e,N_j, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,z_gridvals_J,e_gridvals_J,ze_gridvals_J_fastOLG, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames,  vfoptions, simoptions, transpathoptions);
 
     % Switch the solution into structure for output.
     for ii=1:length(PricePathNames)

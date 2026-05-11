@@ -20,6 +20,7 @@ aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames);
 N_d1=prod(n_d1);
 N_a1=prod(n_a1);
 N_z=prod(n_z);
+N_e=prod(vfoptions.n_e);
 
 % Note: divide-and-conquer is only possible with a1
 if N_a1>0 % set up for divide-and-conquer
@@ -46,7 +47,7 @@ else
     d_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid; d2_grid],1);
 end
 
-if isfield(vfoptions,'n_e')
+if N_e>0
     if N_a1==0
         if N_d1==0
             if N_z==0
@@ -99,7 +100,7 @@ if vfoptions.outputkron==0
         n_a=n_a2;
     end
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         if N_z==0
             V=reshape(VKron,[n_a,vfoptions.n_e]);
             Policy=UnKronPolicyIndexes_Case2(PolicyKron, n_d, n_a, vfoptions.n_e, vfoptions); % Treat e as z (because no z)

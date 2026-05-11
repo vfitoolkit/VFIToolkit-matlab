@@ -39,7 +39,10 @@ if ~exist('vfoptions','var')
     vfoptions.experienceasset=0;
     vfoptions.inheritanceasset=0;
 %     vfoptions.exoticpreferences % default is not to declare it
-%     vfoptions.SemiEndogShockFn % default is not to declare it    
+%     vfoptions.SemiEndogShockFn % default is not to declare it
+    % Exogenous shocks
+    vfoptions.n_e=0;
+    vfoptions.n_semiz=0;
     % Other options
     vfoptions.piz_strictonrowsaddingtoone=0;
     vfoptions.separableReturnFn=0; % advanced option to split ReturnFn into two parts (ReturnFn.R1 and ReturnFn.R2)
@@ -117,6 +120,13 @@ else
     end
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
+    % Exogenous shocks
+    if ~isfield(vfoptions,'n_e')
+        vfoptions.n_e=0;
+    end
+    if ~isfield(vfoptions,'n_semiz')
+        vfoptions.n_semiz=0;
+    end
     % Other options
     if ~isfield(vfoptions,'piz_strictonrowsaddingtoone')
         vfoptions.piz_strictonrowsaddingtoone=0;
