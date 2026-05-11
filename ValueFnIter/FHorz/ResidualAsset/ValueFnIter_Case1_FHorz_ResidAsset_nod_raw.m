@@ -8,7 +8,6 @@ V=zeros(N_a,N_r,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_r,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-a_grid=gpuArray(a_grid);
 r_grid=gpuArray(r_grid);
 
 if vfoptions.lowmemory>0

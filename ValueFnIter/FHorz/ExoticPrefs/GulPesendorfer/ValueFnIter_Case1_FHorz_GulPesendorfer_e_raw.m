@@ -1,10 +1,9 @@
-function [V,Policy2]=ValueFnIter_Case1_FHorz_GulPesendorfer_e_raw(n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J,pi_z_J, pi_e_J, ReturnFn, TemptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_Case1_FHorz_GulPesendorfer_e_raw(n_d,n_a,n_z,n_e,N_j, d_gridvals, a_grid, z_gridvals_J, e_gridvals_J,pi_z_J, pi_e_J, ReturnFn, TemptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(n_e);
-d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 if N_z==0
     l_z=0;
@@ -16,8 +15,6 @@ V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
-d_grid=gpuArray(d_grid);
-a_grid=gpuArray(a_grid);
 
 special_n_e=ones(1,length(n_e)); % if vfoptions.lowmemory>0
 pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension

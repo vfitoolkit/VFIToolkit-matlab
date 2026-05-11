@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_raw(VKron, n_d,n_a,n_z, d_gridvals,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -21,7 +21,6 @@ if all(size(z_grid)==[sum(n_z),1])
 elseif all(size(z_grid)==[prod(n_z),l_z])
     z_gridvals=z_grid;
 end
-d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 %%
 tempcounter=1;

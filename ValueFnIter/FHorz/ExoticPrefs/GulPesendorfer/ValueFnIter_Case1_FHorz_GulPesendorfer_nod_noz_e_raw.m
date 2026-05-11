@@ -13,7 +13,6 @@ if ~isfield(vfoptions,'parallel_e')
 end
 
 %%
-a_grid=gpuArray(a_grid);
 
 %%
 if all(vfoptions.parallel_e==0)

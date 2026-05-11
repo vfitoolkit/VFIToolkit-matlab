@@ -234,6 +234,11 @@ pi_z=gpuArray(pi_z);
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 z_grid=gpuArray(z_grid);
+if size(d_grid,2)==1
+    d_gridvals=CreateGridvals(n_d,d_grid,1);
+else % already d_gridvals
+    d_gridvals=d_grid;
+end
 
 %% Switch to z_gridvals
 if vfoptions.alreadygridvals==0
@@ -245,7 +250,7 @@ end
 %% Separable Return Fn
 if vfoptions.separableReturnFn==1
     % Split it off here, as messes with ReturnFnParamNames and ReturnFnParamsVec
-    [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V,Policy};
     return
 end
@@ -274,22 +279,40 @@ elseif vfoptions.endogenousexit==2 % Mixture of endogenous and exogenous exit.
     return
 end
 
+%% Create a vector containing all the return function parameters (in order)
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
+if isfield(vfoptions,'exoticpreferences')
+    if vfoptions.exoticpreferences~=3
+        DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+        if vfoptions.exoticpreferences==0
+            DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
+        end
+    end
+else
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
+end
+
+
+
+
+
 %% Exotic Preferences
 if isfield(vfoptions,'exoticpreferences')
     if strcmp(vfoptions.exoticpreferences,'None')
         % Just ignore and will then continue on.
-    elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-        [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+    if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+        [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
         varargout={V,Policy};
         return
     elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-        [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
         varargout={V,Policy};
         return
     elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on the (next period) exogenous state.
         % To implement this, can actually just replace the discount factor by 1, and adjust pi_z appropriately.
         % Note that distinguishing the discount rate and pi_z is important in almost all other contexts. Just not in this one.
-        
+
         % Create a matrix containing the DiscountFactorParams,
         nDiscFactors=length(DiscountFactorParamNames);
         DiscountFactorParamsMatrix=Parameters.(DiscountFactorParamNames{1});
@@ -307,19 +330,9 @@ if isfield(vfoptions,'exoticpreferences')
     end
 end
 
-%% Create a vector containing all the return function parameters (in order)
-ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
-if isfield(vfoptions,'exoticpreferences')
-    if vfoptions.exoticpreferences~=3
-        DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-        if vfoptions.exoticpreferences==0
-            DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
-        end
-    end
-else
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-    DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
-end
+
+
+
 
 %% Experience asset
 if vfoptions.experienceasset==1
@@ -387,7 +400,7 @@ end
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
 if isfield(vfoptions,'SemiEndogShockFn')
-    [V,Policy]=ValueFnIter_SemiEndo(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions);
+    [V,Policy]=ValueFnIter_SemiEndo(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions);
     varargout={V,Policy};
     return
 end
@@ -405,16 +418,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
 %% Rest is all just different ways of solving the standard problem
 
 
@@ -422,7 +425,7 @@ end
 if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI') 
     % Note: have only implemented Relative VFI on the GPU
     warning('Relative VFI is unstable if you have substantial discretization (has difficulty converging if you dont use enough points)')
-    [VKron,Policy]=ValueFnIter_Case1_RelativeVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
+    [VKron,Policy]=ValueFnIter_Case1_RelativeVFI(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
 %%
@@ -432,13 +435,6 @@ if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI')
 %     [VKron,Policy]=ValueFnIter_Case1_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
-
-%%
-if size(d_grid,2)==1
-    d_gridvals=CreateGridvals(n_d,d_grid,1);
-else % already d_gridvals
-    d_gridvals=d_grid;
-end
 
 %% Divide-and-conquer together with grid interpolation layer is not yet done in InfHorz. It is assumed you just want the grid interpolation layer
 if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1

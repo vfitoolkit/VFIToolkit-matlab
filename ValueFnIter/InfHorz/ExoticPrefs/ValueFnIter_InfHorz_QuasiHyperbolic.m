@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames)
+function [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames)
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % Let V_j be the standard (exponential discounting) solution to the value fn problem
@@ -15,7 +15,6 @@ V=nan; % The value function of the quasi-hyperbolic agent
 Policy=nan; % The value function of the quasi-hyperbolic agent
 
 N_d=prod(n_d);
-d_gridvals=CreateGridvals(n_d,d_grid,1);
 % N_a=prod(n_a);
 % N_z=prod(n_z);
 
