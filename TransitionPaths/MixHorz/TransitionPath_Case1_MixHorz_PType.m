@@ -678,24 +678,24 @@ for ii=1:PTypeStructure.N_i
         %% Organise V_final and AgentDist_initial
         % Reshape V_final
         N_j_temp=PTypeStructure.(iistr).N_j;
-        if transpathoptions.fastOLG==0
-            if N_z==0
-                if N_e==0
-                    V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
-                else
-                    V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_e,N_j_temp]);
-                end
+        if N_z==0
+            if N_e==0
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
             else
-                if N_e==0
-                    V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_j_temp]);
-                else
-                    V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e,N_j_temp]);
-                end
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_e,N_j_temp]);
             end
         else
+            if N_e==0
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_j_temp]);
+            else
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e,N_j_temp]);
+            end
+        end
+        if transpathoptions.fastOLG==1
             if N_z==0
                 if N_e==0
-                    V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
+                    % Already reshaped
+                    % V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
                 else
                     V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_e]);
                 end
