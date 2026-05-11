@@ -27,8 +27,6 @@ if exist('vfoptions','var')==0
     %If vfoptions is not given, just use all the defaults
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
-    vfoptions.polindorval=1;
-    vfoptions.policy_forceintegertype=0;
     % Model setup:
     vfoptions.exoticpreferences='None';
     vfoptions.experienceasset=0;
@@ -43,12 +41,6 @@ else
     end
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
-    end
-    if ~isfield(vfoptions,'polindorval')
-        vfoptions.polindorval=1;
-    end
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
     end
     % Model setup:
     if ~isfield(vfoptions,'exoticpreferences')

@@ -50,7 +50,6 @@ if ~isfield(vfoptions,'lowmemory')
 end
 vfoptions.EVpre=1;
 vfoptions.outputkron=1;
-vfoptions.policy_forceintegertype=0;
 if ~isfield(simoptions,'gridinterplayer')
     simoptions.gridinterplayer=0; 
 end

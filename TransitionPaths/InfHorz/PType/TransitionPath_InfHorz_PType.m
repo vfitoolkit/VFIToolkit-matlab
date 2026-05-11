@@ -91,14 +91,10 @@ end
 
 %% Some internal commands require a few vfoptions and simoptions to be set
 if exist('vfoptions','var')==0
-    vfoptions.policy_forceintegertype=0;
     vfoptions.exoticpreferences='none';
     vfoptions.divideandconquer=0;
     vfoptions.lowmemory=0;
 else
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
-    end
     if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='none';
     end
