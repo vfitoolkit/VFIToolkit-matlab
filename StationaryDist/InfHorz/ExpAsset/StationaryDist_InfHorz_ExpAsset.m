@@ -36,8 +36,10 @@ else
     aprimeFnParamNames={};
 end
 
+N_z=prod(n_z);
+
 %%
-if n_z(1)==0
+if N_z==0
     error('Not yet implemented for ExpAsset and no z')
     % StationaryDist=StationaryDist_InfHorz_ExpAsset_noz(StationaryDistKron,Policy,n_d,n_a,d_grid,a2_grid,Parameters,simoptions);
     % return
@@ -49,7 +51,6 @@ l_d=length(n_d);
 l_a=length(n_a);
 
 N_a=prod(n_a);
-N_z=prod(n_z);
 N_e=prod(simoptions.n_e);
 
 

@@ -16,7 +16,7 @@ else
 end
 l_aprime=l_a;
 l_z=length(n_z);
-if n_z(1)==0
+if prod(n_z)==0
     l_z=0;
 end
 if isfield(vfoptions,'n_semiz') && vfoptions.n_semiz>0

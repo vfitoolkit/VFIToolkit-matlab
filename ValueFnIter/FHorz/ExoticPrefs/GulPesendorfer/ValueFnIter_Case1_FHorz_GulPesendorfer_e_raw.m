@@ -5,7 +5,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(n_e);
 
-if n_z(1)==0
+if N_z==0
     l_z=0;
 else
     l_z=length(n_z);

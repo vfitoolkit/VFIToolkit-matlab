@@ -25,7 +25,7 @@ l_a=length(n_a);
 l_z=length(n_z);
 % [n_d,n_a,n_z]
 % [l_d,l_a,l_z]
-if n_z(1)==0
+if N_z==0
     l_z=0;
 end
 if isfield(vfoptions,'SemiExoStateFn')

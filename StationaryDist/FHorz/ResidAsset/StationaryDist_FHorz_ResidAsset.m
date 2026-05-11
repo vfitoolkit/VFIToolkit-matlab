@@ -33,20 +33,20 @@ else
 end
 
 N_e=prod(simoptions.n_e);
+N_z=prod(n_z);
 
 %%
-if n_z(1)==0
+if N_z==0
     error('Not yet implemented n_z=0 with residualasset, (you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
 end
 
 %%
 N_a=prod(n_a);
 N_r=prod(n_r);
-N_z=prod(n_z);
 
 %%
 if N_z==0
-    % Note: n_z(1)==0 && N_e==0 already got sent elsewhere
+    % Note: N_z==0 && N_e==0 already got sent elsewhere
     n_ze=simoptions.n_e;
     N_ze=N_e;
 else

@@ -38,7 +38,7 @@ else
 end
 l_a=length(n_a);
 
-if n_z(1)==0
+if N_z==0
     l_z=0;
 else
     l_z=length(n_z);

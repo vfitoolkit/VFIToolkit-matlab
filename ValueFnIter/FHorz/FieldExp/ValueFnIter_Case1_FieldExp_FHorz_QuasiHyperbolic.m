@@ -48,7 +48,7 @@ else
 end
 l_a=length(n_a);
 l_z=length(n_z);
-if n_z(1)==0
+if N_z==0
     l_z=0;
 end
 if N_e==0
