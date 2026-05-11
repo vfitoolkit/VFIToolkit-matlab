@@ -280,12 +280,17 @@ if transpathoptions.fastOLG==0
                 end
                 PolicyProbsPath=a2primeProbsPath;
             elseif simoptions.fastOLG==1
+                PolicyaprimejPath=permute(repmat(PolicyaprimejPath,[1,1,2]),[1,3,2]);
                 if simoptions.setup_experienceasset.N_a1==0
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                    PolicyaprimejPath=PolicyaprimejPath+a2primeIndexesPath;
                 else
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    PolicyaprimejPath=PolicyaprimejPath+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     elseif N_z>0 && N_e>0
@@ -334,12 +339,17 @@ if transpathoptions.fastOLG==0
                 end
                 PolicyProbsPath=a2primeProbsPath;
             elseif simoptions.fastOLG==1
+                PolicyaprimejzPath=permute(repmat(PolicyaprimejzPath,[1,1,2]),[1,3,2]);
                 if simoptions.setup_experienceasset.N_a1==0
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                    PolicyaprimejzPath=PolicyaprimejzPath+a2primeIndexesPath;
                 else
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    PolicyaprimejzPath=PolicyaprimejzPath+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     end
@@ -418,12 +428,17 @@ elseif transpathoptions.fastOLG==1
         PolicyaprimejzPath=gather(PolicyaprimejzPath);
         clear PolicyIndexesPath L2index
         if simoptions.experienceasset==1
+            PolicyaprimejzPath=permute(repmat(PolicyaprimejzPath,[1,1,2]),[1,3,2]);
             if simoptions.setup_experienceasset.N_a1==0
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                PolicyaprimejzPath=PolicyaprimejzPath+a2primeIndexesPath;
             else
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                PolicyaprimejzPath=PolicyaprimejzPath+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
             end
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            if exist('PolicyProbsPath','var')
+                PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+            else
+                PolicyProbsPath=a2primeProbsPath;
+            end
         end
     elseif N_z==0 && N_e>0
         % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
@@ -457,12 +472,17 @@ elseif transpathoptions.fastOLG==1
         PolicyaprimejPath=gather(PolicyaprimejPath);
         clear PolicyIndexesPath L2index
         if simoptions.experienceasset==1
+            PolicyaprimejPath=permute(repmat(PolicyaprimejPath,[1,1,2]),[1,3,2]);
             if simoptions.setup_experienceasset.N_a1==0
-                PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                PolicyaprimejPath=PolicyaprimejPath+a2primeIndexesPath;
             else
-                PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                PolicyaprimejPath=PolicyaprimejPath+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
             end
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            if exist('PolicyProbsPath','var')
+                PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+            else
+                PolicyProbsPath=a2primeProbsPath;
+            end
         end
     elseif N_z>0 && N_e>0
         % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
@@ -496,12 +516,17 @@ elseif transpathoptions.fastOLG==1
         PolicyaprimejzPath=gather(PolicyaprimejzPath);
         clear PolicyIndexesPath L2index
         if simoptions.experienceasset==1
+            PolicyaprimejzPath=permute(repmat(PolicyaprimejzPath,[1,1,2]),[1,3,2]);
             if simoptions.setup_experienceasset.N_a1==0
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                PolicyaprimejzPath=PolicyaprimejzPath+a2primeIndexesPath;
             else
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);                
+                PolicyaprimejzPath=PolicyaprimejzPath+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
             end
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            if exist('PolicyProbsPath','var')
+                PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+            else
+                PolicyProbsPath=a2primeProbsPath;
+            end
         end
     end
 end

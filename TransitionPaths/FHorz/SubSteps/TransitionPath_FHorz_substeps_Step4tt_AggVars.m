@@ -11,7 +11,7 @@ end
 
 if transpathoptions.fastOLG==0
     % What's the right thing here?
-    WeightedAgentDist=AgentDist.*AgeWeights';
+    WeightedAgentDist=AgentDist.*AgeWeights;
     if N_e==0
         if N_z==0
             WeightedAgentDist=reshape(WeightedAgentDist,[N_a*N_j,1]);
