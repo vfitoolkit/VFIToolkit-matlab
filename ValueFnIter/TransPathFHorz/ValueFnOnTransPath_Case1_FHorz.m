@@ -13,10 +13,10 @@ if exist('transpathoptions','var')==0
     transpathoptions.verbose=0;
 else
     % Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'fastOLG')==0
+    if ~isfield(transpathoptions,'fastOLG')
         transpathoptions.fastOLG=0;
     end
-    if isfield(transpathoptions,'verbose')==0
+    if ~isfield(transpathoptions,'verbose')
         transpathoptions.verbose=0;
     end
 end

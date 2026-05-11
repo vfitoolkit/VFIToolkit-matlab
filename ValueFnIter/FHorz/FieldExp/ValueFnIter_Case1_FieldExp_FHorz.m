@@ -31,7 +31,7 @@ else
         vfoptions.verbose=0;
     end
     % Model setup
-    if isfield(vfoptions,'incrementaltype')==0
+    if ~isfield(vfoptions,'incrementaltype')
         vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     end
     % vfoptions.exoticpreferences='None';
@@ -54,8 +54,12 @@ end
 % Can skip checking input sizes as this will be done when solving for the control group anyway.
 
 %%
-n_d=0;
-n_z=0;
+if isempty(n_d)
+    n_d=0;
+end
+if isempty(n_z)
+    n_z=0;
+end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);

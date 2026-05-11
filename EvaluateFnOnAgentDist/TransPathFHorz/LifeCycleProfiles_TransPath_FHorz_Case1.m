@@ -16,16 +16,16 @@ function AgeConditionalStatsPath=LifeCycleProfiles_TransPath_FHorz_Case1(FnsToEv
 % For 'bornduringtranstion', for Mean it is a matrix in which first dimension indexes period of transition in which born (age period 1), second dimension is current age
 
 if exist('simoptions','var')
-    if isfield(simoptions,'nquantiles')==0
+    if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=20; % by default gives ventiles
     end
-    if isfield(simoptions,'agegroupings')==0
+    if ~isfield(simoptions,'agegroupings')
         simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
     end
-    if isfield(simoptions,'npoints')==0
+    if ~isfield(simoptions,'npoints')
         simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     end
-    if isfield(simoptions,'parallel')==0
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
 else

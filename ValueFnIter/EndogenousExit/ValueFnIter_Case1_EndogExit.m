@@ -3,13 +3,13 @@ function [V, Policy, ExitPolicy]=ValueFnIter_Case1_EndogExit(V0, n_d,n_a,n_z,d_g
 
 % It is only intended that this is called indirectly by ValueFnIter_Case1()
 
-if isfield(vfoptions,'endogenousexit')==0
+if ~isfield(vfoptions,'endogenousexit')
     vfoptions.endogenousexit=0;
 end
-if isfield(vfoptions,'endofperiodexit')==0
+if ~isfield(vfoptions,'endofperiodexit')
     vfoptions.endofperiodexit=0; % This has not yet been implemented as an option that can be activated.
 end
-if isfield(vfoptions,'keeppolicyonexit')==0
+if ~isfield(vfoptions,'keeppolicyonexit')
     vfoptions.keeppolicyonexit=0;
 end
 

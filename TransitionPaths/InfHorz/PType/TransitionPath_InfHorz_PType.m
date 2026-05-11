@@ -27,28 +27,28 @@ if exist('transpathoptions','var')==0
     transpathoptions.fastOLG=0;
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'tolerance')==0
+    if ~isfield(transpathoptions,'tolerance')
         transpathoptions.tolerance=10^(-4);
     end
-    if isfield(transpathoptions,'parallel')==0
+    if ~isfield(transpathoptions,'parallel')
         transpathoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if isfield(transpathoptions,'oldpathweight')==0
+    if ~isfield(transpathoptions,'oldpathweight')
         transpathoptions.oldpathweight=0.9;
     end
-    if isfield(transpathoptions,'weightscheme')==0
+    if ~isfield(transpathoptions,'weightscheme')
         transpathoptions.weightscheme=1;
     end
-    if isfield(transpathoptions,'Ttheta')==0
+    if ~isfield(transpathoptions,'Ttheta')
         transpathoptions.Ttheta=1;
     end
-    if isfield(transpathoptions,'maxiterations')==0
+    if ~isfield(transpathoptions,'maxiterations')
         transpathoptions.maxiterations=500;
     end
-    if isfield(transpathoptions,'verbose')==0
+    if ~isfield(transpathoptions,'verbose')
         transpathoptions.verbose=0;
     end
-    if isfield(transpathoptions,'verbosegraphs')==0
+    if ~isfield(transpathoptions,'verbosegraphs')
         transpathoptions.verbosegraphs=0;
     end
     if ~isfield(transpathoptions,'graphpricepath')
@@ -60,29 +60,29 @@ else
     if ~isfield(transpathoptions,'graphGEcondns')
         transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     end
-    if isfield(transpathoptions,'GEnewprice')==0
+    if ~isfield(transpathoptions,'GEnewprice')
         transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
                                    % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up    
     end
-    if isfield(transpathoptions,'fastOLG')==0
+    if ~isfield(transpathoptions,'fastOLG')
         transpathoptions.fastOLG=0;
     end
-    if isfield(transpathoptions,'historyofpricepath')==0
+    if ~isfield(transpathoptions,'historyofpricepath')
         transpathoptions.historyofpricepath=0;
     end
-    if isfield(transpathoptions,'usestockvars')==0 % usestockvars is solely for internal use, the user does not need to set it
-        if isfield(transpathoptions,'stockvarinit')==0 && isfield(transpathoptions,'usestockvars')==0 && isfield(transpathoptions,'usestockvars')==0
+    if ~isfield(transpathoptions,'usestockvars') % usestockvars is solely for internal use, the user does not need to set it
+        if ~isfield(transpathoptions,'stockvarinit') && ~isfield(transpathoptions,'usestockvars') && ~isfield(transpathoptions,'usestockvars')
             transpathoptions.usestockvars=0;
         else
             transpathoptions.usestockvars=1; % If usestockvars has not itself been declared, but at least one of the stock variable options has then set usestockvars to 1.
         end
     end
     if transpathoptions.usestockvars==1 % Note: If this is not inputted then it is created by the above lines.
-        if isfield(transpathoptions,'stockvarinit')==0
+        if ~isfield(transpathoptions,'stockvarinit')
             error('transpathoptions includes some Stock Variable options but is missing stockvarinit \n')
-        elseif isfield(transpathoptions,'stockvarpath0')==0
+        elseif ~isfield(transpathoptions,'stockvarpath0')
             error('transpathoptions includes some Stock Variable options but is missing stockvarpath0 \n')
-        elseif isfield(transpathoptions,'stockvareqns')==0
+        elseif ~isfield(transpathoptions,'stockvareqns')
             error('transpathoptions includes some Stock Variable options but is missing stockvareqns \n')
         end
     end

@@ -3,13 +3,13 @@ function [V, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2(V0
 
 % It is only intended that this is called indirectly by ValueFnIter_Case1()
 
-% if isfield(vfoptions,'endogenousexit')==0
+% if ~isfield(vfoptions,'endogenousexit')
 %     vfoptions.endogenousexit=0;
 % end
-% if isfield(vfoptions,'endofperiodexit')==0 % THIS IS ANYWAY BEING DONE BY vfoptions.endogenousexit=2
+% if ~isfield(vfoptions,'endofperiodexit') % THIS IS ANYWAY BEING DONE BY vfoptions.endogenousexit=2
 %     vfoptions.endofperiodexit=0; % This has not yet been implemented as an option that can be activated.
 % end
-if isfield(vfoptions,'keeppolicyonexit')==0 % This is ignored by vfoptions.endogenousexit=2 as it hard-codes default value since this is required.
+if ~isfield(vfoptions,'keeppolicyonexit') % This is ignored by vfoptions.endogenousexit=2 as it hard-codes default value since this is required.
     vfoptions.keeppolicyonexit=0;
 end
 
@@ -20,15 +20,15 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 % Make sure that the inputs specifically required for mix of endogenous exit and exogenous exit have been included.
-if isfield(vfoptions,'exitprobabilities')==0
+if ~isfield(vfoptions,'exitprobabilities')
     fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.exitprobabilities \n');
     return
 end
-if isfield(vfoptions,'endogenousexitcontinuationcost')==0
+if ~isfield(vfoptions,'endogenousexitcontinuationcost')
     fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.endogenousexitcontinuationcost \n');
     return
 end
-if isfield(vfoptions,'ReturnToExitFn')==0
+if ~isfield(vfoptions,'ReturnToExitFn')
     fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.ReturnToExitFn \n');
     return
 end

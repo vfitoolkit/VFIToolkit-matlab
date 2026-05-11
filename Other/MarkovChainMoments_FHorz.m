@@ -26,19 +26,19 @@ if exist('mcmomentsoptions','var')==0
     mcmomentsoptions.calcautocorrelation_nsims=10^6; % Number of simulations to use for calculating the autocorrelation
     mcmomentsoptions.n_z=size(z_grid_J,1); % Is assumed to be a single valued z
 else
-    if isfield(mcmomentsoptions,'parallel')==0
+    if ~isfield(mcmomentsoptions,'parallel')
         mcmomentsoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if isfield(mcmomentsoptions,'Tolerance')==0
+    if ~isfield(mcmomentsoptions,'Tolerance')
         mcmomentsoptions.Tolerance=10^(-8);
     end
-    if isfield(mcmomentsoptions,'calcautocorrelation')==0
+    if ~isfield(mcmomentsoptions,'calcautocorrelation')
         mcmomentsoptions.calcautocorrelation=1;
     end
-    if isfield(mcmomentsoptions,'calcautocorrelation_nsims')==0
+    if ~isfield(mcmomentsoptions,'calcautocorrelation_nsims')
         mcmomentsoptions.calcautocorrelation_nsims=10^6;
     end
-    if isfield(mcmomentsoptions,'n_z')==0
+    if ~isfield(mcmomentsoptions,'n_z')
         mcmomentsoptions.n_z=size(z_grid_J,1); % Is assumed to be a single valued z
     end
 end

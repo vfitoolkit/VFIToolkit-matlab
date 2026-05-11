@@ -21,19 +21,19 @@ if exist('simoptions','var')==0
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
-    if isfield(simoptions,'tolerance')==0
+    if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-9);
     end
-    if isfield(simoptions,'nsims')==0
+    if ~isfield(simoptions,'nsims')
         simoptions.nsims=10^4;
     end
-    if isfield(simoptions,'parallel')==0
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=3-(gpuDeviceCount>0); % 3 (sparse) if cpu, 2 if gpu
     end
-    if isfield(simoptions,'verbose')==0
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
-    if isfield(simoptions,'ncores')==0
+    if ~isfield(simoptions,'ncores')
         try
             PoolDetails=gcp;
             simoptions.ncores=PoolDetails.NumWorkers;
@@ -41,7 +41,7 @@ else
             simoptions.ncores=1;
         end
     end
-    if isfield(simoptions,'iterate')==0
+    if ~isfield(simoptions,'iterate')
         simoptions.iterate=1;
     end
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
@@ -50,7 +50,7 @@ else
     if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
     end
-    if isfield(simoptions,'outputkron')==0
+    if ~isfield(simoptions,'outputkron')
         simoptions.outputkron=0; % If 1 then leave output in Kron form
     end
     if ~isfield(simoptions,'loopovere')

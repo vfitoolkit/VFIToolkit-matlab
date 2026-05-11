@@ -93,7 +93,7 @@ else
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=100;
     end
-    if isfield(simoptions,'agegroupings')==0
+    if ~isfield(simoptions,'agegroupings')
         defaultagegroupings=1;
         if isstruct(N_j)
             N_j_max=0;
@@ -113,18 +113,18 @@ else
         defaultagegroupings=0;
         N_j_max=length(simoptions.agegroupings);
     end
-    if isfield(simoptions,'nquantiles')==0
+    if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=20; % by default gives ventiles
     end
-    if isfield(simoptions,'npoints')==0
+    if ~isfield(simoptions,'npoints')
         simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     elseif simoptions.npoints==0
         error('simoptions.npoints must be a positive (non-zero) integer')
     end
-    if isfield(simoptions,'tolerance')==0    
+    if ~isfield(simoptions,'tolerance')    
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
-    if isfield(simoptions,'agejshifter')==0
+    if ~isfield(simoptions,'agejshifter')
         simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
     end
     if ~isfield(simoptions,'whichstats')

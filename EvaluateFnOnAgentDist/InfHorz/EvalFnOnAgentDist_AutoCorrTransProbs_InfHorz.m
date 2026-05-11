@@ -31,17 +31,17 @@ if ~exist('simoptions','var')
     simoptions.alreadygridvals=0;
 else
     % Check simoptions for missing fields, if there are some fill them with the defaults
-    if ~isfield(simoptions, 'transprobs')
+    if ~isfield(simoptions,'transprobs')
         simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1); % which variables to calculate transition probabilities for (input as cell of FnsToEval names)
     end
-    if ~isfield(simoptions, 'timehorizons')
+    if ~isfield(simoptions,'timehorizons')
         simoptions.timehorizons=[]; % calculate the correlation and trans prob at these time horizons in addition to the one-period ones (can be a vector, e.g. [5,10] calculates the 1, 5 and 10 period correlations and transition probabilities; the 1 period is always calculated regardless)
     end
-    if ~isfield(simoptions, 'transprobquantiles')
+    if ~isfield(simoptions,'transprobquantiles')
         simoptions.transprobquantiles=[]; % e.g., =5 will calculate the transition probabilities for quintiles
     end
     % Model solution
-    if ~isfield(simoptions, 'gridinterplayer')
+    if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
     end
     % Model setup
@@ -58,7 +58,7 @@ else
         simoptions.n_semiz=0;
     end
     % Internal options
-    if ~isfield(simoptions, 'alreadygridvals')
+    if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
 end

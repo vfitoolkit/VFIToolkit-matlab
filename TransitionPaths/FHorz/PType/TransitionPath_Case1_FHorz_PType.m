@@ -133,7 +133,7 @@ end
 
 %% Some internal commands require a few vfoptions and simoptions to be set
 vfoptions.EVpre=0; % Not actually an option that can be used here
-if isfield(vfoptions,'lowmemory')==0
+if ~isfield(vfoptions,'lowmemory')
     vfoptions.lowmemory=0;
 end
 

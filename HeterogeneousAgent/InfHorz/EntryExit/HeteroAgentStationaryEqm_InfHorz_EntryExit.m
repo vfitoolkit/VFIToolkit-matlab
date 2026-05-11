@@ -46,7 +46,7 @@ if exist('vfoptions','var')==0
     vfoptions.parallel=2;
 else
     % Note that the vfoptions will be set when we call 'ValueFnIter...' commands and the like, so no need to set them here except for a few.
-    if isfield(vfoptions,'parallel')==0
+    if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=2;
     end
 end
@@ -57,10 +57,10 @@ if exist('simoptions','var')==0
     simoptions.endogenousexit=0;
 else
     % Note that the simoptions will be set when we call 'StationaryDist...' commands and the like, so no need to set them here except for a few.
-    if isfield(simoptions,'agententryandexit')==0
+    if ~isfield(simoptions,'agententryandexit')
         simoptions.agententryandexit=1;
     end
-    if isfield(simoptions,'endogenousexit')==0
+    if ~isfield(simoptions,'endogenousexit')
         simoptions.endogenousexit=0;
     end
 end

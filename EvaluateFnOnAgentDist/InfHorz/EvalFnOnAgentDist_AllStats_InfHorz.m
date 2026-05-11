@@ -26,10 +26,10 @@ else
     if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
-    if ~isfield(simoptions, 'gridinterplayer')
+    if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
     end
-    if ~isfield(simoptions, 'alreadygridvals')
+    if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
 end

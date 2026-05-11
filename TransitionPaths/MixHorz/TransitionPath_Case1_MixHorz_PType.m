@@ -144,7 +144,7 @@ else
     % User created vfoptions.PType.experienceasset; we have Names_i
     for ii=1:N_i
         if isfield(vfoptions.experienceasset, Names_i{ii})
-            if ~isfield(vfoptions, 'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
+            if ~isfield(vfoptions,'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
                 error('To use an experience asset you must define vfoptions.aprimeFn')
             end
         else

@@ -42,7 +42,7 @@ cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by usin
 if exist('CondlProbOfSurvival','var')
     simoptions.exitinpanel=1;
     CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a,N_z]);
-    if ~isfield(simoptions, 'endogenousexit')
+    if ~isfield(simoptions,'endogenousexit')
         simoptions.endogenousexit=0;  % Note: this will only be relevant if exitinpanel=1
     end
 else

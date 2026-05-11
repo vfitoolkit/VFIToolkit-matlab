@@ -22,17 +22,17 @@ if exist('vfoptions','var')==0
     %commands and the like, so no need to set them here except for a few.
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'parallel')==0
+    if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=2;
     end
 end
 
 % Can only get to EntryExit2 when simoptions exists.
 % Check simoptions for missing fields, if there are some fill them with the defaults
-if isfield(simoptions,'parallel')==0
+if ~isfield(simoptions,'parallel')
     simoptions.parallel=2;
 end
-if isfield(simoptions,'ncores')==0
+if ~isfield(simoptions,'ncores')
     try 
         PoolDetails=gcp;
         simoptions.ncores=PoolDetails.NumWorkers;
@@ -40,13 +40,13 @@ if isfield(simoptions,'ncores')==0
         simoptions.ncores=1;
     end
 end
-if isfield(simoptions, 'maxit')==0
+if ~isfield(simoptions,'maxit')
     simoptions.maxit=5*10^4;
 end
-if isfield(simoptions, 'tolerance')==0
+if ~isfield(simoptions,'tolerance')
     simoptions.tolerance=10^(-9);
 end
-if isfield(simoptions, 'verbose')==0
+if ~isfield(simoptions,'verbose')
     simoptions.verbose=0;
 end
 
@@ -56,21 +56,21 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000;
 else
-    if isfield(heteroagentoptions,'multiGEcriterion')==0
+    if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
     end
     if N_p~=0
-        if isfield(heteroagentoptions,'pgrid')==0
+        if ~isfield(heteroagentoptions,'pgrid')
             disp('VFI Toolkit ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
         end
     end
-    if isfield(heteroagentoptions,'verbose')==0
+    if ~isfield(heteroagentoptions,'verbose')
         heteroagentoptions.verbose=0;
     end
-    if isfield(heteroagentoptions,'fminalgo')==0
+    if ~isfield(heteroagentoptions,'fminalgo')
         heteroagentoptions.fminalgo=1; % use fminsearch
     end
-    if isfield(heteroagentoptions,'maxiter')==0
+    if ~isfield(heteroagentoptions,'maxiter')
         heteroagentoptions.maxiter=1000; % use fminsearch
     end
 end

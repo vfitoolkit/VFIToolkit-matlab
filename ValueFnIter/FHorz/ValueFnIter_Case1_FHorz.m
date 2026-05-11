@@ -49,7 +49,7 @@ else
         vfoptions.lowmemory=0;
     end
     % Alternative model setups
-    if isfield(vfoptions,'incrementaltype')==0
+    if ~isfield(vfoptions,'incrementaltype')
         vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     end
     if ~isfield(vfoptions,'exoticpreferences')
@@ -524,7 +524,7 @@ if vfoptions.dynasty==1
     if vfoptions.verbose==1
         fprintf('dynasty option is being used \n')
     end
-    if isfield(vfoptions,'tolerance')==0
+    if ~isfield(vfoptions,'tolerance')
         vfoptions.tolerance=10^(-9);
     end
     
