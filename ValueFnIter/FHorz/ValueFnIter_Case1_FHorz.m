@@ -626,8 +626,6 @@ if N_e==0
             [VKron, PolicyKron]=ValueFnIter_FHorz_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
-    % Policy without d
-    PolicyKron=shiftdim(PolicyKron,-1);
 else % N_e
     if N_z==0
         if N_d==0
@@ -644,7 +642,9 @@ else % N_e
     end
 end
 
-
+% if N_d==0
+%     PolicyKron=shiftdim(PolicyKron,-1);
+% end
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if vfoptions.outputkron==0

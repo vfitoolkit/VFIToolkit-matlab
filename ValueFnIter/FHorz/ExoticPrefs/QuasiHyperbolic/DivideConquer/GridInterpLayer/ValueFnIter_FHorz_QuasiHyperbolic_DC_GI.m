@@ -22,7 +22,7 @@ if isscalar(n_a)
                 if N_d==0
                     [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC1_GI1_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [V1Kron, PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC1_GI1_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V1Kron, PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC1_GI1_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             else
                 if N_d==0
@@ -31,8 +31,6 @@ if isscalar(n_a)
                     [V1Kron, PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC1_GI1_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             end
-            % Policy without d
-            PolicyKron=shiftdim(PolicyKron,-1);
         else
             if N_z==0
                 if N_d==0
@@ -54,7 +52,7 @@ if isscalar(n_a)
                 if N_d==0
                     [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC1_GI1_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [V1Kron, PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC1_GI1_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V1Kron, PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC1_GI1_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             else
                 if N_d==0
@@ -63,8 +61,6 @@ if isscalar(n_a)
                     [V1Kron, PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC1_GI1_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             end
-            % Policy without d
-            PolicyKron=shiftdim(PolicyKron,-1);
         else
             if N_z==0
                 if N_d==0
@@ -88,6 +84,10 @@ end
 
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+if N_d==0
+    PolicyKron=shiftdim(PolicyKron,-1);
+end
+
 if N_d==0
     Case2policies=[n_a,vfoptions.ngridinterp];
 else

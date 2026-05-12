@@ -2,6 +2,15 @@ function [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHor
 % Note: removes n_e from simoptions (if it is there)
 % Note: removes n_semiz from simoptions (if it is there)
 
+% FnsToEvaluate commands do not create n_e and n_semiz
+if ~isfield(simoptions,'n_e')
+    simoptions.n_e=0;
+end
+if ~isfield(simoptions,'n_semiz')
+    simoptions.n_semiz=0;
+end
+
+
 %% Create z_gridvals_J (which will combine all three of semiz, z, and e)
 
 % First z
