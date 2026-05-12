@@ -60,14 +60,11 @@ else
     aprimeFnParamNames={};
 end
 
-if isfield(simoptions,'n_e')
-    N_e=prod(simoptions.n_e);
-else
-    N_e=0;
-end
+N_e=prod(simoptions.n_e);
+N_z=prod(n_z);
 
 %%
-if n_z(1)==0 && N_e==0
+if N_z==0 && N_e==0
     StationaryDist=StationaryDist_FHorz_ExpAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_u,N_j,d_grid,a2_grid,u_grid,pi_u,Parameters,simoptions);
     return
 end
@@ -77,12 +74,11 @@ l_d=length(n_d);
 l_a=length(n_a);
 
 N_a=prod(n_a);
-N_z=prod(n_z);
 N_u=prod(n_u);
 
 %%
 if N_z==0
-    % Note: n_z(1)==0 && N_e==0 already got sent elsewhere
+    % Note: N_z==0 && N_e==0 already got sent elsewhere
     n_ze=simoptions.n_e;
     N_ze=N_e;
 else

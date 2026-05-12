@@ -1,13 +1,8 @@
-function [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,ReturnFn,Params,DiscountFactorParamNames,ReturnFnParamNames,vfoptions)
+function [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,Params,DiscountFactorParamNames,ReturnFnParamNames,vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-
-pi_z=gpuArray(pi_z);
-d_grid=gpuArray(d_grid);
-a_grid=gpuArray(a_grid);
-z_gridvals=gpuArray(z_gridvals);
 
 asset_grid = a_grid(1:n_a(1));
 e_grid     = a_grid(n_a(1)+1:n_a(1)+n_a(2));
@@ -38,7 +33,6 @@ DiscountFactorParamsVec = Params.(DiscountFactorParamNames{1});
 % ReturnMatrix is (a',a,z)
 %ReturnMatrix
 
-d_gridvals  = d_grid;
 aprime_vals = shiftdim(asset_grid,-1);
 e_vals = shiftdim(e_grid,-2);
 a_vals      = shiftdim(asset_grid,-3);

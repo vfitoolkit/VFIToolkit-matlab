@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames)
+function [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames)
 % Epstein-Zin preferences
 % Formulation depends on whether using utility-units or consumption-units
 
@@ -97,10 +97,10 @@ N_d=prod(n_d);
 %%
 if vfoptions.lowmemory==0
     
-    %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
     % Since the return function is independent of time creating it once and then using it every iteration is good
     % for speed, but it does use a lot of memory.
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid,ReturnFnParamsVec);
     
     if N_d==0
         [VKron,Policy]=ValueFnIter_InfHorz_EpsteinZin_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
@@ -115,7 +115,7 @@ elseif vfoptions.lowmemory==1
         [VKron,Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
         Policy=shiftdim(Policy,-1);
     else
-        [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+        [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_raw(V0, n_d,n_a,n_z, d_gridvals, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
     end
 end
 

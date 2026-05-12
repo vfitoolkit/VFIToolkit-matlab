@@ -12,7 +12,6 @@ if vfoptions.lowmemory>0
 end
 
 %%
-a_grid=gpuArray(a_grid);
 
 ambiguity_pi_e_J=shiftdim(ambiguity_pi_e_J,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
 

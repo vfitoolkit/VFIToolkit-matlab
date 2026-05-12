@@ -45,50 +45,51 @@ else
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if ~isfield(simoptions, 'maxit')
+    if ~isfield(simoptions,'maxit')
         simoptions.maxit=10^6;
     end
-    if ~isfield(simoptions, 'tolerance')
+    if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-6); % I originally had this at 10^(-9) but this seems to have been overly strict as very hard to acheive and not needed for model accuracy, now set to 10^(-6) [note that this is the max of all error across the agent dist, the L-Infinity norm]
     end
-    if ~isfield(simoptions, 'multiiter')
+    if ~isfield(simoptions,'multiiter')
         simoptions.multiiter=50; % How many iteration steps before check tolerance
     end
     % Options relating to simulation method
     if ~isfield(simoptions,'ncores')
         simoptions.ncores=1;
     end
-    if ~isfield(simoptions, 'seedpoint')
+    if ~isfield(simoptions,'seedpoint')
         simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     end
-    if ~isfield(simoptions, 'simperiods')
+    if ~isfield(simoptions,'simperiods')
         simoptions.simperiods=10^6;  % I tried a few different things and this seems reasonable.
     end
-    if ~isfield(simoptions, 'burnin')
+    if ~isfield(simoptions,'burnin')
         simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
     end
     % Options for other solution methods, probably not things you want to play with
-    if ~isfield(simoptions, 'iterate')
+    if ~isfield(simoptions,'iterate')
         simoptions.iterate=1;
     end
-    if ~isfield(simoptions, 'tanimprovement')
+    if ~isfield(simoptions,'tanimprovement')
         simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration (is hardcoded into everything but the most basic setting)
     end
     if ~isfield(simoptions,'eigenvector')
         simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
     end
     % Alternative setups
-    if ~isfield(simoptions, 'gridinterplayer')
+    if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
-        if simoptions.gridinterplayer==1
+    elseif simoptions.gridinterplayer==1
+        if ~isfield(simoptions,'ngridinterp')
             error('When using simoptions.gridinterplayer=1, you must set simoptions.ngridinterp')
         end
     end
-    if ~isfield(simoptions, 'agententryandexit')
+    if ~isfield(simoptions,'agententryandexit')
         simoptions.agententryandexit=0;
     else
         if simoptions.agententryandexit==1
-            if isfield(simoptions, 'endogenousexit')==0
+            if ~isfield(simoptions,'endogenousexit')
                 simoptions.endogenousexit=0;
             end
         end
@@ -108,7 +109,7 @@ else
         simoptions.n_semiz=0;
     end
     % When calling as a subcommand, the following is used internally
-    if ~isfield(simoptions, 'outputkron')
+    if ~isfield(simoptions,'outputkron')
         simoptions.outputkron=0;
     end
     if ~isfield(simoptions,'alreadygridvals')
@@ -217,7 +218,7 @@ end
 %% If there is an initial dist use that, otherwise set up a (basic but poor) initial guess
 if simoptions.iterate==1
     % Iteration must start from an initial guess
-    if isfield(simoptions, 'initialdist')
+    if isfield(simoptions,'initialdist')
         StationaryDist=reshape(simoptions.initialdist,[N_a*N_z,1]);
     else
         % Just use a poor initial guesses

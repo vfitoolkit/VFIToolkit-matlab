@@ -3,13 +3,13 @@ function [V, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2(V0
 
 % It is only intended that this is called indirectly by ValueFnIter_Case1()
 
-% if isfield(vfoptions,'endogenousexit')==0
+% if ~isfield(vfoptions,'endogenousexit')
 %     vfoptions.endogenousexit=0;
 % end
-% if isfield(vfoptions,'endofperiodexit')==0 % THIS IS ANYWAY BEING DONE BY vfoptions.endogenousexit=2
+% if ~isfield(vfoptions,'endofperiodexit') % THIS IS ANYWAY BEING DONE BY vfoptions.endogenousexit=2
 %     vfoptions.endofperiodexit=0; % This has not yet been implemented as an option that can be activated.
 % end
-if isfield(vfoptions,'keeppolicyonexit')==0 % This is ignored by vfoptions.endogenousexit=2 as it hard-codes default value since this is required.
+if ~isfield(vfoptions,'keeppolicyonexit') % This is ignored by vfoptions.endogenousexit=2 as it hard-codes default value since this is required.
     vfoptions.keeppolicyonexit=0;
 end
 
@@ -18,17 +18,18 @@ V=nan; % Matlab was complaining that V was not assigned
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 % Make sure that the inputs specifically required for mix of endogenous exit and exogenous exit have been included.
-if isfield(vfoptions,'exitprobabilities')==0
+if ~isfield(vfoptions,'exitprobabilities')
     fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.exitprobabilities \n');
     return
 end
-if isfield(vfoptions,'endogenousexitcontinuationcost')==0
+if ~isfield(vfoptions,'endogenousexitcontinuationcost')
     fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.endogenousexitcontinuationcost \n');
     return
 end
-if isfield(vfoptions,'ReturnToExitFn')==0
+if ~isfield(vfoptions,'ReturnToExitFn')
     fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.ReturnToExitFn \n');
     return
 end
@@ -55,21 +56,21 @@ endogenousexitcontinuationcost=CreateVectorFromParams(Parameters, vfoptions.endo
 %%
 if vfoptions.lowmemory==0
     
-    %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
     % Since the return function is independent of time creating it once and
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
     
     % Because exit is not until the end of period the return to exit is allowed to depend on aprime, and d.
     if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnFnMatrix_Case1_Disc(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnToExitFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+        ReturnToExitMatrix=CreateReturnFnMatrix_Disc_CPU(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnToExitFnParamsVec);
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
         ReturnToExitMatrix=vfoptions.ReturnToExitFn; % It is simply assumed that you are doing this for both.
     elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnToExitFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+        ReturnToExitMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnToExitFnParamsVec);
     end
         
     %%

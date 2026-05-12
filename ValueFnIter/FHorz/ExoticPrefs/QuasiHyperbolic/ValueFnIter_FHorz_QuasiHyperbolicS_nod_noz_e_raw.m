@@ -18,8 +18,8 @@ Policy=zeros(N_a,N_e,N_j,'gpuArray'); % indexes the optimal choice for aprime re
 %%
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e)); % vfoptions.lowmemory>0
-    pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 end
+pi_e_J=shiftdim(pi_e_J,-1); % Move to second dimension as no_z
 
 %% j=N_j
 
@@ -30,7 +30,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         Vhat(:,:,N_j)=Vtemp;
@@ -40,7 +40,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec,0);
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             Vhat(:,e_c,N_j)=Vtemp;
@@ -59,15 +59,14 @@ else
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec); % Discount factor between any two future periods
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta; % Discount factor between today and tomorrow.
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
+    beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    VKronNext_j=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3); % Note: The V_Jplus1 input should be Vunderbar for sophisticated
+    EV=sum(V_Jplus1.*pi_e_J(1,:,N_j),2); % Note: The V_Jplus1 input should be Vunderbar for sophisticated
 
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-
-        EV=VKronNext_j;
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
 
         % For sophisticated we compute Vhat, and the Policy (which is Policyhat)
         % and then we compute Vunderbar.
@@ -82,11 +81,10 @@ else
         Vunderbar(:,:,N_j)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
 
     elseif vfoptions.lowmemory==1
-        EV=VKronNext_j;
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec,0);
 
             % For sophisticated we compute Vhat, and the Policy (which is Policyhat)
             % and then we compute Vunderbar.
@@ -119,17 +117,16 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     beta=prod(DiscountFactorParamsVec); % Discount factor between any two future periods
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta; % Discount factor between today and tomorrow.
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
+    beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    VKronNext_j=Vunderbar(:,:,jj+1); % Use Vunderbar (goes into the equation to determine Vhat)
+    EV=Vunderbar(:,:,jj+1); % Use Vunderbar (goes into the equation to determine Vhat)
 
-    VKronNext_j=sum(VKronNext_j.*pi_e_J(1,1,:,jj),3);
+    EV=sum(EV.*pi_e_J(1,:,jj),2);
 
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
-
-        EV=VKronNext_j;
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
 
         % For sophisticated we compute Vhat, and the Policy (which is Policyhat)
         % and then we compute Vunderbar.
@@ -144,11 +141,10 @@ for reverse_j=1:N_j-1
         Vunderbar(:,:,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
 
     elseif vfoptions.lowmemory==1
-        EV=VKronNext_j;
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec,0);
 
             % For sophisticated we compute Vhat, and the Policy (which is Policyhat)
             % and then we compute Vunderbar.

@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Gul-Pesendorfer
 
 V=nan;
@@ -25,7 +25,7 @@ l_a=length(n_a);
 l_z=length(n_z);
 % [n_d,n_a,n_z]
 % [l_d,l_a,l_z]
-if n_z(1)==0
+if N_z==0
     l_z=0;
 end
 if isfield(vfoptions,'SemiExoStateFn')
@@ -74,15 +74,15 @@ if N_d==0
 else
     if N_e==0
         if N_z==0
-            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_GulPesendorfer_noz_raw(n_d, n_a, N_j, d_grid, a_grid, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_GulPesendorfer_noz_raw(n_d, n_a, N_j, d_gridvals, a_grid, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
         else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_GulPesendorfer_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_GulPesendorfer_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
         end
     else
         if N_z==0
             % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_GulPesendorfer_noz_e_raw(n_d, n_a, vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_grid_J, vfoptions.pi_e_J, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_GulPesendorfer_e_raw(n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_GulPesendorfer_e_raw(n_d, n_a, n_z, vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
         end
     end
 end

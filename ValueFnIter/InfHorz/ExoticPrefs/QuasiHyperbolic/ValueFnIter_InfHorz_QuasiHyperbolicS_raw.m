@@ -1,4 +1,4 @@
-function [Vhat, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic_raw(Vunderbar, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, Howards,Howards2, Tolerance, maxiter) %Verbose,
+function [Vhat, Policy]=ValueFnIter_InfHorz_QuasiHyperbolicS_raw(Vunderbar, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, Howards,Howards2, Tolerance, maxiter) %Verbose,
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % The 'Sophisticated' quasi-hyperbolic solution takes into account the time-inconsistent behaviour of their future self.

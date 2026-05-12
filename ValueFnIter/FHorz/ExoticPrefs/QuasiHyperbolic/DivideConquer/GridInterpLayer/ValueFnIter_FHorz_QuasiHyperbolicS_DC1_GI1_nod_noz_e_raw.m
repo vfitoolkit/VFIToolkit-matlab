@@ -91,7 +91,8 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames, N_j);
     beta=prod(DiscountFactorParamsVec);
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta;
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
+    beta0beta=beta0*beta;
 
     EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j),2);
     EVinterp=interp1(a_grid,EV,aprime_grid);
@@ -101,7 +102,7 @@ else
     if vfoptions.lowmemory==0
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 1);
 
-        % --- Vhat search (beta0beta) ---
+        %% Vhat (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
         [~,maxindex1]=max(entireRHS_ii,[],1);
         midpoints_jj(1,level1ii,:)=maxindex1;
@@ -138,7 +139,7 @@ else
 
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec, 1);
 
-            % --- Vhat search (beta0beta) ---
+            %% Vhat (beta0*beta)
             entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
             [~,maxindex1]=max(entireRHS_ii,[],1);
             midpoints_jj(1,level1ii)=maxindex1;
@@ -183,7 +184,8 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     beta=prod(DiscountFactorParamsVec);
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta;
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
+    beta0beta=beta0*beta;
 
     EVsource=Vunderbar(:,:,jj+1);
     EV=sum(EVsource.*pi_e_J(1,:,jj),2);
@@ -192,7 +194,7 @@ for reverse_j=1:N_j-1
     if vfoptions.lowmemory==0
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,jj), ReturnFnParamsVec, 1);
 
-        % --- Vhat search (beta0beta) ---
+        %% Vhat (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
         [~,maxindex1]=max(entireRHS_ii,[],1);
         midpoints_jj(1,level1ii,:)=maxindex1;
@@ -229,7 +231,7 @@ for reverse_j=1:N_j-1
 
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec, 1);
 
-            % --- Vhat search (beta0beta) ---
+            %% Vhat (beta0*beta)
             entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
             [~,maxindex1]=max(entireRHS_ii,[],1);
             midpoints_jj(1,level1ii)=maxindex1;

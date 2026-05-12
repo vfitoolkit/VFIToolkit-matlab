@@ -1,11 +1,9 @@
-function [V, Policy]=ValueFnIter_DC1_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions) %Verbose,
+function [V, Policy]=ValueFnIter_DC1_raw(V0, n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions) %Verbose,
 % Note: Could easily refine level1. But I don't think this is usable because in level2 I need aprime conditional on d.
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-
-d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 % n-Monotonicity
 % vfoptions.level1n=11;

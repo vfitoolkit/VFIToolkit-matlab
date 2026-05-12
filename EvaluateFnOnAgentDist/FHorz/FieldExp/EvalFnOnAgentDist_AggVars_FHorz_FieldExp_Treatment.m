@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_FieldExp_Treatment(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel, TreatmentAgeRange, TreatmentDuration, TreatmentAgeWeights, simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_FieldExp_Treatment(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel, TreatmentAgeRange, TreatmentDuration, TreatmentAgeWeights, simoptions)
 % Parallel is an optional input. If not given, will guess based on where StationaryDist
 % Note: the input parameters should be those for the treatment group
 
@@ -33,9 +33,19 @@ end
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0;
+    end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
     end
 end
 
@@ -46,6 +56,12 @@ if N_z==0
 %    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_noz(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames, n_d,n_a,N_j,d_grid,a_grid,Parallel,simoptions);
 %    return
 end
+
+%% TODO: refactor the inline z/e/semiz grid setup below to use CreateGridvals_FnsToEvaluate_FHorz
+% (see EvalFnOnAgentDist_AggVars_FHorz_Case1.m for the canonical helper-based pattern).
+% Blocker: the lowmemory==1 path below loops over treatment-age x duration x e and depends on
+% z_grid_J and e_grid_J being kept separate; the helper always combines them. Refactor would
+% require either dropping lowmemory==1 from this file or rewriting the e-loop.
 
 %% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
 if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
@@ -88,7 +104,7 @@ else % Joint-grid on shocks
     jointgridz=1;
 end
 
-if isfield(simoptions,'n_e')
+if prod(simoptions.n_e)>0
     % Because of how FnsToEvaluate works I can just get the e variables and then 'combine' them with z
     eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
     eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
@@ -132,9 +148,10 @@ if isfield(simoptions,'n_e')
         % Keep them seperate
     else
         % Now combine into z
-        if n_z(1)==0
+        if N_z==0
             l_z=l_e;
             n_z=n_e;
+            N_z=N_e;
             z_grid_J=e_grid_J;
         else
             % Need to allow for possibility that one of the other is using joint-grids

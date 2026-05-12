@@ -6,7 +6,6 @@ V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-a_grid=gpuArray(a_grid);
 a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
 
 %% j=N_j

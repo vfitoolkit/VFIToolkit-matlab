@@ -35,8 +35,8 @@ end
 if ~isstruct(jequaloneDist)
     % Using matrix, reshape now to save multiple reshapes later
     % (Note that matrix implies same grids for all agents)
-    if isfield(simoptions,'n_e')
-        if isfield(simoptions,'n_semiz')
+    if prod(simoptions.n_e)>0
+        if prod(simoptions.n_semiz)>0
             if prod(n_z)==0
                 if ndims(jequaloneDist)==length([n_a,simoptions.n_semiz,simoptions.n_e])
                     if all(size(jequaloneDist)==[n_a,simoptions.n_semiz,simoptions.n_e])
@@ -114,7 +114,7 @@ if ~isstruct(jequaloneDist)
             end
         end
     else % no e variable
-        if isfield(simoptions,'n_semiz')
+        if prod(simoptions.n_semiz)>0
             if prod(n_z)==0
                 if ndims(jequaloneDist)==length([n_a,simoptions.n_semiz])
                     if all(size(jequaloneDist)==[n_a,simoptions.n_semiz])

@@ -8,7 +8,6 @@ V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-a_grid=gpuArray(a_grid);
 
 special_n_e=ones(1,length(n_e)); % for vfoptions.lowmemory>0
 pi_e_J=shiftdim(pi_e_J,-2); % Move to thrid dimension

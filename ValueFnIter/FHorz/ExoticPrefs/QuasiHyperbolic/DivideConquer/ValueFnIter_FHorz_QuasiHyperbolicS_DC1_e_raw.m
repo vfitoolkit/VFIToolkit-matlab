@@ -26,6 +26,7 @@ else
 end
 
 zBind=shiftdim(gpuArray(0:1:N_z-1),-2);
+zindC=gpuArray(0:1:N_z-1);  % 1-by-N_z (for EV_at_Policy indexing)
 
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 
@@ -132,7 +133,8 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta;
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
+    beta0beta=beta0*beta;
 
     EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]).*pi_e_J(1,1,:,N_j),3);
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
@@ -173,7 +175,7 @@ else
             end
         end
         aprime_ind=ceil(Policy(:,:,:,N_j)/N_d);
-        EV_at_policy=EV(aprime_ind+N_a*shiftdim(0:N_z-1,-1));
+        EV_at_policy=EV(aprime_ind+N_a*zindC);
         Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j)+(beta-beta0beta)*EV_at_policy;
 
     elseif vfoptions.lowmemory==1
@@ -213,7 +215,7 @@ else
                 end
             end
             aprime_ind_e=ceil(Policy(:,:,e_c,N_j)/N_d);
-            EV_at_policy_e=EV_e(aprime_ind_e+N_a*shiftdim(0:N_z-1,-1));
+            EV_at_policy_e=EV_e(aprime_ind_e+N_a*zindC);
             Vunderbar(:,:,e_c,N_j)=Vhat(:,:,e_c,N_j)+(beta-beta0beta)*EV_at_policy_e;
         end
 
@@ -270,7 +272,8 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     beta=prod(DiscountFactorParamsVec);
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta;
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
+    beta0beta=beta0*beta;
 
     EVsource=Vunderbar(:,:,:,jj+1);
     EV=sum(EVsource.*pi_e_J(1,1,:,jj),3);
@@ -312,7 +315,7 @@ for reverse_j=1:N_j-1
             end
         end
         aprime_ind=ceil(Policy(:,:,:,jj)/N_d);
-        EV_at_policy=EV(aprime_ind+N_a*shiftdim(0:N_z-1,-1));
+        EV_at_policy=EV(aprime_ind+N_a*zindC);
         Vunderbar(:,:,:,jj)=Vhat(:,:,:,jj)+(beta-beta0beta)*EV_at_policy;
 
     elseif vfoptions.lowmemory==1
@@ -352,7 +355,7 @@ for reverse_j=1:N_j-1
                 end
             end
             aprime_ind_e=ceil(Policy(:,:,e_c,jj)/N_d);
-            EV_at_policy_e=EV_e(aprime_ind_e+N_a*shiftdim(0:N_z-1,-1));
+            EV_at_policy_e=EV_e(aprime_ind_e+N_a*zindC);
             Vunderbar(:,:,e_c,jj)=Vhat(:,:,e_c,jj)+(beta-beta0beta)*EV_at_policy_e;
         end
 

@@ -13,9 +13,7 @@ V=zeros(N_a1,N_a2,N_z,N_j,'gpuArray');
 Policy=zeros(N_a1,N_a2,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
-d_grid=gpuArray(d_grid);
 d_gridvals=CreateGridvals(n_d,d_grid,1);
-a_grid=gpuArray(a_grid);
 
 a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);

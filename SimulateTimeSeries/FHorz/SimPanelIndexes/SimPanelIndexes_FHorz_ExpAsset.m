@@ -21,11 +21,11 @@ else
     l_z=0;
 end
 N_e=prod(simoptions.n_e);
-if N_e>0
+if N_e==0
+    l_e=0;
+else
     l_e=length(simoptions.n_e);
     cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
-else
-    l_e=0;
 end
 
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were

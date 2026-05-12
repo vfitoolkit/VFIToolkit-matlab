@@ -144,7 +144,7 @@ else
     % User created vfoptions.PType.experienceasset; we have Names_i
     for ii=1:N_i
         if isfield(vfoptions.experienceasset, Names_i{ii})
-            if ~isfield(vfoptions, 'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
+            if ~isfield(vfoptions,'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
                 error('To use an experience asset you must define vfoptions.aprimeFn')
             end
         else
@@ -486,7 +486,7 @@ for ii=1:PTypeStructure.N_i
         l_a=l_aprime;
     end
     l_z=length(PTypeStructure.(iistr).n_z);
-    if PTypeStructure.(iistr).n_z(1)==0
+    if PTypeStructure.(iistr).N_z==0
         l_z=0;
     end
     if isfield(PTypeStructure.(iistr).vfoptions,'SemiExoStateFn')
@@ -667,9 +667,17 @@ for ii=1:PTypeStructure.N_i
         end
     end
 
-    if isfinite(PTypeStructure.(iistr).N_j)
-        PTypeStructure.(iistr).simoptions.fastOLG=1; % hardcode 
+    %% If using any non-standard endogenous states, setup for those (both FHorz and InfHorz btw)
+    [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
 
+    N_j_temp=PTypeStructure.(iistr).N_j;
+    if ~isfinite(N_j_temp)
+        % Reshape V_final
+        % If no z, then N_z=1 here
+        V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
+
+        % Presume all InfHorz ExogShock functions happen only with respect to transition paths (i.e., z_grid_T/e_grid_T and pi_z_T/pi_e_T
+    else
         %% Set up exogenous shock processes
         [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, PTypeStructure.(iistr).simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
         % Convert z and e to age-dependent joint-grids and transtion matrix
@@ -677,7 +685,6 @@ for ii=1:PTypeStructure.N_i
 
         %% Organise V_final and AgentDist_initial
         % Reshape V_final
-        N_j_temp=PTypeStructure.(iistr).N_j;
         if N_z==0
             if N_e==0
                 V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
@@ -698,6 +705,26 @@ for ii=1:PTypeStructure.N_i
                     % V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
                 else
                     V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_e]);
+                end
+            else
+                if N_e==0
+                    V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_z]);
+                else
+                    V_final.(iistr)=reshape(permute(V_final.(iistr),[1,4,2,3]),[N_a*N_j_temp,N_z,N_e]);
+                end
+            end
+        end
+
+        % Reshape AgentDist_initial and turn AgeWeights_T into appropriate size so that we can always just do AgentDist.*AgeWeights
+        % Note when simoptions.fastOLG==1 we have shapes of [N_a*N_j_temp*whatever,1-or-N_e] instead of [N_a,whatever-and-maybe-N_e,N_j_temp]
+        AgentDist_init=AgentDist_initial.(iistr);
+        if N_z==0
+            if N_e==0
+                AgentDist_init=reshape(AgentDist_init,[N_a,N_j_temp]); % if simoptions.fastOLG==0
+                AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
+                if PTypeStructure.(iistr).simoptions.fastOLG
+                    AgentDist_init=reshape(AgentDist_init,[N_a*N_j_temp,1]);
+                    AgeWeights_init=repelem(AgeWeights_init',N_a,1);
                 end
             else
                 if N_e==0
@@ -831,8 +858,6 @@ for ii=1:PTypeStructure.N_i
             end
             PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
         end
-    else
-        % Presume all InfHorz ExogShock functions happen only with respect to transition paths (i.e., z_grid_T/e_grid_T and pi_z_T/pi_e_T
     end
 
     %% Which parts of ParamPath and PricePath relate to ptype ii

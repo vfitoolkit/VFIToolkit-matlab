@@ -23,7 +23,8 @@ elseif vfoptions.lowmemory==1
     special_n_z=ones(1,length(n_z));
 end
 
-zind=shiftdim(gpuArray((0:1:N_z-1)),-1);  % 1-by-N_z
+zind=shiftdim(gpuArray(0:1:N_z-1),-1);  % 1-by-1-by-N_z
+zindB=gpuArray(0:1:N_z-1);  % 1-by-N_z (for EV_at_Policy indexing)
 
 % n-Monotonicity
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
@@ -89,7 +90,8 @@ else
     % Using V_Jplus1 (should be Vunderbar for sophisticated)
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta;
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
+    beta0beta=beta0*beta;
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
@@ -101,7 +103,7 @@ else
     if vfoptions.lowmemory==0
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
-        % --- Vhat search (beta0*beta) ---
+        %% Vhat (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
         [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
         Vhat(level1ii,:,N_j)=shiftdim(Vtempii,1);
@@ -129,7 +131,7 @@ else
         end
         % Vunderbar = Vhat + (beta - beta0*beta)*EV_at_optimal_aprime
         aprime_ind=Policy(:,:,N_j);   % N_a-by-N_z
-        EV_at_policy=EV(aprime_ind+N_a*zind);
+        EV_at_policy=EV(aprime_ind+N_a*zindB);
         Vunderbar(:,:,N_j)=Vhat(:,:,N_j)+(beta-beta0beta)*EV_at_policy;
 
     elseif vfoptions.lowmemory==1
@@ -139,7 +141,7 @@ else
 
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_z, a_grid, a_grid(level1ii), z_val, ReturnFnParamsVec,1);
 
-            % --- Vhat search (beta0*beta) ---
+            %% Vhat (beta0*beta)
             entireRHS_ii=ReturnMatrix_ii+beta0beta*EV_z;
             [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
             Vhat(level1ii,z_c,N_j)=shiftdim(Vtempii,1);
@@ -182,7 +184,8 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     beta=prod(DiscountFactorParamsVec);
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta;
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
+    beta0beta=beta0*beta;
 
     EVsource=Vunderbar(:,:,jj+1);
     EV=EVsource.*shiftdim(pi_z_J(:,:,jj)',-1);
@@ -218,7 +221,7 @@ for reverse_j=1:N_j-1
             end
         end
         aprime_ind=Policy(:,:,jj);
-        EV_at_policy=EV(aprime_ind+N_a*zind);
+        EV_at_policy=EV(aprime_ind+N_a*zindB);
         Vunderbar(:,:,jj)=Vhat(:,:,jj)+(beta-beta0beta)*EV_at_policy;
 
     elseif vfoptions.lowmemory==1

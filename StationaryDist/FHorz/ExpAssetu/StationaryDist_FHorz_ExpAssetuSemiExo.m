@@ -82,11 +82,7 @@ l_a=length(n_a);
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);
 N_z=prod(n_z);
-if isfield(simoptions,'n_e')
-    N_e=prod(simoptions.n_e);
-else
-    N_e=0;
-end
+N_e=prod(simoptions.n_e);
 N_u=prod(n_u);
 
 

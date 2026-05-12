@@ -21,13 +21,13 @@ l_z=length(n_z);
 
 if exist('simoptions','var')==1 % check whether simoptions was inputted
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    if isfield(simoptions,'simperiods')==0
+    if ~isfield(simoptions,'simperiods')
         simoptions.simperiods=N_j;
     end
-    if isfield(simoptions,'numbersims')==0
+    if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^3;
     end
-    if isfield(simoptions,'verbose')==0
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
 else

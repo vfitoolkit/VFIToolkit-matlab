@@ -351,7 +351,7 @@ simoptions.alreadygridvals=1;
 
 % Same for semi-exogenous shocks
 caliboptions.calibsemiexo=0; % use =0 to also cover models without semi-exogenous shocks
-if isfield(vfoptions,'n_semiz')
+if prod(vfoptions.n_semiz)>0
     if isfield(vfoptions,'SemiExoShockFn')
         tempExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.SemiExoShockFn);
         % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it

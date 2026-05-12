@@ -46,11 +46,8 @@ a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
 
 
 %%
-if isfield(simoptions,'n_e')
-    N_e=prod(simoptions.n_e);
-else
-    N_e=0;
-end
+N_e=prod(simoptions.n_e);
+N_z=prod(n_z);
 if ~isfield(simoptions,'n_u')
     error('To use an risky asset you must define simoptions.n_u')
 end
@@ -79,7 +76,7 @@ end
 
 
 %%
-if n_z(1)==0
+if N_z==0
     error('Have not yet impelmented N_z=0 in StationaryDist_FHorz_Case1_RiskyAssetSemiExo (contact me)')
 end
 
@@ -93,7 +90,6 @@ l_a=length(n_a);
 N_a=prod(n_a);
 N_a1=prod(n_a1);
 N_semiz=prod(n_semiz);
-N_z=prod(n_z);
 N_u=prod(simoptions.n_u);
 
 if N_a1==0

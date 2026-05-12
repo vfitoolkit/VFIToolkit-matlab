@@ -3,13 +3,13 @@ function [V, Policy, ExitPolicy]=ValueFnIter_Case1_EndogExit(V0, n_d,n_a,n_z,d_g
 
 % It is only intended that this is called indirectly by ValueFnIter_Case1()
 
-if isfield(vfoptions,'endogenousexit')==0
+if ~isfield(vfoptions,'endogenousexit')
     vfoptions.endogenousexit=0;
 end
-if isfield(vfoptions,'endofperiodexit')==0
+if ~isfield(vfoptions,'endofperiodexit')
     vfoptions.endofperiodexit=0; % This has not yet been implemented as an option that can be activated.
 end
-if isfield(vfoptions,'keeppolicyonexit')==0
+if ~isfield(vfoptions,'keeppolicyonexit')
     vfoptions.keeppolicyonexit=0;
 end
 
@@ -18,6 +18,7 @@ V=nan; % Matlab was complaining that V was not assigned
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 l_a=length(n_a);
 l_z=length(n_z);
@@ -43,16 +44,16 @@ ReturnToExitFnParamsVec=CreateVectorFromParams(Parameters, ReturnToExitFnParamNa
 %%
 if vfoptions.lowmemory==0
     
-    %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
     % Since the return function is independent of time creating it once and
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
     
     if vfoptions.parallel==2
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
         ReturnToExitMatrix=CreateReturnToExitFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_a, n_z, a_grid, z_gridvals, ReturnToExitFnParamsVec);
     else % CPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
         ReturnToExitMatrix=CreateReturnToExitFnMatrix_Case1_Disc(vfoptions.ReturnToExitFn, n_a, n_z, a_grid, z_gridvals, ReturnToExitFnParamsVec);        
     end
         

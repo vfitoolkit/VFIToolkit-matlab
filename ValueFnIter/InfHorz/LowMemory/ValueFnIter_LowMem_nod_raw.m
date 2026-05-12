@@ -21,7 +21,7 @@ while currdist>Tolerance && tempcounter<=maxiter
     
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_nod_Par2(ReturnFn, n_a, special_n_z, a_grid, zvals,ReturnFnParams);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_z, [], a_grid, zvals,ReturnFnParams);
         
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*pi_z(z_c,:);

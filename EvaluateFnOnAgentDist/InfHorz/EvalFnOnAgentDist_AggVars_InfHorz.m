@@ -9,16 +9,16 @@ function AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist, Policy, FnsTo
 if ~isfield(simoptions,'parallel')
     simoptions.parallel=1+(gpuDeviceCount>0);
 end
-if ~isfield(simoptions, 'alreadygridvals')
+if ~isfield(simoptions,'alreadygridvals')
     simoptions.alreadygridvals=0;
 end
-if ~isfield(simoptions, 'gridinterplayer')
+if ~isfield(simoptions,'gridinterplayer')
     simoptions.gridinterplayer=0;
 end
-if ~isfield(simoptions, 'experienceasset')
+if ~isfield(simoptions,'experienceasset')
     simoptions.experienceasset=0;
 end
-if ~isfield(simoptions, 'experienceassetu')
+if ~isfield(simoptions,'experienceassetu')
     simoptions.experienceassetu=0;
 end
 

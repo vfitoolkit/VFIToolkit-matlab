@@ -2,32 +2,7 @@ function AgentDistPath=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial, jequa
 % Note: PricePath is not used, it is just there for legacy compatibility
 % jequalOneDist can be a jequalOneDistPath
 
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
-if isfield(simoptions,'n_e')
-    n_e=simoptions.n_e;
-else
-    n_e=0;
-end
-N_e=prod(n_e);
-
-if N_z==0
-    if N_e==0
-        N_ze=0;
-    else
-        N_ze=N_e;
-    end
-else
-    if N_e==0
-        N_ze=N_z;
-    else
-        N_ze=N_z*N_e;
-    end
-end
-
-
-%% Check which transpathoptions have been used, set all others to defaults 
+%% Check which transpathoptions have been used, set all others to defaults
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     %If transpathoptions is not given, just use all the defaults
@@ -46,6 +21,9 @@ if exist('simoptions','var')==0
     simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 else
     % Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'verbose')
@@ -68,6 +46,32 @@ else
     % Model setup
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
+end
+
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+N_e=prod(simoptions.n_e);
+
+if N_z==0
+    if N_e==0
+        N_ze=0;
+    else
+        N_ze=N_e;
+    end
+else
+    if N_e==0
+        N_ze=N_z;
+    else
+        N_ze=N_z*N_e;
     end
 end
 
@@ -881,12 +885,12 @@ else
         if simoptions.fastOLG==1
             AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_e,T]),[1,3,2,4]);
         end
-        AgentDistPath=reshape(AgentDistPath,[n_a,n_e,N_j,T]);
+        AgentDistPath=reshape(AgentDistPath,[n_a,simoptions.n_e,N_j,T]);
     else
         if simoptions.fastOLG==1
             AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_z,N_e,T]),[1,3,4,2,5]);
         end
-        AgentDistPath=reshape(AgentDistPath,[n_a,n_z,n_e,N_j,T]);
+        AgentDistPath=reshape(AgentDistPath,[n_a,n_z,simoptions.n_e,N_j,T]);
     end
 end
 

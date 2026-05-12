@@ -467,7 +467,7 @@ for ii=1:PTypeStructure.N_i
         l_a=l_aprime;
     end
     l_z=length(PTypeStructure.(iistr).n_z);
-    if PTypeStructure.(iistr).n_z(1)==0
+    if PTypeStructure.(iistr).N_z==0
         l_z=0;
     end
     if isfield(PTypeStructure.(iistr).vfoptions,'SemiExoStateFn')

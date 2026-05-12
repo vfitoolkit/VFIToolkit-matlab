@@ -1,4 +1,4 @@
-function [Vhat, Policyhat]=ValueFnIter_InfHorz_QuasiHyperbolic_nod_raw(Vunderbar, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, Howards,Howards2,Tolerance, maxiter) % Verbose, a_grid, z_grid,
+function [Vhat, Policyhat]=ValueFnIter_InfHorz_QuasiHyperbolicS_nod_raw(Vunderbar, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, Howards,Howards2,Tolerance, maxiter) % Verbose, a_grid, z_grid,
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 %

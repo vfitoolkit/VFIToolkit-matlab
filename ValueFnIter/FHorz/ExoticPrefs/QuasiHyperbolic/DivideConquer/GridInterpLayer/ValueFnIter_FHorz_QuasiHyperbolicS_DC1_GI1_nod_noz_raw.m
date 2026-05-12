@@ -44,7 +44,8 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta;
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
+    beta0beta=beta0*beta;
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,1]);
     EVinterp=interp1(a_grid,EV,aprime_grid);
@@ -53,7 +54,7 @@ else
 
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
 
-    % --- Vhat search (beta0beta) ---
+    %% Vhat (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
     [~,maxindex]=max(entireRHS_ii,[],1);
     midpoints_jj(1,level1ii)=maxindex;
@@ -89,7 +90,8 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     beta=prod(DiscountFactorParamsVec);
-    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta;
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
+    beta0beta=beta0*beta;
 
     EVsource=Vunderbar(:,jj+1);
     EV=EVsource;
@@ -97,7 +99,7 @@ for reverse_j=1:N_j-1
 
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
 
-    % --- Vhat search (beta0beta) ---
+    %% Vhat (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
     [~,maxindex]=max(entireRHS_ii,[],1);
     midpoints_jj(1,level1ii)=maxindex;
