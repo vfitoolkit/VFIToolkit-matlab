@@ -42,8 +42,6 @@ if isscalar(n_a)
                 [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
-        % Policy without d
-        PolicyKron=shiftdim(PolicyKron,-1);
     else % N_e
         if N_z==0
             if N_d==0
@@ -58,6 +56,9 @@ if isscalar(n_a)
                 [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
+    end
+    if N_d==0
+        PolicyKron=shiftdim(PolicyKron,-1);
     end
 %% 2 endogenous states
 elseif length(n_a)==2

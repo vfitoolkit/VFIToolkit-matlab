@@ -642,11 +642,11 @@ else % N_e
     end
 end
 
-% if N_d==0
-%     PolicyKron=shiftdim(PolicyKron,-1);
-% end
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+if N_d==0
+    PolicyKron=shiftdim(PolicyKron,-1);
+end
 if vfoptions.outputkron==0
     if N_e==0
         if N_z==0
