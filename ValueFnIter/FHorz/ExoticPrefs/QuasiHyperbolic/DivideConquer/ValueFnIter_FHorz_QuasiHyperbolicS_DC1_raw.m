@@ -24,10 +24,11 @@ level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 if vfoptions.lowmemory==1
     special_n_z=ones(1,length(n_z));
 else
-    zind=shiftdim((0:1:N_z-1),-1);  % 1-by-N_z (for Policy indexing)
+    zind=shiftdim((0:1:N_z-1),-1);  % 1-by-1-by-N_z (for Policy indexing)
 end
 
-zBind=shiftdim(gpuArray(0:1:N_z-1),-2);  % 1-by-1-by-N_z (for EV indexing)
+zBind=shiftdim(gpuArray(0:1:N_z-1),-2);  % 1-by-1-by-1-by-N_z (for EV indexing)
+zCind=gpuArray(0:1:N_z-1);  % 1-by-N_z (for EV_at_policy indexing)
 
 %% j=N_j  (terminal period)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
@@ -146,7 +147,7 @@ else
             end
         end
         aprime_ind=ceil(Policy(:,:,N_j)/N_d);
-        EV_at_policy=EV(aprime_ind+N_a*shiftdim(0:N_z-1,-1));
+        EV_at_policy=EV(aprime_ind+N_a*zCind);
         Vunderbar(:,:,N_j)=Vhat(:,:,N_j)+(beta-beta0beta)*EV_at_policy;
 
     elseif vfoptions.lowmemory==1
@@ -246,7 +247,7 @@ for reverse_j=1:N_j-1
             end
         end
         aprime_ind=ceil(Policy(:,:,jj)/N_d);
-        EV_at_policy=EV(aprime_ind+N_a*shiftdim(0:N_z-1,-1));
+        EV_at_policy=EV(aprime_ind+N_a*zCind);
         Vunderbar(:,:,jj)=Vhat(:,:,jj)+(beta-beta0beta)*EV_at_policy;
 
     elseif vfoptions.lowmemory==1

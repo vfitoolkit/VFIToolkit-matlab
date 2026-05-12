@@ -24,6 +24,7 @@ elseif vfoptions.lowmemory==2
 end
 
 zind=shiftdim(gpuArray((0:1:N_z-1)),-1); % 1-by-N_z
+zindB=gpuArray(0:1:N_z-1);  % 1-by-N_z (for EV_at_Policy indexing)
 
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
@@ -150,12 +151,10 @@ else
                 Policy(curraindex,:,:,N_j)=repelem(shiftdim(loweredge,1),level1iidiff(ii),1,1);
             end
         end
-        for e_c=1:N_e
-            aprime_ind_e=Policy(:,:,e_c,N_j);
-            EV_at_policy_e=EV(aprime_ind_e+N_a*zind);
-            Vunderbar(:,:,e_c,N_j)=Vhat(:,:,e_c,N_j)+(beta-beta0beta)*EV_at_policy_e;
-        end
-
+        aprime_ind=Policy(:,:,:,N_j);
+        EV_at_policy=EV(aprime_ind+N_a*zindB);
+        Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j)+(beta-beta0beta)*EV_at_policy;
+    
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -187,7 +186,7 @@ else
                 end
             end
             aprime_ind_e=Policy(:,:,e_c,N_j);
-            EV_at_policy_e=EV_e(aprime_ind_e+N_a*zind);
+            EV_at_policy_e=EV_e(aprime_ind_e+N_a*zindB);
             Vunderbar(:,:,e_c,N_j)=Vhat(:,:,e_c,N_j)+(beta-beta0beta)*EV_at_policy_e;
         end
 
@@ -276,11 +275,9 @@ for reverse_j=1:N_j-1
                 Policy(curraindex,:,:,jj)=repelem(shiftdim(loweredge,1),level1iidiff(ii),1,1);
             end
         end
-        for e_c=1:N_e
-            aprime_ind_e=Policy(:,:,e_c,jj);
-            EV_at_policy_e=EV(aprime_ind_e+N_a*zind);
-            Vunderbar(:,:,e_c,jj)=Vhat(:,:,e_c,jj)+(beta-beta0beta)*EV_at_policy_e;
-        end
+        aprime_ind=Policy(:,:,:,jj);
+        EV_at_policy=EV(aprime_ind+N_a*zindB);
+        Vunderbar(:,:,:,jj)=Vhat(:,:,:,jj)+(beta-beta0beta)*EV_at_policy;
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -313,7 +310,7 @@ for reverse_j=1:N_j-1
                 end
             end
             aprime_ind_e=Policy(:,:,e_c,jj);
-            EV_at_policy_e=EV_e(aprime_ind_e+N_a*zind);
+            EV_at_policy_e=EV_e(aprime_ind_e+N_a*zindB);
             Vunderbar(:,:,e_c,jj)=Vhat(:,:,e_c,jj)+(beta-beta0beta)*EV_at_policy_e;
         end
 

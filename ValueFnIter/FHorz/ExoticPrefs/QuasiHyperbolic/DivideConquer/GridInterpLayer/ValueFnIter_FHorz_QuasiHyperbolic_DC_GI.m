@@ -95,14 +95,26 @@ else
 end
 
 if vfoptions.outputkron==0
-    if N_z==0
-        V1=reshape(V1Kron,[n_a,N_j]);
-        Policy=UnKronPolicyIndexes_Case2_FHorz_noz(PolicyKron, Case2policies, n_a, N_j, vfoptions);
-        Valt=reshape(ValtKron,[n_a,N_j]);
+    if N_e==0
+        if N_z==0
+            V1=reshape(V1Kron,[n_a,N_j]);
+            Policy=UnKronPolicyIndexes_Case2_FHorz_noz(PolicyKron, Case2policies, n_a, N_j, vfoptions);
+            Valt=reshape(ValtKron,[n_a,N_j]);
+        else
+            V1=reshape(V1Kron,[n_a,n_z,N_j]);
+            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, Case2policies, n_a, n_z, N_j, vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_z,N_j]);
+        end
     else
-        V1=reshape(V1Kron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, Case2policies, n_a, n_z, N_j, vfoptions);
-        Valt=reshape(ValtKron,[n_a,n_z,N_j]);
+        if N_z==0
+            V1=reshape(V1Kron,[n_a,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, Case2policies, n_a, vfoptions.n_e, N_j, vfoptions);
+            Valt=reshape(ValtKron,[n_a,vfoptions.n_e,N_j]);
+        else
+            V1=reshape(V1Kron,[n_a,n_z,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, Case2policies, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_z,vfoptions.n_e,N_j]);
+        end
     end
 else
     V1=V1Kron;

@@ -20,8 +20,8 @@ Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); % indexes the optimal choice for d and
 %%
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e)); % vfoptions.lowmemory>0
-    pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 end
+pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 if vfoptions.lowmemory>1
     l_z=length(n_z);
     special_n_z=ones(1,l_z);
