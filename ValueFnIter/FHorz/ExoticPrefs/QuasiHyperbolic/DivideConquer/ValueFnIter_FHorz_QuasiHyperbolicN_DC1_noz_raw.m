@@ -77,7 +77,7 @@ else
         end
     end
 
-    %% Vtilde (beta0beta)
+    %% Vtilde (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*shiftdim(EV,-1);
     [~,maxindex1]=max(entireRHS_ii,[],2);
     [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n]),[],1);
@@ -147,7 +147,7 @@ for reverse_j=1:N_j-1
         end
     end
 
-    %% Vtilde (beta0beta)
+    %% Vtilde (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*shiftdim(EV,-1);
     [~,maxindex1]=max(entireRHS_ii,[],2);
     [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n]),[],1);

@@ -99,7 +99,7 @@ else
 
     if vfoptions.lowmemory==0
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_e, d_gridvals, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
-        % --- V search (beta) ---
+        %% V (beta)
         entireRHS_ii=ReturnMatrix_ii+beta*shiftdim(EV,-1);
         [~,maxindex1]=max(entireRHS_ii,[],2);
         [Vtempii,~]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_e]),[],1);
@@ -122,7 +122,7 @@ else
                 V(curraindex,:,N_j)=shiftdim(Vtempii,1);
             end
         end
-        % --- Vtilde search (beta0beta) ---
+        %% Vtilde (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*shiftdim(EV,-1);
         [~,maxindex1]=max(entireRHS_ii,[],2);
         [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_e]),[],1);
@@ -157,7 +157,7 @@ else
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, special_n_e, d_gridvals, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec,1);
-            % --- V search (beta) ---
+            %% V (beta)
             entireRHS_ii=ReturnMatrix_ii+beta*shiftdim(EV,-1);
             [~,maxindex1]=max(entireRHS_ii,[],2);
             [Vtempii,~]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n]),[],1);
@@ -180,7 +180,7 @@ else
                     V(curraindex,e_c,N_j)=shiftdim(Vtempii,1);
                 end
             end
-            % --- Vtilde search (beta0beta) ---
+            %% Vtilde (beta0*beta)
             entireRHS_ii=ReturnMatrix_ii+beta0beta*shiftdim(EV,-1);
             [~,maxindex1]=max(entireRHS_ii,[],2);
             [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n]),[],1);
@@ -230,7 +230,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_e, d_gridvals, a_grid, a_grid(level1ii), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
-        % --- V search (beta) ---
+        %% V (beta)
         entireRHS_ii=ReturnMatrix_ii+beta*shiftdim(EV,-1);
         [~,maxindex1]=max(entireRHS_ii,[],2);
         [Vtempii,~]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_e]),[],1);
@@ -253,7 +253,7 @@ for reverse_j=1:N_j-1
                 V(curraindex,:,jj)=shiftdim(Vtempii,1);
             end
         end
-        % --- Vtilde search (beta0beta) ---
+        %% Vtilde (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*shiftdim(EV,-1);
         [~,maxindex1]=max(entireRHS_ii,[],2);
         [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_e]),[],1);
@@ -288,7 +288,7 @@ for reverse_j=1:N_j-1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, special_n_e, d_gridvals, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec,1);
-            % --- V search (beta) ---
+            %% V (beta)
             entireRHS_ii=ReturnMatrix_ii+beta*shiftdim(EV,-1);
             [~,maxindex1]=max(entireRHS_ii,[],2);
             [Vtempii,~]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n]),[],1);
@@ -311,7 +311,7 @@ for reverse_j=1:N_j-1
                     V(curraindex,e_c,jj)=shiftdim(Vtempii,1);
                 end
             end
-            % --- Vtilde search (beta0beta) ---
+            %% Vtilde (beta0*beta)
             entireRHS_ii=ReturnMatrix_ii+beta0beta*shiftdim(EV,-1);
             [~,maxindex1]=max(entireRHS_ii,[],2);
             [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n]),[],1);

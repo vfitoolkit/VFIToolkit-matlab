@@ -55,7 +55,7 @@ else
         V(curraindex,N_j)=shiftdim(Vtempii,1);
         Policy_V(curraindex,N_j)=shiftdim(maxindex,1)+Policy_V(level1ii(ii),N_j)-1;
     end
-    %% Vtilde (beta0beta)
+    %% Vtilde (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
     [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
     Vtilde(level1ii,N_j)=shiftdim(Vtempii,1);
@@ -103,7 +103,7 @@ for reverse_j=1:N_j-1
         V(curraindex,jj)=shiftdim(Vtempii,1);
         Policy_V(curraindex,jj)=shiftdim(maxindex,1)+Policy_V(level1ii(ii),jj)-1;
     end
-    %% Vtilde (beta0beta)
+    %% Vtilde (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
     [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
     Vtilde(level1ii,jj)=shiftdim(Vtempii,1);
