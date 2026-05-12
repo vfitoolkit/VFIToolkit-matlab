@@ -68,7 +68,7 @@ else
 
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid, a_grid(level1ii), ReturnFnParamsVec,1);
 
-    %% Vhat (beta0beta)
+    %% Vhat (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*shiftdim(EV,-1);
     [~,maxindex1]=max(entireRHS_ii,[],2);
     midpoints_jj(:,1,level1ii)=maxindex1;
@@ -124,7 +124,7 @@ for reverse_j=1:N_j-1
 
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid, a_grid(level1ii), ReturnFnParamsVec,1);
 
-    %% Vhat search (beta0beta)
+    %% Vhat (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*shiftdim(EV,-1);
     [~,maxindex1]=max(entireRHS_ii,[],2);
     midpoints_jj(:,1,level1ii)=maxindex1;

@@ -150,7 +150,7 @@ else
     if vfoptions.lowmemory==0
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, n_e, a_grid, a_grid(level1ii), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
-        % --- Vhat search (beta0beta) ---
+        %% Vhat (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
         [~,maxindex1]=max(entireRHS_ii,[],1);
         midpoints_jj(1,level1ii,:,:)=maxindex1;
@@ -189,7 +189,7 @@ else
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, special_n_e, a_grid, a_grid(level1ii), z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
 
-            % --- Vhat search (beta0beta) ---
+            %% Vhat (beta0*beta)
             entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
             [~,maxindex1]=max(entireRHS_ii,[],1);
             midpoints_jj(1,level1ii,:)=maxindex1;
@@ -233,7 +233,7 @@ else
                 e_val=e_gridvals_J(e_c,:,N_j);
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, special_n_z, special_n_e, a_grid, a_grid(level1ii), z_val, e_val, ReturnFnParamsVec,1);
 
-                % --- Vhat search (beta0beta) ---
+                %% Vhat (beta0*beta)
                 entireRHS_ii=ReturnMatrix_ii+beta0beta*EV_z;
                 [~,maxindex1]=max(entireRHS_ii,[],1);
                 midpoints_jj(1,level1ii)=maxindex1;
@@ -294,7 +294,7 @@ for reverse_j=1:N_j-1
     if vfoptions.lowmemory==0
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, n_e, a_grid, a_grid(level1ii), z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
-        % --- Vhat search (beta0beta) ---
+        %% Vhat (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
         [~,maxindex1]=max(entireRHS_ii,[],1);
         midpoints_jj(1,level1ii,:,:)=maxindex1;
@@ -333,7 +333,7 @@ for reverse_j=1:N_j-1
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, special_n_e, a_grid, a_grid(level1ii), z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,1);
 
-            % --- Vhat search (beta0beta) ---
+            %% Vhat (beta0*beta)
             entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
             [~,maxindex1]=max(entireRHS_ii,[],1);
             midpoints_jj(1,level1ii,:)=maxindex1;
@@ -377,7 +377,7 @@ for reverse_j=1:N_j-1
                 e_val=e_gridvals_J(e_c,:,jj);
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, special_n_z, special_n_e, a_grid, a_grid(level1ii), z_val, e_val, ReturnFnParamsVec,1);
 
-                % --- Vhat search (beta0beta) ---
+                %% Vhat (beta0*beta)
                 entireRHS_ii=ReturnMatrix_ii+beta0beta*EV_z;
                 [~,maxindex1]=max(entireRHS_ii,[],1);
                 midpoints_jj(1,level1ii)=maxindex1;
