@@ -42,7 +42,7 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-beta0=Parameters.(vfoptions.QHadditionaldiscount);
+beta0=Parameters.(vfoptions.QHadditionaldiscount{1});
 
 %%
 % Use the same ReturnMatrix for both the continuation value, and the value fn

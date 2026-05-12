@@ -76,7 +76,7 @@ if isscalar(n_a)
                 end
             end
         end
-    elseif strcmp(vfoptions.quasi_hyperbolic,'Sopisticated') % Output: [Vunderbar,Policy,Vhat]
+    elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') % Output: [Vunderbar,Policy,Vhat]
         if N_e==0
             if N_z==0
                 if N_d==0
@@ -125,7 +125,7 @@ if vfoptions.outputkron==0
         Valt=reshape(ValtKron,[n_a,n_z,N_j]);
     end
 else
-    V1=VKron;
+    V1=V1Kron;
     Policy=PolicyKron;
     Valt=ValtKron;
 end

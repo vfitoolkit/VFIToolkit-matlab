@@ -79,7 +79,7 @@ if strcmp(vfoptions.quasi_hyperbolic,'Naive') % Output: [Vtilde,Policy,V]
             end
         end
     end
-elseif strcmp(vfoptions.quasi_hyperbolic,'Sopisticated') % Output: [Vunderbar,Policy,Vhat]
+elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') % Output: [Vunderbar,Policy,Vhat]
     if N_e==0
         if N_z==0
             if N_d==0
