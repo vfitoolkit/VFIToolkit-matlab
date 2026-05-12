@@ -46,24 +46,24 @@ else
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     % --- V search (beta) ---
-    entireRHS_V=ReturnMatrix+beta*EV;
-    [~,maxindex_V]=max(entireRHS_V,[],1);
-    midpoint_V=max(min(maxindex_V,n_a-1),2);
-    aprimeindexes_V=(midpoint_V+(midpoint_V-1)*n2short)+(-n2short-1:1:1+n2short)';
-    ReturnMatrix_L2_V=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes_V),a_grid,ReturnFnParamsVec);
-    entireRHS_L2_V=ReturnMatrix_L2_V+beta*reshape(EVinterp(aprimeindexes_V(:)),[n2long,N_a]);
-    [Vtempii,~]=max(entireRHS_L2_V,[],1);
+    entireRHS=ReturnMatrix+beta*EV;
+    [~,maxindex]=max(entireRHS,[],1);
+    midpoint=max(min(maxindex,n_a-1),2);
+    aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)';
+    ReturnMatrix_L2=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    entireRHS_L2=ReturnMatrix_L2+beta*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
+    [Vtempii,~]=max(entireRHS_L2,[],1);
     V(:,N_j)=shiftdim(Vtempii,1);
     % --- Vtilde search (beta0*beta) ---
-    entireRHS_Vt=ReturnMatrix+beta0beta*EV;
-    [~,maxindex_Vt]=max(entireRHS_Vt,[],1);
-    midpoint_Vt=max(min(maxindex_Vt,n_a-1),2);
-    aprimeindexes_Vt=(midpoint_Vt+(midpoint_Vt-1)*n2short)+(-n2short-1:1:1+n2short)';
-    ReturnMatrix_L2_Vt=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes_Vt),a_grid,ReturnFnParamsVec);
-    entireRHS_L2_Vt=ReturnMatrix_L2_Vt+beta0beta*reshape(EVinterp(aprimeindexes_Vt(:)),[n2long,N_a]);
-    [Vtempii,maxindexL2]=max(entireRHS_L2_Vt,[],1);
+    entireRHS=ReturnMatrix+beta0beta*EV;
+    [~,maxindex]=max(entireRHS,[],1);
+    midpoint=max(min(maxindex,n_a-1),2);
+    aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)';
+    ReturnMatrix_L2=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    entireRHS_L2=ReturnMatrix_L2+beta0beta*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
+    [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
     Vtilde(:,N_j)=shiftdim(Vtempii,1);
-    Policy(1,:,N_j)=shiftdim(squeeze(midpoint_Vt),-1);
+    Policy(1,:,N_j)=shiftdim(squeeze(midpoint),-1);
     Policy(2,:,N_j)=shiftdim(maxindexL2,-1);
 end
 
@@ -89,24 +89,24 @@ for reverse_j=1:N_j-1
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     % --- V search (beta) ---
-    entireRHS_V=ReturnMatrix+beta*EV;
-    [~,maxindex_V]=max(entireRHS_V,[],1);
-    midpoint_V=max(min(maxindex_V,n_a-1),2);
-    aprimeindexes_V=(midpoint_V+(midpoint_V-1)*n2short)+(-n2short-1:1:1+n2short)';
-    ReturnMatrix_L2_V=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes_V),a_grid,ReturnFnParamsVec);
-    entireRHS_L2_V=ReturnMatrix_L2_V+beta*reshape(EVinterp(aprimeindexes_V(:)),[n2long,N_a]);
-    [Vtempii,~]=max(entireRHS_L2_V,[],1);
+    entireRHS=ReturnMatrix+beta*EV;
+    [~,maxindex]=max(entireRHS,[],1);
+    midpoint=max(min(maxindex,n_a-1),2);
+    aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)';
+    ReturnMatrix_L2=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    entireRHS_L2=ReturnMatrix_L2+beta*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
+    [Vtempii,~]=max(entireRHS_L2,[],1);
     V(:,jj)=shiftdim(Vtempii,1);
     % --- Vtilde search (beta0*beta) ---
-    entireRHS_Vt=ReturnMatrix+beta0beta*EV;
-    [~,maxindex_Vt]=max(entireRHS_Vt,[],1);
-    midpoint_Vt=max(min(maxindex_Vt,n_a-1),2);
-    aprimeindexes_Vt=(midpoint_Vt+(midpoint_Vt-1)*n2short)+(-n2short-1:1:1+n2short)';
-    ReturnMatrix_L2_Vt=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes_Vt),a_grid,ReturnFnParamsVec);
-    entireRHS_L2_Vt=ReturnMatrix_L2_Vt+beta0beta*reshape(EVinterp(aprimeindexes_Vt(:)),[n2long,N_a]);
-    [Vtempii,maxindexL2]=max(entireRHS_L2_Vt,[],1);
+    entireRHS=ReturnMatrix+beta0beta*EV;
+    [~,maxindex]=max(entireRHS,[],1);
+    midpoint=max(min(maxindex,n_a-1),2);
+    aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)';
+    ReturnMatrix_L2=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    entireRHS_L2=ReturnMatrix_L2+beta0beta*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
+    [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
     Vtilde(:,jj)=shiftdim(Vtempii,1);
-    Policy(1,:,jj)=shiftdim(squeeze(midpoint_Vt),-1);
+    Policy(1,:,jj)=shiftdim(squeeze(midpoint),-1);
     Policy(2,:,jj)=shiftdim(maxindexL2,-1);
 end
 
