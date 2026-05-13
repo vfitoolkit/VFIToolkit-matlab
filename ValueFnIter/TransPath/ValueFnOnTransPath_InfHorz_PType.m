@@ -1,4 +1,4 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz_PType(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions)
+function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz_PType(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 
 VPath=struct();
 PolicyPath=struct();
@@ -23,25 +23,15 @@ end
 %% Loop over permanent types
 for ii=1:N_i
 
-    transpathoptions_temp=struct();
-
-    % First set up vfoptions
-    if exist('vfoptions','var')
-        vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
-        if ~isfield(vfoptions_temp,'verbose')
-            vfoptions_temp.verbose=0;
-        end
-        if ~isfield(vfoptions_temp,'verboseparams')
-            vfoptions_temp.verboseparams=0;
-        end
-        if ~isfield(vfoptions_temp,'ptypestorecpu')
-            vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-        end
-    else
-        vfoptions_temp.verbose=0;
-        vfoptions_temp.verboseparams=0;
+    transpathoptions_temp=PType_Options(transpathoptions,Names_i,ii);
+    vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
+    vfoptions_temp.parallel=2; % hardcode
+    if ~isfield(vfoptions_temp,'verbose')
+        vfoptions_temp.verbose=0; % =1 fives feedback
+    end
+    if ~isfield(vfoptions_temp,'ptypestorecpu')
         vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-    end 
+    end
     
     if vfoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
@@ -131,12 +121,7 @@ for ii=1:N_i
             end
         end
     end
-    
-    % if vfptions_temp.verboseparams==1
-    %     sprintf('Parameter values for the current permanent type')
-    %     Parameters_temp
-    % end
-    
+        
     % ParamPath can include parameters that differ by ptype
     ParamPath_temp=ParamPath;
     ParamPathNames=fieldnames(ParamPath);
@@ -146,8 +131,7 @@ for ii=1:N_i
         end
     end
 
-
-    [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, pi_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
+    [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, pi_z_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
     if vfoptions_temp.ptypestorecpu==1
