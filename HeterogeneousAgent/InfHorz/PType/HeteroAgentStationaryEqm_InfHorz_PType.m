@@ -466,7 +466,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).ReturnFn=ReturnFn;
     end
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,1,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
-    
+
     %% FnsToEvaluate
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
@@ -478,11 +478,12 @@ for ii=1:PTypeStructure.N_i
     end
     l_a_temp=length(PTypeStructure.(iistr).n_a);
     l_z_temp=length(PTypeStructure.(iistr).n_z);  
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
     PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
     PTypeStructure.(iistr).WhichFnsForCurrentPType=WhichFnsForCurrentPType;
-    
+    PTypeStructure.(iistr).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
+
     %% PType masses
     if isa(PTypeDistParamNames, 'array')
         PTypeStructure.(iistr).PTypeWeight=PTypeDistParamNames(ii);
