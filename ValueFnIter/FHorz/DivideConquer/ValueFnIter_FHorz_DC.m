@@ -108,11 +108,7 @@ elseif length(n_a)==2
         %         if N_d==0
         %             % [VKron,PolicyKron]=ValueFnIter_FHorz_DC2_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         %         else
-        %             if vfoptions.lowmemory==0
-        %                 [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %             elseif vfoptions.lowmemory==1 % loop over z
-        %                 [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_lowmem_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %             end
+        %             [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         %         end
         %     end
         % else % N_e
