@@ -16,9 +16,9 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 %
 % transpathoptions.zepathtrivial=0 when either of zpathtrival and epathtrivial both are zero
 
-% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilties, including pi_z_J_sim alternative transition probs
-% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
-% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties, including pi_z_J_sim alternative transition probs
+% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilities, including pi_z_J_sim alternative transition probs
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilities, including pi_z_J_sim alternative transition probs
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
 
@@ -376,7 +376,7 @@ if N_e>0
         end
     end
     
-    if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
+    if transpathoptions.fastOLG==1 % Reshape grid and transition matrix for use with fastOLG
         if N_z>0
             if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
                 e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe: (j,1,N_e,l_e)
@@ -498,9 +498,9 @@ end
 
 
 %% Create ze_gridvals_J_fastOLG, which is used for AggVars. Will be z_gridvals_J_fastOLG or e_gridvals_J_OLG if only one of them is used
-% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilties, including pi_z_J_sim alternative transition probs
-% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
-% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties, including pi_z_J_sim alternative transition probs
+% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilities, including pi_z_J_sim alternative transition probs
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilities, including pi_z_J_sim alternative transition probs
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 if gridpiboth==3 || gridpiboth==2
     ze_gridvals_J_fastOLG=[];

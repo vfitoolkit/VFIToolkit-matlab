@@ -450,8 +450,12 @@ else
                 PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
             elseif simoptions.fastOLG==1
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                PolicyaprimejzPath=repmat(permute(PolicyaprimejzPath,[1,3,2]),1,2,1)+N_a1*(a2primeIndexesPath-1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     end
@@ -873,24 +877,24 @@ end
 %%
 if N_e==0
     if N_z==0
-        AgentDistPath=reshape(AgentDistPath,[n_a,N_j,T]);
+        AgentDistPath=reshape(AgentDistPath,[N_a,N_j,T]);
     else
         if simoptions.fastOLG==1
             AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_z,T]),[1,3,2,4]);
         end
-        AgentDistPath=reshape(AgentDistPath,[n_a,n_z,N_j,T]);
+        AgentDistPath=reshape(AgentDistPath,[N_a,N_z,N_j,T]);
     end
 else
     if N_z==0
         if simoptions.fastOLG==1
             AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_e,T]),[1,3,2,4]);
         end
-        AgentDistPath=reshape(AgentDistPath,[n_a,simoptions.n_e,N_j,T]);
+        AgentDistPath=reshape(AgentDistPath,[N_a,N_e,N_j,T]);
     else
         if simoptions.fastOLG==1
             AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_z,N_e,T]),[1,3,4,2,5]);
         end
-        AgentDistPath=reshape(AgentDistPath,[n_a,n_z,simoptions.n_e,N_j,T]);
+        AgentDistPath=reshape(AgentDistPath,[N_a,N_z,N_e,N_j,T]);
     end
 end
 
