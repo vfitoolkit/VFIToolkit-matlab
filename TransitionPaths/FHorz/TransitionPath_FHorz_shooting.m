@@ -45,36 +45,43 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
+
+    % Initialise _tminus1 entries in Parameters from initialvalues (used at tt=1)
+    if use_tminus1price==1
+        for pp=1:length(tminus1priceNames)
+            Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+        end
+    end
+    if use_tminus1params==1
+        for pp=1:length(tminus1paramNames)
+            Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
+        end
+    end
+    if use_tminus1AggVars==1
+        for pp=1:length(tminus1AggVarsNames)
+            Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
+        end
+    end
+
     for tt=1:T-1
         %% Setup the Parameters for period tt
 
-        % Get t-1 PricePath and ParamPath before we update them
-        if use_tminus1price==1
-            for pp=1:length(tminus1priceNames)
-                if tt>1
+        % Get t-1 PricePath, ParamPath and AggVars before we update them
+        if tt>1
+            if use_tminus1price==1
+                for pp=1:length(tminus1priceNames)
                     Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
-                else
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
                 end
             end
-        end
-        if use_tminus1params==1
-            for pp=1:length(tminus1paramNames)
-                if tt>1
+            if use_tminus1params==1
+                for pp=1:length(tminus1paramNames)
                     Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
-                else
-                    Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
                 end
             end
-        end
-        % Get t-1 AggVars before we update them
-        if use_tminus1AggVars==1
-            for pp=1:length(tminus1AggVarsNames)
-                if tt>1
+            if use_tminus1AggVars==1
+                for pp=1:length(tminus1AggVarsNames)
                     % The AggVars have not yet been updated, so they still contain previous period values
                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
-                else
-                    Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
                 end
             end
         end
