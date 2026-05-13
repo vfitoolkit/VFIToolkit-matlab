@@ -53,7 +53,7 @@ for rr=1:nReveals
         temp=ParamPath_rr.(ParamPathNames{pp});
         Parameters.(ParamPathNames{pp})=temp(end); % this cannot yet handle age-dependent params
     end
-    [V_final,Policy_final]=ValueFnIter_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,ReturnFn,Parameters,DiscountFactorParamNames,vfoptions_finaleqm);
+    [V_final,Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,ReturnFn,Parameters,DiscountFactorParamNames,vfoptions_finaleqm);
 
     % Now compute the paths
     [VPath_rr,PolicyPath_rr]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath_rr, ParamPath_rr, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions_path);

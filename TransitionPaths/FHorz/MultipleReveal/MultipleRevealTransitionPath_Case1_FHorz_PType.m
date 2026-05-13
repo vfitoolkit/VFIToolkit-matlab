@@ -335,7 +335,7 @@ for rr=1:nReveals
     end
 
     % Get V_final
-    [V_final, Policy_final]=ValueFnIter_FHorz_PType(n_d,n_a,n_z,N_j, Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions_finaleqm);
+    [V_final, Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j, Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions_finaleqm);
 
     %% Set up guess on PricePath0
     PricePath0_rr=struct();
