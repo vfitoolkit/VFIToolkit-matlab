@@ -9,7 +9,7 @@ N=length(LorenzCurve);
 A=0;
 % I have vectorized the following for-loop to speed it up.
 % for i=1:N
-%     %Note: i/N-LorenzCurve(i) is the height of 'A' in slice i, and 1/N is it's width 
+%     %Note: i/N-LorenzCurve(i) is the height of 'A' in slice i, and 1/N is it's width
 %     A=A+(i/N-LorenzCurve(i))*1/N;
 % end
 A=sum((1:1:N)/N-reshape(LorenzCurve,[1,N]))/N;

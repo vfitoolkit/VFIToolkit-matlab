@@ -43,9 +43,9 @@ II2=repelem((1:1:N_a*N_semiz)',1,N_semizshort);
 
 %%
 for jj=1:(N_j-1)
-    
+
     Gammatranspose=sparse(Policy_aprimesemiz(:,:,jj),II2,semiztransitions(:,:,jj),N_a*N_semiz,N_a*N_semiz); % From (a,semiz) to (a',semiz')
-    
+
     % No z, so just one-step for iteration
     StationaryDistKron_jj=Gammatranspose*StationaryDistKron_jj;
 

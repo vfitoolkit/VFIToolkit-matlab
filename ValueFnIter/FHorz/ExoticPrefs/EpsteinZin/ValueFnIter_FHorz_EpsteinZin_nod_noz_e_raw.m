@@ -99,11 +99,11 @@ else
 
     % Take expectation over e
     temp=sum(temp.*pi_e_J(1,1,:,N_j),3);
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-        
+
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
         temp2=ReturnMatrix;
@@ -131,9 +131,9 @@ else
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
-        
+
     elseif vfoptions.lowmemory==1
-        
+
         %Calc the expectation term (except beta)
         temp4=temp;
         if warmglow==1
@@ -144,11 +144,11 @@ else
             temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
             temp4(temp==0)=0;
         end
-        
+
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
-            
+
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_e).*(ReturnMatrix_e~=0)); % finite but not zero
             temp2=ReturnMatrix_e;
@@ -166,7 +166,7 @@ else
             V(:,e_c,N_j)=Vtemp;
             Policy(:,e_c,N_j)=maxindex;
         end
-        
+
     end
 end
 
@@ -178,8 +178,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -189,7 +189,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.EZoneminusbeta==2
         ezc1=1-sj(jj)*DiscountFactorParamsVec;
     end
-    
+
     % If there is a warm-glow, evaluate the warmglowfn
     if warmglow==1
         WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,jj);
@@ -207,14 +207,14 @@ for reverse_j=1:N_j-1
     temp=EVpre;
     temp(isfinite(EVpre))=(ezc4*EVpre(isfinite(EVpre))).^ezc5(jj);
     temp(EVpre==0)=0;
-    
+
     % Take expectation over e
     temp=sum(temp.*pi_e_J(1,1,:,jj),3);
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
-        
+
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
         temp2=ReturnMatrix;
@@ -237,14 +237,14 @@ for reverse_j=1:N_j-1
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf;
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,jj)=Vtemp;
         Policy(:,:,jj)=maxindex;
-        
+
     elseif vfoptions.lowmemory==1
-        
+
         %Calc the expectation term (except beta)
         temp4=temp;
         if warmglow==1
@@ -255,11 +255,11 @@ for reverse_j=1:N_j-1
             temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
             temp4(temp==0)=0;
         end
-        
+
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
-            
+
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_e).*(ReturnMatrix_e~=0)); % finite but not zero
             temp2=ReturnMatrix_e;
@@ -271,13 +271,13 @@ for reverse_j=1:N_j-1
             temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
             entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
             entireRHS_e(entireRHS_e==0)=-Inf;
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
             V(:,e_c,jj)=Vtemp;
             Policy(:,e_c,jj)=maxindex;
         end
-        
+
     end
 end
 

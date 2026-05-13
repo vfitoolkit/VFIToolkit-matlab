@@ -10,7 +10,7 @@ function [calibparamsvec,caliboptions]=ParameterConstraints_PType_TransformParam
 % So original problem will be in terms of cparam.
 % ParameterConstraints_TransformParamsToUnconstrained: transforms cparam to uparam
 % ParameterConstraints_TransformParamsToOriginal: transforms uparam to cparam
-% 
+%
 % - Constrain parameter to be positive
 %     uparam=exp(cparam)
 %     cparam=log(uparam)

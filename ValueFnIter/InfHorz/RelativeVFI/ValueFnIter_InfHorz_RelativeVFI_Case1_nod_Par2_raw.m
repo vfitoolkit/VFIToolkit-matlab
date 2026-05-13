@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_InfHorz_RelativeVFI_Case1_nod_Par2_raw(VKron, n_a, n_z, pi_z, beta, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose, a_grid, z_grid, 
+function [VKron, Policy]=ValueFnIter_InfHorz_RelativeVFI_Case1_nod_Par2_raw(VKron, n_a, n_z, pi_z, beta, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose, a_grid, z_grid,
 % Does pretty much exactly the same as ValueFnIterRel_Case1, only without any decision variable (n_d=0)
 %
 % Uses Relative VFI instead of VFI: see Bray (2019) - Strong Convergence and Dynamic Economic Models
@@ -21,7 +21,7 @@ tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
-    
+
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         %Calc the condl expectation term (except beta), which depends on z but
@@ -29,28 +29,28 @@ while currdist>Tolerance
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
-                
+
         entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
-        
+
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
-        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
+        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
     end
-    
+
     % Switch these into relative value function
     VKron=VKron-VKron(end);
-    
+
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    
+
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             EVKrontemp=VKron(PolicyIndexes,:);
-            
+
             EVKrontemp=EVKrontemp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
@@ -59,7 +59,7 @@ while currdist>Tolerance
         % Switch into relative value function
         VKron=VKron-VKron(end);
     end
-    
+
 
 %     if Verbose==1
 %         if rem(tempcounter,100)==0
@@ -84,14 +84,14 @@ for z_c=1:N_z
     EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
     EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV_z=sum(EV_z,2);
-    
+
     entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
-    
+
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     VKron(:,z_c)=Vtemp;
     PolicyIndexes(:,z_c)=maxindex;
-    
+
     tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
     Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
 end

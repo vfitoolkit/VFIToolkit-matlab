@@ -57,16 +57,16 @@ DiscountedEV=repelem(DiscountedEV,N_d,1,1,1,1);
 
 
 if vfoptions.lowmemory==0
-    
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn, n_d, n_z, N_j, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (d,aprime,a and j,z), autofills a for expectation term
-     
+
     % First, we want aprime conditional on (d,1,a,j)
     [RMtemp_ii,maxindex1]=max(entireRHS_ii,[],2);
     % Now, we get the d and we store the (d,aprime) and the
-    
+
     %Calc the max and it's index
     [Vtempii,maxindex2]=max(RMtemp_ii,[],1);
     maxindex2=shiftdim(maxindex2,2); % d

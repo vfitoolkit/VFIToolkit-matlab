@@ -173,7 +173,7 @@ for ii=1:N_i
         end
     end
 
-    %% Parameters    
+    %% Parameters
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
     % these in term.

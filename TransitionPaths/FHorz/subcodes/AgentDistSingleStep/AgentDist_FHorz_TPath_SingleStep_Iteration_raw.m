@@ -4,7 +4,7 @@ function AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_raw(AgentDist,Poli
 % AgentDist=reshape(AgentDist,[N_a*N_z,N_j]);
 % Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z,N_j]));
 
-% precomputed: 
+% precomputed:
 % II1=1:1:N_a*N_z;
 % II2=ones(N_a*N_z,1);
 

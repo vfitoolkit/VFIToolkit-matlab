@@ -65,6 +65,6 @@ else
     V=VKron;
     % Policy=Policy;
 end
-    
+
 
 end

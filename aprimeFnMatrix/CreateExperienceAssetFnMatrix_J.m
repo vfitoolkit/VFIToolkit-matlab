@@ -109,7 +109,7 @@ if l_a2==1
         a2primeProbs(offBottomOfGrid)=1;
         a2primeProbs(offTopOfGrid)=0;
     end
-    
+
     if aprimeIndexAsColumn==1 % value fn codes want column when no z
         a2primeIndexes=reshape(a2primeIndexes,[N_d*N_a,N_j]);
     else % aprimeIndexAsColumn==2 % value fn with z, or simulation, want matrix

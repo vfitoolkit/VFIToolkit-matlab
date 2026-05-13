@@ -7,7 +7,7 @@ function AllStats=EvalFnOnAgentDist_AllStats_InfHorz(StationaryDist, Policy, Fns
 if ~exist('simoptions','var')
     simoptions.npoints=100;
     simoptions.nquantiles=20;
-    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.gridinterplayer=0;
@@ -20,7 +20,7 @@ else
         simoptions.nquantiles=20;
     end
     if ~isfield(simoptions,'whichstats')
-        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     if ~isfield(simoptions,'tolerance')
@@ -77,7 +77,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
@@ -98,7 +98,7 @@ PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z])
 % Evaluate AllStats, but conditional on the restriction being non-zero.
 
 useCondlRest=0;
-% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it). 
+% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it).
 if isfield(simoptions,'conditionalrestrictions')
 
     useCondlRest=1;
@@ -124,7 +124,7 @@ if isfield(simoptions,'conditionalrestrictions')
 
         RestrictedStationaryDistVec=StationaryDistVec;
         RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
-        
+
         % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
         restrictedsamplemass(rr)=sum(RestrictedStationaryDistVec);
         RestrictionStruct(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass(rr);
@@ -149,7 +149,7 @@ for ff=1:length(FnsToEvalNames)
     Values=reshape(Values,[N_a*N_z,1]);
 
     AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-    
+
     %% If there are any conditional restrictions then deal with these
     % Evaluate AllStats, but conditional on the restriction being one.
     if useCondlRest==1

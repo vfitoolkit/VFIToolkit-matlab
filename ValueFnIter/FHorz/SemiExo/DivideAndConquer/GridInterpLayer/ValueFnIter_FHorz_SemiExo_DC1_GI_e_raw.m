@@ -86,7 +86,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         % Just keep the 'midpoint' vesion of maxindex1 [as GI]
         midpoints_Nj(:,1,level1ii,:,:)=maxindex1;
-        
+
         % Second level based on montonicity
         maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
@@ -175,7 +175,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
-    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);    
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z,N_e]).*pi_e_J(1,1,:,N_j),3); % First, switch V_Jplus1 into Kron form
 
@@ -261,7 +261,7 @@ else
 
             % Interpolate EV over aprime_grid
             EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
-            
+
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
 
@@ -334,13 +334,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
 
     if vfoptions.lowmemory==0
@@ -413,7 +413,7 @@ for reverse_j=1:N_j-1
         Policy(4,:,:,:,jj)=reshape(ceil(d1aprimeL2_ind/N_d1),[N_a,N_semiz*N_z,N_e]); %aprimeL2ind
         Policy(3,:,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z,N_e]); % midpoint
 
-        
+
 elseif vfoptions.lowmemory==1
 
         for d2_c=1:N_d2

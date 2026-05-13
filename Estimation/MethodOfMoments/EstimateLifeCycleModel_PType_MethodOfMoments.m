@@ -37,7 +37,7 @@ else
     end
 end
 if ~isfield(estimoptions,'logmoments')
-    estimoptions.logmoments=0; 
+    estimoptions.logmoments=0;
     % =1 means log() the model moments [target moments and CoVarMatrixDataMoments should already be based on log(moments) if you are using this+
     % =1 means applies log() to all moments, unless you specify them seperately as on next line
     % You can name moments in the same way you would for the targets, e.g.
@@ -196,7 +196,7 @@ for pp=1:nEstimParams
     else % depends on ptype
         currentparameter=Parameters.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)});
     end
-    
+
     estimparamssizes(pp,1:2)=size(currentparameter);
     % Get all the parameters
     if any(strcmp(OmitEstimParamsNames,EstimParamNames{nEstimParamsFinder(pp,1)})) % Omitting part of parameters cannot differ across permanent types
@@ -286,7 +286,7 @@ else
     error('size(WeightingMatrix) should be a square matrix with number of rows (and number of columns) equal to the number of moments to be estimated')
 end
 
-%% 
+%%
 % estimoptions.logmoments can be specified by names
 if isstruct(estimoptions.logmoments)
     logmomentnames=estimoptions.logmoments;
@@ -309,7 +309,7 @@ if isstruct(estimoptions.logmoments)
 % estimoptions.logmoments will either be scalar, or a vector of zeros and ones
 %    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
 elseif any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
-   % If set this up, and then set up 
+   % If set this up, and then set up
    if isscalar(estimoptions.logmoments)
        estimoptions.logmoments=ones(length(targetmomentvec),1); % log all of them
    else
@@ -419,7 +419,7 @@ if estimoptions.skipestimation==0
         [estimparamsvec,fval]=lsqnonlin(EstimateMoMObjectiveFn,estimparamsvec0,[],[],[],[],[],[],[],minoptions);
     end
 
-else % estimoptions.skipestimation==1    
+else % estimoptions.skipestimation==1
     warning('Skipping the estimation step (you have set estimoptions.skipestimation=1 in EstimateLifeCycleModel_MethodOfMoments() [Nothing wrong with this, just warning as want to be sure you did this on purpose]')
     % The values in Parameters are taken as the estimated values for EstimParams
     % Note that we already got these as estimparamsvec0, so we can just set
@@ -445,7 +445,7 @@ if estimoptions.bootstrapStdErrors==0
     % Note: idea is that we don't want to apply constraints inside CalibrateLifeCycleModel_objectivefn() while computing finite-differences
     estimoptionsJacobian.vectoroutput=1; % Was set to zero to get point estimates, now set to one as part of computing std deviations.
     estimoptionsJacobian.verbose=0; % otherwise looks a bit weird
-    
+
     % According to https://en.wikipedia.org/wiki/Numerical_differentiation#Step_size
     % A good step size to compute the derivative of f(x) is epsilon*x with
     epsilonraw=sqrt(2.2)*10^(-8); % Note: this is sqrt(eps(1.d0)), the eps() is Matlab command that gives floating point precision
@@ -516,7 +516,7 @@ if estimoptions.bootstrapStdErrors==0
         epsilonparamup(:,ee)=modelestimparamsvecup;
         epsilonparamdown(:,ee)=modelestimparamsvecdown;
     end
-    
+
 
     %% Can now calculate derivatives to the epsilon change in parameters as the finite-difference
     for ee=1:length(epsilonmodvec)
@@ -524,7 +524,7 @@ if estimoptions.bootstrapStdErrors==0
         ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
         ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
 
-        % Note: estimoptions.vectoroutput=1, so ObjValue is a vector 
+        % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
         epsilonparamvec=modelestimparamsvec; % and using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
         ObjValue=CalibrateLifeCycleModel_PType_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, nEstimParams, nEstimParamsFinder, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
         for pp=1:length(estimparamsvec)
@@ -535,7 +535,7 @@ if estimoptions.bootstrapStdErrors==0
             ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_PType_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, nEstimParams, nEstimParamsFinder, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
         end
         epsilonparamvec=modelestimparamsvec; % and using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
-        
+
         % Use finite-difference to compute the derivatives
         J_up=(ObjValue_upwind-ObjValue)./((epsilonparamup(:,ee)-epsilonparamvec)');
         J_down=(ObjValue-ObjValue_downwind)./((epsilonparamvec-epsilonparamdown(:,ee))');
@@ -552,7 +552,7 @@ if estimoptions.bootstrapStdErrors==0
                 J_full(pp,:)=J_down(pp,:);
             end
         end
-        
+
         % Double-checks: reports various steps around computing the derivatives and standard deviations, and does so for various epsilon sizes
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J=J_full;
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J_centered=J_centered;
@@ -584,12 +584,12 @@ if estimoptions.bootstrapStdErrors==0
             J=J_full; % This is the one used to report Sigma (parameter std deviations) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
         end
     end
-    
+
     % For later
     epsilon=epsilonmodvec(eedefault)*epsilonraw; % sqrt(2.2)*10^(-6)
     % What I have here as default uses epsilon of the order 10^(-6)
     % Grey Gordon's numerical derivative code used 10^(-6)
-    
+
     if estimoptions.efficientW==0
         estimparamscovarmatrix=((J'*WeightingMatrix*J)^(-1)) * J'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*J * ((J'*WeightingMatrix*J)^(-1));
         % This is standard formula for the asymptotic variance of method of moments estimator
@@ -633,7 +633,7 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
     % Sensitivity matrix, Lambda, of Andrews, Gentzkow & Shapiro (2017) - Measuring the Sensitivity of Parameter Estimates to Estimation Moments
     SensitivityMatrix=(-(J'*WeightingMatrix*J)^(-1))*(J'*WeightingMatrix);
     estsummary.sensitivitymatrix=SensitivityMatrix;
-    
+
     % Sensitivity of estimated paraemters to the pre-calibrated parameters
     % If you have set estimoptions.CalibParamNames; Jorgensen (2023) - Sensitivity to Calibrated Parameters
     % Requires calculating derivatives of the objective vector to the calibrated parameters
@@ -647,7 +647,7 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
             CalibParams.(estimoptions.CalibParamsNames{pp})=Parameters.(estimoptions.CalibParamsNames{pp});
             calibparamvec(pp)=Parameters.(estimoptions.CalibParamsNames{pp});
         end
-        
+
         for pp=1:length(estimoptions.CalibParamsNames)
             % 'Add' epsilon
             if floor(log(abs(modelestimparamsvec(pp)))/log(10))>-2 % order of magnitude is greater than 10^(-2)
@@ -682,7 +682,7 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
         estsummary.doublechecks.Jcalib=Jcalib_centered;
         % also, just so user can see them
         estsummary.doublechecks.Jcalib_up=Jcalib_up;
-        estsummary.doublechecks.Jcalib_down=Jcalib_down;        
+        estsummary.doublechecks.Jcalib_down=Jcalib_down;
     end
 
 end

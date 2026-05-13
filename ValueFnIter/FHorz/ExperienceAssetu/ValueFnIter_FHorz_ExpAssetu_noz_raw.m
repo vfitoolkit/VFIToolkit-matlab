@@ -72,8 +72,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -104,7 +104,7 @@ for reverse_j=1:N_j-1
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
-    
+
     V(:,jj)=shiftdim(Vtemp,1);
     Policy(:,jj)=shiftdim(maxindex,1);
 

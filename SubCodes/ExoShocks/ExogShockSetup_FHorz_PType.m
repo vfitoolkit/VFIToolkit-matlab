@@ -178,7 +178,7 @@ elseif zdependsonptype==1
         else
             pi_z_temp=pi_z.(Names_i{ii});
         end
-        
+
 
         if prod(n_z_temp)==0
             z_gridvals_J.(Names_i{ii})=[];
@@ -303,7 +303,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
         else
             pi_z_temp=pi_z.(Names_i{ii});
         end
-        
+
 
         if prod(n_z_temp)==0
             z_gridvals_J.(Names_i{ii})=[];

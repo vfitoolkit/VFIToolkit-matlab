@@ -5,7 +5,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 
 %%
@@ -29,11 +29,11 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     % Now, get and store the full (d,aprime)
     [Vtempii,maxindex2]=max(reshape(ReturnMatrix_ii,[N_d*N_a,vfoptions.level1n]),[],1);
-    
+
     % Store
     V(level1ii,N_j)=shiftdim(Vtempii,1);
     Policy(level1ii,N_j)=shiftdim(maxindex2,1); % d,aprime
-    
+
     % Attempt for improved version
     maxgap=max(maxindex1(:,1,2:end)-maxindex1(:,1,1:end-1),[],1);
     for ii=1:(vfoptions.level1n-1)
@@ -56,14 +56,14 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(curraindex,N_j)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         end
     end
-    
+
 else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
-    
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid, a_grid(level1ii), ReturnFnParamsVec,1);
 
@@ -86,7 +86,7 @@ else
         if maxgap(ii)>0
             loweredge=min(maxindex1(:,1,ii),n_a-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
             % loweredge is n_d-by-1
-            aprimeindexes=loweredge+(0:1:maxgap(ii)); 
+            aprimeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(loweredge+(0:1:maxgap(ii))), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimeindexes),[N_d,(maxgap(ii)+1),1]); % autoexpand level1iidiff(ii) in 2nd-dim
@@ -113,18 +113,18 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,jj+1);
-    
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid, a_grid(level1ii), ReturnFnParamsVec,1);
-    
+
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*shiftdim(EV,-1); % (d,aprime,a)
 
     % First, we want aprime conditional on (d,1,a,z)
@@ -136,7 +136,7 @@ for reverse_j=1:N_j-1
     % Store
     V(level1ii,jj)=shiftdim(Vtempii,1);
     Policy(level1ii,jj)=shiftdim(maxindex2,1); % d,aprime
-    
+
     % Attempt for improved version
     maxgap=max(maxindex1(:,1,2:end)-maxindex1(:,1,1:end-1),[],1);
     for ii=1:(vfoptions.level1n-1)
@@ -144,7 +144,7 @@ for reverse_j=1:N_j-1
         if maxgap(ii)>0
             loweredge=min(maxindex1(:,1,ii),n_a-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
             % loweredge is n_d-by-1
-            aprimeindexes=loweredge+(0:1:maxgap(ii)); 
+            aprimeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimeindexes),[N_d*(maxgap(ii)+1),1]); % autoexpand level1iidiff(ii) in 2nd-dim

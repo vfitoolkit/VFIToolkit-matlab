@@ -1,5 +1,5 @@
 function [z_grid,pi_z]=discretizeAR1_Tauchen(mew,rho,sigma,znum,Tauchen_q, tauchenoptions)
-% Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation 
+% Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation
 %    of AR(1) process z'=mew+rho*z+e, e~N(0,sigma^2), by Tauchen method
 %
 % Inputs
@@ -49,33 +49,33 @@ if znum==1
     return
 end
 
-% Note: tauchenoptions.dshift equals zero gives the Tauchen method. 
+% Note: tauchenoptions.dshift equals zero gives the Tauchen method.
 % For nonzero tauchenoptions.dshift this is actually implementing a non-standard Tauchen method.
 if tauchenoptions.parallel==0 || tauchenoptions.parallel==1
     zstar=mew/(1-rho); %expected value of z
     sigmaz=sigma/sqrt(1-rho^2); %stddev of z
-    
+
     z_grid=zstar*ones(znum,1) + linspace(-Tauchen_q*sigmaz,Tauchen_q*sigmaz,znum)';
     omega=z_grid(2)-z_grid(1); %Note that all the points are equidistant by construction.
-    
+
     zi=z_grid*ones(1,znum);
 %     zj=ones(znum,1)*z';
     zj=tauchenoptions.dshift*ones(znum,znum)+ones(znum,1)*z_grid';
-    
+
     P_part1=normcdf(zj+omega/2-rho*zi,mew,sigma);
     P_part2=normcdf(zj-omega/2-rho*zi,mew,sigma);
-    
+
     pi_z=P_part1-P_part2;
     pi_z(:,1)=P_part1(:,1);
     pi_z(:,znum)=1-P_part2(:,znum);
-    
+
 elseif tauchenoptions.parallel==2 %Parallelize on GPU
     zstar=mew/(1-rho); %expected value of z
     sigmaz=sigma/sqrt(1-rho^2); %stddev of z
-    
+
     z_grid=gpuArray(zstar*ones(znum,1) + linspace(-Tauchen_q*sigmaz,Tauchen_q*sigmaz,znum)');
     omega=z_grid(2)-z_grid(1); %Note that all the points are equidistant by construction.
-    
+
     % NOTE; normcdf NOW WORKS FOR GPU, I SHOULD CHECK IF IT IS FASTER
     %Note: normcdf is not yet a supported function for use on the gpu in Matlab
     %(see list of supported functions at http://www.mathworks.es/es/help/distcomp/run-built-in-functions-on-a-gpu.html)
@@ -84,19 +84,19 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
     %formula for normcdf as function of erf)
     %Comparing the output from using erf to that with normpdf the differences are
     %of the order of machine rounding errors (10e-16).
-    
+
     tauchenoptions.dshift=gpuArray(tauchenoptions.dshift*ones(1,znum));
-    
+
     erfinput=arrayfun(@(zi,zj,omega,rho,mew,sigma) ((zj+omega/2-rho*zi)-mew)/sqrt(2*sigma^2), z_grid,tauchenoptions.dshift+z_grid',omega, rho,mew,sigma);
     P_part1=0.5*(1+erf(erfinput));
-    
+
     erfinput=arrayfun(@(zi,zj,omega,rho,mew,sigma) ((zj-omega/2-rho*zi)-mew)/sqrt(2*sigma^2), z_grid,tauchenoptions.dshift+z_grid',omega, rho,mew,sigma);
     P_part2=0.5*(1+erf(erfinput));
-    
+
     pi_z=P_part1-P_part2;
     pi_z(:,1)=P_part1(:,1);
     pi_z(:,znum)=1-P_part2(:,znum);
-    
+
 end
 
 end

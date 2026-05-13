@@ -54,7 +54,7 @@ if vfoptions.lowmemory==0
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, n_z, n_e, N_j, a_grid, a_grid(level1ii), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (d,aprime,a and j,z,e), autofills a and e for expectation term
-     
+
     [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
 
     % Store
@@ -99,7 +99,7 @@ elseif vfoptions.lowmemory==1
         entireRHS_ii=ReturnMatrix_ii_e+DiscountedEV; % (d,aprime,a and j,z), autofills a for expectation term
 
         [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
- 
+
         % Store
         V(level1ii,:,:,e_c)=Vtempii;
         Policy(level1ii,:,:,e_c)=maxindex1; % d,aprime

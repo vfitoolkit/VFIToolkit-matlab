@@ -17,7 +17,7 @@ for jj=0:periods
 
     d2ind=Policy_dsemiexo(currstate(1),currstate(2),currstate(3),currstate(4),jj+initialage);
     currstate(1)=PolicyKron(currstate(1),currstate(2),currstate(3),currstate(4),jj+initialage);
-    
+
     [~,currstate(2)]=max(cumsumpi_semiz_J(currstate(2),:,d2ind,jj+initialage)>rand(1,1));
     [~,currstate(3)]=max(cumsumpi_z_J(currstate(3),:,jj+initialage)>rand(1,1));
     [~,currstate(4)]=max(cumsumpi_e_J(:,jj+initialage)>rand(1,1));

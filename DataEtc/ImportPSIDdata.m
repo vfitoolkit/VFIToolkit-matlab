@@ -7,7 +7,7 @@ function output1 = ImportPSIDdata(jobname)
 % To use this you must download your PSID data with 'xml' cookbook
 % and with the data for SPSS.
 % You must rename the two files ending in '.sps' to instead end in '_sps.txt'.
-% 
+%
 %
 % For the inputed 'jobname' --- the filename/code of your PSID dataset this
 % code reads the metadata from the '.xml' file, finds out the fixed widths for
@@ -28,30 +28,30 @@ filename_xml = [jobname,'_codebook.xml']; % the .xml cookbook containing the met
 filename_txt = [jobname,'.txt']; % the .txt file containing the data itself
 filename_sps = [jobname,'_sps.txt']; % contains the formatting info needed to get the data from the .txt file
                                      % Note: you need to rename the .sps as _sps.txt (code checks for this and asks you to if you haven't)
-filename_listcodes = [jobname, '_formats_sps.txt'];                                     
+filename_listcodes = [jobname, '_formats_sps.txt'];
 
 %% Read the .xml file to find out all of the details of the variables
 disp(['Import of PSID data for jobname ', jobname, ' currently at step 1 of 4'])
 PSIDdata=struct;
 PSIDsummary=struct;
 xDoc=xmlread(filename_xml);
-allvariables=xDoc.getElementsByTagName('VARIABLE'); 
+allvariables=xDoc.getElementsByTagName('VARIABLE');
 nPSIDvariables=allvariables.getLength;
 
 strnamevec={'name','year','type_id','label','qtext','etext'}; %,'list_code'}; %It is important that 'name' is the first of these to be retrieved
 tagnamevec={'NAME','YEAR','TYPE_ID','LABEL','QTEXT','ETEXT'}; %,'LIST_CODE'};
 
-for ii=1:nPSIDvariables 
+for ii=1:nPSIDvariables
     thisvariable = allvariables.item(ii-1); % xml are indexed from 0
 
     for jj=1:length(strnamevec)
         strname=strnamevec{jj};
         tagname=tagnamevec{jj};
-        
+
         thisfield = thisvariable.getElementsByTagName(tagname);
         field = thisfield.item(0);
         temp =cellstr(char(field.getFirstChild.getData));
-        PSIDsummary.(strname){ii}=temp; 
+        PSIDsummary.(strname){ii}=temp;
         name=PSIDsummary.name{ii};
         PSIDdata.(name{:}).(strname)=temp;
     end
@@ -92,7 +92,7 @@ while ii<=nPSIDvariables
         tline = fgetl(fid);
     end
 end
-fclose(fid);    
+fclose(fid);
 
 %% Now, read the .sps file to find out all of the variable locations.
 disp(['Import of PSID data for jobname ', jobname, ' currently at step 2 of 4'])
@@ -107,7 +107,7 @@ end
 
 % April 2017: PSID sps file layout has changed. Old version is commented out below the following new version.
 % April 2018: some PSID variable names now have an A2 or A3 on the end. Have had to make some minor changes to allow for this.
-% June 2018: Correction: realised large data sets were used they were creating an error when the fixed locations reached four-digits: 
+% June 2018: Correction: realised large data sets were used they were creating an error when the fixed locations reached four-digits:
 %                   Just had to make it 'temp+7+25' instead of 20 when creating 'tempstr'.
 PSIDfixedlengths=zeros(nPSIDvariables,1);
 fid = fopen(filename_sps,'r');
@@ -145,7 +145,7 @@ while ii<=nPSIDvariables
         break
     end
 end
-fclose(fid);    
+fclose(fid);
 % % PSIDfixedlengths=zeros(nPSIDvariables,2);
 % % fid = fopen(filename_sps,'r');
 % % tline = fgetl(fid);
@@ -225,8 +225,8 @@ disp(['Import of PSID data for jobname ', jobname, ' currently at step 4 of 4'])
 PSIDexplore = struct;
 % Following loops are poorly constructed, but does the job. Could be sped up.
 for ii=1:nPSIDvariables
-    name=PSIDsummary.name{ii}; 
-    for jj=1:nPSIDhouseholds    
+    name=PSIDsummary.name{ii};
+    for jj=1:nPSIDhouseholds
         PSIDexplore.(name{:}).value(jj)=PSIDdataset(ii,jj);
     end
     %PSIDexplore.var(ii).name=name;
@@ -278,7 +278,7 @@ for ii=1:nPSIDvariables
     end
 end
 
-%% 
+%%
 output1=PSIDexplore;
 
 disp('Finished import of PSID data')

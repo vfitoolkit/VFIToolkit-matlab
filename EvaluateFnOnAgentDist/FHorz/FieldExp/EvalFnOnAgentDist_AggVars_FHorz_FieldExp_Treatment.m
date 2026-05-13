@@ -109,11 +109,11 @@ if prod(simoptions.n_e)>0
     eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
     eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
     eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
-    
+
     n_e=simoptions.n_e;
     N_e=prod(n_e);
     l_e=length(n_e);
-    
+
     if fieldexists_pi_e_J==1
         e_grid_J=simoptions.e_grid_J;
     elseif fieldexists_EiidShockFn==1
@@ -143,7 +143,7 @@ if prod(simoptions.n_e)>0
     else % Joint-grid on shocks
         jointgride=1;
     end
-    
+
     if simoptions.lowmemory==1
         % Keep them seperate
     else
@@ -203,7 +203,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;

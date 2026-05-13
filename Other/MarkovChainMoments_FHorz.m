@@ -1,7 +1,7 @@
 function [mean,variance,autocorrelation,statdist]=MarkovChainMoments_FHorz(z_grid_J,pi_z_J,jequaloneDistz,simoptions,mcmomentsoptions)
 % Calculates the mean, variance, autocorrellation, and stantionary
 % distribution of a finite-horizon markov process.
-% 
+%
 % Inputs:
 %   - z_grid_J: the grids for each age; z_grid_J(:,jj) is the grid in period jj
 %   - pi_z_J: the transition matrix for each age: pi_z_J(:,jj) is the transition matrix from period jj to period jj+1
@@ -107,29 +107,29 @@ if length(mcmomentsoptions.n_z)==1
     variance=zeros(1,N_j);
     covar_withlag=nan(1,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
     autocorrelation=nan(1,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
-    
+
     statdist(:,1)=jequaloneDistz;
     mean(1)=(z_grid_J(:,1)')*statdist(:,1);
     secondmoment(1)=(z_grid_J(:,1).^2)'*statdist(:,1);
     variance(1)=secondmoment(1)-mean(1).^2;
     for jj=2:N_j
         statdist(:,jj)=pi_z_J(:,:,jj-1)'*statdist(:,jj-1);
-        
+
         mean(jj)=(z_grid_J(:,jj)')*statdist(:,jj);
         secondmoment(jj)=(z_grid_J(:,jj).^2)'*statdist(:,jj);
-        
+
         variance(jj)=secondmoment(jj)-mean(jj).^2;
-        
+
         covar_withlag(jj)=sum(statdist(:,jj-1).*sum(pi_z_J(:,:,jj-1).*((z_grid_J(:,jj-1)-mean(jj-1))*(z_grid_J(:,jj)-mean(jj))'),2));
-        
+
         autocorrelation(jj)=covar_withlag(jj)/(sqrt(variance(jj))*sqrt(variance(jj-1)));
-        
+
     end
-    
+
 else % z is multidimensional (note: I only calculate variance, autocorellation of each invidivually, not the actual covariance matrix and autocorrelation matrix of the multivariate)
     n_z=mcmomentsoptions.n_z;
     l_z=length(n_z);
-    
+
     %% Compute the mean, variance, and (first-order auto-) correlation
     statdist=zeros(N_z,N_j);
     mean=zeros(l_z,N_j);
@@ -137,38 +137,38 @@ else % z is multidimensional (note: I only calculate variance, autocorellation o
     variance=zeros(l_z,N_j);
     covar_withlag=nan(l_z,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
     autocorrelation=nan(l_z,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
-    
+
     z_gridvals=CreateGridvals(n_z,z_grid_J(:,1),1);
-    
+
     statdist(:,1)=jequaloneDistz;
     for ii=1:l_z
         mean(ii,1)=(z_gridvals(:,ii)')*statdist(:,1);
         secondmoment(ii,1)=(z_gridvals(:,ii).^2)'*statdist(:,1);
         variance(ii,1)=secondmoment(ii,1)-mean(ii,1).^2;
     end
-    
+
     for jj=2:N_j
         z_gridvals_lag=z_gridvals;
         z_gridvals=CreateGridvals(n_z,z_grid_J(:,jj),1);
 
         statdist(:,jj)=pi_z_J(:,:,jj-1)'*statdist(:,jj-1);
-        
+
         for ii=1:l_z
             mean(ii,jj)=(z_gridvals(:,ii)')*statdist(:,jj);
             secondmoment(ii,jj)=(z_gridvals(:,ii).^2)'*statdist(:,jj);
-            
+
             variance(ii,jj)=secondmoment(ii,jj)-mean(ii,jj).^2;
-            
+
             covar_withlag(ii,jj)=sum(statdist(:,jj-1).*sum(pi_z_J(:,:,jj-1).*((z_gridvals_lag(:,ii)-mean(ii,jj-1))*(z_gridvals(:,ii)-mean(ii,jj))'),2));
-            
+
             autocorrelation(ii,jj)=covar_withlag(ii,jj)/(sqrt(variance(ii,jj))*sqrt(variance(ii,jj-1)));
         end
-        
+
     end
 end
 
 
-%% Following is old code that used to simulate the markov to calculate the autocorrelation. 
+%% Following is old code that used to simulate the markov to calculate the autocorrelation.
 % The final line checks it against the new code, and the new code is more
 % accurate as well as immesurably faster.
 
@@ -176,15 +176,15 @@ end
 % % This takes vast majority of the time of MarkovChainMoments()
 % % CAN THIS BE SPED UP WITH A DIRECT FORMULA FOR CORRELATION OF DISCRETE MARKOV
 % N=mcmomentsoptions.calcautocorrelation_nsims; % Number of simulations to use for calculating the autocorrelation
-% 
+%
 % if mcmomentsoptions.calcautocorrelation==1
-%     
+%
 %     z_grid_J=gather(z_grid_J);
-%         
+%
 %     cumjequaloneDist=cumsum(jequaloneDistz);
-%     
+%
 %     cumsum_pi_z_J=cumsum(pi_z_J,2); % Sum in second dimension (next period state transition probabilities)
-%     
+%
 %     % Simulate Markov chain with transition state pi_z
 %     A=zeros(N,N_j); % A contains the time series of states
 %     parfor ii=1:N
@@ -197,7 +197,7 @@ end
 %         end
 %         A(ii,:)=A_ii;
 %     end
-%     
+%
 %     correlation=nan(1,N_j); % Note the first entry will remain nan
 %     for jj=2:N_j
 %         temp=corrcoef(z_grid_J(A(:,jj),jj),z_grid_J(A(:,jj-1),jj));
@@ -206,8 +206,8 @@ end
 % else
 %     correlation=NaN;
 % end
-%  
-% 
+%
+%
 % [autocorrelation',correlation']
 
 

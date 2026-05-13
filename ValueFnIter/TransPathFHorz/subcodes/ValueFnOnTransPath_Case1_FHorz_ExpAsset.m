@@ -112,14 +112,14 @@ if N_e==0
             VPath(:,:,:,T)=V_final;
             PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
             PolicyPath(:,:,:,:,T)=Policy_final;
-        
+
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
             V=V_final;
             for ttr=1:T-1 %so t=T-i
 
 
                 ttr
-                
+
                 for kk=1:length(PricePathNames)
                     Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
                 end
@@ -166,11 +166,11 @@ if N_e==0
                     pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
-                
+
                 [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
-                
+
                 PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
                 VPath(:,:,T-ttr)=V;
             end
@@ -252,7 +252,7 @@ else % N_e
             VPath(:,:,:,:,T)=V_final;
             PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_z,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
             PolicyPath(:,:,:,:,:,T)=Policy_final;
-            
+
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
             V=V_final;
             for ttr=1:T-1 %so t=T-i

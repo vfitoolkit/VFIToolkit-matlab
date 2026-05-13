@@ -38,15 +38,15 @@ if Parallel==2
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
     z_grid=gpuArray(z_grid);
-    
+
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
-    
+
     PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid);
-    permuteindexes=[1+(1:1:(l_a+l_z)),1];    
+    permuteindexes=[1+(1:1:(l_a+l_z)),1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
-    
+
     for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
         if isempty(FnsToEvaluateParamNames(i).Names)  % check for 'FnsToEvaluateParamNames={}'
@@ -62,21 +62,21 @@ if Parallel==2
         temp=Values.*StationaryDistVec;
         AggVars(i)=sum(temp(~isnan(temp)));
     end
-    
+
 else
-    
+
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
-    
+
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
-    
+
     StationaryDistVec=gather(StationaryDistVec);
-    
+
     AggVars=zeros(length(FnsToEvaluate),1);
-    
+
     if l_d>0
-        
+
         for i=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
@@ -108,9 +108,9 @@ else
                 AggVars(i)=sum(temp(~isnan(temp)));
             end
         end
-    
+
     else %l_d=0
-        
+
         for i=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
@@ -143,7 +143,7 @@ else
             end
         end
     end
-    
+
 end
 
 %%
@@ -179,10 +179,10 @@ if isfield(simoptions,'conditionalrestrictions')
         CondlRestnFns{ff}=simoptions.conditionalrestrictions.(CondlRestnFnNames{ff});
     end
     simoptions=rmfield(simoptions,'conditionalrestrictions'); % Have to delete this before resend it to EvalFnOnAgentDist_AllStats_InfHorz()
-    
+
     % Note that some things have already been created above, so we don't need
     % to recreate them to evaluated the restrictions.
-    
+
     if simoptions.parallel==2
         % Evaluate the conditinal restrictions
         for kk=1:length(CondlRestnFnNames)
@@ -192,10 +192,10 @@ if isfield(simoptions,'conditionalrestrictions')
             else
                 CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames(kk).Names);
             end
-            
+
             Values=EvalFnOnAgentDist_Grid_InfHorz(CondlRestnFns{kk}, CondlRestnFnParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel);
             Values=reshape(Values,[N_a*N_z,1]);
-            
+
             RestrictedStationaryDistVec=StationaryDistVec;
             RestrictedStationaryDistVec(Values==0)=0; % Drop all those that don't meet the restriction
             restrictedsamplemass=sum(RestrictedStationaryDistVec);
@@ -207,7 +207,7 @@ if isfield(simoptions,'conditionalrestrictions')
                 AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
             else
                 AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_InfHorz_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
-                
+
                 % Create some renormalizations where relevant (just the mean)
                 for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above
                     AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Mean;
@@ -252,7 +252,7 @@ if isfield(simoptions,'conditionalrestrictions')
                     end
                 end
             end
-            
+
             RestrictedStationaryDistVec=StationaryDistVec;
             RestrictedStationaryDistVec(Values==0)=0; % Drop all those that don't meet the restriction
             restrictedsamplemass=sum(RestrictedStationaryDistVec);
@@ -264,7 +264,7 @@ if isfield(simoptions,'conditionalrestrictions')
                 AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
             else
                 AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_InfHorz_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel, simoptions);
-                
+
                 % Create some renormalizations where relevant (just the mean)
                 for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above
                     AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Mean;

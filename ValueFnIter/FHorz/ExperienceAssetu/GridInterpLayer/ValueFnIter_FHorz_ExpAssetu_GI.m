@@ -79,7 +79,7 @@ end
 if vfoptions.outputkron==0
     if n_d1>0
         n_d=[n_d1,n_d2];
-    else 
+    else
         n_d=n_d2;
     end
     if n_a1>0

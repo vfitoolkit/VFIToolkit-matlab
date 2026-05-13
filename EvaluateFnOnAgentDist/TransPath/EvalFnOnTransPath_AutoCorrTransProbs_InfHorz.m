@@ -75,7 +75,7 @@ N_z=prod(n_z);
 
 %%
 % Note: Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePath,ParamPath,T);
 
 %%
@@ -194,7 +194,7 @@ for tt=1:T
             Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
         end
     end
-    
+
     PolicyValuesPermute=PolicyValuesPermutePath(:,:,:,tt);
     AgentDist=AgentDistPath(:,tt); % [N_a*N_z,T]
 
@@ -212,7 +212,7 @@ for tt=1:T
         % Note: I suspect keeping P and P_lag would run out of memory.
         % This only works because Parameters is not used here as it would contain tt
     end
-    
+
     %% Can only calculate most stats from period 2 on
     for ff=1:length(FnsToEvalNames)
         if tt>1
@@ -220,16 +220,16 @@ for tt=1:T
             meanV_lag=meanV;
             stddevV_lag=stddevV;
         end
-        
+
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
         Values=EvalFnOnAgentDist_Grid(FnsToEvaluateCell{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
         Values=reshape(Values,[N_a*N_z,1]);
-        
-        
+
+
         %% Calculate the correlation (tt is treated as next period, tt-1 as this period)
         % Correlation(x,y)=Cov(x,u)/(stddev(x)*stddev(y))
         % So first calculate the covariance and the two standard deviations
-        
+
         % We don't need lag for some basics
         meanV=sum(AgentDist.*Values);
         stddevV=sqrt(sum(AgentDist.*(Values-meanV).^2));
@@ -245,7 +245,7 @@ for tt=1:T
             CorrTransProbsPath.(FnsToEvalNames{ff}).AutoCovariance(tt-1)=Covar;
             CorrTransProbsPath.(FnsToEvalNames{ff}).AutoCorrelation(tt-1)=Corr;
         end
-        
+
 
         %% Calculate transition probabilties (tt is treated as next period, tt-1 as this period)
         if tt>1

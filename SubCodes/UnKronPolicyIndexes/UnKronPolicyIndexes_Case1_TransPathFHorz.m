@@ -27,7 +27,7 @@ if n_d(1)==0
     if vfoptions.gridinterplayer==1
         PolicyPath(l_aprime+1,:,:,:,:)=PolicyPathKron(2,:,:,:,:);
     end
-    
+
     PolicyPath=reshape(PolicyPath,[l_aprime+extra,n_a,n_z,N_j,T]);
 else
     l_d=length(n_d);

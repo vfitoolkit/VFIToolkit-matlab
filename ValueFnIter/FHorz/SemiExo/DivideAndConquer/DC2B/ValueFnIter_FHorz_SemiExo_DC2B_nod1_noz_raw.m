@@ -89,7 +89,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             end
         end
     end
-  
+
 else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);

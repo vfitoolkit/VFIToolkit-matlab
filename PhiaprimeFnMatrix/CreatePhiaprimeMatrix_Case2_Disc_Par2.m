@@ -20,7 +20,7 @@ N_z=prod(n_z);
 N_zprime=prod(n_zprime);
 
 l_d=length(n_d);
-l_a=length(n_a); 
+l_a=length(n_a);
 l_z=length(n_z);
 if l_d>4
     disp('ERROR: Using GPU for the phi_aprime fn does not yet allow for more than four of d variable (you have length(n_d)>4): (in CreatePhi_aprimeFnMatrix_Case2_Disc_Par2)')
@@ -78,7 +78,7 @@ if Case2_Type==1 % (d,a,z',z)
             end
         end
     end
-    
+
     if l_d==1 && l_a==1 && l_z==1
         d1vals(1,1,1)=d_grid(1); % Requires special treatment
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,zp1vals,z1vals,ParamCell{:});
@@ -87,7 +87,7 @@ if Case2_Type==1 % (d,a,z',z)
     elseif l_d==1 && l_a==1 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==1 && l_a==1 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==1 && l_a==2 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals,zp1vals,z1vals,ParamCell{:});
     elseif l_d==1 && l_a==2 && l_z==2
@@ -95,7 +95,7 @@ if Case2_Type==1 % (d,a,z',z)
     elseif l_d==1 && l_a==2 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==1 && l_a==2 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==1 && l_a==3 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals,a3vals,zp1vals,z1vals,ParamCell{:});
     elseif l_d==1 && l_a==3 && l_z==2
@@ -103,7 +103,7 @@ if Case2_Type==1 % (d,a,z',z)
     elseif l_d==1 && l_a==3 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals,a3vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==1 && l_a==3 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals,a3vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals,a3vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==1 && l_a==4 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals,a3vals,a4vals, zp1vals,z1vals,ParamCell{:});
     elseif l_d==1 && l_a==4 && l_z==2
@@ -112,14 +112,14 @@ if Case2_Type==1 % (d,a,z',z)
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals,a3vals,a4vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==1 && l_a==4 && l_z==4
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,a2vals,a3vals,a4vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:}); elseif l_d==2 && l_a==1 && l_z==1
-    elseif l_d==2 && l_a==1 && l_z==1    
+    elseif l_d==2 && l_a==1 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,zp1vals,z1vals,ParamCell{:});
     elseif l_d==2 && l_a==1 && l_z==2
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals, zp1vals,zp2vals, z1vals,z2vals,ParamCell{:});
     elseif l_d==2 && l_a==1 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==2 && l_a==1 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==2 && l_a==2 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime,d1vals,d2vals, a1vals,a2vals,zp1vals,z1vals,ParamCell{:});
     elseif l_d==2 && l_a==2 && l_z==2
@@ -127,7 +127,7 @@ if Case2_Type==1 % (d,a,z',z)
     elseif l_d==2 && l_a==2 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==2 && l_a==2 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==2 && l_a==3 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime,d1vals,d2vals, a1vals,a2vals,a3vals,zp1vals,z1vals,ParamCell{:});
     elseif l_d==2 && l_a==3 && l_z==2
@@ -135,7 +135,7 @@ if Case2_Type==1 % (d,a,z',z)
     elseif l_d==2 && l_a==3 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==2 && l_a==3 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});   
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==2 && l_a==4 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals,a4vals, zp1vals,z1vals,ParamCell{:});
     elseif l_d==2 && l_a==4 && l_z==2
@@ -151,7 +151,7 @@ if Case2_Type==1 % (d,a,z',z)
     elseif l_d==3 && l_a==1 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==3 && l_a==1 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==3 && l_a==2 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals,a2vals,zp1vals,z1vals,ParamCell{:});
     elseif l_d==3 && l_a==2 && l_z==2
@@ -159,7 +159,7 @@ if Case2_Type==1 % (d,a,z',z)
     elseif l_d==3 && l_a==2 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==3 && l_a==2 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==3 && l_a==3 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals,a2vals,a3vals, zp1vals,z1vals,ParamCell{:});
     elseif l_d==3 && l_a==3 && l_z==2
@@ -183,7 +183,7 @@ if Case2_Type==1 % (d,a,z',z)
     elseif l_d==4 && l_a==1 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, a1vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==4 && l_a==1 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, a1vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, a1vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==4 && l_a==2 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals,zp1vals,z1vals,ParamCell{:});
     elseif l_d==4 && l_a==2 && l_z==2
@@ -191,7 +191,7 @@ if Case2_Type==1 % (d,a,z',z)
     elseif l_d==4 && l_a==2 && l_z==3
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals, z1vals,z2vals,z3vals,ParamCell{:});
     elseif l_d==4 && l_a==2 && l_z==4
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     elseif l_d==4 && l_a==3 && l_z==1
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals,a3vals, zp1vals,z1vals,ParamCell{:});
     elseif l_d==4 && l_a==3 && l_z==2
@@ -214,7 +214,7 @@ elseif Case2_Type==11  || Case2_Type==12 % (d,a,z') || (d,a,z)
     if Case2_Type==12 % The codes is all using zpvals, but for Case2_Type to these need to be zvals
         N_zprime=N_z;
         n_zprime=n_z;
-        zprime_grid=z_grid;        
+        zprime_grid=z_grid;
     end
     if l_d>=1
         d1vals=d_grid(1:n_d(1));
@@ -252,7 +252,7 @@ elseif Case2_Type==11  || Case2_Type==12 % (d,a,z') || (d,a,z)
             end
         end
     end
-    
+
     if l_d==1 && l_a==1 && l_z==1
         d1vals(1,1,1)=d_grid(1); % Requires special treatment
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, a1vals,zp1vals,ParamCell{:});
@@ -303,7 +303,7 @@ elseif Case2_Type==11  || Case2_Type==12 % (d,a,z') || (d,a,z)
     elseif l_d==2 && l_a==2 && l_z==4
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals, zp1vals,zp2vals,zp3vals,zp4vals, ParamCell{:});
     elseif l_d==2 && l_a==3 && l_z==1
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals,zp1vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals,zp1vals,ParamCell{:});
     elseif l_d==2 && l_a==3 && l_z==2
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals, zp1vals,zp2vals, ParamCell{:});
     elseif l_d==2 && l_a==3 && l_z==3
@@ -311,7 +311,7 @@ elseif Case2_Type==11  || Case2_Type==12 % (d,a,z') || (d,a,z)
     elseif l_d==2 && l_a==3 && l_z==4
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals, zp1vals,zp2vals,zp3vals,zp4vals, ParamCell{:});
     elseif l_d==2 && l_a==4 && l_z==1
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals,a4vals, zp1vals,ParamCell{:});    
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals,a4vals, zp1vals,ParamCell{:});
     elseif l_d==2 && l_a==4 && l_z==2
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals,a3vals,a4vals, zp1vals,zp2vals, ParamCell{:});
     elseif l_d==2 && l_a==4 && l_z==3
@@ -413,7 +413,7 @@ elseif Case2_Type==2 % (d,z',z)
             end
         end
     end
-    
+
     if l_d==1 && l_z==1
         d1vals(1,1,1)=d_grid(1); % Requires special treatment
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, zp1vals, z1vals,ParamCell{:});
@@ -449,7 +449,7 @@ elseif Case2_Type==2 % (d,z',z)
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     end
     Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d,N_zprime,N_z]);
-    
+
 elseif Case2_Type==3 % (d,z')
     if l_d>=1
         d1vals=d_grid(1:n_d(1));
@@ -475,7 +475,7 @@ elseif Case2_Type==3 % (d,z')
             end
         end
     end
-    
+
     if l_d==1 && l_z==1
         d1vals(1,1,1)=d_grid(1); % Requires special treatment
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, zp1vals,ParamCell{:});
@@ -524,7 +524,7 @@ elseif Case2_Type==6 % (d)
             end
         end
     end
-    
+
     if l_d==1
         d1vals(1,1,1)=d_grid(1); % Requires special treatment
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, ParamCell{:});

@@ -137,8 +137,8 @@ elseif caliboptions.vectoroutput==0 % scalar output
     % targetmomentvec is the target moment values
     % Both are column vectors
 
-    % Note: MethodOfMoments and sum_squared are doing essentially the same calculation (only different is size of weights, 
-    % which will be a matrix for MethodOfMoments but a vector for sum_squared), I just write them in ways that make it more 
+    % Note: MethodOfMoments and sum_squared are doing essentially the same calculation (only different is size of weights,
+    % which will be a matrix for MethodOfMoments but a vector for sum_squared), I just write them in ways that make it more
     % obvious that they do what they say.
     if strcmp(caliboptions.metric,'MethodOfMoments')
         % Obj=(targetmomentvec-currentmomentvec)'*caliboptions.weights*(targetmomentvec-currentmomentvec);

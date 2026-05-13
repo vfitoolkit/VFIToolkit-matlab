@@ -30,7 +30,7 @@ N_a=prod(n_a);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 %% Exogenous shock grids
-% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
+% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
 [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 
 
@@ -55,7 +55,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;

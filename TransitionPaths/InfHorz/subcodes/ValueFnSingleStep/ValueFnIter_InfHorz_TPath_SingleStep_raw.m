@@ -20,9 +20,9 @@ DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 %%
 if vfoptions.lowmemory==0
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
-    
+
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=Vnext.*shiftdim(pi_z',-1);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -33,20 +33,20 @@ if vfoptions.lowmemory==0
     % Calc the max and it's index
     [V,Policy]=max(entireRHS,[],1);
     V=reshape(V,[N_a,N_z]); % otherwise it was outputing as [1,N_a,N_z]
-    
+
 elseif vfoptions.lowmemory==1
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
-        
+
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=Vnext.*pi_z(z_c,:);
         EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
-        
+
         entireEV_z=kron(EV_z,ones(N_d,1));
         entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z;
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         V(:,z_c)=Vtemp;

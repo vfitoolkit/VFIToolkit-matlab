@@ -60,7 +60,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     V(:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,N_j)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
     Policy(2,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
-  
+
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
@@ -86,7 +86,7 @@ else
         [~,maxindex]=max(entireRHS_ii,[],1);
         midpoints_jj(1,curraindex)=maxindex+midpoints_jj(level1ii(ii))-1;
     end
-        
+
     % Turn this into the 'midpoint'
     midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is 1-by-n_a
@@ -109,14 +109,14 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=V(:,jj+1);
-    
+
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
@@ -128,7 +128,7 @@ for reverse_j=1:N_j-1
 
     % Just keep the 'midpoint' vesion of maxindex1 [as GI]
     midpoints_jj(1,level1ii)=maxindex;
-    
+
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(midpoints_jj(level1ii(ii)):midpoints_jj(level1ii(ii+1))), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);

@@ -93,7 +93,7 @@ else
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
-   
+
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
@@ -157,12 +157,12 @@ else
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,N_j);
                     ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,n_d2,n_a1,n_a1,special_n_ea,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, ea_val, z_val, e_val, ReturnFnParamsVec,0,0);
-    
+
                     entireRHS=ReturnMatrix_ze+DiscountedEV_z;
-    
+
                     % Calc the max and its index
                     [Vtemp,maxindex]=max(entireRHS,[],1);
-    
+
                     V(1+(ea_c-1)*N_a1:ea_c*N_a1,z_c,e_c,N_j)=shiftdim(Vtemp,1);
                     Policy(1+(ea_c-1)*N_a1:ea_c*N_a1,z_c,e_c,N_j)=shiftdim(maxindex,1);
                 end
@@ -178,8 +178,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -200,7 +200,7 @@ for reverse_j=1:N_j-1
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
-   
+
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
@@ -264,14 +264,14 @@ for reverse_j=1:N_j-1
                 DiscountedEV_z=DiscountFactorParamsVec*repelem(EV(:,ea_c,z_c),N_d1,N_a1);
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,jj);
-    
+
                     ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,n_d2,n_a1,n_a1,special_n_ea,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, ea_val, z_val, e_val, ReturnFnParamsVec,0,0);
-    
+
                     entireRHS=ReturnMatrix_ze+DiscountedEV_z;
-    
+
                     %Calc the max and its index
                     [Vtemp,maxindex]=max(entireRHS,[],1);
-    
+
                     V(1+(ea_c-1)*N_a1:ea_c*N_a1,z_c,e_c,jj)=shiftdim(Vtemp,1);
                     Policy(1+(ea_c-1)*N_a1:ea_c*N_a1,z_c,e_c,jj)=shiftdim(maxindex,1);
                 end

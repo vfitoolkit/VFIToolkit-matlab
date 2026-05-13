@@ -9,7 +9,7 @@ function SimPanelValues=SimPanelValues_FHorz_Case1(InitialDist,Policy,FnsToEvalu
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 
-%% Check which simoptions have been declared, set all others to defaults 
+%% Check which simoptions have been declared, set all others to defaults
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
@@ -43,7 +43,7 @@ else
     end
     if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^3;
-    end 
+    end
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0; % setting to 1 slows the simulations, but reduces memory
     end
@@ -166,15 +166,15 @@ if simoptions.experienceasset==1
     if N_semiz==0
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     else
-        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);        
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     end
 elseif simoptions.experienceassetu==1
     if N_semiz==0
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     else
-        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);        
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     end
-elseif simoptions.riskyasset==1    
+elseif simoptions.riskyasset==1
     error('Cannot yet simulate panel with simoptions.riskyasset=1, ask on forum if you want this')
 else
     if N_semiz==0
@@ -186,7 +186,7 @@ end
 % Note: SimPanelIndexes contains semiz,z,e all in a single dimension (as that suits how the gridvals are created below)
 
 %% Exogenous shock grids (must come after the SimPanelIndexes as it then strips n_semiz and n_e out of simoptions)
-% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
+% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
 [~,semizze_gridvals_J,~,~,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 % N_semizze=prod(n_semizze);
 if N_semizze==0
@@ -216,7 +216,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;

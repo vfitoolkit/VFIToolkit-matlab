@@ -29,7 +29,7 @@ else
 end
 
 for ii=1:N_i
-        
+
     % First set up vfoptions
     if exist('vfoptions','var')
         vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
@@ -46,12 +46,12 @@ for ii=1:N_i
         vfoptions_temp.verbose=0;
         vfoptions_temp.verboseparams=0;
         vfoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
-    end 
-    
+    end
+
     if vfoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-    
+
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
     if isstruct(n_d)
@@ -173,7 +173,7 @@ for ii=1:N_i
     else
         ReturnFn_temp=ReturnFn;
     end
-    
+
     %%
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
@@ -201,27 +201,27 @@ for ii=1:N_i
     end
 
     % ReturnFnParamNames_temp=ReturnFnParamNamesFn(ReturnFn_temp,n_d_temp,n_a_temp,n_z_temp,vfoptions_temp,Parameters_temp);
-    
+
     if vfoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
-    
+
     if isfinite(N_j_temp)
         [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
     else % PType actually allows for infinite horizon as well
         [V_ii, Policy_ii]=ValueFnIter_InfHorz(n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
     end
 
-    
+
     if vfoptions_temp.ptypestorecpu==1
-        V.(Names_i{ii})=gather(V_ii); 
+        V.(Names_i{ii})=gather(V_ii);
         Policy.(Names_i{ii})=gather(Policy_ii);
     else
         V.(Names_i{ii})=V_ii;
         Policy.(Names_i{ii})=Policy_ii;
     end
-        
+
     clear V_ii Policy_ii
 
 end

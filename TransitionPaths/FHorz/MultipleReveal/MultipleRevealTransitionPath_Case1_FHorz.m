@@ -155,7 +155,7 @@ for rr=1:nReveals
         temp=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp});
         Parameters.(ParamsOnPathNames{pp})=temp(:,end); % the final value of the ParamPath on this parameter
     end
-    
+
     % Now solve the stationary general eqm
     [p_eqm_final,~,GeneralEqmCondnValues]=HeteroAgentStationaryEqm_Case1_FHorz(jequaloneDist,AgeWeightsParamNames,n_d, n_a, n_z, N_j, 0, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, [], [], [], GEPriceParamNames, heteroagentoptions, simoptions_finaleqm, vfoptions_finaleqm);
     % Store the final stationary eqm
@@ -165,7 +165,7 @@ for rr=1:nReveals
     for pp=1:nPricesOnPath
         Parameters.(PricesOnPathNames{pp})=p_eqm_final.(PricesOnPathNames{pp});
     end
-    
+
     % Get V_final
     [V_final, Policy_final]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, [], vfoptions_finaleqm);
 
@@ -184,7 +184,7 @@ for rr=1:nReveals
             PricePath0_rr.(PricesOnPathNames{pp})=temp_pp1 + (temp_pp2-temp_pp1)*PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp});
         end
     end
-    
+
     ParamPath_rr=ParamPath.(revealperiodnames{rr});
 
     % We already have StationaryDist_initial, but if one of our ParamPaths is on the age weights, we need to impose this onto StationaryDist_initial
@@ -196,12 +196,12 @@ for rr=1:nReveals
         StationaryDist_initial=StationaryDist_initial.*temp(:,1)'; % Note: we already put current ParamPath reveal into Parameters
         StationaryDist_initial=reshape(StationaryDist_initial,tempsize);
     end
-    
+
     %% Compute the transition path
     PricePath_rr=TransitionPath_Case1_FHorz(PricePath0_rr, ParamPath_rr, T, V_final, StationaryDist_initial, jequaloneDist, n_d, n_a, n_z, N_j, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns_Transition, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions_path, vfoptions_path);
     % Keep each of the price paths
     PricePath.(revealperiodnames{rr})=PricePath_rr;
-    
+
     % %% Purely for debugging purposes
     % str=['temp',num2str(rr),'.mat'];
     % StationaryDist_initial_rr=StationaryDist_initial;
@@ -213,13 +213,13 @@ for rr=1:nReveals
 
     % You can calculate the value and policy functions for the transition path
     [VPath_rr,PolicyPath_rr]=ValueFnOnTransPath_Case1_FHorz(PricePath_rr, ParamPath_rr, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions,vfoptions_path);
-    
+
     % You can then use these to calculate the agent distribution for the transition path
     AgentDistPath_rr=AgentDistOnTransPath_Case1_FHorz(StationaryDist_initial, jequaloneDist, PricePath_rr, ParamPath_rr, PolicyPath_rr, AgeWeightsParamNames,n_d,n_a,n_z,N_j,pi_z,T, Parameters, transpathoptions, simoptions_path);
 
     % And then we can calculate AggVars for the path
     AggVarsPath_rr=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, AgentDistPath_rr, PolicyPath_rr, PricePath_rr, ParamPath_rr, Parameters, T, n_d, n_a, n_z, N_j, d_grid, a_grid,z_grid, transpathoptions, simoptions_path);
-    
+
     % Store these, they might be of interest if user wants to see way too much info about each path :)
     multirevealsummary.VPath.(revealperiodnames{rr})=VPath_rr;
     multirevealsummary.PolicyPath.(revealperiodnames{rr})=PolicyPath_rr;
@@ -306,7 +306,7 @@ for rr=1:nReveals
         temp(:,revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal2(rr));
         RealizedParamPath.(ParamsOnPathNames{pp})=temp;
     end
-    
+
     temp=multirevealsummary.RealizedVPath;
     temp2=multirevealsummary.VPath.(revealperiodnames{rr});
     temp2=reshape(temp2,[prod(temp_vsize(1:end-1)),T]);

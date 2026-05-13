@@ -75,7 +75,7 @@ else
     end
 end
 
-if simoptions.groupptypesforstats==1 
+if simoptions.groupptypesforstats==1
     if isa(StationaryDist.control.(Names_i{1}), 'gpuArray')
         AggVars_control=zeros(numFnsToEvaluate,1,'gpuArray');
         AggVars_treatment=zeros(numFnsToEvaluate,1,'gpuArray');
@@ -90,13 +90,13 @@ end
 
 %%
 for ii=1:N_i
-    
+
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
-    
+
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
-    end    
+    end
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
         PolicyIndexes_control_temp=gpuArray(Policy.control.(Names_i{ii})); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
         PolicyIndexes_treat_temp=struct();
@@ -119,14 +119,14 @@ for ii=1:N_i
     else
         Parallel_temp=1;
     end
-    
+
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
     % type), or they could be a structure. Only in the case where they are
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
-    
+
     if isa(n_d,'struct')
         n_d_temp=n_d.(Names_i{ii});
     else
@@ -162,7 +162,7 @@ for ii=1:N_i
     else
         z_grid_temp=z_grid;
     end
-    
+
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
     % these in term.
@@ -189,12 +189,12 @@ for ii=1:N_i
     end
 
     % Note: TreatmentParams are not allowed to depend on permanent type, hence why we do not do the same for them.
-    
+
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
-    end    
-    
+    end
+
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
     % Allows for FnsToEvaluate as structure.
@@ -212,7 +212,7 @@ for ii=1:N_i
         end
     end
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_ze_temp,0);
-    
+
     %% Some setup to get just the relevant parts of the parameters and policy for the control group
     % Want to modify just the control parameters
     Parameters_control_temp=Parameters_temp;
@@ -223,7 +223,7 @@ for ii=1:N_i
             temp=Parameters_control_temp.(allparamnames{nn});
             Parameters_control_temp.(allparamnames{nn})=temp(TreatmentAgeRange(1):TreatmentAgeRange(2)+TreatmentDuration-1);
         end
-    end    
+    end
 
     N_j_temp_FieldExp=TreatmentAgeRange(2)-TreatmentAgeRange(1)+TreatmentDuration;
     % Need to restrict the policy for control-group to just the relevant periods
@@ -253,7 +253,7 @@ for ii=1:N_i
     elseif lengthPolicy==13
         PolicyIndexes_control_temp=PolicyIndexes_control_temp(:,:,:,:,:,:,:,:,:,:,:,:,TreatmentAgeRange(1):TreatmentAgeRange(2)+TreatmentDuration-1);
     end
-    
+
     %% Relevant parts of z_grid (and e_grid when relevant)
     if isfield(simoptions_temp,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions_temp.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions_temp.ExogShockFn);
@@ -261,7 +261,7 @@ for ii=1:N_i
     if isfield(simoptions_temp,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions_temp.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions_temp.EiidShockFn);
     end
-    
+
     if isfield(simoptions_temp,'z_grid_J')
         z_grid_J=simoptions_temp.z_grid_J;
     elseif isfield(simoptions_temp,'ExogShockFn')
@@ -323,14 +323,14 @@ for ii=1:N_i
             end
         end
     end
-    
+
     simoptions_control_temp=simoptions_temp;
     simoptions_control_temp.z_grid_J=z_grid_J(:,TreatmentAgeRange(1):TreatmentAgeRange(2)+TreatmentDuration-1);
     if isfield(simoptions_temp,'n_e')
         simoptions_control_temp.e_grid=e_grid_J(:,TreatmentAgeRange(1):TreatmentAgeRange(2)+TreatmentDuration-1);
     end
-    
-    
+
+
     %% Get the age weights out of control group as we need the later for treatment group, then reweight control group ages to reflect treatment duration
 
     % Find the age weights for the treatment group (get them from the marginal distribution of the control group over ages)
@@ -361,7 +361,7 @@ for ii=1:N_i
     StationaryDist_control_temp=reshape(StationaryDist_control_temp,[numel(StationaryDist_control_temp)/N_j_temp_FieldExp,N_j_temp_FieldExp]);
     StationaryDist_control_temp=StationaryDist_control_temp.*agereweight';
     StationaryDist_control_temp=StationaryDist_control_temp/sum(StationaryDist_control_temp(:));
-    
+
     %% Calculate the aggregate variables for the control-group
     simoptions_control_temp.outputasstructure=0;
     if isfinite(N_j_temp)
@@ -369,15 +369,15 @@ for ii=1:N_i
     else % PType actually allows for infinite horizon as well
         error('Field experiments do not allow for infinite horizon problems')
     end
-    
-    
+
+
     %% Now deal with the treatment group
     % Modify the parameters to those for the treatment
     treatparamnames=fieldnames(TreatmentParams);
     for nn=1:length(treatparamnames)
         Parameters_temp.(treatparamnames{nn})=TreatmentParams.(treatparamnames{nn});
     end
-    
+
     % Calculate the aggregate variables for the treatment-group
     simoptions_temp.outputasstructure=0;
     if isfinite(N_j_temp)
@@ -385,8 +385,8 @@ for ii=1:N_i
     else % PType actually allows for infinite horizon as well
         error('Field experiments do not allow for infinite horizon problems')
     end
-    
-    
+
+
     %% Add things up across PTypes
     if simoptions.groupptypesforstats==1
         for kk=1:numFnsToEvaluate

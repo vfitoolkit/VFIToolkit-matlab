@@ -131,8 +131,8 @@ else
         V(:,:,:,N_j)=shiftdim(Vtempii,1);
         Policy(1,:,:,:,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
         Policy(2,:,:,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
-        
-        
+
+
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
@@ -157,19 +157,19 @@ else
             Policy(1,:,:,e_c,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
             Policy(2,:,:,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
         end
-        
-        
+
+
     elseif vfoptions.lowmemory==2
-        
+
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:);
             EV_z=EV(:,:,z_c);
             EVinterp_z=EVinterp(:,:,z_c);
-            
+
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
-               
+
                 entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z;
 
                 %Calc the max and it's index
@@ -199,13 +199,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
@@ -214,7 +214,7 @@ for reverse_j=1:N_j-1
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
-    
+
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
@@ -235,8 +235,8 @@ for reverse_j=1:N_j-1
         V(:,:,:,jj)=shiftdim(Vtempii,1);
         Policy(1,:,:,:,jj)=shiftdim(squeeze(midpoint),-1); % midpoint
         Policy(2,:,:,:,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
-        
-        
+
+
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:);
@@ -260,15 +260,15 @@ for reverse_j=1:N_j-1
             Policy(1,:,:,e_c,jj)=shiftdim(squeeze(midpoint),-1); % midpoint
             Policy(2,:,:,e_c,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
         end
-        
-        
+
+
     elseif vfoptions.lowmemory==2
-        
+
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:);
             EV_z=EV(:,:,z_c);
             EVinterp_z=EVinterp(:,:,z_c);
-            
+
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
@@ -293,7 +293,7 @@ for reverse_j=1:N_j-1
             end
         end
     end
-    
+
 end
 
 

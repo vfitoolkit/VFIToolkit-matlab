@@ -25,7 +25,7 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,
 
 % Names_i can either be a cell containing the 'names' of the different
 % permanent types, or if there are no structures used (just parameters that
-% depend on permanent type and inputted as vectors or matrices as appropriate; note that this cannot be done for 
+% depend on permanent type and inputted as vectors or matrices as appropriate; note that this cannot be done for
 % vfoptions, simoptions, etc as it then becomes impossible to tell that the vector/matrix is because of PType and not something else)
 % then Names_i can just be the number of permanent types (but does not have to be, can still be names).
 if iscell(Names_i)
@@ -121,7 +121,7 @@ else
     elseif simoptions.npoints==0
         error('simoptions.npoints must be a positive (non-zero) integer')
     end
-    if ~isfield(simoptions,'tolerance')    
+    if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
     if ~isfield(simoptions,'agejshifter')
@@ -187,7 +187,7 @@ if any(computeForThesei==0)
             end
             fprintf('LifeCycleProfiles_FHorz_Case1_PType: Ignoring the %d%s PType { %s } because it is infinite horizon \n', ii2, suffix, Names_i2{ii2});
         end
-    end   
+    end
     % Eliminate any no longer relevant functions from FnsToEvaluate (those which are only used for infinite horizon)
     FnsToEvalNames=fieldnames(FnsToEvaluate);
     FnsToEvaluate2=FnsToEvaluate;
@@ -539,11 +539,11 @@ if simoptions.lowmemory==0
         if N_z_temp==0
             N_z_temp=1; % Just makes things easier below
         end
-        
+
         % Switch to PolicyVals
         PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
         if l_z_temp==0
-            PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,1]); % (N_a,N_j,l_daprime)    
+            PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,1]); % (N_a,N_j,l_daprime)
         else
             PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
         end
@@ -560,7 +560,7 @@ if simoptions.lowmemory==0
         %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
         if useCondlRest==1
             RestrictionStruct_ii=struct();
-            
+
             % For each conditional restriction, create a 'restricted stationary distribution'
             for rr=1:length(CondlRestnFnNames)
                 % The current conditional restriction function
@@ -595,13 +595,13 @@ if simoptions.lowmemory==0
 
             end
         end
-        
-        
+
+
         %%
         for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
 
             if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
-                
+
                 % Get parameter names for current FnsToEvaluate functions
                 if isstruct(FnsToEvaluate.(FnsToEvalNames{ff}))
                     tempfn=FnsToEvaluate.(FnsToEvalNames{ff}).(Names_i{ii});
@@ -619,11 +619,11 @@ if simoptions.lowmemory==0
                 else
                     CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
                 end
-                
+
                 %% We have set up the current PType, now do some calculations for it.
                 simoptions_temp.keepoutputasmatrix=2;
                 ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(tempfn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
-                
+
                 ValuesOnGrid_ffii=reshape(ValuesOnGrid_ffii,[N_a_temp*N_z_temp,N_j_temp]);
                 % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
 
@@ -827,7 +827,7 @@ if simoptions.lowmemory==0
                                 RestrictedSortedWeights=RestrictedSortedWeights(~temp); % drop zeros masses (but ignoring the restrictions; this is just to match what was already done to SortedValues_jj)
                                 RestrictedSortedWeights=accumarray(sortindex,RestrictedSortedWeights,[],@sum); % This has already been done to SortedValues, so have to do it to Restricted Agent Dist
                                 RestrictedSortedWeights=RestrictedSortedWeights/sum(RestrictedSortedWeights(:)); % renormalize to 1
-                                
+
                                 tempStatsRestricted=StatsFromWeightedGrid(SortedValues_jj,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats);
 
                                 % Now store these based on jj
@@ -887,14 +887,14 @@ if simoptions.lowmemory==0
                             end
                         end
                     end
-                    
+
                 end % end jj over agej groupings
             end
         end % end ff over FnsToEvalNames
     end % end ii over N_i
 
 
-    
+
     %% Now we compute the grouped stats
     if simoptions_temp.verbose==1
         fprintf('Permanent type: Grouped Stats \n')
@@ -1005,7 +1005,7 @@ if simoptions.lowmemory==0
                     if sum(digestweights_ff)>0
                         digestweights_ff=digestweights_ff/sum(digestweights_ff);
                     end
-                    
+
                     tempStats=StatsFromWeightedGrid(C_ff,digestweights_ff,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
                     [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
@@ -1110,12 +1110,12 @@ if simoptions.lowmemory==0
                                 % [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
                                 AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj})/sum(sum(restrictedsamplemass(:,j1:jend,rr),2)),[],@sum);
                                 AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj(:));
-                                
+
                                 % AllRestrictedWeights_rrffjj will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
                                 if sum(AllRestrictedWeights_rrffjj)>0
                                     AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj);
                                 end
-                                
+
                                 tempStats2=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),AllRestrictedWeights_rrffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                             end
                             % Store them in AgeConditionalStats
@@ -1177,7 +1177,7 @@ if simoptions.lowmemory==0
 
         end
     end
-    
+
 
     %%
 elseif simoptions.lowmemory==1
@@ -1312,7 +1312,7 @@ elseif simoptions.lowmemory==1
             end
             l_a_temp=length(n_a_temp);
             N_a_temp=prod(n_a_temp);
-            
+
             a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
             % Turn (semiz,z,e) into z_gridvals_J_temp as FnsToEvalute do not distinguish them
             [n_z_temp,z_gridvals_J_temp,N_z_temp,l_z_temp,simoptions_temp]=CreateGridvals_FnsToEvaluate_FHorz(n_z_temp,z_grid_temp,N_j_temp,simoptions_temp);
@@ -1347,7 +1347,7 @@ elseif simoptions.lowmemory==1
                 else
                     CellOverAgeOfParamValues.(FnsToEvalNames{ff})=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
                 end
-                
+
                 %% We have set up the current PType, now do some calculations for it.
                 simoptions_temp.keepoutputasmatrix=2;
                 ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}),CellOverAgeOfParamValues.(FnsToEvalNames{ff}),PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
@@ -1648,7 +1648,7 @@ elseif simoptions.lowmemory==1
                 end
             end
         end
-    
+
     end % end loop over ff (FnsToEvaluate)
 
 end

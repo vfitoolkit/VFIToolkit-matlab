@@ -87,7 +87,7 @@ if Case1orCase2==1
         dPolicy_gridvals=nan;
         Policy_aprime=Policy';
     end
-    
+
     if l_aprime==1
         aprimePolicy_gridvals=aprime_grid(Policy_aprime);
         aprimePolicy_gridvals=reshape(aprimePolicy_gridvals,size(Policy_aprime)); % not sure why I even need this line, but I seem to need it

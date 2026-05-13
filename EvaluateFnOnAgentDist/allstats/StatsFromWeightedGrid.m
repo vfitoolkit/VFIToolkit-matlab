@@ -57,7 +57,7 @@ elseif presorted==2
     % Eliminate all the zero-weights from these (trivial increase in runtime, but makes it easier to spot when there is no variance)
     temp=logical(Weights==0);
     Weights=Weights(~temp);
-    Values=Values(~temp);    
+    Values=Values(~temp);
     SortedValues=Values;
     SortedWeights=Weights;
 end
@@ -97,7 +97,7 @@ if SortedValues(1)==SortedValues(end) || skipcheck
         AllStats.LorenzCurve=(1/npoints:1/npoints:1)';
         AllStats.Gini=0;
     elseif whichstats(4)==3
-        AllStats.Gini=0;        
+        AllStats.Gini=0;
     end
     if whichstats(5)==1
         AllStats.Maximum=SortedValues(1);
@@ -132,7 +132,7 @@ else
         % WeightedSortedValues contains NaNs
         CumSumSortedWeightedValues=cumsum(WeightedSortedValues);
     end
-    
+
     if whichstats(4)>=1
         % Lorenz curve
         if npoints>0
@@ -200,7 +200,7 @@ else
             end
         end
     end
-    
+
     if whichstats(5)==1 || whichstats(6)>=1 % note: anyway need min/max for quantile cutoffs
         % Min value
         tempindex=find(CumSumSortedWeights>=tolerance,1,'first');
@@ -244,16 +244,16 @@ else
                 % QuantileMeans=zeros(nquantiles,1,'gpuArray');
                 [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
                 AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
-                
+
                 quantilecutoffindexes_lower=[1; quantilecutoffindexes'];
                 quantilecutoffindexes_upper=[quantilecutoffindexes'; numel(WeightedSortedValues)];
-                
+
                 % CumSumSortedWeightedValues=cumsum(WeightedSortedValues); % precomputed
                 term1=CumSumSortedWeightedValues(quantilecutoffindexes_upper)-CumSumSortedWeightedValues(quantilecutoffindexes_lower);
                 term2=SortedValues(quantilecutoffindexes_upper).*(CumSumSortedWeights(quantilecutoffindexes_upper)-(1:1:nquantiles)'/nquantiles);
                 term3=SortedValues(quantilecutoffindexes_lower).*(CumSumSortedWeights(quantilecutoffindexes_lower)-(0:1:nquantiles-1)'/nquantiles);
                 QuantileMeans=term1-term2+term3;
-                
+
                 % This formula only works when the cutoff indexes are different, so when they are not, do some overwriting
                 temp=logical(quantilecutoffindexes_lower==quantilecutoffindexes_upper);
                 QuantileMeans(temp)=SortedValues(quantilecutoffindexes_upper(temp))/nquantiles;  % Note: need to /nquantiles, because later I *nquantiles
@@ -262,7 +262,7 @@ else
         end
 
     end
-    
+
     if whichstats(7)==1
         if ~any(whichstats(4)==[1,2])
             error('whichstats(7)=1 can only be used with whichstats(4)=1 or 2 (Lorenz Curve forms basis for some of the stats in whichstats(7))')

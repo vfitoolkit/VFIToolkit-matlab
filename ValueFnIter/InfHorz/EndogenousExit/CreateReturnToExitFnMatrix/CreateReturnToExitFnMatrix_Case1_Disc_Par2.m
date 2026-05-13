@@ -12,7 +12,7 @@ end
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-l_a=length(n_a); 
+l_a=length(n_a);
 l_z=length(n_z);
 if l_a>4
     disp('ERROR: Using GPU for the return to exit fn does not allow for more than four of a variable (you have length(n_a)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')

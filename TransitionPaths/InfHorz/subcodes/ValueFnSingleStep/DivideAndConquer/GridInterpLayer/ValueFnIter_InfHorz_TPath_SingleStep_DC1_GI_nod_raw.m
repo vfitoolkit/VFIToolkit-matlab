@@ -97,7 +97,7 @@ elseif vfoptions.lowmemory==1
 
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
-        
+
         EV_z=Vnext.*shiftdim(pi_z(z_c,:)',-1);
         EV_z(isnan(EV_z))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension

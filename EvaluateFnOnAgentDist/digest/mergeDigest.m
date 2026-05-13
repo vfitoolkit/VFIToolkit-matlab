@@ -7,7 +7,7 @@ function [C,digestweights,qlimitvec]=mergeDigest(values, weights, delta)
 %    - weights: the centroid weights
 %    - delta: scaling factor
 %
-% Outputs: 
+% Outputs:
 %     C - the centroid means
 %     digestweights - the weights
 %     qlimitvec - essentially the cumultive weights (note: digestweights are just the first difference of qlimitvec)
@@ -82,7 +82,7 @@ if Nq~=0
         C(count)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii));
         qlimitvec(count)=qlimit;
     end
-    
+
     % Some will be zeros, so find and trim these
     temp=~(qlimitvec==0);
     C=C(temp);
@@ -124,7 +124,7 @@ else % Have not precalculated number of elements, so memory usage not preallocat
     if sum(sortweights(ibegin:ii))>0
         C=[C;sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii))];
         qlimitvec=[qlimitvec;qlimit];
-    end    
+    end
 
     digestweights=[qlimitvec(2:end);1]-qlimitvec;
 

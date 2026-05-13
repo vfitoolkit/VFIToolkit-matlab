@@ -6,7 +6,7 @@ function [MomentDerivatives,SortedMomentDerivatives,momentderivsummary]=Estimate
 % M_m are all the moments the toolkit does with 'AllStats' and 'LifeCycleProfiles'
 % theta is a vector of parameters, EstimParamNames, based on values in Params
 %
-% Most of this is copy-past from EstimateLifeCycleModel_MethodOfMoments(), hence the 
+% Most of this is copy-past from EstimateLifeCycleModel_MethodOfMoments(), hence the
 % naming of things is a bit odd for the current purpose.
 %
 
@@ -37,7 +37,7 @@ else
     end
 end
 if ~isfield(estimoptions,'logmoments')
-    estimoptions.logmoments=0; 
+    estimoptions.logmoments=0;
     % =1 means log() the model moments [target moments and CoVarMatrixDataMoments should already be based on log(moments) if you are using this+
     % =1 means applies log() to all moments, unless you specify them seperately as on next line
     % You can name moments in the same way you would for the targets, e.g.
@@ -303,12 +303,12 @@ if estimoptions.calibrateshocks==0
 end
 
 
-%% 
+%%
 % estimoptions.logmoments can be specified by names
 if isstruct(estimoptions.logmoments)
     error('estimoptions.logmoments can normally be names, but in EstimateLifeCycleModel_MomentDerivatives is must be scalar 0 or 1')
 elseif any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
-   % If set this up, and then set up 
+   % If set this up, and then set up
    if isscalar(estimoptions.logmoments)
        estimoptions.logmoments=ones(length(targetmomentvec),1); % log all of them
    else
@@ -329,10 +329,10 @@ estimparamsvec=estimparamsvec0;
 
 %% Compute the moment derivatives with respect to the estimated parameters
 % We want to compute J (the jacobian matrix of derivatives of model moments to the estimated parameters).
-% To make it easier to compute the derivatives by finite-difference, I turn off the parameter constraints and just use the model 
+% To make it easier to compute the derivatives by finite-difference, I turn off the parameter constraints and just use the model
 % parameter values (rather than the internal-transformed-parameters) directly. Just makes it easier to follow what is going on (at least in my head).
 % To faciliate this I use estimoptionsJacobian=estimoptions, but with modifications.
-% Later I did some searching, and it seems there are no precise answers online, but some people (Python 'optimagic' on github) made same decision I did, of taking 
+% Later I did some searching, and it seems there are no precise answers online, but some people (Python 'optimagic' on github) made same decision I did, of taking
 % derivatives based on 'external' parameters rather than 'internal' (transformed) parameters.
 % Other open issue, what do you do when the resulting standard deviations mean confidence intervals reach outside your contraints?
 
@@ -475,7 +475,7 @@ for ee=1:length(epsilonmodvec)
     momentderivsummary.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_centered=J_centered;
     momentderivsummary.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_up=J_up;
     momentderivsummary.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_down=J_down;
-   
+
     % Add a bunch of extra info
     momentderivsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).estimparamsvec=epsilonparamvec; % Is actually independent of ee anyway
     momentderivsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).estimparamsvecup=epsilonparamup(:,ee);
@@ -512,7 +512,7 @@ end
 % SortedMomentDerivatives is just the same content as MomentDerivatives,
 % but sort them by the magnitude of the derivatives, instead of just
 % unsorted
-SortedMomentDerivatives=struct(); 
+SortedMomentDerivatives=struct();
 % NOT YET IMPLEMENTED
 
 

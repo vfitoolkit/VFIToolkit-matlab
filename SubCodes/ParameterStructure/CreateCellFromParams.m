@@ -4,13 +4,13 @@ function CellOfParamValues=CreateCellFromParams(Parameters,ParamNames,index1,ind
 % CellOfParamValues=CreateCellFromParams(Parameters,ParamNames,index1)
 % CellOfParamValues=CreateCellFromParams(Parameters,ParamNames,index1,index2)
 %
-% CreateCellFromParams looks in structure called 'Parameters' and 
+% CreateCellFromParams looks in structure called 'Parameters' and
 % then creates a cell containing the values of it's fields that
 % correspond to those field names in ParamNames (and in the order
 % given by CalibParamNames)
 %
 % Some parameters are stored in the Parameters structure as vectors or
-% matrices (eg., because the parameter values depends on age). In these 
+% matrices (eg., because the parameter values depends on age). In these
 % cases 'index1' (and 'index2') can be used to specify which is the relevant element.
 
 if isempty(ParamNames)
@@ -44,7 +44,7 @@ elseif nargin==3
             if strcmp(ParamNames{iCalibParam},FullParamNames{iField})
                 temp=gather(Parameters.(FullParamNames{iField}));
                 if length(temp)>1 % Some parameters will depend on the index, some will not.
-                    CellOfParamValues(iCalibParam)={temp(index1)}; 
+                    CellOfParamValues(iCalibParam)={temp(index1)};
                 else
                     CellOfParamValues(iCalibParam)={temp};
                 end
@@ -67,7 +67,7 @@ elseif nargin==4
                 elseif size(temp,1)==length(temp) % Some parameters will depend only on index1.
                     CellOfParamValues(iCalibParam)={temp(index1)};
                 elseif size(temp,2)==length(temp) % Some parameters will depend only on index2.
-                    CellOfParamValues(iCalibParam)={temp(1,index2)}; 
+                    CellOfParamValues(iCalibParam)={temp(1,index2)};
                 else
                     CellOfParamValues(iCalibParam)={temp};
                 end

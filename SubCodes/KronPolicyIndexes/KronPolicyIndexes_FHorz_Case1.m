@@ -1,7 +1,7 @@
 function PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j, simoptions)
 % Input: Policy (l_d+l_a,n_a,n_z,N_j);
 %
-% Output: Policy=zeros(2,N_a,N_z,N_j); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+% Output: Policy=zeros(2,N_a,N_z,N_j); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 %                       (N_a,N_z,N_j) if there is no d
 
 N_a=prod(n_a);

@@ -1,6 +1,6 @@
 function CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,ParamNames,N_j,dimJ)
 
-% CreateCellOverAgeFromParams looks in structure called 'Parameters' and 
+% CreateCellOverAgeFromParams looks in structure called 'Parameters' and
 % then creates a matrix with each column contains the values of it's fields that
 % correspond to those field names in ParamNames (and in the order
 % given by CalibParamNames) and each row is a different age (j).

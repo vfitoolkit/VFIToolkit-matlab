@@ -21,7 +21,7 @@ for ff=1:length(FnsToEvaluateNames)
     % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
     temp=Values.*AgentDist;
     val=sum(temp(~isnan(temp)));
-    
+
     if outputastruct==0
         AggVars(ff)=val;
     else % if outputastruct==1

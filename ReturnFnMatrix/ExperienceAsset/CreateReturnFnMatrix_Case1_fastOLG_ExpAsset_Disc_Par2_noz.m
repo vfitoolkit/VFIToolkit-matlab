@@ -22,8 +22,8 @@ N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 
 l_d=length(n_d);
-l_a1=length(n_a1); 
-l_a2=length(n_a2); 
+l_a1=length(n_a1);
+l_a2=length(n_a2);
 if l_d>4
     error('Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
 end

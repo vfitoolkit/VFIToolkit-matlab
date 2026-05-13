@@ -48,7 +48,7 @@ if vfoptions.lowmemory==0
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2(ReturnFn, n_e, N_j, a_grid, a_grid, e_gridvals_J, ReturnFnParamsAgeMatrix,1);
     % fastOLG: ReturnMatrix is [aprime,a,j,e]
-    
+
     entireRHS=ReturnMatrix+DiscountedEV; % [aprime,a,j,e]
 
     % Calc the max and it's index
@@ -72,7 +72,7 @@ elseif vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e));
     V=zeros(N_a*N_j,N_e,'gpuArray');
     Policy=zeros(2,N_a,N_j,N_e,'gpuArray'); %first dim indexes the optimal choice for aprime
-    
+
     for e_c=1:N_e
         e_vals=e_gridvals_J(1,1,:,e_c,:); % e_gridvals_J has shape (j,prod(n_e),l_e) for fastOLG with no z
 

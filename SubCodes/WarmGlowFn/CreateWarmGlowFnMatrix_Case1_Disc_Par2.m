@@ -10,7 +10,7 @@ end
 
 N_a=prod(n_a);
 
-l_a=length(n_a); 
+l_a=length(n_a);
 if l_a>4
     error('ERROR: Using GPU for the warm-glow of bequests fn does not allow for more than four of a variable (you have length(n_a)>4)')
 end

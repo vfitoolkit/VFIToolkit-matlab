@@ -74,12 +74,12 @@ DiscountedEV=shiftdim(DiscountedEV,-1); % [1,aprime,1,j,z]
 DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp; % [n2aprime fine,1,j,z]
 
 if vfoptions.lowmemory==0
-    
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn, n_d, n_z, N_j, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (d,aprime,a and j,z), autofills d&a for expectation term
-    
+
     % First, we want aprime conditional on (d,1,a,j)
     [~,maxindex1]=max(entireRHS_ii,[],2);
 
@@ -105,7 +105,7 @@ if vfoptions.lowmemory==0
             midpoints_jj(:,1,curraindex,:,:)=repelem(loweredge,1,1,length(curraindex),1);
         end
     end
-    
+
     % Turn this into the 'midpoint'
     midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is n_d-by-1-by-n_a-by-N_j-by-n_z

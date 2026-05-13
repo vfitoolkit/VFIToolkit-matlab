@@ -2,7 +2,7 @@ function WeightedSumSq_GeneralEqmCondnPath=TransitionPath_Case1_FHorz_subfn(Pric
 error('This Code is outdated')
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
-% only if it is a 'surprise', not anticipated changes) 
+% only if it is a 'surprise', not anticipated changes)
 
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
@@ -33,14 +33,14 @@ PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
 %Vnext, and the current period one to be calculated in V
 Vnext=V_final;
 for i=1:T-1 %so t=T-i
-    
+
     for kk=1:length(PricePathNames)
         Parameters.(PricePathNames{kk})=PricePathOld(T-i,kk);
     end
     for kk=1:length(ParamPathNames)
         Parameters.(ParamPathNames{kk})=ParamPath(T-i,kk);
     end
-    
+
     if transpathoptions.zpathprecomputed==1
         if transpathoptions.zpathtrivial==1
             vfoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,i);
@@ -49,12 +49,12 @@ for i=1:T-1 %so t=T-i
         % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in vfoptions already
     end
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use vfoptions.ExogShockFn within  ValueFnIter command
-    
-    
+
+
     [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     % The VKron input is next period value fn, the VKron output is this period.
     % Policy is kept in the form where it is just a single-value in (d,a')
-    
+
     if N_d>0
         PolicyIndexesPath(:,:,:,:,T-i)=Policy;
     else
@@ -71,23 +71,23 @@ clear V Vnext
 %Call AgentDist the current periods distn
 AgentDist=AgentDist_initial;
 for i=1:T-1
-    
+
     %Get the current optimal policy
     if N_d>0
         Policy=PolicyIndexesPath(:,:,:,:,i);
     else
         Policy=PolicyIndexesPath(:,:,:,i);
     end
-    
+
     p=PricePathOld(i,:);
-    
+
     for nn=1:length(ParamPathNames)
         Parameters.(ParamPathNames{nn})=ParamPath(i,nn);
     end
     for nn=1:length(PricePathNames)
         Parameters.(PricePathNames{nn})=PricePathOld(i,nn);
     end
-    
+
     if transpathoptions.zpathprecomputed==1
         if transpathoptions.zpathtrivial==1
             simoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,i);
@@ -96,17 +96,17 @@ for i=1:T-1
         % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in simoptions already
     end
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use simoptions.ExogShockFn within StationaryDist and FnEvaluation command
-    
-    
+
+
     PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
     AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
-    
+
     % When using negative powers matlab will often return complex
     % numbers, even if the solution is actually a real number. I
     % force converting these to real, albeit at the risk of missing problems
     % created by actual complex numbers.
     GeneralEqmCondnPath(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
-    
+
     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
 end
 %     % Free up space on GPU by deleting things no longer needed
@@ -115,14 +115,14 @@ end
 % if transpathoptions.historyofpricepath==1
 %     PricePathHistory{pathcounter,1}=PricePathDist;
 %     PricePathHistory{pathcounter,2}=PricePathOld;
-%     
+%
 %     if rem(pathcounter,5)==1
 %         save ./SavedOutput/TransPath_Internal.mat PricePathHistory
 %     end
 % end
 % pathcounter=pathcounter+1;
 
-WeightedSumSq_GeneralEqmCondnPath=sum(sum(transpathoptions.weightsforpath.*(GeneralEqmCondnPath).^2));    
+WeightedSumSq_GeneralEqmCondnPath=sum(sum(transpathoptions.weightsforpath.*(GeneralEqmCondnPath).^2));
 
 % end
 
@@ -136,6 +136,6 @@ if transpathoptions.verbose==1
     fprintf('Current WeightedSumSq_GeneralEqmCondnPath: \n')
     WeightedSumSq_GeneralEqmCondnPath
 end
-    
+
 
 end

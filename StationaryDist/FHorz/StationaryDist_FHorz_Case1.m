@@ -63,7 +63,7 @@ end
 
 %% Check for the age weights parameter, and make sure it is a row vector
 if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
-    Parameters.(AgeWeightParamNames{1})=Parameters.(AgeWeightParamNames{1})'; 
+    Parameters.(AgeWeightParamNames{1})=Parameters.(AgeWeightParamNames{1})';
     % Note: assumed there is only one AgeWeightParamNames
 end
 % And check that the age weights sum to one
@@ -71,7 +71,7 @@ if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
     warning('StationaryDist: The age-weights do not sum to one')
 end
 
-%% 
+%%
 if simoptions.parallel==2
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
    % Some things require simoptions.d_grid or simoptions.a_grid, make sure
@@ -296,7 +296,7 @@ else
     end
     Policy_aprime=shiftdim(Policy_aprime,1);
 
-    
+
     %%
     if simoptions.gridinterplayer==0
         if N_z==0 && N_e==0 % handled separately above

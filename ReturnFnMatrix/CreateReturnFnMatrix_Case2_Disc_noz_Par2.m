@@ -6,7 +6,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 
 l_d=length(n_d);
-l_a=length(n_a); 
+l_a=length(n_a);
 if l_d>4
     error('Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
 end

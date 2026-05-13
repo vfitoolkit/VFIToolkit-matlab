@@ -14,7 +14,7 @@ l_p=length(n_p);
 
 p_eqm=struct(); p_eqm_index=nan; GeneralEqmConditions=nan;
 
-%% Check which options have been used, set all others to defaults 
+%% Check which options have been used, set all others to defaults
 if exist('vfoptions','var')==0
     %If vfoptions is not given, just use all the defaults
     vfoptions.parallel=2;
@@ -33,7 +33,7 @@ if ~isfield(simoptions,'parallel')
     simoptions.parallel=2;
 end
 if ~isfield(simoptions,'ncores')
-    try 
+    try
         PoolDetails=gcp;
         simoptions.ncores=PoolDetails.NumWorkers;
     catch
@@ -108,7 +108,7 @@ end
 minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns);
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multimarketcriterion=0;
-    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);    
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);
 elseif heteroagentoptions.fminalgo==1
     [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0,minoptions);
 elseif heteroagentoptions.fminalgo==2
@@ -138,7 +138,7 @@ elseif heteroagentoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adap
         % inopts: options struct, see defopts below
         heteroagentoptions.inopts=[];
     end
-    % varargin (unused): arguments passed to objective function 
+    % varargin (unused): arguments passed to objective function
     if heteroagentoptions.verbose==1
         disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
     end

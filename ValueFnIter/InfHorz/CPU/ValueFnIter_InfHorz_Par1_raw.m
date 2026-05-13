@@ -9,7 +9,7 @@ Ftemp=zeros(N_a,N_z);
 pi_z_howards=repelem(pi_z,N_a,1);
 
 while currdist>Tolerance && tempcounter<=maxiter
-    
+
     VKronold=VKron;
 
     parfor z_c=1:N_z
@@ -23,20 +23,20 @@ while currdist>Tolerance && tempcounter<=maxiter
 
         %Calc the RHS
         entireRHS=ReturnMatrix_z(:,:,1)+beta*entireEV_z*ones(1,N_a); %d by aprime by 1
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
-             
+
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); % Store Ftemp to use with Howards
     end
 
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    
+
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             EVKrontemp=VKron(ceil(PolicyIndexes/N_d),:);
@@ -46,9 +46,9 @@ while currdist>Tolerance && tempcounter<=maxiter
             VKron=Ftemp+beta*EVKrontemp;
         end
     end
-    
+
     tempcounter=tempcounter+1;
-    
+
 end
 
 Policy=zeros(2,N_a,N_z);

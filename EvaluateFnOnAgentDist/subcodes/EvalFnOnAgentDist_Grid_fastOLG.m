@@ -9,7 +9,7 @@ function Values=EvalFnOnAgentDist_Grid_fastOLG(FnToEvaluate,ParamCell,PolicyValu
 if l_d==0 && l_a==1 && l_z==1
     Values=arrayfun(FnToEvaluate, PolicyValues(:,:,:,1), a_gridvals(:,1), z_gridvals(1,1,:,1), ParamCell{:});
 elseif l_d==0 && l_a==1 && l_z==2
-    Values=arrayfun(FnToEvaluate, PolicyValues(:,:,:,1), a_gridvals(:,1), z_gridvals(1,1,:,1),z_gridvals(1,1,:,2), ParamCell{:});    
+    Values=arrayfun(FnToEvaluate, PolicyValues(:,:,:,1), a_gridvals(:,1), z_gridvals(1,1,:,1),z_gridvals(1,1,:,2), ParamCell{:});
 elseif l_d==0 && l_a==1 && l_z==3
     Values=arrayfun(FnToEvaluate, PolicyValues(:,:,:,1), a_gridvals(:,1), z_gridvals(1,1,:,1),z_gridvals(1,1,:,2),z_gridvals(1,1,:,3), ParamCell{:});
 elseif l_d==0 && l_a==1 && l_z==4
@@ -21,7 +21,7 @@ elseif l_d==0 && l_a==2 && l_z==2
 elseif l_d==0 && l_a==2 && l_z==3
     Values=arrayfun(FnToEvaluate, PolicyValues(:,:,:,1),PolicyValues(:,:,:,2), a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,1,:,1),z_gridvals(1,1,:,2),z_gridvals(1,1,:,3), ParamCell{:});
 elseif l_d==0 && l_a==2 && l_z==4
-    Values=arrayfun(FnToEvaluate, PolicyValues(:,:,:,1),PolicyValues(:,:,:,2), a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,1,:,1),z_gridvals(1,1,:,2),z_gridvals(1,1,:,3),z_gridvals(1,1,:,4), ParamCell{:});  
+    Values=arrayfun(FnToEvaluate, PolicyValues(:,:,:,1),PolicyValues(:,:,:,2), a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,1,:,1),z_gridvals(1,1,:,2),z_gridvals(1,1,:,3),z_gridvals(1,1,:,4), ParamCell{:});
 elseif l_d==0 && l_a==3 && l_z==1
     Values=arrayfun(FnToEvaluate, PolicyValues(:,:,:,1),PolicyValues(:,:,:,2),PolicyValues(:,:,:,3), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,1,:,1), ParamCell{:});
 elseif l_d==0 && l_a==3 && l_z==2

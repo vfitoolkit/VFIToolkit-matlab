@@ -1101,7 +1101,7 @@ for ff=1:length(FnsToEvaluate)
             end
         end
     end
-    
+
     if outputasstructure==1
         AggVars.(AggVarNames{ff}).Mean=sum(Values(:).*AgentDist(:));
     else % outputasstructure==0

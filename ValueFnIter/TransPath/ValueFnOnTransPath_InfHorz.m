@@ -5,7 +5,7 @@ if prod(n_z)>1 && all(size(d_grid)==[prod(n_z),prod(n_z)])
     error('Check input order: pi_z comes after z_grid') % Keep this error message until end of 2027, can remove after that
 end
 
-%% Check which transpathoptions have been used, set all others to defaults 
+%% Check which transpathoptions have been used, set all others to defaults
 if ~exist('transpathoptions','var')
     %If transpathoptions is not given, just use all the defaults
     transpathoptions.parallel=2;
@@ -20,7 +20,7 @@ else
     end
 end
 
-%% Check which vfoptions have been used, set all others to defaults 
+%% Check which vfoptions have been used, set all others to defaults
 vfoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
@@ -97,10 +97,10 @@ end
 
 %%
 % Note: Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePath,ParamPath,T);
 
-%% 
+%%
 % The outputted VPath and PolicyPath are T-1 periods long (periods 0 (before the reforms are announced) & T are the initial and final values; they are not created by this command and instead can be used to provide double-checks of the output (the T-1 and the final should be identical if convergence has occoured).
 % if n_d(1)==0
 %     PolicyPath=zeros([length(n_d),n_a,n_z,N_j,T-1],'gpuArray'); %Periods 1 to T-1
@@ -111,7 +111,7 @@ end
 
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
-% only if it is a 'surprise', not anticipated changes) 
+% only if it is a 'surprise', not anticipated changes)
 
 % PricePath is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
@@ -198,7 +198,7 @@ if vfoptions.experienceasset==0
         for kk=1:length(ParamPathNames)
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,kk);
         end
-        
+
         [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 

@@ -79,7 +79,7 @@ for ii=1:(vfoptions.level1n-1)
        [~,maxindex]=max(entireRHS_ii,[],1);
         midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
     else
-        loweredge=maxindex1(1,ii,:);       
+        loweredge=maxindex1(1,ii,:);
         midpoints_jj(1,curraindex,:)=repelem(loweredge,1,length(curraindex),1);
     end
 end

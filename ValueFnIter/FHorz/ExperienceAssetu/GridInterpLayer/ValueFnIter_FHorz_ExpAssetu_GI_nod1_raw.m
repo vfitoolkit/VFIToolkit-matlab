@@ -169,7 +169,7 @@ else
             allind=d_ind+N_d2*aind; % midpoint is n_d-by-1-by-n_a1-by-n_a2
             Policy3(1,:,z_c,N_j)=d_ind; % d2
             Policy3(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-            Policy3(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind     
+            Policy3(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
         end
     end
 end
@@ -182,8 +182,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -271,7 +271,7 @@ for reverse_j=1:N_j-1
             allind=d_ind+N_d2*aind; % midpoint is n_d-by-1-by-n_a1-by-n_a2
             Policy3(1,:,z_c,jj)=d_ind; % d2
             Policy3(2,:,z_c,jj)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-            Policy3(3,:,z_c,jj)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind     
+            Policy3(3,:,z_c,jj)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
         end
     end
 end

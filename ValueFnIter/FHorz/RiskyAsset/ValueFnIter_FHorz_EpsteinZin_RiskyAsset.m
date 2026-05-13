@@ -19,7 +19,7 @@ else
     aprimeFnParamNames={};
 end
 
-%% 
+%%
 % Make sure all the relevant inputs are GPU arrays (not standard arrays)
 pi_u=gpuArray(pi_u);
 u_grid=gpuArray(u_grid);
@@ -188,10 +188,10 @@ end
 ezc8=ezc8.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
 
 if vfoptions.EZoneminusbeta==1
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j); 
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     ezc1=1-prod(DiscountFactorParamsVec); % (This will be changed later if it depends on age)
 elseif vfoptions.EZoneminusbeta==2
-    % Some formulations using bequests multiply the period utility function by (1-sj*beta) 
+    % Some formulations using bequests multiply the period utility function by (1-sj*beta)
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     ezc1=1-sj(N_j)*prod(DiscountFactorParamsVec);
 end
@@ -297,7 +297,7 @@ else % N_e
                 [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_e_raw(n_d1,n_d2,n_d3, n_a1,n_a2, n_z, vfoptions.n_e, n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
             end
         end
-    end 
+    end
 end
 
 

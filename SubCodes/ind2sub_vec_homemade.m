@@ -1,5 +1,5 @@
 function sub=ind2sub_vec_homemade(sizeA, indexvec)
-% Does much the same as ind2sub, but by default returns the vector of subscripts that one expects. 
+% Does much the same as ind2sub, but by default returns the vector of subscripts that one expects.
 % 'vec' means that it does this for a vector of indexes, so the output is a matrix.
 
 % indexvec should be a column vector

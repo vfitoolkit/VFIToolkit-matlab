@@ -8,7 +8,7 @@ elseif simoptions.inheritanceasset==1
     % Not yet implmeented for semiz or e
     Policy=reshape(Policy, [size(Policy,1),N_a,N_z]);
     % Not yet implemented with grid interpolation layer
-    
+
     %% Setup related to inheritance asset
     n_d2=n_d(end);
     % Split endogenous assets into the standard ones and the inheritance asset
@@ -39,7 +39,7 @@ elseif simoptions.inheritanceasset==1
     else
         error('To use an inheritance asset you must define simoptions.z_grid')
     end
-    
+
     % aprimeFnParamNames in same fashion
     l_d2=length(n_d2);
     l_z=length(n_z);
@@ -78,7 +78,7 @@ elseif simoptions.inheritanceasset==1
     end
 
     N_probs=2;
-    
+
     % Policy_aprime and PolicyProbs are currently [N_a,N_z,N_zprime,N_probs]
     Policy_aprimezprime=Policy_aprime+N_a*shiftdim(gpuArray(0:1:N_z-1),-1);  % Note: add z' index following the z' dimension
     Policy_aprimezprime=gather(reshape(Policy_aprimezprime,[N_a*N_z,N_zprime*N_probs])); % sparse() requires inputs to be 2-D

@@ -10,7 +10,7 @@ function AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_e_raw(AgentDis
 for jjr=1:(N_j-1)
     jj=N_j-jjr; % It is important that this is in reverse order (due to just overwriting AgentDist)
     AgentDist_jj=sparse(gather(AgentDist(:,jj)));
-    
+
     Gammatranspose=sparse(Policy_aprime(:,jj),II1,II2,N_a,N_a*N_e);
 
     % Two steps of the Tan improvement

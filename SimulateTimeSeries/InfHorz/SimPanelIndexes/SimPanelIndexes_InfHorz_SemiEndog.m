@@ -1,6 +1,6 @@
 function SimPanel=SimPanelIndexes_InfHorz_SemiEndog(InitialDist,Policy,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
-% 'simperiods' beginning from randomly drawn InitialDist. 
+% 'simperiods' beginning from randomly drawn InitialDist.
 % CondlProbOfSurvival is an optional input. (only needed when using: simoptions.exitinpanel=1, there there is exit, either exog, endog or mix of both)
 %
 % InitialDist can be inputed as over the finite time-horizon (j), or
@@ -14,7 +14,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_d=prod(n_d);
 
-%% Check which simoptions have been declared, set all others to defaults 
+%% Check which simoptions have been declared, set all others to defaults
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'simperiods')
@@ -109,7 +109,7 @@ cumsumpi_z_semiendog=cumsum(permute(pi_z_semiendog,[2,3,1]),2); % cumulative som
 %%
 MoveOutputtoGPU=0;
 if simoptions.parallel==2
-    % Simulation on GPU is really slow. So instead, switch to parallel CPU, and then switch back. 
+    % Simulation on GPU is really slow. So instead, switch to parallel CPU, and then switch back.
     % For anything but ridiculously short simulations it is more than worth the overhead.
     simoptions.parallel=1;
     PolicyIndexesKron=gather(PolicyIndexesKron);
@@ -126,9 +126,9 @@ if simoptions.parallel==0
     for ii=1:simoptions.numbersims
         seedpoint=seedpoints(ii,:);
         SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_SemiEndog_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z_semiendog,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
-        
+
         SimPanel_ii=nan(l_a+l_z,simoptions.simperiods);
-        
+
         for t=1:simoptions.simperiods
             temp=SimTimeSeriesKron(:,t);
             if ~isnan(temp)
@@ -149,9 +149,9 @@ else
     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
         SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_SemiEndog_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z_semiendog,0,seedpoint,simperiods,0); % 0: burnin, 0: use single CPU
-        
+
         SimPanel_ii=nan(l_a+l_z,simperiods);
-        
+
         for t=1:simperiods
             temp=SimTimeSeriesKron(:,t);
             if ~isnan(temp)

@@ -73,7 +73,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d2, n_bothz, n_e, d2_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
         % Treat standard problem as just being the first layer
         [~,maxindex1]=max(ReturnMatrix_ii,[],2);
-        
+
         % Just keep the 'midpoint' vesion of maxindex1 [as GI]
         midpoints_Nj(:,1,level1ii,:,:)=maxindex1;
 
@@ -159,7 +159,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
-    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);    
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z,N_e]);    % First, switch V_Jplus1 into Kron form
     EV=sum(EV.*pi_e_J(1,1,:,N_j),3);
@@ -213,7 +213,7 @@ else
             aprimez=aprimeindexes+n2aprime*bothzind; % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez),[n2long,N_a,N_bothz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-            
+
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
 
@@ -308,14 +308,14 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
-    EV=V(:,:,:,jj+1);        
+
+    EV=V(:,:,:,jj+1);
     EV=sum(EV.*pi_e_J(1,1,:,jj),3);
 
     if vfoptions.lowmemory==0
@@ -367,7 +367,7 @@ for reverse_j=1:N_j-1
             aprimez=aprimeindexes+n2aprime*bothzind; % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez),[n2long,N_a,N_bothz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-            
+
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
 
@@ -383,7 +383,7 @@ for reverse_j=1:N_j-1
         Policy(2,:,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z,N_e]); % midpoint
         Policy(3,:,:,:,jj)=aprimeL2_ind; % aprimeL2ind
 
-    elseif vfoptions.lowmemory==1 
+    elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
             d2_val=d2_gridvals(d2_c,:);
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj));

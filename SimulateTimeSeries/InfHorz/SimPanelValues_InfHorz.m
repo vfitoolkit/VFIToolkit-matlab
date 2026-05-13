@@ -12,7 +12,7 @@ function SimPanelValues=SimPanelValues_InfHorz(InitialDist,Policy,FnsToEvaluate,
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 
-%% Check which simoptions have been declared, set all others to defaults 
+%% Check which simoptions have been declared, set all others to defaults
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.numbersims=10^3; % number of agents to simulate
@@ -50,7 +50,7 @@ else
     if ~isfield(simoptions,'verbose') % Can get more feedback on what is happening
         simoptions.verbose=0;
     end
-    if ~isfield(simoptions,'parallel') % Will use parallel cpus, parallel just determines where the solution is when output   
+    if ~isfield(simoptions,'parallel') % Will use parallel cpus, parallel just determines where the solution is when output
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
     if ~isfield(simoptions,'gridinterplayer') % Info that is needed to understand Policy
@@ -138,7 +138,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
@@ -152,7 +152,7 @@ if simoptions.agententryandexit==1
     % Do everything for an extra period, and then delete this at the end
     % (this is needed as lot's of info about exit decisions gets encoded into the next period as a way to minimize memory usage)
     simoptions.simperiods=simoptions.simperiods+1;
-    
+
     DistOfNewAgents=gather(Parameters.(EntryExitParamNames.DistOfNewAgents{1}));
     CondlProbOfSurvival=gather(Parameters.(EntryExitParamNames.CondlProbOfSurvival{1}));
     RelativeMassOfEntrants=Parameters.(EntryExitParamNames.MassOfNewAgents{1})/InitialDist.mass;
@@ -163,7 +163,7 @@ if simoptions.agententryandexit==1
     % Rather than create a whole new function for Entry, just deal with it
     % by making repeated use of SimPanelIndexes_InfHorz(). This could be sped
     % up with better use of precomputing certain objects, but is easy.
-    
+
     % First, figure out how big the eventual panel will be.
     NumberOfNewAgentsPerPeriod=round(RelativeMassOfEntrants*simoptions.numbersims);
     if simoptions.entryinpanel==0 % Don't want entry in panel data simulation
@@ -299,7 +299,7 @@ if simoptions.agententryandexit==0
     else % N_semizze==0
         for tt=1:simoptions.simperiods
             SimPanelIndexes_tt=SimPanelIndexes(:,tt,:);
-            
+
             currentPanelValues_tt=zeros(simoptions.numbersims,nFnsToEvalute); % transpose will be taken before storing
 
             a_ind=squeeze(SimPanelIndexes_tt(1,1,:));
@@ -331,12 +331,12 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a,a_sub);
             if ~isnan(a_ind)
-                
+
                 z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
                 z_ind=sub2ind_homemade(n_z,z_sub);
-                
+
                 j_ind=SimPanel_ii(end,t);
-                
+
                 daprime_val=daprimePolicy_gridvals(a_ind+N_a*(z_ind-1),:);
                 for vv=1:length(FnsToEvaluate)
                     if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
@@ -362,10 +362,10 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==1
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a,a_sub);
             if ~isnan(a_ind)
-                
+
                 z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
                 z_ind=sub2ind_homemade(n_z,z_sub);
-                
+
                 j_ind=SimPanel_ii(end,t);
 
                 daprime_val=daprimePolicy_gridvals(a_ind+N_a*(z_ind-1),:);
@@ -394,12 +394,12 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==2
         for t=1:simoptions.simperiods
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a,a_sub);
-            if ~isnan(a_ind)                
+            if ~isnan(a_ind)
                 z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
                 z_ind=sub2ind_homemade(n_z,z_sub);
-                
-                j_ind=SimPanel_ii(end,t); 
-                
+
+                j_ind=SimPanel_ii(end,t);
+
                 % Make sure that firm is not currently about to exit (includes where firm faces exogenous exit, even though this is not a decision).
                 if t<simoptions.simperiods % Note that with exit the last period will be thrown out anyway, so no need to get it correct.
                     if SimPanel_ii(1:l_a,t+1)~=0 && ~isnan(SimPanel_ii(1:l_a,t+1))

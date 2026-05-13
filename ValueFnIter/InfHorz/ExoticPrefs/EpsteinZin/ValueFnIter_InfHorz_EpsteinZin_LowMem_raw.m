@@ -27,7 +27,7 @@ tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
-    
+
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_gridvals, a_grid, zvals,ReturnFnParamsVec);
@@ -36,7 +36,7 @@ while currdist>Tolerance
         temp2_z=ReturnMatrix_z;
         temp2_z(becareful)=ReturnMatrix_z(becareful).^ezc2; % Otherwise can get things like 0 to negative power equals infinity
         temp2_z(ReturnMatrix_z==0)=-Inf; % Otherwise these ReturnMatrix=zero points get a finite amount added to them (from expectations) and were mishandled later
-        
+
         % Part of Epstein-Zin is before taking expectation
         temp=VKronold;
         temp(isfinite(VKronold))=(ezc4*VKronold(isfinite(VKronold))).^ezc5;
@@ -46,12 +46,12 @@ while currdist>Tolerance
         EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
-        
+
         entireEV_z=repelem(EV_z,N_d,1);
         temp4=entireEV_z;
         temp4(isfinite(temp4))=temp4(isfinite(temp4)).^ezc6;
         temp4(entireEV_z==0)=0;
-        
+
         entireRHS_z=ezc1*temp2_z+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a,1);
 
         temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
@@ -62,10 +62,10 @@ while currdist>Tolerance
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
-             
+
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
-%         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
-        Ftemp(:,z_c)=temp2_z(tempmaxindex); 
+%         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
+        Ftemp(:,z_c)=temp2_z(tempmaxindex);
     end
 
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
@@ -79,24 +79,24 @@ while currdist>Tolerance
             temp=EVKrontemp;
             temp(isfinite(EVKrontemp))=(ezc4*EVKrontemp(isfinite(EVKrontemp))).^ezc5;
             temp(EVKrontemp==0)=0;
-            
+
             EVKrontemp=temp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-            
+
             temp4=EVKrontemp;
             temp4(isfinite(temp4))=temp4(isfinite(temp4)).^ezc6;
             temp4(EVKrontemp==0)=0;
-            
+
             % Note that Ftemp already includes all the relevant Epstein-Zin modifications
-            VKron=ezc1*Ftemp+ezc3*DiscountFactorParamsVec*temp4; 
+            VKron=ezc1*Ftemp+ezc3*DiscountFactorParamsVec*temp4;
 
             temp5=logical(isfinite(VKron).*(VKron~=0));
             VKron(temp5)=ezc1*VKron(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
             VKron(VKron==0)=-Inf;
         end
     end
-        
+
 %     if vfoptions.verbose==1
 %         if rem(tempcounter,10)==0
 %             tempcounter
@@ -106,7 +106,7 @@ while currdist>Tolerance
 %     end
 
     tempcounter=tempcounter+1;
-    
+
 end
 
 Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form

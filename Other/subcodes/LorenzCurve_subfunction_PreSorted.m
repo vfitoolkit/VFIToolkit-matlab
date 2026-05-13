@@ -27,12 +27,12 @@ if numel(CumSumSortedStationaryDistVec_NoDuplicates)==1 % Have to treat the case
     if Parallel==2
         InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1,'gpuArray');
     else
-        InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1);       
+        InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1);
     end
 else
     InverseCDF_SSvalues=interp1(CumSumSortedStationaryDistVec_NoDuplicates,CumSumSortedWeightedValues_NoDuplicates, InverseCDF_xgrid);
 end
-% interp1 cannot work for the point of InverseCDF_xgrid=1 (gives NaN). Since we have already sorted 
+% interp1 cannot work for the point of InverseCDF_xgrid=1 (gives NaN). Since we have already sorted
 % and removed duplicates this will just be the last point so we can just grab it directly.
 InverseCDF_SSvalues(npoints)=CumSumSortedWeightedValues_NoDuplicates(end);
 % interp1 may have similar problems at the bottom of the cdf

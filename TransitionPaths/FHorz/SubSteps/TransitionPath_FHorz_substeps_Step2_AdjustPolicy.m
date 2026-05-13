@@ -3,7 +3,7 @@ function [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=Transiti
 
 %%
 if simoptions.experienceasset==1
-    
+
     whichisdforexpasset=length(n_d)-simoptions.setup_experienceasset.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
     if N_e==0 && N_z==0
         a2primeIndexesPath=zeros(N_a,N_j-1,T-1,'gpuArray');
@@ -54,7 +54,7 @@ if simoptions.experienceasset==1
             end
         end
     end
-    
+
     if N_e==0 && N_z==0
         a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a,N_j-1,1,T-1]);
         a2primeIndexesPath=repmat(a2primeIndexesPath,1,1,2,1);
@@ -551,7 +551,7 @@ elseif transpathoptions.fastOLG==1
             if simoptions.setup_experienceasset.N_a1==0
                 PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
             else
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);                
+                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
             end
             if exist('PolicyProbsPath','var')
                 PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);

@@ -38,7 +38,7 @@ elseif vfoptions.lowmemory==1
 
     n_e_special=ones(1,length(n_e));
     Policy=zeros(N_a*N_j,N_e,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
-    
+
     for e_c=1:N_e
         e_vals=e_gridvals_J(1,1,:,e_c,:); % e_gridvals_J has shape (j,prod(n_e),l_e) for fastOLG with no z
         ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2(ReturnFn, n_e_special, N_j, a_grid, a_grid, e_vals, ReturnFnParamsAgeMatrix,1);

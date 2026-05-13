@@ -73,7 +73,7 @@ for ii=1:N_i
             end
         end
     end
-    
+
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
     pi_z_temp=pi_z;
@@ -94,8 +94,8 @@ for ii=1:N_i
         InitialDist_temp=InitialDist_temp./(sum(sum(sum(InitialDist_temp))));
     end
 
-    
-    
+
+
     SimPanel_ii=gather(SimPanelIndexes_FHorz_Case1(InitialDist_temp,Policy_temp,n_d,n_a,n_z,N_j,pi_z_temp, simoptions_ii));
     if ii==1
         SimPanel(1:(l_a+l_z+1),:,1:sum(PType_numbersims(1:ii)))=SimPanel_ii;

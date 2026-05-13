@@ -28,13 +28,13 @@ if Parallel==2
     l_daprime=size(PolicyIndexes,1);
     a_gridvals=CreateGridvals(n_a,gpuArray(a_grid),1);
     z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
-    
+
     % l_d not needed with Parallel=2 implementation
     l_a=length(n_a);
-    
+
     N_a=prod(n_a);
     N_z=prod(n_z);
-    
+
     StationaryDistpdfVec=reshape(StationaryDistpdf,[N_a*N_z,1]);
 
     % When there is endogenous exit, add exit to the policy (to avoid what
@@ -54,13 +54,13 @@ if Parallel==2
             StationaryDistpdfVec(ExitPolicy)=0;
         end
     end
-    
+
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
     PolicyValues=PolicyInd2Val_InfHorz(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,simoptions);
     PolicyValues=reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]);
     PolicyValuesPermute=permute(PolicyValues,[2,3,1]); %[N_a,N_z,l_d+l_a]
-    
+
     for ff=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
         if isempty(FnsToEvaluateParamNames(ff).Names)
@@ -80,12 +80,12 @@ if Parallel==2
         end
         Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
         Values=reshape(Values,[N_a*N_z,1]);
-        % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec 
+        % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec
         % (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
         temp=Values.*StationaryDistpdfVec;
         AggVars(ff)=sum(temp(~isnan(temp)));
     end
-    
+
 else
 
     if n_d(1)==0
@@ -94,12 +94,12 @@ else
         l_d=length(n_d);
     end
     l_a=length(n_a);
-    
+
     N_a=prod(n_a);
     N_z=prod(n_z);
-    
+
     StationaryDistpdfVec=reshape(StationaryDistpdf,[N_a*N_z,1]);
-    
+
     StationaryDistpdfVec=gather(StationaryDistpdfVec);
     StationaryDistmass=gather(StationaryDistmass);
 
@@ -119,11 +119,11 @@ else
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
-    
+
     AggVars=zeros(length(FnsToEvaluate),1);
-    
+
     if l_d>0
-        
+
         for ff=1:length(FnsToEvaluate)
             if isempty(FnsToEvaluateParamNames(ff).Names)
                 FnToEvaluateParamsVec={};
@@ -149,9 +149,9 @@ else
             temp=Values.*StationaryDistpdfVec;
             AggVars(ff)=sum(temp(~isnan(temp)));
         end
-    
+
     else %l_d=0
-        
+
         for ff=1:length(FnsToEvaluate)
             if isempty(FnsToEvaluateParamNames(ff).Names)
                 FnToEvaluateParamsVec={};
@@ -178,7 +178,7 @@ else
             AggVars(ff)=sum(temp(~isnan(temp)));
         end
     end
-    
+
 end
 
 AggVars=AggVars*StationaryDistmass;

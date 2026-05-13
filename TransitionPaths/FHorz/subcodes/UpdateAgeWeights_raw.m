@@ -8,7 +8,7 @@ function mewj=UpdateAgeWeights_raw(mewjlag,sj,n,immigrantmewj,immigrationrate,em
 
 %% I commented out the following as it would require n to be growth rate of
 % model population (ages j=1,...,J) and not the population as a whole.
-% % n is the population growth rate. We need to turn this into the 
+% % n is the population growth rate. We need to turn this into the
 % % 'rate of growth of population of age j=1'
 % % Note: n should be population growth rate of ages j=1,2,..J (which is
 % % unlikely to calibrate to exact same as population growth rate of whole

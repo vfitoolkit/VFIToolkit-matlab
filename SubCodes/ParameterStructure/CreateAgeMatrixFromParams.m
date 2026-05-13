@@ -4,13 +4,13 @@ function AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,
 % AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,N_j,index1)
 % AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,N_j,index1,index2)
 %
-% CreateAgeMatrixFromParams looks in structure called 'Parameters' and 
+% CreateAgeMatrixFromParams looks in structure called 'Parameters' and
 % then creates a matrix with each column contains the values of it's fields that
 % correspond to those field names in ParamNames (and in the order
 % given by CalibParamNames) and each row is a different age (j).
 %
 % Some parameters are stored in the Parameters structure as vectors or
-% matrices (eg., because the parameter values depends on age). In these 
+% matrices (eg., because the parameter values depends on age). In these
 % cases 'index1' (and 'index2') can be used to specify which is the relevant element.
 
 

@@ -60,7 +60,7 @@ for ii=1:(vfoptions.level1n-1)
         % temp=loweredge(maxindex+shiftdim((0:1:N_j-1),-1));
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+loweredge-1,1); % loweredge
     else
-        loweredge=maxindex1(1,ii,:);        
+        loweredge=maxindex1(1,ii,:);
         % Just use aprime(ii) for everything
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn, N_j, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsAgeMatrix,2);
         aprime=loweredge+N_a*shiftdim((0:1:N_j-1),-1); % with the current aprimeii(ii):aprimeii(ii+1)

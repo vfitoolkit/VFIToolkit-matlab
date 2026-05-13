@@ -1,6 +1,6 @@
 function [C,digestweights,qlimitvec]=createDigest(values, weights,delta,presorted)
 % Creates a t-digest from the distribution.
-% For explanation of t-digest: 
+% For explanation of t-digest:
 %   Kirkby - Computing Quantiles of Functions of the Agent Distribution using t-Digests
 %   Dunning & Ertl (2019) - Computing Extremely Accurate Quantiles Using t-digests
 %
@@ -12,7 +12,7 @@ function [C,digestweights,qlimitvec]=createDigest(values, weights,delta,presorte
 %     presorted (default=0) - can set presorted=1 to skip the sorting step
 %                            (reduces runtimes for when you already know that the input is sorted)
 %
-% Outputs: 
+% Outputs:
 %     C - the centroid means
 %     digestweights - the weights
 %     qlimitvec - essentially the cumultive weights (note: digestweights are just the first difference of qlimitvec)
@@ -137,7 +137,7 @@ else % Have not precalculated number of elements, so memory usage not preallocat
         C=[C;sum(weights(ibegin:ii).*values(ibegin:ii))/sum(weights(ibegin:ii))];
         qlimitvec=[qlimitvec;qlimit];
     end
-    
+
     digestweights=[qlimitvec(2:end);1]-qlimitvec;
 
 end

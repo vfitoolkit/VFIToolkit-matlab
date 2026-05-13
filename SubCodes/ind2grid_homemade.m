@@ -13,5 +13,5 @@ if length(sizeA)>1
     sub=sub+[0,cumsum(sizeA(1:end-1))];
 end
 gridvals=grid(sub);
-    
+
 end

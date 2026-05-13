@@ -51,7 +51,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoint(:,1,level1ii,:)=maxindex1;
-    
+
     % Attempt for improved version
     maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
     for ii=1:(vfoptions.level1n-1)
@@ -173,8 +173,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);

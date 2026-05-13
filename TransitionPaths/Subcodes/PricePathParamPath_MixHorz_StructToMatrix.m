@@ -5,9 +5,9 @@ function varargout=PricePathParamPath_MixHorz_StructToMatrix(PricePathStruct,Par
 %
 % N_i is an optional input, only used for models with permanent type
 % PricePathSizeVec_ii,ParamPathSizeVec_ii are only output for models with permanent type
-% 
+%
 % Note: Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 
 if ~exist('N_i','var')
     % Note: Internally PricePath is matrix of size T-by-'number of prices', similarly for ParamPath
@@ -63,7 +63,7 @@ if ~exist('N_i','var')
             ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp})';
         end
     end
-    
+
     varargout={PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec};
 
 else
@@ -108,7 +108,7 @@ else
     else
         PricePathSizeVec_ii=[1;PricePathSizeVec_ii];
     end
-    
+
     PricePathSizeVec=cumsum(PricePathSizeVec);
     if length(PricePathNames)>1
         PricePathSizeVec=[[1,PricePathSizeVec(1:end-1)+1];PricePathSizeVec];

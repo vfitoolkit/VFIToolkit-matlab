@@ -43,18 +43,18 @@ tempcounter=1;
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     Vold=V;
-    
+
     Vlower=reshape(Vold(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
     Vupper=reshape(Vold(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     aprimeProbs2=aprimeProbs; % version that I can modify with skipinterp
     aprimeProbs2(skipinterp)=0; % effectively skips interpolation
-    
+
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs2.*Vlower+(1-aprimeProbs2).*Vupper; % (d2,a1prime,a2,zprime)
     % Already applied the probabilities from interpolating onto grid
-    
+
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=EV.*Epi_z;
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -62,19 +62,19 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     % EV is over (d2,a1prime,a2,z)
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
-    
+
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
 
     V=shiftdim(Vtemp,1);
     Policy=shiftdim(maxindex,1);
-    
+
     %% Finish up
     % Update currdist
     Vdist=V(:)-Vold(:);
     Vdist(isnan(Vdist))=0;
     currdist=max(abs(Vdist));
-    
+
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && vfoptions.maxhowards>0 % Use Howards Policy Fn Iteration Improvement
 
         Ftemp=reshape(ReturnMatrix(Policy+N_d2*N_a1*(0:1:N_a-1)'+N_d2*N_a1*N_a*(0:1:N_z-1)),[N_a*N_z,1]);
@@ -89,7 +89,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         aprimeind=reshape(aprimeind,[N_a*N_z,1]);
         aprimeplus1ind=aprimeind+N_a1; % add one to a2prime index, which means adding N_a1*1
         aprimeProbs_Howards=reshape(a2primeProbs(temp),[N_a*N_z,1]); %  a2primeProbs is [N_d2,N_a2]
-        
+
         for Howards_counter=1:vfoptions.howards
             % Note: Different from outside Howards, as optimal policy depends on z, and we also need to keep Vprime in terms of
             % zprime. So get Vlower and Vupper that depend on (a,z,zprime).
@@ -122,7 +122,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         end
     end
 
-    tempcounter=tempcounter+1;    
+    tempcounter=tempcounter+1;
 end
 
 

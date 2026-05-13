@@ -11,7 +11,7 @@ N_z=prod(n_z);
 
 if vfoptions.lowmemory==0
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,1);
-    
+
     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
     if n_d(1)>0
         [ReturnMatrix,dstar]=max(ReturnMatrix,[],1);

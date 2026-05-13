@@ -202,7 +202,7 @@ end
 if l_d==0 && l_a==1
     Values=arrayfun(FnToEvaluate, a1primevals, a1vals, ParamCell{:});
 elseif l_d==0 && l_a==2
-    Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, ParamCell{:}); 
+    Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, ParamCell{:});
 elseif l_d==0 && l_a==3
     Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, ParamCell{:});
 elseif l_d==0 && l_a==4

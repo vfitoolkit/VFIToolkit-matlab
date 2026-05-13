@@ -3,7 +3,7 @@ function z_timeseries=MarkovChainSimulation_FHorz(z_grid_J,pi_z_J,jequaloneDistz
 % Inputs:
 %  z_grid_J       - grid values of the discrete markov process (column vector for each period j)
 %  pi_z_J         - transition matrix of the discrete markov process (matrix for each period j, row gives probabilities for next period states, should add to one)
-%  jequaloneDistz - initial distribution of z at period 1 from which start of time series is drawn 
+%  jequaloneDistz - initial distribution of z at period 1 from which start of time series is drawn
 % Optional inputs
 %  simoptions:
 %   - simoptions.nsims - number of simulations (by default it is 1, so you just get a time series)
@@ -111,7 +111,7 @@ else % z is multidimensional
     z_timeseries=zeros(simoptions.nsims,N_j,l_z);
     for jj=1:N_j
         for ii=1:l_z % This can probably be vectorized to speed it up
-            z_timeseries(:,jj,ii)=z_gridvals_J(z_indexes(:,jj),ii,jj);    
+            z_timeseries(:,jj,ii)=z_gridvals_J(z_indexes(:,jj),ii,jj);
         end
     end
 end

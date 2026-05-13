@@ -5,7 +5,7 @@ if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.npoints=100;
     simoptions.nquantiles=20;
-    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     % Model solution
@@ -24,7 +24,7 @@ else
         simoptions.nquantiles=20;
     end
     if ~isfield(simoptions,'whichstats')
-        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     if ~isfield(simoptions,'tolerance')
@@ -59,7 +59,7 @@ N_z=prod(n_z);
 
 %%
 % Note: Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePath,ParamPath,T);
 
 %%
@@ -128,11 +128,11 @@ end
 % Evaluate AllStats, but conditional on the restriction being non-zero.
 
 useCondlRest=0;
-% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it). 
+% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it).
 if isfield(simoptions,'conditionalrestrictions')
     useCondlRest=1;
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
-    
+
     for rr=1:length(CondlRestnFnNames)
         AllStatsPath.(CondlRestnFnNames{rr}).RestrictedSampleMass=zeros(1,T); % preallocate
     end
@@ -180,18 +180,18 @@ for tt=1:T
             Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
         end
     end
-    
+
     PolicyValues=PolicyValuesPath(:,:,:,tt);
     AgentDist=AgentDistPath(:,:,tt);
-    
+
     AllStats=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AllStats(AgentDist(:), PolicyValues, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames,FnsToEvaluateNames, n_a, n_z, a_gridvals, z_gridvals,simoptions);
-    
+
     if useCondlRest==1
         for rr=1:length(CondlRestnFnNames)
             AllStatsPath.(CondlRestnFnNames{rr}).RestrictedSampleMass(tt)=AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass;
         end
     end
-        
+
     for ff=1:length(FnsToEvaluateNames)
         AllStatsPath.(FnsToEvaluateNames{ff}).Mean(tt)=AllStats.(FnsToEvaluateNames{ff}).Mean;
         AllStatsPath.(FnsToEvaluateNames{ff}).Median(tt)=AllStats.(FnsToEvaluateNames{ff}).Median;
@@ -202,7 +202,7 @@ for tt=1:T
         AllStatsPath.(FnsToEvaluateNames{ff}).Gini(tt)=AllStats.(FnsToEvaluateNames{ff}).Gini;
         AllStatsPath.(FnsToEvaluateNames{ff}).QuantileCutoffs(:,tt)=AllStats.(FnsToEvaluateNames{ff}).QuantileCutoffs;
         AllStatsPath.(FnsToEvaluateNames{ff}).QuantileMeans(:,tt)=AllStats.(FnsToEvaluateNames{ff}).QuantileMeans;
-        
+
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
                 if AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass>0

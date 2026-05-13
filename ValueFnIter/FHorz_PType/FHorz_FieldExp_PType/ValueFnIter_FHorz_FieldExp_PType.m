@@ -27,7 +27,7 @@ else
 end
 
 for ii=1:N_i
-        
+
     % First set up vfoptions
     if exist('vfoptions','var')
         vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
@@ -44,12 +44,12 @@ for ii=1:N_i
         vfoptions_temp.verbose=0;
         vfoptions_temp.verboseparams=0;
         vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-    end 
-    
+    end
+
     if vfoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-    
+
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
     if isa(n_d,'struct')
@@ -131,12 +131,12 @@ for ii=1:N_i
             end
         end
     end
-    
+
     if vfoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
-    
+
     if isfinite(N_j_temp)
         [V_ii, Policy_ii]=ValueFnIter_FieldExp_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], TreatmentParams, TreatmentAgeRange, TreatmentDuration, vfoptions_temp);
     else % PType actually allows for infinite horizon as well
@@ -144,7 +144,7 @@ for ii=1:N_i
         error('Infinite horizon not yet supported for Field Experiments (email me if you need it)')
 %         [V_ii, Policy_ii]=ValueFnIter_Case1(n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
     end
-    
+
     controltreatnames=fieldnames(V_ii);
     if vfoptions_temp.ptypestorecpu==1
         for nn=1:length(controltreatnames)
@@ -157,7 +157,7 @@ for ii=1:N_i
             Policy.(controltreatnames{nn}).(Names_i{ii})=Policy_ii.(controltreatnames{nn});
         end
     end
-        
+
     clear V_ii Policy_ii
 
 end

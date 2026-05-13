@@ -23,10 +23,10 @@ periods=min(simperiods,N_j+1-seedpoint(3));
 for tt=1:periods
     jj=seedpoint(3)+tt-1;
     jstr=daz_gridstructure.jstr{jj};
-    
+
     SimLifeCycleKron(1,jj)=currstate(1); %a_c
     SimLifeCycleKron(2,jj)=currstate(2); %z_c
-    
+
     cumsumpi_z=daz_gridstructure.cumsumpi_z.(jstr(:));
     [~,zprimestate]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
     Phi_of_Policy_jj=Phi_of_Policy.(jstr(:));

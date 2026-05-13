@@ -95,7 +95,7 @@ for ii=1:N_i
         end
     end
 
-    
+
     if n_semiz_ii>0
 
         %% Create semiz_gridvals_J (joint grid on semiz)

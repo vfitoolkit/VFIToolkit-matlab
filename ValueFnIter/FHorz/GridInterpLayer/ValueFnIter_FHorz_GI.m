@@ -67,7 +67,7 @@ elseif length(n_a)==2
                 end
             end
         end
-    else 
+    else
         error('vfoptions.gridinterplayer=1 with two endogenous states can only be applied to the first of the two endo states (you have length(vfoptions.ngridinterp)>1)')
     end
 else

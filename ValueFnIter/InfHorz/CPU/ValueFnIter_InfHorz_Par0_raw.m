@@ -7,22 +7,22 @@ tempcounter=1;
 currdist=Inf;
 
 while currdist>Tolerance && tempcounter<=maxiter
-    
+
     VKronold=VKron;
-    
+
     for z_c=1:N_z
 
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*kron(pi_z(z_c,:),ones(N_a,1));
         EV_z(isnan(EV_z))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
-        
+
         entireEV_z=kron(EV_z,ones(N_d,1));
-        
+
         for a_c=1:N_a
             %Calc the RHS
             entireRHS=ReturnMatrix(:,a_c,z_c)+beta*entireEV_z; %d by aprime by 1
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS);
             VKron(a_c,z_c)=Vtemp;
@@ -31,10 +31,10 @@ while currdist>Tolerance && tempcounter<=maxiter
             PolicyIndexes2(a_c,z_c)=PolInd_temp(2);
         end
     end
-    
+
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    
+
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         Ftemp=zeros(N_a,N_z);
         for z_c=1:N_z
@@ -51,9 +51,9 @@ while currdist>Tolerance && tempcounter<=maxiter
             end
         end
     end
-    
+
     tempcounter=tempcounter+1;
-    
+
 end
 
 Policy=zeros(2,N_a,N_z);

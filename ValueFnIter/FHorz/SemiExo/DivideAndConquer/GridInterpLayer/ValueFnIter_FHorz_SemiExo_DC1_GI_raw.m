@@ -109,7 +109,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_z]);    % First, switch V_Jplus1 into Kron form
-    
+
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
         pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
@@ -189,15 +189,15 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=V(:,:,jj+1);
-    
+
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
         pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
@@ -211,7 +211,7 @@ for reverse_j=1:N_j-1
         entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
         % Treat standard problem as just being the first layer
         [~,maxindex1]=max(entireRHS_ii,[],2);
-        
+
         % Just keep the 'midpoint' vesion of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
 
@@ -234,7 +234,7 @@ for reverse_j=1:N_j-1
                 midpoints_jj(:,1,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1,1); % unfortunately doesn't autofill
             end
         end
-        
+
         % Now for the interpolation layer
 
         % Interpolate the expectations

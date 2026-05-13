@@ -24,7 +24,7 @@ for ii=1:N_i
         names=fieldnames(n_z);
         n_z_temp=n_z.(names{ii});
     end
-    
+
     d_grid_temp=d_grid;
     if isa(d_grid,'struct')
         names=fieldnames(d_grid);
@@ -33,7 +33,7 @@ for ii=1:N_i
     a_grid_temp=a_grid;
     if isa(a_grid,'struct')
         names=fieldnames(a_grid);
-        a_grid_temp=a_grid.(names{ii});        
+        a_grid_temp=a_grid.(names{ii});
     end
     vfoptions_temp=vfoptions;
     vfoptionsfieldnames=fieldnames(vfoptions);

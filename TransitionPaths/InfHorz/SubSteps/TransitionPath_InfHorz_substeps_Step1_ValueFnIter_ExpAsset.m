@@ -13,7 +13,7 @@ if N_z==0 && N_e==0
         for kk=1:length(ParamPathNames)
             Parameters.(ParamPathNames{kk})=ParamPath(T-tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
-        
+
         error('Not yet implemented')
         [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_noz(V,n_d1,n_d2,n_a1,n_a2,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         % The V input is next period value fn, the V output is this period.

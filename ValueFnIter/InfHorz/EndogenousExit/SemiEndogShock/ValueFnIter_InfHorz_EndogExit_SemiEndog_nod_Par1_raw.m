@@ -3,7 +3,7 @@ function [VKron, Policy, ExitPolicy]=ValueFnIter_InfHorz_EndogExit_SemiEndog_nod
 %decision variable (n_d=0)
 % N_a=prod(n_a);
 % N_z=prod(n_z);
-% 
+%
 % if Verbose==1
 %     disp('Starting Value Fn Iteration')
 %     tempcounter=1;
@@ -35,29 +35,29 @@ while currdist>Tolerance
         EV_z=VKronold.*pi_z_semiendog_z; %squeeze(pi_z_semiendog(:,z_c,:));
         EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
-        
+
         for a_c=1:N_a
             entireRHS=ReturnMatrix_z(:,a_c)+beta*EV_z; %aprime by 1
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS);
             % Exit decision
             ExitPolicy_z(a_c)=((ReturnToExitMatrix_z(a_c)-Vtemp)>0); % Assumes that when indifferent you do not exit.
             VKron_z(a_c)=ExitPolicy_z(a_c)*ReturnToExitMatrix_z(a_c)+(1-ExitPolicy_z(a_c))*Vtemp;
             PolicyIndexes_z(a_c)=maxindex;
-                % Note that this includes the policy that would be chosen if you did 
-                % not exit, even when choose exit. This is because it makes it much easier to then implement 
-                % Howards, and can just impose the =0 on exit on the final PolicyIndexes at the end of this 
+                % Note that this includes the policy that would be chosen if you did
+                % not exit, even when choose exit. This is because it makes it much easier to then implement
+                % Howards, and can just impose the =0 on exit on the final PolicyIndexes at the end of this
                 % function just prior to output.
             Ftemp_z(a_c)=ReturnMatrix_z(maxindex,a_c);
         end
-        
+
         VKron(:,z_c)=VKron_z;
         PolicyIndexes(:,z_c)=PolicyIndexes_z;
         ExitPolicy(:,z_c)=ExitPolicy_z;
         Ftemp(:,z_c)=Ftemp_z;
     end
-        
+
     VKrondist=reshape(VKron-VKronold,[numel(VKron),1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
@@ -77,7 +77,7 @@ while currdist>Tolerance
             end
         end
     end
-    
+
 %     if Verbose==1
 %         if rem(tempcounter,100)==0
 %             disp(tempcounter)
@@ -88,7 +88,7 @@ while currdist>Tolerance
     tempcounter=tempcounter+1;
 
 end
-  
+
 if keeppolicyonexit==0 % This is default
     Policy=(1-ExitPolicy).*PolicyIndexes; % Deliberate add zeros when ExitPolicy==1 so that cannot accidently make mistakes elsewhere in codes without throwing errors.
 elseif keeppolicyonexit==1

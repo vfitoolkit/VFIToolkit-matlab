@@ -34,15 +34,15 @@ for ii=1:N_i
     if ~isfield(simoptions_temp,'ptypestorecpu')
         simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end
-    
+
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-           
+
     AgentDist_initial_temp=AgentDist_initial.(Names_i{ii});
     PolicyPath_temp=PolicyPath.(Names_i{ii});
 
-    
+
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
@@ -69,7 +69,7 @@ for ii=1:N_i
     else
         pi_z_temp=pi_z;
     end
-    
+
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
     % these in term.
@@ -94,7 +94,7 @@ for ii=1:N_i
             end
         end
     end
-    
+
     if simoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp

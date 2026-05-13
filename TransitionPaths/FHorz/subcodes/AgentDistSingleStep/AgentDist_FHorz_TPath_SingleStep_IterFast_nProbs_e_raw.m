@@ -25,7 +25,7 @@ AgentDist_tt=reshape(Gammatranspose*AgentDist_tt,[N_a,(N_j-1)*N_z]);
 
 % Tan improvement Step 2
 
-% Note, we just construct a block-diagonal, the blocks are the (z,z'). The diagonal is j. 
+% Note, we just construct a block-diagonal, the blocks are the (z,z'). The diagonal is j.
 % Because we are going from an agent dist on j=1,...,N_j-1 to an agent dist
 % on j=2,...,N_j the diagonal for j actually corresponds to deterministic ageing
 AgentDist_tt=reshape(AgentDist_tt*pi_z_J_sim,[N_a*(N_j-1)*N_z,1]);

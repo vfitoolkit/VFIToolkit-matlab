@@ -1,6 +1,6 @@
 function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_probs,N_dsemiz,N_a,N_semiz,N_e,N_j,pi_semiz_J,pi_e_J,Parameters)
 % 'nProbs' refers to N_probs probabilities.
-% Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case). 
+% Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case).
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
 % When we use semiz, we need to use a different shape for Policy_aprime.
@@ -51,7 +51,7 @@ for jj=1:(N_j-1)
 
     % No z, so just a simple iteration
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
-    
+
     % Put e back into dist
     StationaryDist_jj=kron(pi_e_J(:,jj),StationaryDist_jj);
 

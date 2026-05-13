@@ -81,7 +81,7 @@ else
     elseif simoptions.npoints==0
         error('simoptions.npoints must be a positive (non-zero) integer')
     end
-    if ~isfield(simoptions,'tolerance')    
+    if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
     if ~isfield(simoptions,'whichstats')
@@ -179,9 +179,9 @@ for ii=1:N_i
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-    
+
     PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
-    
+
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
@@ -287,7 +287,7 @@ for ii=1:N_i
         l_d_temp=1;
     end
     l_a_temp=length(n_a_temp);
-    
+
     N_a_temp=prod(n_a_temp);
     if isfield(simoptions_temp,'n_e')
         n_ze_temp=[n_z_temp,simoptions_temp.n_e];
@@ -314,11 +314,11 @@ for ii=1:N_i
 
     a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
     [z_gridvals_temp, ~, simoptions_temp]=ExogShockSetup_InfHorz(n_z_temp,z_grid_temp,[],Parameters_temp,simoptions_temp,1);
-    
+
     [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_ze_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
-    
-    
+
+
 
     %% Some things that don't need to go in the loop over FnsToEvalaute
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
@@ -327,10 +327,10 @@ for ii=1:N_i
         StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_ze_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
     end
     % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
-    % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)    
+    % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)
     temp=logical(StationaryDist_ii~=0);
     % StationaryDist_ii=StationaryDist_ii(temp); % This has to happen after the conditional restriction dist is calculated
-    
+
     %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
     if useCondlRest==1
         RestrictionStruct_ii=struct();
@@ -387,7 +387,7 @@ for ii=1:N_i
                 FnsToEvaluateParamNames={};
             end
             FnsToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames);
-            
+
             %% We have set up the current PType, now do some calculations for it.
             simoptions_temp.keepoutputasmatrix=1;
             ValuesOnGrid_ii=EvalFnOnAgentDist_Grid(FnsToEvaluate.(FnsToEvalNames{kk}), FnsToEvaluateParamsCell, PolicyValuesPermute_temp, l_daprime_temp, n_a_temp, n_ze_temp, a_gridvals_temp, z_gridvals_temp);
@@ -428,7 +428,7 @@ for ii=1:N_i
                     end
                 end
             end
-            
+
             %% For later, put the mean and std dev in a convenient place
             if simoptions.whichstats(1)==1
             MeanVec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean;
@@ -472,7 +472,7 @@ end
 
 
 %% Now for the grouped stats, putting the ptypes together
-for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid    
+for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
 
     if simoptions_temp.groupusingtdigest==1
         Cmerge=AllCMerge.(FnsToEvalNames{kk});
@@ -518,7 +518,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
 
     % Grouped mean and standard deviation are overwritten on a more direct calculation that does not involve the digests
     SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
-    
+
     % Mean
     if simoptions.whichstats(1)==1
         AllStats.(FnsToEvalNames{kk}).Mean=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*MeanVec(kk,:))/SigmaNxi;

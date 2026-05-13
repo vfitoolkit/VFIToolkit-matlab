@@ -24,7 +24,7 @@ if isempty(Parameters)
     warning('Annoying, but it makes inputs to LifeCycleProfiles_FHorz_Case1 have same order as those of similar functions')
 end
 
-%% Check which simoptions have been declared, set all others to defaults 
+%% Check which simoptions have been declared, set all others to defaults
 if ~exist('simoptions','var')
     %If options is not given, just use all the defaults
     if isgpuarray(StationaryDist)
@@ -37,7 +37,7 @@ if ~exist('simoptions','var')
     simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
-    simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     simoptions.gridinterplayer=0;
     % When calling as a subcommand, the following is used internally
     simoptions.alreadygridvals=0;
@@ -118,7 +118,7 @@ d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 
 %% Exogenous shock grids
-% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
+% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
 [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 
 
@@ -154,7 +154,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
@@ -214,14 +214,14 @@ end
 % Evaluate AllStats, but conditional on the restriction being non-zero.
 
 useCondlRest=0;
-% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it). 
-if isfield(simoptions,'conditionalrestrictions')    
+% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it).
+if isfield(simoptions,'conditionalrestrictions')
     useCondlRest=1;
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
 
     restrictedsamplemass=nan(length(CondlRestnFnNames),N_j);
     RestrictionStruct=struct();
-    
+
     % For each conditional restriction, create a 'restricted stationary distribution'
     for rr=1:length(CondlRestnFnNames)
         % The current conditional restriction function
@@ -242,7 +242,7 @@ if isfield(simoptions,'conditionalrestrictions')
         for jj=1:N_j % Given the actual stats have to loop over j, I just do it here even though it could be done with EvalFnOnAgentDist_Grid_J instead
             % Get parameter values for Conditional Restriction functions
             CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames,jj);
-            
+
             % Compute the restrictions
             if N_z==0
                 RestrictionValues(:,jj)=logical(EvalFnOnAgentDist_Grid(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,n_z,a_gridvals,[]));
@@ -253,14 +253,14 @@ if isfield(simoptions,'conditionalrestrictions')
         if N_z>0
             RestrictionValues=reshape(RestrictionValues,[N_a*N_z,N_j]);
         end
-        
+
         RestrictedStationaryDistVec=StationaryDist;
         RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
-        
+
         % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
         restrictedsamplemass(rr,:)=sum(RestrictedStationaryDistVec,1);
         noonethatagej=(restrictedsamplemass(rr,:)==0); % 1 when mass of that age is 0
-        RestrictionStruct(rr).RestrictedStationaryDistVec=(1-noonethatagej).*(RestrictedStationaryDistVec./(restrictedsamplemass(rr,:)+noonethatagej)); % Just RestrictedStationaryDistVec./restrictedsamplemass(rr,:), but get 0 instead of NaN if that agej is mass zero in restrictedsamplemass(rr,:) 
+        RestrictionStruct(rr).RestrictedStationaryDistVec=(1-noonethatagej).*(RestrictedStationaryDistVec./(restrictedsamplemass(rr,:)+noonethatagej)); % Just RestrictedStationaryDistVec./restrictedsamplemass(rr,:), but get 0 instead of NaN if that agej is mass zero in restrictedsamplemass(rr,:)
 
         if all(restrictedsamplemass(rr,:)==0)
             warning('One of the conditional restrictions evaluates to a zero mass (at all j)')
@@ -324,7 +324,7 @@ end
 %% Create a different 'Values' for each of the variable to be evaluated
 if N_z==0
     % StationaryDistVec=reshape(StationaryDist,[N_a,N_j]);
-    % 
+    %
     % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
     % a_gridvals=CreateGridvals(n_a,a_grid,1);
 
@@ -338,7 +338,7 @@ if N_z==0
         StationaryDistVec_kk=reshape(StationaryDist(:,j1:jend),[N_a*(jend-j1+1),1]);
         StationaryDistVec_kk=StationaryDistVec_kk./sum(StationaryDistVec_kk); % Normalize to sum to one for this 'agegrouping'
 
-        
+
         %%
         for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             Values=nan(N_a,jend-j1+1,'gpuArray'); % Preallocate
@@ -346,11 +346,11 @@ if N_z==0
                 FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
                 Values(:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
             end
-            
+
             Values=reshape(Values,[N_a*(jend-j1+1),1]);
-            
+
             tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-            
+
             % Store them in AgeConditionalStats
             if simoptions.whichstats(1)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
@@ -398,7 +398,7 @@ if N_z==0
                 for rr=1:length(CondlRestnFnNames)
                     if sum(restrictedsamplemass(rr,j1:jend))>0
                         tempStats=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec(:,j1:jend),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-                        
+
                         % Store them in AgeConditionalStats
                         if simoptions.whichstats(1)==1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
@@ -440,14 +440,14 @@ if N_z==0
                     end
                 end
             end
-                        
+
         end
     end
 
-else 
+else
     %% N_z
     % StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
-    % 
+    %
     % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
     % a_gridvals=CreateGridvals(n_a,a_grid,1);
 
@@ -467,7 +467,7 @@ else
             for jj=j1:jend
                 % Includes check for cases in which no parameters are actually required
                 FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
-                Values(:,:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));                
+                Values(:,:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
             end
 
             Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
@@ -521,7 +521,7 @@ else
                 for rr=1:length(CondlRestnFnNames)
                     if sum(restrictedsamplemass(rr,j1:jend))>0
                         tempStats=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec(:,j1:jend),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-                        
+
                         % Store them in AgeConditionalStats
                         if simoptions.whichstats(1)==1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;

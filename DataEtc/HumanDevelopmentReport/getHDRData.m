@@ -42,7 +42,7 @@ if ~isstr(series_id)
 end
 indicatorurl=['/indicator_id=',series_id];
 
-    
+
 if exist('structure','var')
     structureurl=['/structure=',structure];
 else
@@ -63,7 +63,7 @@ if exist('observation_start','var')
     else
         yearurl=['/year=',observation_start(1:4)];
         nyears=1;
-    end 
+    end
 end
 
 
@@ -455,7 +455,7 @@ end
 
 if nargin==1 % Note, already dealt with dictionary
     fullurl=[baseurl,indicatorurl,structureurl];
-elseif nargin==2 
+elseif nargin==2
     fullurl=[baseurl,countryurl,indicatorurl,structureurl];
 else
     fullurl=[baseurl,countryurl,indicatorurl,yearurl,structureurl];
@@ -471,7 +471,7 @@ for ii=1:nyears
     try
         output.Data(ii,2)=JSONdata.indicator_value.(countrycode3L).(['x',series_id]).(['x',num2str(curryear)]);
     catch
-        output.Data(ii,2)=nan; 
+        output.Data(ii,2)=nan;
     end
     % Dates, in matlab datetime format
     output.Data(ii,1)=datenum(curryear,1,1); % 1st January of that year

@@ -71,7 +71,7 @@ else
         end
     end
 
-    
+
     if isfield(vfoptions,'gridinterplayer')
         if vfoptions.gridinterplayer==1
             ordinary=0;
@@ -245,7 +245,7 @@ if Parallel==2
                     PolicyValues(ii,:)=d_gridvals(Policy(1,:),ii);
                 end
             end
-            
+
             if l_aprime>0
                 temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
                 PolicyValues(l_d+1,:)=temp_aprime_grid(Policy(l_d+1,:));
@@ -267,7 +267,7 @@ if Parallel==2
                 PolicyValues=reshape(PolicyValues,[l_d+l_aprime,N_a,N_z]);
             end
         end
-    end    
+    end
 
 end
 
@@ -308,7 +308,7 @@ if Parallel~=2
             temp_d_grid=d_grid((1+cumsum_n_d(l_d-1)):end);
             PolicyValues(l_d,:)=temp_d_grid(Policy(l_d,:));
         end
-        
+
         temp_a_grid=a_grid(1:n_a(1));
         PolicyValues(l_d+1,:)=temp_a_grid(Policy(l_d+1,:));
         if l_a>1
@@ -321,7 +321,7 @@ if Parallel~=2
             temp_a_grid=a_grid((1+cumsum_n_a(l_a-1)):end);
             PolicyValues(end,:)=temp_a_grid(Policy(end,:));
         end
-        
+
         PolicyValues=reshape(PolicyValues,[l_d+l_a,n_a,n_z]);
     end
 end

@@ -7,7 +7,7 @@ function SimPanel=SimPanelIndexes_FHorz_Case2_AgeDepGrids_Dynasty(InitialDist,Po
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 
-%% Check which simoptions have been declared, set all others to defaults 
+%% Check which simoptions have been declared, set all others to defaults
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'simperiods')
@@ -69,7 +69,7 @@ if simoptions.parallel==2
             [~,seeds_age_summary(jj)]=max((seeds_age_sorted-jj>=0));
         end
         seeds_age_summary(N_j+1)=simoptions.numbersims+1; % ie. =length(seeds_age_sorted)
-        
+
 %         seedpointvec=zeros(simoptions.numbersims,1,'gpuArray');
         AgeWeightsAdjustment=cumsum(InitialDist.AgeWeights)-InitialDist.AgeWeights(1);
         for jj=1:N_j
@@ -78,7 +78,7 @@ if simoptions.parallel==2
             jstr=daz_gridstructure.jstr{jj};
             N_a_j=daz_gridstructure.N_a.(jstr(:));
             N_z_j=daz_gridstructure.N_z.(jstr(:));
-            cumsumInitialDistVec=cumsum(reshape(InitialDist.(jstr),[N_a_j*N_z_j,1]));            
+            cumsumInitialDistVec=cumsum(reshape(InitialDist.(jstr),[N_a_j*N_z_j,1]));
             % Use of max was creating an out-of-memory bottleneck
             for ii=1:(seeds_age_summary(jj+1)-seeds_age_summary(jj))
                 [~,seedpointtemp]=max(cumsumInitialDistVec>seeds_rand_sorted_jj(ii));
@@ -115,7 +115,7 @@ else
             [~,seeds_age_summary(jj)]=max((seeds_age_sorted-jj>=0));
         end
         seeds_age_summary(N_j+1)=simoptions.numbersims+1; % ie. =length(seeds_age_sorted)
-        
+
         AgeWeightsAdjustment=cumsum(InitialDist.AgeWeights)-InitialDist.AgeWeights(1);
         for jj=1:N_j
             jstr=daz_gridstructure.jstr{jj};
@@ -163,10 +163,10 @@ for jj=1:N_j
     a_grid_j=daz_gridstructure.a_grid.(jstr(:));
     z_grid_j=daz_gridstructure.z_grid.(jstr(:));
     daz_gridstructure.cumsumpi_z.(jstr(:))=cumsum(daz_gridstructure.pi_z.(jstr(:)),2);
-    
+
     PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
     Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprimeFn, Case2_Type, n_d_j, n_a_j, n_z_j, d_grid_j, a_grid_j, z_grid_j,PhiaprimeParamsVec);
-    
+
     PolicyIndexesKron_jj=PolicyIndexesKron.(jstr(:));
     if Case2_Type==1 % phi(d,a,z,z')
         disp('ERROR: StationaryDist_FHorz_Case2_Iteration_raw() not yet implemented for Case2_Type==1 (nor SimPanelIndexes_FHorz_Case2_raw)')
@@ -184,7 +184,7 @@ for jj=1:N_j
         for z_c=1:N_z_j
             Phi_of_Policy_jj(:,:,z_c)=Phi_aprimeMatrix(PolicyIndexesKron_jj(:,z_c),:,z_c);
         end
-    end 
+    end
     Phi_of_Policy.(jstr(:))=Phi_of_Policy_jj;
 end
 
@@ -210,9 +210,9 @@ if simoptions.parallel==0
     for ii=1:simoptions.numbersims
         seedpoint=seedpoints(ii,:);
         SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case2_AgeDepGrids_Dynasty_raw(Phi_of_Policy,Case2_Type,daz_gridstructure, N_j, seedpoint, simoptions.simperiods);
-          
+
         SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
-        
+
         j1=seedpoint(3);
         j2=j1+simoptions.simperiods;
         for t=1:(j2-j1+1)
@@ -238,11 +238,11 @@ if simoptions.parallel==0
 else
     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
-        
+
         SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case2_AgeDepGrids_Dynasty_raw(Phi_of_Policy,Case2_Type,daz_gridstructure, N_j, seedpoint, simoptions.simperiods);
-                
+
         SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
-        
+
         j1=seedpoint(3);
         j2=j1+simoptions.simperiods-1;
         for t=1:(j2-j1+1)
@@ -275,7 +275,7 @@ if simoptions.newbirths==1
 %     cumulativebirthrate=cumprod(simoptions.birthrate.*ones(simoptions.simperiods)+1)-1; % This works for scalar or vector simoptions.birthrate
 %     newbirthsvector=gather(round(simoptions.numbersims*cumulativebirthrate)); % Use rounding to decide how many new borns to do each period.
 %     BirthDist=gather(simoptions.birthdist);  % Make sure it is not on gpu
-%     
+%
 %     SimPanel2=nan(l_a+l_z+1,simoptions.simperiods,sum(newbirthsvector));
 %     for birthperiod=1:simoptions.simperiods
 %         % Get seedpoints from birthdist
@@ -294,13 +294,13 @@ if simoptions.newbirths==1
 %             end
 %         end
 %         seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-%     
+%
 %         for ii=1:newbirthsvector(birthperiod)
 %             seedpoint=seedpoints(ii,:);
 %             SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case2_AgeDepGrids_raw(Phi_of_Policy,Case2_Type,daz_gridstructure, N_j, seedpoint, simoptions.simperiods);
-% 
+%
 %             SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
-%             
+%
 %             j1=seedpoint(3);
 %             j2=min(N_j,j1+(simoptions.simperiods-birthperiod+1));
 %             for t=1:(j2-j1+1)

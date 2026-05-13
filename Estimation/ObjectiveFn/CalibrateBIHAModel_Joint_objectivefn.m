@@ -226,7 +226,7 @@ elseif caliboptions.vectoroutput==2
     end
 
     Obj2=heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec;
-    
+
     Obj=[Obj1; caliboptions.relativeGEweight*Obj2'];
 
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()

@@ -1,6 +1,6 @@
 function SimPanelValues=SimPanelValues_AggShocks_FHorz_Case1(InitialDist,jequaloneDist,Policy,FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
-% 'simperiods' beginning from randomly drawn InitialDist and with new agents 
+% 'simperiods' beginning from randomly drawn InitialDist and with new agents
 % each time period based on jequaloneDist.
 %
 % SimPanelValues is a 3-dimensional matrix with first dimension being the
@@ -15,7 +15,7 @@ function SimPanelValues=SimPanelValues_AggShocks_FHorz_Case1(InitialDist,jequalo
 % of it. (So jequaloneDist is either n_a-by-n_z-by-n_aggshocks or
 % n_a-by-n_z)
 
-%% Check which simoptions have been declared, set all others to defaults 
+%% Check which simoptions have been declared, set all others to defaults
 if ~exist('simoptions','var')
     %If simoptions is not given, just use all the defaults
     simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
@@ -39,7 +39,7 @@ else
     end
     if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^3;
-    end 
+    end
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
@@ -310,12 +310,12 @@ else
     daprimePolicy_gridvals=zeros(N_a*N_ze,l_d+l_a,N_j); % Note: N_e=1 if no e variables
 end
 
-for jj=1:N_j    
+for jj=1:N_j
     if N_e==0
         if n_d(1)==0
             [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
         else
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);            
+            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
         end
     else
         if n_d(1)==0
@@ -359,7 +359,7 @@ end
 
 %% For this version, I just loop over the N_j horizon simulations for each of the time periods, then put them together appropriately later
 for tt=1:simoptions.timeperiods
-    
+
     if simoptions.verbose==1
         fprintf('Simulating time period %i of %i \n', tt, simoptions.timeperiods)
     end
@@ -369,8 +369,8 @@ for tt=1:simoptions.timeperiods
     else
         simoptions.numbersims=nsims;
     end
-    
-    % If we are getting near the end, make the simulations shorter 
+
+    % If we are getting near the end, make the simulations shorter
     simoptions.simperiods=min(simoptions.timeperiods-tt+1,N_j);
 
     % Get the relevant sequence out of agg shocks
@@ -407,7 +407,7 @@ for tt=1:simoptions.timeperiods
                 % a_ind=currentPanelIndexes_jj(1,1,:);
                 % z_ind=currentPanelIndexes_jj(2,1,:);
                 % j_ind=currentPanelIndexes_jj(3,1,:);
-                
+
                 a_val=a_gridvals(currentPanelIndexes_jj(1,1,:),:); % a_grid does depend on age
                 z_val=z_gridvals_J(currentPanelIndexes_jj(2,1,:),:,jj);
 

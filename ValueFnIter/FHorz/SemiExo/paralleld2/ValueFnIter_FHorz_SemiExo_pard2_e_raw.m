@@ -39,7 +39,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
 
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_bothz, n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -75,7 +75,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z,N_e]); % Using V_Jplus1
     EV=sum(EV.*pi_e_J(1,1,:,N_j),3);
 
@@ -115,7 +115,7 @@ else
             V(:,:,e_c,N_j)=Vtemp;
             Policy(:,:,e_c,N_j)=maxindex;
         end
-        
+
     elseif vfoptions.lowmemory==2
 
         for z_c=1:N_bothz
@@ -145,13 +145,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,:,jj+1);
     EV=sum(EV.*pi_e_J(1,1,:,jj),3);
     % (aprime,zprime)
@@ -175,7 +175,7 @@ for reverse_j=1:N_j-1
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,:,jj)=Vtemp;
         Policy(:,:,:,jj)=maxindex;
-        
+
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
@@ -190,7 +190,7 @@ for reverse_j=1:N_j-1
             V(:,:,e_c,jj)=Vtemp;
             Policy(:,:,e_c,jj)=maxindex;
         end
-        
+
     elseif vfoptions.lowmemory==2
 
         for z_c=1:N_bothz

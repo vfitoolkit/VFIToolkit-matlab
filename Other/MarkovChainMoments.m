@@ -1,7 +1,7 @@
 function [mean,variance,autocorrelation,statdist]=MarkovChainMoments(z_grid,pi_z,mcmomentsoptions)
 % Calculates the mean, variance, autocorrellation, and stantionary
 % distribution of a first-order markov process.
-% 
+%
 % Inputs:
 %   - z_grid: the grids for z
 %   - pi_z_J: the transition matrix
@@ -62,15 +62,15 @@ if mcmomentsoptions.eigenvector==1
     V = x/sum(x);
     assert(min(V)>-1e-12);
     V = max(V,0);
-    
+
     statdist=V/sum(V);
-    
+
     % Note that we could check the first eigenvalue, D(1, 1), which should be 1
     % (otherwise it is indicating that the stationary distribution can be
     % reduced, it would be D in [V,D] = eig(Ptranspose',1);).
     % The second eigenvalue would tell us how quickly the markov process
     % converges to the stationary distribution, specifically 1/SecondEigenvalue gives the order of rate of convergence.
-    
+
     %% Personal notes on trying to speed things up.
     % eigs() is faster than eig() as we are only interested in the first eigenvector (which corresponds to the largest eigenvalue)
     % Matlab cannot do eigs for gpu. eig() on gpuArray is slower than eig() on standard array.
@@ -87,7 +87,7 @@ else
     end
 end
 
-% % Eigenvvector approach to stationary distriubtion 
+% % Eigenvvector approach to stationary distriubtion
 % % (see https://en.wikipedia.org/wiki/Markov_chain#Stationary_distribution_relation_to_eigenvectors_and_simplices )
 % % does not appear to be any faster (in fact marginally slower)
 % tic;
@@ -105,7 +105,7 @@ covar_withlag=sum(statdist.*sum(pi_z.*((z_grid-mean)*(z_grid-mean)'),2));
 autocorrelation=covar_withlag/variance; % Note: demoninator is stdev*stddev, but since they (this period and last period) have the same stdev it is just the variance
 
 
-%% Following is old code that used to simulate the markov to calculate the autocorrelation. 
+%% Following is old code that used to simulate the markov to calculate the autocorrelation.
 % The final line checks it against the new code, and the new code is more
 % accurate as well as immesurably faster.
 
@@ -114,15 +114,15 @@ autocorrelation=covar_withlag/variance; % Note: demoninator is stdev*stddev, but
 % % Might be possible to speed this up by using parallelization? Not sure
 % % about computing correlation using parallelization (does it converge, and
 % % does it work faster?)
-% 
+%
 % if mcmomentsoptions.calcautocorrelation==1
-%     
+%
 %     if mcmomentsoptions.parallel==2 || mcmomentsoptions.parallel==4 % Move to cpu for simulation. Is just much faster.
 %         z_grid=gather(z_grid);
 %     end
-%     
+%
 %     T=mcmomentsoptions.T;
-%     
+%
 %     % Simulate Markov chain with transition state pi_z
 %     % Maybe I should be doing burnin here??
 %     A=zeros(T,1); % A contains the time series of states
@@ -136,11 +136,11 @@ autocorrelation=covar_withlag/variance; % Note: demoninator is stdev*stddev, but
 %     end
 %     corr_temp=corrcoef(z_grid(A(2:T)),z_grid(A(1:T-1)));
 %     correlation=corr_temp(2,1);
-%    
+%
 % else
 %     correlation=NaN;
 % end
-% 
+%
 % [autocorrelation,correlation]
- 
+
 end

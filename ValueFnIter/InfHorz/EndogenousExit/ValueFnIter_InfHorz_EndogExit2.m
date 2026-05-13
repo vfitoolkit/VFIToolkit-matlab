@@ -55,12 +55,12 @@ endogenousexitcontinuationcost=CreateVectorFromParams(Parameters, vfoptions.endo
 
 %%
 if vfoptions.lowmemory==0
-    
+
     %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
     % Since the return function is independent of time creating it once and
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
-    
+
     % Because exit is not until the end of period the return to exit is allowed to depend on aprime, and d.
     if vfoptions.returnmatrix==0
         ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
@@ -72,10 +72,10 @@ if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
         ReturnToExitMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnToExitFnParamsVec);
     end
-        
+
     %%
-    V0Kron=reshape(V0,[N_a,N_z]);    
-    
+    V0Kron=reshape(V0,[N_a,N_z]);
+
     if n_d(1)==0
 %         if vfoptions.parallel==0     % On CPU
 %             [VKron,Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_InfHorz_EndogExit2_nod_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit, vfoptions.exitprobabilities, vfoptions.endogenousexitcontinuationcost);
@@ -94,7 +94,7 @@ if vfoptions.lowmemory==0
             [VKron, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_InfHorz_EndogExit2_Par2_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.keeppolicyonexit, exitprobabilities, endogenousexitcontinuationcost);
         end
     end
-    
+
 
 %% Cleaning up the output
 V=reshape(VKron,[n_a,n_z]);

@@ -16,7 +16,7 @@ if simoptions.verbose==1
 end
 ExitProb=Parameters.(EntryExitParamNames.ProbOfDeath{1});
 
-%% 
+%%
 for ii=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{ii})=p(ii);
 end
@@ -41,10 +41,10 @@ AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDistKron, Policy, FnsToEvalu
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 GeneralEqmConditionsVec=gather(real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel)));
 
-if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
+if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price
     GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
-elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));                                                                                                         
+elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market
+    GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));
 end
 
 GeneralEqmConditions=gather(GeneralEqmConditions);

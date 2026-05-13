@@ -50,7 +50,7 @@ if vfoptions.lowmemory==0
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, n_z, n_e, N_j, a_grid, a_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,1);
     % fastOLG: ReturnMatrix is [aprime,a,j,z]
-    
+
     entireRHS=ReturnMatrix+DiscountedEV; % [aprime,a,j,z]
 
     % Calc the max and it's index
@@ -68,13 +68,13 @@ if vfoptions.lowmemory==0
     V=reshape(Vtempii,[N_a*N_j,N_z,N_e]);
     Policy(1,:,:,:,:)=shiftdim(squeeze(midpoint),-1); % midpoint
     Policy(2,:,:,:,:)=shiftdim(maxindexL2,-1); % aprimeL2ind
-    
+
 elseif vfoptions.lowmemory==1
 
     special_n_e=ones(1,length(n_e));
     V=zeros(N_a*N_j,N_z,N_e,'gpuArray');
     Policy=zeros(2,N_a,N_j,N_z,N_e,'gpuArray'); %first dim indexes the optimal choice for aprime
-    
+
     for e_c=1:N_e
         e_vals=e_gridvals_J(1,1,:,1,e_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
 
@@ -106,12 +106,12 @@ elseif vfoptions.lowmemory==2
     special_n_e=ones(1,length(n_e));
     V=zeros(N_a*N_j,N_z,N_e,'gpuArray');
     Policy=zeros(2,N_a,N_j,N_z,N_e,'gpuArray'); %first dim indexes the optimal choice for aprime
-    
+
     for z_c=1:N_z
         z_vals=z_gridvals_J(1,1,:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
         DiscountedEV_z=DiscountedEV(:,:,:,z_c);
         DiscountedEVinterp_z=DiscountedEVinterp(:,:,:,z_c);
-        
+
         for e_c=1:N_e
             e_vals=e_gridvals_J(1,1,:,1,e_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
 

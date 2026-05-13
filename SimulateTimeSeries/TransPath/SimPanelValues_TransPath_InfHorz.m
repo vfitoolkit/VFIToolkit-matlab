@@ -1,7 +1,7 @@
 function SimPanelValues=SimPanelValues_TransPath_InfHorz(PolicyPath, PricePath, ParamPath, T, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, FnsToEvaluate, Parameters, simoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
-% only if it is a 'surprise', not anticipated changes) 
+% only if it is a 'surprise', not anticipated changes)
 
 % Simulates a panel based on PolicyPath of 'numbersims' agents of length
 % 'T' beginning from randomly drawn InitialDist.
@@ -13,7 +13,7 @@ function SimPanelValues=SimPanelValues_TransPath_InfHorz(PolicyPath, PricePath, 
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-T, or n_a-by-n_z)
 
-%% Check which simoptions have been declared, set all others to defaults 
+%% Check which simoptions have been declared, set all others to defaults
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.verbose=0;
@@ -168,7 +168,7 @@ SimPanelIndexes=SimPanelIndexes_FHorz(gather(AgentDist_initial),gather(PolicyPat
 
 %% Exogenous shock grids (must come after the SimPanelIndexes as it then strips n_semiz and n_e out of simoptions)
 % Pretend to be FHorz of length T
-% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
+% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
 [~,semizze_gridvals_T,~,~,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,T,simoptions,Parameters);
 % N_semizze=prod(n_semizze);
 if N_semizze==0
@@ -199,7 +199,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;

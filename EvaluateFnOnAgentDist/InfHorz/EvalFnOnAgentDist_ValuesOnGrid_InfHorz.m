@@ -8,7 +8,7 @@ Parallel=1+(gpuDeviceCount>0);
 if ~exist('simoptions','var')
     simoptions.gridinterplayer=0;
 elseif ~isfield(simoptions,'gridinterplayer')
-    simoptions.gridinterplayer=0;    
+    simoptions.gridinterplayer=0;
 end
 
 if n_d(1)==0
@@ -47,7 +47,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
@@ -85,9 +85,9 @@ elseif Parallel==1
     simoptions.experienceasset=0; % needs to be set so can use CreateGridvals_Policy()
     simoptions.experienceassetu=0; % needs to be set so can use CreateGridvals_Policy()
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
-    
+
     if l_d>0
-        
+
         for ff=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'FnsToEvaluateParamNames(i).Names={}'
@@ -109,9 +109,9 @@ elseif Parallel==1
                 ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
             end
         end
-    
+
     else %l_d=0
-        
+
         for ff=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'FnsToEvaluateParamNames(i).Names={}'

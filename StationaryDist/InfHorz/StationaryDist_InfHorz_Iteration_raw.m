@@ -33,7 +33,7 @@ StationaryDistKron=sparse(StationaryDistKron);
 currdist=Inf;
 counter=0;
 while currdist>simoptions.tolerance && counter<simoptions.maxit  % Matlab objects to using currdist here if I don't 'full' it
-    
+
     StationaryDistKron=Ptranspose*StationaryDistKron; % Base the tolerance on 10 iterations. (For some reason just using one iteration worked perfect on gpu, but was not accurate enough on cpu)
 
     % Only check covergence every couple of iterations
@@ -47,7 +47,7 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit  % Matlab object
 
     if simoptions.verbose==1
         if rem(counter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, currdist/simoptions.tolerance)            
+            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, currdist/simoptions.tolerance)
         end
     end
 end
@@ -57,7 +57,7 @@ StationaryDistKron=full(StationaryDistKron);
 
 if ~(counter<simoptions.maxit)
     warning('SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
-end 
+end
 
 
 end

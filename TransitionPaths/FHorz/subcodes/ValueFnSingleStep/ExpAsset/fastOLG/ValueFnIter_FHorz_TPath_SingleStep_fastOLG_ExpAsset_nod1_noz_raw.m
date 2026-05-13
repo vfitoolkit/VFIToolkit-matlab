@@ -43,7 +43,7 @@ if vfoptions.EVpre==0
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,N_j)
     % Already applied the probabilities from interpolating onto grid
-    
+
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j]); % (aprime,1,j), 2nd dim will be autofilled with a
 elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
@@ -65,7 +65,7 @@ elseif vfoptions.EVpre==1
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,N_j)
     % Already applied the probabilities from interpolating onto grid
-    
+
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j]); % (aprime,1,j), 2nd dim will be autofilled with a
 end
 

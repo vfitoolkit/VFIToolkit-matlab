@@ -32,7 +32,7 @@ end
 
 % vfoptions and simoptions are required inputs
 if ~isfield(vfoptions,'gridinterplayer')
-    vfoptions.gridinterplayer=0; 
+    vfoptions.gridinterplayer=0;
 end
 if ~isfield(vfoptions,'divideandconquer')
     vfoptions.divideandconquer=1;
@@ -51,7 +51,7 @@ end
 vfoptions.EVpre=1;
 vfoptions.outputkron=1;
 if ~isfield(simoptions,'gridinterplayer')
-    simoptions.gridinterplayer=0; 
+    simoptions.gridinterplayer=0;
 end
 simoptions.outputkron=1;
 
@@ -142,13 +142,13 @@ for gg=1:nGeneralEqmEqns
     GeneralEqmEqnParamNames(gg).Names=temp;
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
 end
-% Now: 
+% Now:
 %  GeneralEqmEqns is still the structure
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(ff).Names contains the names
 
 
-%% Set up the path: 
+%% Set up the path:
 % setup PricePath as the general eqm prices
 % setup ParamPath as the aggregate shock path
 % setup pi_z_T as the idiosyncratic transition probs, since they may depend on aggregate shocks
@@ -167,7 +167,7 @@ ss_ind_T=zeros(T,1); % one spare at end
 pi_Sprime_T=zeros(1,T,1,N_S,'gpuArray');
 for tt=1:T
     [~,ss_ind]=max(cumsum_pi_S(ss_ind,:)>rand(1,1));
-    
+
     ss_ind_T(tt)=ss_ind;
     % Set up AggShocksPath
     ss_sub=ind2sub_homemade(n_S,ss_ind);
@@ -235,7 +235,7 @@ elseif recursiveeqmoptions.matchingsetup==2
     SSprimemask_T=logical(SSprimemask_T); % Note: for last period this is zero by construction (as cannot see periods after)
     % % notSSmask_Tplus1(SSprime_c,:) should have zeros when next-period is SSprime_c, otherwise has 1 (plus we will put 1 in period T and in burnin periods)
     % notSSmask_Tplus1=[(~SSmask_T(:,2:end)),logical(ones(N_S,1,'gpuArray'))]; % next period, 2:end, and then for final period just 'always not' with the ones()
-    
+
     % LAZY ASS VERSION (I should after a few iterations just throw away the burnin, as it is a lot of things to calculate when you are not using them)
     % Just use Mask to rule out the whole burnin of the value fns
     SSmask_T(:,1:recursiveeqmoptions.burnin)=0; % remove these from consideration

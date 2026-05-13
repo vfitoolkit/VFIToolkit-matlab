@@ -24,24 +24,24 @@ ReturnMatrixLvl1=CreateReturnFnMatrix_Case1_Disc_DC2_Par2(ReturnFn, n_d, n_z, d_
 %     %% Solve first-level ignoring the second level
 %     % This will hopefully work to give a good initial guess for the second level
 %     % We can use 'Refine' on this first level: http://discourse.vfitoolkit.com/t/pure-discretization-with-refinement/206
-% 
+%
 %     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
 %     [ReturnMatrixLvl1_refined,~]=max(reshape(ReturnMatrixLvl1,[N_d,N_a1*N_a2,prod(vfoptions.level1n),N_z]),[],1);
 %     ReturnMatrixLvl1_refined=shiftdim(ReturnMatrixLvl1_refined,1);
-% 
+%
 %     lvl1aprimeindexes=repmat(level11ii',vfoptions.level1n(2),1)+vfoptions.level1n(1)*(repelem(level12jj',vfoptions.level1n(1),1)-1);
-% 
+%
 %     % Now, do value function iteration on just this first level (we already did Refine, so no d variable)
 %     [V,~]=ValueFnIter_Case1_nod_Par2_raw(zeros(prod(vfoptions.level1n),N_z,'gpuArray'), vfoptions.level1n, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrixLvl1_refined(lvl1aprimeindexes,:,:), vfoptions.howards, vfoptions.maxhowards, 100*vfoptions.tolerance, vfoptions.maxiter);
 %     % Note: uses 100*vfoptions.tolerance, as it is just an intial guess
-% 
+%
 %     % Turn this V, which is currently only on the first level grid, into a full V by linear interpolation
-% 
+%
 %     V=interp3(reshape(V,[vfoptions.level1n(1),vfoptions.level1n(2),N_z]),linspace(1,vfoptions.level1n(2),N_a2),linspace(1,vfoptions.level1n(1),N_a1)',(1:1:N_z));
 %     % Note: For reasons known only to matlab, you use interp3(V,Xq,Yq,Zq) with X=1:n, Y=1:m, Z=1:p, where [m,n,p] = size(V).
 %     %       So X and Y are 'reversed' from what you would expect them to be.
 %     % Weird behaviour, presumably something to do with how Matlab views columns as the first dimension.
-% 
+%
 %     if vfoptions.verbose==1
 %         fprintf('Created the initial guess for V based on level 1 of divide-and-conquer \n')
 %     end
@@ -72,7 +72,7 @@ tempcounter=1;
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     Vold=V;
-    
+
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=Vold.*Epi_z;
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -87,11 +87,11 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     % First, we want a1a2prime conditional on (d,1,a,z)
     [~,maxindex1]=max(entireRHS_ii,[],2);
-    
+
     % In 2D, this all gets overwritten as each layer2-ii-jj includes the edges, so I can skip it to save time
     % % Now, get and store the full (d,aprime)
     % [~,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a1*N_a2,vfoptions.level1n(1),vfoptions.level1n(2),N_z]),[],1);
-    % 
+    %
     % % Store
     % V(level11ii,level12jj,:)=shiftdim(Vtempii,1);
     % Policy(level11ii,level12jj,:)=shiftdim(maxindex2,1);
@@ -204,7 +204,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     %% Finish up
     % Update currdist
-    Vdist=V(:)-Vold(:); 
+    Vdist=V(:)-Vold(:);
     Vdist(isnan(Vdist))=0;
     currdist=max(abs(Vdist));
 

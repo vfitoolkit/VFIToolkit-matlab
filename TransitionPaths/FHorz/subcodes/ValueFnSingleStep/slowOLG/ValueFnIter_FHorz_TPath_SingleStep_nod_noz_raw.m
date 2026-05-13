@@ -22,7 +22,7 @@ Policy(:,N_j)=maxindex;
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
     jj=N_j-reverse_j;
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);

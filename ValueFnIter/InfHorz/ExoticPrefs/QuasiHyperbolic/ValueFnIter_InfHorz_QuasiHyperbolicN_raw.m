@@ -27,10 +27,10 @@ for z_c=1:N_z
     EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
     EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV_z=sum(EV_z,2);
-    
+
     entireEV_z=kron(EV_z,ones(N_d,1));
     entireRHS=ReturnMatrix_z+beta0beta*entireEV_z*ones(1,N_a,1);
-    
+
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     VKron(:,z_c)=Vtemp;

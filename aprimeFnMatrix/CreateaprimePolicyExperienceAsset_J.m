@@ -205,7 +205,7 @@ elseif fastOLG==1 % (a,j,z)
     else
         a2vals=repelem(a2_grid,N_a1,1);
     end
-    
+
     % Note: the relevant d for experience asset is just the 'whichisdforexpasset' d (this is typically just the last if using just experience asset, but
     % needs to be something else, e.g., when combining experience asset with semi-exogenous state)
     % expasset: aprime(d,a2)
@@ -219,8 +219,8 @@ elseif fastOLG==1 % (a,j,z)
     elseif l_dexp==4
         a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, ParamCell{:});
     end
-    
-    
+
+
     %% Calcuate grid indexes and probs from the values
     if N_z==0
         a2primeVals=reshape(a2primeVals,[1,N_a,N_j]);

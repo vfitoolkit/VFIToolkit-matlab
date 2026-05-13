@@ -66,7 +66,7 @@ if vfoptions.EVpre==0
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,N_j)
     % Already applied the probabilities from interpolating onto grid
-    
+
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j]); % (aprime,1,j), 2nd dim will be autofilled with a
 elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
@@ -88,7 +88,7 @@ elseif vfoptions.EVpre==1
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,N_j)
     % Already applied the probabilities from interpolating onto grid
-    
+
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j]); % (aprime,1,j), 2nd dim will be autofilled with a
 end
 
@@ -99,7 +99,7 @@ DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5])
 if vfoptions.lowmemory==0
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, n_a1, vfoptions.level1n,n_a2,N_j, d2_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, ReturnFnParamsAgeMatrix,1,0);
-    
+
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
     % First, we want a1prime conditional on (d,1,a)
@@ -107,7 +107,7 @@ if vfoptions.lowmemory==0
 
     % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoint(:,1,level1ii,:,:)=maxindex1;
-    
+
     % Attempt for improved version
     maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
     for ii=1:(vfoptions.level1n-1)

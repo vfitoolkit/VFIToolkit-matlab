@@ -68,7 +68,7 @@ d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 if N_d1>0
     d12_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid; d2_grid],1);
 else
-    d12_gridvals=[]; % not used 
+    d12_gridvals=[]; % not used
 end
 u_gridvals=CreateGridvals(n_u,u_grid,1);
 
@@ -169,7 +169,7 @@ if vfoptions.outputkron==0
     end
     if N_d1>0
         n_d=[n_d1,n_d2,n_d3];
-    else 
+    else
         n_d=[n_d2,n_d3];
     end
     if n_a1>0
@@ -178,7 +178,7 @@ if vfoptions.outputkron==0
     else
         n_a=n_a2;
     end
-    
+
     % Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if N_e==0
         V=reshape(VKron,[n_a,n_bothz,N_j]);

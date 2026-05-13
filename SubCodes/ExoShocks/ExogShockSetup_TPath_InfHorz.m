@@ -119,7 +119,7 @@ if N_z>0
             end
         end
     end
-    
+
     if ~isfield(transpathoptions,'zpathtrivial')
         transpathoptions.zpathtrivial=1;
     end

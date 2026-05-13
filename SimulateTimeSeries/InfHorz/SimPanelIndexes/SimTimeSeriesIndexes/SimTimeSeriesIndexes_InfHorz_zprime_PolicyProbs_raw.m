@@ -11,7 +11,7 @@ SimTimeSeriesKron=nan(2,simoptions.simperiods);
 for tt=1:simoptions.simperiods
     SimTimeSeriesKron(1,tt)=currstate(1); % a_c
     SimTimeSeriesKron(2,tt)=currstate(2); % z_c
-    
+
     [~,zprime_c]=max(cumsumpi_z(currstate(2),:)>rand(1,1)); % zprime
 
     alowerProbs=CumPolicyProbs(currstate(1),currstate(2),zprime_c,:);

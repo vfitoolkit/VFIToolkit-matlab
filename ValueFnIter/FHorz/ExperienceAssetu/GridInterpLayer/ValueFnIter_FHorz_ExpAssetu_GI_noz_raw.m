@@ -84,7 +84,7 @@ else
     ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, ReturnFnParamsVec,1); % [N_d,N_a1prime,N_a1,N_a2]
 
     entireRHS=ReturnMatrix+repelem(DiscountedEV,N_d1,1); % autofill 3rd dim to N_a1
-    
+
     % Calc the max and it's index
     [~,maxindex]=max(entireRHS,[],2);
 
@@ -112,8 +112,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -146,7 +146,7 @@ for reverse_j=1:N_j-1
     ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, ReturnFnParamsVec,1); % [N_d,N_a1prime,N_a1,N_a2]
 
     entireRHS=ReturnMatrix+repelem(DiscountedEV,N_d1,1); % autofill 3rd dim to N_a1
-    
+
     % Calc the max and it's index
     [~,maxindex]=max(entireRHS,[],2);
 

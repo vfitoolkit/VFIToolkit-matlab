@@ -15,7 +15,7 @@ for jj=0:periods
     SimLifeCycleKron(3,jj+initialage)=currstate(3); % e_c
 
     currstate(1)=Policy_aprime(currstate(1),currstate(2),currstate(3),jj+initialage);
-    
+
     [~,currstate(2)]=max(cumsumpi_z_J(currstate(2),:,jj+initialage)>rand(1,1));
     [~,currstate(3)]=max(cumsumpi_e_J(:,jj+initialage)>rand(1,1));
 end

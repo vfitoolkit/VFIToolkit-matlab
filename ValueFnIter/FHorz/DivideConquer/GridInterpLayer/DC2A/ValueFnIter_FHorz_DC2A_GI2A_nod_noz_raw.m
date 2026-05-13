@@ -75,7 +75,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             midpoints_jj(1,:,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1);
         end
     end
-    
+
     % Turn this into the 'midpoint'
     midpoints_jj=max(min(midpoints_jj,n_a1-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is 1-by-n_a2-by-n_a1-by-n_a2
@@ -89,7 +89,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(1,:,N_j)=midpoints_jj(maxindexL2a2+N_a2*a12ind); % a1prime midpoint
     Policy(2,:,N_j)=maxindexL2a2; % a2prime
     Policy(3,:,N_j)=maxindexL2a1; % a1primeL2ind
-    
+
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
@@ -103,7 +103,7 @@ else
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nodz_Par2(ReturnFn, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, ReturnFnParamsVec,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
-    
+
     %Calc the max and it's index
     [~,maxindex1]=max(entireRHS_ii,[],1);
 
@@ -129,7 +129,7 @@ else
             midpoints_jj(1,:,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1);
         end
     end
-    
+
     % Turn this into the 'midpoint'
     midpoints_jj=max(min(midpoints_jj,n_a1-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is 1-by-n_a2-by-n_a1-by-n_a2
@@ -155,12 +155,12 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     DiscountedEV=DiscountFactorParamsVec*reshape(V(:,jj+1),[N_a1,N_a2]);
     % Interpolate EV over aprime_grid
     DiscountedEVinterp=interp1(a1_grid,DiscountedEV,a1prime_grid);
@@ -169,7 +169,7 @@ for reverse_j=1:N_j-1
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nodz_Par2(ReturnFn, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, ReturnFnParamsVec,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
-    
+
     %Calc the max and it's index
     [~,maxindex1]=max(entireRHS_ii,[],1);
 

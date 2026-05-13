@@ -124,7 +124,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         end
     end
     %---------------------------------------------------------------------%
-    
+
     VKrondist=VKron(:)-VKronold(:);
     currdist=max(abs(VKrondist));
 

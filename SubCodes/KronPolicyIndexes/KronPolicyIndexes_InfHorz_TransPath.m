@@ -3,14 +3,14 @@ function PolicyPathKron=KronPolicyIndexes_InfHorz_TransPath(PolicyPath, n_d, n_a
 %
 % Input: Policy (l_d+l_a,n_a,n_z,T);
 %
-% Output: Policy=zeros(2,N_a,N_z,T); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+% Output: Policy=zeros(2,N_a,N_z,T); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 %                       (N_a,N_z,T) if there is no d
 % Differs if simoptions.gridinterplayer=1
 
 % When using n_e, is instead:
 % Input: Policy (l_d+l_a,n_a,n_z,n_e,,T);
 %
-% Output: Policy=zeros(2,N_a,N_z,N_e,T); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+% Output: Policy=zeros(2,N_a,N_z,N_e,T); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 %                       (N_a,N_z,N_e,T) if there is no d
 % Differs if simoptions.gridinterplayer=1
 
@@ -24,7 +24,7 @@ if ~isfield(simoptions,'n_e')
     N_e=0;
 elseif prod(simoptions.n_e)==0
     n_ze=n_z;
-    N_e=0;    
+    N_e=0;
 else
     n_ze=[n_z,n_e];
     N_e=prod(n_e);

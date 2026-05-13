@@ -107,7 +107,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
@@ -162,7 +162,7 @@ for ff=1:length(FnsToEvalNames)
     CorrTransProbs.(FnsToEvalNames{ff}).StdDeviation=stddevV;
     CorrTransProbs.(FnsToEvalNames{ff}).AutoCovariance=Covar;
     CorrTransProbs.(FnsToEvalNames{ff}).AutoCorrelation=Corr;
-    
+
     %% Calculate transition probabilties
     if simoptions.transprobs(ff)==1
         if isempty(simoptions.transprobquantiles)
@@ -200,7 +200,7 @@ for ff=1:length(FnsToEvalNames)
         for kk=1:n_fvals
             P_v(:,kk)=accumarray(indexes,Pintermediate(:,kk))./accumarray(indexes,StationaryDist);
         end
-        
+
         CorrTransProbs.(FnsToEvalNames{ff}).TransitionProbs=P_v;
     end
 

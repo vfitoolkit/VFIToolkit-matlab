@@ -81,7 +81,7 @@ else
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
@@ -98,20 +98,20 @@ else
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
 
-    elseif vfoptions.lowmemory==1 
+    elseif vfoptions.lowmemory==1
         % loop over z
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, special_n_z, 0, a_grid, r_grid, z_val, ReturnFnParamsVec,0);
-            
+
             EV_z=V_Jplus1.*shiftdim(pi_z_J(z_c,:,N_j)',-2); % Note: shiftdim -3
             EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
-            
+
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*reshape(EV_z,[N_a,N_a,1]);
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,:,z_c,N_j)=Vtemp;
@@ -128,15 +128,15 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=V(:,:,:,jj+1);
-    
+
     % Residual asset:
     % EV is over (aprime,r,z)
     % Need to convert to be over (aprime,a,z)
@@ -145,7 +145,7 @@ for reverse_j=1:N_j-1
     % Note: rprimeIndex is [N_d*N_a*N_a*N_z,1], and rprimeProbs is [N_d*N_a*N_a*N_z,1]
     aprimeIndexes=kron(ones(N_a*N_z,1),(1:1:N_a)'); % aprime over (aprime,a,z)
     zprimeIndexes=kron((1:1:N_z)',ones(N_a*N_a,1)); % zprime over (aprime,a,z)
-    
+
     % lower r index (size is N_a*N_a*N_z)
     fullindex=aprimeIndexes+N_a*(rprimeIndexes-1)+N_a*N_r*(zprimeIndexes-1); % index for (a',r',z'), as function of (a',a,z)
     Vindex1=EV(fullindex);
@@ -156,7 +156,7 @@ for reverse_j=1:N_j-1
     EV=Vindex1.*rprimeProbs+Vindex2.*(1-rprimeProbs);
     EV=reshape(EV,[N_a,N_a,N_z]);
     % now, it is over (a',a,z)
-    
+
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
@@ -166,27 +166,27 @@ for reverse_j=1:N_j-1
         EV=sum(EV,3); % sum over z', leaving a singular second dimension
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*reshape(EV,[N_a,N_a,1,N_z]);
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,:,jj)=shiftdim(maxindex,1);
-        
-    elseif vfoptions.lowmemory==1 
+
+    elseif vfoptions.lowmemory==1
         % loop over z
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, special_n_z, 0, a_grid, r_grid, z_val, ReturnFnParamsVec,0);
-            
+
             EV_z=EV.*shiftdim(pi_z_J(z_c,:,jj)',-2); % Note: shiftdim -3
             EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
-            
+
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*reshape(EV_z,[N_a,N_a,1]);
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,:,z_c,jj)=Vtemp;

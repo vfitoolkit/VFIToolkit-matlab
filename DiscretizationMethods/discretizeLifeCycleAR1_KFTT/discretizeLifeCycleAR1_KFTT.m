@@ -2,12 +2,12 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 % Please cite: Kirkby (2025) - Discretizing Earnings Dynamics: Implications of Gaussian-Mixture Shocks for Life-Cycle Models
 %
 % KFTT discretization method for a 'life-cycle non-stationary AR(1) process with
-%    gaussian innovations'. 
-% This is an extension of the Farmer-Toda method to 'age-dependent parameters' 
+%    gaussian innovations'.
+% This is an extension of the Farmer-Toda method to 'age-dependent parameters'
 %    (apply concepts of Farmer & Toda (2017) in combination with extension of Fella, Gallipoli & Pan (2019))
 % Which in turn is an extension of the Tanaka & Toda (2013).
 % Hence: KFTT=Kirkby-Farmer-Tanaka-Toda
-% 
+%
 %  KFTT method to approximate life-cycle AR(1) process by a discrete Markov chain
 %       z(j) = mew(j)+rho(j)*z(j-1)+ epsilon(j),   epsilon(j)~iid  N(0,sigma(j))
 %       with initial condition z(0) = 0 (equivalently z(1)=epsilon(1))
@@ -33,9 +33,9 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 %        Note, for both period 0 and period 1, you can set one or both of
 %        mean and standard deviation (the other is interpreted as zero
 %        valued if not specified).
-% Output: 
+% Output:
 %   z_grid         - an znum-by-J matrix, each column stores the Markov state space for period j
-%   pi_z_J         - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
+%   pi_z_J         - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices.
 %                    Transition probabilities are arranged by row.
 %   jequaloneDistz - initial distribution of shocks for j=1
 %   otheroutputs   - optional output structure containing info for evaluating the distribution including,
@@ -242,7 +242,7 @@ for jj=1:J
             X1 = mewz(jj)+sqrt(2)*sigmaz(jj)*X1';
             W = W'./sqrt(pi);
     end
-    
+
     z_grid = allcomb2(X1); % Nm*1 matrix of grid points
     z_grid_J(:,jj)=z_grid;
 end
@@ -255,7 +255,7 @@ nMoments_grid=zeros(znum,J); % Used to record number of moments matched in trans
 kappa = 1e-8;
 
 parfor jj=1:J
-    
+
     if jj>1
         zlag_grid=z_grid_J(:,jj-1);
     else
@@ -266,14 +266,14 @@ parfor jj=1:J
         end
     end
     z_grid=z_grid_J(:,jj)';
-    
+
     TBar=TBar_J(:,jj);
 
     P = nan(znum,znum); % The transition matrix for age jj
     scalingFactor = max(abs(z_grid)); % WHY NOT LET THIS DEPEND ON z_c?
-    
+
     for z_c = 1:znum
-        
+
         condMean = mew(jj)+rho(jj)*zlag_grid(z_c); % conditional mean
         if strcmp(kfttoptions.method,'gauss-hermite')  % define prior probabilities
             q = W;
@@ -284,11 +284,11 @@ parfor jj=1:J
             % Tauchen=normcdf(midpoints-condMean,0,sigma(jj));
             % q=[Tauchen(1),Tauchen(2:end)-Tauchen(1:end-1),1-Tauchen(end)];
         end
-        
+
         if any(q < kappa)
             q(q < kappa) = kappa; % replace by small number for numerical stability
         end
-        
+
         if kfttoptions.nMoments == 1 % match only 1 moment
             P(z_c,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
             nMoments_grid(z_c,jj)=1;

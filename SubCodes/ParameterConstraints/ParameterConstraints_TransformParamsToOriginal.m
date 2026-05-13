@@ -7,7 +7,7 @@ function [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal
 % So original problem will be in terms of cparam.
 % ParameterConstraints_TransformParamsToUnconstrained: transforms cparam to uparam
 % ParameterConstraints_TransformParamsToOriginal: transforms uparam to cparam
-% 
+%
 % - Constrain parameter to be positive
 %     uparam=exp(cparam)
 %     cparam=log(uparam)

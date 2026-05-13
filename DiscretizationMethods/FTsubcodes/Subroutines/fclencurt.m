@@ -5,8 +5,8 @@ function [x,w]=fclencurt(N1,a,b)
 % fclencurt.m - Fast Clenshaw Curtis Quadrature
 %
 % Compute the N nodes and weights for Clenshaw-Curtis
-% Quadrature on the interval [a,b]. Unlike Gauss 
-% quadratures, Clenshaw-Curtis is only exact for 
+% Quadrature on the interval [a,b]. Unlike Gauss
+% quadratures, Clenshaw-Curtis is only exact for
 % polynomials up to order N, however, using the FFT
 % algorithm, the weights and nodes are computed in linear
 % time. This script will calculate for N=2^20+1 (1048577

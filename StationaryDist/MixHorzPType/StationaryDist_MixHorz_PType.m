@@ -1,5 +1,5 @@
 function StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Parameters,simoptions)
-% Allows for different permanent (fixed) types of agent. 
+% Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_Case1_FHorz_PType for general idea.
 %
 % simoptions.verbose=1 will give feedback
@@ -19,7 +19,7 @@ function StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsPar
 
 % Names_i can either be a cell containing the 'names' of the different
 % permanent types, or if there are no structures used (just parameters that
-% depend on permanent type and inputted as vectors or matrices as appropriate) 
+% depend on permanent type and inputted as vectors or matrices as appropriate)
 % then Names_i can just be the number of permanent types (but does not have to be, can still be names).
 if iscell(Names_i)
     N_i=length(Names_i);
@@ -37,7 +37,7 @@ else
     end
 end
 
-%% 
+%%
 if ~exist('simoptions','var')
     error('You must input simoptions, you can always set simoptions=struct().')
 end
@@ -68,10 +68,10 @@ for ii=1:N_i
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-           
-    
+
+
     Policy_temp=Policy.(Names_i{ii});
-    
+
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
@@ -151,7 +151,7 @@ for ii=1:N_i
             end
         end
     end
-    
+
     %% Parameters
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
@@ -177,12 +177,12 @@ for ii=1:N_i
             end
         end
     end
-    
+
     if simoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
-    
+
     %% jequaloneDist
     if isa(jequaloneDist,'struct')
         if isfield(jequaloneDist,Names_i{ii})
@@ -217,7 +217,7 @@ for ii=1:N_i
             error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}, ' \n'])
         end
     end
-    
+
     %%
     AgeWeightParamNames_temp=AgeWeightsParamNames;
     if isa(AgeWeightsParamNames,'struct')
@@ -229,19 +229,19 @@ for ii=1:N_i
             end
         end
     end
-    
+
     if isfinite(N_j_temp)
         StationaryDist_ii=StationaryDist_FHorz_Case1(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp,simoptions_temp);
     else % PType actually allows for infinite horizon as well
         StationaryDist_ii=StationaryDist_InfHorz(Policy_temp,n_d_temp,n_a_temp,n_z_temp,pi_z_temp,simoptions_temp,Parameters_temp); % EntryExitParams not yet supported (is on my to-do list)
     end
-    
+
     if simoptions_temp.ptypestorecpu==1
         StationaryDist.(Names_i{ii})=gather(StationaryDist_ii);
     else
         StationaryDist.(Names_i{ii})=StationaryDist_ii;
     end
-    
+
 end
 
 if length(Parameters.(PTypeDistParamNames{:}))==N_i

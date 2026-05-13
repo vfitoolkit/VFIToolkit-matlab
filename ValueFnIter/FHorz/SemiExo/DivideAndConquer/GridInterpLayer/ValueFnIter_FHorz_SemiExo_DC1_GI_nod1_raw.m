@@ -109,13 +109,13 @@ else
         EV_d2=EV.*shiftdim(pi_bothz',-1);
         EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
-        
+
         EVinterp=interp1(a_grid,EV_d2,aprime_grid);
 
         % n-Monotonicity
         ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_bothz, d2_val, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,4); % effecitely nod (as just a single d2 point), so use level=2 even for first level
         entireRHS_d2ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*EV_d2;
-        
+
         % Treat standard problem as just being the first layer
         [~,maxindex1]=max(entireRHS_d2ii,[],1); % no d1
 
@@ -177,8 +177,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);

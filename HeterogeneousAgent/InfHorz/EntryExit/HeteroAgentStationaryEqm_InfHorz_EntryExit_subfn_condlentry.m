@@ -19,7 +19,7 @@ if isfield(heteroagentoptions,'specialgeneqmcondn')
                 CondlEntryCondnEqnParamNames=temp(2:end);
             end
         end
-        
+
     else % Old version of GeneralEqmEqns as cell
 %         standardgeneqmcondnindex=zeros(1,length(GeneralEqmEqns));
         jj=1;
@@ -82,7 +82,7 @@ end
 
 
 
-%% 
+%%
 for ii=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{ii})=p(ii);
 end

@@ -1,6 +1,6 @@
 function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_probs,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,Parameters)
 % 'nProbs' refers to four probabilities.
-% Policy_aprime has an additional dimension of length 4 which is the four points (and contains only the aprime indexes, no d indexes as would usually be the case). 
+% Policy_aprime has an additional dimension of length 4 which is the four points (and contains only the aprime indexes, no d indexes as would usually be the case).
 % PolicyProbs are the corresponding probabilities of each of these four
 
 %%
@@ -43,12 +43,12 @@ StationaryDist_jj=sparse(jequaloneDistKron); % use sparse matrix
 II2=repelem((1:1:N_a*N_semiz)',1,N_semizshort*N_probs); % Index for this period (a,semiz), note the N_semizshort*N_probs-copies
 
 for jj=1:(N_j-1)
-        
+
     Gammatranspose=sparse(Policy_aprimesemiz(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_semiz,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
 
     % No z, so just a single interation
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
-    
+
     StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end
 

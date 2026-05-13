@@ -45,7 +45,7 @@ if simoptions.parallel<2
     Ptranspose=zeros(N_a,N_a*N_z);
     Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
     Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
-    
+
 elseif simoptions.parallel==2 % Using the GPU
     % First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
 
@@ -57,7 +57,7 @@ elseif simoptions.parallel==2 % Using the GPU
     Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
     Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
     Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptranspose));
-    
+
 elseif simoptions.parallel>2
 %     % The following commented out version was producing machine precision
 %     % level errors in Ptranspose that lead to machine precision level
@@ -72,7 +72,7 @@ elseif simoptions.parallel>2
 %     else
 %         PolicyIndexesKron=reshape(PolicyIndexesKron(2,:,:),[N_a*N_z,1]);
 %     end
-%     
+%
 %     parfor az_c=1:N_a*N_z
 %         Ptranspose_az=sparse(N_a*N_z,1);
 %         optaprime=PolicyIndexesKron(az_c);
@@ -87,7 +87,7 @@ elseif simoptions.parallel>2
 %     end
 %     toc
     pi_z=sparse(gather(pi_z));
-    
+
     if N_d==0 %length(n_d)==1 && n_d(1)==0
         optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
     else
@@ -95,9 +95,9 @@ elseif simoptions.parallel>2
     end
     PtransposeA=sparse(N_a,N_a*N_z);
     PtransposeA(optaprime+N_a*(0:1:N_a*N_z-1))=1;
-    
+
 %     whos PolicyIndexesKron optaprime PtransposeA pi_z
-    
+
     try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
         Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
     catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
@@ -107,19 +107,19 @@ elseif simoptions.parallel>2
         end
     end
 
-% 
+%
 %         Ptranspose1=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
 %         Ptranspose2=kron(ones(N_z,1),PtransposeA);
 %         for ii=1:N_z
 %             Ptranspose2(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose2(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
 %         end
-% 
+%
 %         Ptranspose1(1:20,1:20)
 %         Ptranspose2(1:20,1:20)
-%         
+%
 %         max(max(abs(Ptranspose1-Ptranspose2)))
 %     whos PtransposeB Ptranspose
-    
+
 end
 
 
@@ -133,18 +133,18 @@ end
 SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
 SScounter=0;
 while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
-    
+
     for jj=1:100
         StationaryDistKron=Ptranspose*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
     end
     SteadyStateDistKronOld=StationaryDistKron;
     StationaryDistKron=Ptranspose*StationaryDistKron; % Base the tolerance on 10 iterations. (For some reason just using one iteration worked perfect on gpu, but was not accurate enough on cpu)
     SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
-    
+
     SScounter=SScounter+1;
     if simoptions.verbose==1
         if rem(SScounter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', SScounter, SScurrdist, simoptions.tolerance)            
+            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', SScounter, SScurrdist, simoptions.tolerance)
         end
     end
 end
@@ -158,7 +158,7 @@ end
 
 if ~(SScounter<simoptions.maxit)
     disp('WARNING: SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
-end 
+end
 
 %% Leftovers from a now extinct simoption
 % if simoptions.nagents~=0
@@ -166,7 +166,7 @@ end
 %    SteadyStateDistKronTemp=cumsum(SteadyStateDistKronTemp);
 %    SteadyStateDistKronTemp=SteadyStateDistKronTemp*simoptions.nagents;
 %    SteadyStateDistKronTemp=round(SteadyStateDistKronTemp);
-%    
+%
 %    SteadyStateDistKronTemp2=SteadyStateDistKronTemp;
 %    for i=2:length(SteadyStateDistKronTemp)
 %        SteadyStateDistKronTemp2(i)=SteadyStateDistKronTemp(i)-SteadyStateDistKronTemp(i-1);

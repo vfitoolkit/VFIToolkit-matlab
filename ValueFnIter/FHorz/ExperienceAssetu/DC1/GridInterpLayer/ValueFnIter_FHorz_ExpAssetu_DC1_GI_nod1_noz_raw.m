@@ -47,7 +47,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoint(:,1,level1ii,:)=maxindex1;
-    
+
     % Attempt for improved version
     maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
     for ii=1:(vfoptions.level1n-1)
@@ -104,10 +104,10 @@ else
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u)
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2)
-    
+
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2]);
     % Interpolate EV over aprime_grid
-    DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4]),a1prime_grid),[2,1,3,4]);   % [N_d2,N_a1prime,1,N_a2] 
+    DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4]),a1prime_grid),[2,1,3,4]);   % [N_d2,N_a1prime,1,N_a2]
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, n_a1, vfoptions.level1n, n_a2, d2_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, ReturnFnParamsVec,1);
@@ -164,8 +164,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -192,8 +192,8 @@ for reverse_j=1:N_j-1
 
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2]);
     % Interpolate EV over aprime_grid
-    DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4]),a1prime_grid),[2,1,3,4]); % [N_d2,N_a1prime,1,N_a2]   
-    
+    DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4]),a1prime_grid),[2,1,3,4]); % [N_d2,N_a1prime,1,N_a2]
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, n_a1, vfoptions.level1n, n_a2, d2_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, ReturnFnParamsVec,1);
 
@@ -204,7 +204,7 @@ for reverse_j=1:N_j-1
 
     % Just keep the 'midpoint' vesion of maxindex1 [as GI]
     midpoint(:,1,level1ii,:)=maxindex1;
-    
+
     % Attempt for improved version
     maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
     for ii=1:(vfoptions.level1n-1)
@@ -224,7 +224,7 @@ for reverse_j=1:N_j-1
             midpoint(:,1,curraindex,:)=repelem(loweredge,1,1,level1iidiff(ii),1);
         end
     end
-    
+
     % Turn this into the 'midpoint'
     midpoint=max(min(midpoint,n_a1(1)-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is n_d2-1-by-n_a1-by-n_a2

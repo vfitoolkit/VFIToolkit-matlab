@@ -1,5 +1,5 @@
 function [C , iter_number ] = GFT_inverse_mapping ( gamma , tol_value )
-% This is a lightly edited version of the code provided in the Appendix to 
+% This is a lightly edited version of the code provided in the Appendix to
 % Archakov & Hansen (2021) - A New Parametrization of Correlation Matrices
 % Original is page 14 of https://homepage.univie.ac.at/ilya.archakov/docs/CorNoteWebAppendix.pdf
 % Explanation/illustration of how to use: https://github.com/robertdkirkby/ParametrizeCoVarianceMatrix/blob/main/CoVarMatrix.m
@@ -7,11 +7,11 @@ function [C , iter_number ] = GFT_inverse_mapping ( gamma , tol_value )
 % Inputs:
 %     gamma: vector that parametrizes the correlation matrix
 %     tol_value: tolerance for the iterative algorithm that computes C from gamma
-% Outputs: 
+% Outputs:
 %     C: n-by-n correlation matrix
 %     iter_number: the number of iterations taken by the iterative algorithm
 %
-% If you use this, please cite 
+% If you use this, please cite
 % Archakov & Hansen (2021) - A New Parametrization of Correlation Matrices
 % https://doi.org/10.3982/ECTA16910
 

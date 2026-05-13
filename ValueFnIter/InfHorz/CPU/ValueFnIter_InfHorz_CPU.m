@@ -15,7 +15,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmet
         error('d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
     elseif ~all(size(a_grid)==[sum(n_a), 1])
         error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
-        
+
         % Check z_grid inputs
     elseif isfield(vfoptions,'ExogShockFn')
             % okay
@@ -121,21 +121,21 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
     N_d=prod(n_d);
 
     if vfoptions.lowmemory==0
-        
+
         %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
         % Since the return function is independent of time creating it once and
         % then using it every iteration is good for speed, but it does use a lot of memory.
-        
+
         if vfoptions.verbose==1
             disp('Creating return fn matrix')
         end
 
         ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
-        
+
         if vfoptions.verbose==1
             fprintf('Starting Value Function \n')
         end
-        
+
         if N_d==0
             if vfoptions.parallel==0 % On CPU
                 [VKron,Policy]=ValueFnIter_InfHorz_nod_Par0_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
@@ -149,7 +149,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
                 [VKron, Policy]=ValueFnIter_InfHorz_Par1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
             end
         end
-        
+
     elseif vfoptions.lowmemory==1
         error('Can only use lowmemory on GPU')
     end

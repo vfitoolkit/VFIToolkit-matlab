@@ -100,7 +100,7 @@ else
     end
 end
 %% Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
 
@@ -125,7 +125,7 @@ elseif isfield(simoptions,'ExogShockFn')
         transpathoptions.zpathprecomputed=1;
         % If ExogShockFn does not depend on any of the prices (in PricePath), then
         % we can simply create it now rather than within each 'subfn' or 'p_grid'
-        
+
         % Check if it depends on the ParamPath
         transpathoptions.zpathtrivial=1;
         for ii=1:length(simoptions.ExogShockFnParamNames)
@@ -192,7 +192,7 @@ end
 
 %% The loop itself
 for tt=1:T
-        
+
     % Get current AgentDist
     if N_z>0
         if N_e>0
@@ -235,7 +235,7 @@ for tt=1:T
     for kk=1:length(ParamPathNames)
         Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
     end
-    
+
     if use_tminus1price==1
         for pp=1:length(tminus1priceNames)
             if tt>1
@@ -261,7 +261,7 @@ for tt=1:T
             end
         end
     end
-    
+
     % Get current shocks (if applicable)
     if transpathoptions.zpathprecomputed==1
         if transpathoptions.zpathtrivial==1
@@ -271,15 +271,15 @@ for tt=1:T
         % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in simoptions already
     end
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use simoptions.ExogShockFn within  ValueFnIter command
-    
+
     if N_z==0
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_noz(Policy, n_d, n_a, N_j,simoptions);
     else
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,simoptions);
     end
     tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,PolicyUnKron,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
-    
-    
+
+
     for ff=1:length(AggVarNames)
         for oo=1:length(OutputTypes)
             temp=tempAgeConditionalStats.(AggVarNames{ff}).(OutputTypes{oo});
@@ -299,7 +299,7 @@ for tt=1:T
                 AgeConditionalStatsPath.(AggVarNames{ff}).initialages.(OutputTypes{oo})=temp2;
             end
             % Now, those born in the transition
-            temp3=AgeConditionalStatsPath.(AggVarNames{ff}).bornduringtranstion.(OutputTypes{oo}); 
+            temp3=AgeConditionalStatsPath.(AggVarNames{ff}).bornduringtranstion.(OutputTypes{oo});
             for ii=max(1,tt-N_j+1):tt
                 if any(oo==[1,2,3,5])
                     % Born in ii, are now aged tt-ii+1
@@ -310,8 +310,8 @@ for tt=1:T
             end
         end
     end
-    
-    
+
+
 end
 
 

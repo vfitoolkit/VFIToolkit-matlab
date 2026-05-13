@@ -31,7 +31,7 @@ if vfoptions.lowmemory==0
     [ReturnMatrix,dstar]=max(ReturnMatrix,[],1); % solve for dstar
     ReturnMatrix=shiftdim(ReturnMatrix,1);
     dstar=shiftdim(dstar,1);
-    
+
 if vfoptions.lowmemory==1
     %% Refinement: calculate ReturnMatrix and 'remove' the d dimension
     ReturnMatrix=zeros(N_a,N_a,N_z); % 'refined' return matrix
@@ -43,7 +43,7 @@ if vfoptions.lowmemory==1
         ReturnMatrix(:,:,z_c)=shiftdim(ReturnMatrix_z,1);
         dstar(:,:,z_c)=shiftdim(dstar_z,1);
     end
-    
+
 elseif vfoptions.lowmemory==2
     ReturnMatrix=zeros(N_a,N_a,N_z); % 'refined' return matrix
     dstar=zeros(N_a,N_a,N_z);
@@ -59,24 +59,24 @@ end
 
 %%
 if vfoptions.lowmemory==0
-    
+
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-        
+
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
         EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
-        
+
         entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         V(:,z_c)=Vtemp;
         Policy_a(:,z_c)=maxindex;
     end
-    
+
 elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
@@ -86,9 +86,9 @@ elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
         EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
-        
+
         entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         V(:,z_c)=Vtemp;

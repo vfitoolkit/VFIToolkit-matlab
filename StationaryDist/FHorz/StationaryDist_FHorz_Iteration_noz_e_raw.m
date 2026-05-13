@@ -15,7 +15,7 @@ IIind=1:1:N_a*N_e;
 JJind=ones(N_a,N_e);
 
 for jj=1:(N_j-1)
-    
+
     Gammatranspose=sparse(Policy_aprime(:,:,jj),IIind,JJind,N_a,N_a*N_e);
 
     % Tan improvement not really relevant for without z shock

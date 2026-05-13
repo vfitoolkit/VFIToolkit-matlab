@@ -1,5 +1,5 @@
 function StationaryDist=StationaryDist_FHorz_FieldExp_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Parameters, TreatmentAgeRange, TreatmentDuration,simoptions)
-% Allows for different permanent (fixed) types of agent. 
+% Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_Case1_FHorz_PType for general idea.
 %
 % simoptions.verbose=1 will give feedback
@@ -19,7 +19,7 @@ function StationaryDist=StationaryDist_FHorz_FieldExp_PType(jequaloneDist,AgeWei
 
 % Names_i can either be a cell containing the 'names' of the different
 % permanent types, or if there are no structures used (just parameters that
-% depend on permanent type and inputted as vectors or matrices as appropriate) 
+% depend on permanent type and inputted as vectors or matrices as appropriate)
 % then Names_i can just be the number of permanent types (but does not have to be, can still be names).
 if iscell(Names_i)
     N_i=length(Names_i);
@@ -55,12 +55,12 @@ for ii=1:N_i
         simoptions_temp.verbose=0;
         simoptions_temp.verboseparams=0;
         simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-    end 
-    
+    end
+
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-           
+
     % Because we are looking at the field experiment we need the control-group policy
     Policy_control=Policy.control.(Names_i{ii});
     % And all of the treatment-group policies (one for each initial age)
@@ -71,7 +71,7 @@ for ii=1:N_i
             Policy_treatment.(treatmentagenames{nn})=Policy.(treatmentagenames{nn}).(Names_i{ii});
         end
     end
-    
+
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
@@ -103,7 +103,7 @@ for ii=1:N_i
     else
         pi_z_temp=pi_z;
     end
-    
+
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
     % these in term.
@@ -128,12 +128,12 @@ for ii=1:N_i
             end
         end
     end
-    
+
     if simoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
-    
+
     jequaloneDist_temp=jequaloneDist;
     if isa(jequaloneDist,'struct')
         if isfield(jequaloneDist,Names_i{ii})
@@ -153,7 +153,7 @@ for ii=1:N_i
             error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
         end
     end
-    
+
     AgeWeightParamNames_temp=AgeWeightsParamNames;
     if isa(AgeWeightsParamNames,'struct')
         if isfield(AgeWeightsParamNames,Names_i{ii})
@@ -165,8 +165,8 @@ for ii=1:N_i
             end
         end
     end
-    
-    % We want to get the stationary dist in kron form 
+
+    % We want to get the stationary dist in kron form
     simoptions_temp.outputkron=1;
     % First, get the whole stationary dist of the control group
     if isfinite(N_j_temp)
@@ -178,7 +178,7 @@ for ii=1:N_i
     end
 
     check_ze=length(size(StationaryDist_Control_ii)); % Used to determine whether using z/e
-    
+
     % Cut the control group to just the treatment age range
     if check_ze==2 % no z, no e
         StationaryDist_Control_ii=StationaryDist_Control_ii(:,TreatmentAgeRange(1):TreatmentAgeRange(2)+TreatmentDuration-1);
@@ -189,8 +189,8 @@ for ii=1:N_i
     end
     % As part of this, renormalize mass to 1
     StationaryDist_Control_ii=StationaryDist_Control_ii./sum(StationaryDist_Control_ii(:));
-    
-        
+
+
     % UnKron and put it all into the output structure
     if check_ze==2 % no z, no e
         StationaryDist_Control_ii=reshape(StationaryDist_Control_ii,[n_a,TreatmentAgeRange(2)-TreatmentAgeRange(1)+TreatmentDuration]);
@@ -208,7 +208,7 @@ for ii=1:N_i
     else
         StationaryDist.control.(Names_i{ii})=StationaryDist_Control_ii;
     end
-    
+
     if check_ze==2 % no z, no e
         StationaryDist_Treat_ii=reshape(StationaryDist_Treat_ii,[n_a,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1]);
     elseif check_ze==3
@@ -225,7 +225,7 @@ for ii=1:N_i
     else
         StationaryDist.treatment.(Names_i{ii})=StationaryDist_Treat_ii;
     end
-    
+
 end
 
 StationaryDist.ptweights=reshape(Parameters.(PTypeDistParamNames{:}),[],1); % reshape is to make sure this is a column vector

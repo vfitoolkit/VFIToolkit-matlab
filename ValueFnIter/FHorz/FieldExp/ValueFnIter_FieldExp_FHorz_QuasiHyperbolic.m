@@ -66,7 +66,7 @@ if isempty(ReturnFnParamNames)
     end
 end
 
-%% 
+%%
 % make sure all the relevant inputs are GPU arrays (not standard arrays)
 pi_z=gpuArray(pi_z);
 d_grid=gpuArray(d_grid);
@@ -96,11 +96,11 @@ end
 agedepparamnames=fieldnames(AgeDepParams);
 
 vfoptions.outputkron=1;
-%% Now, loop over the ages in 
+%% Now, loop over the ages in
 for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     % First, get the 'V in period j_p+j_d' from V.control
     vfoptions.V_Jplus1=Valt.control(j_p+TreatmentDuration);
-    
+
     % Instead of N_j we are going to use TreatmentDuration
 
     % We need to replace the age-dependent parameters with just the relevant periods.
@@ -150,7 +150,7 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
             end
         end
     end
-    
+
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if N_e==0
         if N_z==0

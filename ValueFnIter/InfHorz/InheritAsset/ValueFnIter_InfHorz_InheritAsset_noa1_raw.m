@@ -48,7 +48,7 @@ addindexforzprime=N_a*gpuArray(0:1:N_z-1);
 
 % pi_z_alt=shiftdim(pi_z',-1);
 % pi_z_howards=repelem(pi_z,N_a,1);
-% 
+%
 % addindexforaz=gpuArray(N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1));
 
 %% Do the value fn iteration
@@ -57,16 +57,16 @@ tempcounter=1;
 currdist=Inf;
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
-    
+
     Vlower=reshape(VKronold(a2primeIndex+addindexforzprime),[N_d2,N_z,N_z]); % (d2,zprime,z)
     Vupper=reshape(VKronold(a2primeIndex+1+addindexforzprime),[N_d2,N_z,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
-   
+
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
-    
+
     EV=EV.*shiftdim(pi_z',-1);
     EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
     EV=sum(EV,2);
@@ -78,16 +78,16 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     [VKron,Policy]=max(entireRHS,[],1);
     VKron=shiftdim(VKron,1); % a by z
 
-    VKrondist=VKron(:)-VKronold(:); 
+    VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    
+
     % % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
-    % if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards 
+    % if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
     %     tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
     %     Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
     %     Policy=Policy(:); % a by z (this shape is just convenient for Howards)
-    % 
+    %
     %     for Howards_counter=1:vfoptions.howards
     %         EVKrontemp=VKron(Policy,:);
     %         EVKrontemp=EVKrontemp.*pi_z_howards;

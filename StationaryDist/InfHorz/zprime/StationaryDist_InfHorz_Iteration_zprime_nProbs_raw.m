@@ -1,7 +1,7 @@
 function StationaryDist=StationaryDist_InfHorz_Iteration_zprime_nProbs_raw(StationaryDist,Policy_aprime,PolicyProbs,N_probs,N_a,N_z,pi_z,simoptions)
 % 'zprime' refers to Policy_aprime depending on zprime: it is of size [N_a,N_z,N_zprime,N_probs]
 % 'nProbs' refers to N_probs probabilities.
-% Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case). 
+% Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case).
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
 N_zprime=N_z; % Just to make the code easier to read
@@ -29,7 +29,7 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
 
     % Iterate on agent distribution
     StationaryDist=TransitionMatrixtranspose*StationaryDist;
-    
+
     if rem(counter,simoptions.multiiter)==0
         StationaryDistOld=StationaryDist;
     elseif rem(counter,simoptions.multiiter)==10

@@ -20,26 +20,26 @@ if Parallel==2
     l_daprime=size(PolicyIndexes,1);
     a_gridvals=CreateGridVals(n_a,gpuArray(a_grid),1);
     z_gridvals=CreateGridVals(n_z,gpuArray(z_grid),1);
-    
+
     % l_d not needed with Parallel=2 implementation
     l_a=length(n_a);
     l_z=length(n_z);
-    
+
     N_a=prod(n_a);
     N_z=prod(n_z);
-    
+
     StationaryDistpdfVec=reshape(StationaryDistpdf,[N_a*N_z,1]);
 
     ExitPolicy=logical(1-reshape(gpuArray(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:})),[N_a*N_z,1]));
-    
+
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
     PolicyValues=PolicyInd2Val_InfHorz(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
     PolicyValuesWhenExiting=PolicyInd2Val_InfHorz(PolicyIndexesWhenExiting,n_d,n_a,n_z,d_grid,a_grid);
-    permuteindexes=[1+(1:1:(l_a+l_z)),1];    
+    permuteindexes=[1+(1:1:(l_a+l_z)),1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     PolicyValuesPermuteWhenExiting=permute(PolicyValuesWhenExiting,permuteindexes); %[n_a,n_s,l_d+l_a]
-    
+
     for ff=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
         if isempty(FnsToEvaluateParamNames(ff).Names)
@@ -49,7 +49,7 @@ if Parallel==2
             FnToEvaluateParamsCell(1)={StationaryDistmass};
             FnToEvaluateParamsCell(2:end)=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
         end
-        
+
         if ~isempty(FnsToEvaluateParamNames(ff).ExitStatus)
             ExitStatus=FnsToEvaluateParamNames(ff).ExitStatus;
             calcNotExit=1-prod(1-FnsToEvaluateParamNames(ff).ExitStatus(1:2)); % check if either of the first two elements of ExitStatus is 1
@@ -59,7 +59,7 @@ if Parallel==2
             calcNotExit=1;
             calcExit=1;
         end
-        
+
         if calcNotExit==1
             Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
             Values=reshape(Values,[N_a*N_z,1]);
@@ -68,7 +68,7 @@ if Parallel==2
             ValuesWhenExiting=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteWhenExiting,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
             ValuesWhenExiting=reshape(ValuesWhenExiting,[N_a*N_z,1]);
         end
-        
+
         % When evaluating value function (which may sometimes give -Inf
         % values) on StationaryDistVec (which at those points will be
         % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
@@ -90,33 +90,33 @@ if Parallel==2
 %         temp=exitprobs(1)*Values.*StationaryDistpdfVec+exitprobs(2)*((1-ExitPolicy).*Values+ExitPolicy.*ValuesWhenExiting).*StationaryDistpdfVec+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
         AggVars(ff)=sum(temp(~isnan(temp)));
     end
-    
+
 else
     if n_d(1)==0
         l_d=0;
     else
         l_d=length(n_d);
     end
-    
+
     N_a=prod(n_a);
     N_z=prod(n_z);
-    
+
     StationaryDistpdfVec=reshape(StationaryDistpdf,[N_a*N_z,1]);
-    
+
     StationaryDistpdfVec=gather(StationaryDistpdfVec);
     StationaryDistmass=gather(StationaryDistmass);
 
     ExitPolicy=gather(1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]));
-    
+
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     [d_gridvalsWhenExiting, aprime_gridvalsWhenExiting]=CreateGridvals_Policy(PolicyIndexesWhenExiting,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
-    
+
     AggVars=zeros(length(FnsToEvaluate),1);
-    
+
     if l_d>0
-        
+
         for ff=1:length(FnsToEvaluate)
             if ~isempty(FnsToEvaluateParamNames(ff).ExitStatus)
                 ExitStatus=FnsToEvaluateParamNames(ff).ExitStatus;
@@ -127,14 +127,14 @@ else
                 calcNotExit=1;
                 calcExit=1;
             end
-            
+
             if calcNotExit==1
                 Values=zeros(N_a*N_z,1);
             end
             if calcExit==1
                 ValuesWhenExiting=zeros(N_a*N_z,1);
             end
-            
+
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
 
@@ -162,7 +162,7 @@ else
                         ValuesWhenExiting(ii)=FnsToEvaluate{ff}(d_gridvalsWhenExiting{j1+(j2-1)*N_a,:},aprime_gridvalsWhenExiting{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
                     end
                 end
-                        
+
             end
             if ExitStatus(1)==1
                 temp=exitprobs(1)*Values.*StationaryDistpdfVec;
@@ -180,9 +180,9 @@ else
             end
             AggVars(ff)=sum(temp(~isnan(temp)));
         end
-    
+
     else %l_d=0
-        
+
         for ff=1:length(FnsToEvaluate)
             if ~isempty(FnsToEvaluateParamNames(ff).ExitStatus)
                 ExitStatus=FnsToEvaluateParamNames(ff).ExitStatus;
@@ -193,14 +193,14 @@ else
                 calcNotExit=1;
                 calcExit=1;
             end
-            
+
             if calcNotExit==1
                 Values=zeros(N_a*N_z,1);
             end
             if calcExit==1
                 ValuesWhenExiting=zeros(N_a*N_z,1);
             end
-            
+
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
                 for ii=1:N_a*N_z
@@ -215,7 +215,7 @@ else
                 end
             else
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
-   
+
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
@@ -227,7 +227,7 @@ else
                     end
                 end
             end
-            
+
             if ExitStatus(1)==1
                 temp=exitprobs(1)*Values.*StationaryDistpdfVec;
             else
@@ -245,7 +245,7 @@ else
             AggVars(ff)=sum(temp(~isnan(temp)));
         end
     end
-    
+
 end
 
 AggVars=AggVars*StationaryDistmass;

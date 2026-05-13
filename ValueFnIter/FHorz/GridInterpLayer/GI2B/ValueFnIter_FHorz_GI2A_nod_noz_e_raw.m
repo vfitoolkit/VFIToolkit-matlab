@@ -95,22 +95,22 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=sum(V(:,:,jj+1).*pi_e_J(:,:,jj),2);
-    
+
     EV=reshape(EV,[N_a1,N_a2]);
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a1_grid,EV,a1prime_grid);
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_e, a1_grid, a2_grid, a1_grid, a2_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
-    
+
     %Calc the max and it's index: a1prime(a2prime,a1,a2)
     [~,maxindex]=max(entireRHS,[],1);
 

@@ -50,14 +50,14 @@ V=zeros(N_a,N_j,N_z,'gpuArray'); % preallocate: V is over (a,j,z)
 DiscountedEV=DiscountFactorParamsVec.*EV;
 
 if vfoptions.lowmemory==0
-    
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2(ReturnFn, n_z, N_j, a_grid, a_grid(level1ii), z_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (aprime,a and j,z), autofills a for expectation term
-     
+
     [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
-    
+
     % Store
     V(level1ii,:,:)=Vtempii;
     Policy(level1ii,:,:)=maxindex1; % aprime
@@ -105,7 +105,7 @@ elseif vfoptions.lowmemory==1
         % Store
         V(level1ii,:,z_c)=Vtempii;
         Policy(level1ii,:,z_c)=maxindex1; % aprime
-        
+
         % Attempt for improved version
         maxgap=squeeze(max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3));
         for ii=1:(vfoptions.level1n-1)

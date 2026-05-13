@@ -21,9 +21,9 @@ if ~isfield(vfoptions,'ambiguity_pi_z_J') &&  ~isfield(vfoptions,'ambiguity_pi_z
 end
 if all(size(vfoptions.n_ambiguity)==[1,1])
     n_ambiguity=vfoptions.n_ambiguity*ones(1,N_j);
-elseif all(size(vfoptions.n_ambiguity)==[1,N_j])  || all(size(vfoptions.n_ambiguity)==[N_j,1]) 
+elseif all(size(vfoptions.n_ambiguity)==[1,N_j])  || all(size(vfoptions.n_ambiguity)==[N_j,1])
     n_ambiguity=vfoptions.n_ambiguity;
-else 
+else
     error('When using Ambiguity Aversion you must declare vfoptions.n_ambiguity to be either a scalar, or a vector that depends on age/period')
 end
 if isfield(vfoptions,'ambiguity_pi_z') % If using ambiguity_pi_z, I just convert it to ambiguity_pi_z_J

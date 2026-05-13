@@ -1,5 +1,5 @@
 function [TransitionProbabilities]=EvalPanelData_RankTransProbs(SimPanelValues,simoptions)
-% Returns a Matrix 100-by-100 that contains the t-period transition probabilities for all of 
+% Returns a Matrix 100-by-100 that contains the t-period transition probabilities for all of
 % the quantiles from 1 to 100 (for each variable in the panel data)
 %
 % NaN in the transition matrix indicates that the percentiles were not
@@ -20,7 +20,7 @@ else
     end
     if ~isfield(simoptions,'paralle')
         simoptions.parallel=100;
-    end    
+    end
 end
 
 %%
@@ -36,9 +36,9 @@ prctilestocalc=100*(1/npoints:1/npoints:1); % npoints is how many percentiles we
 
 for ff=1:length(PanelVariableNames) % Loop over the variables in the panel data
     Values=gather(SimPanelValues.(PanelVariableNames{ff})); % Make sure it is on cpu
-    
+
     TransitionProbabilities_ff=zeros(npoints,npoints,T);
-    
+
     % First, replace each of the values with its rank (conditional on time period)
 	parfor tt=1:T
         Values_tt=Values(tt,:);
@@ -53,23 +53,23 @@ for ff=1:length(PanelVariableNames) % Loop over the variables in the panel data
         end
         Values(tt,:)=Values_tt;
     end
-    
+
     % Now, count all the rank transitions
     parfor tt=1:T-1  % Loop over the time periods except the last (as don't observe transitions out of the final period)
         Values_par=Values(tt:tt+1,:); % This is just to help matlab parallelize it (otherwise it couldn't splice both the tt and tt+1)
         Values_tt=Values_par(1,:)
         Values_ttplus1=Values_par(2,:);
         TransitionProbabilities_ff_tt=zeros(npoints,npoints);
-        
+
         for ii=1:NSims
             TransitionProbabilities_ff_tt(Values_tt(ii),Values_ttplus1(ii))=TransitionProbabilities_ff_tt(Values_tt(ii),Values_ttplus1(ii))+1; % Add one to that transition
         end
-        
+
         TransitionProbabilities_ff_tt=TransitionProbabilities_ff_tt./sum(TransitionProbabilities_ff_tt,2); % Normalise all the rows
-        
+
         TransitionProbabilities_ff(:,:,tt)=TransitionProbabilities_ff_tt;
     end
-    
+
     TransitionProbabilities.(PanelVariableNames{ff})=TransitionProbabilities_ff;
 end
 

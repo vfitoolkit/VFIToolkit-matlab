@@ -147,10 +147,10 @@ end
 ezc8=ezc8.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
 
 if vfoptions.EZoneminusbeta==1
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j); 
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     ezc1=1-prod(DiscountFactorParamsVec); % (This will be changed later if it depends on age)
 elseif vfoptions.EZoneminusbeta==2
-    % Some formulations using bequests multiply the period utility function by (1-sj*beta) 
+    % Some formulations using bequests multiply the period utility function by (1-sj*beta)
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     ezc1=1-sj(N_j)*prod(DiscountFactorParamsVec);
 end

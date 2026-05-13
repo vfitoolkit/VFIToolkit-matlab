@@ -101,7 +101,7 @@ PType_numbersims=floor(Parameters.(PTypeDistParamNames{1})*simoptions.numbersims
 ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 % I just arbitrarily add them to the first PTypes. Your simulation should
 % anyway be big enough for this to be irrelavant. (I should probably add
-% them randomly, but cant be bothered right now. But otherwise if I don't 
+% them randomly, but cant be bothered right now. But otherwise if I don't
 % make this random the sample won't satisfy properties of arandom sample)
 PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
 
@@ -114,22 +114,22 @@ SimPanelValues=nan(length(FnsToEvaluate),simoptions.simperiods,simoptions.number
 for ii=1:N_i
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
-    
+
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-    
+
     simoptions_temp.numbersims=PType_numbersims(ii); % How many simulations to do for each PType
-        
+
     Policy_temp=Policy.(Names_i{ii});
-    
+
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
     % type), or they could be a structure. Only in the case where they are
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
-    
+
     % Start with those that determine whether the current permanent type is finite or
     % infinite horizon, and whether it is Case 1 or Case 2
     % Figure out which case is relevant to the current PType. This is done
@@ -137,7 +137,7 @@ for ii=1:N_i
     % infinite horizon and a finite number for any other finite horizon.
     % First, check if it is a structure, and otherwise just get the
     % relevant value.
-       
+
     if isstruct(n_d)
         n_d_temp=n_d.(Names_i{ii});
     else
@@ -240,8 +240,8 @@ for ii=1:N_i
             end
         end
     end
-    
-    
+
+
     %% Parameters
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
@@ -308,7 +308,7 @@ for ii=1:N_i
             error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}, ' \n'])
         end
     end
-    
+
     %%
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
@@ -319,11 +319,11 @@ for ii=1:N_i
         l_d_temp=1;
     end
     l_a_temp=length(n_a_temp);
-    l_z_temp=length(n_z_temp);  
+    l_z_temp=length(n_z_temp);
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
-    
-    
+
+
     simoptions_temp.keepoutputasmatrix=1;
     if simoptions_temp.numbersims>0
         SimPanelValues_ii=SimPanelValues_FHorz_Case1(jequaloneDist_temp,Policy_temp,FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_temp);
@@ -331,7 +331,7 @@ for ii=1:N_i
     else
         SimPanelValues_ii=[];
     end
-        
+
     if ii==1
         SimPanelValues(WhichFnsForCurrentPType,:,1:sum(PType_numbersims(1:ii)))=SimPanelValues_ii;
         % I decided to get rid of giving the PType as part of the panel as you can always ask for this using FnsToEvaluate anyway if you actually want it.
@@ -339,7 +339,7 @@ for ii=1:N_i
         SimPanelValues(WhichFnsForCurrentPType,:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=SimPanelValues_ii;
         % I decided to get rid of giving the PType as part of the panel as you can always ask for this using FnsToEvaluate anyway if you actually want it.
     end
-    
+
 end
 
 %% Change the output into a structure

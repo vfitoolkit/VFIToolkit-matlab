@@ -12,7 +12,7 @@ l_a=length(n_a);
 Policy=reshape(Policy, [size(Policy,1),N_a,N_e]);
 
 % First, get Gamma
-Policy_aprime=zeros(N_a,N_e,2,'gpuArray'); % Policy_aprime has an additional final dimension of length 2 which is the two points (and contains only the aprime indexes, no d indexes as would usually be the case). 
+Policy_aprime=zeros(N_a,N_e,2,'gpuArray'); % Policy_aprime has an additional final dimension of length 2 which is the two points (and contains only the aprime indexes, no d indexes as would usually be the case).
 PolicyProbs=zeros(N_a,N_e,2,'gpuArray');% PolicyProbs are the corresponding probabilities of each of these two.
 
 if l_a==1

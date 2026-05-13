@@ -4,7 +4,7 @@ function [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_tt(Parameters
 p_i=zeros(1,length(GeneralEqmEqnsCell));
 for gg=1:length(GeneralEqmEqnsCell)
     % Note: _v3 rather than _v3g, so on CPU rather than GPU
-    p_i(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters)); 
+    p_i(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 end
 
@@ -20,7 +20,7 @@ elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the 
     PricePathNew_tt=PricePathOld_tt+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
 end
 
-% We want output shapes to be 
+% We want output shapes to be
 % PricePathNew_tt % output as a row vector of size 1-by-prices, because PricePath is T-by-prices
 % GEcondnPath_tt  % output as a row vector of size 1-by-GECondns, because PricePath is T-by-GECondns
 

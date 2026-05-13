@@ -1,8 +1,8 @@
 function PolicyKron=KronPolicyIndexes_Case1_e(Policy, n_d, n_a, n_z, n_e, simoptions)
 
 % Input: Policy (l_d+l_a,n_a,n_z,n_e);
-% 
-% Output: PolicyKron=zeros(2,N_a,N_z,N_e); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+%
+% Output: PolicyKron=zeros(2,N_a,N_z,N_e); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 %                       (N_a,N_z,N_e) if there is no d
 % Note: simoptions.gridinterplayer=1 means there will be an additional index for the second layer in both the input and output versions
 
@@ -57,7 +57,7 @@ if simoptions.gridinterplayer==0
 elseif simoptions.gridinterplayer==1
     % Reshape Policy
     Policy=reshape(Policy,[size(Policy,1),N_a,N_z,N_e]);
-    
+
     if n_d(1)==0
         if l_a==1 || l_a==2
             PolicyKron=Policy; % a1, possibly a2, L2
@@ -92,7 +92,7 @@ elseif simoptions.gridinterplayer==1
             PolicyKron(3,:,:,:)=Policy(l_a+l_d+1,:,:,:); % L2 index
         elseif l_a==2
             PolicyKron(2,:,:,:)=Policy(l_d+1,:,:,:);
-            PolicyKron(3,:,:,:)=Policy(l_d+2,:,:,:);            
+            PolicyKron(3,:,:,:)=Policy(l_d+2,:,:,:);
             PolicyKron(4,:,:,:)=Policy(l_a+l_d+1,:,:,:); % L2 index
         else
             PolicyKron(2,:,:,:)=Policy(l_d+1,:,:,:);

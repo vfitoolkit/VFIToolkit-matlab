@@ -30,7 +30,7 @@ if gridpiboth==3 || gridpiboth==1
 end
 
 %% Create semiz_gridvals_J (joint grid on semiz)
-if gridpiboth==3 || gridpiboth==1 || isfield(options,'SemiExoStateFn') 
+if gridpiboth==3 || gridpiboth==1 || isfield(options,'SemiExoStateFn')
     % Regardless of whether we output semiz_gridvals_J, we sometimes have to create it as it is needed for evaluting SemiExogShockFn
     if ndims(options.semiz_grid)==3
         if all(size(options.semiz_grid)==[prod(options.n_semiz),length(options.n_semiz),N_j])
@@ -148,7 +148,7 @@ else % cpu, for agent dist
         options.semiz_gridvals_J=gather(semiz_gridvals_J);
         options.pi_semiz_J=gather(pi_semiz_J);
     elseif gridpiboth==2
-        options.pi_semiz_J=gather(pi_semiz_J);    
+        options.pi_semiz_J=gather(pi_semiz_J);
     elseif gridpiboth==1
         options.semiz_gridvals_J=gather(semiz_gridvals_J);
     end

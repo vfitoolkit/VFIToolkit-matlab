@@ -38,7 +38,7 @@ l_a=length(n_a);
 N_a=prod(n_a);
 
 %% Exogenous shock grids
-% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
+% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
 [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 
 %% Implement new way of handling FnsToEvaluate
@@ -58,7 +58,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
@@ -102,7 +102,7 @@ if N_z==0
                     ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-1)}; % (a,j,l_d+l_a), so we want j to be after N_a
                 end
             end
-            
+
             Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},ParamCell,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
             AggVars(ff)=sum(sum(sum(Values.*StationaryDist)));
         end
@@ -174,7 +174,7 @@ else % N_z
                 else
                     FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
                 end
-                
+
                 Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
             end
             AggVars(ii)=sum(sum(Values.*StationaryDist));
@@ -189,7 +189,7 @@ else % N_z
         else
             Policy=reshape(Policy,[N_a,N_z,N_j]);
         end
-        
+
         for z_c=1:N_z
             StationaryDistVec_z=StationaryDist(:,:,z_c); % This is why I did the permute (to avoid a reshape here). Not actually sure whether all the reshapes would be faster than the permute or not?
             if n_d(1)>0

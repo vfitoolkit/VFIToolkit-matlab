@@ -15,7 +15,7 @@ cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by usin
 
 %% First do the case without e variables, otherwise do with e variables
 if ~isfield(simoptions,'n_e')
-        
+
     % Get seedpoints from InitialDist
     [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
     if numel(InitialDist)==N_a*N_semiz % Has just been given for age j=1
@@ -43,23 +43,23 @@ if ~isfield(simoptions,'n_e')
     if simoptions.simpanelindexkron==0 % Convert results out of kron
         SimPanelKron=reshape(SimPanel,[3,N_j*simoptions.numbersims]);
         SimPanel=nan(l_a+l_semiz+1,N_j*simoptions.numbersims); % (a,semiz,j)
-        
+
         SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
         SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_homemade(n_semiz,SimPanelKron(2,:)); % semiz
         SimPanel(end,:)=SimPanelKron(3,:); % j
 
         SimPanel=reshape(SimPanel,[3,N_j,simoptions.numbersims]);
     end
-        
-    
+
+
 else %if prod(simoptions.n_e)>0
     %% this time with e variables
     % If e variables are used they are treated seperately as this is faster/better
     N_e=prod(simoptions.n_e);
     l_e=length(simoptions.n_e);
-    
+
     cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
-    
+
     % Get seedpoints from InitialDist
     [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
     if numel(InitialDist)==N_a*N_semiz*N_e % Has just been given for age j=1
@@ -86,7 +86,7 @@ else %if prod(simoptions.n_e)>0
     if simoptions.simpanelindexkron==0 % Convert results out of kron
         SimPanelKron=reshape(SimPanel,[4,N_j*simoptions.numbersims]);
         SimPanel=nan(l_a+l_semiz+l_e+1,N_j*simoptions.numbersims); % (a,semiz,e,j)
-        
+
         SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
         SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_homemade(n_semiz,SimPanelKron(2,:)); % semiz
         SimPanel(l_a+l_semiz+1:l_a+l_semiz+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(3,:)); % e

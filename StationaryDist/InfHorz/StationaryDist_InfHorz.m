@@ -147,7 +147,7 @@ if simoptions.agententryandexit==1 % If there is entry and exit use the command 
         Parameters.(EntryExitParamNames.DistOfNewAgents{1})=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a*N_z,1]);
         % Can then just do the rest of the computing the agents distribution exactly as normal.
     end
-    
+
     StationaryDist.pdf=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
     StationaryDist.mass=Parameters.(EntryExitParamNames.MassOfNewAgents{1});
     [StationaryDist]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDist,Parameters,EntryExitParamNames,Policy,N_d,N_a,N_z,pi_z,simoptions);
@@ -211,7 +211,7 @@ if isfield(simoptions,'SemiEndogShockFn')
     else
         dbstack
         error('Only simoptions.eigenvector=1 is implemented for StationaryDist when using SemiEndogShockFn')
-    end    
+    end
 end
 
 
@@ -309,7 +309,7 @@ if simoptions.iterate==1
             Policy_aprime=shiftdim(Policy(2,:,:),1);
         end
     end
-    
+
     if N_z==0
         if N_e==0
             StationaryDist=StationaryDist_InfHorz_IterationTan_noz_raw(StationaryDist,Policy_aprime,N_a,simoptions);

@@ -214,13 +214,13 @@ else
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_bothz]
-    
+
     % Using V_Jplus1
     EVpre=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*shiftdim(pi_e_J(:,N_j),-2),3);    % First, switch V_Jplus1 into Kron form
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
 
     if vfoptions.lowmemory==0
 
@@ -329,7 +329,7 @@ else
                 Policy3_ford3_jj(3,:,:,e_c,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
             end
         end
-        
+
     elseif vfoptions.lowmemory==2
 
         for d3_c=1:N_d3
@@ -466,7 +466,7 @@ else
     Policy4(1,:,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]);
     Policy4(3,:,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
     Policy4(4,:,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
-    
+
 end
 
 
@@ -477,8 +477,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -491,7 +491,7 @@ for reverse_j=1:N_j-1
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_bothz]
-    
+
     EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3);
 
     if vfoptions.lowmemory==0
@@ -601,7 +601,7 @@ for reverse_j=1:N_j-1
                 Policy3_ford3_jj(3,:,:,e_c,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
             end
         end
-        
+
     elseif vfoptions.lowmemory==2
 
         for d3_c=1:N_d3
@@ -738,7 +738,7 @@ for reverse_j=1:N_j-1
     Policy4(1,:,:,:,jj)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]);
     Policy4(3,:,:,:,jj)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
     Policy4(4,:,:,:,jj)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
-    
+
 end
 
 

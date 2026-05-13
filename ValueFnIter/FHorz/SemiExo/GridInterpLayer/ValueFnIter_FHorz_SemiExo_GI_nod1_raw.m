@@ -98,7 +98,7 @@ else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_z]);    % First, switch V_Jplus1 into Kron form
 
     if vfoptions.lowmemory==0
@@ -128,7 +128,7 @@ else
             aprimez=aprimeindexes+n2aprime*bothzind; % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez),[n2long,N_a,N_bothz]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-            
+
             V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
 
@@ -144,7 +144,7 @@ else
         aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
         Policy(2,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]); % midpoint
         Policy(3,:,:,N_j)=aprimeL2_ind; % aprimeL2ind
-        
+
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
             d2_val=d2_gridvals(d2_c,:);
@@ -201,8 +201,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -226,7 +226,7 @@ for reverse_j=1:N_j-1
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2;
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS,[],1); % no d1, loop over d2
-            
+
             % Turn maxindex into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
             % midpoint is 1-by-n_a-by-n_bothz
@@ -236,7 +236,7 @@ for reverse_j=1:N_j-1
             aprimez=aprimeindexes+n2aprime*bothzind; % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez),[n2long,N_a,N_bothz]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-            
+
             V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
 
             Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1); % aprimeL2ind
@@ -254,7 +254,7 @@ for reverse_j=1:N_j-1
         Policy(2,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]); % midpoint
         Policy(3,:,:,jj)=aprimeL2_ind; % aprimeL2ind
 
-        
+
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
             d2_val=d2_gridvals(d2_c,:);

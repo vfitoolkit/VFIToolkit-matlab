@@ -86,7 +86,7 @@ if ~isfield(options,'GEptype') % For models without permanent type
 else
     %% Model with permanent type and using options.GEptype
     nGeneralEqmEqns_acrossptypes=sum(options.GEptype==0)+N_i*sum(options.GEptype==1);
-    
+
     % Before starting, make sure that GE that depend on ptype match up with PricePaths that depend on ptype
     for gg=1:nGeneralEqmEqns
         if options.GEptype(gg)==1
@@ -105,7 +105,7 @@ else
             end
         end
     end
-    
+
     % Need to make sure that order of rows in options.GEnewprice3.howtoupdate
     % Is same as order of fields in GeneralEqmEqns
     % I do this by just reordering rows of options.GEnewprice3.howtoupdate

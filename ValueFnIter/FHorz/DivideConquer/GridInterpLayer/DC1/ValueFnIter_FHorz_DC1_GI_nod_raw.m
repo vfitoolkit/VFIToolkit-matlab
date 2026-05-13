@@ -240,12 +240,12 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,jj+1);
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
@@ -349,7 +349,7 @@ for reverse_j=1:N_j-1
             Policy(2,:,z_c,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
         end
     end
-    
+
 end
 
 

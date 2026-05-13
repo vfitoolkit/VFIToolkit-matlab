@@ -1,8 +1,8 @@
 function PolicyKron=KronPolicyIndexes_InfHorz(Policy, n_d, n_a, n_z, vfoptions)
 
 % Input: Policy (l_d+l_aprime,n_a,n_z);
-% Output: if no d, then Policy=zeros(N_a,N_z); % indexes the optimal choice for aprime as function of a,z 
-%         if d, then Policy=zeros(2,N_a,N_z);  % indexes the optimal choice for d,aprime as function of a,z 
+% Output: if no d, then Policy=zeros(N_a,N_z); % indexes the optimal choice for aprime as function of a,z
+%         if d, then Policy=zeros(2,N_a,N_z);  % indexes the optimal choice for d,aprime as function of a,z
 % This can all be a bit different based on vfoptions
 
 N_d=prod(n_d);

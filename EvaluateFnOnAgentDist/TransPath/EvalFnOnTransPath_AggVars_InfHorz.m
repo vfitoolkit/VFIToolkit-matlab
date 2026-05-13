@@ -104,10 +104,10 @@ for tt=1:T
             Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
         end
     end
-    
+
     PolicyValuesPermute=PolicyValuesPath(:,:,:,tt);
     AgentDist=AgentDistPath(:,:,tt);
-    
+
     AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(AgentDist(:), PolicyValuesPermute, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames,AggVarNames, n_a, n_z, a_gridvals, z_gridvals,0);
 
     AggVarsPath(:,tt)=AggVars;

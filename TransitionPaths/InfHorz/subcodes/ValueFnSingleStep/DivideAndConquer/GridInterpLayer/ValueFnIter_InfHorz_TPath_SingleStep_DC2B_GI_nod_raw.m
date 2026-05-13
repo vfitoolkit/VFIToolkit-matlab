@@ -65,7 +65,7 @@ if vfoptions.lowmemory==0
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals, ReturnFnParamsVec,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
-    
+
     %Calc the max and it's index
     [~,maxindex1]=max(entireRHS_ii,[],1);
 
@@ -91,7 +91,7 @@ if vfoptions.lowmemory==0
             midpoints(1,:,curraindex,:,:)=repelem(loweredge,1,1,length(curraindex),1);
         end
     end
-    
+
     % Turn this into the 'midpoint'
     midpoints=max(min(midpoints,n_a1-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is 1-by-n_a2-by-n_a1-by-n_a2-by-n_z

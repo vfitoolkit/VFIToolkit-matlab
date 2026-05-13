@@ -35,12 +35,12 @@ while currdist>Tolerance && tempcounter<=maxiter
     PolicyIndexes=PolicyIndexes(:); % a by z (this shape is just convenient for Howards)
     VKron=shiftdim(VKron,1); % a by z
 
-    VKrondist=VKron(:)-VKronold(:); 
+    VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    
+
     % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
-    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 
+    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2
         for Howards_counter=1:Howards
             EVKrontemp=VKron(PolicyIndexes,:);
             EVKrontemp=EVKrontemp.*aaa;
@@ -53,7 +53,7 @@ while currdist>Tolerance && tempcounter<=maxiter
     tempcounter=tempcounter+1;
 
 end
-  
+
 Policy=reshape(PolicyIndexes,[1,N_a,N_z]);
 
 

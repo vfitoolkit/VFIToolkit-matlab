@@ -21,20 +21,20 @@ ReturnMatrixLvl1=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1
 % if vfoptions.actualV0==0
 %     %% Solve first-level ignoring the second level
 %     % This will hopefully work to give a good initial guess for the second level
-% 
-%     % Now, do value function iteration on just this first level 
+%
+%     % Now, do value function iteration on just this first level
 %     [V,~]=ValueFnIter_Case1_nod_Par2_raw(zeros(vfoptions.level1n*N_a2,N_z,'gpuArray'), [vfoptions.level1n,N_a2], n_z, pi_z, DiscountFactorParamsVec, reshape(ReturnMatrixLvl1(level1ii,:,:,:,:),[vfoptions.level1n*N_a2,vfoptions.level1n*N_a2,N_z]), vfoptions.howards, vfoptions.maxhowards, 100*vfoptions.tolerance, vfoptions.maxiter);
 %     % Note: uses 100*vfoptions.tolerance, as it is just an intial guess
-% 
+%
 %     % Turn this V, which is currently only on the first level grid, into a full V by linear interpolation
-% 
+%
 %     V=interp3(reshape(V,[vfoptions.level1n(1),N_a2,N_z]),(1:1:N_a2),linspace(1,vfoptions.level1n(1),N_a1)',(1:1:N_z));
 %     % Note: For reasons known only to matlab, you use interp3(V,Xq,Yq,Zq) with X=1:n, Y=1:m, Z=1:p, where [m,n,p] = size(V).
 %     %       So X and Y are 'reversed' from what you would expect them to be.
 %     % Weird behaviour, presumably something to do with how Matlab views columns as the first dimension.
-% 
+%
 %     V=reshape(V,[N_a,N_z]);
-% 
+%
 %     if vfoptions.verbose==1
 %         fprintf('Created the initial guess for V based on level 1 of divide-and-conquer \n')
 %     end
@@ -144,7 +144,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     %% Finish up
     % Update currdist
-    Vdist=V(:)-Vold(:); 
+    Vdist=V(:)-Vold(:);
     Vdist(isnan(Vdist))=0;
     currdist=max(abs(Vdist));
 
@@ -156,7 +156,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             V=Ftemp+DiscountFactorParamsVec*reshape(EVKrontemp,[N_a,N_z]);
         end
     end
-    
+
     if vfoptions.verbose==1
         if rem(tempcounter,10)==0 % Every 10 iterations
             fprintf(distvstolstr, tempcounter,currdist) % use enough decimal points to be able to see countdown of currdist to 0

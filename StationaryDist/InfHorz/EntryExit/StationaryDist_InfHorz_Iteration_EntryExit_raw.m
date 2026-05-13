@@ -97,14 +97,14 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
     StationaryDistKron_pdf=reshape(StationaryDistKron_pdf*pi_z_sparse,[N_a*N_z,1]);
 
     StationaryDistKron_pdf=MassOfNewAgents*DistOfNewAgentsKron+StationaryDistKron_pdf; %No point checking distance every single iteration. Do 100, then check.
-    
+
     currdist=sum(abs(StationaryDistKron_pdf-StationaryDistKronOld));
     % Note: I just look for convergence in the pdf and 'assume' the mass will also have converged by then. I should probably correct this.
-    
+
     counter=counter+1;
     if simoptions.verbose==1
         if rem(counter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', counter, currdist, simoptions.tolerance)            
+            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', counter, currdist, simoptions.tolerance)
         end
     end
 end
@@ -121,6 +121,6 @@ StationaryDistKron.pdf=StationaryDistKron.pdf/StationaryDistKron.mass; % Make it
 
 if ~((100*counter)<simoptions.maxit)
     warning('SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
-end 
+end
 
 end
