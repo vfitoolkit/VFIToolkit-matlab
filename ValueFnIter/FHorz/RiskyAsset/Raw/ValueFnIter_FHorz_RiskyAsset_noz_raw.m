@@ -106,7 +106,7 @@ for reverse_j=1:N_j-1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
     
-    VKronNext_j=V(:,jj+1);
+    EV=V(:,jj+1);
 
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
@@ -124,12 +124,12 @@ for reverse_j=1:N_j-1
     
     % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
     % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-    skipinterp=logical(VKronNext_j(aprimeIndex(:))==VKronNext_j(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
+    skipinterp=logical(EV(aprimeIndex(:))==EV(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
     aprimeProbs(skipinterp)=0;
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-    EV1=aprimeProbs.*reshape(VKronNext_j(aprimeIndex),[N_d23*N_a1,N_u]); % (d,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(VKronNext_j(aprimeplus1Index),[N_d23*N_a1,N_u]); % (d,u), the upper aprime
+    EV1=aprimeProbs.*reshape(EV(aprimeIndex),[N_d23*N_a1,N_u]); % (d,u), the lower aprime
+    EV2=(1-aprimeProbs).*reshape(EV(aprimeplus1Index),[N_d23*N_a1,N_u]); % (d,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
     
     % Expectation over u (using pi_u), and then add the lower and upper

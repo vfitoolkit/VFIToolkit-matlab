@@ -200,7 +200,7 @@ for reverse_j=1:N_j-1
     % aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
     
-    VKronNext_j=V(:,:,jj+1);
+    EV=V(:,:,jj+1);
     
     
     if vfoptions.lowmemory==0
@@ -208,7 +208,7 @@ for reverse_j=1:N_j-1
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d13,n_a1], [n_a1,n_a2], n_z, d13a1_gridvals, a12_gridvals, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z)
 
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -255,7 +255,7 @@ for reverse_j=1:N_j-1
             
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
-            EV_z=VKronNext_j.*pi_z_J(z_c,:,jj);
+            EV_z=EV.*pi_z_J(z_c,:,jj);
             EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             

@@ -60,7 +60,7 @@ else
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_r,N_z]);    % First, switch V_Jplus1 into Kron form
 
     % Residual asset:
-    % VKronNext_j is over (aprime,r,z)
+    % EV is over (aprime,r,z)
     % Need to convert to be over (aprime,a,z)
     rprimeFnParamsVec=CreateVectorFromParams(Parameters, rprimeFnParamNames,N_j);
     [rprimeIndexes,rprimeProbs]=CreateResidualAssetFnMatrix_Case1(rprimeFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,N_j), rprimeFnParamsVec);  % Note, is actually rprime_grid (but r_grid is anyway same for all ages)
@@ -135,10 +135,10 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    VKronNext_j=V(:,:,:,jj+1);
+    EV=V(:,:,:,jj+1);
     
     % Residual asset:
-    % VKronNext_j is over (aprime,r,z)
+    % EV is over (aprime,r,z)
     % Need to convert to be over (aprime,a,z)
     rprimeFnParamsVec=CreateVectorFromParams(Parameters, rprimeFnParamNames,jj);
     [rprimeIndexes,rprimeProbs]=CreateResidualAssetFnMatrix_Case1(rprimeFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,jj), rprimeFnParamsVec);  % Note, is actually rprime_grid (but r_grid is anyway same for all ages)
@@ -148,20 +148,20 @@ for reverse_j=1:N_j-1
     
     % lower r index (size is N_a*N_a*N_z)
     fullindex=aprimeIndexes+N_a*(rprimeIndexes-1)+N_a*N_r*(zprimeIndexes-1); % index for (a',r',z'), as function of (a',a,z)
-    Vindex1=VKronNext_j(fullindex);
+    Vindex1=EV(fullindex);
     % upper r index [is rprimeIndexes+1-1]
     fullindex=aprimeIndexes+N_a*rprimeIndexes+N_a*N_r*(zprimeIndexes-1); % index for (a',r',z'), as function of (a',a,z)
-    Vindex2=VKronNext_j(fullindex);
+    Vindex2=EV(fullindex);
     % So now we have next period value function, but with state (a',a,z)
-    VKronNext_j=Vindex1.*rprimeProbs+Vindex2.*(1-rprimeProbs);
-    VKronNext_j=reshape(VKronNext_j,[N_a,N_a,N_z]);
+    EV=Vindex1.*rprimeProbs+Vindex2.*(1-rprimeProbs);
+    EV=reshape(EV,[N_a,N_a,N_z]);
     % now, it is over (a',a,z)
     
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
 
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-2); % Note: shiftdim -3
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2); % Note: shiftdim -3
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,3); % sum over z', leaving a singular second dimension
 
@@ -181,7 +181,7 @@ for reverse_j=1:N_j-1
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, special_n_z, 0, a_grid, r_grid, z_val, ReturnFnParamsVec,0);
             
-            EV_z=VKronNext_j.*shiftdim(pi_z_J(z_c,:,jj)',-2); % Note: shiftdim -3
+            EV_z=EV.*shiftdim(pi_z_J(z_c,:,jj)',-2); % Note: shiftdim -3
             EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
             

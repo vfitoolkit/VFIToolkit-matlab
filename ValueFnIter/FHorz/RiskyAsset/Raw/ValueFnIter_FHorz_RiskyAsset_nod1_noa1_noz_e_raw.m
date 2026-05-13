@@ -133,15 +133,15 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=sum(V(:,:,jj+1).*pi_e_J(:,jj)',2); % Expectation over e
+    EV=sum(V(:,:,jj+1).*pi_e_J(:,jj)',2); % Expectation over e
     
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [aprimeIndex,aprimeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d23, n_a, n_u, d23_grid, a_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-    EV1=aprimeProbs.*reshape(VKronNext_j(aprimeIndex),[N_d23,N_u]); % (d,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(VKronNext_j(aprimeIndex+1),[N_d23,N_u]); % (d,u), the upper aprime
+    EV1=aprimeProbs.*reshape(EV(aprimeIndex),[N_d23,N_u]); % (d,u), the lower aprime
+    EV2=(1-aprimeProbs).*reshape(EV(aprimeIndex+1),[N_d23,N_u]); % (d,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
     
     % Expectation over u (using pi_u), and then add the lower and upper

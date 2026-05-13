@@ -42,9 +42,7 @@ else
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    VKronNext_j=V_Jplus1; % Note: The V_Jplus1 input should be Vunderbar for sophisticated
-
-    EV=VKronNext_j;
+    EV=V_Jplus1; % Note: The V_Jplus1 input should be Vunderbar for sophisticated
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
@@ -77,9 +75,7 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    VKronNext_j=Vunderbar(:,jj+1); % Use Vunderbar (goes into the equation to determine Vhat)
-
-    EV=VKronNext_j;
+    EV=Vunderbar(:,jj+1); % Use Vunderbar (goes into the equation to determine Vhat)
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 

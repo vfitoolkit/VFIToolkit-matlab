@@ -62,13 +62,13 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     
-    VKronNext_j=V(:,jj+1);
+    EV=V(:,jj+1);
     
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, 0, n_a, 0, a_grid, TemptationFnParamsVec,0);
     MostTempting=max(TemptationMatrix,[],1);
-    entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*VKronNext_j; %.*ones(1,N_a);
+    entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*EV; %.*ones(1,N_a);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);

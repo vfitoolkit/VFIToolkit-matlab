@@ -43,11 +43,11 @@ else
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    VKronNext_j=V_Jplus1; % Note: The V_Jplus1 input should be Vunderbar for sophisticated
+    EV=V_Jplus1; % Note: The V_Jplus1 input should be Vunderbar for sophisticated
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
 
-    entireEV=kron(VKronNext_j,ones(N_d,1));
+    entireEV=kron(EV,ones(N_d,1));
 
     % For sophisticated we compute Vhat, and the Policy (which is Policyhat)
     % and then we compute Vunderbar.
@@ -78,11 +78,11 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    VKronNext_j=Vunderbar(:,jj+1); % Use Vunderbar (goes into the equation to determine Vhat)
+    EV=Vunderbar(:,jj+1); % Use Vunderbar (goes into the equation to determine Vhat)
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
 
-    entireEV=kron(VKronNext_j,ones(N_d,1));
+    entireEV=kron(EV,ones(N_d,1));
 
     % For sophisticated we compute Vhat, and the Policy (which is Policyhat)
     % and then we compute Vunderbar.

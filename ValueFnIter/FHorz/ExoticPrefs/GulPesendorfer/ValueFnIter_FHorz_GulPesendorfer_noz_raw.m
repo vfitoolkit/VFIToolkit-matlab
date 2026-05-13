@@ -64,12 +64,12 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,jj+1);
+    EV=V(:,jj+1);
     
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
     % (d,aprime,a)
 
-    entireEV=kron(VKronNext_j,ones(N_d,1));
+    entireEV=kron(EV,ones(N_d,1));
 
     TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, n_d, n_a, d_gridvals, a_grid, TemptationFnParamsVec,0);
     MostTempting=max(TemptationMatrix,[],1);
