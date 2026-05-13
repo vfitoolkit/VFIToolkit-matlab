@@ -32,6 +32,7 @@ end
 
 
 %%
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 AggVars=zeros(PTypeStructure.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate is independent of the ptype
 
 for ii=1:PTypeStructure.N_i
@@ -55,11 +56,13 @@ for ii=1:PTypeStructure.N_i
     StationaryDist_ii=StationaryDist_InfHorz(Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).Parameters);
     % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
     AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).simoptions);
-    
-    for kk=1:PTypeStructure.numFnsToEvaluate
-        jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
-        if jj>0
-            AggVars(kk)=AggVars(kk)+PTypeStructure.(iistr).PTypeWeight*AggVars_ii(jj);
+    AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
+    % Put updated AggVars into subsequent PTypeStructure Parameters, so they can be used for subsequent PType evaluations
+    FnsToEvaluate_aa=fieldnames(PTypeStructure.(iistr).FnsToEvaluate);
+    for jj=ii+1:PTypeStructure.N_i
+        jjstr=PTypeStructure.iistr{jj};
+        for aa=1:length(AggVars_ii)
+            PTypeStructure.(jjstr).Parameters.(FnsToEvaluate_aa{aa})=AggVars_ii(aa);
         end
     end
 
@@ -69,7 +72,8 @@ for ii=1:PTypeStructure.N_i
         StationaryDist.(iistr)=StationaryDist_ii;
     end
 end
-
+AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights',2);
+% Note: AggVars is a vector
 
 
 %% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns

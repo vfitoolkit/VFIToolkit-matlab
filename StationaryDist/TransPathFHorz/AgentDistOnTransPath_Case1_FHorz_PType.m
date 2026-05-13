@@ -135,7 +135,7 @@ for ii=1:N_i
         AgeWeightsParamNames_temp=AgeWeightsParamNames;
     end
     if isstruct(jequalOneDist)
-        jequalOneDist_temp=jequalOneDist.(iistr);
+        jequalOneDist_temp=jequalOneDist.(Names_i{ii});
     else
         jequalOneDist_temp=jequalOneDist;
     end

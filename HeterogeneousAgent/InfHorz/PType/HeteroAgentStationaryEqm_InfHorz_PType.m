@@ -466,7 +466,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).ReturnFn=ReturnFn;
     end
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,1,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
-    
+
     %% FnsToEvaluate
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
@@ -482,6 +482,8 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
     PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
     PTypeStructure.(iistr).WhichFnsForCurrentPType=WhichFnsForCurrentPType;
+    % Copied from FHorz/PType version for consistency
+    PTypeStructure.(iistr).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
     
     %% PType masses
     if isa(PTypeDistParamNames, 'array')
