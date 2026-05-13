@@ -125,7 +125,7 @@ else
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-n_a2-by-1-by-n_a2
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_noz_Par2(ReturnFn, n_d, d_gridvals, a1_grid(a1primeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, ReturnFnParamsVec,3);
             aprime=a1primeindexes+N_a1*a2ind;
-            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprime,[N_d,(maxgap(ii)+1),N_a2,level1iidiff(ii),N_a2])); % autoexpand level1iidiff(ii) in 4th-dim
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprime,[N_d,(maxgap(ii)+1),N_a2,1,N_a2])); % autoexpand level1iidiff(ii) in 4th-dim
             [~,maxindex]=max(entireRHS_ii,[],2);
             midpoints_jj(:,1,:,curraindex,:)=maxindex+(loweredge-1);
         else

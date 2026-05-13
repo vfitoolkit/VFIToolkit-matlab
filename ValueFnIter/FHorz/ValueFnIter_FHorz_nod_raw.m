@@ -111,7 +111,7 @@ for reverse_j=1:N_j-1
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
-            z_val=z_gridvals_J(z_c,:);
+            z_val=z_gridvals_J(z_c,:,jj);
             EV_z=EV(:,:,z_c);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, ReturnFnParamsVec,0);

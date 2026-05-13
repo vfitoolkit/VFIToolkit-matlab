@@ -90,8 +90,8 @@ else
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
-        
-        EV=V_Jplus1.*shiftdim(pi_z_J',-1);
+
+        EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
@@ -108,7 +108,7 @@ else
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
-        EV=V_Jplus1.*shiftdim(pi_z_J',-1);
+        EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
@@ -181,7 +181,7 @@ for reverse_j=1:N_j-1
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
         
-        EV=EV.*shiftdim(pi_z_J',-1);
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         

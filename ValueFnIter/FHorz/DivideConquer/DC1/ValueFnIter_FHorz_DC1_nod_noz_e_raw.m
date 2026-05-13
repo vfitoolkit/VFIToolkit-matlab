@@ -100,7 +100,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
-    EV=sum(EV.*pi_e_J(1,:,N_j),3);
+    EV=sum(EV.*pi_e_J(1,:,N_j),2);
     
     if vfoptions.lowmemory==0
         % n-Monotonicity
