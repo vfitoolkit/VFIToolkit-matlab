@@ -1,4 +1,4 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_InfHorz_PType(FnsToEvaluate, PricePath, ParamPath, Parameters, T, PolicyPath, AgentDistPath, n_d, n_a, n_z, Names_i, pi_z, d_grid, a_grid,z_grid, simoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_InfHorz_PType(FnsToEvaluate, PricePath, ParamPath, Parameters, T, PolicyPath, AgentDistPath, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, simoptions)
 % AggVars is simple in the sense we can just solve to get AggVars for each ptype and then take the weigthed sum over them
 % This only works because we are just after the mean
 
@@ -27,10 +27,6 @@ FnNames=fieldnames(FnsToEvaluate);
 for ff=1:length(FnNames)
     AggVarsPath.(FnNames{ff}).Mean=0;
 end
-
-n_a
-
-Names_i
 
 
 %% Loop over permanent types
@@ -98,11 +94,6 @@ for ii=1:N_i
     else
         z_grid_temp=z_grid;
     end
-    if isa(pi_z,'struct')
-        pi_z_temp=pi_z.(Names_i{ii});
-    else
-        pi_z_temp=pi_z;
-    end
     
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
@@ -154,7 +145,7 @@ for ii=1:N_i
     end
     [FnsToEvaluate_temp,~, ~,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
 
-    AggVarsPath_ii=EvalFnOnTransPath_AggVars_InfHorz(FnsToEvaluate_temp, AgentDistPath_temp, PolicyPath_temp, PricePath, ParamPath_temp, Parameters_temp, T, n_d_temp, n_a_temp, n_z_temp, pi_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, simoptions_temp);
+    AggVarsPath_ii=EvalFnOnTransPath_AggVars_InfHorz(FnsToEvaluate_temp, AgentDistPath_temp, PolicyPath_temp, PricePath, ParamPath_temp, Parameters_temp, T, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, simoptions_temp);
 
     % Keep the ptype-conditional values
     AggVarsPath.(Names_i{ii})=AggVarsPath_ii;

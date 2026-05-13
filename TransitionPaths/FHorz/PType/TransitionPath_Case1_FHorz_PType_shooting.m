@@ -11,8 +11,6 @@ function [PricePathOld,GEcondnPath]=TransitionPath_Case1_FHorz_PType_shooting(Pr
 N_i=PTypeStructure.N_i; % For convenience
 FullAggVarNames=fieldnames(FullFnsToEvaluate);
 
-l_p=size(PricePathOld,2);
-
 if transpathoptions.verbose==1
     % Set up some things to be used later
     pathnametitles=cell(1,2*length(PricePathNames));

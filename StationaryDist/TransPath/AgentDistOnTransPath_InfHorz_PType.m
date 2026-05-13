@@ -1,4 +1,4 @@
-function AgentDistPath=AgentDistOnTransPath_Case1_PType(AgentDist_initial,PricePath, ParamPath, PolicyPath,n_d,n_a,n_z,Names_i,pi_z, T,Parameters, transpathoptions, simoptions)
+function AgentDistPath=AgentDistOnTransPath_InfHorz_PType(AgentDist_initial,PricePath, ParamPath, PolicyPath,n_d,n_a,n_z,Names_i,pi_z, T,Parameters, simoptions)
 % Remark to self: No real need for T as input, as this is anyway the length of PricePath
 
 AgentDistPath=struct();
@@ -24,22 +24,16 @@ end
 for ii=1:N_i
 
     % First set up simoptions
-    if exist('simoptions','var')
-        simoptions_temp=PType_Options(simoptions,Names_i,ii);
-        if ~isfield(simoptions_temp,'verbose')
-            simoptions_temp.verbose=0;
-        end
-        if ~isfield(simoptions_temp,'verboseparams')
-            simoptions_temp.verboseparams=0;
-        end
-        if ~isfield(simoptions_temp,'ptypestorecpu')
-            simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-        end
-    else
+    simoptions_temp=PType_Options(simoptions,Names_i,ii);
+    if ~isfield(simoptions_temp,'verbose')
         simoptions_temp.verbose=0;
+    end
+    if ~isfield(simoptions_temp,'verboseparams')
         simoptions_temp.verboseparams=0;
+    end
+    if ~isfield(simoptions_temp,'ptypestorecpu')
         simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-    end 
+    end
     
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
@@ -106,6 +100,14 @@ for ii=1:N_i
         Parameters_temp
     end
 
+    % PricePath can include parameters that differ by ptype
+    PricePath_temp=PricePath;
+    PricePathNames=fieldnames(PricePath);
+    for nn=1:length(PricePathNames)
+        if isstruct(PricePath_temp.(PricePathNames{nn}))
+            PricePath_temp.(PricePathNames{nn})=PricePath.(PricePathNames{nn}).(Names_i{ii});
+        end
+    end
     % ParamPath can include parameters that differ by ptype
     ParamPath_temp=ParamPath;
     ParamPathNames=fieldnames(ParamPath);
@@ -116,7 +118,7 @@ for ii=1:N_i
     end
 
     % Compute the agent distribution path for permanent type ii
-    AgentDistPath_ii=AgentDistOnTransPath_Case1(AgentDist_initial_temp, PolicyPath_temp,n_d_temp,n_a_temp,n_z_temp,pi_z_temp, T, simoptions_temp);
+    AgentDistPath_ii=AgentDistOnTransPath_InfHorz(AgentDist_initial_temp, PricePath_temp, ParamPath_temp, PolicyPath_temp,n_d_temp,n_a_temp,n_z_temp,pi_z_temp, T, Parameters_temp, simoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
     AgentDistPath.(Names_i{ii})=AgentDistPath_ii;
