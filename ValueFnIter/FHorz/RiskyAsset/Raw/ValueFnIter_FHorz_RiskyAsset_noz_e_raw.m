@@ -162,7 +162,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=sum(V(:,:,jj+1).*pi_e_J(:,jj)',2); % Expectation over e
+    EV=sum(V(:,:,jj+1).*pi_e_J(:,jj)',2); % Expectation over e
     
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
@@ -176,12 +176,12 @@ for reverse_j=1:N_j-1
     
     % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
     % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-    skipinterp=logical(VKronNext_j(aprimeIndex(:))==VKronNext_j(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
+    skipinterp=logical(EV(aprimeIndex(:))==EV(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
     aprimeProbs(skipinterp)=0;
     
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-    EV1=aprimeProbs.*reshape(VKronNext_j(aprimeIndex),[N_d23*N_a1,N_u]); % (d&a1prime,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(VKronNext_j(aprimeplus1Index),[N_d23*N_a1,N_u]); % (d&a1prime,u), the upper aprime
+    EV1=aprimeProbs.*reshape(EV(aprimeIndex),[N_d23*N_a1,N_u]); % (d&a1prime,u), the lower aprime
+    EV2=(1-aprimeProbs).*reshape(EV(aprimeplus1Index),[N_d23*N_a1,N_u]); % (d&a1prime,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
     
     % Expectation over u (using pi_u), and then add the lower and upper

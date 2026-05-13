@@ -203,16 +203,16 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,:,:,jj+1);
+    EV=V(:,:,:,jj+1);
         
-    VKronNext_j=sum(VKronNext_j.*pi_e_J(1,1,:,jj),3);
+    EV=sum(EV.*pi_e_J(1,1,:,jj),3);
     % (aprime,zprime)
 
     if vfoptions.lowmemory==0
 
         pi_bothz=repmat(pi_semiz_J_permute(:,:,:,jj),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,jj),1,N_semiz,N_semiz);
 
-        EV=repelem(VKronNext_j,N_d2,1).*repmat(pi_bothz,N_a,1,1);
+        EV=repelem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -268,7 +268,7 @@ for reverse_j=1:N_j-1
         % pi_bothz=repmat(pi_semiz_J_permute(:,:,:,jj),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,jj),1,N_semiz,N_semiz);
         % timer(1)=toc;
         % 
-        % EV=replem(VKronNext_j,N_d2,1).*repmat(pi_bothz,N_a,1,1);
+        % EV=replem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
         % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         % EV=sum(EV,2); % sum over z', leaving a singular second dimension
         % 

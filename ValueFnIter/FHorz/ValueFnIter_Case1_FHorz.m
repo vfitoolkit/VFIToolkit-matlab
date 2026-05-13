@@ -534,7 +534,7 @@ if vfoptions.dynasty==1
     end
     
     if N_d==0
-        [VKron,PolicyKron]=ValueFnIter_FHorz_nod_Dynasty_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron,PolicyKron]=ValueFnIter_FHorz_Dynasty_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % Policy without d
         PolicyKron=shiftdim(PolicyKron,-1);
     else

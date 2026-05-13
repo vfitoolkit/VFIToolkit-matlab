@@ -82,14 +82,14 @@ else
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    VKronNext_j=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3); % Note: The V_Jplus1 input should be V for naive
+    EV=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3); % Note: The V_Jplus1 input should be V for naive
 
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
 
         % Use sparse for a few lines until sum over zprime
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,N_j)',-1);
+        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -106,7 +106,7 @@ else
         Policy(:,:,:,N_j)=shiftdim(maxindex,1); % Use the policy from solving the problem of Vtilde
 
     elseif vfoptions.lowmemory==1
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,N_j)',-1);
+        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -138,7 +138,7 @@ else
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
+                EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
                 EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
@@ -179,16 +179,16 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    VKronNext_j=V(:,:,:,jj+1); % Use V (goes into the equation to determine V)
+    EV=V(:,:,:,jj+1); % Use V (goes into the equation to determine V)
 
-    VKronNext_j=sum(VKronNext_j.*pi_e_J(1,1,:,jj),3);
+    EV=sum(EV.*pi_e_J(1,1,:,jj),3);
 
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
 
         % Use sparse for a few lines until sum over zprime
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -205,7 +205,7 @@ for reverse_j=1:N_j-1
         Policy(:,:,:,jj)=shiftdim(maxindex,1); % Use the policy from solving the problem of Vtilde
 
     elseif vfoptions.lowmemory==1
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -237,7 +237,7 @@ for reverse_j=1:N_j-1
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
+                EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
                 EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 

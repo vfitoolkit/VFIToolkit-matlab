@@ -34,9 +34,9 @@ while currdist>vfoptions.tolerance
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
         
         if reverse_j==0 % So j==N_j
-            VKronNext_j=V(:,:,1);
+            EV=V(:,:,1);
         else
-            VKronNext_j=V(:,:,jj+1);
+            EV=V(:,:,jj+1);
         end
         
         if vfoptions.lowmemory==0
@@ -48,7 +48,7 @@ while currdist>vfoptions.tolerance
                 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
+                EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
                 EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
                 
@@ -68,7 +68,7 @@ while currdist>vfoptions.tolerance
                 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
+                EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
                 EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
                 

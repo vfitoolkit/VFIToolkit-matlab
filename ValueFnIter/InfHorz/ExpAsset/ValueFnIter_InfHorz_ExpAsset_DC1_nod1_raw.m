@@ -69,11 +69,11 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular second dimension
     % EV is over (d2,a1prime,a2,z)
-    DiscountedentireEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_z]); % (d2,a1prime,1,a2,zprime)
+    DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_z]); % (d2,a1prime,1,a2,zprime)
 
     %% Level 1
     % We can just reuse ReturnMatrixLvl1
-    entireRHS_ii=ReturnMatrixLvl1+DiscountedentireEV;
+    entireRHS_ii=ReturnMatrixLvl1+DiscountedEV;
 
     % First, we want a1prime conditional on (d,1,a)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -100,7 +100,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, n_z, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals, ReturnFnParamsVec,2,0);
             daprime=(1:1:N_d2)'+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedentireEV(reshape(daprime,[N_d2*(maxgap(ii)+1),N_a2,N_z])),1,level1iidiff(ii),1);
+            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV(reshape(daprime,[N_d2*(maxgap(ii)+1),N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
@@ -117,7 +117,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, 1, level1iidiff(ii), n_a2, n_z, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals, ReturnFnParamsVec,2,0);
             daprime=(1:1:N_d2)'+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedentireEV(reshape(daprime,[N_d2*1,N_a2,N_z])),1,level1iidiff(ii),1);
+            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV(reshape(daprime,[N_d2*1,N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime

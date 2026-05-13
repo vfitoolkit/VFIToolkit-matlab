@@ -3,7 +3,7 @@ function [VPath,PolicyPath]=ValueFnOnTransPath_MixHorz_PType(PricePath, ParamPat
 VPath=struct();
 PolicyPath=struct();
 
-vfoptions.preEV=0; % =1 is used by 'Matched Expecations Path', for TPath we want =0 (this relates to details of fastOLG=1 value fn code)
+vfoptions.EVpre=0; % =1 is used by 'Matched Expecations Path', for TPath we want =0 (this relates to details of fastOLG=1 value fn code)
 
 %%
 if iscell(Names_i)

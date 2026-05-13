@@ -385,7 +385,7 @@ for reverse_j=1:N_j-1
         aprimeProbs=repmat(a2primeProbs,N_a1,1,N_semiz);  % [N_d2*N_a1,N_a2,N_semiz]
     end
 
-    VKronNext_j=V(:,:,jj+1);
+    EVpre=V(:,:,jj+1);
 
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
@@ -395,7 +395,7 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
-            EV=VKronNext_j.*shiftdim(pi_semiz_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -479,7 +479,7 @@ for reverse_j=1:N_j-1
                 z_val=semiz_gridvals_J(z_c,:,jj);
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=VKronNext_j.*shiftdim(pi_semiz_d3(z_c,:)',1);
+                EV_z=EVpre.*shiftdim(pi_semiz_d3(z_c,:)',1);
                 EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 

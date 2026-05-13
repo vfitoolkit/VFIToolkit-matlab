@@ -217,12 +217,12 @@ for reverse_j=1:N_j-1
         end
     end
     
-    VKronNext_j=V(:,:,jj+1);
+    EVpre=V(:,:,jj+1);
     % Part of Epstein-Zin is before taking expectation
-    temp=VKronNext_j;
-    temp(isfinite(VKronNext_j))=(ezc4*VKronNext_j(isfinite(VKronNext_j))).^ezc5(jj);
-    temp(VKronNext_j==0)=0;
-    temp(~isfinite(VKronNext_j))=ezc4*VKronNext_j(~isfinite(VKronNext_j)); % ezc4 is 1 or -1, When it is -1 need to flip the sign of the -Inf, so that ezc3 below (which will also be -1) flips it back
+    temp=EVpre;
+    temp(isfinite(EVpre))=(ezc4*EVpre(isfinite(EVpre))).^ezc5(jj);
+    temp(EVpre==0)=0;
+    temp(~isfinite(EVpre))=ezc4*EVpre(~isfinite(EVpre)); % ezc4 is 1 or -1, When it is -1 need to flip the sign of the -Inf, so that ezc3 below (which will also be -1) flips it back
     
     if vfoptions.lowmemory==0
         
