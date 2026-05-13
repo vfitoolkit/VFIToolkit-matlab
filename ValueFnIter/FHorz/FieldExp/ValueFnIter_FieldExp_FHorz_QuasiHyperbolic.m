@@ -15,7 +15,7 @@ N_z=prod(n_z);
 N_e=prod(vfoptions.n_e);
 
 %% First, just solve the control group
-[V.control, Policy.control, Valt.control]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+[V.control, Policy.control, Valt.control]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
 % I want the Kron versions of V.control as it makes combining the treatment and control easier (which is done below)
 if N_e==0
@@ -112,7 +112,7 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     %% Solve value fn problem for treatment periods
     % Note: TreatmentDuration periods
     % Note: vfoptions.outputkron=1;
-    [VKron_jp, PolicyKron_jp]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,TreatmentDuration,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [VKron_jp, PolicyKron_jp]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,TreatmentDuration,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
     % Combine VKron_jp and PolicyKron_jp with the control versions
     VKron=VcontrolKron;

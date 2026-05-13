@@ -52,13 +52,13 @@ ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gri
 if strcmp(vfoptions.quasi_hyperbolic,'Naive') % For Naive, just solve the standard value function problem, and then just one step following that.
     if N_d==0
         % First calculate the exponential discounting solution
-        [V,~]=ValueFnIter_nod_raw(V0, n_a, n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        [V,~]=ValueFnIter_InfHorz_nod_raw(V0, n_a, n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
         % Then the Naive quasi-hyperbolic from this
         [V,Policy]=ValueFnIter_InfHorz_QuasiHyperbolicN_nod_raw(V, n_a, n_z, pi_z, beta0, ReturnMatrix);
         Policy=shiftdim(Policy,-1);
     else
         % First calculate the exponential discounting solution
-        [V, ~]=ValueFnIter_raw(V0, n_d,n_a,n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        [V, ~]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
         % Then the Naive quasi-hyperbolic from this
         [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolicN_raw(V, n_d,n_a,n_z, pi_z, beta0, ReturnMatrix);
     end

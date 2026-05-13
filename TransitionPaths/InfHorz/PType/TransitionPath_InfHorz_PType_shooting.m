@@ -1,4 +1,4 @@
-function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FullFnsToEvaluate, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, nGeneralEqmEqns, transpathoptions, PTypeStructure)
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, PTypeDistParamNames, FullFnsToEvaluate, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEeqnNames, nGeneralEqmEqns, transpathoptions, PTypeStructure)
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
@@ -85,7 +85,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,kk);
             end
             
-            [V, Policy]=ValueFnIter_Case1_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             % The VKron input is next period value fn, the VKron output is this period.
             % Policy is kept in the form where it is just a single-value in (d,a')
 

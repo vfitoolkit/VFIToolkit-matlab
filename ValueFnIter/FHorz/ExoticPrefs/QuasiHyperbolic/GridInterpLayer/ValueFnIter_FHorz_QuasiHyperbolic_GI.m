@@ -1,6 +1,6 @@
 function [V1, Policy,Valt]=ValueFnIter_FHorz_QuasiHyperbolic_GI(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Quasi-hyperbolic discounting wrapper for GI finite-horizon value function iteration.
-% Dispatches to ValueFnIter_FHorz_GI_QuasiHyperbolic_raw or _nod_raw.
+% Dispatches to ValueFnIter_FHorz_GI1_QuasiHyperbolic_raw or _nod_raw.
 %
 % Naive:        varargout = {Vtilde, Policy}          or {Vtilde, Policy, V}
 % Sophisticated: varargout = {Vhat,  Policy}          or {Vhat,  Policy, Vunderbar}
@@ -77,7 +77,7 @@ if isscalar(n_a)
         end
     end
 else
-    error('ValueFnIter_FHorz_GI_QuasiHyperbolic currently only supports scalar n_a (one endogenous state)')
+    error('ValueFnIter_FHorz_GI1_QuasiHyperbolic currently only supports scalar n_a (one endogenous state)')
 end
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
