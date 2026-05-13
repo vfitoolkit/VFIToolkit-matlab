@@ -311,7 +311,7 @@ if transpathoptions.fastOLG==0
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
                 else
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
+                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
                 if exist('PolicyProbsPath','var')
                     PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
