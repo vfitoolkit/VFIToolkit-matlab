@@ -1,4 +1,4 @@
-function varargout=TransitionPath_InfHorz_PType(PricePath0, ParamPath, T, V_final, StationaryDist_init, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions)
+function varargout=TransitionPath_InfHorz_PType(PricePath0, ParamPath, T, V_final, StationaryDist_init, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, PTypeDistParamNames, transpathoptions, vfoptions, simoptions)
 % PricePathOld is a structure with fields names being the Prices and each field containing a T-by-1 path.
 % ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
 
@@ -111,10 +111,6 @@ if vfoptions.divideandconquer==1
     end
 end
 
-%% Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-[PricePath0,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec,PricePathSizeVec_ii,ParamPathSizeVec_ii]=PricePathParamPath_StructToMatrix(PricePath0,ParamPath,T, N_i);
-
 
 %% Create PTypeStructure
 
@@ -139,6 +135,12 @@ else
 end
 
 PTypeStructure.FnsAndPTypeIndicator=zeros(length(FnsToEvaluate),PTypeStructure.N_i,'gpuArray');
+
+
+%% Internally PricePath is matrix of size T-by-'number of prices'.
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+[PricePath0,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec,PricePathSizeVec_ii,ParamPathSizeVec_ii]=PricePathParamPath_StructToMatrix(PricePath0,ParamPath,T, PTypeStructure.N_i);
+
 
 if transpathoptions.verbose==1
     fprintf('Setting up the permanent types for transition \n')
@@ -475,7 +477,7 @@ for ii=1:PTypeStructure.N_i
                             PTypeStructure.(iistr).Parameters.(ParamPathNames{pp})=ParamPathStruct.(ParamPathNames{pp});
                         end
                         % Note, we know the PricePath is irrelevant for the current purpose
-                        EiidShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, vPTypeStructure.(iistr).foptions.EiidShockFnParamNames);
+                        EiidShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).foptions.EiidShockFnParamNames);
                         EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
                         for pp=1:length(ExogShockFnParamsVec)
                             EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
@@ -489,19 +491,23 @@ for ii=1:PTypeStructure.N_i
             end
         end
     end
-   
 end
 
 
 %%
 if transpathoptions.parallel==2 
-   PricePathOld=gpuArray(PricePathOld);
+   PricePath0=gpuArray(PricePath0);
 end
 
 % GeneralEqmEqnNames=fieldnames(GeneralEqmEqns);
 % for gg=1:length(GeneralEqmEqnNames)
 %     GeneralEqmEqnParamNames{gg}=getAnonymousFnInputNames(GeneralEqmEqns.(GeneralEqmEqnNames{gg}));
 % end
+
+if any(strcmp(PTypeDistParamNames,PricePathNames)) || any(strcmp(PTypeDistParamNames,ParamPathNames))
+    error('Cannot yet handle PTypeDistParamNames changing values over path, ask on forum if you need this')
+end
+
 
 %%
 if transpathoptions.usestockvars==1 
@@ -510,7 +516,7 @@ end
 
 
 %% If using a shooting algorithm, set that up
-transpathoptions=setupGEnewprice3_shooting(options,GeneralEqmEqns,PricePathNames,N_i,PricePathSizeVec);
+transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames,PTypeStructure.N_i,PricePathSizeVec);
 GEeqnNames=fieldnames(GeneralEqmEqns);
 
 %%
@@ -533,10 +539,9 @@ end
 if transpathoptions.GEnewprice~=2
     if transpathoptions.usestockvars==0
         if ~isfield(vfoptions,'n_e')
-            [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, nGeneralEqmEqns, transpathoptions, PTypeStructure);
+            [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, PTypeDistParamNames, FnsToEvaluate, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEeqnNames, nGeneralEqmEqns, transpathoptions, PTypeStructure);
         else
             error('Cannot use e variables with infinite horizon (contact me if you need this)')
-            % PricePathOld=TransitionPath_InfHorz_PType_e_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
         end
     end
     % Switch the solution into structure for output.
