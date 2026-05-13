@@ -182,7 +182,7 @@ for ii=1:N_i
     if isfinite(N_j_temp)
         AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp, jequalOneDist_temp, PricePath_temp, ParamPath_temp, PolicyPath_temp, AgeWeightsParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
     else
-        AgentDistPath_ii=AgentDistOnTransPath_InfHorz(AgentDist_initial_temp, PolicyPath_temp, n_d_temp,n_a_temp,n_z_temp,pi_z_temp,T,simoptions_temp, Parameters_temp, PricePath_temp, ParamPath_temp);
+        AgentDistPath_ii=AgentDistOnTransPath_InfHorz(AgentDist_initial_temp, PricePath_temp, ParamPath_temp, PolicyPath_temp, n_d_temp,n_a_temp,n_z_temp,pi_z_temp,T,simoptions_temp, Parameters_temp);
     end
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
