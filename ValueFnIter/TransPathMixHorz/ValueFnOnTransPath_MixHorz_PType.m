@@ -1,4 +1,4 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_MixHorz_PType(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+function [VPath,PolicyPath]=ValueFnOnTransPath_MixHorz_PType(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 
 VPath=struct();
 PolicyPath=struct();
