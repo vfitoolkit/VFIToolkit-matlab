@@ -301,7 +301,7 @@ end
 if isfield(vfoptions,'exoticpreferences')
     if strcmp(vfoptions.exoticpreferences,'None')
         % Just ignore and will then continue on.
-    if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
         [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
         varargout={V,Policy};
         return
