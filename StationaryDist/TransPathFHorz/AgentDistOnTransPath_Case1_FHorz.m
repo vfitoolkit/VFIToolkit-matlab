@@ -372,8 +372,12 @@ if N_e==0
                 PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
             elseif simoptions.fastOLG==1
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                PolicyaprimejzPath=repmat(permute(PolicyaprimejzPath,[1,3,2]),1,2,1)+N_a1*(a2primeIndexesPath-1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     end
@@ -412,8 +416,12 @@ else
                 PolicyaprimePath=reshape(PolicyaprimePath,[N_a*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
             elseif simoptions.fastOLG==1
-                PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                PolicyaprimejzPath=repmat(permute(PolicyaprimejzPath,[1,3,2]),1,2,1)+N_a1*(a2primeIndexesPath-1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     else % z, e
