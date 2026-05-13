@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_Case1_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Parameters,simoptions)
+function StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Parameters,simoptions)
 % Allows for different permanent (fixed) types of agent. 
 % See ValueFnIter_Case1_FHorz_PType for general idea.
 %

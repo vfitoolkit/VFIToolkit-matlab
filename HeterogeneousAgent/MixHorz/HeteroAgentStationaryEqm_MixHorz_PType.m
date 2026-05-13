@@ -1,12 +1,12 @@
-function varargout=HeteroAgentStationaryEqm_Case1_MixHorz_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function varargout=HeteroAgentStationaryEqm_MixHorz_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 % Outputs: [p_eqm, GeneralEqmConditions]
 % Unless you use n_p and p_grid, in which case [p_eq, p_eqm_index, GeneralEqmConditions]
 %
 % Allows for different permanent (fixed) types of agent. 
-% See ValueFnIter_Case1_MixHorz_PType for general idea.
+% See ValueFnIter_MixHorz_PType for general idea.
 %
 % Rest of this description describes how those inputs not used for
-% ValueFnIter_Case1_MixHorz_PType should be set up.
+% ValueFnIter_MixHorz_PType should be set up.
 %
 % jequaloneDist can either be same for all permanent types, or must be passed as a structure.
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
@@ -47,7 +47,7 @@ if exist('heteroagentoptions','var')
             heteroagentoptions.fminalgo=heteroagentoptions.fminalgo(1:end-1);
             heteroagentoptions.toleranceGEcondns=heteroagentoptions.toleranceGEcondns(1:end-1);
             heteroagentoptions.toleranceGEprices=heteroagentoptions.toleranceGEprices(1:end-1);
-            p_eqm_previous=HeteroAgentStationaryEqm_Case1_MixHorz_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
+            p_eqm_previous=HeteroAgentStationaryEqm_MixHorz_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
             for pp=1:length(GEPriceParamNames)
                 Parameters.(GEPriceParamNames{pp})=p_eqm_previous.(GEPriceParamNames{pp});
             end
@@ -314,7 +314,7 @@ PTypeStructure.N_i=N_i;
 % If jequaloneDist is not a structure, then we deal with it here (as it may be dependent on PType, and we will turn it into a structure if it is)
 if ~isstruct(jequaloneDist)
     if ~exist("simoptions","var")
-        error('You must input simoptions to HeteroAgentStationaryEqm_Case1_MixHorz_PType when using jequaloneDist as a structure')
+        error('You must input simoptions to HeteroAgentStationaryEqm_MixHorz_PType when using jequaloneDist as a structure')
     end
     [jequaloneDist,~,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,PTypeStructure.N_i,PTypeStructure.Names_i,PTypeDistParamNames,1);
 end
@@ -827,28 +827,28 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     %%  Otherwise, use fminsearch to find the general equilibrium
     if all(heteroagentoptions.GEptype==0)
         if heteroagentoptions.fminalgo~=8 && heteroagentoptions.fminalgo~=3
-            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_MixHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_MixHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
         elseif heteroagentoptions.fminalgo==3
             heteroagentoptions.outputGEform=1; % vector
-            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_MixHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_MixHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
         elseif heteroagentoptions.fminalgo==8
             heteroagentoptions.outputGEform=1; % vector
             weightsbackup=heteroagentoptions.multiGEweights;
             heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_MixHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_MixHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
             heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
         end
     else % some GE condns depend on ptype
         if heteroagentoptions.fminalgo~=8 && heteroagentoptions.fminalgo~=3
-            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_MixHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_MixHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
         elseif heteroagentoptions.fminalgo==3
             heteroagentoptions.outputGEform=1; % vector
-            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_MixHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_MixHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
         elseif heteroagentoptions.fminalgo==8
             heteroagentoptions.outputGEform=1; % vector
             weightsbackup=heteroagentoptions.multiGEweights;
             heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_MixHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_MixHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
             heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
         end
     end
@@ -1018,9 +1018,9 @@ if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
         heteroagentoptions.constrainAtoB=zeros(length(p_eqm_vec),1);
     end
     if all(heteroagentoptions.GEptype==0)
-        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_MixHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_MixHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
     else
-        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_MixHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_MixHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
     end
     GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
 end

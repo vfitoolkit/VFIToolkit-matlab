@@ -1,4 +1,4 @@
-function AgentDistPath=AgentDistOnTransPath_Case1_MixHorz_PType(AgentDist_initial, jequalOneDist, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions)
+function AgentDistPath=AgentDistOnTransPath_MixHorz_PType(AgentDist_initial, jequalOneDist, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions)
 % Remark to self: No real need for T as input, as this is anyway the length of PricePath
 
 AgentDistPath=struct();
