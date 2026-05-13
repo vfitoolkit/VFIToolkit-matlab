@@ -48,10 +48,10 @@ else
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
     a2primeProbs=repmat(a2primeProbs,1,1,N_z);  % [N_d2,N_a2,N_z]
     
-    Vnext=reshape(vfoptions.V_Jplus1,[N_a,N_z]);
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);
 
-    Vlower=reshape(Vnext(a2primeIndex,:),[N_d2,N_a2,N_z]);
-    Vupper=reshape(Vnext(a2primeIndex+1,:),[N_d2,N_a2,N_z]);
+    Vlower=reshape(EV(a2primeIndex,:),[N_d2,N_a2,N_z]);
+    Vupper=reshape(EV(a2primeIndex+1,:),[N_d2,N_a2,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
