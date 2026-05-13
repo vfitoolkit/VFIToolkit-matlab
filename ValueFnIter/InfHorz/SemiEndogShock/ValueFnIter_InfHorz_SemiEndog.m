@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_InfHorz_SemiEndo(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions)
+function [V,Policy]=ValueFnIter_InfHorz_SemiEndog(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions)
 
 ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
 

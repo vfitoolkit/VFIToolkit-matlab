@@ -400,7 +400,7 @@ end
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
 if isfield(vfoptions,'SemiEndogShockFn')
-    [V,Policy]=ValueFnIter_InfHorz_SemiEndo(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions);
+    [V,Policy]=ValueFnIter_InfHorz_SemiEndog(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions);
     varargout={V,Policy};
     return
 end
