@@ -3,10 +3,10 @@ function varargout=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j
 % Unless you use n_p and p_grid, in which case [p_eq, p_eqm_index, GeneralEqmConditions]
 %
 % Allows for different permanent (fixed) types of agent. 
-% See ValueFnIter_Case1_FHorz_PType for general idea.
+% See ValueFnIter_FHorz_PType for general idea.
 %
 % Rest of this description describes how those inputs not used for
-% ValueFnIter_Case1_FHorz_PType should be set up.
+% ValueFnIter_FHorz_PType should be set up.
 %
 % jequaloneDist can either be same for all permanent types, or must be passed as a structure.
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.

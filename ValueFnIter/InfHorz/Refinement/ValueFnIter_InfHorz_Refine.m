@@ -36,7 +36,7 @@ end
 
 %% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
 if vfoptions.howardsgreedy==1
-    [VKron,Policy_a]=ValueFnIter_InfHorz_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
+    [VKron,Policy_a]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
 elseif vfoptions.howardsgreedy==0
     if vfoptions.howardssparse==0
         [VKron,Policy_a]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);

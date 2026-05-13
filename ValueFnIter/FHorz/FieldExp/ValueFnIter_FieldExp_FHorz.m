@@ -187,32 +187,32 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     if strcmp(vfoptions.exoticpreferences,'EpsteinZin')
         % Note: TreatmentDuration periods
         % Note: vfoptions.outputkron=1;
-        [VKron_jp, PolicyKron_jp]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,TreatmentDuration,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron_jp, PolicyKron_jp]=ValueFnIter_FHorz_EpsteinZin(n_d,n_a,n_z,TreatmentDuration,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     else
         %% Otherwise just do the standard case
         if N_d==0
             if N_e==0
                 if N_z==0
-                    [VKron_jp,PolicyKron_jp]=ValueFnIter_Case1_FHorz_nod_noz_raw(n_a, TreatmentDuration, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron_jp,PolicyKron_jp]=ValueFnIter_FHorz_nod_noz_raw(n_a, TreatmentDuration, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [VKron_jp,PolicyKron_jp]=ValueFnIter_Case1_FHorz_nod_raw(n_a, n_z, TreatmentDuration, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron_jp,PolicyKron_jp]=ValueFnIter_FHorz_nod_raw(n_a, n_z, TreatmentDuration, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             else
                 if N_z==0
-                    [VKron_jp,PolicyKron_jp]=ValueFnIter_Case1_FHorz_nod_noz_e_raw(n_a, vfoptions.n_e, TreatmentDuration, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron_jp,PolicyKron_jp]=ValueFnIter_FHorz_nod_noz_e_raw(n_a, vfoptions.n_e, TreatmentDuration, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [VKron_jp,PolicyKron_jp]=ValueFnIter_Case1_FHorz_nod_e_raw(n_a, n_z, vfoptions.n_e, TreatmentDuration, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron_jp,PolicyKron_jp]=ValueFnIter_FHorz_nod_e_raw(n_a, n_z, vfoptions.n_e, TreatmentDuration, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             end
         else
             if N_e==0
                 if N_z==0
-                    [VKron_jp, PolicyKron_jp]=ValueFnIter_Case1_FHorz_noz_raw(n_d,n_a, TreatmentDuration, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron_jp, PolicyKron_jp]=ValueFnIter_FHorz_noz_raw(n_d,n_a, TreatmentDuration, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [VKron_jp, PolicyKron_jp]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, TreatmentDuration, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron_jp, PolicyKron_jp]=ValueFnIter_FHorz_raw(n_d,n_a,n_z, TreatmentDuration, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             else
-                [VKron_jp, PolicyKron_jp]=ValueFnIter_Case1_FHorz_e_raw(n_d,n_a,n_z,  vfoptions.n_e, TreatmentDuration, d_grid, a_grid, z_gridvals_J, e_gridvals_J,pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron_jp, PolicyKron_jp]=ValueFnIter_FHorz_e_raw(n_d,n_a,n_z,  vfoptions.n_e, TreatmentDuration, d_grid, a_grid, z_gridvals_J, e_gridvals_J,pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     end

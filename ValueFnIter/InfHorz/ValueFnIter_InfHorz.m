@@ -484,7 +484,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         
         if N_d==0
             if vfoptions.howardsgreedy==1
-                [VKron,Policy]=ValueFnIter_InfHorz_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                [VKron,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             elseif vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
                     [VKron,Policy]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);

@@ -1,5 +1,5 @@
 function varargout=ValueFnIter_FHorz_QuasiHyperbolicS_GI1_nod_noz_e_raw(n_a, n_e, N_j, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-% Sophisticated quasi-hyperbolic discounting variant of ValueFnIter_FHorz_GI_nod_noz_e_raw.
+% Sophisticated quasi-hyperbolic discounting variant of ValueFnIter_FHorz_GI1_nod_noz_e_raw.
 % No d variables. No z variable. Has e variables. GPU (parallel==2 only).
 %
 % Sophisticated: Vhat_j   = max_{a'} u + beta_0*beta*E[Vunderbar_{j+1}]

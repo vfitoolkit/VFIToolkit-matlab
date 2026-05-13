@@ -1,6 +1,6 @@
 function StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Parameters,simoptions)
 % Allows for different permanent (fixed) types of agent. 
-% See ValueFnIter_Case1_FHorz_PType for general idea.
+% See ValueFnIter_FHorz_PType for general idea.
 %
 % simoptions.verbose=1 will give feedback
 % simoptions.verboseparams=1 will give further feedback on the param values of each permanent type
