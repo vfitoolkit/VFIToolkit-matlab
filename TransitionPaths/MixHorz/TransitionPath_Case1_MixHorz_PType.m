@@ -144,7 +144,7 @@ else
     % User created vfoptions.PType.experienceasset; we have Names_i
     for ii=1:N_i
         if isfield(vfoptions.experienceasset, Names_i{ii})
-            if ~isfield(vfoptions, 'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
+            if ~isfield(vfoptions,'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
                 error('To use an experience asset you must define vfoptions.aprimeFn')
             end
         else
@@ -524,7 +524,7 @@ for ii=1:PTypeStructure.N_i
         l_a=l_aprime;
     end
     l_z=length(PTypeStructure.(iistr).n_z);
-    if PTypeStructure.(iistr).n_z(1)==0
+    if PTypeStructure.(iistr).N_z==0
         l_z=0;
     end
     if isfield(PTypeStructure.(iistr).vfoptions,'SemiExoStateFn')
@@ -606,11 +606,11 @@ for ii=1:PTypeStructure.N_i
     
     %% Organise V_final and AgentDist_initial
     % Reshape V_final
-    if ~isfinite(PTypeStructure.(iistr).N_j)
+    N_j_temp=PTypeStructure.(iistr).N_j;
+    if ~isfinite(N_j_temp)
         % If no z, then N_z=1 here
         V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
-    elseif transpathoptions.fastOLG==0
-        N_j_temp=PTypeStructure.(iistr).N_j;
+    else
         if N_z==0
             if N_e==0
                 V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
@@ -624,19 +624,20 @@ for ii=1:PTypeStructure.N_i
                 V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e,N_j_temp]);
             end
         end
-    else % transpathoptions.fastOLG==1
-        N_j_temp=PTypeStructure.(iistr).N_j;
-        if N_z==0
-            if N_e==0
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
+        if transpathoptions.fastOLG==1
+            if N_z==0
+                if N_e==0
+                    % Already reshaped
+                    % V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
+                else
+                    V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_e]);
+                end
             else
-                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_e]);
-            end
-        else
-            if N_e==0
-                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_z]);
-            else
-                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,4,2,3]),[N_a*N_j_temp,N_z,N_e]);
+                if N_e==0
+                    V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_z]);
+                else
+                    V_final.(iistr)=reshape(permute(V_final.(iistr),[1,4,2,3]),[N_a*N_j_temp,N_z,N_e]);
+                end
             end
         end
     end
@@ -955,7 +956,7 @@ end
 if transpathoptions.GEnewprice~=2
     % For permanent types, there is just one shooting command,
     % because things like z,e, and fastOLG, as well as ExpAsset are handled on a per-PType basis (to permit that they differ across ptype)
-    [PricePath,GEcondnPath]=TransitionPath_Case1_MixHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+    [PricePath,GEcondnPathmatrix]=TransitionPath_Case1_MixHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
 
     % Switch the solution into structure for output.
     pp_indexinpricepath=zeros(1,length(PricePathNames));
@@ -984,6 +985,10 @@ if transpathoptions.GEnewprice~=2
             end
         end
     end
+    for gg=1:length(GEeqnNames)
+        GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg)';
+    end
+
 
     if nargout==1
         varargout={PricePathStruct};

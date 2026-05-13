@@ -34,14 +34,15 @@ if ~exist('vfoptions','var')
     end
     % Different asset types
     vfoptions.endogenousexit=0;
-    vfoptions.endotype=0; % (vector indicating endogenous state is a type)
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     vfoptions.experienceasset=0;
     vfoptions.inheritanceasset=0;
 %     vfoptions.exoticpreferences % default is not to declare it
-%     vfoptions.SemiEndogShockFn % default is not to declare it    
+%     vfoptions.SemiEndogShockFn % default is not to declare it
+    % Exogenous shocks
+    vfoptions.n_e=0;
+    vfoptions.n_semiz=0;
     % Other options
-    vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
     vfoptions.separableReturnFn=0; % advanced option to split ReturnFn into two parts (ReturnFn.R1 and ReturnFn.R2)
     vfoptions.outputkron=0;
@@ -104,9 +105,6 @@ else
     if ~isfield(vfoptions,'endogenousexit')
         vfoptions.endogenousexit=0;
     end
-    if ~isfield(vfoptions,'endotype')
-        vfoptions.endotype=0; % (vector indicating endogenous state is a type)
-    end
     if ~isfield(vfoptions,'incrementaltype')
         vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     end
@@ -118,10 +116,14 @@ else
     end
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
-    % Other options
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
+    % Exogenous shocks
+    if ~isfield(vfoptions,'n_e')
+        vfoptions.n_e=0;
     end
+    if ~isfield(vfoptions,'n_semiz')
+        vfoptions.n_semiz=0;
+    end
+    % Other options
     if ~isfield(vfoptions,'piz_strictonrowsaddingtoone')
         vfoptions.piz_strictonrowsaddingtoone=0;
     end
@@ -139,7 +141,7 @@ end
 
 
 % If setting refinement without a d variable, then just shift to standard purediscretization (as refinement only makes sense if there is a d variable)
-if strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
+if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
     if n_d(1)==0
         vfoptions.solnmethod='purediscretization';
     end
@@ -176,7 +178,7 @@ else
 end
 
 %% Check the sizes of some of the inputs
-if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'localpolicysearch')
+if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'purediscretization_refinement')
     if N_d>0 && ~all(size(d_grid)==[sum(n_d), 1]) && ~all(size(d_grid)==[prod(n_d), length(n_d)]) % if you are using d, then should be stacked-column d_grid or joint-grid d_gridvals
         error('d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
     elseif ~all(size(a_grid)==[sum(n_a), 1])
@@ -220,11 +222,7 @@ if N_z>0
     end
 end
 
-if max(vfoptions.endotype)==1
-    if ~strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
-        error('Using vfoptions.endotype only works with vfoptions.solnmethod as purediscretization_refinement2')
-    end
-end
+
 if max(vfoptions.incrementaltype)==1
     if ~strcmp(vfoptions.solnmethod,'purediscretization') 
         error('Using vfoptions.incrementaltype only works with vfoptions.solnmethod as purediscretization')
@@ -236,6 +234,11 @@ pi_z=gpuArray(pi_z);
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 z_grid=gpuArray(z_grid);
+if size(d_grid,2)==1
+    d_gridvals=CreateGridvals(n_d,d_grid,1);
+else % already d_gridvals
+    d_gridvals=d_grid;
+end
 
 %% Switch to z_gridvals
 if vfoptions.alreadygridvals==0
@@ -247,7 +250,7 @@ end
 %% Separable Return Fn
 if vfoptions.separableReturnFn==1
     % Split it off here, as messes with ReturnFnParamNames and ReturnFnParamsVec
-    [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_InfHorz_SeparableReturnFn(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V,Policy};
     return
 end
@@ -264,34 +267,52 @@ end
 %% Entry and Exit
 if vfoptions.endogenousexit==1
     % ExitPolicy is binary decision to exit (1 is exit, 0 is 'not exit').
-    [V, Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy,ExitPolicy]=ValueFnIter_InfHorz_EndogExit(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V,Policy,ExitPolicy};
     return
 elseif vfoptions.endogenousexit==2 % Mixture of endogenous and exogenous exit.
     % ExitPolicy is binary decision to exit (1 is exit, 0 is 'not exit').
     % Policy is for those who remain.
     % PolicyWhenExit is current period decisions of those who will exit at end of period.
-    [V, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_InfHorz_EndogExit2(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V,Policy, PolicyWhenExit,ExitPolicy};
     return
 end
+
+%% Create a vector containing all the return function parameters (in order)
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
+if isfield(vfoptions,'exoticpreferences')
+    if vfoptions.exoticpreferences~=3
+        DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+        if vfoptions.exoticpreferences==0
+            DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
+        end
+    end
+else
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
+end
+
+
+
+
 
 %% Exotic Preferences
 if isfield(vfoptions,'exoticpreferences')
     if strcmp(vfoptions.exoticpreferences,'None')
         % Just ignore and will then continue on.
     elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-        [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
         varargout={V,Policy};
         return
     elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-        [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
         varargout={V,Policy};
         return
     elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on the (next period) exogenous state.
         % To implement this, can actually just replace the discount factor by 1, and adjust pi_z appropriately.
         % Note that distinguishing the discount rate and pi_z is important in almost all other contexts. Just not in this one.
-        
+
         % Create a matrix containing the DiscountFactorParams,
         nDiscFactors=length(DiscountFactorParamNames);
         DiscountFactorParamsMatrix=Parameters.(DiscountFactorParamNames{1});
@@ -309,19 +330,9 @@ if isfield(vfoptions,'exoticpreferences')
     end
 end
 
-%% Create a vector containing all the return function parameters (in order)
-ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
-if isfield(vfoptions,'exoticpreferences')
-    if vfoptions.exoticpreferences~=3
-        DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-        if vfoptions.exoticpreferences==0
-            DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
-        end
-    end
-else
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-    DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
-end
+
+
+
 
 %% Experience asset
 if vfoptions.experienceasset==1
@@ -389,7 +400,7 @@ end
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
 if isfield(vfoptions,'SemiEndogShockFn')
-    [V,Policy]=ValueFnIter_SemiEndo(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions);
+    [V,Policy]=ValueFnIter_InfHorz_SemiEndog(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions);
     varargout={V,Policy};
     return
 end
@@ -407,16 +418,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
 %% Rest is all just different ways of solving the standard problem
 
 
@@ -424,23 +425,16 @@ end
 if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI') 
     % Note: have only implemented Relative VFI on the GPU
     warning('Relative VFI is unstable if you have substantial discretization (has difficulty converging if you dont use enough points)')
-    [VKron,Policy]=ValueFnIter_Case1_RelativeVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
+    [VKron,Policy]=ValueFnIter_InfHorz_RelativeVFI(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI') 
     % Note: have only implemented Endogenous VFI on the GPU
     error('Endogenous VFI is not yet working')
-%     [VKron,Policy]=ValueFnIter_Case1_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
+%     [VKron,Policy]=ValueFnIter_InfHorz_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
-
-%%
-if size(d_grid,2)==1
-    d_gridvals=CreateGridvals(n_d,d_grid,1);
-else % already d_gridvals
-    d_gridvals=d_grid;
-end
 
 %% Divide-and-conquer together with grid interpolation layer is not yet done in InfHorz. It is assumed you just want the grid interpolation layer
 if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
@@ -451,13 +445,13 @@ end
 %% Divide-and-conquer
 if vfoptions.divideandconquer==1
     warning('Divide-and-Conquer tends to be a slow option in Infinite Horizon problems')
-    [V,Policy]=ValueFnIter_DivideConquer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+    [V,Policy]=ValueFnIter_InfHorz_DivideConquer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
     varargout={V,Policy};
     return
 end
 %% Grid interpolation layer
 if vfoptions.gridinterplayer==1
-    [V,Policy]=ValueFnIter_GridInterpLayer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+    [V,Policy]=ValueFnIter_InfHorz_GridInterpLayer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
     varargout={V,Policy};
     return
 end
@@ -470,7 +464,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
 
     if vfoptions.lowmemory==0
         
-        %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+        %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
         % Since the return function is independent of time creating it once and
         % then using it every iteration is good for speed, but it does use a lot of memory.
         
@@ -479,7 +473,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         end
 
         if N_d==0
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_nod_Par2(ReturnFn, n_a, n_z, a_grid, z_gridvals, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, [], a_grid, z_gridvals, ReturnFnParamsVec);
         else
             ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
         end
@@ -490,17 +484,17 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         
         if N_d==0
             if vfoptions.howardsgreedy==1
-                [VKron,Policy]=ValueFnIter_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                [VKron,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             elseif vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    [VKron,Policy]=ValueFnIter_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    [VKron,Policy]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
                 elseif vfoptions.howardssparse==1
-                    [VKron,Policy]=ValueFnIter_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    [VKron,Policy]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
                 end
             end
         else
             % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
-            [VKron, Policy]=ValueFnIter_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+            [VKron, Policy]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
         end
         
     elseif vfoptions.lowmemory==1
@@ -511,88 +505,21 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         
         if N_d==0
             if vfoptions.howardssparse==0
-                [VKron,Policy]=ValueFnIter_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                [VKron,Policy]=ValueFnIter_InfHorz_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             elseif vfoptions.howardssparse==1
-                [VKron,Policy]=ValueFnIter_LowMem_sparse_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                [VKron,Policy]=ValueFnIter_InfHorz_LowMem_sparse_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             end
         else
-            [VKron, Policy]=ValueFnIter_LowMem_raw(V0, n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+            [VKron, Policy]=ValueFnIter_InfHorz_LowMem_raw(V0, n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
         end
     end
 end
 
 %% VFI with Refine
-% If we get to refinement and refinement2 then there must be d variable
+% If we get to refinement then there must be d variable
 if strcmp(vfoptions.solnmethod,'purediscretization_refinement') 
     % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
-    [VKron,Policy]=ValueFnIter_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
-end
-
-if strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
-    % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
-    % Refinement 2: Multigrid approach when presolving for dstar(aprime,a,z).
-    
-    % Check that the info about layers is provided
-    if ~isfield(vfoptions,'refine_pts') % points per dimension per layer
-        error('Using vfoptions.solnmethod purediscretization_refinement2 you must declare vfoptions.refine_pts')
-    else
-        if rem(vfoptions.refine_pts,2)~=1
-            error('vfoptions.refine_pts must be an odd number')
-        end
-    end
-    if ~isfield(vfoptions,'refine_iter') % number of layers
-        error('Using vfoptions.solnmethod purediscretization_refinement2 you must declare vfoptions.refine_iter')
-    end
-    
-    % Check that grid size for d variables matches the ptsperlayer and 
-    RequiredGridPoints=nGridPointsWithLayers(vfoptions);
-    for ii=1:length(n_d)
-        if n_d(ii)~=RequiredGridPoints
-            fprintf('Problem with the %i-th decision variable \n',ii)
-            fprintf('With current settings for layers (in vfoptions) you should be using %i points for each decision variable \n',RequiredGridPoints)
-            error('The number of points in the grid for the i-th variable is does not fit layers')
-        end
-    end
-    
-    if max(vfoptions.endotype)==0 % If they are all zeros, no endo types are used
-        [VKron,Policy]=ValueFnIter_Refine2(V0,l_d,N_a,N_z,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
-    else
-        % Need to seperate endogenous states from endogenous types to take advantage of them
-        n_endostate=n_a(logical(1-vfoptions.endotype));
-        n_endotype=n_a(logical(vfoptions.endotype));
-        endostate_grid=zeros(sum(n_endostate),1);
-        endotype_grid=zeros(sum(n_endotype),1);
-        endostate_c=1;
-        endotype_c=1;
-        if vfoptions.endotype(1)==1 % Endogenous type
-            endotype_grid(1:n_a(1))=a_grid(1:n_a(1));
-            endotype_c=endotype_c+1;
-        else % Endogenous state
-            endostate_grid(1:n_a(1))=a_grid(1:n_a(1));
-            endostate_c=endostate_c+1;
-        end
-        for ii=2:length(n_a)
-            if vfoptions.endotype(ii)==1 % Endogenous type
-                if endotype_c==1
-                    endotype_grid(1:n_endotype(1))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
-                else
-                    endotype_grid(1+sum(n_endotype(1:endotype_c-1)):sum(n_endotype(1:endotype_c)))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
-                end
-                endotype_c=endotype_c+1;
-            else % Endogenous state
-                if endotype_c==1
-                    endostate_grid(1:n_endostate(1))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
-                else
-                    endostate_grid(1+sum(n_endostate(1:endostate_c-1)):sum(n_endostate(1:endostate_c)))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
-                end
-                endostate_c=endostate_c+1;
-            end
-        end
-        
-        [VKron,Policy]=ValueFnIter_EndoType_Refine2(V0,l_d,prod(n_endostate),N_z,n_d,n_endostate,n_z,n_endotype,d_grid,endostate_grid,z_gridvals,endotype_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
-    end
-    % To be able to resize the output we need to treat endotype is just
-    % another endogenous state. This will happen because of how we have n_a setup.
+    [VKron,Policy]=ValueFnIter_InfHorz_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
 end
 
 
@@ -609,15 +536,6 @@ else
     Policy=reshape(Policy,[1,N_a,N_z]);
     varargout={VKron,Policy};
     return
-end
-
-% Sometimes numerical rounding errors (of the order of 10^(-16) can mean
-% that Policy is not integer valued. The following corrects this by converting to int64 and then
-% makes the output back into double as Matlab otherwise cannot use it in
-% any arithmetical expressions.
-if vfoptions.policy_forceintegertype==1
-    Policy=uint64(Policy);
-    Policy=double(Policy);
 end
 
 varargout={V,Policy};

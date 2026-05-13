@@ -13,10 +13,10 @@ if exist('transpathoptions','var')==0
     transpathoptions.verbose=0;
 else
     % Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'fastOLG')==0
+    if ~isfield(transpathoptions,'fastOLG')
         transpathoptions.fastOLG=0;
     end
-    if isfield(transpathoptions,'verbose')==0
+    if ~isfield(transpathoptions,'verbose')
         transpathoptions.verbose=0;
     end
 end
@@ -33,6 +33,8 @@ if exist('vfoptions','var')==0
     % Model setup
     vfoptions.exoticpreferences='None';
     vfoptions.experienceasset=0;
+    % Exogenous shocks
+    vfoptions.n_e=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'divideandconquer')
@@ -62,6 +64,10 @@ else
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
     end
+    % Exogenous shocks
+    if ~isfield(vfoptions,'n_e')
+        vfoptions.n_e=0;
+    end
 end
 vfoptions.parallel=2; % transition path requires GPU
 vfoptions.EVpre=0; % =1 is used by 'Matched Expecations Path', for TPath we want =0 (this relates to details of fastOLG=1 value fn code)
@@ -82,11 +88,7 @@ V_final=gpuArray(V_final);
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-if isfield(vfoptions, 'n_e')
-    n_e=vfoptions.n_e;
-else
-    n_e=0;
-end
+n_e=vfoptions.n_e;
 N_e=prod(n_e);
 
 if N_d==0

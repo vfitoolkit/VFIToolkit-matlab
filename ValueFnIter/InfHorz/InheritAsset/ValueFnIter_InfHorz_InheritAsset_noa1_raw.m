@@ -10,7 +10,7 @@ N_z=prod(n_z);
 % Policy=zeros(N_a,N_z,'gpuArray');
 
 %% Refine d1
-% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d1 and d2 and aprime)-by-a-by-z.
+% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d1 and d2 and aprime)-by-a-by-z.
 % Since the return function is independent of time creating it once and then using it every iteration is good for speed, but it does use a lot of memory.
 
 if vfoptions.lowmemory==0
@@ -40,7 +40,7 @@ end
 
 
 %% Create aprimeFn Matrix
-[a2primeIndex,a2primeProbs]=CreateInheritanceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_z, n_z, d2_grid, a2_grid, z_gridvals, z_gridvals, aprimeFnParamsVec); % Note, is actually a2prime_grid (but a2_grid is anyway same for all ages)
+[a2primeIndex,a2primeProbs]=CreateInheritanceAssetFnMatrix(aprimeFn, n_d2, n_a2, n_z, n_z, d2_grid, a2_grid, z_gridvals, z_gridvals, aprimeFnParamsVec); % Note, is actually a2prime_grid (but a2_grid is anyway same for all ages)
 % Note: aprimeIndex is [N_d2,N_zprime,N_z], and aprimeProbs is also [N_d2,N_zprime,N_z]
 
 addindexforzprime=N_a*gpuArray(0:1:N_z-1);

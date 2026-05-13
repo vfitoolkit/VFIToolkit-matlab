@@ -70,9 +70,9 @@ while currdist>vfoptions.tolerance
             end
             
             if reverse_j==0 % So j==N_j
-                VKronNext_j=V(:,:,1);
+                EVpre=V(:,:,1);
             else
-                VKronNext_j=V(:,:,jj+1);
+                EVpre=V(:,:,jj+1);
             end
             
             if vfoptions.lowmemory==0
@@ -81,7 +81,6 @@ while currdist>vfoptions.tolerance
                     Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
                 end
                 
-                %if vfoptions.returnmatrix==2 % GPU
                 ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
                 %        FmatrixKron_j=reshape(FmatrixFn_j(j),[N_d,N_a,N_z]);
                 %        Phi_aprimeKron=Phi_aprimeKronFn_j(j);
@@ -91,7 +90,7 @@ while currdist>vfoptions.tolerance
                         for zprime_c=1:N_z
                             if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                                 for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+VKronNext_j(Phi_aprimeMatrix(d_c,a_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
+                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix(d_c,a_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
                             end
                         end
@@ -115,7 +114,7 @@ while currdist>vfoptions.tolerance
                         for zprime_c=1:N_z
                             if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                                 for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+VKronNext_j(Phi_aprimeMatrix_z(d_c,a_c,1,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
+                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_z(d_c,a_c,1,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
                             end
                         end
@@ -137,7 +136,7 @@ while currdist>vfoptions.tolerance
                         for zprime_c=1:N_z
                             if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                                 for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+VKronNext_j(Phi_aprimeMatrix_a(d_c,1,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
+                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_a(d_c,1,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
                             end
                         end
@@ -189,9 +188,9 @@ while currdist>vfoptions.tolerance
             end
             
             if reverse_j==0 % So j==N_j
-                VKronNext_j=V(:,:,1);
+                EVpre=V(:,:,1);
             else
-                VKronNext_j=V(:,:,jj+1);
+                EVpre=V(:,:,jj+1);
             end
             
             if vfoptions.lowmemory==0
@@ -199,7 +198,6 @@ while currdist>vfoptions.tolerance
                     PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
                 end
                 
-                %if vfoptions.returnmatrix==2 % GPU
                 ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
                 %        FmatrixKron_j=reshape(FmatrixFn_j(j),[N_d,N_a,N_z]);
                 %        Phi_aprimeKron=Phi_aprimeKronFn_j(j);
@@ -211,7 +209,7 @@ while currdist>vfoptions.tolerance
                             Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, special_n_z, d_grid, a_grid, z_val,PhiaprimeParamsVec);
                             if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                                 for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+VKronNext_j(Phi_aprimeMatrix(d_c,a_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
+                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix(d_c,a_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
                             end
                         end
@@ -237,7 +235,7 @@ while currdist>vfoptions.tolerance
                             
                             if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                                 for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+VKronNext_j(Phi_aprimeMatrix_z(d_c,a_c,1),zprime_c)*pi_z(z_c,zprime_c);
+                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_z(d_c,a_c,1),zprime_c)*pi_z(z_c,zprime_c);
                                 end
                             end
                         end
@@ -259,7 +257,7 @@ while currdist>vfoptions.tolerance
                         for zprime_c=1:N_z
                             if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                                 for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+VKronNext_j(Phi_aprimeMatrix_a(d_c,1,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
+                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_a(d_c,1,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
                             end
                         end
@@ -314,9 +312,9 @@ while currdist>vfoptions.tolerance
             end
             
             if reverse_j==0 % So j==N_j
-                VKronNext_j=V(:,:,1);
+                EVpre=V(:,:,1);
             else
-                VKronNext_j=V(:,:,jj+1);
+                EVpre=V(:,:,jj+1);
             end
             
             if vfoptions.lowmemory==0
@@ -325,12 +323,11 @@ while currdist>vfoptions.tolerance
                     Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
                 end
                 
-                %if vfoptions.returnmatrix==2 % GPU
                 ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
                 
                 for z_c=1:N_z
                     for a_c=1:N_a
-                        EV_az=VKronNext_j(Phi_aprimeMatrix(:,a_c,z_c),:); %(d,z')
+                        EV_az=EVpre(Phi_aprimeMatrix(:,a_c,z_c),:); %(d,z')
                         EV_az=EV_az.*aaa;
                         EV_az(isnan(EV_az))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                         EV_az=sum(EV_az,2); % reshape(sum(EV_az,2),[N_d,1,1]);
@@ -355,7 +352,7 @@ while currdist>vfoptions.tolerance
                         for zprime_c=1:N_z
                             if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                                 for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+VKronNext_j(Phi_aprimeMatrix_z(d_c,a_c,1),zprime_c)*pi_z(z_c,zprime_c);
+                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_z(d_c,a_c,1),zprime_c)*pi_z(z_c,zprime_c);
                                 end
                             end
                         end
@@ -377,7 +374,7 @@ while currdist>vfoptions.tolerance
                         for zprime_c=1:N_z
                             if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                                 for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+VKronNext_j(Phi_aprimeMatrix_a(d_c,1,z_c),zprime_c)*pi_z(z_c,zprime_c);
+                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_a(d_c,1,z_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
                             end
                         end
@@ -432,9 +429,9 @@ while currdist>vfoptions.tolerance
             end
             
             if reverse_j==0 % So j==N_j
-                VKronNext_j=V(:,:,1);
+                EVpre=V(:,:,1);
             else
-                VKronNext_j=V(:,:,jj+1);
+                EVpre=V(:,:,jj+1);
             end
             
             if vfoptions.phiaprimedependsonage==1
@@ -442,7 +439,6 @@ while currdist>vfoptions.tolerance
                 Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
             end
             
-            %if vfoptions.returnmatrix==2 % GPU
             ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
             %         FmatrixKron_j=reshape(FmatrixFn_j(jj),[N_d,N_a,N_z]);
             %         Phi_aprimeKron=Phi_aprimeKronFn_j(jj);
@@ -502,9 +498,9 @@ while currdist>vfoptions.tolerance
             end
             
             if reverse_j==0 % So j==N_j
-                VKronNext_j=V(:,:,1);
+                EVpre=V(:,:,1);
             else
-                VKronNext_j=V(:,:,jj+1);
+                EVpre=V(:,:,jj+1);
             end
             
             if vfoptions.lowmemory==0
@@ -515,7 +511,7 @@ while currdist>vfoptions.tolerance
                     for zprime_c=1:N_z
                         if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                             for d_c=1:N_d
-                                EV_z(d_c)=EV_z(d_c)+(VKronNext_j(:,zprime_c).*Phi_aprimeMatrix(:,d_c,zprime_c))*pi_z(z_c,zprime_c);
+                                EV_z(d_c)=EV_z(d_c)+(EVpre(:,zprime_c).*Phi_aprimeMatrix(:,d_c,zprime_c))*pi_z(z_c,zprime_c);
                             end
                         end
                     end
@@ -535,7 +531,7 @@ while currdist>vfoptions.tolerance
                     for zprime_c=1:N_z
                         if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                             for d_c=1:N_d
-                                EV_z(d_c)=EV_z(d_c)+VKronNext_j(Phi_aprimeMatrix(d_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
+                                EV_z(d_c)=EV_z(d_c)+EVpre(Phi_aprimeMatrix(d_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                             end
                         end
                     end
@@ -552,7 +548,7 @@ while currdist>vfoptions.tolerance
                     for zprime_c=1:N_z
                         if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                             for d_c=1:N_d
-                                EV_z(d_c)=EV_z(d_c)+VKronNext_j(Phi_aprimeMatrix(d_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
+                                EV_z(d_c)=EV_z(d_c)+EVpre(Phi_aprimeMatrix(d_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                             end
                         end
                     end
@@ -579,9 +575,9 @@ while currdist>vfoptions.tolerance
             jj=N_j-reverse_j;
             
             if reverse_j==0 % So j==N_j
-                VKronNext_j=V(:,:,1);
+                EVpre=V(:,:,1);
             else
-                VKronNext_j=V(:,:,jj+1);
+                EVpre=V(:,:,jj+1);
             end
             
             if fieldexists_pi_z_J==1
@@ -605,7 +601,7 @@ while currdist>vfoptions.tolerance
             ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
             EV=zeros(N_d*N_z,N_z,'gpuArray');
             for zprime_c=1:N_z
-                EV(:,zprime_c)=VKronNext_j(Phi_aprimeMatrix(:,zprime_c)*ones(1,N_z),zprime_c); %(d,z')
+                EV(:,zprime_c)=EVpre(Phi_aprimeMatrix(:,zprime_c)*ones(1,N_z),zprime_c); %(d,z')
             end
             EV=EV.*aaa;
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)

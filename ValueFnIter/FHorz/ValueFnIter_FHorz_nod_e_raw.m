@@ -83,7 +83,7 @@ else
     elseif vfoptions.lowmemory==1
         
         for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:);
+            e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
                         
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
@@ -99,7 +99,7 @@ else
     elseif vfoptions.lowmemory==2
         
         for z_c=1:N_z
-            z_val=z_gridvals_J(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
             EV_z=EV(:,:,z_c);
             
             for e_c=1:N_e

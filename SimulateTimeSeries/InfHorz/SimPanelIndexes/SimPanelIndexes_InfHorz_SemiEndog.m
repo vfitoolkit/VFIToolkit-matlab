@@ -17,28 +17,21 @@ N_d=prod(n_d);
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    if ~isfield(simoptions, 'polindorval')
-        simoptions.polindorval=1;
-    end
-    if ~isfield(simoptions, 'simperiods')
+    if ~isfield(simoptions,'simperiods')
         simoptions.simperiods=50;
     end
-    if ~isfield(simoptions, 'numbersims')
+    if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^3;
     end
-    if ~isfield(simoptions, 'parallel')
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if ~isfield(simoptions, 'verbose')
-        simoptions.verbose=0;
-    end
-    if ~isfield(simoptions, 'verbose')
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
     % Note: SemiEndogShockFn does not presently allow entry/exit
 else
     %If simoptions is not given, just use all the defaults
-    simoptions.polindorval=1;
     simoptions.simperiods=50;
     simoptions.numbersims=10^3;
     simoptions.parallel=1+(gpuDeviceCount>0);
@@ -49,7 +42,7 @@ end
 if exist('CondlProbOfSurvival','var')==1
     simoptions.exitinpanel=1;
     CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a,N_z]);
-    if ~isfield(simoptions, 'endogenousexit')
+    if ~isfield(simoptions,'endogenousexit')
         simoptions.endogenousexit=0;  % Note: this will only be relevant if exitinpanel=1
     end
 end

@@ -31,11 +31,11 @@ else
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if ~isfield(simoptions, 'transprobs')
+    if ~isfield(simoptions,'transprobs')
         simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1); % intended that user inputs names, and this is converted to vector internally
     end
     % Model solution
-    if ~isfield(simoptions, 'gridinterplayer')
+    if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
     end
     % Model setup
@@ -52,7 +52,7 @@ else
         simoptions.n_semiz=0;
     end
     % Internal options
-    if ~isfield(simoptions, 'alreadygridvals')
+    if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
 end

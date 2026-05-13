@@ -27,8 +27,6 @@ if exist('vfoptions','var')==0
     %If vfoptions is not given, just use all the defaults
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
-    vfoptions.polindorval=1;
-    vfoptions.policy_forceintegertype=0;
     % Model setup:
     vfoptions.exoticpreferences='None';
     vfoptions.experienceasset=0;
@@ -43,12 +41,6 @@ else
     end
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
-    end
-    if ~isfield(vfoptions,'polindorval')
-        vfoptions.polindorval=1;
-    end
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
     end
     % Model setup:
     if ~isfield(vfoptions,'exoticpreferences')
@@ -178,9 +170,9 @@ end
 
 %%
 if N_d==0
-    l_daprime=length(n_a);
+    l_daprime=length(n_a)+(vfoptions.gridinterplayer>0);
 else
-    l_daprime=length(n_d)+length(n_a);
+    l_daprime=length(n_d)+length(n_a)+(vfoptions.gridinterplayer>0);
 end
 if vfoptions.experienceasset==1
     l_daprime=l_daprime-1;
@@ -189,9 +181,10 @@ end
 if vfoptions.gridinterplayer==0
     PolicyIndexesPath=zeros(l_daprime,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
 elseif vfoptions.gridinterplayer==1
-    PolicyIndexesPath=zeros(l_daprime+1,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
+    PolicyIndexesPath=zeros(l_daprime,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
 end
 PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_z]);
+
 
 %%
 if vfoptions.experienceasset==0

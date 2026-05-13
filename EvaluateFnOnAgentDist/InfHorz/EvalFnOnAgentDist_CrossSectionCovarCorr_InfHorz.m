@@ -22,7 +22,7 @@ if ~exist('simoptions','var')
 else
     % Check simoptions for missing fields, if there are some fill them with the defaults
     % Model solution
-    if ~isfield(simoptions, 'gridinterplayer')
+    if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
     end
     % Model setup
@@ -39,7 +39,7 @@ else
         simoptions.n_semiz=0;
     end
     % Internal options
-    if ~isfield(simoptions, 'alreadygridvals')
+    if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
 end

@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_raw(VKron, n_d,n_a,n_z, d_gridvals,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -30,7 +30,7 @@ while currdist>Tolerance
     
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_grid, a_grid, zvals,ReturnFnParamsVec);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_gridvals, a_grid, zvals,ReturnFnParamsVec);
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite but not zero
         temp2_z=ReturnMatrix_z;

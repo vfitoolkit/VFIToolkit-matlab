@@ -235,14 +235,14 @@ if isstruct(FnsToEvaluate)
     l_a=length(n_a);
     l_aprime=l_a;
     l_z=length(n_z);
-    if n_z(1)==0
+    if prod(n_z)==0
         l_z=0;
     end
     if isfield(simoptions,'SemiExoStateFn')
         l_z=l_z+length(simoptions.n_semiz);
     end
     l_e=0;
-    if isfield(simoptions,'n_e')
+    if prod(simoptions.n_e)>0
         l_e=length(simoptions.n_e);
         if simoptions.n_e(1)==0
             l_e=0;

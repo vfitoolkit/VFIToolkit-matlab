@@ -133,7 +133,7 @@ end
 
 %% Some internal commands require a few vfoptions and simoptions to be set
 vfoptions.EVpre=0; % Not actually an option that can be used here
-if isfield(vfoptions,'lowmemory')==0
+if ~isfield(vfoptions,'lowmemory')
     vfoptions.lowmemory=0;
 end
 
@@ -202,14 +202,9 @@ for ii=1:PTypeStructure.N_i
     iistr=PTypeStructure.Names_i{ii};
     PTypeStructure.iistr{ii}=iistr;
     
-    if exist('vfoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
-        PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
-    end
-    
-    if exist('simoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
-        PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
-    end
-    
+    %% Sort out vfoptions and simoptions
+    PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+    PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
     % Need to fill in some defaults
     PTypeStructure.(iistr).vfoptions.parallel=2; % hardcode
     PTypeStructure.(iistr).simoptions.parallel=2; % hardcode
@@ -244,6 +239,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).simoptions.experienceasset=0;
     end
 
+    %%
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
@@ -382,12 +378,7 @@ for ii=1:PTypeStructure.N_i
             if ptypedim==1
                 PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
-                if ~strcmp(FullParamNames{kField},PTypeDistParamNames{1})
-                    sprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
-                    sprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
-                    sprintf('(it is possible this is just a coincidence of number of columns) \n')
-                    dbstack
-                end
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(:,ii);
             end
         end
     end
@@ -409,7 +400,7 @@ for ii=1:PTypeStructure.N_i
     end
     l_a=length(PTypeStructure.(iistr).n_a);
     l_z=length(PTypeStructure.(iistr).n_z);
-    if PTypeStructure.(iistr).n_z(1)==0
+    if PTypeStructure.(iistr).N_z==0
         l_z=0;
     end
     if isfield(PTypeStructure.(iistr).vfoptions,'SemiExoStateFn')
@@ -711,6 +702,10 @@ end
 
 
 
+%% If using a shooting algorithm, set that up
+transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames,N_i,PricePathSizeVec);
+
+
 %%
 if transpathoptions.stockvars==1 
     error('transpathoptions.stockvars=1 not yet implemented with PType \n')
@@ -719,10 +714,6 @@ end
 if transpathoptions.verbose==1
     fprintf('Completed setup, beginning transition computination \n')
 end
-
-
-%% If using a shooting algorithm, set that up
-transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames,N_i,PricePathSizeVec);
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
@@ -785,7 +776,7 @@ end
 if transpathoptions.GEnewprice~=2
     % For permanent type, there is just one shooting command,
     % because things like z,e, and fastOLG are handled on a per-PType basis (to permit that they differ across ptype)
-    [PricePath,GEcondnPath]=TransitionPath_Case1_FHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+    [PricePath,GEcondnPathmatrix]=TransitionPath_Case1_FHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
 
     % Switch the solution into structure for output.
     pp_indexinpricepath=zeros(1,length(PricePathNames));
@@ -803,16 +794,19 @@ if transpathoptions.GEnewprice~=2
 
     for pp=1:length(PricePathNames)
         if PTypeStructure.PricePath_Idependsonptype(pp)==0
-            PricePathStruct.(PricePathNames{pp})=PricePath(:,pp_indexinpricepath(pp));
+            PricePathStruct.(PricePathNames{pp})=PricePath(:,pp_indexinpricepath(pp))';
         else
             if transpathoptions.PricePathptype_vectoroutput==1
-                PricePathStruct.(PricePathNames{pp})=PricePath(:,pp_indexinpricepath(pp):pp_indexinpricepath(pp)+PTypeStructure.N_i-1);
+                PricePathStruct.(PricePathNames{pp})=PricePath(:,pp_indexinpricepath(pp):pp_indexinpricepath(pp)+PTypeStructure.N_i-1)';
             elseif transpathoptions.PricePathptype_vectoroutput==0
                 for ii=1:N_i
-                    PricePathStruct.(PricePathNames{pp}).(Names_i{ii})=PricePath(:,pp_indexinpricepath(pp)+ii-1);
+                    PricePathStruct.(PricePathNames{pp}).(Names_i{ii})=PricePath(:,pp_indexinpricepath(pp)+ii-1)';
                 end
             end
         end
+    end
+    for gg=1:length(GEeqnNames)
+        GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg)';
     end
 
     if nargout==1
@@ -825,7 +819,7 @@ if transpathoptions.GEnewprice~=2
 end
 
 
-%%
+%% As optimization problem
 if transpathoptions.GEnewprice==2 % Function minimization
     % Have not attempted implementing this for PType yet, no point until I
     % get it to be useful without PType

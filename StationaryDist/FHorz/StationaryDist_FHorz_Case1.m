@@ -9,6 +9,9 @@ if exist('simoptions','var')==0
     simoptions.experienceassetu=0;
     simoptions.riskyasset=0;
     simoptions.residualasset=0;
+    % Exogenous shocks
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
     % Things that are really just for internal usage
     simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.outputkron=0; % If 1 then leave output in Kron form
@@ -35,6 +38,13 @@ else
     end
     if ~isfield(simoptions,'residualasset')
         simoptions.residualasset=0;
+    end
+    % Exogenous shocks
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
     end
     % Things that are really just for internal usage
     if ~isfield(simoptions,'parallel')
@@ -96,9 +106,10 @@ elseif simoptions.alreadygridvals==1
     pi_z_J=pi_z;
 end
 
-%% Semi-exogenous shock gridvals and pi 
+%% Semi-exogenous shock gridvals and pi
+N_semiz=prod(simoptions.n_semiz);
 if simoptions.alreadygridvals_semiexo==0
-    if isfield(simoptions,'n_semiz')
+    if N_semiz>0
         % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
         simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,1,2);
         % output: simoptions.semiz_gridvals_J, simoptions.pi_semiz_J
@@ -140,13 +151,10 @@ if abs(sum(jequaloneDist(:))-1)>10^(-9)
 end
 
 %%
-if isfield(simoptions,'n_semiz')
-    N_semiz=prod(simoptions.n_semiz);
+if N_semiz>0
     if ~isfield(simoptions,'l_dsemiz')
         simoptions.l_dsemiz=1; % by default, just one decision variable is used for the semi-exo state
     end
-else
-    N_semiz=0;
 end
 
 
@@ -220,11 +228,7 @@ l_a=length(n_a);
 
 N_a=prod(n_a);
 N_z=prod(n_z);
-if isfield(simoptions,'n_e')
-    N_e=prod(simoptions.n_e);
-else
-    N_e=0;
-end
+N_e=prod(simoptions.n_e);
 
 % Deal with the no z and no e first (as it needs different shapes to the rest)
 if N_z==0 && N_e==0

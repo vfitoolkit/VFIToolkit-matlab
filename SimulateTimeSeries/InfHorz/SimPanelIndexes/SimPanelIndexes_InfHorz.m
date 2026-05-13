@@ -39,16 +39,12 @@ else
     l_z=0;
 end
 
-if isfield(simoptions,'n_e')
-    N_e=prod(simoptions.n_e);
+N_e=prod(simoptions.n_e);
+if N_e==0
+    l_e=0;
 else
-    N_e=0;
-end
-if N_e>0
     l_e=length(simoptions.n_e);
     cumsumpi_e=gather(cumsum(simoptions.pi_e,1));
-else
-    l_e=0;
 end
 
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
@@ -57,7 +53,7 @@ cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by usin
 if exist('CondlProbOfSurvival','var')
     simoptions.exitinpanel=1;
     CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a,N_z]);
-    if ~isfield(simoptions, 'endogenousexit')
+    if ~isfield(simoptions,'endogenousexit')
         simoptions.endogenousexit=0;  % Note: this will only be relevant if exitinpanel=1
     end
 else

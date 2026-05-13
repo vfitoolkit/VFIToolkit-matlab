@@ -100,6 +100,13 @@ if simoptions.experienceasset==1
 
     a2primeIndexesPath=gather(a2primeIndexesPath);
     a2primeProbsPath=gather(a2primeProbsPath);
+
+    if simoptions.setup_experienceasset.N_a1==0
+        error('Not yet implemented for experienceasset without a1 (ask on forum if you need this)')
+        % Note to self: Problem is that the create of PolicyaprimePath
+        % assumes that there is an a1, if no a1 this needs to be skipped
+        % and just use the a2primeIndexesPath on its own.
+    end
 end
 
 
@@ -144,6 +151,8 @@ if transpathoptions.fastOLG==0
                 PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
                 PolicyProbsPath=gather(PolicyProbsPath);
+            elseif N_probs>1 % for a reason other than gridinterplayer
+                PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1),1,T-1]); % so can assume this size later
             end
             PolicyaprimejPath=gather(PolicyaprimejPath);
         end
@@ -155,14 +164,22 @@ if transpathoptions.fastOLG==0
                 else
                     PolicyaprimePath_slowOLG=reshape(PolicyaprimePath_slowOLG,[N_a,(N_j-1),1,T])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
-                PolicyProbsPath=a2primeProbsPath;
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             elseif simoptions.fastOLG==1
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
                 else
                     PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
                 end
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     elseif N_z>0 && N_e==0
@@ -198,6 +215,8 @@ if transpathoptions.fastOLG==0
                 PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
                 PolicyProbsPath=gather(PolicyProbsPath);
+            elseif N_probs>1 % for a reason other than gridinterplayer
+                PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z,1,T-1]); % so can assume this size later
             end
             PolicyaprimejzPath=gather(PolicyaprimejzPath);
         end
@@ -209,14 +228,22 @@ if transpathoptions.fastOLG==0
                 else
                     PolicyaprimezPath_slowOLG=reshape(PolicyaprimezPath_slowOLG,[N_a*N_z,(N_j-1),1,T])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
-                PolicyProbsPath=a2primeProbsPath;
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             elseif simoptions.fastOLG==1
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
                 else
                     PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
                 end
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     elseif N_z==0 && N_e>0
@@ -252,6 +279,8 @@ if transpathoptions.fastOLG==0
                 PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
                 PolicyProbsPath=gather(PolicyProbsPath);
+            elseif N_probs>1 % for a reason other than gridinterplayer
+                PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1)*N_e,1,T-1]); % so can assume this size later
             end
             PolicyaprimejPath=gather(PolicyaprimejPath);
         end
@@ -263,14 +292,22 @@ if transpathoptions.fastOLG==0
                 else
                     PolicyaprimePath_slowOLG=reshape(PolicyaprimePath_slowOLG,[N_a*N_e,(N_j-1),1,T])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
-                PolicyProbsPath=a2primeProbsPath;
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             elseif simoptions.fastOLG==1
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
                 else
                     PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
                 end
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     elseif N_z>0 && N_e>0
@@ -306,6 +343,8 @@ if transpathoptions.fastOLG==0
                 PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
                 PolicyProbsPath=gather(PolicyProbsPath);
+            elseif N_probs>1 % for a reason other than gridinterplayer
+                PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z*N_e,1,T-1]); % so can assume this size later
             end
             PolicyaprimejzPath=gather(PolicyaprimejzPath);
         end
@@ -317,14 +356,22 @@ if transpathoptions.fastOLG==0
                 else
                     PolicyaprimezPath_slowOLG=reshape(PolicyaprimezPath_slowOLG,[N_a*N_z*N_e,(N_j-1),1,T])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
-                PolicyProbsPath=a2primeProbsPath;
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             elseif simoptions.fastOLG==1
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
                 else
                     PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
                 end
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     end
@@ -360,6 +407,8 @@ elseif transpathoptions.fastOLG==1
             PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
             PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             PolicyProbsPath=gather(PolicyProbsPath);
+        elseif N_probs>1 % for a reason other than gridinterplayer
+            PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1),1,T-1]); % so can assume this size later
         end
         PolicyaprimejPath=gather(PolicyaprimejPath);
         clear PolicyIndexesPath L2index
@@ -369,7 +418,11 @@ elseif transpathoptions.fastOLG==1
             else
                 PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
             end
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            if exist('PolicyProbsPath','var')
+                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            else
+                PolicyProbsPath=a2primeProbsPath;
+            end
         end
     elseif N_z>0 && N_e==0
         % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
@@ -399,6 +452,8 @@ elseif transpathoptions.fastOLG==1
             PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
             PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             PolicyProbsPath=gather(PolicyProbsPath);
+        elseif N_probs>1 % for a reason other than gridinterplayer
+            PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z,1,T-1]); % so can assume this size later
         end
         PolicyaprimejzPath=gather(PolicyaprimejzPath);
         clear PolicyIndexesPath L2index
@@ -408,7 +463,11 @@ elseif transpathoptions.fastOLG==1
             else
                 PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
             end
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            if exist('PolicyProbsPath','var')
+                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            else
+                PolicyProbsPath=a2primeProbsPath;
+            end
         end
     elseif N_z==0 && N_e>0
         % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
@@ -438,6 +497,8 @@ elseif transpathoptions.fastOLG==1
             PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
             PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             PolicyProbsPath=gather(PolicyProbsPath);
+        elseif N_probs>1 % for a reason other than gridinterplayer
+            PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1)*N_e,1,T-1]); % so can assume this size later
         end
         PolicyaprimejPath=gather(PolicyaprimejPath);
         clear PolicyIndexesPath L2index
@@ -447,7 +508,11 @@ elseif transpathoptions.fastOLG==1
             else
                 PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
             end
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            if exist('PolicyProbsPath','var')
+                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            else
+                PolicyProbsPath=a2primeProbsPath;
+            end
         end
     elseif N_z>0 && N_e>0
         % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
@@ -477,6 +542,8 @@ elseif transpathoptions.fastOLG==1
             PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
             PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             PolicyProbsPath=gather(PolicyProbsPath);
+        elseif N_probs>1 % for a reason other than gridinterplayer
+            PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z*N_e,1,T-1]); % so can assume this size later
         end
         PolicyaprimejzPath=gather(PolicyaprimejzPath);
         clear PolicyIndexesPath L2index
@@ -486,7 +553,11 @@ elseif transpathoptions.fastOLG==1
             else
                 PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);                
             end
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            if exist('PolicyProbsPath','var')
+                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            else
+                PolicyProbsPath=a2primeProbsPath;
+            end
         end
     end
 end

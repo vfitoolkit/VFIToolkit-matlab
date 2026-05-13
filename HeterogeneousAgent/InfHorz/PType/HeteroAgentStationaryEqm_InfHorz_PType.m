@@ -79,26 +79,26 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     heteroagentoptions.outputgather=1; % output GE conditions on CPU [some optimization routines only work on CPU, some can handle GPU]
 else
-    if isfield(heteroagentoptions,'fminalgo')==0
+    if ~isfield(heteroagentoptions,'fminalgo')
         heteroagentoptions.fminalgo=1; % use fminsearch
     end
-    if isfield(heteroagentoptions,'multiGEcriterion')==0
+    if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
     end
-    if isfield(heteroagentoptions,'multiGEweights')==0
+    if ~isfield(heteroagentoptions,'multiGEweights')
         heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     end
-    if isfield(heteroagentoptions,'toleranceGEprices')==0
+    if ~isfield(heteroagentoptions,'toleranceGEprices')
         heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     end
-    if isfield(heteroagentoptions,'toleranceGEcondns')==0
+    if ~isfield(heteroagentoptions,'toleranceGEcondns')
         heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
-    if isfield(heteroagentoptions,'maxiter')==0
+    if ~isfield(heteroagentoptions,'maxiter')
         heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     end
     if N_p~=0
-        if isfield(heteroagentoptions,'p_grid')==0
+        if ~isfield(heteroagentoptions,'p_grid')
             error('You have set n_p to a non-zero value, but not declared heteroagentoptions.p_grid')
         end
     end
@@ -128,7 +128,7 @@ else
         end
     end
     % Verbose settings (feedback)
-    if isfield(heteroagentoptions,'verbose')==0
+    if ~isfield(heteroagentoptions,'verbose')
         heteroagentoptions.verbose=0;
     end
     if ~isfield(heteroagentoptions,'verboseaccuracy1')
@@ -343,6 +343,7 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).n_z=n_z;
     end
+    PTypeStructure.(iistr).N_z=prod(PTypeStructure.(iistr).n_z);
     
     if PTypeStructure.(iistr).n_d(1)==0
         PTypeStructure.(iistr).l_d=0;
@@ -350,7 +351,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).l_d=length(PTypeStructure.(iistr).n_d);
     end
     PTypeStructure.(iistr).l_a=length(PTypeStructure.(iistr).n_a);
-    if PTypeStructure.(iistr).n_z(1)==0
+    if PTypeStructure.(iistr).N_z==0
         PTypeStructure.(iistr).l_z=0;
     else
         PTypeStructure.(iistr).l_z=length(PTypeStructure.(iistr).n_z);

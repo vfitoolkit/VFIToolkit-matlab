@@ -9,21 +9,17 @@ function SimPanel=SimPanelIndexes_FHorz_Case2_AgeDepGrids_Dynasty(InitialDist,Po
 
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
-    %Check simoptions for missing fields, if there are some fill them with
-    %the defaults
-    if ~isfield(simoptions, 'polindorval')
-        simoptions.polindorval=1;
-    end
-    if ~isfield(simoptions, 'simperiods')
+    %Check simoptions for missing fields, if there are some fill them with the defaults
+    if ~isfield(simoptions,'simperiods')
         simoptions.simperiods=N_j;
     end
-    if ~isfield(simoptions, 'numbersims')
+    if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^3;
     end
-    if ~isfield(simoptions, 'parallel')
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=2;
     end
-    if ~isfield(simoptions, 'verbose')
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
@@ -40,7 +36,6 @@ if exist('simoptions','var')==1
     end
 else
     %If simoptions is not given, just use all the defaults
-    simoptions.polindorval=1;
     simoptions.simperiods=N_j;
     simoptions.numbersims=10^3;
     simoptions.parallel=2;

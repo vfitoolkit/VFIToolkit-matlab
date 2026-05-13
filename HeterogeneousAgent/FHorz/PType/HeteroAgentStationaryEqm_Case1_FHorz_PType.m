@@ -390,6 +390,7 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).n_z=n_z;
     end
+    PTypeStructure.(iistr).N_z=prod(PTypeStructure.(iistr).n_z);
     
     if PTypeStructure.(iistr).n_d(1)==0
         PTypeStructure.(iistr).l_d=0;
@@ -397,7 +398,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).l_d=length(PTypeStructure.(iistr).n_d);
     end
     PTypeStructure.(iistr).l_a=length(PTypeStructure.(iistr).n_a);
-    if PTypeStructure.(iistr).n_z(1)==0
+    if PTypeStructure.(iistr).N_z==0
         PTypeStructure.(iistr).l_z=0;
     else
         PTypeStructure.(iistr).l_z=length(PTypeStructure.(iistr).n_z);

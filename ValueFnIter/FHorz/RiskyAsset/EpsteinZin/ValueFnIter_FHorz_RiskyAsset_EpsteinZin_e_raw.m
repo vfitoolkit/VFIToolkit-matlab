@@ -511,12 +511,12 @@ for reverse_j=1:N_j-1
         end
     end
     
-    VKronNext_j=V(:,:,:,jj+1);
+    EVpre=V(:,:,:,jj+1);
         
     % Part of Epstein-Zin is before taking expectation
-    temp=VKronNext_j;
-    temp(isfinite(VKronNext_j))=(ezc4*VKronNext_j(isfinite(VKronNext_j))).^ezc5(jj);
-    temp(VKronNext_j==0)=0; % otherwise zero to negative power is set to infinity
+    temp=EVpre;
+    temp(isfinite(EVpre))=(ezc4*EVpre(isfinite(EVpre))).^ezc5(jj);
+    temp(EVpre==0)=0; % otherwise zero to negative power is set to infinity
 
     % Take expectation over e
     temp=sum(temp.*pi_e_J(1,1,:,jj),3);

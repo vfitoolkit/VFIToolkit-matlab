@@ -34,7 +34,7 @@ if exist('rouwenhorstoptions','var')==0
     rouwenhorstoptions.parallel=1+(gpuDeviceCount>0);
 else
     %Check rouwenhorstoptions for missing fields, if there are some fill them with the defaults
-    if isfield(rouwenhorstoptions,'parallel')==0
+    if ~isfield(rouwenhorstoptions,'parallel')
         rouwenhorstoptions.parallel=1+(gpuDeviceCount>0);
     end
 end

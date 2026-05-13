@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_NoD_SemiEndog_Par2_raw(VKron, n_a, n_z, pi_z_semiendog, beta, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose, a_grid, z_grid, 
+function [VKron, Policy]=ValueFnIter_InfHorz_SemiEndog_nod_raw(VKron, n_a, n_z, pi_z_semiendog, beta, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose, a_grid, z_grid,
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 

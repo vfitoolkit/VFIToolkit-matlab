@@ -37,10 +37,10 @@ if exist('tauchenoptions','var')==0
     tauchenoptions.verbose=1;
 else
     %Check tauchenoptions for missing fields, if there are some fill them with the defaults
-    if isfield(tauchenoptions,'parallel')==0
+    if ~isfield(tauchenoptions,'parallel')
         tauchenoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if isfield(tauchenoptions,'verbose')==0
+    if ~isfield(tauchenoptions,'verbose')
         tauchenoptions.verbose=1;
     end
 end

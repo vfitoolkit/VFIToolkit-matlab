@@ -1,11 +1,5 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,Refine) % Refine is an optional input
-% If there is no d variable, just input n_d=0 and d_grid=0
-
-if size(d_grid,2)==1 % stacked-column % IN FUTURE, CHANGE INPUT TO BE d_gridvals
-    d_gridvals=CreateGridvals(n_d,d_grid,1);
-else
-    d_gridvals=d_grid;
-end
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,Refine) % Refine is an optional input
+% If no d variable, just input n_d=0 and d_grid=[]
 
 ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';
 
@@ -50,7 +44,6 @@ elseif l_d==0 && l_a==3
 elseif l_d==0 && l_a==4 
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, ReturnFnParamsCell{:});
 elseif l_d==1 && l_a==1 
-%     d_gridvals(:,1)(1,1,1)=d_grid(1); % Requires special treatment 
     Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, ReturnFnParamsCell{:});
 elseif l_d==1 && l_a==2 
     Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals,aprime2vals, a1vals,a2vals, ReturnFnParamsCell{:});

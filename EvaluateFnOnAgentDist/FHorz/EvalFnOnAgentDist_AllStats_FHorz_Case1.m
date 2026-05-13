@@ -35,6 +35,7 @@ else
         simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
     end
 end
+% Note: FnsToEvaluate commands deliberately do not create n_e and n_semiz in simoptions
 
 if gpuDeviceCount==0
     error('AllStats requires a GPU')

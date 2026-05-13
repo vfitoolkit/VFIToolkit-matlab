@@ -16,14 +16,14 @@ else
 end
 l_aprime=l_a;
 l_z=length(n_z);
-if n_z(1)==0
+if prod(n_z)==0
     l_z=0;
 end
-if isfield(vfoptions,'n_semiz')
+if isfield(vfoptions,'n_semiz') && vfoptions.n_semiz>0
     l_z=l_z+length(vfoptions.n_semiz);
 end
 l_e=0;
-if isfield(vfoptions,'n_e')
+if isfield(vfoptions,'n_e') && vfoptions.n_e>0
     l_e=length(vfoptions.n_e);
 end
 if isfield(vfoptions,'experienceasset')
@@ -50,14 +50,6 @@ if isfield(vfoptions,'refine_d')
     % Remove d2
     l_d=l_d-vfoptions.refine_d(2);
 end
-if isfield(vfoptions,'endotype')
-    if max(vfoptions.endotype)==1
-        l_aprime=l_aprime-sum(vfoptions.endotype); % Some of the endogenous states is an endogenous type, so it won't appear at this
-        l_a=l_a-sum(vfoptions.endotype); % Some of the endogenous states is an endogenous type, so it won't appear at this
-        l_z=l_z+sum(vfoptions.endotype); % The variables after z is the endogenous types
-    end
-end
-
 % Figure out ReturnFnParamNames from ReturnFn
 temp=getAnonymousFnInputNames(ReturnFn);
 if length(temp)>(l_d+l_aprime+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters

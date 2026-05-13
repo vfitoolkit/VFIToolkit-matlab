@@ -73,15 +73,15 @@ else
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=100;
     end
-    if isfield(simoptions,'nquantiles')==0
+    if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=20; % by default gives ventiles
     end
-    if isfield(simoptions,'npoints')==0
+    if ~isfield(simoptions,'npoints')
         simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     elseif simoptions.npoints==0
         error('simoptions.npoints must be a positive (non-zero) integer')
     end
-    if isfield(simoptions,'tolerance')==0    
+    if ~isfield(simoptions,'tolerance')    
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
     if ~isfield(simoptions,'whichstats')

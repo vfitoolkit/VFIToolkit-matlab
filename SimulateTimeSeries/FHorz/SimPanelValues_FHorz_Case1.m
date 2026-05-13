@@ -67,10 +67,10 @@ else
         simoptions.n_e=0;
     end
     % When calling as a subcommand, the following is used internally
-    if ~isfield(simoptions, 'alreadygridvals')
+    if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
-    if ~isfield(simoptions, 'alreadygridvals_semiexo')
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
         simoptions.alreadygridvals_semiexo=0;
     end
     % For internal use only

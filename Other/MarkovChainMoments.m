@@ -25,19 +25,19 @@ if exist('mcmomentsoptions','var')==0
     mcmomentsoptions.Tolerance=10^(-8);
     mcmomentsoptions.calcautocorrelation=1; % Have made it easy to skip calculating autocorrelation as this takes time
 else
-    if isfield(mcmomentsoptions,'parallel')==0
+    if ~isfield(mcmomentsoptions,'parallel')
         mcmomentsoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if isfield(mcmomentsoptions,'eigenvector')==0
+    if ~isfield(mcmomentsoptions,'eigenvector')
         mcmomentsoptions.eigenvector=1; % Use eigenvector based approach by default
     end
-    if isfield(mcmomentsoptions,'Tolerance')==0
+    if ~isfield(mcmomentsoptions,'Tolerance')
         mcmomentsoptions.Tolerance=10^(-8);
     end
-    if isfield(mcmomentsoptions,'T')==0
+    if ~isfield(mcmomentsoptions,'T')
         mcmomentsoptions.T=10^6;
     end
-    if isfield(mcmomentsoptions,'calcautocorrelation')==0
+    if ~isfield(mcmomentsoptions,'calcautocorrelation')
         mcmomentsoptions.calcautocorrelation=1;
     end
 end

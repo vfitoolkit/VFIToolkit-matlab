@@ -21,10 +21,10 @@ if exist('mvnoptions','var')==0
     mvnoptions.verbose=1;
 else
     %Check mvnoptions for missing fields, if there are some fill them with the defaults
-    if isfield(mvnoptions,'parallel')==0
+    if ~isfield(mvnoptions,'parallel')
         mvnoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if isfield(mvnoptions,'verbose')==0
+    if ~isfield(mvnoptions,'verbose')
         mvnoptions.verbose=1;
     end
 end
