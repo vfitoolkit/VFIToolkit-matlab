@@ -782,48 +782,48 @@ for ii=1:PTypeStructure.N_i
                 error('The age weights parameter seems to be the wrong size')
             end
         end
-    % Check ParamPath to see if the AgeWeights vary over the transition
-    % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
-    temp=strcmp(ParamPathNames,AgeWeightsParamNames.(iistr){1});
-    if any(temp)
-        transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
-        [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
-        % Create AgeWeights_T
-        PTypeStructure.(iistr).AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j-by-T (as transpose)
-        % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
-    end
-
-    % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
-    if PTypeStructure.(iistr).simoptions.fastOLG==1
-        if N_z==0
-            PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
-        else
-            PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+        % Check ParamPath to see if the AgeWeights vary over the transition
+        % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
+        temp=strcmp(ParamPathNames,AgeWeightsParamNames.(iistr){1});
+        if any(temp)
+            transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
+            [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
+            % Create AgeWeights_T
+            PTypeStructure.(iistr).AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j-by-T (as transpose)
+            % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
         end
-        PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
-    else
-        transpathoptions.(iistr).trivialjequalonedist=1;
-        if N_z==0
-            if N_e==0
-                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]); % if simoptions.fastOLG==0
-                if PTypeStructure.(iistr).simoptions.fastOLG==1
-                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]);
+    
+        % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
+        if PTypeStructure.(iistr).simoptions.fastOLG==1
+            if N_z==0
+                PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
+            else
+                PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+            end
+        else
+            transpathoptions.(iistr).trivialjequalonedist=1;
+            if N_z==0
+                if N_e==0
+                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]); % if simoptions.fastOLG==0
+                    if PTypeStructure.(iistr).simoptions.fastOLG==1
+                        AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]);
+                    end
+                end
+            else
+                if N_e==0
+                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,1]);
+                elseif simoptions.fastOLG==0
+                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z*N_e,1]);
+                else
+                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,N_e]);
                 end
             end
-        else
-            if N_e==0
-                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,1]);
-            elseif simoptions.fastOLG==0
-                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z*N_e,1]);
-            else
-                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,N_e]);
-            end
         end
-        PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
-    end
+        PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist;
 
-    AgentDist_initial.(iistr)=AgentDist_init;
-    clear AgentDist_init
+        AgentDist_initial.(iistr)=AgentDist_init;
+        clear AgentDist_init
+    end
 
     %% Which parts of ParamPath and PricePath relate to ptype ii
     % Some ParamPath and PricePath parameters may depend on ptype
