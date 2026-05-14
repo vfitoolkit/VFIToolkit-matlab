@@ -1,4 +1,10 @@
 function PricePathOld=updatePricePath(PricePathOld,PricePathNew,transpathoptions,T)
+% Note: if you are using 
+% transpathoptions.GEnewprice=3
+% then the defaults will have set:
+% transpathoptions.oldpathweight=0;
+% and so this updatePricePath() does nothing. The price path updating is
+% done elsewhere
 
 % Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
 if transpathoptions.weightscheme==0
