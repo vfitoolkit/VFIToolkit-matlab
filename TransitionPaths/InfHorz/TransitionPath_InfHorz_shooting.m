@@ -1,14 +1,13 @@
-function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d,n_a,n_z,n_e, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions,transpathoptions)
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d,n_a,n_z,n_e, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptions, simoptions,transpathoptions)
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
 if transpathoptions.verbose==1
     % Set up some things to be used later
-    pathnametitles=cell(1,2*length(PricePathNames));
-    for ii=1:length(PricePathNames)
-        pathnametitles{ii}={['Old ',PricePathNames{ii}]};
-        pathnametitles{ii+length(PricePathNames)}={['New ',PricePathNames{ii}]};
-    end
+    pathnametitles=strjoin(PricePathNames,' ');
+    wpathnametitle=10*length(PricePathNames); % roughly the space that will use to print the prices themselves
+    % fprintf('%-*s || %-*s \n',wpathnametitle,'Old',wpathnametitle,'New')
+    % fprintf('%-*s || %-*s \n',wpathnametitle,pathnametitles,wpathnametitle,pathnametitles)
 end
 
 %%
@@ -51,7 +50,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
         end
     end
-
+    if use_stockvars==1
+        for pp=1:length(stockvarsNames)
+            Parameters.([stockvarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(stockvarsNames{pp});
+        end
+    end
+    
     for tt=1:T-1
         %% Setup the Parameters for period tt
 
@@ -73,14 +77,19 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
                 end
             end
+            if use_stockvars==1 % Comes from PricePathNew, unlike the _tminus1price, which comes from the PricePathOld
+                for pp=1:length(stockvarsNames)
+                    Parameters.([stockvarsNames{pp},'_tminus1'])=PricePathNew(tt-1,PricePathSizeVec(1,stockvarInPricePathNames(pp)):PricePathSizeVec(2,stockvarInPricePathNames(pp)));
+                end
+            end
         end
 
         % Update current PricePath and ParamPath
-        for kk=1:length(PricePathNames)
-            Parameters.(PricePathNames{kk})=PricePathOld(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+        for pp=1:length(PricePathNames)
+            Parameters.(PricePathNames{pp})=PricePathOld(tt,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp));
         end
-        for kk=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+        for pp=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{pp})=ParamPath(tt,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp));
         end
 
         % Get t+1 PricePath
@@ -116,13 +125,43 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
             end
         end
-
+    
         %% General Eqm Eqns
         % Evaluate the general eqm conditions, and based on them create PricePathNew (interpretation depends on transpathoptions)
         [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_tt(Parameters,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PricePathOld(tt,:),transpathoptions);
         PricePathNew(tt,:)=PricePathNew_tt;
         GEcondnPath(tt,:)=GEcondnPath_tt;
 
+        % if tt<=2
+        %     disp('HERE')
+        %     tt
+        %     % Check GDebt_tminus1 is as intended
+        %     if tt==1
+        %         [Parameters.GDebt_tminus1,transpathoptions.initialvalues.GDebt]
+        %     else
+        %         [Parameters.GDebt_tminus1,PricePathNew(tt-1,3)]
+        %     end
+        %     % Check GDebt is as intended
+        %     [Parameters.GDebt,PricePathOld(tt,3)]
+        % 
+        %     % Now, the GEcondn comes out like
+        %     GEcondnPath(tt,3)
+        %     % So the new value should be
+        %     PricePathOld(tt,3)-GEcondnPath(tt,3)
+        %     % While the actual new value is 
+        %     PricePathNew(tt,3)
+        %     disp('END')
+        % 
+        % 
+        %     transpathoptions.GEnewprice3.add
+        %     transpathoptions.GEnewprice3.factor
+        %     transpathoptions.GEnewprice3.permute
+        % 
+        %     if tt==2
+        %         return
+        %     end
+        % end
+        
         % Sometimes, want to keep the AggVars to plot them
         if transpathoptions.graphaggvarspath==1
             for ii=1:length(AggVarNames)
@@ -141,9 +180,13 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
 
     if transpathoptions.verbose==1
-        disp('Old, New')
+        fprintf(' \n')
+        fprintf('%-*s || %-*s \n',wpathnametitle,'Old',wpathnametitle,'New')
+        fprintf('%-*s || %-*s \n',wpathnametitle,pathnametitles,wpathnametitle,pathnametitles)
+
+        % disp('Old, New')
         % Would be nice to have a way to get the iteration count without having the whole printout of path values (I think that would be useful?)
-        pathnametitles{:}
+        % pathnametitles
         [PricePathOld,PricePathNew]
     end
 
