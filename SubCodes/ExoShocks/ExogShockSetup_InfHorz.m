@@ -7,6 +7,36 @@ function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Para
 % gridpiboth=2: sometimes (agent dist)    we want just transition probabilities
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
+% Accepted input shapes:
+%   z_grid:
+%     [sum(n_z), 1]                 stacked column grid for markov z
+%     [prod(n_z), length(n_z)]      joint grid for markov z
+%   pi_z:
+%     [prod(n_z), prod(n_z)]        transition matrix for markov z (rows = from-state, cols = to-state)
+%   options.e_grid:
+%     [sum(n_e), 1]                 stacked column grid for iid e
+%     [prod(n_e), length(n_e)]      joint grid for iid e
+%   options.pi_e:
+%     [prod(n_e), 1]                iid distribution (column vector of probabilities)
+%
+% If options.ExogShockFn is supplied, it is called to produce [z_grid, pi_z]
+% in one of the shapes above; the raw z_grid / pi_z inputs are then ignored.
+% Likewise, if options.EiidShockFn is supplied, it produces [options.e_grid,
+% options.pi_e] in one of the shapes above; the raw options.e_grid /
+% options.pi_e inputs are then ignored.
+%
+% Stacked column grid: each of the underlying univariate grids written one
+% beneath the next in a single column of length sum(n_z). Compact, but the
+% joint state space is only implicit. For example with two markov variables
+% of sizes n_z=[3,2], the column contains the 3 values of z1 followed by the
+% 2 values of z2, giving a 5x1 vector.
+%
+% Joint grid: every point in the product space listed explicitly, one per
+% row, with each variable in its own column. The number of rows is
+% prod(n_z) and the number of columns is length(n_z). Continuing the
+% example, a joint grid is 6x2: each row pairs one z1 value with one z2
+% value, covering all 6 combinations.
+
 %% Check basic setup
 if ~isfield(options,'n_e')
     n_e=0;
