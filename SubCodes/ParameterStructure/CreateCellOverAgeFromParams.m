@@ -6,7 +6,7 @@ function CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,ParamNa
 % given by CalibParamNames) and each row is a different age (j).
 %
 % Important difference from CreateCellFromParams is that it keeps the whole
-% of the age-dependent parameters, rather than getting a specfic age j.
+% of the age-dependent parameters, rather than getting a specific age j.
 
 nCalibParams=length(ParamNames);
 FullParamNames=fieldnames(Parameters);

@@ -38,7 +38,7 @@ if l_a>=1
         end
     end
 end
-if all(size(z_grid)==[sum(n_z),1]) % kroneker product z_grid
+if all(size(z_grid)==[sum(n_z),1]) % kronecker product z_grid
     if l_z>=1
         z1vals=shiftdim(z_grid(1:n_z(1)),-l_a);
         if l_z>=2

@@ -89,13 +89,13 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
     aprimeProbs2=aprimeProbs; % version that I can modify with skipinterp
     aprimeProbs2(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs2.*Vlower+(1-aprimeProbs2).*Vupper; % (d2,a1prime,a2,zprime)
     % Already applied the probabilities from interpolating onto grid
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=EV.*Epi_z;
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular second dimension
     % EV is over (d2&a1prime,a2,1,z)
 
@@ -140,13 +140,13 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
             aprimeProbs_Howards2=aprimeProbs_Howards.*ones(1,N_z);
             aprimeProbs_Howards2(skipinterp)=0; % effectively skips interpolation
 
-            % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+            % Switch EV from being in terms of a2prime to being in terms of d2 and a2
             EV=aprimeProbs_Howards2.*Vlower+(1-aprimeProbs_Howards2).*Vupper; % (a1prime-by-a2prime,zprime)
             % Already applied the probabilities from interpolating onto grid
 
             % Calc the condl expectation term (except beta), which depends on z but not on control variables
             EV=aaa.*EV;
-            EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=squeeze(sum(EV,2)); % sum over z', leaving a singular second dimension
 
             V=Ftemp+DiscountFactorParamsVec*EV;
@@ -177,13 +177,13 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     aprimeProbs2=aprimeProbs; % version that I can modify with skipinterp
     aprimeProbs2(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs2.*Vlower+(1-aprimeProbs2).*Vupper; % (d2,a1prime,a2,zprime)
     % Already applied the probabilities from interpolating onto grid
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=EV.*Epi_z;
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular second dimension
     % EV is over (d2&a1prime,a2,1,z)
 
@@ -231,13 +231,13 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             aprimeProbs_Howards2=aprimeProbs_Howards.*ones(1,N_z);
             aprimeProbs_Howards2(skipinterp)=0; % effectively skips interpolation
 
-            % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+            % Switch EV from being in terms of a2prime to being in terms of d2 and a2
             EV=aprimeProbs_Howards2.*Vlower+(1-aprimeProbs_Howards2).*Vupper; % (a1prime-by-a2prime,zprime)
             % Already applied the probabilities from interpolating onto grid
 
             % Calc the condl expectation term (except beta), which depends on z but not on control variables
             EV=aaa.*EV;
-            EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=squeeze(sum(EV,2)); % sum over z', leaving a singular second dimension
 
             V=Ftemp+DiscountFactorParamsVec*EV;

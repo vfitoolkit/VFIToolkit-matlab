@@ -167,7 +167,7 @@ agedepparamnames=fieldnames(AgeDepParams);
 %%
 
 for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
-    % Pull the appropraite initial distribution of agents
+    % Pull the appropriate initial distribution of agents
     if N_ze==0
         jequaloneDistKron=reshape(StationaryDist_Control(:,j_p),[N_a,1]);
         PolicyKron_treat=PolicyKron(:,:,j_p:j_p+TreatmentDuration-1);

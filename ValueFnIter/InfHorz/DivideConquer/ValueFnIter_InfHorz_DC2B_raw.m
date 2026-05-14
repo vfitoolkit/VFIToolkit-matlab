@@ -57,7 +57,7 @@ Policy=zeros(N_a,N_z,'gpuArray');
 Ftemp=zeros(N_a,N_z,'gpuArray');
 
 % Precompute
-Epi_z=shiftdim(pi_z',-1); % pi_z in the form we need it to compute the expections
+Epi_z=shiftdim(pi_z',-1); % pi_z in the form we need it to compute the expectations
 
 % For Howards we want
 bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
@@ -75,7 +75,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=Vold.*Epi_z;
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
     % EV is (a1a2prime,1,z)
 

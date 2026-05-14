@@ -119,7 +119,7 @@ if isfield(simoptions,'eval_valuefn')
 end
 
 
-%% Deal with Entry and/or Exit if approprate
+%% Deal with Entry and/or Exit if appropriate
 if isstruct(StationaryDist)
     % Note: if you want the agent mass of the stationary distribution you have to call it 'agentmass'
     if ~isfield(simoptions,'endogenousexit')

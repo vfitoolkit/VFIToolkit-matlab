@@ -5,7 +5,7 @@ function SimPanelValues=SimPanelValues_FHorz_Case1(InitialDist,Policy,FnsToEvalu
 % number of 'variables' to be simulated, second dimension is FHorz, and
 % third dimension is the number-of-simulations
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 
@@ -20,8 +20,8 @@ if ~exist('simoptions','var')
     % Model setup
     simoptions.gridinterplayer=0;
     simoptions.experienceasset=0;
-    simoptions.experienceassetu=0; % note, experienceassetu=1 not yet implmented
-    simoptions.riskyasset=0; % note, riskyasset=1 not yet implmented
+    simoptions.experienceassetu=0; % note, experienceassetu=1 not yet implemented
+    simoptions.riskyasset=0; % note, riskyasset=1 not yet implemented
     simoptions.n_semiz=0;
     simoptions.n_e=0;
     % When calling as a subcommand, the following is used internally
@@ -274,7 +274,7 @@ daprimePolicy_gridvals=gpuArray(daprimePolicy_gridvals);
 SimPanelIndexes=gpuArray(SimPanelIndexes);
 
 SimPanelValues=nan(length(FnsToEvaluate), N_j, simoptions.numbersims,'gpuArray'); % needs to be NaN to permit that some people might be 'born' later than age j=1
-% Note, having the whole N_j at this stage makes assiging the values based on the indexes vastly faster
+% Note, having the whole N_j at this stage makes assigning the values based on the indexes vastly faster
 
 
 %% Create PanelValues from PanelIndexes

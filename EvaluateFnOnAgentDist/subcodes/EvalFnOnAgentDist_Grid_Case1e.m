@@ -48,7 +48,7 @@ if l_a>=1
         end
     end
 end
-if all(size(z_grid)==[sum(n_z),1]) % kroneker product z_grid
+if all(size(z_grid)==[sum(n_z),1]) % kronecker product z_grid
     z_shift=l_z;
     if l_z>=1
         z1vals=shiftdim(z_grid(1:n_z(1)),-l_a);
@@ -83,7 +83,7 @@ elseif all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
         end
     end
 end
-if all(size(e_grid)==[sum(n_e),1]) % kroneker product e_grid
+if all(size(e_grid)==[sum(n_e),1]) % kronecker product e_grid
     if l_e>=1
         e1vals=shiftdim(e_grid(1:n_e(1)),-l_a-z_shift);
         if l_e>=2

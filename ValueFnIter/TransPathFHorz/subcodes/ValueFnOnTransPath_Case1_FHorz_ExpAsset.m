@@ -17,7 +17,7 @@ if prod(n_d1)>0
 else
     d_gridvals=[]; % wont be used
 end
-% Split endogneous states into the standard ones and the experience asset
+% Split endogenous states into the standard ones and the experience asset
 if isscalar(n_a)
     n_a1=0;
 else

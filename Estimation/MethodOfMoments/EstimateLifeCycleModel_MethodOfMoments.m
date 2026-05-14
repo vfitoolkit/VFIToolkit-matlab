@@ -74,11 +74,11 @@ if ~isfield(estimoptions,'bootstrapStdErrors')
     estimoptions.bootstrapStdErrors=0; % =1, bootstraps the standard errors (instead of based on derivatives, which is the default)
 end
 if ~isfield(estimoptions,'numbootstrapssims')
-    % When doing two-step GMM, or bootstraping Standard Errors
+    % When doing two-step GMM, or bootstrapping Standard Errors
     estimoptions.numbootstrapsims=100; % Number of simulations
 end
 if ~isfield(estimoptions,'numberinvidualsperbootstrapsim')
-    % When doing two-step GMM, or bootstraping Standard Errors
+    % When doing two-step GMM, or bootstrapping Standard Errors
     estimoptions.numberinvidualsperbootstrapsim=1000;
     % Note that each individual simulation will be N_j periods, so total
     % 'observations' is more like estimoptions.numberinvidualsperbootstrapsim*N_j
@@ -103,7 +103,7 @@ end
 estimoptions.useCustomModelStats=0;
 if isfield(estimoptions,'CustomModelStats')
     estimoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     estimoptions.CustomModelStatsInputs.z_grid=z_grid;
     estimoptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -142,8 +142,8 @@ else
 end
 estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
-estimomitparams_counter=zeros(length(EstimParamNames),1); % column vector: estimomitparamsvec allows omiting the parameter for certain ages
-estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
+estimomitparams_counter=zeros(length(EstimParamNames),1); % column vector: estimomitparamsvec allows omitting the parameter for certain ages
+estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omitted values of a parameter
 for pp=1:length(EstimParamNames)
     if any(strcmp(OmitEstimParamsNames,EstimParamNames{pp}))
         % This parameter is under an omit-mask, so need to only use part of it
@@ -392,10 +392,10 @@ end
 % Part of the standard deviations is to compute J (the jacobian matrix of derivatives of model moments to the estimated parameters).
 % To make it easier to compute the derivatives by finite-difference, I turn off the parameter constraints and just use the model
 % parameter values (rather than the internal-transformed-parameters) directly. Just makes it easier to follow what is going on (at least in my head).
-% To faciliate this I use estimoptionsJacobian=estimoptions, but with modifications.
+% To facilitate this I use estimoptionsJacobian=estimoptions, but with modifications.
 % Later I did some searching, and it seems there are no precise answers online, but some people (Python 'optimagic' on github) made same decision I did, of taking
 % derivatives based on 'external' parameters rather than 'internal' (transformed) parameters.
-% Other open issue, what do you do when the resulting standard deviations mean confidence intervals reach outside your contraints?
+% Other open issue, what do you do when the resulting standard deviations mean confidence intervals reach outside your constraints?
 if estimoptions.bootstrapStdErrors==0
     % First, need the Jacobian matrix, which involves computing all the
     % derivatives of the individual moments with respect to the estimated parameters
@@ -503,7 +503,7 @@ if estimoptions.bootstrapStdErrors==0
         J_centered=(ObjValue_upwind-ObjValue_downwind)./((epsilonparamup(:,ee)-epsilonparamdown(:,ee))');
         % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
 
-        % J is nmonents-by-nparams
+        % J is nmoments-by-nparams
         J_full=J_centered;
         % If epsilon changes pushed us outside the parameter constraints, then we just use the one-sided finite-differences
         for pp=1:length(estimparamsvec)
@@ -589,7 +589,7 @@ end
 
 
 %% Local identification
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
+if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     % The estimate is locally identified if the matrix J is full rank
     estsummary.localidentification.rankJ=rank(J); % If this is greater or equal to number of parameters, then locally identified
     estsummary.localidentification.yesidentified=logical(rank(J)>=length(estimparamsvec));
@@ -599,7 +599,7 @@ end
 
 %% Some additional outputs
 % Mainly, the Sensitivity matrix
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
+if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     % Sensitivity of estimated parameters to the target moments
     % Sensitivity matrix, Lambda, of Andrews, Gentzkow & Shapiro (2017) - Measuring the Sensitivity of Parameter Estimates to Estimation Moments
     SensitivityMatrix=(-(J'*WeightingMatrix*J)^(-1))*(J'*WeightingMatrix);
@@ -698,7 +698,7 @@ for pp=1:length(EstimParamNames)
         %     % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         %     estsummary.EstimParamsStdDev.(EstimParamNames{pp})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
         % end
-        % If bootstrap std errors, then replace the std dev with the bootstrap distribuiton
+        % If bootstrap std errors, then replace the std dev with the bootstrap distribution
     elseif estimoptions.bootstrapStdErrors==1
         estsummary.EstimParamsStdDev=EstimParamsBootStrapDist;
         estsummary.notes.bootstrap=['Standard errors report distribution of parameter estimates based on ',num2str(estimoptions.numbootstrapsims),' bootstraps, each had ',num2str(estimoptions.numberinvidualsperbootstrapsim),' agents for ',num2str(N_j),' periods (so some ',num2str(N_j*estimoptions.numberinvidualsperbootstrapsim),' observations)' ];
@@ -754,7 +754,7 @@ if estimoptions.skipestimation==1
     estsummary.warningskipestimation='Warning: this estimation used estimoptions.skipestimation=1 (all good, just reminding you as you need to be careful when using skipestimation=1 :)';
 end
 
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
+if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     estsummary.variousmatrices.J=J;
     if estimoptions.efficientW==0
         estsummary.variousmatrices.Omega=CoVarMatrixDataMoments; % Covariance matrix of the data moments

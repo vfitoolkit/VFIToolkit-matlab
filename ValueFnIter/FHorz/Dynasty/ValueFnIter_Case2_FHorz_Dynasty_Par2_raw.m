@@ -88,7 +88,7 @@ while currdist>vfoptions.tolerance
                     for a_c=1:N_a
                         RHSpart2=zeros(N_d,1);
                         for zprime_c=1:N_z
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                                 for d_c=1:N_d
                                     RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix(d_c,a_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
@@ -112,7 +112,7 @@ while currdist>vfoptions.tolerance
                     for a_c=1:N_a
                         RHSpart2=zeros(N_d,1);
                         for zprime_c=1:N_z
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                                 for d_c=1:N_d
                                     RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_z(d_c,a_c,1,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
@@ -134,7 +134,7 @@ while currdist>vfoptions.tolerance
                     for z_c=1:N_z
                         RHSpart2=zeros(N_d,1);
                         for zprime_c=1:N_z
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                                 for d_c=1:N_d
                                     RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_a(d_c,1,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
@@ -207,7 +207,7 @@ while currdist>vfoptions.tolerance
                         for zprime_c=1:N_z
                             z_val=z_gridvals(zprime_c,:);
                             Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, special_n_z, d_grid, a_grid, z_val,PhiaprimeParamsVec);
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                                 for d_c=1:N_d
                                     RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix(d_c,a_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
@@ -233,7 +233,7 @@ while currdist>vfoptions.tolerance
                             zprime_val=z_gridvals(zprime_c,:);
                             Phi_aprimeMatrix_z=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, special_n_z, d_grid, a_grid, zprime_val,PhiaprimeParamsVec);
 
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                                 for d_c=1:N_d
                                     RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_z(d_c,a_c,1),zprime_c)*pi_z(z_c,zprime_c);
                                 end
@@ -255,7 +255,7 @@ while currdist>vfoptions.tolerance
                     for z_c=1:N_z
                         RHSpart2=zeros(N_d,1);
                         for zprime_c=1:N_z
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                                 for d_c=1:N_d
                                     RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_a(d_c,1,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
@@ -329,7 +329,7 @@ while currdist>vfoptions.tolerance
                     for a_c=1:N_a
                         EV_az=EVpre(Phi_aprimeMatrix(:,a_c,z_c),:); %(d,z')
                         EV_az=EV_az.*aaa;
-                        EV_az(isnan(EV_az))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                        EV_az(isnan(EV_az))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                         EV_az=sum(EV_az,2); % reshape(sum(EV_az,2),[N_d,1,1]);
                         entireRHS=ReturnMatrix(:,a_c,z_c)+DiscountFactorParamsVec*EV_az; %aprime by 1
 
@@ -350,7 +350,7 @@ while currdist>vfoptions.tolerance
                     for a_c=1:N_a
                         RHSpart2=zeros(N_d,1,'gpuArray');
                         for zprime_c=1:N_z
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                                 for d_c=1:N_d
                                     RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_z(d_c,a_c,1),zprime_c)*pi_z(z_c,zprime_c);
                                 end
@@ -372,7 +372,7 @@ while currdist>vfoptions.tolerance
                     for z_c=1:N_z
                         RHSpart2=zeros(N_d,1);
                         for zprime_c=1:N_z
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                                 for d_c=1:N_d
                                     RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_a(d_c,1,z_c),zprime_c)*pi_z(z_c,zprime_c);
                                 end
@@ -448,7 +448,7 @@ while currdist>vfoptions.tolerance
                 EV(:,zprime_c)=VKronold(Phi_aprime(:,:,zprime_c),zprime_c); %(d,z')
             end
             EV=EV.*aaa;
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=reshape(sum(EV,2),[N_d,1,N_z]);
 
             for z_c=1:N_z % Can probably eliminate this loop and replace with a matrix multiplication operation thereby making it faster
@@ -509,7 +509,7 @@ while currdist>vfoptions.tolerance
 
                     EV_z=zeros(N_d,1);
                     for zprime_c=1:N_z
-                        if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                        if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                             for d_c=1:N_d
                                 EV_z(d_c)=EV_z(d_c)+(EVpre(:,zprime_c).*Phi_aprimeMatrix(:,d_c,zprime_c))*pi_z(z_c,zprime_c);
                             end
@@ -529,7 +529,7 @@ while currdist>vfoptions.tolerance
                     ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
                     EV_z=zeros(N_d,1);
                     for zprime_c=1:N_z
-                        if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                        if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                             for d_c=1:N_d
                                 EV_z(d_c)=EV_z(d_c)+EVpre(Phi_aprimeMatrix(d_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                             end
@@ -546,7 +546,7 @@ while currdist>vfoptions.tolerance
                 EV_z=zeros(N_d,1);
                 for z_c=1:N_Z
                     for zprime_c=1:N_z
-                        if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                        if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                             for d_c=1:N_d
                                 EV_z(d_c)=EV_z(d_c)+EVpre(Phi_aprimeMatrix(d_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                             end
@@ -604,7 +604,7 @@ while currdist>vfoptions.tolerance
                 EV(:,zprime_c)=EVpre(Phi_aprimeMatrix(:,zprime_c)*ones(1,N_z),zprime_c); %(d,z')
             end
             EV=EV.*aaa;
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=reshape(sum(EV,2),[N_d,1,N_z]);
 
             for z_c=1:N_z % Can probably eliminate this loop and replace with a matrix multiplication operation thereby making it faster

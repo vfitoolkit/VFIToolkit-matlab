@@ -9,7 +9,7 @@ function output1 = ImportPSIDdata(jobname)
 % You must rename the two files ending in '.sps' to instead end in '_sps.txt'.
 %
 %
-% For the inputed 'jobname' --- the filename/code of your PSID dataset this
+% For the inputted 'jobname' --- the filename/code of your PSID dataset this
 % code reads the metadata from the '.xml' file, finds out the fixed widths for
 % each variable from the '.sps' file, and then imports the data itself from
 % the '.txt' file.

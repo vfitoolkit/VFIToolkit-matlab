@@ -5,7 +5,7 @@ if simoptions.experienceasset==1
     error('Not yet implemented')
 elseif simoptions.inheritanceasset==1
     %% Inheritance asset
-    % Not yet implmeented for semiz or e
+    % Not yet implemented for semiz or e
     Policy=reshape(Policy, [size(Policy,1),N_a,N_z]);
     % Not yet implemented with grid interpolation layer
 

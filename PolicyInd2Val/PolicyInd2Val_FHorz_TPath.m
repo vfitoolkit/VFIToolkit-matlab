@@ -86,7 +86,7 @@ else
     % fastOLG, so has a different shape
     PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a*N_j*N_z*T]);
     % When using this in the fastOLG setting, you must input d_gridvals and aprime_gridvals in place of d_grid and a_grid
-    % If using vfoptions.gridinterplater=1, it should be aprime_gridvals for the fine grid, not the rough grid
+    % If using vfoptions.gridinterplayer=1, it should be aprime_gridvals for the fine grid, not the rough grid
 
     l_aprime=size(a_grid,2);% it is aprime_gridvals, not actually a_grid
 

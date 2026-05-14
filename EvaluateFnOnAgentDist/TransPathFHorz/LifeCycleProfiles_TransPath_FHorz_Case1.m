@@ -1,5 +1,5 @@
 function AgeConditionalStatsPath=LifeCycleProfiles_TransPath_FHorz_Case1(FnsToEvaluate, AgentDistPath,PolicyPath, PricePath, ParamPath, Parameters,T,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
-% Changing z or e over the trasition is not supported.
+% Changing z or e over the transition is not supported.
 %
 % Works from AgentDistPath to calculate life-cycle profiles over the transition.
 % Where applicable it is faster and more accurate.

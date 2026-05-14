@@ -8,7 +8,7 @@ function SimPanelValues=SimPanelValues_InfHorz(InitialDist,Policy,FnsToEvaluate,
 % Note that when there is entry of new agents the number-of-simulations
 % will be larger than simoptions.numbersims.
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 

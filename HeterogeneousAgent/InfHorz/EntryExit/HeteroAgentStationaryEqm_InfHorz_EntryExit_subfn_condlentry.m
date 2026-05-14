@@ -1,5 +1,5 @@
 function CondlEntryDecision=HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn_condlentry(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
-% Is just a copy-pase of HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn(),
+% Is just a copy-paste of HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn(),
 % which just outputs Parameters.(EntryExitParamNames.CondlEntryDecisions{1}) instead of usual
 % output of p_eqm. Have removed bunch of lines of code that are not
 % required as a result.

@@ -32,7 +32,7 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
      % Put e back into dist
     StationaryDist=kron(pi_e,StationaryDist);
 
-    % Only check covergence every couple of iterations
+    % Only check convergence every couple of iterations
     if rem(counter,simoptions.multiiter)==0
         StationaryDistKronOld=StationaryDist;
     elseif rem(counter,simoptions.multiiter)==10

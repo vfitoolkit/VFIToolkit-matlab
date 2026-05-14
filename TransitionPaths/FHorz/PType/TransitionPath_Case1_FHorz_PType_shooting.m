@@ -323,7 +323,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 Parameters.(ParamPathNames{pp})=ParamPath(tt,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp));
             end
 
-            % Update current AggVars [we have to add this as GE conditions are in a seperate tt loop to the AggVars]
+            % Update current AggVars [we have to add this as GE conditions are in a separate tt loop to the AggVars]
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end
@@ -521,7 +521,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 end
             end
 
-            % Update current AggVars [we have to add this when doing ptype as GE conditions are in a seperate tt loop to the AggVars]
+            % Update current AggVars [we have to add this when doing ptype as GE conditions are in a separate tt loop to the AggVars]
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
                 % Keep the AggVars conditional on ptype for all the AggVars; overkill but that is fine

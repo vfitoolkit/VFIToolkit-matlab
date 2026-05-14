@@ -1,5 +1,5 @@
 function [mean,variance,autocorrelation,statdist]=MarkovChainMoments(z_grid,pi_z,mcmomentsoptions)
-% Calculates the mean, variance, autocorrellation, and stantionary
+% Calculates the mean, variance, autocorrelation, and stationary
 % distribution of a first-order markov process.
 %
 % Inputs:
@@ -87,7 +87,7 @@ else
     end
 end
 
-% % Eigenvvector approach to stationary distriubtion
+% % Eigenvvector approach to stationary distribution
 % % (see https://en.wikipedia.org/wiki/Markov_chain#Stationary_distribution_relation_to_eigenvectors_and_simplices )
 % % does not appear to be any faster (in fact marginally slower)
 % tic;
@@ -102,12 +102,12 @@ secondmoment=(z_grid.^2)'*statdist;
 variance=secondmoment-mean^2;
 
 covar_withlag=sum(statdist.*sum(pi_z.*((z_grid-mean)*(z_grid-mean)'),2));
-autocorrelation=covar_withlag/variance; % Note: demoninator is stdev*stddev, but since they (this period and last period) have the same stdev it is just the variance
+autocorrelation=covar_withlag/variance; % Note: denominator is stdev*stddev, but since they (this period and last period) have the same stdev it is just the variance
 
 
 %% Following is old code that used to simulate the markov to calculate the autocorrelation.
 % The final line checks it against the new code, and the new code is more
-% accurate as well as immesurably faster.
+% accurate as well as immeasurably faster.
 
 % %% Now for the (first-order auto-) correlation
 % % This takes vast majority of the time of MarkovChainMoments()

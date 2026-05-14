@@ -44,7 +44,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     % First, we want aprime conditional on (d,1,a,z)
     [~,maxindex1]=max(ReturnMatrix_ii,[],2);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints_jj(:,1,level1ii)=maxindex1;
 
     % Attempt for improved version
@@ -96,7 +96,7 @@ else
     % First, we want aprime conditional on (d,1,a,z)
     [~,maxindex1]=max(entireRHS_ii,[],2);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints_jj(:,1,level1ii)=maxindex1;
 
     % Attempt for improved version
@@ -160,7 +160,7 @@ for reverse_j=1:N_j-1
     % First, we want aprime conditional on (d,1,a)
     [~,maxindex1]=max(entireRHS_ii,[],2);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints_jj(:,1,level1ii)=maxindex1;
 
     % Attempt for improved version

@@ -54,7 +54,7 @@ AgeWeights_T=repmat(repelem(ones(T,1,'gpuArray'),N_a,1),N_z,1);
 %  - First Phi_2^{i+1} is created from Phi_1^{i}
 %  - Iterate on t=3:T, Phi_t^{i+1} is created from Phi_{t-1}^{i+1}
 % Or we can take the fastOLG style approach
-%  - Parallel oever t=2:T, we create Phi_t^{i+1} from Phi_{t-1}^{i}
+%  - Parallel over t=2:T, we create Phi_t^{i+1} from Phi_{t-1}^{i}
 % For now I just use the fastOLG style approach
 fastOLGtheAgentDist=1;
 % But setting this to zero will do the time-loop version that Lee uses.
@@ -132,7 +132,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     VPath=reshape(VPath,[N_a,T,N_z]);
 
     Distances=nan(T,T);
-    DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); % Use the closest few expectations [4th dimension: index 1 contains the t-index for the matches, index 2 constains the distances of the matches]
+    DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); % Use the closest few expectations [4th dimension: index 1 contains the t-index for the matches, index 2 contains the distances of the matches]
     % First, we have to find which agent dist with the same aggregate shock today are the 'most similar'
     if recursiveeqmoptions.matchE_distmeasure==1 % Kolmogorov-Smirnoff distance
         % Need to parallelize

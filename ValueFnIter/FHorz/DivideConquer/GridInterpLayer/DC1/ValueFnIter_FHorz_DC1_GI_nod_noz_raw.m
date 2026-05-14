@@ -40,7 +40,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     %Calc the max and it's index
     [~,maxindex]=max(ReturnMatrix_ii,[],1);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints_jj(1,level1ii)=maxindex;
 
     for ii=1:(vfoptions.level1n-1)
@@ -76,7 +76,7 @@ else
     %Calc the max and it's index
     [~,maxindex]=max(entireRHS_ii,[],1);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints_jj(1,level1ii)=maxindex;
 
     for ii=1:(vfoptions.level1n-1)
@@ -126,7 +126,7 @@ for reverse_j=1:N_j-1
     %Calc the max and it's index
     [~,maxindex]=max(entireRHS_ii,[],1);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints_jj(1,level1ii)=maxindex;
 
     for ii=1:(vfoptions.level1n-1)

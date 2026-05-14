@@ -66,7 +66,7 @@ else
 end
 
 %%
-% Check if gthere is an initial guess for V0
+% Check if there is an initial guess for V0
 if isfield(vfoptions,'V0')
     vfoptions.V0=reshape(vfoptions.V0,[N_a,N_s]);
 else
@@ -112,7 +112,7 @@ elseif heteroagentoptions.fminalgo==2
     z0.z=p0;
     [sol,GeneralEqmConditions]=solve(prob,z0);
     p_eqm_vec=sol.z;
-    % Note, doesn't really work as automattic differentiation is only for
+    % Note, doesn't really work as automatic differentiation is only for
     % supported functions, and the objective here is not a supported function
 elseif heteroagentoptions.fminalgo==3
     goal=zeros(length(p0),1);
@@ -167,7 +167,7 @@ if specialgeneqmcondnsused==1
     end
 end
 % p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless.
-% Is already initalised as p_eqm_index=nan; so just leave it as is.
+% Is already initialised as p_eqm_index=nan; so just leave it as is.
 
 
 

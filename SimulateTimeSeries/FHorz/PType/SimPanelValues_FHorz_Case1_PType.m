@@ -12,7 +12,7 @@ function SimPanelValues=SimPanelValues_FHorz_Case1_PType(jequaloneDist,PTypeDist
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
 %
 % The stationary distribution be a structure and will contain both the
-% weights/distribution across the permenant types, as well as a pdf for the
+% weights/distribution across the permanent types, as well as a pdf for the
 % stationary distribution of each specific permanent type.
 %
 % How exactly to handle these differences between permanent (fixed) types
@@ -100,7 +100,7 @@ PType_numbersims=floor(Parameters.(PTypeDistParamNames{1})*simoptions.numbersims
 % This will not perfectly add up to the right number of sims (floor means it will be a slightly to few)
 ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 % I just arbitrarily add them to the first PTypes. Your simulation should
-% anyway be big enough for this to be irrelavant. (I should probably add
+% anyway be big enough for this to be irrelevant. (I should probably add
 % them randomly, but cant be bothered right now. But otherwise if I don't
 % make this random the sample won't satisfy properties of arandom sample)
 PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;

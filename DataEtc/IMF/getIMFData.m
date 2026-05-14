@@ -51,7 +51,7 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 % Using GFSFALCS you need three further inputs (adinput1, adinput2, adinput3):
 %   sector_id: see GFS database for an explanation of Sectors
 %   unit: see GFS database for an explanation of units
-%   counterparty_id: see GFS database for an exlanation of counterparty, is the counterpart sector (Central Bank, Banks ...)
+%   counterparty_id: see GFS database for an explanation of counterparty, is the counterpart sector (Central Bank, Banks ...)
 % Using GFSIBS you need three further inputs (adinput1, adinput2, adinput3):
 %   sector_id: see GFS database for an explanation of Sectors
 %   unit: see GFS database for an explanation of units
@@ -318,7 +318,7 @@ elseif strcmp(database_id,'CPIS')
             % Github link: https://github.com/robertdkirkby/getimfdata-matlab/blob/master/getIMFData_CPISexample.m
         end
     elseif isempty(vintage_id)
-        % Do nothing, this is likely intended (had to seperate this case as empty is considered a letter by matlab).
+        % Do nothing, this is likely intended (had to separate this case as empty is considered a letter by matlab).
     elseif all(isletter(vintage_id))
         warning('CPIS input ordering was changed in June 2022, you appear to be using the old ordering. See CPISexample code on project github for how to order inputs')
         % Github link: https://github.com/robertdkirkby/getimfdata-matlab/blob/master/getIMFData_CPISexample.m

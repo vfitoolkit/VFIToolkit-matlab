@@ -13,7 +13,7 @@ function [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNam
 %    rather than transpathoptions).
 
 % Check for using _tminus1 (for price or AggVars) or _tplus1, honoring PType
-FnInputNames={}; % FnNames beloning to no PType
+FnInputNames={}; % FnNames belonging to no PType
 PTypeFnInputNames=struct(); % Built as we find them
 ninputs=0;
 % Get all the input names for FnsToEvaluate

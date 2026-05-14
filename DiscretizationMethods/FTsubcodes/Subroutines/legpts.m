@@ -203,7 +203,7 @@ hh1 = ones(m+1,1); zz = zeros(m,1); u = zeros(1,m+1); up = zeros(1,m+1);
 
 % Loop over all the roots we want to find (using symmetry).
 for j = N+1:n-1
-    % Distance to initial approx for next root (from asymptotic foruma).
+    % Distance to initial approx for next root (from asymptotic formula).
     h = roots(j+1) - x;
 
     % Recurrence Taylor coefficients (scaled & incl factorial terms).

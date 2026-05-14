@@ -46,7 +46,7 @@ for jj=1:(N_j-1)
 
     Gammatranspose=sparse(Policy_aprimesemiz(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_semiz,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
 
-    % No z, so just a single interation
+    % No z, so just a single iteration
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
     StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));

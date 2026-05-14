@@ -32,7 +32,7 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
     % Second step of Tan improvement
     StationaryDistKron=reshape(StationaryDistKron*pi_z,[N_a*N_z,1]);
 
-    % Only check covergence every couple of iterations
+    % Only check convergence every couple of iterations
     if rem(counter,simoptions.multiiter)==0
         StationaryDistKronOld=StationaryDistKron;
     elseif rem(counter,simoptions.multiiter)==10

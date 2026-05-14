@@ -3,8 +3,8 @@ function options=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameter
 % options will either be options or simoptions
 % output: options.semiz_gridvals_J, options.pi_semiz_J
 
-% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
-% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilities
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
 %% Check basic setup
@@ -100,7 +100,7 @@ for ii=1:N_i
 
         %% Create semiz_gridvals_J (joint grid on semiz)
         if gridpiboth==3 || gridpiboth==1 || ~isempty(SemiExoStateFn_ii)
-            % Regardless of whether we output semiz_gridvals_J, we sometimes have to create it as it is needed for evaluting SemiExogShockFn
+            % Regardless of whether we output semiz_gridvals_J, we sometimes have to create it as it is needed for evaluating SemiExogShockFn
             if ndims(semiz_grid_ii)==3
                 if all(size(semiz_grid_ii)==[prod(n_semiz_ii),length(n_semiz_ii),N_j])
                     % already age-dependent joint-grid

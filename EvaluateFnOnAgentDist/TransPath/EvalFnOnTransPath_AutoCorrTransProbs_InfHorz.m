@@ -247,7 +247,7 @@ for tt=1:T
         end
 
 
-        %% Calculate transition probabilties (tt is treated as next period, tt-1 as this period)
+        %% Calculate transition probabilities (tt is treated as next period, tt-1 as this period)
         if tt>1
             if simoptions.transprobs(ff)==1
                 [vv,~,indexes]=unique(Values);

@@ -1,5 +1,5 @@
 function AggVarsPath=EvalFnOnTransPath_AggVars_InfHorz_PType(FnsToEvaluate, PricePath, ParamPath, Parameters, T, PolicyPath, AgentDistPath, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, simoptions)
-% AggVars is simple in the sense we can just solve to get AggVars for each ptype and then take the weigthed sum over them
+% AggVars is simple in the sense we can just solve to get AggVars for each ptype and then take the weighted sum over them
 % This only works because we are just after the mean
 
 

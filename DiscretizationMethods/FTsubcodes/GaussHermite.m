@@ -1,6 +1,6 @@
 function [x, w] = GaussHermite(n)
 
-% This function determines the abscisas (x) and weights (w) for the
+% This function determines the abscissas (x) and weights (w) for the
 % Gauss-Hermite quadrature of order n>1, on the interval [-INF, +INF].
     % This function is valid for any degree n>=2, as the companion matrix
     % (of the n'th degree Hermite polynomial) is constructed as a
@@ -8,7 +8,7 @@ function [x, w] = GaussHermite(n)
     % will be real.
     
     
-% © Geert Van Damme
+% ï¿½ Geert Van Damme
 % geert@vandamme-iliano.be
 % February 21, 2010    
 

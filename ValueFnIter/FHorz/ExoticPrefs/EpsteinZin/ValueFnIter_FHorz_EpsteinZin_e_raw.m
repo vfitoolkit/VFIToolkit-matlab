@@ -139,7 +139,7 @@ else
 
         % Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(EV,N_d,1,1);
@@ -168,7 +168,7 @@ else
 
         % Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(EV,N_d,1,1);
@@ -210,7 +210,7 @@ else
 
             % Calc the expectation term (except beta)
             EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
 
             entireEV_z=repelem(EV_z,N_d,1,1);
@@ -306,7 +306,7 @@ for reverse_j=1:N_j-1
 
         % Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(EV,N_d,1,1);
@@ -334,7 +334,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
         % Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(EV,N_d,1,1);
@@ -376,7 +376,7 @@ for reverse_j=1:N_j-1
 
             % Calc the expectation term (except beta)
             EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
 
             entireEV_z=repelem(EV_z,N_d,1,1);

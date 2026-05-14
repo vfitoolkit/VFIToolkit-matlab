@@ -39,7 +39,7 @@ end
 
 if fastOLG==0 % (a,z,j)
 
-    if N_z==0 % To save writing a seperate script for without z
+    if N_z==0 % To save writing a separate script for without z
         if l_dexp>=1
             if whichisdforexpasset(1)==1
                 d1grid=d_grid(1:n_d(1));
@@ -156,7 +156,7 @@ if fastOLG==0 % (a,z,j)
 
 elseif fastOLG==1 % (a,j,z)
 
-    if N_z==0 % To save writing a seperate script for without z
+    if N_z==0 % To save writing a separate script for without z
         if l_dexp>=1
             if whichisdforexpasset(1)==1
                 d1grid=d_grid(1:n_d(1));

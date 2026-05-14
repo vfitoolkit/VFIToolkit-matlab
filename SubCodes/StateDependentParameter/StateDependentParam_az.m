@@ -4,7 +4,7 @@ function Values=StateDependentParam_az(Parameters,ParamNameStr,DependenceVec,n_a
 % which actual dimensions of [n_a,n_z] the parameter that is being stored
 % in Parameters (is allowed to) depend on. It is assumed to be constant
 % across all other dimensions.
-% When FullAZ==1 the matrix ('Values') will simply be singluar in all of the
+% When FullAZ==1 the matrix ('Values') will simply be singular in all of the
 % dimensions in which it is constant.
 
 l_a=length(n_a);

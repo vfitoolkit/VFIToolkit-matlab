@@ -51,7 +51,7 @@ estimoptions.simulatemoments=0; % Set to zero to get point estimates, is needed 
 estimoptions.useCustomModelStats=0;
 if isfield(estimoptions,'CustomModelStats')
     estimoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     estimoptions.CustomModelStatsInputs.z_grid=z_grid;
     estimoptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -91,8 +91,8 @@ else
 end
 estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
-estimomitparams_counter=zeros(length(EstimParamNames),1); % column vector: estimomitparamsvec allows omiting the parameter for certain ages
-estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
+estimomitparams_counter=zeros(length(EstimParamNames),1); % column vector: estimomitparamsvec allows omitting the parameter for certain ages
+estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omitted values of a parameter
 for pp=1:length(EstimParamNames)
     if any(strcmp(OmitEstimParamsNames,EstimParamNames{pp}))
         % This parameter is under an omit-mask, so need to only use part of it
@@ -152,7 +152,7 @@ for pp=1:length(EstimParamNames)
         % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
     end
     if estimoptions.constrainAtoB(pp)==1
-        % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
+        % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as constraint 0 to 1)
         estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
         % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
         % And then the next if-statement converts this 0-to-1 into unconstrained
@@ -331,10 +331,10 @@ estimparamsvec=estimparamsvec0;
 % We want to compute J (the jacobian matrix of derivatives of model moments to the estimated parameters).
 % To make it easier to compute the derivatives by finite-difference, I turn off the parameter constraints and just use the model
 % parameter values (rather than the internal-transformed-parameters) directly. Just makes it easier to follow what is going on (at least in my head).
-% To faciliate this I use estimoptionsJacobian=estimoptions, but with modifications.
+% To facilitate this I use estimoptionsJacobian=estimoptions, but with modifications.
 % Later I did some searching, and it seems there are no precise answers online, but some people (Python 'optimagic' on github) made same decision I did, of taking
 % derivatives based on 'external' parameters rather than 'internal' (transformed) parameters.
-% Other open issue, what do you do when the resulting standard deviations mean confidence intervals reach outside your contraints?
+% Other open issue, what do you do when the resulting standard deviations mean confidence intervals reach outside your constraints?
 
 % First, need the Jacobian matrix, which involves computing all the
 % derivatives of the individual moments with respect to the estimated parameters
@@ -368,7 +368,7 @@ epsilonalt=[10^(-2),10^(-2),10^(-1),10^(-1)]; % Note: this must be same length a
 % I want to do epsilon change in the model parameter, but here I have
 % the unconstrained parameters. So I create an epsilonparamup and
 % epsilonparamdown, which contain the unconstrained values the
-% correspond to espilon changes in the constrained parameters
+% correspond to epsilon changes in the constrained parameters
 % I do this in a separate loop, which is a loss of runtime, but this is
 % minor and is much easier to read so whatever
 epsilonparamup=zeros(length(estimparamsvec),length(epsilonmodvec));
@@ -459,7 +459,7 @@ for ee=1:length(epsilonmodvec)
     J_centered=(ObjValue_upwind-ObjValue_downwind)./((epsilonparamup(:,ee)-epsilonparamdown(:,ee))');
     % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
 
-    % J is nmonents-by-nparams
+    % J is nmoments-by-nparams
     J_full=J_centered;
     % If epsilon changes pushed us outside the parameter constraints, then we just use the one-sided finite-differences
     for pp=1:length(estimparamsvec)

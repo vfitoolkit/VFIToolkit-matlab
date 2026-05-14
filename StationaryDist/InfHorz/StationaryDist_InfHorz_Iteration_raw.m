@@ -19,7 +19,7 @@ pi_z=sparse(pi_z);
 try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
     Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
 catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
-    pi_z=gather(pi_z); % The indexing used can only be donoe on cpu
+    pi_z=gather(pi_z); % The indexing used can only be done on cpu
     Ptranspose=kron(ones(N_z,1),PtransposeA);
     for ii=1:N_z
         Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
@@ -36,7 +36,7 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit  % Matlab object
 
     StationaryDistKron=Ptranspose*StationaryDistKron; % Base the tolerance on 10 iterations. (For some reason just using one iteration worked perfect on gpu, but was not accurate enough on cpu)
 
-    % Only check covergence every couple of iterations
+    % Only check convergence every couple of iterations
     if rem(counter,simoptions.multiiter)==0
         StationaryDistKronOld=StationaryDistKron;
     elseif rem(counter,simoptions.multiiter)==10

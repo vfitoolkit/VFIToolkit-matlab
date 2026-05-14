@@ -3,7 +3,7 @@ function SimPanel=SimPanelIndexes_FHorz_Case2(InitialDist,Policy,n_d,n_a,n_z,N_j
 % 'simperiods' beginning from randomly drawn InitialDist. (If you use the
 % newbirths option you will get more than 'numbersims', due to the extra births)
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 %
@@ -61,7 +61,7 @@ l_z=length(n_z);
 % PolicyIndexesKron it saves a lot of run time.
 %Policy is [l_d,n_a,n_z,N_j]
 if ndims(Policy)==3
-%     disp('Policy is alread Kron')
+%     disp('Policy is already Kron')
     PolicyIndexesKron=Policy;
 else %    size(Policy)==[l_d+l_a,n_a,n_z,N_j]
     PolicyIndexesKron=KronPolicyIndexes_FHorz_Case2(Policy, n_d, n_a, n_z, N_j);%,simoptions);
@@ -109,7 +109,7 @@ end
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 % end
 
-%% Deal with a few situtations like exogenous shocks depending on age
+%% Deal with a few situations like exogenous shocks depending on age
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
@@ -189,7 +189,7 @@ if simoptions.parallel==2
     simoptions.parallel=1;
 end
 
-%% Do the simluation itself
+%% Do the simulation itself
 SimPanel=nan(l_a+l_z+1,simoptions.simperiods,simoptions.numbersims); % (a,z,j)
 if simoptions.parallel==0
     for ii=1:simoptions.numbersims

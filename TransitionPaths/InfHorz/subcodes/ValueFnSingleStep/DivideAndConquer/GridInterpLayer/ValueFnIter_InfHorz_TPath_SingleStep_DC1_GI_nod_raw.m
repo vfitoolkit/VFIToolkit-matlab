@@ -42,7 +42,7 @@ DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 if vfoptions.lowmemory==0
 
     EV=Vnext.*shiftdim(pi_z',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
@@ -56,7 +56,7 @@ if vfoptions.lowmemory==0
     %Calc the max and it's index
     [~,maxindex1]=max(entireRHS_ii,[],1);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints(1,level1ii,:)=maxindex1;
 
     % Attempt for improved version
@@ -99,7 +99,7 @@ elseif vfoptions.lowmemory==1
         z_val=z_gridvals(z_c,:);
 
         EV_z=Vnext.*shiftdim(pi_z(z_c,:)',-1);
-        EV_z(isnan(EV_z))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
 
         % Interpolate EV over aprime_grid
@@ -113,7 +113,7 @@ elseif vfoptions.lowmemory==1
         % Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints(1,level1ii)=maxindex1;
 
         % Attempt for improved version

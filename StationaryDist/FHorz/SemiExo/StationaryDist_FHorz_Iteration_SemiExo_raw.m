@@ -36,7 +36,7 @@ semiztransitions=gather(pi_semiz_J_short(semizindex_short));
 pi_z_J=gather(pi_z_J);
 N_bothz=N_semiz*N_z;
 
-%% Tan improvement verion
+%% Tan improvement version
 % To do Tan improvement with semiz shocks we treat the first step as
 % (a,semiz,z) to (a',semiz',z) and then the second is the standard just
 % updating z to z'.
@@ -51,7 +51,7 @@ for jj=1:(N_j-1)
 
     Gammatranspose=sparse(Policy_aprimesemizz(:,:,jj),II2,semiztransitions(:,:,jj),N_a*N_bothz,N_a*N_bothz); % From (a,semiz,z) to (a',semiz',z)
 
-    % First step of Tan improvment
+    % First step of Tan improvement
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a*N_semiz,N_z]);
 
     % Second step of Tan improvement

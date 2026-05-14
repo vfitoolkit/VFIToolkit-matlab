@@ -12,7 +12,7 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
 %
 % The stationary distribution must be a structure and will contain both the
-% weights/distribution across the permenant types, as well as a pdf for the
+% weights/distribution across the permanent types, as well as a pdf for the
 % stationary distribution of each specific permanent type.
 %
 % How exactly to handle these differences between permanent (fixed) types
@@ -205,7 +205,7 @@ if any(computeForThesei==0)
     end
     % Done. Because from here on we just use N_i and Names_i which now only
     % contain finite horizons. Note that it is anyway only possible to use
-    % a mixture of infinite and finite horizon if you are explictly using
+    % a mixture of infinite and finite horizon if you are explicitly using
     % Names_i. So don't need to worry about vectors over N_i being the
     % wrong size.
 end
@@ -240,7 +240,7 @@ if isstruct(simoptions.agejshifter) % if using agejshifter
 elseif isscalar(simoptions.agejshifter) % not using agejshifter
     simoptions.agejshifter=zeros(N_i,1);
     N_j_max2=N_j_max;
-else % have inputed as a vector
+else % have inputted as a vector
     simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
     if isstruct(N_j)
         N_j_max2=0;
@@ -1073,7 +1073,7 @@ if simoptions.lowmemory==0
                         temp2=zeros(N_i,1);
                         for ii=2:N_i
                             if FnsAndPTypeIndicator(ff,ii)==1
-                                temp=MeanVec(ff,1:(ii-1),jj)-MeanVec(ff,ii,jj); % This bit with temp is just to handle numerical rounding errors where temp evalaulated to negative with order -15
+                                temp=MeanVec(ff,1:(ii-1),jj)-MeanVec(ff,ii,jj); % This bit with temp is just to handle numerical rounding errors where temp evaluated to negative with order -15
                                 if any(temp<0) && all(temp>10^(-12))
                                     temp=max(temp,0);
                                 end
@@ -1629,7 +1629,7 @@ elseif simoptions.lowmemory==1
                         temp2=zeros(N_i,1);
                         for ii=2:N_i
                             if FnsAndPTypeIndicator(ff,ii)==1
-                                temp=MeanVec(ff,1:(ii-1),jj)-MeanVec(ff,ii,jj); % This bit with temp is just to handle numerical rounding errors where temp evalaulated to negative with order -15
+                                temp=MeanVec(ff,1:(ii-1),jj)-MeanVec(ff,ii,jj); % This bit with temp is just to handle numerical rounding errors where temp evaluated to negative with order -15
                                 if any(temp<0) && all(temp>10^(-12))
                                     temp=max(temp,0);
                                 end

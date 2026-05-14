@@ -14,7 +14,7 @@ function [z_grid,pi_z] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,xnum,
 %   sigmae    - standard deviation of epsilon_t
 %   znum      - number of grid points for z process
 %   xnum      - number of grid points for x process
-% Optional nputs (farmertodaoptions):
+% Optional inputs (farmertodaoptions):
 %   method    - quadrature method for x process
 %   nSigmas   - grid spacing parameter for z (default = sqrt((Nz-1)/2)
 % Output: 
@@ -56,11 +56,11 @@ if farmertodaoptions.nSigmas<1.2
 end
 
 
-%% Compute some uncondtional moments
+%% Compute some unconditional moments
 
 sigmaX = (sigmae^2)/(1-phi^2); % unconditional variance of variance process
 xBar = 2*log(sigmau)-sigmaX/2; % unconditional mean of variance process, targeted to match a mean standard deviation of sigmaU
-sigmaz = sqrt(exp(xBar+sigmaX/2)/(1-rho^2)); % uncondtional standard deviation of technology shock
+sigmaz = sqrt(exp(xBar+sigmaX/2)/(1-rho^2)); % unconditional standard deviation of technology shock
 
 %% Construct technology process approximation
 if farmertodaoptions.parallel==2

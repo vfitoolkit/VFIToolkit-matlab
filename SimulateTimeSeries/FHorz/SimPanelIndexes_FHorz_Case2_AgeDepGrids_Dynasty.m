@@ -3,7 +3,7 @@ function SimPanel=SimPanelIndexes_FHorz_Case2_AgeDepGrids_Dynasty(InitialDist,Po
 % 'simperiods' beginning from randomly drawn InitialDist. (If you use the
 % newbirths option you will get more than 'numbersims', due to the extra births)
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 

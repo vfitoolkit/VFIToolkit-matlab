@@ -59,7 +59,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         V(level1ii,:,:,N_j)=shiftdim(Vtempii,1);
         Policy(level1ii,:,:,N_j)=shiftdim(maxindex2,1); % d,aprime
 
-        % Second level based on montonicity
+        % Second level based on monotonicity
         maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
             curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -103,7 +103,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             V(level1ii,:,e_c,N_j)=shiftdim(Vtempii,1);
             Policy(level1ii,:,e_c,N_j)=shiftdim(maxindex2,1); % d,aprime
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -152,7 +152,7 @@ else
         % % (d & aprime,a,z,e)
         %
         % EV=replem(V_Jplus1,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         % EV=sum(EV,2); % sum over z', leaving a singular second dimension
         %
         % entireEV=repelem(EV,N_d1,1,1);
@@ -169,7 +169,7 @@ else
         % % (d2,zprime,z)
         %
         % EV=replem(V_Jplus1,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         % EV=sum(EV,2); % sum over z', leaving a singular second dimension
         %
         % entireEV=repelem(EV,N_d1,1,1);
@@ -213,7 +213,7 @@ for reverse_j=1:N_j-1
         pi_bothz=repmat(pi_semiz_J_permute(:,:,:,jj),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,jj),1,N_semiz,N_semiz);
 
         EV=repelem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(reshape(EV,[N_d2,N_a,1,N_bothz]),N_d1,1,1); % (d,aprime,1,bothz) [1 is for 'a', to be filled in later]
@@ -233,7 +233,7 @@ for reverse_j=1:N_j-1
         V(level1ii,:,:,jj)=shiftdim(Vtempii,1);
         Policy(level1ii,:,:,jj)=shiftdim(maxindex2,1); % d,aprime
 
-        % Second level based on montonicity
+        % Second level based on monotonicity
         maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
             curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -269,7 +269,7 @@ for reverse_j=1:N_j-1
         % timer(1)=toc;
         %
         % EV=replem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         % EV=sum(EV,2); % sum over z', leaving a singular second dimension
         %
         % entireEV=repelem(EV,N_d1,1,1);

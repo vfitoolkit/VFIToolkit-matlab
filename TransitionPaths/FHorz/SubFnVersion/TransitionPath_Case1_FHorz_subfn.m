@@ -9,7 +9,7 @@ error('This Code is outdated')
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
 
-PricePathOld=reshape(PricePathOld,[T,length(PricePathNames)]); % Had to be inputed as a vector to allow use of fminsearch.
+PricePathOld=reshape(PricePathOld,[T,length(PricePathNames)]); % Had to be inputted as a vector to allow use of fminsearch.
 
 N_d=prod(n_d);
 N_z=prod(n_z);

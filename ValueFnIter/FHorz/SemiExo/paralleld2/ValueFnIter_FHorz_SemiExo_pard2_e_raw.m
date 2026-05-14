@@ -84,7 +84,7 @@ else
     % (d2,zprime,z)
 
     EV=replem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     entireEV=repelem(EV,N_d1,1,1);
@@ -159,7 +159,7 @@ for reverse_j=1:N_j-1
     pi_bothz=repmat(pi_semiz_J_permute(:,:,:,jj),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,jj),1,N_semiz,N_semiz);
 
     EV=repelem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     entireEV=repelem(EV,N_d1,1,1);

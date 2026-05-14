@@ -64,7 +64,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
 
     EV=EV.*shiftdim(pi_z',-1);

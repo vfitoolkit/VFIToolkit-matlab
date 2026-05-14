@@ -20,7 +20,7 @@ pi_z_semiendog=sparse(pi_z_semiendog);
 try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
     Ptranspose=kron(pi_z_semiendog',ones(N_a,1)).*kron(ones(N_z,1),PtransposeA);
 catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
-    pi_z_semiendog=gather(pi_z_semiendog); % The indexing used can only be donoe on cpu
+    pi_z_semiendog=gather(pi_z_semiendog); % The indexing used can only be done on cpu
     Ptranspose=kron(ones(N_z,1),PtransposeA);
     for ii=1:N_z
         iia=(1:1:N_a)+(ii-1)*N_a;

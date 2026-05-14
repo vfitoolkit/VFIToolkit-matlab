@@ -16,7 +16,7 @@ PricePathNew(T,:)=PricePathOld(T,:);
 AggVarsPath=zeros(T-1,length(AggVarNames),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
-% Setup, the shapes of verious of these objects vary depending on the setting
+% Setup, the shapes of various of these objects vary depending on the setting
 [PolicyIndexesPath,N_probs,II1,II2]=TransitionPath_InfHorz_substeps_Step0_setup(l_d,l_aprime,N_a,N_z,N_e,T,transpathoptions,vfoptions,simoptions);
 
 %%

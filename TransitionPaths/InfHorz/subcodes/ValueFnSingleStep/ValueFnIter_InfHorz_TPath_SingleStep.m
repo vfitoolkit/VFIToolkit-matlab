@@ -88,7 +88,7 @@ end
 
 % if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
 %     % COMMENT: testing a transition in model of Pijoan-Mas (2006) it
-%     % seems refirement is slower for transtions, so this is never
+%     % seems refinement is slower for transitions, so this is never
 %     % really used for anything.
 %     [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_Refine_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 % end

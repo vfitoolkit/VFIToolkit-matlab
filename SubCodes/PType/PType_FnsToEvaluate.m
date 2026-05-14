@@ -14,7 +14,7 @@ end
 
 % Only works for Version 2, that is it hardcodes for isstruct(FnsToEvaluate)==1
 if FnsToEvaluate_StructToCell==0 % Structure
-    % Just conver from struct into the FnsToEvaluate_temp and FnsToEvaluateParamNames_temp format now.
+    % Just convert from struct into the FnsToEvaluate_temp and FnsToEvaluateParamNames_temp format now.
     FnNames=fieldnames(FnsToEvaluate);
     numFnsToEvaluate=length(FnNames);
     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);

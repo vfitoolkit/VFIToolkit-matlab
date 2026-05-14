@@ -17,7 +17,7 @@ while currdist>Tolerance && tempcounter<=maxiter
         pi_z_z=pi_z(z_c,:);
 
         EV_z=VKronold.*pi_z_z;
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
         entireEV_z=kron(EV_z,ones(N_d,1));
 

@@ -5,7 +5,7 @@ function Gini=Gini_from_LorenzCurve(LorenzCurve)
 
 N=length(LorenzCurve);
 
-%Use the Gini=A/(A+B)=2*A formulation for Gini coefficent (see wikipedia).
+%Use the Gini=A/(A+B)=2*A formulation for Gini coefficient (see wikipedia).
 A=0;
 % I have vectorized the following for-loop to speed it up.
 % for i=1:N

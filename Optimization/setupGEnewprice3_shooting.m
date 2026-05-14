@@ -69,7 +69,7 @@ if ~isfield(options,'GEptype') % For models without permanent type
             options.oldpathweight(ii)=tempweight;
         end
     end
-    if size(options.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns % Note: inputs were already testted
+    if size(options.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns % Note: inputs were already tested
         % do nothing, this is how things should be
     else
         error('options.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (number of rows is different to the number of GeneralEqmEqns fields) \n')

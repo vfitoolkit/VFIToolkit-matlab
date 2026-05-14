@@ -61,7 +61,7 @@ caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with o
 caliboptions.useCustomModelStats=0;
 if isfield(caliboptions,'CustomModelStats')
     caliboptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     caliboptions.CustomModelStatsInputs.z_grid=z_grid;
     caliboptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -82,8 +82,8 @@ else
 end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(length(CalibParamNames)+1,1); % Note, first element remains zero
-calibomitparams_counter=zeros(length(CalibParamNames),1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
-calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
+calibomitparams_counter=zeros(length(CalibParamNames),1); % column vector: calibomitparamsvec allows omitting the parameter for certain ages
+calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omitted values of a parameter
 for pp=1:length(CalibParamNames)
     if any(strcmp(OmitCalibParamsNames,CalibParamNames{pp}))
         % This parameter is under an omit-mask, so need to only use part of it
@@ -138,7 +138,7 @@ actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if isscalar(caliboptions.weights)
     caliboptions.weights=caliboptions.weights.*ones(size(targetmomentvec(actualtarget)));
 else % Make sure it is a column vector
-    if size(caliboptions.weights,1)==1 % currently a row vetor
+    if size(caliboptions.weights,1)==1 % currently a row vector
         caliboptions.weights=caliboptions.weights';
     end
 end
@@ -178,7 +178,7 @@ if caliboptions.calibrateshocks==0
     simoptions.pi_e_J=vfoptions.pi_e_J;
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
-% precomputed by the time we get to the value fn, staty dist, etc. So
+% precomputed by the time we get to the value fn, stationary dist, etc. So
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
 

@@ -145,7 +145,7 @@ if prod(simoptions.n_e)>0
     end
 
     if simoptions.lowmemory==1
-        % Keep them seperate
+        % Keep them separate
     else
         % Now combine into z
         if N_z==0
@@ -234,7 +234,7 @@ if N_e>0 && simoptions.lowmemory==1
     permuteindexes=[5,4,2,3,1]; %permute into [N_j,N_e,N_a,N_z,l_d+l_a]
     for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
         PolicyIndexes_temp=reshape(PolicyIndexes.(['treatmentage',num2str(j_p)]),[dasize,N_a,N_z*N_e,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp(:,:,:,j_p:j_p+TreatmentDuration-1),n_d,n_a,[n_z,n_e],TreatmentDuration,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
+        PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp(:,:,:,j_p:j_p+TreatmentDuration-1),n_d,n_a,[n_z,n_e],TreatmentDuration,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parallel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
         for tt=1:TreatmentDuration
             PolicyValues=reshape(PolicyValues,[dasize,N_a,N_z,N_e,TreatmentDuration]);
             PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[N_j,N_e,N_a,N_z,l_d+l_a]
@@ -297,7 +297,7 @@ else % either no e vars, or just lowmemory=0
     permuteindexes=[4,2,3,1]; %permute into [N_j,N_a,N_ze,l_d+l_a]
     for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
         PolicyIndexes_temp=reshape(PolicyIndexes.(['treatmentage',num2str(j_p)]),[dasize,N_a,N_z,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp(:,:,:,j_p:j_p+TreatmentDuration-1),n_d,n_a,n_z,TreatmentDuration,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
+        PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp(:,:,:,j_p:j_p+TreatmentDuration-1),n_d,n_a,n_z,TreatmentDuration,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parallel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
         for tt=1:TreatmentDuration
             PolicyValues=reshape(PolicyValues,[dasize,N_a,N_z,TreatmentDuration]);
             PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[N_j,N_a,N_ze,l_d+l_a]

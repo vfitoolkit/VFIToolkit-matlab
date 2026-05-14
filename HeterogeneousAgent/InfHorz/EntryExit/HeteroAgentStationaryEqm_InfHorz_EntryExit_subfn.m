@@ -142,7 +142,7 @@ if ~isempty(fieldnames(FnsToEvaluate)) % Note that the entry/exit aggregates are
     end
 
     % Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
-    AggVarNames=fieldnames(FnsToEvaluate); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a stuct
+    AggVarNames=fieldnames(FnsToEvaluate); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a struct
     for aa=1:length(AggVarNames)
         Parameters.(AggVarNames{aa})=AggVars(aa);
     end
@@ -153,7 +153,7 @@ else
 end
 
 
-%% Step 4.2: Evaluate the general equilibrium condititions.
+%% Step 4.2: Evaluate the general equilibrium conditions.
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 if standardgeneqmcondnsused==1
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex

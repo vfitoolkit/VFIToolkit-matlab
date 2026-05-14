@@ -3,12 +3,12 @@ function SimPanel=SimPanelIndexes_InfHorz_SemiEndog(InitialDist,Policy,n_d,n_a,n
 % 'simperiods' beginning from randomly drawn InitialDist.
 % CondlProbOfSurvival is an optional input. (only needed when using: simoptions.exitinpanel=1, there there is exit, either exog, endog or mix of both)
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 %
 % Parameters is only needed as an input when you have mixed (endogenous and
-% exogenous) exit. It is otherwise not required to be inputed.
+% exogenous) exit. It is otherwise not required to be inputted.
 
 N_a=prod(n_a);
 N_z=prod(n_z);

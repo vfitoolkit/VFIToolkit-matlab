@@ -15,7 +15,7 @@ function [C,digestweights,qlimitvec]=createDigest(values, weights,delta,presorte
 % Outputs:
 %     C - the centroid means
 %     digestweights - the weights
-%     qlimitvec - essentially the cumultive weights (note: digestweights are just the first difference of qlimitvec)
+%     qlimitvec - essentially the cumulative weights (note: digestweights are just the first difference of qlimitvec)
 %
 % My implementation uses the k1() scaling function.
 %
@@ -89,7 +89,7 @@ if Nq~=0
             break
         end
     end
-    ii=length(cumweights); % Have to treat this seperate as otherwise causes problems with q>qlimit never reached in the while statement
+    ii=length(cumweights); % Have to treat this separate as otherwise causes problems with q>qlimit never reached in the while statement
     % Seem to get nan at the very top of the digests (on large models) so implemented the following if-statement as likely source was dividing by zero
     if sum(weights(ibegin:ii))>0
         C(count)=sum(weights(ibegin:ii).*values(ibegin:ii))/sum(weights(ibegin:ii));
@@ -124,14 +124,14 @@ else % Have not precalculated number of elements, so memory usage not preallocat
             % from one element of cumsortweights to next is larger than
             % step size of qlimit and so we have problems)
             while q>=qlimit && q<1
-                qlimit=kinvfn(kfn(qlimit,delta)+1,delta); % Note: this is only really releant near the two ends (where the step size for qlimit becomes really small)
+                qlimit=kinvfn(kfn(qlimit,delta)+1,delta); % Note: this is only really relevant near the two ends (where the step size for qlimit becomes really small)
             end
         end
         if 1-qlimit<10^(-7) % Accuracy of qlimit was getting rather ridiculous near 1, so just cut it off
             break
         end
     end
-    ii=length(cumweights); % Have to treat this seperate as otherwise causes problems with q>qlimit never reached in the while statement
+    ii=length(cumweights); % Have to treat this separate as otherwise causes problems with q>qlimit never reached in the while statement
     % Seem to get nan at the very top of the merged digests (on very large models) so implemented the following if-statement as likely source was dividing by zero
     if sum(weights(ibegin:ii))>0
         C=[C;sum(weights(ibegin:ii).*values(ibegin:ii))/sum(weights(ibegin:ii))];

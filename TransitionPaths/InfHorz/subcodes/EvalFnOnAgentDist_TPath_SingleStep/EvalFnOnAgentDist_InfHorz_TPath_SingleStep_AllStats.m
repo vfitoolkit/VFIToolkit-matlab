@@ -78,7 +78,7 @@ for ff=1:length(FnsToEvaluateNames)
     %% If there are any conditional restrictions then deal with these
     % Evaluate AllStats, but conditional on the restriction being one.
     if useCondlRest==1
-        % Evaluate the conditinal restrictions:
+        % Evaluate the conditional restrictions:
         % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
         for rr=1:length(CondlRestnFnNames)
             if restrictedsamplemass(rr)>0

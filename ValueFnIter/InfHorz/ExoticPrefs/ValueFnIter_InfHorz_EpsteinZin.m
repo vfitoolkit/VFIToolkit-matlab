@@ -34,7 +34,7 @@ end
 
 %% Based on the settings, define a bunch of variables that are used to implement the EZ preferences
 % Note that the discount factor and survival probabilities can depend on jj (age/period)
-% But the 'relative risk aversion' and 'elasticity of intertemporal substititution' cannot depend on jj
+% But the 'relative risk aversion' and 'elasticity of intertemporal substitution' cannot depend on jj
 crisk=Parameters.(vfoptions.EZriskaversion);
 if vfoptions.EZutils==0
     ceis=Parameters.(vfoptions.EZeis);

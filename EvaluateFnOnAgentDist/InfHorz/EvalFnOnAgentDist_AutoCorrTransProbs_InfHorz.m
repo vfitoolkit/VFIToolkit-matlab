@@ -163,7 +163,7 @@ for ff=1:length(FnsToEvalNames)
     CorrTransProbs.(FnsToEvalNames{ff}).AutoCovariance=Covar;
     CorrTransProbs.(FnsToEvalNames{ff}).AutoCorrelation=Corr;
 
-    %% Calculate transition probabilties
+    %% Calculate transition probabilities
     if simoptions.transprobs(ff)==1
         if isempty(simoptions.transprobquantiles)
             [vv,~,indexes]=unique(Values);
@@ -218,9 +218,9 @@ for ff=1:length(FnsToEvalNames)
             CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(tt)]).AutoCovariance=Covar;
             CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(tt)]).AutoCorrelation=Corr;
 
-            % Calculate transition probabilties
+            % Calculate transition probabilities
             if simoptions.transprobs(ff)==1
-                % n_fvals & indexes were already created when we did the 1-period transition probabilites, so can just reuse them [because still on same ff]
+                % n_fvals & indexes were already created when we did the 1-period transition probabilities, so can just reuse them [because still on same ff]
 
                 % Pintermediate: sum transition probabilities for next period based accumulating the unique values
                 Pintermediate=zeros(N_a*N_z,n_fvals);

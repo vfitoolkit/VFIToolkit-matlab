@@ -191,7 +191,7 @@ else
                 AllStats.Gini=sum(CumSumWeightedSortedValues(2:end).*CumSumSortedWeights(1:end-1)- CumSumWeightedSortedValues(1:end-1).*CumSumSortedWeights(2:end));
 
                 % % Calculate Gini coefficient (commented out is old version which was calculated from Lorenz Curve)
-                % % Use the Gini=A/(A+B)=2*A formulation for Gini coefficent (see wikipedia).
+                % % Use the Gini=A/(A+B)=2*A formulation for Gini coefficient (see wikipedia).
                 % A=(1/npoints:1/npoints:1)-AllStats.LorenzCurve'; % 'Height' between 45-degree line and Lorenz curve
                 % A(logical(abs(A)<10^(-12)))=0; % Sometimes, get -10^(-15) due to numerical error, replace them with zero
                 % A=sum(A)/npoints; % Note: 1/npoints is the 'width'. Area A is 'height times width' of gap from 45 degree line at each point on lorenz curve, summed up

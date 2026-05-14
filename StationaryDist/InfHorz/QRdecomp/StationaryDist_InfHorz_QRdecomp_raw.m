@@ -18,7 +18,7 @@ if simoptions.parallel<2
 %     % The following commented out version was producing machine precision
 %     % level errors in Ptranspose that lead to machine precision level
 %     % errors in the individual points of the StationaryDist, but that
-%     % summed up accross the StationaryDist this errors were numerically
+%     % summed up across the StationaryDist this errors were numerically
 %     % important and causing problems.
 %     %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
 %     P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
@@ -62,7 +62,7 @@ elseif simoptions.parallel>2
 %     % The following commented out version was producing machine precision
 %     % level errors in Ptranspose that lead to machine precision level
 %     % errors in the individual points of the StationaryDist, but that
-%     % summed up accross the StationaryDist this errors were numerically
+%     % summed up across the StationaryDist this errors were numerically
 %     % important and causing problems.
 %     tic;
 %     %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)

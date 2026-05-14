@@ -61,7 +61,7 @@ caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with o
 caliboptions.useCustomModelStats=0;
 if isfield(caliboptions,'CustomModelStats')
     caliboptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     caliboptions.CustomModelStatsInputs.z_grid=z_grid;
     caliboptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -92,19 +92,19 @@ else
     end
 end
 if ~isfield(heteroagentoptions,'constrainpositive')
-    heteroagentoptions.constrainpositive={}; % names of parameters to be constrainted to be positive (gets converted to a binary-valued vector below)
+    heteroagentoptions.constrainpositive={}; % names of parameters to be constrained to be positive (gets converted to a binary-valued vector below)
 end
 if ~isfield(heteroagentoptions,'constrain0to1')
-    heteroagentoptions.constrain0to1={}; % names of parameters to be constrainted between 0 and 1 (gets converted to a binary-valued vector below)
+    heteroagentoptions.constrain0to1={}; % names of parameters to be constrained between 0 and 1 (gets converted to a binary-valued vector below)
 end
 if ~isfield(heteroagentoptions,'constrainAtoB')
-    heteroagentoptions.constrainAtoB={}; % names of parameters to be constrainted between A and B (gets converted to a binary-valued vector below)
+    heteroagentoptions.constrainAtoB={}; % names of parameters to be constrained between A and B (gets converted to a binary-valued vector below)
 end
 
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
     heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -170,8 +170,8 @@ else
 end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
-calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
-calibomitparamsmatrix=zeros(1,1); % Each row is of size 1-by-1 and holds the omited values of a parameter
+calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omitting the parameter for certain ages
+calibomitparamsmatrix=zeros(1,1); % Each row is of size 1-by-1 and holds the omitted values of a parameter
 for pp=1:nCalibParams
     if any(strcmp(OmitCalibParamsNames,CalibParamNames{pp}))
         % This parameter is under an omit-mask, so need to only use part of it
@@ -232,7 +232,7 @@ actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if isscalar(caliboptions.weights)
     caliboptions.weights=caliboptions.weights.*ones(size(targetmomentvec(actualtarget)));
 else % Make sure it is a column vector
-    if size(caliboptions.weights,1)==1 % currently a row vetor
+    if size(caliboptions.weights,1)==1 % currently a row vector
         caliboptions.weights=caliboptions.weights';
     end
 end
@@ -274,7 +274,7 @@ else
     z_gridvals=[];
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
-% precomputed by the time we get to the value fn, staty dist, etc. So
+% precomputed by the time we get to the value fn, stationary dist, etc. So
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
 

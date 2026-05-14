@@ -73,7 +73,7 @@ else
     if ~isfield(transpathoptions,'stockvars')
         transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
     end
-    % Update rule optoins
+    % Update rule options
     if ~isfield(transpathoptions,'oldpathweight')
         transpathoptions.oldpathweight=0.9;
         % Note that when using transpathoptions.GEnewprice==3

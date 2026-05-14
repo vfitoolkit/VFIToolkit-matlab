@@ -48,9 +48,9 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     ambEV=zeros(N_a,n_ambiguity(N_j)); % aprime, prior
-    for amb_c=1:n_ambiguity(N_j) % Evaluate expections under each of the multiple priors
+    for amb_c=1:n_ambiguity(N_j) % Evaluate expectations under each of the multiple priors
         EV=V_Jplus1.*ambiguity_pi_e_J(1,:,N_j,amb_c);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         ambEV(:,amb_c)=EV;
     end
@@ -105,9 +105,9 @@ for reverse_j=1:N_j-1
     EVpre=V(:,:,jj+1);
 
     ambEV=zeros(N_a,n_ambiguity(jj)); % aprime, prior
-    for amb_c=1:n_ambiguity(jj) % Evaluate expections under each of the multiple priors
+    for amb_c=1:n_ambiguity(jj) % Evaluate expectations under each of the multiple priors
         EV=EVpre.*ambiguity_pi_e_J(1,:,jj,amb_c);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         ambEV(:,amb_c)=EV;
     end

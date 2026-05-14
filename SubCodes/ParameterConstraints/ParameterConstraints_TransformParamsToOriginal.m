@@ -60,7 +60,7 @@ else
 end
 
 
-%% Parameters are now in the 'constrainted' form.
+%% Parameters are now in the 'constrained' form.
 
 
 end

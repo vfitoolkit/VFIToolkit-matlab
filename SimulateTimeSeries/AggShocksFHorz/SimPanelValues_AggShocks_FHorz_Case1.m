@@ -7,7 +7,7 @@ function SimPanelValues=SimPanelValues_AggShocks_FHorz_Case1(InitialDist,jequalo
 % number of 'variables' to be simulated, second dimension is T, and
 % third dimension is the individual-simulations
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a age-horizon in which case it is assumed to be an InitialDist
 % for age j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 %

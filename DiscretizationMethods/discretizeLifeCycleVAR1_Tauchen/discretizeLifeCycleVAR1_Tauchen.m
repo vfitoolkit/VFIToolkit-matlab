@@ -59,7 +59,7 @@ function [z_grid_J,pi_z_J]=discretizeLifeCycleVAR1_Tauchen(Mew_J,Rho_J,SigmaSq_J
 
 l_z=size(Rho_J,1);
 
-warning off MATLAB:singularMatrix % surpress inversion warnings
+warning off MATLAB:singularMatrix % suppress inversion warnings
 
 % mewz=zeros(l_z,J); % period j mean of z
 % SigmaSqz = zeros(l_z,l_z,J); % period j covariance-matrix of z

@@ -24,7 +24,7 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
     % First step of Tan improvement
     StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a]); %No point checking distance every single iteration. Do 100, then check.
 
-    % Only check covergence every couple of iterations
+    % Only check convergence every couple of iterations
     if rem(counter,simoptions.multiiter)==0
         StationaryDistKronOld=StationaryDistKron;
     elseif rem(counter,simoptions.multiiter)==10

@@ -109,7 +109,7 @@ elseif simoptions.parallel==0
         StationaryDistKron=StationaryDistKron./sum(sum(StationaryDistKron));
     end
     % I did once implement the simulations on gpu, but it is painfully slow. Much
-    % better to switch to cpu, do the simluation, and then switch back.
+    % better to switch to cpu, do the simulation, and then switch back.
 end
 
 if MoveSSDKtoGPU==1

@@ -15,7 +15,7 @@ function AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist, P
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
 %
 % The stationary distribution be a structure and will contain both the
-% weights/distribution across the permenant types, as well as a pdf for the
+% weights/distribution across the permanent types, as well as a pdf for the
 % stationary distribution of each specific permanent type.
 %
 % How exactly to handle these differences between permanent (fixed) types
@@ -569,7 +569,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             temp2=zeros(N_i,1);
             for ii=2:N_i
                 if FnsAndPTypeIndicator(ff,ii)==1
-                    temp=MeanVec(ff,1:(ii-1))-MeanVec(ff,ii); % This bit with temp is just to handle numerical rounding errors where temp evalaulated to negative with order -15
+                    temp=MeanVec(ff,1:(ii-1))-MeanVec(ff,ii); % This bit with temp is just to handle numerical rounding errors where temp evaluated to negative with order -15
                     if any(temp<0) && all(temp>10^(-12))
                         temp=max(temp,0);
                     end

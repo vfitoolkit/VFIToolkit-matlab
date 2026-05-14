@@ -48,7 +48,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % Calc the max and it's index
         [~,maxindex1]=max(ReturnMatrix_ii,[],1);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
@@ -89,7 +89,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % Calc the max and it's index
             [~,maxindex1]=max(ReturnMatrix_ii,[],1);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(1,level1ii)=maxindex1;
 
             % Attempt for improved version
@@ -143,7 +143,7 @@ else
         %Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
@@ -189,7 +189,7 @@ else
             %Calc the max and it's index
             [~,maxindex1]=max(entireRHS_ii,[],1);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(1,level1ii)=maxindex1;
 
             % Attempt for improved version
@@ -257,7 +257,7 @@ for reverse_j=1:N_j-1
         % Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
@@ -302,7 +302,7 @@ for reverse_j=1:N_j-1
             % Calc the max and it's index
             [~,maxindex1]=max(entireRHS_ii,[],1);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(1,level1ii)=maxindex1;
 
             % Attempt for improved version

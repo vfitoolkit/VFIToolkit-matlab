@@ -5,7 +5,7 @@ function [z_grid,pi_z]=discretizeAR1_Tauchen(mew,rho,sigma,znum,Tauchen_q, tauch
 % Inputs
 %   mew            - constant term coefficient
 %   rho            - autocorrelation coefficient
-%   sigma          - standard deviation of (gaussion) innovations
+%   sigma          - standard deviation of (gaussian) innovations
 %   znum           - number of states in discretization of z (must be an odd number)
 %   Tauchen_q      - (Hyperparameter) Defines max/min grid points as mew+-nSigmas*sigmaz (I suggest 2 or 3)
 % Optional Inputs (tauchenoptions)

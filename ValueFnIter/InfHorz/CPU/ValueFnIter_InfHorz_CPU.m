@@ -34,7 +34,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmet
             if ~all(size(V0)==[n_a,n_z]) % Allow for input to be already transformed into Kronecker form
                 error('Starting choice for ValueFn is not of size [n_a,n_z]')
             end
-        elseif ~all(size(V0)==[N_a,N_z]) % Allows for possiblity that V0 is already in kronecker form
+        elseif ~all(size(V0)==[N_a,N_z]) % Allows for possibility that V0 is already in kronecker form
             error('Starting choice for ValueFn is not of size [n_a,n_z]')
         end
     end
@@ -67,7 +67,7 @@ if isfield(vfoptions,'V0')
     vfoptions.actualV0=1;
 else
     V0=zeros([N_a,N_z]);
-    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
+    vfoptions.actualV0=0; % DC2 has different way of creating initial guess so this will be ignored
 end
 
 

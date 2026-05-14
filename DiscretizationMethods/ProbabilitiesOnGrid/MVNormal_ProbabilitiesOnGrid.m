@@ -10,7 +10,7 @@ function P=MVNormal_ProbabilitiesOnGrid(z_grid,Mew, Sigma, znum, mvnoptions)
 %    z_grid    - sum(znum)-by-1, a stacked grid
 %    Mew       - M-by-1 vector of means
 %    Sigma     - M-by-M variance-covariance matrix
-%               OR M-by-1, intrepreted as a diagonal var-covar matrix with zeros on the off-diagonals
+%               OR M-by-1, interpreted as a diagonal var-covar matrix with zeros on the off-diagonals
 %
 % Optional inputs (mvnoptions)
 %   parallel: set equal to 2 to use GPU, 0 to use CPU
@@ -130,7 +130,7 @@ else
     % you can see that simulating points and then count onto grid and then
     % normalize will give the same answer, this was just done as a double-check on the above)
 
-    nsample=10^6; % Note, when I set it to 10^7 I actually got an out-of-memmory error as 'sample' was too big to fit in memory
+    nsample=10^6; % Note, when I set it to 10^7 I actually got an out-of-memory error as 'sample' was too big to fit in memory
     sample=mvnrnd(Mew,Sigma,nsample);
 
     % Preallocate for speed

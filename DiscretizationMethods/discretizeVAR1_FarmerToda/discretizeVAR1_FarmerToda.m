@@ -57,7 +57,7 @@ function [z_grid,pi_z] = discretizeVAR1_FarmerToda(Mew,Rho,SigmaSq,znum,farmerto
 
 %% Input error checks
 
-warning off MATLAB:singularMatrix % surpress inversion warnings
+warning off MATLAB:singularMatrix % suppress inversion warnings
 
 %% Set defaults
 if ~exist('farmertodaoptions','var')
@@ -99,7 +99,7 @@ else
     end
 end
 
-% Make sure method is set appropraitely
+% Make sure method is set appropriately
 if ~strcmp(farmertodaoptions.method,'quantile') && ~strcmp(farmertodaoptions.method,'even') && ~strcmp(farmertodaoptions.method,'gauss-hermite')
     error('Method must be one of quantile, even, or gauss-hermite')
 end
@@ -230,7 +230,7 @@ for ii = 1:(znum^M)
                 (weights'./sqrt(pi)));
     end
     
-    % Make sure all elements of the prior are stricly positive
+    % Make sure all elements of the prior are strictly positive
     q(q<kappa) = kappa;
     
     for jj = 1:M

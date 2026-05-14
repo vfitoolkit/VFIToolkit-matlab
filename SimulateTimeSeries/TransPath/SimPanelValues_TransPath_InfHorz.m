@@ -9,7 +9,7 @@ function SimPanelValues=SimPanelValues_TransPath_InfHorz(PolicyPath, PricePath, 
 % number of 'variables' to be simulated, second dimension is FHorz, and
 % third dimension is the number-of-simulations
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-T, or n_a-by-n_z)
 
@@ -257,7 +257,7 @@ daprimePolicy_gridvals=gpuArray(daprimePolicy_gridvals);
 SimPanelIndexes=gpuArray(SimPanelIndexes);
 
 SimPanelValues=nan(length(FnsToEvaluate), T, simoptions.numbersims,'gpuArray'); % needs to be NaN to permit that some people might be 'born' later than age j=1
-% Note, having the whole T at this stage makes assiging the values based on the indexes vastly faster
+% Note, having the whole T at this stage makes assigning the values based on the indexes vastly faster
 
 
 %% Create PanelValues from PanelIndexes

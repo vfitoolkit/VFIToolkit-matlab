@@ -13,9 +13,9 @@ function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridv
 %
 % transpathoptions.zepathtrivial=0 when either of zpathtrival and epathtrivial both are zero
 
-% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilties, including pi_z_sparse transition probs
-% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
-% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties, including pi_z_sparse transition probs
+% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilities, including pi_z_sparse transition probs
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilities, including pi_z_sparse transition probs
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
 
@@ -251,9 +251,9 @@ end
 
 
 %% Create ze_gridvals, which is used for AggVars. Will be z_gridvals or e_gridvals if only one of them is used
-% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilties, including pi_z_sparse
-% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
-% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties, including pi_z_sparse
+% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilities, including pi_z_sparse
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilities, including pi_z_sparse
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 if gridpiboth==3 || gridpiboth==2
     ze_gridvals=[];

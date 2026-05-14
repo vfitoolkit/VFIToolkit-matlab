@@ -150,7 +150,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
     end
 end
 % Divide-and-conquer with one endogenous state is implemented, but is too slow to be something you would ever want.
-% Especially becuase you cannot refine while doing divideandconquer
+% Especially because you cannot refine while doing divideandconquer
 if vfoptions.divideandconquer==1 && isscalar(n_a)
     vfoptions.divideandconquer=0;
 end
@@ -174,7 +174,7 @@ if isfield(vfoptions,'V0')
     vfoptions.actualV0=1;
 else
     V0=zeros([N_a,N_z], 'gpuArray');
-    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
+    vfoptions.actualV0=0; % DC2 has different way of creating initial guess so this will be ignored
 end
 
 %% Check the sizes of some of the inputs
@@ -202,7 +202,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmet
             if ~all(size(V0)==[n_a,n_z]) % Allow for input to be already transformed into Kronecker form
                 error('Starting choice for ValueFn is not of size [n_a,n_z]')
             end
-        elseif ~all(size(V0)==[N_a,N_z]) % Allows for possiblity that V0 is already in kronecker form
+        elseif ~all(size(V0)==[N_a,N_z]) % Allows for possibility that V0 is already in kronecker form
             error('Starting choice for ValueFn is not of size [n_a,n_z]')
         end
     end

@@ -104,7 +104,7 @@ else
         pi_semiz=pi_semiz_J(:,:,d2_c,N_j); % reverse order
 
         DiscountedEV_d2=DiscountedEV.*shiftdim(pi_semiz',-1);
-        DiscountedEV_d2(isnan(DiscountedEV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        DiscountedEV_d2(isnan(DiscountedEV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         DiscountedEV_d2=sum(DiscountedEV_d2,2); % sum over z', leaving a singular second dimension
 
         % n-Monotonicity

@@ -79,7 +79,7 @@ if vfoptions.lowmemory==0
     % First, we want aprime conditional on (d,1,a,j)
     [~,maxindex1]=max(entireRHS_ii,[],2);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints_jj(:,1,level1ii,:,:)=maxindex1;
 
     % Attempt for improved version
@@ -134,7 +134,7 @@ elseif vfoptions.lowmemory==1
         % First, we want aprime conditional on (d,1,a,j)
         [~,maxindex1]=max(entireRHS_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
 
         % Attempt for improved version

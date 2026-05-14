@@ -54,10 +54,10 @@ if ~isfield(vfoptions,'V_Jplus1')
         % First, we want aprime conditional on (d,1,a,z)
         [~,maxindex1]=max(ReturnMatrix_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
 
-        % Second level based on montonicity
+        % Second level based on monotonicity
         maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
             curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -99,10 +99,10 @@ if ~isfield(vfoptions,'V_Jplus1')
             % First, we want aprime conditional on (d,1,a,z)
             [~,maxindex1]=max(ReturnMatrix_ii,[],2);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,level1ii)=maxindex1;
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(maxindex1(:,1,2:end)-maxindex1(:,1,1:end-1),[],1));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -143,7 +143,7 @@ else
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % First, switch V_Jplus1 into Kron form
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
@@ -158,7 +158,7 @@ else
         % First, we want aprime conditional on (d,1,a,z)
         [~,maxindex1]=max(entireRHS_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
@@ -211,7 +211,7 @@ else
             % First, we want aprime conditional on (d,1,a,z)
             [~,maxindex1]=max(entireRHS_ii,[],2);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,level1ii)=maxindex1;
 
             % Attempt for improved version
@@ -268,7 +268,7 @@ for reverse_j=1:N_j-1
     EV=V(:,:,jj+1);
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
@@ -283,7 +283,7 @@ for reverse_j=1:N_j-1
         % First, we want aprime conditional on (d,1,a,z)
         [~,maxindex1]=max(entireRHS_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
@@ -336,7 +336,7 @@ for reverse_j=1:N_j-1
             % First, we want aprime conditional on (d,1,a,z)
             [~,maxindex1]=max(entireRHS_ii,[],2);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,level1ii)=maxindex1;
 
             % Attempt for improved version

@@ -60,7 +60,7 @@ caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with o
 caliboptions.useCustomModelStats=0;
 if isfield(caliboptions,'CustomModelStats')
     caliboptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     caliboptions.CustomModelStatsInputs.z_grid=z_grid;
     caliboptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -139,8 +139,8 @@ end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
 calibparamssizes=zeros(nCalibParams,2); % with PType, some parameters may be matrices (depend on both j and i)
-calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
-calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
+calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omitting the parameter for certain ages
+calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omitted values of a parameter
 for pp=1:nCalibParams
     if nCalibParamsFinder(pp,2)==0 % Doesn't depend on ptype
         currentparameter=Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)});
@@ -203,7 +203,7 @@ actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if isscalar(caliboptions.weights)
     caliboptions.weights=caliboptions.weights.*ones(size(targetmomentvec(actualtarget)));
 else % Make sure it is a column vector
-    if size(caliboptions.weights,1)==1 % currently a row vetor
+    if size(caliboptions.weights,1)==1 % currently a row vector
         caliboptions.weights=caliboptions.weights';
     end
 end
@@ -246,7 +246,7 @@ else
     pi_z_J=[];
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
-% precomputed by the time we get to the value fn, staty dist, etc. So
+% precomputed by the time we get to the value fn, stationary dist, etc. So
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
 
@@ -265,7 +265,7 @@ if prod(vfoptions.n_semiz)>0
     simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
     simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
 
-    % Regardless of whether they are done here of in _subfn, they will be precomputed by the time we get to the value fn, staty dist, etc. So
+    % Regardless of whether they are done here of in _subfn, they will be precomputed by the time we get to the value fn, stationary dist, etc. So
     vfoptions.alreadygridvals_semiexo=1;
     simoptions.alreadygridvals_semiexo=1;
 end

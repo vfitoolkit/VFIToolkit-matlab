@@ -4,7 +4,7 @@ function [output]=getHDRData(series_id, countrycode3L, observation_start, observ
 % Human Development Report Office database needs three pieces of info:
 %
 % series_id: the code for the variable you want (annoyingly they make these
-%            unintelligble 5 or 6 digit numbers; see 'Dictionary' below; HDR call it indicator_id)
+%            unintelligible 5 or 6 digit numbers; see 'Dictionary' below; HDR call it indicator_id)
 %
 % countrycode3L: the country as a three-letter code
 %

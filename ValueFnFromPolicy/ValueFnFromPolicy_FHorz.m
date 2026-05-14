@@ -172,7 +172,7 @@ elseif N_z>0 && N_e==0
         else
             beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
             EVnext=sum(V(:,:,jj+1).*shiftdim(pi_z_J(:,:,jj)',-2),2); % size N_z-by-1
-            EVnext(isnan(EVnext))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EVnext(isnan(EVnext))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EVnext=sum(EVnext,2); % sum over z', leaving a singular second dimension
 %             EVnext=reshape(EVnext,[N_a,N_z]); % Not necessary as just index into it
 
@@ -216,7 +216,7 @@ elseif N_z>0 && N_e>0
             beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
             EVnext=sum(V(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-2),3); % expectation over iid
             EVnext=EVnext.*shiftdim(pi_z_J(:,:,jj)',-1); % size N_z-by-1
-            EVnext(isnan(EVnext))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EVnext(isnan(EVnext))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EVnext=sum(EVnext,2); % sum over z', leaving a singular second dimension
 %             EVnext=reshape(EVnext,[N_a,N_z]); % Not necessary as just index into it
 

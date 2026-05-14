@@ -44,7 +44,7 @@ while currdist>Tolerance
 
         %Calc the expectation term (except beta)
         EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
 
         entireEV_z=repelem(EV_z,N_d,1);

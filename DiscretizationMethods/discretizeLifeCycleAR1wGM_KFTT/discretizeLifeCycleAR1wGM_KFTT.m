@@ -9,7 +9,7 @@ function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR
 % Hence KFTT=Kirkby-Farmer-Tanaka-Toda
 %
 %  KFTT method to approximate life-cycle AR(1) process by a discrete Markov chain
-%       z(j) = mew(j)+rho(j)*z(j-1)+ epsilon(j),   epsilion(j)~iid F(j)
+%       z(j) = mew(j)+rho(j)*z(j-1)+ epsilon(j),   epsilon(j)~iid F(j)
 %           where F(j)=sum_{i=1}^nmix mixprobs_i(j)*N(mu_i(j),sigma_i(j)^2) is a gaussian mixture
 %       with initial condition z(0) = 0 (equivalently z(1)=epsilon(1))
 %
@@ -291,7 +291,7 @@ parfor jj=1:J
 
     for z_c = 1:znum % For each value z(jj-1) compute the conditional distribution for z(jj) [the row of the transition matrix]
 
-        % First, calculate what Farmer & Toda (2017) call qnn', which are essentially an inital guess for pnn'
+        % First, calculate what Farmer & Toda (2017) call qnn', which are essentially an initial guess for pnn'
         condMean = rho(jj)*zlag_grid(z_c); % z_grid(ii) here is the lag grid point
         xPDF = (z_grid-condMean)';
         switch kfttoptions.method

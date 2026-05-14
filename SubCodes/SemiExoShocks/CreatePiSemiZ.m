@@ -60,7 +60,7 @@ elseif l_d==4
 end
 
 
-% SemiExoStateFn(z,zprime,d,paremeters)
+% SemiExoStateFn(z,zprime,d,parameters)
 if l_d==1
     if l_semiz==1
         pi_semiz=arrayfun(SemiExoStateFn, semiz1vals, semiz1primevals, d1vals, ParamCell{:}); % Note: z1primevals is just z1vals
@@ -110,7 +110,7 @@ elseif l_d==4 % Note, I am just going to create an N_d dimension
         pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals,semiz4vals,semiz5vals, semiz1primevals,semiz2primevals,semiz3primevals,semiz4primevals,semiz5primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:});
     end
 end
-pi_semiz=reshape(pi_semiz,[N_semiz,N_semiz,N_d]); % I think this reshape is actually superflous, so can probably comment it out
+pi_semiz=reshape(pi_semiz,[N_semiz,N_semiz,N_d]); % I think this reshape is actually superfluous, so can probably comment it out
 
 
 

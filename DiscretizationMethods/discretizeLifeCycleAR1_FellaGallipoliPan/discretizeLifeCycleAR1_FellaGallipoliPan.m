@@ -5,7 +5,7 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 % This is an extension of the Rouwenhorst method to 'age-dependent parameters'
 %
 %  Exteneded-Rouwenhurst method to approximate life-cycle AR(1) process by a discrete Markov chain
-%       z(j) = rho(j)*z(j-1)+ epsilon(j),   epsilion(j)~iid N(0,sigma(j))
+%       z(j) = rho(j)*z(j-1)+ epsilon(j),   epsilon(j)~iid N(0,sigma(j))
 %       with initial condition z(0) = 0 (equivalently z(1)=epsilon(1))
 %
 % Inputs:

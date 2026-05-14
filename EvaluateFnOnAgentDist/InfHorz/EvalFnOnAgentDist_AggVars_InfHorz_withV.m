@@ -184,7 +184,7 @@ if isfield(simoptions,'conditionalrestrictions')
     % to recreate them to evaluated the restrictions.
 
     if simoptions.parallel==2
-        % Evaluate the conditinal restrictions
+        % Evaluate the conditional restrictions
         for kk=1:length(CondlRestnFnNames)
             % Includes check for cases in which no parameters are actually required
             if isempty(CondlRestnFnParamNames(kk).Names) % check for '={}'
@@ -209,7 +209,7 @@ if isfield(simoptions,'conditionalrestrictions')
                 AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_InfHorz_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
 
                 % Create some renormalizations where relevant (just the mean)
-                for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above
+                for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate already created above
                     AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Mean;
                 end
                 AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
@@ -266,7 +266,7 @@ if isfield(simoptions,'conditionalrestrictions')
                 AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_InfHorz_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel, simoptions);
 
                 % Create some renormalizations where relevant (just the mean)
-                for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above
+                for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate already created above
                     AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Mean;
                 end
                 AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want

@@ -193,9 +193,9 @@ else % N_z
         for z_c=1:N_z
             StationaryDistVec_z=StationaryDist(:,:,z_c); % This is why I did the permute (to avoid a reshape here). Not actually sure whether all the reshapes would be faster than the permute or not?
             if n_d(1)>0
-                PolicyValues=PolicyInd2Val_FHorz(Policy(:,:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
+                PolicyValues=PolicyInd2Val_FHorz(Policy(:,:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parallel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
             else
-                PolicyValues=PolicyInd2Val_FHorz(Policy(:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
+                PolicyValues=PolicyInd2Val_FHorz(Policy(:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parallel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
             end
 
             for ii=1:length(FnsToEvaluate)

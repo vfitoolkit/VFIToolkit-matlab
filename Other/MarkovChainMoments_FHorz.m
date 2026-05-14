@@ -1,5 +1,5 @@
 function [mean,variance,autocorrelation,statdist]=MarkovChainMoments_FHorz(z_grid_J,pi_z_J,jequaloneDistz,simoptions,mcmomentsoptions)
-% Calculates the mean, variance, autocorrellation, and stantionary
+% Calculates the mean, variance, autocorrelation, and stationary
 % distribution of a finite-horizon markov process.
 %
 % Inputs:
@@ -126,7 +126,7 @@ if length(mcmomentsoptions.n_z)==1
 
     end
 
-else % z is multidimensional (note: I only calculate variance, autocorellation of each invidivually, not the actual covariance matrix and autocorrelation matrix of the multivariate)
+else % z is multidimensional (note: I only calculate variance, autocorellation of each individually, not the actual covariance matrix and autocorrelation matrix of the multivariate)
     n_z=mcmomentsoptions.n_z;
     l_z=length(n_z);
 
@@ -170,7 +170,7 @@ end
 
 %% Following is old code that used to simulate the markov to calculate the autocorrelation.
 % The final line checks it against the new code, and the new code is more
-% accurate as well as immesurably faster.
+% accurate as well as immeasurably faster.
 
 % %% Now for the (first-order auto-) correlation
 % % This takes vast majority of the time of MarkovChainMoments()

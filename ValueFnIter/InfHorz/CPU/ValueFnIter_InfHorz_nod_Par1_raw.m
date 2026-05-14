@@ -18,7 +18,7 @@ while currdist>Tolerance && tempcounter<=maxiter
         pi_z_z=pi_z(z_c,:);
 
         EV_z=VKronold.*pi_z_z(1,:);
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
 
         entireRHS=ReturnMatrix_z+beta*EV_z; %aprime by a

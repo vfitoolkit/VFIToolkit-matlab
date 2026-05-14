@@ -55,11 +55,11 @@ elseif simoptions.endogenousexit==2
     % Mixed exit (endogenous and exogenous), so we know that CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a*N_z,1]);
     Gammatranspose=sparse(optaprime++kron(N_a*(0:1:N_z-1),ones(1,N_a)),1:1:N_a*N_z,(exitprobs(1)+exitprobs(2)*CondlProbOfSurvival).*ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
 
-    % NOTE TO SELF: This wasn't tested when I converted to Tan improvement (as is not in any of the three firm models implemented in toolkit), so following is a copy-paste backup of how it worked without Tan improvement
+    % NOTE TO SELF: This wasnt tested when I converted to Tan improvement (as is not in any of the three firm models implemented in toolkit), so following is a copy-paste backup of how it worked without Tan improvement
     % Ptranspose=sparse(N_a,N_a*N_z);
     % Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
     % % Ptranspose1=(kron(pi_z',ones(N_a,N_a))).*(kron(exitprob(1)*ones(N_z,1),Ptranspose)); % No exit, and remove exog exit
-    % % Ptranspose2=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
+    % % Ptranspose2=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the multiplication by pi_z
     % % Ptranspose=Ptranspose1+exitprob(2)*Ptranspose2; % Add the appropriate for endogenous exit
     % % Following line does (in one line) what the above three commented out lines do (doing it in one presumably reduces memory usage of Ptranspose1 and Ptranspose2)
     % Ptranspose=((kron(pi_z',ones(N_a,N_a))).*(kron(exitprobs(1)*ones(N_z,1),Ptranspose)))+exitprobs(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
@@ -73,7 +73,7 @@ currdist=sum(abs(StationaryDistKron.pdf-StationaryDistKronOld));
 counter=0;
 
 % Switch into 'mass times pdf' form, and work with that until get
-% convergence, then switch solution back into seperate mass and pdf form for output.
+% convergence, then switch solution back into separate mass and pdf form for output.
 StationaryDistKron_pdf=sparse(gather(StationaryDistKron.mass*StationaryDistKron.pdf)); % Make it the pdf
 
 

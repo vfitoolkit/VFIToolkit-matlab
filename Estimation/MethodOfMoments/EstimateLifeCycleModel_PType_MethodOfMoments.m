@@ -74,7 +74,7 @@ if ~isfield(estimoptions,'bootstrapStdErrors')
     estimoptions.bootstrapStdErrors=0; % =1, bootstraps the standard errors (instead of based on derivatives, which is the default)
 end
 if ~isfield(estimoptions,'numbootstrapssims')
-    % When doing two-step GMM, or bootstraping Standard Errors
+    % When doing two-step GMM, or bootstrapping Standard Errors
     estimoptions.numbootstrapsims=100; % Number of simulations
 end
 if ~isfield(estimoptions,'efficientW')
@@ -95,7 +95,7 @@ end
 estimoptions.useCustomModelStats=0;
 if isfield(estimoptions,'CustomModelStats')
     estimoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     estimoptions.CustomModelStatsInputs.z_grid=z_grid;
     estimoptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -188,8 +188,8 @@ end
 estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(nEstimParams+1,1); % Note, first element remains zero
 estimparamssizes=zeros(nEstimParams,1); % with PType, some parameters may be matrices (depend on both j and i)
-estimomitparams_counter=zeros(nEstimParams,1); % column vector: estimomitparamsvec allows omiting the parameter for certain ages
-estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
+estimomitparams_counter=zeros(nEstimParams,1); % column vector: estimomitparamsvec allows omitting the parameter for certain ages
+estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omitted values of a parameter
 for pp=1:nEstimParams
     if nEstimParamsFinder(pp,2)==0 % Doesn't depend on ptype
         currentparameter=Parameters.(EstimParamNames{nEstimParamsFinder(pp,1)});
@@ -465,7 +465,7 @@ if estimoptions.bootstrapStdErrors==0
     % I want to do epsilon change in the model parameter, but here I have
     % the unconstrained parameters. So I create an epsilonparamup and
     % epsilonparamdown, which contain the unconstrained values the
-    % correspond to espilon changes in the constrained parameters
+    % correspond to epsilon changes in the constrained parameters
     % I do this in a separate loop, which is a loss of runtime, but this is
     % minor and is much easier to read so whatever
     epsilonparamup=zeros(length(estimparamsvec),length(epsilonmodvec));
@@ -542,7 +542,7 @@ if estimoptions.bootstrapStdErrors==0
         J_centered=(ObjValue_upwind-ObjValue_downwind)./((epsilonparamup(:,ee)-epsilonparamdown(:,ee))');
         % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
 
-        % J is nmonents-by-nparams
+        % J is nmoments-by-nparams
         J_full=J_centered;
         % If epsilon changes pushed us outside the parameter constraints, then we just use the one-sided finite-differences
         for pp=1:length(estimparamsvec)
@@ -619,7 +619,7 @@ end
 
 
 %% Local identification
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
+if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     % The estimate is locally identified if the matrix J is full rank
     estsummary.localidentification.rankJ=rank(J); % If this is greater or equal to number of parameters, then locally identified
     estsummary.localidentification.yesidentified=logical(rank(J)>=length(estimparamsvec));
@@ -628,13 +628,13 @@ end
 
 %% Some additional outputs
 % Mainly, the Sensitivity matrix
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
+if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     % Sensitivity of estimated parameters to the target moments
     % Sensitivity matrix, Lambda, of Andrews, Gentzkow & Shapiro (2017) - Measuring the Sensitivity of Parameter Estimates to Estimation Moments
     SensitivityMatrix=(-(J'*WeightingMatrix*J)^(-1))*(J'*WeightingMatrix);
     estsummary.sensitivitymatrix=SensitivityMatrix;
 
-    % Sensitivity of estimated paraemters to the pre-calibrated parameters
+    % Sensitivity of estimated parameters to the pre-calibrated parameters
     % If you have set estimoptions.CalibParamNames; Jorgensen (2023) - Sensitivity to Calibrated Parameters
     % Requires calculating derivatives of the objective vector to the calibrated parameters
     if isfield(estimoptions,'CalibParamsNames')
@@ -750,7 +750,7 @@ for pp=1:length(estimparamsvec)
                 estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
             end
         end
-        % If bootstrap std errors, then replace the std dev with the bootstrap distribuiton
+        % If bootstrap std errors, then replace the std dev with the bootstrap distribution
     elseif estimoptions.bootstrapStdErrors==1
         estsummary.EstimParamsStdDev=EstimParamsBootStrapDist;
         estsummary.notes.bootstrap=['Standard errors report distribution of parameter estimates based on ',num2str(estimoptions.numbootstrapsims),' bootstraps, each had ',num2str(estimoptions.numberinvidualsperbootstrapsim),' agents for ',num2str(N_j),' periods (so some ',num2str(N_j*estimoptions.numberinvidualsperbootstrapsim),' observations)' ];
@@ -815,7 +815,7 @@ if estimoptions.skipestimation==1
     estsummary.warningskipestimation='Warning: this estimation used estimoptions.skipestimation=1 (all good, just reminding you as you need to be careful when using skipestimation=1 :)';
 end
 
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
+if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     estsummary.variousmatrices.J=J;
     if estimoptions.efficientW==0
         estsummary.variousmatrices.Omega=CoVarMatrixDataMoments; % Covariance matrix of the data moments

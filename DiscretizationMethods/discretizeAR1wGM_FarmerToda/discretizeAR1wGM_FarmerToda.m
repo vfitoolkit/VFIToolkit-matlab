@@ -164,7 +164,7 @@ nMoments_grid=zeros(znum,1);
 
 for z_c = 1:znum
 
-    % First, calculate what Farmer & Toda (2017) call qnn', which are essentially an inital guess for pnn'
+    % First, calculate what Farmer & Toda (2017) call qnn', which are essentially an initial guess for pnn'
     condMean = mew*(1-sum(rho))+rho*z_grid(z_c); % z_grid(z_c) here is the lag grid point
     xPDF = (X1-condMean)';
     switch farmertodaoptions.method

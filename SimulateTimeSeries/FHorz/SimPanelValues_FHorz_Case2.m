@@ -5,7 +5,7 @@ function SimPanelValues=SimPanelValues_FHorz_Case2(InitialDist,Policy,FnsToEvalu
 % number of 'variables' to be simulated, second dimension is FHorz, and
 % third dimension is the number-of-simulations.
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 

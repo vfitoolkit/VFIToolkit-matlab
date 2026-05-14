@@ -17,7 +17,7 @@ else
 end
 simoptions.numbersims=1;
 
-% To make my life easy, this actully just uses the SimPanelValues command and creates just one simulation.
+% To make my life easy, this actually just uses the SimPanelValues command and creates just one simulation.
 InitialDist=zeros([N_a,N_z]);
 InitialDist(simoptions.seedpoint(1),simoptions.seedpoint(2))=1;
 

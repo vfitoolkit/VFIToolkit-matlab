@@ -85,7 +85,7 @@ else
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z);  % [N_d*N_a1,N_u,N_z]
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -95,7 +95,7 @@ else
     skipinterp=(EVlower==EVupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    %  Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    %  Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*EVlower+(1-aprimeProbs).*EVupper; % (d23 & a1prime,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     EV=squeeze(sum((EV.*pi_u),2)); % (d23 & a1prime,zprime)
@@ -175,7 +175,7 @@ for reverse_j=1:N_j-1
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z);  % [N_d*N_a1,N_u,N_z]
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -185,7 +185,7 @@ for reverse_j=1:N_j-1
     skipinterp=(EVlower==EVupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    %  Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    %  Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*EVlower+(1-aprimeProbs).*EVupper; % (d23 & a1prime,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     EV=squeeze(sum((EV.*pi_u),2)); % (d23 & a1prime,zprime)

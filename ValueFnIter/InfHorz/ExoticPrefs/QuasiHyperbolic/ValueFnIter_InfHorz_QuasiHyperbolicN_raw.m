@@ -5,7 +5,7 @@ function [VKron, Policy]=ValueFnIter_InfHorz_QuasiHyperbolicN_raw(VKron, n_d,n_a
 % V_naive_j: Vtilde_j = u_t+ beta_0 *E[V_{j+1}]
 % See documentation for a fuller explanation of this.
 
-% Note that the inputed VKron is already V, so just calcule Vtilde and
+% Note that the inputted VKron is already V, so just calculate Vtilde and
 % associated policy.
 
 % Note that beta here is the 'this period to next period' discount function
@@ -25,7 +25,7 @@ for z_c=1:N_z
     %Calc the condl expectation term (except beta), which depends on z but
     %not on control variables
     EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-    EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV_z=sum(EV_z,2);
 
     entireEV_z=kron(EV_z,ones(N_d,1));

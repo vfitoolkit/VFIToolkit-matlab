@@ -45,7 +45,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         V(level1ii,:,N_j)=shiftdim(Vtempii,1);
         Policy(level1ii,:,N_j)=shiftdim(maxindex2,1); % d,aprime
 
-        % Second level based on montonicity
+        % Second level based on monotonicity
         maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
             curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -87,7 +87,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             V(level1ii,z_c,N_j)=shiftdim(Vtempii,1);
             Policy(level1ii,z_c,N_j)=shiftdim(maxindex2,1); % d,aprime
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(maxindex1(:,1,2:end)-maxindex1(:,1,1:end-1),[],1));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -123,7 +123,7 @@ else
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     if vfoptions.lowmemory==0
@@ -242,7 +242,7 @@ for reverse_j=1:N_j-1
     EV=V(:,:,jj+1);
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     if vfoptions.lowmemory==0
