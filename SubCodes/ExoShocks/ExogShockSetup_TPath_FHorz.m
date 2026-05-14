@@ -266,7 +266,7 @@ if N_e>0
                 end
             end
             if overlap2==0
-                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
+                pi_e_J=zeros(N_e,N_j,'gpuArray');
                 e_grid_J=zeros(N_e,N_j,'gpuArray');
                 for jj=1:N_j
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
@@ -282,7 +282,7 @@ if N_e>0
                 transpathoptions.epathtrivial=0; % e_grid_J and pi_e_J vary over the path
                 transpathoptions.pi_e_J_T=zeros(N_e,N_e,N_j,T,'gpuArray');
                 transpathoptions.e_grid_J_T=zeros(sum(n_e),N_j,T,'gpuArray');
-                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
+                pi_e_J=zeros(N_e,N_j,'gpuArray');
                 e_grid_J=zeros(sum(n_e),N_j,'gpuArray');
                 for tt=1:T
                     for ii=1:length(ParamPathNames)
@@ -387,7 +387,7 @@ if N_e>0
                     transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
                     for tt=1:T
                         for jj=1:N_j
-                            e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
                         end
                     end
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
@@ -413,7 +413,7 @@ if N_e>0
                     transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
                     for tt=1:T
                         for jj=1:N_j
-                            e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
                         end
                     end
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
@@ -434,7 +434,7 @@ if N_e>0
                     transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
                     for tt=1:T
                         for jj=1:N_j
-                            e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
                         end
                     end
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from (e,j,t) to (j,e,t)
@@ -458,7 +458,7 @@ if N_e>0
                     transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
                     for tt=1:T
                         for jj=1:N_j
-                            e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
                         end
                     end
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from (e,j,t) to (j,e,t)
@@ -554,8 +554,8 @@ else
                 ze_gridvals_J_T=[repmat(transpathoptions.z_gridvals_J_T,N_e,1,1),repelem(transpathoptions.e_gridvals_J_T,N_z,1,1)];
             elseif transpathoptions.fastOLG==1
                 ze_gridvals_J_T=zeros(N_j,N_ze,l_ze,'gpuArray');
-                ze_gridvals_J_T(:,:,1:l_z,:)=repmat(transpathoptions.z_gridvals_J,1,N_e,1);
-                ze_gridvals_J_T(:,:,l_z+1:end,:)=repmat(squeeze(transpathoptions.e_gridvals_J),1,N_z,1);
+                ze_gridvals_J_T(:,:,1:l_z,:)=repmat(transpathoptions.z_gridvals_J_T,1,N_e,1);
+                ze_gridvals_J_T(:,:,l_z+1:end,:)=repmat(squeeze(transpathoptions.e_gridvals_J_T),1,N_z,1);
             end
         end
 

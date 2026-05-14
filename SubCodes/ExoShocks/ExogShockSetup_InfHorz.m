@@ -67,7 +67,7 @@ else
             for ii=1:length(ExogShockFnParamsVec)
                 ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
             end
-            [z_gridvals,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+            [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
         end
         if all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
             z_gridvals=z_grid;

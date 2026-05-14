@@ -164,7 +164,7 @@ else
     elseif gridpiboth==2 % For agent dist, we don't use grid
         options.e_gridvals_J=[];
         % Now just do pi_e_J
-        options.pi_e_J=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
+        options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
         if isfield(options,'EiidShockFn')
             for jj=1:N_j
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
@@ -181,7 +181,7 @@ else
     elseif gridpiboth==3
         % For value fn, both e_gridvals_J and pi_e_J
         options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),'gpuArray');
-        options.pi_e_J=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
+        options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
 
         if isfield(options,'EiidShockFn')
             for jj=1:N_j

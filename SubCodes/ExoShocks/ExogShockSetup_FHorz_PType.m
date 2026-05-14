@@ -489,7 +489,7 @@ if edependsonptype==0
         elseif gridpiboth==2 % For agent dist, we don't use grid
             options.e_gridvals_J=[];
             % Now just do pi_e_J
-            options.pi_e_J=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
+            options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
             if isfield(options,'EiidShockFn')
                 for jj=1:N_j
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
@@ -506,7 +506,7 @@ if edependsonptype==0
         elseif gridpiboth==3
             % For value fn, both e_gridvals_J and pi_e_J
             options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),'gpuArray');
-            options.pi_e_J=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
+            options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
 
             if isfield(options,'EiidShockFn')
                 for jj=1:N_j
@@ -605,7 +605,7 @@ elseif edependsonptype==1
             elseif gridpiboth==2 % For agent dist, we don't use grid
                 options.e_gridvals_J.(Names_i{ii})=[];
                 % Now just do pi_e_J
-                pi_e_J_temp=zeros(prod(n_e_temp),prod(n_e_temp),'gpuArray');
+                pi_e_J_temp=zeros(prod(n_e_temp),N_j_temp,'gpuArray');
                 if isfield(options,'EiidShockFn')
                     for jj=1:N_j_temp
                         EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
@@ -624,7 +624,7 @@ elseif edependsonptype==1
             elseif gridpiboth==3
                 % For value fn, both e_gridvals_J and pi_e_J
                 e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),'gpuArray');
-                pi_e_J_temp=zeros(prod(n_e_temp),prod(n_e_temp),'gpuArray');
+                pi_e_J_temp=zeros(prod(n_e_temp),N_j_temp,'gpuArray');
 
                 if isfield(options,'EiidShockFn')
                     for jj=1:N_j_temp
