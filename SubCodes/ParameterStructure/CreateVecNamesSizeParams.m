@@ -7,7 +7,7 @@ function Parameters=CreateVecNamesSizeParams(ParamsVec,ParamsNames,ParamsSize)
 % ParamsSize is a matrix, each row of which contains the size of the parameters (is only really needed so it is possible to reconstruct Parameters)
 
 ii=1;
-for jj=1:length(ParamsVec)
+for jj=1:length(ParamsNames)
     currsize=ParamsSize(jj,:);
     currparam=ParamsVec(ii:(ii+prod(currsize)-1));
     Parameters.(ParamsNames{jj})=reshape(currparam,currsize);

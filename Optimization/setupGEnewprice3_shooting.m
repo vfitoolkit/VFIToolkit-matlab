@@ -120,7 +120,6 @@ else
     % Is same as order of fields in PriceParamNames
     % I do this by just reordering rows of options.GEnewprice3.howtoupdate
     temp=options.GEnewprice3.howtoupdate;
-    % GEeqnNames=fieldnames(GeneralEqmEqns);
     pp_index=zeros(1,length(PriceParamNames)+(N_i-1)*sum(options.Priceptype==1));
     pp_c=0;
     for pp=1:length(PriceParamNames)
@@ -164,6 +163,7 @@ else
         for jj=1:size(options.GEnewprice3.howtoupdate,1)
             if strcmp(options.GEnewprice3.howtoupdate{jj,1},GEeqnNames{gg})
                 pricename_gg = options.GEnewprice3.howtoupdate{jj,2};
+                break % avoid that for ptype eqns it re-overwrites pricename_gg N_i times with the same value
             end
         end
         % find which pp that price is

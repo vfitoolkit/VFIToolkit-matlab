@@ -12,8 +12,8 @@ function [calibparamsvec,caliboptions]=ParameterConstraints_PType_TransformParam
 % ParameterConstraints_TransformParamsToOriginal: transforms uparam to cparam
 %
 % - Constrain parameter to be positive
-%     uparam=exp(cparam)
-%     cparam=log(uparam)
+%     uparam=log(cparam)
+%     cparam=exp(uparam)
 %
 % - Constrain parameter to be zero-to-one
 %     uparam=
@@ -29,21 +29,23 @@ function [calibparamsvec,caliboptions]=ParameterConstraints_PType_TransformParam
 % you know that you shouldn't go to those regions.
 
 
+nCalibParams=size(nCalibParamsFinder,1); % ptype-expanded count (one entry per (name,ptype) slot)
+
 %% Backup the parameter constraint names, so I can replace them with vectors
 if constraintsbyname==1
     caliboptions.constrainpositivenames=caliboptions.constrainpositive;
-    caliboptions.constrainpositive=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be positive
+    caliboptions.constrainpositive=zeros(nCalibParams,1); % if equal 1, then that parameter is constrained to be positive
     caliboptions.constrain0to1names=caliboptions.constrain0to1;
-    caliboptions.constrain0to1=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+    caliboptions.constrain0to1=zeros(nCalibParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
     caliboptions.constrainAtoBnames=caliboptions.constrainAtoB;
-    caliboptions.constrainAtoB=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+    caliboptions.constrainAtoB=zeros(nCalibParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
 
     if ~isempty(caliboptions.constrainAtoBnames)
         caliboptions.constrainAtoBlimitsnames=caliboptions.constrainAtoBlimits;
-        caliboptions.constrainAtoBlimits=zeros(length(CalibParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+        caliboptions.constrainAtoBlimits=zeros(nCalibParams,2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
     end
 
-    for pp=1:length(CalibParamNames)
+    for pp=1:nCalibParams
         % Check the name, and note the ones that need to be converted
         if any(strcmp(caliboptions.constrainpositivenames,CalibParamNames{nCalibParamsFinder(pp,1)}))
             caliboptions.constrainpositive(pp)=1;
@@ -62,7 +64,7 @@ end
 
 
 %% Convert the parameters
-for pp=1:length(CalibParamNames)
+for pp=1:nCalibParams
     if caliboptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=max(log(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))),-49.99);
@@ -76,11 +78,11 @@ for pp=1:length(CalibParamNames)
     end
     if caliboptions.constrain0to1(pp)==1
         % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=min(49.99,max(-49.99,  log(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))/(1-calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))) ));
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=min(49.99,max(-49.99,  log(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))./(1-calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))) ));
         % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22, so I overrule them as 1 and 0, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
     end
     if caliboptions.constrainpositive(pp)==1 && caliboptions.constrain0to1(pp)==1 % Double check of inputs
-        fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(CalibParamNames))])
+        fprintf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(nCalibParams)])
         error('You cannot constrain parameter twice (you are constraining one of the parameters using both caliboptions.constrainpositive and in one of caliboptions.constrain0to1 and caliboptions.constrainAtoB')
     end
 end

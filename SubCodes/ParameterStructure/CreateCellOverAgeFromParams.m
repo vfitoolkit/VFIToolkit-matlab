@@ -7,6 +7,9 @@ function CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,ParamNa
 %
 % Important difference from CreateCellFromParams is that it keeps the whole
 % of the age-dependent parameters, rather than getting a specific age j.
+%
+% Note: this function is GPU-only. It wraps the parameter and the broadcast
+% ones() in gpuArray unconditionally, so it requires a GPU (no CPU fallback).
 
 nCalibParams=length(ParamNames);
 FullParamNames=fieldnames(Parameters);
@@ -18,8 +21,10 @@ for iCalibParam = 1:nCalibParams
     found=0;
     for iField=1:nFields
         if strcmp(ParamNames{iCalibParam},FullParamNames{iField})
-            CellOverAgeOfParamValues(iCalibParam)={shiftdim(reshape(gpuArray(Parameters.(FullParamNames{iField})),[length(Parameters.(FullParamNames{iField})),1]).*ones(N_j,1,'gpuArray'),1-dimJ)}; % Note, if parameter depends on age this is just the column vector, if parameter does not depend on age then this turns it into a constant valued column vector
+            CellOverAgeOfParamValues(iCalibParam)={shiftdim(reshape(gpuArray(Parameters.(FullParamNames{iField})),[length(Parameters.(FullParamNames{iField})),1]).*ones(N_j,1,'gpuArray'),1-dimJ)};
+            % Note, if parameter depends on age this is just the column vector, if parameter does not depend on age then this turns it into a constant valued column vector
             found=1;
+            break
         end
     end
     if found==0 % Have added this check so that user can see if they are missing a parameter
