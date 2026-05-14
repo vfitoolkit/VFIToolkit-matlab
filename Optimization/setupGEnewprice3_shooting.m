@@ -81,11 +81,12 @@ if ~isfield(options,'GEptype') % For models without permanent type
         error('options.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (number of rows is different to the number of GeneralEqmEqns fields) \n')
     end
     % Create 'permute' which is used to reorder the vector of GEcondn values to have same order as the PriceParamNames
+    % Note: prices=GEcond(permute)
     options.GEnewprice3.permute=zeros(size(options.GEnewprice3.howtoupdate,1),1);
-    for ii=1:size(options.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
-        for jj=1:length(GEeqnNames)
-            if strcmp(options.GEnewprice3.howtoupdate{ii,1},GEeqnNames{jj})
-                options.GEnewprice3.permute(ii)=jj;
+    for pp=1:size(options.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
+        for gg=1:length(GEeqnNames)
+            if strcmp(options.GEnewprice3.howtoupdate{pp,1},GEeqnNames{gg})
+                options.GEnewprice3.permute(ii)=gg;
             end
         end
     end
@@ -97,16 +98,16 @@ else
     % Before starting, make sure that GE that depend on ptype match up with PricePaths that depend on ptype
     options.Priceptype=zeros(length(PriceParamNames),1);
     for gg=1:nGeneralEqmEqns
-        if options.GEptype(pp)==1
+        if options.GEptype(gg)==1
             for gg2=1:size(options.GEnewprice3.howtoupdate,1)
-                if strcmp(options.GEnewprice3.howtoupdate{gg2,1},GEeqnNames{pp})
+                if strcmp(options.GEnewprice3.howtoupdate{gg2,1},GEeqnNames{gg})
                     pricename_gg=options.GEnewprice3.howtoupdate{gg2,2};
                 end
             end
             for pp=1:length(PriceParamNames)
                 if strcmp(pricename_gg,PriceParamNames{pp})
                     if PricePathSizeVec(2,pp)-PricePathSizeVec(1,pp)+1~=N_i
-                        fprintf('Following error relates to GE condition %s and to price %s \n',GEeqnNames{pp},PriceParamNames{pp})
+                        fprintf('Following error relates to GE condition %s and to price %s \n',GEeqnNames{gg},PriceParamNames{pp})
                         error('You declared a GE condition to depend on permenent type, but the price that relates to it (in options.GEnewprice3.howtoupdate) does not depend on ptype')
                     end
                     options.Priceptype(pp)=1; % this price depends on ptype
@@ -141,7 +142,6 @@ else
     options.GEnewprice3.add=[options.GEnewprice3.howtoupdate{:,3}];
     options.GEnewprice3.factor=[options.GEnewprice3.howtoupdate{:,4}];
     options.GEnewprice3.keepold=ones(size(options.GEnewprice3.factor));
-    options.GEnewprice3.keepold=ones(size(options.GEnewprice3.factor));
     tempweight=options.oldpathweight;
     options.oldpathweight=zeros(size(options.GEnewprice3.factor));
     for ii=1:length(options.GEnewprice3.factor)
@@ -156,25 +156,27 @@ else
     end
 
     % Create 'permute' which is used to reorder the vector of GEcondn values to have same order as the PriceParamNames
-    options.GEnewprice3.permute=zeros(size(options.GEnewprice3.howtoupdate,1),1);
-    pp_c=1;
-    for pp=1:length(PriceParamNames)
-        if options.Priceptype(pp)==0
-            for gg=1:nGeneralEqmEqns
-                if strcmp(options.GEnewprice3.howtoupdate{pp_c,2},PriceParamNames{pp}) % Take advantage that options.GEnewprice3.howtoupdate has been set to same order as PriceParamNames
-                    options.GEnewprice3.permute(PricePathSizeVec(1,pp))=pp_c;
+    % Note: prices=GEcond(permute)
+    options.GEnewprice3.permute=zeros(length(PriceParamNames)+(N_i-1)*sum(options.Priceptype==1),1);
+    gg_c=1;
+    for gg=1:nGeneralEqmEqns
+        % find the price name attached to this GE eqn
+        for jj=1:size(options.GEnewprice3.howtoupdate,1)
+            if strcmp(options.GEnewprice3.howtoupdate{jj,1},GEeqnNames{gg})
+                pricename_gg = options.GEnewprice3.howtoupdate{jj,2};
+            end
+        end
+        % find which pp that price is
+        for pp=1:length(PriceParamNames)
+            if strcmp(PriceParamNames{pp},pricename_gg)
+                if options.GEptype(gg)==0
+                    options.GEnewprice3.permute(PricePathSizeVec(1,pp)) = gg_c;
+                    gg_c=gg_c+1;
+                else
+                    options.GEnewprice3.permute(PricePathSizeVec(1,pp):PricePathSizeVec(2,pp)) = gg_c + (0:1:N_i-1);
+                    gg_c=gg_c+N_i;
                 end
             end
-            pp_c=pp_c+1;
-        elseif options.Priceptype(pp)==1
-            for gg=1:nGeneralEqmEqns
-                if strcmp(options.GEnewprice3.howtoupdate{pp_c,2},PriceParamNames{pp}) % Take advantage that options.GEnewprice3.howtoupdate has been set to same order as PriceParamNames
-                    for ii=PricePathSizeVec(1,pp):PricePathSizeVec(2,pp)
-                        options.GEnewprice3.permute(PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=pp_c+(0:1:N_i-1);
-                    end
-                end
-            end
-            pp_c=pp_c+N_i;
         end
     end
 
