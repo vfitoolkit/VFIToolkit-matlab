@@ -462,6 +462,9 @@ for ii=1:PTypeStructure.N_i
     % Convert z and e to age-dependent joint-grids and transtion matrix
     % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 
+    %% If using any non-standard endogenous states, setup for those
+    [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+
     %% Organise V_final and AgentDist_initial
     % Reshape V_final
     if transpathoptions.fastOLG==0

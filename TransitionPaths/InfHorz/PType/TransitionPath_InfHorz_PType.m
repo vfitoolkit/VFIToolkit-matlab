@@ -434,6 +434,8 @@ for ii=1:PTypeStructure.N_i
     % Convert z and e to joint-grids and transtion matrix
     % output: z_gridvals, pi_z, e_gridvals, pi_e, transpathoptions,vfoptions,simoptions
 
+    %% If using any non-standard endogenous states, setup for those
+    [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_InfHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
 
     %% Organise V_final and AgentDist_initial
     % Reshape V_final
