@@ -145,13 +145,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         %     [Parameters.GDebt,PricePathOld(tt,3)]
         % 
         %     % Now, the GEcondn comes out like
-        %     GEcondnPath(tt,3)
+        %     GEcondnPath(tt,2)
         %     % So the new value should be
-        %     PricePathOld(tt,3)-GEcondnPath(tt,3)
+        %     PricePathOld(tt,3)-GEcondnPath(tt,2)
         %     % While the actual new value is 
         %     PricePathNew(tt,3)
         %     disp('END')
         % 
+        %     PricePathNames
         % 
         %     transpathoptions.GEnewprice3.add
         %     transpathoptions.GEnewprice3.factor

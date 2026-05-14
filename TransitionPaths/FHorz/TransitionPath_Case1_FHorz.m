@@ -600,6 +600,8 @@ if ~isempty(transpathoptions.stockvars)
     end
 else
     use_stockvars=0;
+    stockvarsNames=[];
+    stockvarsInPricePathNames=[];
 end
 
 %%
