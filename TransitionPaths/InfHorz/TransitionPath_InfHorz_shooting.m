@@ -184,9 +184,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         fprintf('%-*s || %-*s \n',wpathnametitle,'Old',wpathnametitle,'New')
         fprintf('%-*s || %-*s \n',wpathnametitle,pathnametitles,wpathnametitle,pathnametitles)
 
-        % disp('Old, New')
         % Would be nice to have a way to get the iteration count without having the whole printout of path values (I think that would be useful?)
-        % pathnametitles
         [PricePathOld,PricePathNew]
     end
 

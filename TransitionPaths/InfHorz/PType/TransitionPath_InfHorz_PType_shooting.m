@@ -1,4 +1,4 @@
-function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, PTypeDistParamNames, FullFnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEeqnNames, nGeneralEqmEqns, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure)
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, PTypeDistParamNames, FullFnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEeqnNames, nGeneralEqmEqns, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, transpathoptions, PTypeStructure)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes)
@@ -13,15 +13,10 @@ FullAggVarNames=fieldnames(FullFnsToEvaluate);
 
 if transpathoptions.verbose==1
     % Set up some things to be used later
-    pathnametitles=cell(1,2*length(PricePathNames));
-    for ii=1:length(PricePathNames)
-        pathnametitles{ii}={['Old ',PricePathNames{ii},', ']};
-        pathnametitles{ii+length(PricePathNames)}={['New ',PricePathNames{ii},', ']};
-    end
-    % Make it something I can just print to screen
-    pathnametitles=append(pathnametitles{:});
-    pathnametitles=pathnametitles{1};
-    pathnametitles=pathnametitles(1:end-2);
+    pathnametitles=strjoin(PricePathNames,' ');
+    wpathnametitle=10*length(PricePathNames); % roughly the space that will use to print the prices themselves
+    % fprintf('%-*s || %-*s \n',wpathnametitle,'Old',wpathnametitle,'New')
+    % fprintf('%-*s || %-*s \n',wpathnametitle,pathnametitles,wpathnametitle,pathnametitles)
 end
 
 
@@ -116,7 +111,8 @@ end
 PricePathDist=Inf;
 pathcounter=1;
 
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+PricePathNew=zeros(size(PricePathOld),'gpuArray');
+PricePathNew(T,:)=PricePathOld(T,:);
 
 
 %% Iterate on the transition path
@@ -127,12 +123,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     AggVarsFullPath=zeros(PTypeStructure.numFnsToEvaluate,T-1,N_i); % Does not include period T
     for ii=1:N_i
         iistr=PTypeStructure.Names_i{ii};
-
-        % Following few lines I would normally do outside of the while loop, but have to set them for each ptype
-        % AgentDist=AgentDist_initial.(iistr);
-        % V_final=V_final.(iistr);
-        % AgeWeights_T=AgeWeights_T.(iistr);
-        % jequalOneDist_T=jequalOneDist_T.(iistr);
 
         % Some parts of PricePath and ParamPath may depend on ptype
         % Get just the values that correspond to the current ptype
@@ -173,6 +163,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
             end
         end
+        if use_stockvars==1
+            for pp=1:length(stockvarsNames)
+                Parameters.([stockvarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(stockvarsNames{pp});
+            end
+        end
 
         for tt=1:T-1
 
@@ -194,14 +189,19 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                         Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
                     end
                 end
+                if use_stockvars==1 % Comes from PricePathNew, unlike the _tminus1price, which comes from the PricePathOld
+                    for pp=1:length(stockvarsNames)
+                        Parameters.([stockvarsNames{pp},'_tminus1'])=PricePathNew(tt-1,PricePathSizeVec(1,stockvarInPricePathNames(pp)):PricePathSizeVec(2,stockvarInPricePathNames(pp)));
+                    end
+                end
             end
 
             % Update current PricePath and ParamPath
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePathOld_ii(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            for pp=1:length(PricePathNames)
+                Parameters.(PricePathNames{pp})=PricePathOld_ii(tt,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp));
             end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath_ii(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            for pp=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{pp})=ParamPath_ii(tt,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp));
             end
 
             % Get t+1 PricePath
@@ -272,6 +272,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
             end
         end
+        if use_stockvars==1
+            for pp=1:length(stockvarsNames)
+                Parameters.([stockvarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(stockvarsNames{pp});
+            end
+        end
 
         for tt=1:T-1
 
@@ -293,14 +298,19 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                         Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
                     end
                 end
+                if use_stockvars==1 % Comes from PricePathNew, unlike the _tminus1price, which comes from the PricePathOld
+                    for pp=1:length(stockvarsNames)
+                        Parameters.([stockvarsNames{pp},'_tminus1'])=PricePathNew(tt-1,PricePathSizeVec(1,stockvarInPricePathNames(pp)):PricePathSizeVec(2,stockvarInPricePathNames(pp)));
+                    end
+                end
             end
 
             % Update current PricePath and ParamPath
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePathOld(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            for pp=1:length(PricePathNames)
+                Parameters.(PricePathNames{pp})=PricePathOld(tt,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp));
             end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            for pp=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{pp})=ParamPath(tt,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp));
             end
 
             % Update current AggVars [we have to add this as GE conditions are in a seperate tt loop to the AggVars]
@@ -399,6 +409,23 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 end
             end
         end
+        if use_stockvars==1
+            for pp=1:length(stockvarsNames)
+                Parameters.([stockvarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(stockvarsNames{pp});
+                if isstruct(transpathoptions.initialvalues.(stockvarsNames{pp}))
+                    for ii=1:N_i
+                        iistr=PTypeStructure.Names_i{ii};
+                        Parameters_ii.(iistr).([stockvarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(stockvarsNames{pp}).(iistr);
+                    end
+                elseif length(transpathoptions.initialvalues.(stockvarsNames{pp}))==N_i % Depends on ptype
+                    temp=transpathoptions.initialvalues.(stockvarsNames{pp});
+                    for ii=1:N_i
+                        iistr=PTypeStructure.Names_i{ii};
+                        Parameters_ii.(iistr).([stockvarsNames{pp},'_tminus1'])=temp(ii);
+                    end
+                end
+            end
+        end
 
         for tt=1:T-1
 
@@ -446,6 +473,17 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                             for ii=1:N_i
                                 iistr=PTypeStructure.Names_i{ii};
                                 Parameters_ii.(iistr).([tminus1AggVarsNames{pp},'_tminus1'])=Parameters_ii.(iistr).(tminus1AggVarsNames{pp});
+                            end
+                        end
+                    end
+                end
+                if use_stockvars==1 % Comes from PricePathNew, unlike the _tminus1price, which comes from the PricePathOld
+                    for pp=1:length(stockvarsNames)
+                        Parameters.([stockvarsNames{pp},'_tminus1'])=PricePathNew(tt-1,PricePathSizeVec(1,stockvarInPricePathNames(pp)):PricePathSizeVec(2,stockvarInPricePathNames(pp)));
+                        if (PricePathSizeVec(2,stockvarInPricePathNames(pp))-PricePathSizeVec(1,stockvarInPricePathNames(pp))+1)==N_i % Depends on ptype
+                            for ii=1:N_i
+                                iistr=PTypeStructure.Names_i{ii};
+                                Parameters_ii.(iistr).([stockvarsNames{pp},'_tminus1'])=PricePathNew(tt-1,PricePathSizeVec(1,stockvarInPricePathNames(pp))+ii-1);
                             end
                         end
                     end
@@ -552,8 +590,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
 
     if transpathoptions.verbose==1
+        fprintf(' \n')
+        fprintf('%-*s || %-*s \n',wpathnametitle,'Old',wpathnametitle,'New')
+        fprintf('%-*s || %-*s \n',wpathnametitle,pathnametitles,wpathnametitle,pathnametitles)
+
         % Would be nice to have a way to get the iteration count without having the whole printout of path values (I think that would be useful?)
-        pathnametitles
         [PricePathOld,PricePathNew]
     end
 
