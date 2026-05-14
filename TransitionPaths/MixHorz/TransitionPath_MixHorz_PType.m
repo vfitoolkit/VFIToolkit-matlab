@@ -531,129 +531,23 @@ for ii=1:PTypeStructure.N_i
     % Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
     PTypeStructure.(iistr).simoptions.outputasstructure=1;
 
-    %% Check if pi_z and z_grid can be pre-computed
-    % Note: cannot handle that whether not not they can be pre-computed differs across ptypes
-    transpathoptions.zpathprecomputed=1;
-    transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
-    if isfield(PTypeStructure.(iistr).vfoptions,'ExogShockFn')
-        transpathoptions.zpathprecomputed=0;
-        N_z=prod(PTypeStructure.(iistr).n_z);
-        % Note: If ExogShockFn depends on the path, it must be done via a parameter
-        % that depends on the path (i.e., via ParamPath or PricePath)
-        PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.ExogShockFn);
-        overlap=0;
-        for pp=1:length(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames)
-            if strcmp(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames{pp},PricePathNames)
-                overlap=1;
-            end
-        end
-        if overlap==0
-            transpathoptions.zpathprecomputed=1;
-            % If ExogShockFn does not depend on any of the prices (in PricePath), then
-            % we can simply create it now rather than within each 'subfn' or 'p_grid'
 
-            % Check if it depends on the ParamPath
-            transpathoptions.zpathtrivial=1;
-            for pp=1:length(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames)
-                if strcmp(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames{pp},ParamPathNames)
-                    transpathoptions.zpathtrivial=0;
-                end
-            end
-            if transpathoptions.zpathtrivial==1
-                ExogShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for pp=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
-                end
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            elseif transpathoptions.zpathtrivial==0
-                % z_grid and/or pi_z varies along the transition path (but only depending on ParamPath, not PricePath
-                transpathoptions.(iistr).pi_z_T=zeros(N_z,N_z,T,'gpuArray');
-                transpathoptions.(iistr).z_grid_T=zeros(sum(n_z),T,'gpuArray');
-                for tt=1:T
-                    for pp=1:length(ParamPathNames)
-                        PTypeStructure.(iistr).Parameters.(ParamPathNames{pp})=ParamPathStruct.(ParamPathNames{pp});
-                    end
-                    % Note, we know the PricePath is irrelevant for the current purpose
-                    ExogShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for pp=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
-                    end
-                    [z_grid,pi_z]=PTypeStructure.(iistr).vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                    transpathoptions.(iistr).pi_z_T(:,:,tt)=pi_z;
-                    transpathoptions.(iistr).z_grid_T(:,tt)=z_grid;
-                end
-            end
-        end
-    end
-    %% If used, check if pi_e and e_grid can be pre-computed
-    % Note: cannot handle that whether not not they can be pre-computed differs across ptypes
-    if l_e>0
-        % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
-        transpathoptions.epathprecomputed=1;
-        transpathoptions.epathtrivial=1; % e_grid_J and pi_e_J are not varying over the path
-        if isfield(PTypeStructure.(iistr).vfoptions,'EiidShockFn')
-            transpathoptions.epathprecomputed=0;
-            % Note: If EiidShockFn depends on the path, it must be done via a parameter
-            % that depends on the path (i.e., via ParamPath or PricePath)
-            PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.EiidShockFn);
-            overlap=0;
-            for pp=1:length(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames)
-                if strcmp(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames{pp},PricePathNames)
-                    overlap=1;
-                end
-            end
-            if overlap==0
-                transpathoptions.epathprecomputed=1;
-                % If ExogShockFn does not depend on any of the prices (in PricePath), then
-                % we can simply create it now rather than within each 'subfn' or 'p_grid'
-
-                % Check if it depends on the ParamPath
-                transpathoptions.epathtrivial=1;
-                for pp=1:length(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames)
-                    if strcmp(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames{pp},ParamPathNames)
-                        transpathoptions.epathtrivial=0;
-                    end
-                end
-                if transpathoptions.epathtrivial==1
-                    EiidShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames);
-                    EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                    for pp=1:length(EiidShockFnParamsVec)
-                        EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
-                    end
-                    [e_grid,pi_e]=PTypeStructure.(iistr).vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-                    % Now store them in vfoptions and simoptions
-                    PTypeStructure.(iistr).vfoptions.pi_e=pi_e;
-                    PTypeStructure.(iistr).vfoptions.e_grid=e_grid;
-                    PTypeStructure.(iistr).simoptions.pi_e=pi_e;
-                    PTypeStructure.(iistr).simoptions.e_grid=e_grid;
-                elseif transpathoptions.epathtrivial==0
-                    % e_grid_T and/or pi_e_T varies along the transition path (but only depending on ParamPath, not PricePath)
-                    transpathoptions.(iistr).pi_e_T=zeros(N_e,T,'gpuArray');
-                    transpathoptions.(iistr).e_grid_T=zeros(sum(PTypeStructure.(iistr).n_e),T,'gpuArray');
-                    for tt=1:T
-                        for pp=1:length(ParamPathNames)
-                            PTypeStructure.(iistr).Parameters.(ParamPathNames{pp})=ParamPathStruct.(ParamPathNames{pp});
-                        end
-                        % Note, we know the PricePath is irrelevant for the current purpose
-                        EiidShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, vPTypeStructure.(iistr).foptions.EiidShockFnParamNames);
-                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                        for pp=1:length(ExogShockFnParamsVec)
-                            EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
-                        end
-                        [e_grid,pi_e]=PTypeStructure.(iistr).vfoptions.ExogShockFn(EiidShockFnParamsCell{:});
-
-                        transpathoptions.(iistr).pi_e_T(:,tt)=pi_e;
-                        transpathoptions.(iistr).e_grid_T(:,tt)=e_grid;
-                    end
-                end
-            end
-        end
+    %% Set up exogenous shock processes
+    if isfinite(PTypeStructure.(iistr).N_j)
+        [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, PTypeStructure.(iistr).simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
+        % Convert z and e to age-dependent joint-grids and transtion matrix
+        % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
+    else
+        [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).pi_z_sparse, PTypeStructure.(iistr).e_gridvals, PTypeStructure.(iistr).pi_e, PTypeStructure.(iistr).pi_e_sparse, PTypeStructure.(iistr).ze_gridvals, transpathoptions, PTypeStructure.(iistr).simoptions]=ExogShockSetup_TPath_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
     end
 
-    %% If using any non-standard endogenous states, setup for those (both FHorz and InfHorz btw)
-    [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    
+    %% If using any non-standard endogenous states, setup for those
+    if isfinite(PTypeStructure.(iistr).N_j)
+        [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    else
+        [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_InfHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    end
 
 
     %% Organise V_final and AgentDist_initial

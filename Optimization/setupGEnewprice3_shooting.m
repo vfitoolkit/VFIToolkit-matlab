@@ -54,13 +54,13 @@ if ~isfield(options,'GEptype') % For models without permanent type
     % Is same as order of PriceParamNames
     % I do this by just reordering rows of options.GEnewprice3.howtoupdate
     temp=options.GEnewprice3.howtoupdate;
-    for ii=1:length(PriceParamNames)
+    for pp=1:length(PriceParamNames)
         for jj=1:size(temp,1)
-            if strcmp(temp{jj,1},PriceParamNames{ii}) % Names match
-                options.GEnewprice3.howtoupdate{ii,1}=temp{jj,1}; % general eqm eqn name
-                options.GEnewprice3.howtoupdate{ii,2}=temp{jj,2}; % general eqm price name
-                options.GEnewprice3.howtoupdate{ii,3}=temp{jj,3}; % add(/subtract)
-                options.GEnewprice3.howtoupdate{ii,4}=temp{jj,4}; % factor
+            if strcmp(temp{jj,1},PriceParamNames{pp}) % Names match
+                options.GEnewprice3.howtoupdate{pp,1}=temp{jj,1}; % general eqm eqn name
+                options.GEnewprice3.howtoupdate{pp,2}=temp{jj,2}; % general eqm price name
+                options.GEnewprice3.howtoupdate{pp,3}=temp{jj,3}; % add(/subtract)
+                options.GEnewprice3.howtoupdate{pp,4}=temp{jj,4}; % factor
             end
         end
     end
@@ -83,10 +83,10 @@ if ~isfield(options,'GEptype') % For models without permanent type
     % Create 'permute' which is used to reorder the vector of GEcondn values to have same order as the PriceParamNames
     % Note: prices=GEcond(permute)
     options.GEnewprice3.permute=zeros(size(options.GEnewprice3.howtoupdate,1),1);
-    for pp=1:size(options.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
+    for pp=1:length(PriceParamNames) % number of rows is the number of prices (and number of GE conditions)
         for gg=1:length(GEeqnNames)
             if strcmp(options.GEnewprice3.howtoupdate{pp,1},GEeqnNames{gg})
-                options.GEnewprice3.permute(ii)=gg;
+                options.GEnewprice3.permute(pp)=gg;
             end
         end
     end

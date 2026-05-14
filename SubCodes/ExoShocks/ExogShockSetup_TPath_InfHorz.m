@@ -1,4 +1,4 @@
-function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, options]=ExogShockSetup_TPath_InfHorz(n_z,z_grid,pi_z,N_a,Parameters,PricePathNames,ParamPathNames,transpathoptions,options,gridpiboth)
+function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, options]=ExogShockSetup_TPath_InfHorz(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPathNames,transpathoptions,options,gridpiboth)
 % Convert z and e to joint-grids and transition matrix
 % output: z_gridvals, pi_z, e_gridvals, pi_e, transpathoptions,vfoptions,simoptions
 
@@ -18,6 +18,37 @@ function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridv
 % gridpiboth=2: sometimes (agent dist)    we want just transition probabilities, including pi_z_sparse transition probs
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
+% Accepted input shapes:
+%   z_grid:
+%     [sum(n_z), 1]                 stacked column grid for markov z
+%     [prod(n_z), length(n_z)]      joint grid for markov z
+%   pi_z:
+%     [prod(n_z), prod(n_z)]        transition matrix for markov z (rows = from-state, cols = to-state)
+%   options.e_grid:
+%     [sum(n_e), 1]                 stacked column grid for iid e
+%     [prod(n_e), length(n_e)]      joint grid for iid e
+%   options.pi_e:
+%     [prod(n_e), 1]                iid distribution (column vector of probabilities)
+%
+% Variation along the transition path is not provided via the raw inputs:
+% they are interpreted as time-invariant. Time variation is introduced only
+% if options.ExogShockFn / options.EiidShockFn depends on a name listed in
+% PricePathNames or ParamPathNames -- in that case the shock-fn is called
+% per t (and per j where relevant) to assemble the time-varying path; the
+% raw z_grid / pi_z / options.e_grid / options.pi_e inputs are otherwise
+% ignored.
+%
+% Stacked column grid: each of the underlying univariate grids written one
+% beneath the next in a single column of length sum(n_z). Compact, but the
+% joint state space is only implicit. For example with two markov variables
+% of sizes n_z=[3,2], the column contains the 3 values of z1 followed by the
+% 2 values of z2, giving a 5x1 vector.
+%
+% Joint grid: every point in the product space listed explicitly, one per
+% row, with each variable in its own column. The number of rows is
+% prod(n_z) and the number of columns is length(n_z). Continuing the
+% example, a joint grid is 6x2: each row pairs one z1 value with one z2
+% value, covering all 6 combinations.
 
 %% Check basic setup
 N_z=prod(n_z);
@@ -57,7 +88,7 @@ if N_z>0
             % Next,check if ExogShockFn depends on a ParamPath parameter
             overlap2=0;
             for ii=1:length(options.ExogShockFnParamNames)
-                if strcmp(options.ExogShockFnParamNames{ii},ParamPathNames)
+                if any(strcmp(options.ExogShockFnParamNames{ii},ParamPathNames))
                     overlap2=1;
                 end
             end
@@ -141,7 +172,6 @@ if N_e>0
     l_e=length(n_e);
     % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
 
-    transpathoptions.epathprecomputed=0;
 
     % Just calculate grid and transition probabilities anyway
     if isfield(options,'EiidShockFn')
@@ -149,7 +179,7 @@ if N_e>0
         % First, check if EiidShockFn depends on a PricePath parameter
         overlap=0;
         for ii=1:length(options.EiidShockFnParamNames)
-            if strcmp(options.EiidShockFnParamNames{ii},PricePathNames)
+            if any(strcmp(options.EiidShockFnParamNames{ii},PricePathNames))
                 overlap=1;
             end
         end
@@ -161,7 +191,7 @@ if N_e>0
             % Next,check if EiidShockFn depends on a ParamPath parameter
             overlap2=0;
             for ii=1:length(options.EiidShockFnParamNames)
-                if strcmp(options.EiidShockFnParamNames{ii},ParamPathNames)
+                if any(strcmp(options.EiidShockFnParamNames{ii},ParamPathNames))
                     overlap2=1;
                 end
             end
@@ -185,10 +215,10 @@ if N_e>0
                     % Note, we know the PricePath is irrelevant for the current purpose
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames);
                     EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                    for ii=1:length(ExogShockFnParamsVec)
+                    for ii=1:length(EiidShockFnParamsVec)
                         EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
                     end
-                    [e_grid,pi_e]=options.ExogShockFn(EiidShockFnParamsCell{:});
+                    [e_grid,pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
                     pi_e=gpuArray(pi_e);
                     e_gridvals=CreateGridvals(n_e,gpuArray(e_grid),1);
 
@@ -234,8 +264,6 @@ if N_e>0
         transpathoptions.epathtrivial=1;
     end
 
-    e_gridvals=gpuArray(e_gridvals);
-    pi_e=gpuArray(pi_e);
     % e_gridvals is [N_e,l_e]
     % pi_e is [N_e,1]
     % pi_e and e_gridvals are both gpuArrays

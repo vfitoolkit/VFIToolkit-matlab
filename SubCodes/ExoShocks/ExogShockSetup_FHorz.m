@@ -7,6 +7,44 @@ function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_
 % gridpiboth=2: sometimes (agent dist)    we want just transition probabilities
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
+% Accepted input shapes:
+%   z_grid:
+%     [sum(n_z), 1]                       stacked column grid for markov z (age-independent)
+%     [prod(n_z), length(n_z)]            joint grid for markov z (age-independent)
+%     [sum(n_z), N_j]                     stacked column grid for markov z, age-dependent (one column per age)
+%     [prod(n_z), length(n_z), N_j]       joint grid for markov z, age-dependent (one slice per age)
+%   pi_z:
+%     [prod(n_z), prod(n_z)]              transition matrix for markov z (age-independent)
+%     [prod(n_z), prod(n_z), N_j]         transition matrix for markov z, age-dependent (one slice per age)
+%   options.e_grid:
+%     [sum(n_e), 1]                       stacked column grid for iid e (age-independent)
+%     [prod(n_e), length(n_e)]            joint grid for iid e (age-independent)
+%     [sum(n_e), N_j]                     stacked column grid for iid e, age-dependent (one column per age)
+%     [prod(n_e), length(n_e), N_j]       joint grid for iid e, age-dependent (one slice per age)
+%   options.pi_e:
+%     [prod(n_e), 1]                      iid distribution (age-independent)
+%     [prod(n_e), N_j]                    iid distribution, age-dependent (one column per age)
+%
+% If options.ExogShockFn is supplied, it is called once per age j to produce
+% a single age's [z_grid, pi_z] (using the age-independent shapes above); the
+% raw z_grid / pi_z inputs are then ignored. Likewise options.EiidShockFn,
+% if supplied, is called once per age j to produce [options.e_grid,
+% options.pi_e]; the raw inputs are then ignored.
+%
+% Stacked column grid: each of the underlying univariate grids written one
+% beneath the next in a single column of length sum(n_z). Compact, but the
+% joint state space is only implicit. For example with two markov variables
+% of sizes n_z=[3,2], the column contains the 3 values of z1 followed by the
+% 2 values of z2, giving a 5x1 vector. In the age-dependent form, each age
+% has its own such column, stacked side-by-side.
+%
+% Joint grid: every point in the product space listed explicitly, one per
+% row, with each variable in its own column. The number of rows is
+% prod(n_z) and the number of columns is length(n_z). Continuing the
+% example, a joint grid is 6x2: each row pairs one z1 value with one z2
+% value, covering all 6 combinations. In the age-dependent form, the same
+% joint grid is given per age along the third dimension.
+
 %% Check basic setup
 if ~isfield(options,'n_e')
     n_e=0;
@@ -32,7 +70,7 @@ else
     if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
         pi_z_J=[];
         % Now just do z_gridvals_J
-        z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
+        z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
         if isfield(options,'ExogShockFn')
             for jj=1:N_j
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames,jj);
@@ -50,6 +88,8 @@ else
         elseif ndims(z_grid)==3 % already an age-dependent joint-grid
             if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
                 z_gridvals_J=z_grid;
+            else
+                error('z_grid is 3D but its size does not match [prod(n_z), length(n_z), N_j]')
             end
         elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
             for jj=1:N_j
@@ -63,7 +103,7 @@ else
     elseif gridpiboth==2 % For agent dist, we don't use grid
         z_gridvals_J=[];
         % Now just do pi_z_J
-        pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
+        pi_z_J=zeros(prod(n_z),prod(n_z),N_j,'gpuArray');
         if isfield(options,'ExogShockFn')
             for jj=1:N_j
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames,jj);
@@ -80,8 +120,8 @@ else
         end
     elseif gridpiboth==3
         % For value fn, both z_gridvals_J and pi_z_J
-        z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
-        pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
+        z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
+        pi_z_J=zeros(prod(n_z),prod(n_z),N_j,'gpuArray');
         if isfield(options,'ExogShockFn')
             for jj=1:N_j
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames,jj);
@@ -100,6 +140,8 @@ else
         elseif ndims(z_grid)==3 % already an age-dependent joint-grid
             if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
                 z_gridvals_J=z_grid;
+            else
+                error('z_grid is 3D but its size does not match [prod(n_z), length(n_z), N_j]')
             end
             pi_z_J=pi_z;
         elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
@@ -133,7 +175,7 @@ else
     if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
         options.pi_e_J=[];
         % Now just do e_gridvals_J
-        options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),'gpuArray');
+        options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),N_j,'gpuArray');
         if isfield(options,'EiidShockFn')
             for jj=1:N_j
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
@@ -180,7 +222,7 @@ else
         end
     elseif gridpiboth==3
         % For value fn, both e_gridvals_J and pi_e_J
-        options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),'gpuArray');
+        options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),N_j,'gpuArray');
         options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
 
         if isfield(options,'EiidShockFn')

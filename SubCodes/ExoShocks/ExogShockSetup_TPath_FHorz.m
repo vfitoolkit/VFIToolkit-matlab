@@ -21,6 +21,44 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 % gridpiboth=2: sometimes (agent dist)    we want just transition probabilities, including pi_z_J_sim alternative transition probs
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
+% Accepted input shapes:
+%   z_grid:
+%     [sum(n_z), 1]                       stacked column grid for markov z (age-independent)
+%     [prod(n_z), length(n_z)]            joint grid for markov z (age-independent)
+%     [sum(n_z), N_j]                     stacked column grid for markov z, age-dependent (one column per age)
+%     [prod(n_z), length(n_z), N_j]       joint grid for markov z, age-dependent (one slice per age)
+%   pi_z:
+%     [prod(n_z), prod(n_z)]              transition matrix for markov z (age-independent)
+%     [prod(n_z), prod(n_z), N_j]         transition matrix for markov z, age-dependent (one slice per age)
+%   options.e_grid:
+%     [sum(n_e), 1]                       stacked column grid for iid e (age-independent)
+%     [prod(n_e), length(n_e)]            joint grid for iid e (age-independent)
+%     [sum(n_e), N_j]                     stacked column grid for iid e, age-dependent (one column per age)
+%     [prod(n_e), length(n_e), N_j]       joint grid for iid e, age-dependent (one slice per age)
+%   options.pi_e:
+%     [prod(n_e), 1]                      iid distribution (age-independent)
+%     [prod(n_e), N_j]                    iid distribution, age-dependent (one column per age)
+%
+% Variation along the transition path is not provided via the raw inputs:
+% they are interpreted as time-invariant. Time variation is introduced only
+% if options.ExogShockFn / options.EiidShockFn depends on a name listed in
+% PricePathNames or ParamPathNames -- in that case the shock-fn is called
+% per (t, j) to assemble the time-varying path; the raw z_grid / pi_z /
+% options.e_grid / options.pi_e inputs are otherwise ignored.
+%
+% Stacked column grid: each of the underlying univariate grids written one
+% beneath the next in a single column of length sum(n_z). Compact, but the
+% joint state space is only implicit. For example with two markov variables
+% of sizes n_z=[3,2], the column contains the 3 values of z1 followed by the
+% 2 values of z2, giving a 5x1 vector. In the age-dependent form, each age
+% has its own such column, stacked side-by-side.
+%
+% Joint grid: every point in the product space listed explicitly, one per
+% row, with each variable in its own column. The number of rows is
+% prod(n_z) and the number of columns is length(n_z). Continuing the
+% example, a joint grid is 6x2: each row pairs one z1 value with one z2
+% value, covering all 6 combinations. In the age-dependent form, the same
+% joint grid is given per age along the third dimension.
 
 %% Check basic setup
 N_z=prod(n_z);
@@ -65,7 +103,7 @@ if N_z>0
             % Next,check if ExogShockFn depends on a ParamPath parameter
             overlap2=0;
             for ii=1:length(options.ExogShockFnParamNames)
-                if strcmp(options.ExogShockFnParamNames{ii},ParamPathNames)
+                if any(strcmp(options.ExogShockFnParamNames{ii},ParamPathNames))
                     overlap2=1;
                 end
             end
@@ -113,7 +151,7 @@ if N_z>0
         if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
             pi_z_J=[];
             % Now just do z_gridvals_J
-            z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
+            z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
             if ndims(z_grid)==3 % already an age-dependent joint-grid
                 if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
                     z_gridvals_J=z_grid;
@@ -138,8 +176,8 @@ if N_z>0
                 pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
             end
         elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
-            z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
-            pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
+            z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
+            pi_z_J=zeros(prod(n_z),prod(n_z),N_j,'gpuArray');
             if ndims(z_grid)==3 % already an age-dependent joint-grid
                 if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
                     z_gridvals_J=z_grid;
@@ -241,7 +279,6 @@ if N_e>0
     l_e=length(n_e);
     % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
 
-    transpathoptions.epathprecomputed=0;
 
     % Just calculate grid and transition probabilities anyway
     if isfield(options,'EiidShockFn')
@@ -249,7 +286,7 @@ if N_e>0
         % First, check if EiidShockFn depends on a PricePath parameter
         overlap=0;
         for ii=1:length(options.EiidShockFnParamNames)
-            if strcmp(options.EiidShockFnParamNames{ii},PricePathNames)
+            if any(strcmp(options.EiidShockFnParamNames{ii},PricePathNames))
                 overlap=1;
             end
         end
@@ -261,7 +298,7 @@ if N_e>0
             % Next,check if EiidShockFn depends on a ParamPath parameter
             overlap2=0;
             for ii=1:length(options.EiidShockFnParamNames)
-                if strcmp(options.EiidShockFnParamNames{ii},ParamPathNames)
+                if any(strcmp(options.EiidShockFnParamNames{ii},ParamPathNames))
                     overlap2=1;
                 end
             end
@@ -280,7 +317,7 @@ if N_e>0
                 end
             elseif overlap2==1 % ExogShockFn depends on a ParamPath parameter
                 transpathoptions.epathtrivial=0; % e_grid_J and pi_e_J vary over the path
-                transpathoptions.pi_e_J_T=zeros(N_e,N_e,N_j,T,'gpuArray');
+                transpathoptions.pi_e_J_T=zeros(N_e,N_j,T,'gpuArray');
                 transpathoptions.e_grid_J_T=zeros(sum(n_e),N_j,T,'gpuArray');
                 pi_e_J=zeros(N_e,N_j,'gpuArray');
                 e_grid_J=zeros(sum(n_e),N_j,'gpuArray');
@@ -292,10 +329,10 @@ if N_e>0
                     for jj=1:N_j
                         EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
                         EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                        for ii=1:length(ExogShockFnParamsVec)
+                        for ii=1:length(EiidShockFnParamsVec)
                             EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
                         end
-                        [e_grid,pi_e]=options.ExogShockFn(EiidShockFnParamsCell{:});
+                        [e_grid,pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
                         pi_e_J(:,jj)=gpuArray(pi_e);
                         e_grid_J(:,jj)=gpuArray(e_grid);
                     end

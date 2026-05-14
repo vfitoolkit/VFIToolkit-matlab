@@ -1,4 +1,4 @@
-function [VPath,PolicyIndexesPath]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter_ExpAsset(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j,N_z,N_e,d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J,e_gridvals_J,pi_z_J,pi_e_J,ReturnFn,aprimeFn,DiscountFactorParamNames,ReturnFnParamNames,aprimeFnParamNames,transpathoptions,vfoptions)
+function [VPath,PolicyIndexesPath]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter_ExpAsset(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_z,N_e,d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals,e_gridvals,pi_z,pi_e,ReturnFn,aprimeFn,DiscountFactorParamNames,ReturnFnParamNames,aprimeFnParamNames,transpathoptions,vfoptions)
 % VPath is empty, but I am setting it up so that it can be included as an option later on.
 VPath=[];
 
@@ -64,7 +64,7 @@ elseif N_z==0 && N_e>0
         end
 
         error('Not yet implemented')
-        [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_noz_e(V,n_d1,n_d2,n_a1,n_a2,n_e,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_noz_e(V,n_d1,n_d2,n_a1,n_a2,n_e,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals, pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         % The V input is next period value fn, the V output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -93,7 +93,7 @@ elseif N_z>0 && N_e>0
         end
 
         error('Not yet implemented')
-        [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_e(V,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_e(V,n_d1,n_d2,n_a1,n_a2,n_z,n_e,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         % The V input is next period value fn, the V output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
 
