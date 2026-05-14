@@ -1,6 +1,6 @@
 function SimPanel=SimPanelIndexes_InfHorz(InitialDist,Policy,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters)
 % Input must already be on CPU
-% Simulates a panel based on PolicyIndexes of 'numbersims' agents of length 'simperiods' beginning from randomly drawn InitialDist. 
+% Simulates a panel based on PolicyIndexes of 'numbersims' agents of length 'simperiods' beginning from randomly drawn InitialDist.
 %
 % CondlProbOfSurvival is an optional input. Only needed when using: simoptions.exitinpanel=1, there there is exit, either exog, endog or mix of both.
 % Parameters is an optional input. Only needed when you have mixed (endogenous and exogenous) exit.
@@ -145,7 +145,7 @@ SimPanel=nan(l_a+l_z,simoptions.simperiodsfinal,simoptions.numbersims); % preall
 
 exitinpanel=simoptions.exitinpanel; % reduce overhead with parfor
 
-if exitinpanel==0    
+if exitinpanel==0
     %% First do the case without e variables, otherwise do with e variables
     if N_z==0
         if N_e==0  % No z, No e
@@ -155,7 +155,7 @@ if exitinpanel==0
                 Policy_aprime=reshape(Policy_aprime,[N_a,2]);
                 CumPolicyProbs=reshape(CumPolicyProbs,[N_a,2]);
             end
-            
+
             % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
             SimPanel=nan(1,simoptions.simperiodsfinal,simoptions.numbersims); % (a)
             if simoptions.gridinterplayer==0
@@ -164,7 +164,7 @@ if exitinpanel==0
                     seedpoint=ind2sub_homemade(N_a,seedpoint);
                     seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
                     SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_noz_raw(Policy_aprime, simoptions, seedpoint);
-                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);                    
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
                 end
             elseif simoptions.gridinterplayer==1
                 parfor ii=1:simoptions.numbersims
@@ -172,10 +172,10 @@ if exitinpanel==0
                     seedpoint=ind2sub_homemade(N_a,seedpoint);
                     seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
                     SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_PolicyProbs_noz_raw(Policy_aprime,CumPolicyProbs, simoptions, seedpoint);
-                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);                    
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
                 end
             end
-            
+
             if simoptions.simpanelindexkron==0 % Convert results out of kron
                 SimPanelKron=reshape(SimPanel,[1,simoptions.simperiodsfinal*simoptions.numbersims]);
                 SimPanel=nan(l_a,simoptions.simperiodsfinal*simoptions.numbersims); % (a)
@@ -195,12 +195,12 @@ if exitinpanel==0
             % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
             SimPanel=nan(2,simoptions.simperiodsfinal,simoptions.numbersims); % (a,e)
             if simoptions.gridinterplayer==0
-                parfor ii=1:simoptions.numbersims 
+                parfor ii=1:simoptions.numbersims
                     [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
                     seedpoint=ind2sub_homemade([N_a,N_e],seedpoint);
                     seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
                     SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_noz_e_raw(Policy_aprime,cumsumpi_e, simoptions, seedpoint);
-                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);                    
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
                 end
             elseif simoptions.gridinterplayer==1
                 parfor ii=1:simoptions.numbersims
@@ -208,7 +208,7 @@ if exitinpanel==0
                     seedpoint=ind2sub_homemade([N_a,N_e],seedpoint);
                     seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
                     SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_PolicyProbs_noz_e_raw(Policy_aprime,CumPolicyProbs,cumsumpi_e, simoptions, seedpoint);
-                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);                    
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
                 end
             end
 
@@ -232,7 +232,7 @@ if exitinpanel==0
                 Policy_aprime=reshape(Policy_aprime,[N_a,N_z,2]);
                 CumPolicyProbs=reshape(CumPolicyProbs,[N_a,N_z,2]);
             end
-            
+
             % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
             SimPanel=nan(2,simoptions.simperiodsfinal,simoptions.numbersims); % (a,z)
             if simoptions.gridinterplayer==0
@@ -241,7 +241,7 @@ if exitinpanel==0
                     seedpoint=ind2sub_homemade([N_a,N_z],seedpoint);
                     seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
                     SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_raw(Policy_aprime,cumsumpi_z, simoptions, seedpoint);
-                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);                    
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
                 end
             elseif simoptions.gridinterplayer==1
                 parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
@@ -249,7 +249,7 @@ if exitinpanel==0
                     seedpoint=ind2sub_homemade([N_a,N_z],seedpoint);
                     seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
                     SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_PolicyProbs_raw(Policy_aprime,CumPolicyProbs,cumsumpi_z, simoptions, seedpoint);
-                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);                    
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
 
                 end
             end
@@ -274,7 +274,7 @@ if exitinpanel==0
                 Policy_aprime=reshape(Policy_aprime,[N_a,N_z,N_e,2]);
                 CumPolicyProbs=reshape(CumPolicyProbs,[N_a,N_z,N_e,2]);
             end
-    
+
             SimPanel=nan(3,simoptions.simperiodsfinal,simoptions.numbersims); % (a,z,e)
             if simoptions.gridinterplayer==0
                 parfor ii=1:simoptions.numbersims
@@ -282,15 +282,15 @@ if exitinpanel==0
                     seedpoint=ind2sub_homemade([N_a,N_z,N_e],seedpoint);
                     seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
                     SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_e_raw(Policy_aprime,cumsumpi_z,cumsumpi_e, simoptions, seedpoint);
-                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);                    
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
                 end
             elseif simoptions.gridinterplayer==1
-                parfor ii=1:simoptions.numbersims 
+                parfor ii=1:simoptions.numbersims
                     [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
                     seedpoint=ind2sub_homemade([N_a,N_z,N_e],seedpoint);
                     seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
                     SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_PolicyProbs_e_raw(Policy_aprime,CumPolicyProbs,cumsumpi_z,cumsumpi_e, simoptions, seedpoint);
-                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);                    
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
                 end
             end
 
@@ -313,7 +313,7 @@ if exitinpanel==0
 else
 
     %% With exit and perhaps entry
-    
+
     % Get seedpoints from InitialDist
     [~,seedpointvec]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims));
 

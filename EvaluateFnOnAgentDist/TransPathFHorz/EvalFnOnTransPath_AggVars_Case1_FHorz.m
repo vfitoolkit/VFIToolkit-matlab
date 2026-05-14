@@ -12,7 +12,7 @@ function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, AgentD
 % Remark to self: No real need for T as input, as this is anyway the length of PricePath
 
 
-%% Check which transpathoptions have been used, set all others to defaults 
+%% Check which transpathoptions have been used, set all others to defaults
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     %If transpathoptions is not given, just use all the defaults
@@ -102,45 +102,13 @@ l_ze=l_z+l_e;
 
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-if isstruct(FnsToEvaluate)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames);
-    if transpathoptions.verbose>1
-        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
-    end
-else
-    tplus1priceNames=[];
-    tminus1priceNames=[];
-    tminus1AggVarsNames=[];
-    tplus1pricePathkk=[];
-end
- 
-use_tplus1price=0;
-if length(tplus1priceNames)>0
-    use_tplus1price=1;
-end
-use_tminus1price=0;
-if length(tminus1priceNames)>0
-    use_tminus1price=1;
-    for ii=1:length(tminus1priceNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
-        end
-    end
-end
-use_tminus1AggVars=0;
-if length(tminus1AggVarsNames)>0
-    use_tminus1AggVars=1;
-    for ii=1:length(tminus1AggVarsNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
-        end
-    end
-end
-% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,~,tplus1pricePathkk,...
+    use_tplus1price,use_tminus1price,~,use_tminus1AggVars]=...
+    inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},transpathoptions);
 
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
@@ -300,7 +268,7 @@ else
             Policy_tt=reshape(PolicyPath(:,:,:,:,tt),[size(PolicyPath,1),n_a,n_e,N_j]);
 
             AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,tt), Policy_tt, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_e, N_j, d_grid, a_grid, e_gridvals_J, simoptions);
-            
+
             for ff=1:length(AggVarNames)
                 AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars.(AggVarNames{ff}).Mean;
             end
@@ -347,7 +315,7 @@ else
             Policy_tt=reshape(PolicyPath(:,:,:,:,:,tt),[size(PolicyPath,1),n_a,n_z,n_e,N_j]);
 
             AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,:,tt), Policy_tt, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, simoptions);
-            
+
             for ff=1:length(AggVarNames)
                 AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars.(AggVarNames{ff}).Mean;
             end

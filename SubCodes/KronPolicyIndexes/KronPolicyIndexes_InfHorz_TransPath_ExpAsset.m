@@ -3,15 +3,15 @@ function PolicyPathKron=KronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyPath,
 %
 % Input: Policy (l_d+l_aprime,n_a,n_z,T);
 %
-% Output: Policy=zeros(2,N_a,N_z,T); %first dim indexes the optimal choice for d2 and aprime rest of dimensions a,z 
-%         Policy=zeros(3,N_a,N_z,T); %first dim indexes the optimal choice for d1,d2 and aprime rest of dimensions a,z 
+% Output: Policy=zeros(2,N_a,N_z,T); %first dim indexes the optimal choice for d2 and aprime rest of dimensions a,z
+%         Policy=zeros(3,N_a,N_z,T); %first dim indexes the optimal choice for d1,d2 and aprime rest of dimensions a,z
 % Differs if simoptions.gridinterplayer=1
 
 % When using n_e, is instead:
 % Input: Policy (l_d+l_aprime,n_a,n_z,n_e,,T);
 %
-% Output: Policy=zeros(2,N_a,N_z,N_e,T); %first dim indexes the optimal choice for d2 and aprime rest of dimensions a,z 
-%         Policy=zeros(3,N_a,N_z,N_e,T); %first dim indexes the optimal choice for d1,d2 and aprime rest of dimensions a,z 
+% Output: Policy=zeros(2,N_a,N_z,N_e,T); %first dim indexes the optimal choice for d2 and aprime rest of dimensions a,z
+%         Policy=zeros(3,N_a,N_z,N_e,T); %first dim indexes the optimal choice for d1,d2 and aprime rest of dimensions a,z
 % Differs if simoptions.gridinterplayer=1
 
 N_a=prod(n_a);
@@ -21,7 +21,7 @@ if ~isfield(simoptions,'n_e')
     N_e=0;
 elseif prod(simoptions.n_e)==0
     n_ze=n_z;
-    N_e=0;    
+    N_e=0;
 else
     n_ze=[n_z,n_e];
     N_e=prod(n_e);

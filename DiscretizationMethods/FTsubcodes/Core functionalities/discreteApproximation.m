@@ -27,7 +27,7 @@
 %             variables. The default is a vector of zeros.
 %
 % Outputs:
-% p         - (1 x N) vector of probabilties assigned to each grid point in
+% p         - (1 x N) vector of probabilities assigned to each grid point in
 %             D.
 % lambdaBar - (L x 1) vector of dual problem variables which solve the
 %             maximum entropy problem

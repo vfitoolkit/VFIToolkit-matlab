@@ -92,7 +92,7 @@ elseif vfoptions.gridinterplayer==1
         PolicyProbs=(PolicyProbs-1)/(vfoptions.ngridinterp+1); % prob of upper point
         PolicyProbs=[1-PolicyProbs; PolicyProbs]; % [2,N_a*N_z]
     end
-    
+
     while currdist>vfoptions.tolerance && itercount<vfoptions.maxiter
         VKronold=VKron;
 

@@ -53,10 +53,10 @@ if vfoptions.EVpre==0
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,N_j,zprime)
     % Already applied the probabilities from interpolating onto grid
-    
+
     EV=reshape(EV,[N_d2*N_a1,N_a2,N_j]); % (aprime,1,j), 2nd dim will be autofilled with a
 elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
@@ -77,10 +77,10 @@ elseif vfoptions.EVpre==1
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,N_j,zprime)
     % Already applied the probabilities from interpolating onto grid
-    
+
     EV=reshape(EV,[N_d2*N_a1,N_a2,N_j]); % (aprime,1,j), 2nd dim will be autofilled with a
 end
 
@@ -105,7 +105,7 @@ if vfoptions.lowmemory==0
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
     V(curraindex,:,:)=shiftdim(Vtempii,1);
     Policy(curraindex,:,:)=shiftdim(maxindex2,1);
-    
+
     % Attempt for improved version
     maxgap=squeeze(max(max(max(max(maxindex1(:,1,2:end,:,:,:)-maxindex1(:,1,1:end-1,:,:,:),[],6),[],5),[],4),[],1));
     for ii=1:(vfoptions.level1n-1)

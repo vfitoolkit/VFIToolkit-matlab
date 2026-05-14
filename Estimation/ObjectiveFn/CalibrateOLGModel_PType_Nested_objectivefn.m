@@ -115,7 +115,7 @@ if usingallstats==1
         if isempty(allstatmomentnames{1,4})
             currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3});
         else
-            currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3}).(allstatmomentnames{1,4});        
+            currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3}).(allstatmomentnames{1,4});
         end
     end
     for cc=2:size(allstatmomentnames,1)
@@ -217,7 +217,7 @@ elseif caliboptions.vectoroutput==2
         Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
-    
+
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 

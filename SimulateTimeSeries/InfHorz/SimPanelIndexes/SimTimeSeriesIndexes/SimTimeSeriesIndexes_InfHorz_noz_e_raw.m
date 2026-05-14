@@ -9,7 +9,7 @@ for tt=1:simoptions.simperiods
     SimTimeSeriesKron(2,tt)=currstate(2); % e_c
 
     currstate(1)=Policy_aprime(currstate(1),currstate(2));
-    
+
     [~,currstate(2)]=max(cumsumpi_e>rand(1,1));
 end
 

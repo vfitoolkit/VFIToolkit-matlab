@@ -83,7 +83,7 @@ else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j),2);
 
     % Interpolate EV over aprime_grid
@@ -92,12 +92,12 @@ else
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);  % Because no z, can treat e like z and call Par2 rather than Par2e
         % (d,aprime,a,e)
-        
+
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
 
         %Calc the max and it's index
         [~,maxindex]=max(entireRHS,[],2);
-        
+
         % Turn this into the 'midpoint'
         midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is n_d-1-by-n_a-by-n_e
@@ -114,7 +114,7 @@ else
         Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
-        
+
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec,1);
@@ -150,13 +150,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-            
+
     EV=sum(V(:,:,jj+1).*pi_e_J(1,:,jj),2);
 
     % Interpolate EV over aprime_grid
@@ -169,7 +169,7 @@ for reverse_j=1:N_j-1
 
         %Calc the max and it's index
         [~,maxindex]=max(entireRHS,[],2);
-        
+
         % Turn this into the 'midpoint'
         midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is n_d-1-by-n_a-by-n_e
@@ -211,7 +211,7 @@ for reverse_j=1:N_j-1
             Policy(2,:,e_c,jj)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
             Policy(3,:,e_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
         end
-     
+
     end
 
 end

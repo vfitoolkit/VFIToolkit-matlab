@@ -1,15 +1,19 @@
-function [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i)
+function [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,...
+          use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=...
+          inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i,transpathoptions)
 % Subscript that is used to determine if there are any '_tminus1' or
 % '_tplus1' variables used as inputs to FnsToEvaluate or GeneralEqmEqns
 % (Used as part of transition path codes)
 % Look for the _tplus1 in PricePath, and for _tminus1 in AggVars, PricePath, and ParamPath
-
-if ~exist('Names_i','var')
-    Names_i={};
-end
+%
+% Names_i and transpathoptions are required inputs.
+%  - Pass Names_i={} when permanent types are not relevant.
+%  - Pass simoptions in place of transpathoptions when calling from
+%    EvalFnOnTransPath_* commands (those store initialvalues on simoptions
+%    rather than transpathoptions).
 
 % Check for using _tminus1 (for price or AggVars) or _tplus1, honoring PType
-FnInputNames={}; % FnNames beloning to no PType
+FnInputNames={}; % FnNames belonging to no PType
 PTypeFnInputNames=struct(); % Built as we find them
 ninputs=0;
 % Get all the input names for FnsToEvaluate
@@ -164,5 +168,50 @@ elseif prod(tminus1UsedAsPriceOrAggVar)==0
     error('FnsToEvaluate or GeneralEqmEqns are trying to use a _tminus1 input that NEITHER a price NOR an an aggregate (determined by FnsToEvaluate)')
 end
 
+%% Set the use_* flags, and (where relevant) check that initialvalues are present in transpathoptions
+use_tplus1price=0;
+if ~isempty(tplus1priceNames)
+    use_tplus1price=1;
+end
+use_tminus1price=0;
+if ~isempty(tminus1priceNames)
+    use_tminus1price=1;
+    for ii=1:length(tminus1priceNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
+        end
+    end
+end
+use_tminus1params=0;
+if ~isempty(tminus1paramNames)
+    use_tminus1params=1;
+    for ii=1:length(tminus1paramNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1paramNames{ii})
+        end
+    end
+end
+use_tminus1AggVars=0;
+if ~isempty(tminus1AggVarsNames)
+    use_tminus1AggVars=1;
+    % For PType callers, tminus1AggVarsNames is a struct keyed by Names_i —
+    % the initialvalues check is left to the caller in that case.
+    if iscell(tminus1AggVarsNames)
+        for ii=1:length(tminus1AggVarsNames)
+            if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
+                error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+            end
+        end
+    end
+end
+% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
+
+if isfield(transpathoptions,'verbose') && transpathoptions.verbose==2
+    use_tplus1price
+    use_tminus1price
+    use_tminus1params
+    use_tminus1AggVars
+    % tplus1pricePathkk
+end
 
 end

@@ -96,7 +96,7 @@ function [xmin, ...      % minimum search point of last iteration
 %
 % The primary strategy parameter to play with is OPTS.PopSize, which can be increased from its default value.  Increasing the population
 % size (by default linked to increasing parent number OPTS.ParentNumber) improves global search properties in exchange to speed. Speed
-% decreases, as a rule, at most linearely with increasing population size. It is advisable to begin with the default small population
+% decreases, as a rule, at most linearly with increasing population size. It is advisable to begin with the default small population
 % size. The options Restarts and IncPopSize can be used for an automated multistart where the population size is increased by the
 % factor IncPopSize (two by default) before each restart. X0 (given as string) is reevaluated for each restart. Stopping options
 % StopFunEvals, StopIter, MaxFunEvals, and Fitness terminate the program, all others including MaxIter invoke another restart, where
@@ -147,7 +147,7 @@ function [xmin, ...      % minimum search point of last iteration
 % ---------------------------------------------------------------
 %
 % GENERAL PURPOSE: The CMA-ES (Evolution Strategy with Covariance Matrix Adaptation) is a robust search method which should be
-% applied, if derivative based methods, e.g. quasi-Newton BFGS or conjucate gradient, (supposably) fail due to a rugged search
+% applied, if derivative based methods, e.g. quasi-Newton BFGS or conjugate gradient, (supposedly) fail due to a rugged search
 % landscape (e.g. noise, local optima, outlier, etc.). On smooth landscapes CMA-ES is roughly ten times slower than BFGS. For up to
 % N=10 variables even the simplex direct search method (Nelder & Mead) is often faster, but far less robust than CMA-ES.  To see the
 % advantage of the CMA, it will usually take at least 30*N and up to 300*N function evaluations, where N is the search problem dimension.
@@ -163,7 +163,7 @@ function [xmin, ...      % minimum search point of last iteration
 % The strategy parameter lambda (population size, opts.PopSize) is the preferred strategy parameter to play with.  If results with the
 % default strategy are not satisfactory, increase the population size. (Remark that the crucial parameter mu (opts.ParentNumber) is
 % increased proportionally to lambda). This will improve the strategies capability of handling noise and local minima. We
-% recomment successively increasing lambda by a factor of about three, starting with initial values between 5 and 20. Casually, population
+% recommend successively increasing lambda by a factor of about three, starting with initial values between 5 and 20. Casually, population
 % sizes even beyond 1000+100*N can be sensible.
 %
 
@@ -1127,7 +1127,7 @@ while isempty(stopflag)
               end
               
               % check pos.def. and set learning rate neg.ccov accordingly,
-              % this check makes the original choice of neg.ccov extremly failsafe
+              % this check makes the original choice of neg.ccov extremely failsafe
               % still assuming C == BD*BD', which is only approxim. correct
               if mod(flgActiveCMA, 10) == 1 && 1 - neg.ccov * arnorms(idxnorms).^2 * weights < neg.minresidualvariance
                   % TODO: the simple and cheap way would be to set
@@ -2123,7 +2123,7 @@ manual_mode = 0;
     figure(figNb);  % just create and raise the figure window
   else
     if 1 < 3 && evalin('caller', 'iterplotted') == 0 && evalin('caller', 'irun') == 1 
-      figure(figNb);  % incomment this, if figure raise in the beginning is not desired
+      figure(figNb);  % uncomment this, if figure raise in the beginning is not desired
     elseif ismember(figNb, findobj('Type', 'figure'))
       set(0, 'CurrentFigure', figNb);  % prevents raise of existing figure window
     else
@@ -2814,7 +2814,7 @@ function f=frand(x)
 %           of 1.6;2.5;4.4 (the scaling improves by sqrt(N)). On 
 %           Rosenbrock the gain is about 25%. On sharp ridge the 
 %           behavior is improved. Cigar is unchanged. 
-% 09/08/10: local plotcmaesdat remains in backround  
+% 09/08/10: local plotcmaesdat remains in background  
 % 09/08/10: bug-fix in time management for data writing, logtime was not 
 %        considered properly (usually not at all). 
 % 09/07/05: V3.24: stagnation termination added 
@@ -2842,7 +2842,7 @@ function f=frand(x)
 % 07/09: tolhistfun as termination criterion added, "<" changed to
 %        "<=" also for TolFun to allow for stopping on zero difference. 
 %        Name tolfunhist clashes with option tolfun. 
-% 07/07: hsig threshold made slighly smaller for large dimension, 
+% 07/07: hsig threshold made slightly smaller for large dimension, 
 %        useful for lambda < lambda_default. 
 % 07/06: boundary handling: scaling in the boundary handling
 %        is omitted now, see bnd.flgscale. This seems not to
@@ -2870,14 +2870,14 @@ function f=frand(x)
 % 05/01: Option warnonequalfunctionvalues included. 
 % 04/12: Decrease of sigma removed. Problems on fsectorsphere can 
 %        be addressed better by adding search space boundaries. 
-% 04/12: Boundary handling simpyfied. 
+% 04/12: Boundary handling simplified. 
 % 04/12: Bug when stopping criteria tolx or tolupx are vectors. 
 % 04/11: Three input parameters are obligatory now. 
 % 04/11: Bug in boundary handling removed: Boundary weights can decrease now. 
 % 04/11: Normalization for boundary weights scale changed. 
 % 04/11: VerboseModulo option bug removed. Documentation improved. 
 % 04/11: Condition for increasing boundary weights changed.
-% 04/10: Decrease of sigma when fitness is getting consistenly
+% 04/10: Decrease of sigma when fitness is getting consistently
 %        worse. Addresses the problems appearing on fsectorsphere for
 %        large population size.
 % 04/10: VerboseModulo option included. 
@@ -2886,7 +2886,7 @@ function f=frand(x)
 %        for this stopping criterion. 
 % 04/06: Objective function value NaN is not counted as function
 %        evaluation and invokes resampling of the search point. 
-% 04/06: Error handling for eigenvalue beeing zero (never happens
+% 04/06: Error handling for eigenvalue being zero (never happens
 %        with default parameter setting)
 % 04/05: damps further tuned for large mueff 
 %      o Details for stall of pc-adaptation added (variable hsig 

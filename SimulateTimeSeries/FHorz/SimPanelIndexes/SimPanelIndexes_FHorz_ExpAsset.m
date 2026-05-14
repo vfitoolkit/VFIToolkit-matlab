@@ -1,6 +1,6 @@
 function SimPanel=SimPanelIndexes_FHorz_ExpAsset(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, Parameters, simoptions)
 % Inputs should already be on cpu, output is on cpu
-% 
+%
 % Intended to be called from SimPanelValues_FHorz_Case1()
 
 N_d=prod(n_d);
@@ -130,7 +130,7 @@ if simoptions.gridinterplayer==1
     % (a,z,2,j)
     Policy_aprime=repmat(Policy_aprime,1,1,2,1);
     PolicyProbs=repmat(PolicyProbs,1,1,2,1);
-    % Policy_aprime(:,:,1:2,:) lower grid point for a1 is unchanged 
+    % Policy_aprime(:,:,1:2,:) lower grid point for a1 is unchanged
     Policy_aprime(:,:,3:4,:)=Policy_aprime(:,:,3:4,:)+1; % add one to a1, to get upper grid point
 
     aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,max(1,N_bothze),1,N_j]); % probability of upper grid point (from L2 index)
@@ -164,7 +164,7 @@ if N_z==0
             seedpoints=[ind2sub_vec_homemade([N_a,N_j],seedpointind')]; %,ones(simoptions.numbersims,1)];
         end
         seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-        
+
         % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
         SimPanel=nan(2,N_j,simoptions.numbersims); % (a,j)
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
@@ -291,7 +291,7 @@ else % N_z>0
             seedpoints=[ind2sub_vec_homemade([N_a,N_z,N_e,N_j],seedpointind'),ones(simoptions.numbersims,1)];
         end
         seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-        
+
         % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
         SimPanel=nan(4,N_j,simoptions.numbersims); % (a,z,e,j)
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0

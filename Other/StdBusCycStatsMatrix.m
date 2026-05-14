@@ -11,7 +11,7 @@ if nargin<4
     %If Version is not given, just use all the defaults
     Version=1;
 end
-    
+
 NumVars=size(OtherCycles,2);
 
 if Version==1
@@ -37,7 +37,7 @@ if Version==1
     end
 
 elseif Version==2
-    
+
     StdBusCycStats=zeros(NumVars+1,1+2*LagsAndLeads+1);
     StdBusCycStats(:,1)=[std(Ycycle); std(OtherCycles,[],1)'];
     StdBusCycStats(1,1+LagsAndLeads+1)=corr(Ycycle,Ycycle);
@@ -57,9 +57,9 @@ elseif Version==2
             end
         end
     end
-    
+
 elseif Version==3
-    
+
     StdBusCycStats=zeros(NumVars+1,2+2*LagsAndLeads+1);
     StdBusCycStats(:,1)=[std(Ycycle); std(OtherCycles,[],1)'];
     temp=corrcoef(Ycycle(2:end),Ycycle(1:end-1));

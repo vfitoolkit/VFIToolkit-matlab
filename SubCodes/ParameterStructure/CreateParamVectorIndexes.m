@@ -8,6 +8,7 @@ nCalibParams=length(ParamNames);
 nIndexParams=length(ParamNamesToGetIndexesOf);
 
 VectorOfIndexes=nan; %nan(nIndexParams,1);
+VectorOfUsed=[]; % so the second output is defined even when no names match
 GotOne=0;
 for iIndexParam=1:nIndexParams
     for iCalibParam = 1:nCalibParams
@@ -16,6 +17,7 @@ for iIndexParam=1:nIndexParams
             GotOne=GotOne+1;
             VectorOfIndexes(GotOne)=iCalibParam;
             VectorOfUsed(GotOne)=iIndexParam;
+            break
         end
     end
 end

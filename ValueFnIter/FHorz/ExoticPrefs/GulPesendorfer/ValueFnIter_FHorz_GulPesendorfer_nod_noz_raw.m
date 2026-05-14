@@ -53,17 +53,17 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    
+
     EV=V(:,jj+1);
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, 0, n_a, 0, a_grid, TemptationFnParamsVec,0);

@@ -21,14 +21,14 @@ N_d=prod(n_d);
 if ~isfield(vfoptions,'quasi_hyperbolic')
     vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
 elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
-    vfoptions.maxiter=1000; 
+    vfoptions.maxiter=1000;
     % Sophisticated quasihyperbolic in infinite horizon seems to struggle to converge, so end after fixed number of grid points
     % My impression is that accurate convergence would require insane number of grid points.
     vfoptions.verbose=1;
     % I set verbose so you can see if it appears to have gotten as close to
     % convergence as it can before reaching maxiter (if currdist is cycling
     % through numbers of the same magnitude for a while before stopping)
-elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') 
+elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
     % Check that one of the possible options have been used. If not then error.
     error('vfoptions.quasi_hyperbolic must be either Naive or Sophisticated (check spelling and capital letter) \n')
 end
@@ -74,6 +74,6 @@ end
 
 %%
 V=reshape(V,[n_a,n_z]);
-Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);    
+Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
 
 end

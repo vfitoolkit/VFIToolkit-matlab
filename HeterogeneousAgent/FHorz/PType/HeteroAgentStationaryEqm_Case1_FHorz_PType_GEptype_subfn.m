@@ -34,7 +34,7 @@ end
 AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
-    
+
     iistr=PTypeStructure.iistr{ii};
     for pp=1:length(GEPriceParamNames)
         if GEprice_ptype(pp)==0
@@ -54,7 +54,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % if no e, this is just empty anyway
         PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J;
     end
-    
+
     % If semiz is determined in GE
     if heteroagentoptions.gridsinGE_semiexo(ii)==1
         % Some of the shock grids depend on parameters that are determined in general eqm
@@ -63,7 +63,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).simoptions.pi_semiz_J=PTypeStructure.(iistr).vfoptions.pi_semiz_J;
     end
 
-    
+
     if isfinite(PTypeStructure.(iistr).N_j)
         [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
         StationaryDist_ii=StationaryDist_FHorz_Case1(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions);
@@ -73,7 +73,7 @@ for ii=1:PTypeStructure.N_i
         [V_ii, Policy_ii]=ValueFnIter_Case1(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
         StationaryDist_ii=StationaryDist_Case1(Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).Parameters);
         % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
-        AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).simoptions);     
+        AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).simoptions);
     end
 
     AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
@@ -147,7 +147,7 @@ end
 %% Intermediate Eqns
 if isfield(heteroagentoptions,'intermediateEqns')
     % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().
-    
+
     intEqnnames=fieldnames(heteroagentoptions.intermediateEqns);
     intermediateEqnsVec=zeros(1,sum(heteroagentoptions.intermediateEqnsptype==0)+PTypeStructure.N_i*sum(heteroagentoptions.intermediateEqnsptype==1));
 
@@ -298,7 +298,7 @@ if heteroagentoptions.verbose>=1
             if heteroagentoptions.GEptype(gg)==1
                 fprintf(['	%s:',numberstr,' \n'],GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))
             else
-                fprintf(heteroagentoptions.verboseaccuracy2,GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))            
+                fprintf(heteroagentoptions.verboseaccuracy2,GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))
             end
         end
     end

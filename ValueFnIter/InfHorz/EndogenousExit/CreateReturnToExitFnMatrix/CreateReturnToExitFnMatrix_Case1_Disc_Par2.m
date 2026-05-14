@@ -12,7 +12,7 @@ end
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-l_a=length(n_a); 
+l_a=length(n_a);
 l_z=length(n_z);
 if l_a>4
     disp('ERROR: Using GPU for the return to exit fn does not allow for more than four of a variable (you have length(n_a)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
@@ -37,7 +37,7 @@ if l_a>=1
         end
     end
 end
-if all(size(z_grid)==[sum(n_z),1]) % kroneker product z_grid
+if all(size(z_grid)==[sum(n_z),1]) % kronecker product z_grid
     if l_z>=1
         z1vals=shiftdim(z_grid(1:n_z(1)),-l_a);
         if l_z>=2

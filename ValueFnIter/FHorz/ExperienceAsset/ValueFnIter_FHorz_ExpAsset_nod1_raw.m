@@ -77,12 +77,12 @@ else
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,zprime)
     % Already applied the probabilities from interpolating onto grid
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular third dimension
 
     if vfoptions.lowmemory==0
@@ -103,9 +103,9 @@ else
             DiscountedEV_z=DiscountFactorParamsVec*repelem(EV(:,:,z_c),1,N_a1,1);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
-            
+
             entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,N_j)=Vtemp;
@@ -140,8 +140,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -161,12 +161,12 @@ for reverse_j=1:N_j-1
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,zprime)
     % Already applied the probabilities from interpolating onto grid
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular third dimension
 
     if vfoptions.lowmemory==0
@@ -189,7 +189,7 @@ for reverse_j=1:N_j-1
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
 
             entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;

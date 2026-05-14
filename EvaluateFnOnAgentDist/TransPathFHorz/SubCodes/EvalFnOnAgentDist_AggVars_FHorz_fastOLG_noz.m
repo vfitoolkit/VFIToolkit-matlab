@@ -46,7 +46,7 @@ for ff=1:length(FnsToEvaluate)
             ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-1)}; % (a,j,l_d+l_a), so we want j to be after a (which is N_a)
         end
     end
-    
+
     if l_d==0
         if l_aprime==1
             if l_a==1
@@ -178,7 +178,7 @@ for ff=1:length(FnsToEvaluate)
             end
         end
     end
-    
+
     if outputasstructure==1
         AggVars.(AggVarNames{ff}).Mean=sum(Values(:).*AgentDist);
     else % outputasstructure==0

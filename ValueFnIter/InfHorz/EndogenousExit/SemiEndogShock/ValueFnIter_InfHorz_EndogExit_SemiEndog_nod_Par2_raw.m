@@ -1,4 +1,4 @@
-function [VKron, Policy, ExitPolicy]=ValueFnIter_InfHorz_EndogExit_SemiEndog_nod_Par2_raw(VKron, n_a, n_z, pi_z_semiendog, beta, ReturnMatrix,ReturnToExitMatrix, Howards,Howards2,Tolerance, keeppolicyonexit) % Verbose, a_grid, z_grid, 
+function [VKron, Policy, ExitPolicy]=ValueFnIter_InfHorz_EndogExit_SemiEndog_nod_Par2_raw(VKron, n_a, n_z, pi_z_semiendog, beta, ReturnMatrix,ReturnToExitMatrix, Howards,Howards2,Tolerance, keeppolicyonexit) % Verbose, a_grid, z_grid,
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
 
 N_a=prod(n_a);
@@ -15,7 +15,7 @@ tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
-    
+
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);
@@ -23,32 +23,32 @@ while currdist>Tolerance
         %not on control variables
         a_z_c=(1:1:N_a)+(z_c-1)*N_a;
         EV_z=VKronold.*pi_z_semiendog(a_z_c,:); %(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
-                
+
         entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         % Exit decision
         ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp')>0); % Assumes that when indifferent you do not exit.
         VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c)).*Vtemp';
-        PolicyIndexes(:,z_c)=maxindex; % Note that this includes the policy that would be chosen if you did 
-                % not exit, even when choose exit. This is because it makes it much easier to then implement 
-                % Howards, and can just impose the =0 on exit on the final PolicyIndexes at the end of this 
+        PolicyIndexes(:,z_c)=maxindex; % Note that this includes the policy that would be chosen if you did
+                % not exit, even when choose exit. This is because it makes it much easier to then implement
+                % Howards, and can just impose the =0 on exit on the final PolicyIndexes at the end of this
                 % function just prior to output.
-        
+
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
-        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
+        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
     end
-    
+
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         Ftemp=ExitPolicy.*ReturnToExitMatrix+(1-ExitPolicy).*Ftemp;
         for Howards_counter=1:Howards
             EVKrontemp=VKron(PolicyIndexes,:);
-            
+
             EVKrontemp=EVKrontemp.*pi_z_semiendog;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);

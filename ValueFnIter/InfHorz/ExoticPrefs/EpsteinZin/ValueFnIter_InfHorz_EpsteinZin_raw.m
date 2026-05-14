@@ -31,9 +31,9 @@ tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
-    
+
     for z_c=1:N_z
-%         ReturnMatrix_z=ReturnMatrix(:,:,z_c);    
+%         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         temp2_z=temp2(:,:,z_c);
 
         % Part of Epstein-Zin is before taking expectation
@@ -43,9 +43,9 @@ while currdist>Tolerance
 
         %Calc the expectation term (except beta)
         EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
-        
+
         entireEV_z=repelem(EV_z,N_d,1);
         temp4=entireEV_z;
         temp4(isfinite(temp4))=temp4(isfinite(temp4)).^ezc6;
@@ -61,10 +61,10 @@ while currdist>Tolerance
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
-             
+
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
-%         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
-        Ftemp(:,z_c)=temp2_z(tempmaxindex); 
+%         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
+        Ftemp(:,z_c)=temp2_z(tempmaxindex);
     end
 
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
@@ -78,25 +78,25 @@ while currdist>Tolerance
             temp=EVKrontemp;
             temp(isfinite(EVKrontemp))=(ezc4*EVKrontemp(isfinite(EVKrontemp))).^ezc5;
             temp(EVKrontemp==0)=0;
-            
+
             EVKrontemp=temp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-            
+
             temp4=EVKrontemp;
             temp4(isfinite(temp4))=temp4(isfinite(temp4)).^ezc6;
             temp4(EVKrontemp==0)=0;
-            
+
             % Note that Ftemp already includes all the relevant Epstein-Zin modifications
-            VKron=ezc1*Ftemp+ezc3*DiscountFactorParamsVec*temp4; 
+            VKron=ezc1*Ftemp+ezc3*DiscountFactorParamsVec*temp4;
 
             temp5=logical(isfinite(VKron).*(VKron~=0));
             VKron(temp5)=ezc1*VKron(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
             VKron(VKron==0)=-Inf;
         end
     end
-        
-    tempcounter=tempcounter+1;    
+
+    tempcounter=tempcounter+1;
 end
 
 %%

@@ -24,6 +24,6 @@ if l_d>1
 end
 
 Policy=reshape(Policy,[l_d,n_a,n_z]);
-    
+
 
 end

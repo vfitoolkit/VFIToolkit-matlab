@@ -26,9 +26,9 @@ AgentDist_tt=reshape(Gammatranspose*AgentDist_tt,[N_a,(N_j-1)*N_z]);
 % pi_z_J_sim=gather(reshape(permute(pi_z_J(:,:,1:end-1),[3,1,2]),[(N_j-1)*N_z,N_z]));
 % II3=repmat(1:1:(N_j-1)*N_z,1,N_z);
 % II4=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
-% pi_z_J_sim=sparse(II3,II4,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);  
+% pi_z_J_sim=sparse(II3,II4,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
 
-% Note, we just construct a block-diagonal, the blocks are the (z,z'). The diagonal is j. 
+% Note, we just construct a block-diagonal, the blocks are the (z,z'). The diagonal is j.
 % Because we are going from an agent dist on j=1,...,N_j-1 to an agent dist
 % on j=2,...,N_j the diagonal for j actually corresponds to deterministic ageing
 AgentDist_tt=reshape(AgentDist_tt*pi_z_J_sim,[N_a*(N_j-1)*N_z,1]);

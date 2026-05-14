@@ -2,16 +2,16 @@ function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR
 % Please cite: Kirkby (2025) - Discretizing Earnings Dynamics: Implications of Gaussian-Mixture Shocks for Life-Cycle Models
 %
 % KFTT discretization method for a 'life-cycle non-stationary AR(1) process with
-%    gaussian-mixture innovations'. 
-% This is an extension of the Farmer-Toda method to 'age-dependent parameters' 
+%    gaussian-mixture innovations'.
+% This is an extension of the Farmer-Toda method to 'age-dependent parameters'
 %    (essentially combine Farmer & Toda (2017) with Fella, Gallipoli & Pan (2019)
 % Which in turn is an extension of Tanaka & Toda (2013).
 % Hence KFTT=Kirkby-Farmer-Tanaka-Toda
-% 
+%
 %  KFTT method to approximate life-cycle AR(1) process by a discrete Markov chain
-%       z(j) = mew(j)+rho(j)*z(j-1)+ epsilon(j),   epsilion(j)~iid F(j)
+%       z(j) = mew(j)+rho(j)*z(j-1)+ epsilon(j),   epsilon(j)~iid F(j)
 %           where F(j)=sum_{i=1}^nmix mixprobs_i(j)*N(mu_i(j),sigma_i(j)^2) is a gaussian mixture
-%       with initial condition z(0) = 0 (equivalently z(1)=epsilon(1)) 
+%       with initial condition z(0) = 0 (equivalently z(1)=epsilon(1))
 %
 %  Note: n, the number of normal distributions in the gaussian mixture, cannot depend on j
 %
@@ -27,9 +27,9 @@ function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR
 % Optional inputs (kfttoptions)
 %   parallel:    - set equal to 2 to use GPU, 0 to use CPU
 %   nSigmas      - the grid used will be +-nSigmas*(standard deviation of z)
-% Output: 
+% Output:
 %   z_grid_J       - an znum-by-J matrix, each column stores the Markov state space for period j
-%   pi_z_J         - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
+%   pi_z_J         - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices.
 %                       Transition probabilities are arranged by row.
 %   jequaloneDistz - initial distribution of shocks for j=1
 %   otheroutputs   - optional output structure containing info for evaluating the distribution including,
@@ -42,7 +42,7 @@ function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR
 
 mewz=zeros(1,J); % period j mean of z
 sigmaz = zeros(1,J);
-% z_grid_J = zeros(znum,J); 
+% z_grid_J = zeros(znum,J);
 pi_z_J = zeros(znum,znum,J);
 
 %% Set options
@@ -173,13 +173,13 @@ for jj=1:J
     T2 = mixprobs_i(:,jj)'*(mu_i(:,jj).^2+sigmaC2); % uncentered second moment
     T3 = mixprobs_i(:,jj)'*(mu_i(:,jj).^3+3*mu_i(:,jj).*sigmaC2); % uncentered third moment
     T4 = mixprobs_i(:,jj)'*(mu_i(:,jj).^4+6*(mu_i(:,jj).^2).*sigmaC2+3*sigmaC2.^2); % uncentered fourth moment
-    
+
     TBar_J(:,jj) = [T1 T2 T3 T4]';
-    
+
     % Convert the uncentered moments to the centered second moment
     % https://stats.stackexchange.com/questions/226138/converting-central-moments-to-non-central-moments-and-back
     % Then take square root of the centered second moment to get the standard deviation
-    sigma(jj) = sqrt(T2-T1^2); % conditional standard deviation    
+    sigma(jj) = sqrt(T2-T1^2); % conditional standard deviation
 end
 
 % MAYBE I SHOULD ADD A CHECK HERE THAT T1=0
@@ -254,7 +254,7 @@ for jj=1:J
             [X1,W] = GaussianMixtureQuadrature(mixprobs_i(:,jj),mu_i(:,jj),sigma_i(:,jj),znum);
             X1 = X1 + mewz(jj);
     end
-    
+
     z_grid = allcomb2(X1); % Nm*1 matrix of grid points
     z_grid_J(:,jj)=z_grid;
 end
@@ -268,30 +268,30 @@ parfor jj=1:J
     %% compute conditional moments
     % fprintf('discretizeLifeCycleAR1wGM_KFTT: now doing period %i of %i \n',jj,J) % commented out as parfor
     sigmaC2 = sigma_i(:,jj).^2;
-    
+
     if jj>1
         zlag_grid=z_grid_J(:,jj-1);
     else
         zlag_grid=z_grid_0;
     end
     z_grid=z_grid_J(:,jj)';
-    
+
     TBar=TBar_J(:,jj);
-    
+
     nComp = length(mixprobs_i(:,jj)); % number of mixture components
     temp = zeros(1,1,nComp);
     temp(1,1,:) = sigmaC2;
     gmObj = gmdistribution(mu_i(:,jj),temp,mixprobs_i(:,jj)); % define the Gaussian mixture object
-    
+
     P = NaN(znum,znum); % transition probability matrix
     P1 = NaN(znum,znum); % matrix to store transition probability
     P2 = ones(znum,1); % znum*1 matrix used to construct P
     scalingFactor = max(abs(z_grid));
     kappa = 1e-8;
-    
+
     for z_c = 1:znum % For each value z(jj-1) compute the conditional distribution for z(jj) [the row of the transition matrix]
-       
-        % First, calculate what Farmer & Toda (2017) call qnn', which are essentially an inital guess for pnn'
+
+        % First, calculate what Farmer & Toda (2017) call qnn', which are essentially an initial guess for pnn'
         condMean = rho(jj)*zlag_grid(z_c); % z_grid(ii) here is the lag grid point
         xPDF = (z_grid-condMean)';
         switch kfttoptions.method
@@ -302,11 +302,11 @@ parfor jj=1:J
             otherwise
                 q = W.*(pdf(gmObj,xPDF))';
         end
-        
+
         if any(q < kappa)
             q(q < kappa) = kappa;
         end
-        
+
         if kfttoptions.nMoments == 1 % match only 1 moment
             P1(z_c,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
             nMoments_grid(z_c,jj)=1;
@@ -358,10 +358,10 @@ parfor jj=1:J
             end
             P(z_c,:) = kron(P1(z_c,:),P2(z_c,:));
         end
-        
+
     end
     pi_z_J(:,:,jj)=P;
-    
+
 end
 
 %%

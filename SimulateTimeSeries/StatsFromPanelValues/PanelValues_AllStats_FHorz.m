@@ -4,7 +4,7 @@ if ~exist('simoptions','var')
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.npoints=100; % number of points for lorenz curve
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
-    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
 else
     if ~isfield(simoptions,'whichstats')
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes

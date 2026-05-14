@@ -8,7 +8,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-%% Check which vfoptions have been used, set all others to defaults 
+%% Check which vfoptions have been used, set all others to defaults
 if ~exist('vfoptions','var')
     disp('No vfoptions given, using defaults')
     % If vfoptions is not given, just use all the defaults
@@ -90,7 +90,7 @@ else
     % When doing Howards iterations, the following are some suboptions
     if ~isfield(vfoptions,'howards')
         vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
-    end  
+    end
     if ~isfield(vfoptions,'maxhowards')
         vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     end
@@ -115,7 +115,7 @@ else
         vfoptions.inheritanceasset=0;
     end
 %     vfoptions.exoticpreferences % default is not to declare it
-%     vfoptions.SemiEndogShockFn % default is not to declare it    
+%     vfoptions.SemiEndogShockFn % default is not to declare it
     % Exogenous shocks
     if ~isfield(vfoptions,'n_e')
         vfoptions.n_e=0;
@@ -149,10 +149,10 @@ if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
         vfoptions.solnmethod='purediscretization';
     end
 end
-% Divide-and-conquer with one endogenous state is implemented, but is too slow to be something you would ever want. 
-% Especially becuase you cannot refine while doing divideandconquer
+% Divide-and-conquer with one endogenous state is implemented, but is too slow to be something you would ever want.
+% Especially because you cannot refine while doing divideandconquer
 if vfoptions.divideandconquer==1 && isscalar(n_a)
-    vfoptions.divideandconquer=0; 
+    vfoptions.divideandconquer=0;
 end
 
 
@@ -174,7 +174,7 @@ if isfield(vfoptions,'V0')
     vfoptions.actualV0=1;
 else
     V0=zeros([N_a,N_z], 'gpuArray');
-    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
+    vfoptions.actualV0=0; % DC2 has different way of creating initial guess so this will be ignored
 end
 
 %% Check the sizes of some of the inputs
@@ -183,7 +183,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmet
         error('d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
     elseif ~all(size(a_grid)==[sum(n_a), 1])
         error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
-        
+
         % Check z_grid inputs
     elseif isfield(vfoptions,'ExogShockFn')
             % okay
@@ -202,7 +202,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmet
             if ~all(size(V0)==[n_a,n_z]) % Allow for input to be already transformed into Kronecker form
                 error('Starting choice for ValueFn is not of size [n_a,n_z]')
             end
-        elseif ~all(size(V0)==[N_a,N_z]) % Allows for possiblity that V0 is already in kronecker form
+        elseif ~all(size(V0)==[N_a,N_z]) % Allows for possibility that V0 is already in kronecker form
             error('Starting choice for ValueFn is not of size [n_a,n_z]')
         end
     end
@@ -224,7 +224,7 @@ end
 
 
 if max(vfoptions.incrementaltype)==1
-    if ~strcmp(vfoptions.solnmethod,'purediscretization') 
+    if ~strcmp(vfoptions.solnmethod,'purediscretization')
         error('Using vfoptions.incrementaltype only works with vfoptions.solnmethod as purediscretization')
     end
 end
@@ -337,7 +337,7 @@ end
 %% Experience asset
 if vfoptions.experienceasset==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
-    
+
     % Split decision variables into the standard ones and the one relevant to the experience asset
     if isscalar(n_d)
         n_d1=0;
@@ -422,14 +422,14 @@ end
 
 
 %%
-if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI') 
+if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI')
     % Note: have only implemented Relative VFI on the GPU
     warning('Relative VFI is unstable if you have substantial discretization (has difficulty converging if you dont use enough points)')
     [VKron,Policy]=ValueFnIter_InfHorz_RelativeVFI(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
 %%
-if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI') 
+if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI')
     % Note: have only implemented Endogenous VFI on the GPU
     error('Endogenous VFI is not yet working')
 %     [VKron,Policy]=ValueFnIter_InfHorz_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
@@ -463,11 +463,11 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
     N_d=prod(n_d);
 
     if vfoptions.lowmemory==0
-        
+
         %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
         % Since the return function is independent of time creating it once and
         % then using it every iteration is good for speed, but it does use a lot of memory.
-        
+
         if vfoptions.verbose==1
             disp('Creating return fn matrix')
         end
@@ -477,11 +477,11 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         else
             ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
         end
-        
+
         if vfoptions.verbose==1
             fprintf('Starting Value Function \n')
         end
-        
+
         if N_d==0
             if vfoptions.howardsgreedy==1
                 [VKron,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
@@ -496,13 +496,13 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
             [VKron, Policy]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
         end
-        
+
     elseif vfoptions.lowmemory==1
-                
+
         if vfoptions.verbose==1
             disp('Starting Value Function')
         end
-        
+
         if N_d==0
             if vfoptions.howardssparse==0
                 [VKron,Policy]=ValueFnIter_InfHorz_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
@@ -517,8 +517,8 @@ end
 
 %% VFI with Refine
 % If we get to refinement then there must be d variable
-if strcmp(vfoptions.solnmethod,'purediscretization_refinement') 
-    % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
+if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
+    % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z.
     [VKron,Policy]=ValueFnIter_InfHorz_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
 end
 

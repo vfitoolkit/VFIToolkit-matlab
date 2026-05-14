@@ -20,15 +20,15 @@ tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
-    
+
     for z_c=1:N_z
-        ReturnMatrix_z=ReturnMatrix(:,:,z_c);     
-        ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);     
+        ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+        ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
-        
+
         entireEV_z=kron(EV_z,ones(N_d,1));
         entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1);
 
@@ -36,12 +36,12 @@ while currdist>Tolerance
         [Vtemp,maxindex]=max(entireRHS,[],1);
         % Exit decision
         ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp)>0); % Assumes that when indifferent you do not exit.
-        
+
         VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c)).*Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
-             
+
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
-        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
+        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
     end
 
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
@@ -51,7 +51,7 @@ while currdist>Tolerance
         Ftemp=ExitPolicy.*ReturnToExitMatrix+(1-ExitPolicy).*Ftemp;
         for Howards_counter=1:Howards
             EVKrontemp=VKron(ceil(PolicyIndexes/N_d),:);
-            
+
             EVKrontemp=EVKrontemp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
@@ -59,7 +59,7 @@ while currdist>Tolerance
         end
     end
 
-    tempcounter=tempcounter+1;    
+    tempcounter=tempcounter+1;
 end
 
 Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form

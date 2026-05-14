@@ -31,11 +31,11 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix(aprimeFn, n_d2, n_a2, n_u, d2_gridvals, a2_grid, u_gridvals, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2*N_u,1], whereas aprimeProbs is [N_d2,N_a2,N_u]
-    
+
     EVpre=reshape(vfoptions.V_Jplus1,[N_a,1]);
 
     Vlower=reshape(EVpre(a2primeIndex),[N_d2,N_a2,N_u]);
@@ -43,8 +43,8 @@ else
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
-   
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
@@ -68,7 +68,7 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -82,12 +82,12 @@ for reverse_j=1:N_j-1
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
-   
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);

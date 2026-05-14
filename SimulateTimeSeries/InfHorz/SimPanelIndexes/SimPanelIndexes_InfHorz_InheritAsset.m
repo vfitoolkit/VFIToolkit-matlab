@@ -1,6 +1,6 @@
 function SimPanel=SimPanelIndexes_InfHorz_InheritAsset(InitialDist,Policy,n_d,n_a,n_z,pi_z, Parameters, simoptions, CondlProbOfSurvival)
 % Input must already be on CPU
-% Simulates a panel based on PolicyIndexes of 'numbersims' agents of length 'simperiods' beginning from randomly drawn InitialDist. 
+% Simulates a panel based on PolicyIndexes of 'numbersims' agents of length 'simperiods' beginning from randomly drawn InitialDist.
 %
 % CondlProbOfSurvival is an optional input. Only needed when using: simoptions.exitinpanel=1, there there is exit, either exog, endog or mix of both.
 % Parameters is an optional input. Only needed when you have mixed (endogenous and exogenous) exit.
@@ -155,7 +155,7 @@ if N_z>0
     if N_e==0 % z, no e
         Policy_aprime=reshape(Policy_aprime,[N_a,N_z,N_zprime,N_probs]);
         CumPolicyProbs=reshape(CumPolicyProbs,[N_a,N_z,N_zprime,N_probs]);
-        
+
         SimPanel=nan(2,simoptions.simperiods,simoptions.numbersims); % (a,z)
         parfor ii=1:simoptions.numbersims
             [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1));
@@ -165,7 +165,7 @@ if N_z>0
             SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_zprime_PolicyProbs_raw(Policy_aprime,CumPolicyProbs,cumsumpi_z, simoptions, seedpoint);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-        
+
         if simoptions.simpanelindexkron==0 % Convert results out of kron
             SimPanelKron=reshape(SimPanel,[3,simoptions.simperiods*simoptions.numbersims]);
             SimPanel=nan(l_a+l_z+1,simoptions.simperiods*simoptions.numbersims); % (a,z)

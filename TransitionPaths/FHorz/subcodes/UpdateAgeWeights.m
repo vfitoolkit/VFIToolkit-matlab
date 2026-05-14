@@ -2,9 +2,9 @@ function Path_mewj=UpdateAgeWeights(initial_mewj,Path_sj,Path_n,Path_immigrantme
 % Important note: n is NOT the population growth rate, it is the rate of growth of the population of age j=1
 %
 % immigrationrate is immigrants as a percentage of the population
-% emmigrationrate is emmigrants as a percentage of the population
+% emmigrationrate is emigrants as a percentage of the population
 % immigrantmewj is (unit mass) of age weights of immigrant population
-% emmigrantmewj is (unit mass) of age weights of emmigrant population
+% emmigrantmewj is (unit mass) of age weights of emigrant population
 
 if exist('fertilityrate','var')
     if ~isempty(Path_n)

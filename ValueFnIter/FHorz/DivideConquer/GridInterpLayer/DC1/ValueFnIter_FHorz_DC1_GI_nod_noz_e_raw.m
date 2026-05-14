@@ -48,7 +48,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % Calc the max and it's index
         [~,maxindex1]=max(ReturnMatrix_ii,[],1);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
@@ -89,7 +89,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % Calc the max and it's index
             [~,maxindex1]=max(ReturnMatrix_ii,[],1);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(1,level1ii)=maxindex1;
 
             % Attempt for improved version
@@ -129,7 +129,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j),2); % Use V_Jplus1
-    
+
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
@@ -143,7 +143,7 @@ else
         %Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
@@ -189,7 +189,7 @@ else
             %Calc the max and it's index
             [~,maxindex1]=max(entireRHS_ii,[],1);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(1,level1ii)=maxindex1;
 
             % Attempt for improved version
@@ -224,7 +224,7 @@ else
             Policy(1,:,e_c,N_j)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
             Policy(2,:,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
         end
-    end    
+    end
 end
 
 
@@ -236,13 +236,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=sum(V(:,:,jj+1).*pi_e_J(1,:,jj),2);
 
     % Interpolate EV over aprime_grid
@@ -257,7 +257,7 @@ for reverse_j=1:N_j-1
         % Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
@@ -302,7 +302,7 @@ for reverse_j=1:N_j-1
             % Calc the max and it's index
             [~,maxindex1]=max(entireRHS_ii,[],1);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(1,level1ii)=maxindex1;
 
             % Attempt for improved version
@@ -336,7 +336,7 @@ for reverse_j=1:N_j-1
             Policy(1,:,e_c,jj)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
             Policy(2,:,e_c,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
         end
-    end    
+    end
 end
 
 

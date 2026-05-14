@@ -10,7 +10,7 @@ N_p=prod(n_p);
 
 p_eqm=struct(); p_eqm_index=nan; GeneralEqmConditions=nan;
 
-%% Check which options have been used, set all others to defaults 
+%% Check which options have been used, set all others to defaults
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
     heteroagentoptions.fminalgo=1;
@@ -66,7 +66,7 @@ else
 end
 
 %%
-% Check if gthere is an initial guess for V0
+% Check if there is an initial guess for V0
 if isfield(vfoptions,'V0')
     vfoptions.V0=reshape(vfoptions.V0,[N_a,N_s]);
 else
@@ -101,7 +101,7 @@ end
 minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns);
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multimarketcriterion=0;
-    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);    
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);
 elseif heteroagentoptions.fminalgo==1
     [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0,minoptions);
 elseif heteroagentoptions.fminalgo==2
@@ -112,7 +112,7 @@ elseif heteroagentoptions.fminalgo==2
     z0.z=p0;
     [sol,GeneralEqmConditions]=solve(prob,z0);
     p_eqm_vec=sol.z;
-    % Note, doesn't really work as automattic differentiation is only for
+    % Note, doesn't really work as automatic differentiation is only for
     % supported functions, and the objective here is not a supported function
 elseif heteroagentoptions.fminalgo==3
     goal=zeros(length(p0),1);
@@ -131,7 +131,7 @@ elseif heteroagentoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adap
         % inopts: options struct, see defopts below
         heteroagentoptions.inopts=[];
     end
-    % varargin (unused): arguments passed to objective function 
+    % varargin (unused): arguments passed to objective function
     if heteroagentoptions.verbose==1
         disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
     end
@@ -167,7 +167,7 @@ if specialgeneqmcondnsused==1
     end
 end
 % p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless.
-% Is already initalised as p_eqm_index=nan; so just leave it as is.
+% Is already initialised as p_eqm_index=nan; so just leave it as is.
 
 
 

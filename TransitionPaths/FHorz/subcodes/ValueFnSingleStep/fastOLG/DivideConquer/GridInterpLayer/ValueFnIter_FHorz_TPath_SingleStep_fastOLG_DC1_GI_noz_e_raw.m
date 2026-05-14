@@ -70,7 +70,7 @@ DiscountedEV=repelem(shiftdim(DiscountedEV,-1),N_d,1,1); % [d,aprime,1,j]
 DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp; % [n2aprime fine,1,j,z]
 
 if vfoptions.lowmemory==0
-    
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn, n_d, n_e, N_j, d_gridvals, a_grid, a_grid(level1ii), e_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
@@ -79,7 +79,7 @@ if vfoptions.lowmemory==0
     % First, we want aprime conditional on (d,1,a,j)
     [~,maxindex1]=max(entireRHS_ii,[],2);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints_jj(:,1,level1ii,:,:)=maxindex1;
 
     % Attempt for improved version
@@ -134,7 +134,7 @@ elseif vfoptions.lowmemory==1
         % First, we want aprime conditional on (d,1,a,j)
         [~,maxindex1]=max(entireRHS_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
 
         % Attempt for improved version

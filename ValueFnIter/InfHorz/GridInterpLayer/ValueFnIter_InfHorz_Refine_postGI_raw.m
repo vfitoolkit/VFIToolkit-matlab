@@ -7,15 +7,15 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 n_da=[n_d,n_a];
-da_gridvals=[repmat(d_gridvals,N_a,1),repelem(a_grid,N_d,1)]; % only one aprime 
+da_gridvals=[repmat(d_gridvals,N_a,1),repelem(a_grid,N_d,1)]; % only one aprime
 
 %% Refinement: calculate ReturnMatrix and 'remove' the d dimension
-% Since the return function is independent of time creating it once and then using it every iteration is good for 
+% Since the return function is independent of time creating it once and then using it every iteration is good for
 % speed, but it does use a lot of memory. Hence the lowmemory option is here.
 if vfoptions.lowmemory==0
     ReturnMatrixraw=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_da, n_a, n_z, da_gridvals, a_grid, z_gridvals, ReturnFnParams);
     ReturnMatrixraw=reshape(ReturnMatrixraw,[N_d,N_a,N_a,N_z]);
-    
+
     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
     [ReturnMatrix,~]=max(ReturnMatrixraw,[],1);
     ReturnMatrix=shiftdim(ReturnMatrix,1); % 'refined' return matrix
@@ -46,10 +46,10 @@ tempcounter=1;
 currdist=1;
 while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
-    
+
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=VKronold.*pi_z_alt;
-    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
@@ -58,10 +58,10 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
     [VKron,Policy_a]=max(entireRHS,[],1);
     VKron=shiftdim(VKron,1); % a by z
 
-    VKrondist=VKron(:)-VKronold(:); 
+    VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    
+
     % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
         tempmaxindex=shiftdim(Policy_a,1)+addindexforaz; % aprime index, add the index for a and z
@@ -146,22 +146,22 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
 
     % Switch VKron into being over vfoptions.maxaprimediff
-    EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_a,N_z,N_z]); % last dimension is zprime    
+    EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_a,N_z,N_z]); % last dimension is zprime
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=EVpre.*pi_z_alt2;
     EV(isnan(EV))=0;
     EV=squeeze(sum(EV,4));
     % EV is now [N_aprimediff,N_a,N_z]
-    
+
     % Interpolate EV over aprime_grid
     EVinterp=interp1(EVinterpindex1,EV,EVinterpindex2);
-    
+
     entireRHS=ReturnMatrixfine+DiscountFactorParamsVec*EVinterp; % aprime by a by z
 
     [VKron,Policy_a]=max(entireRHS,[],1);
     VKron=shiftdim(VKron,1); % a by z
 
-    VKrondist=VKron(:)-VKronold(:); 
+    VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
 
@@ -170,13 +170,13 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         tempmaxindex=shiftdim(Policy_a,1)+addindexforazfine; % aprime index, add the index for a and z, size is [N_a,N_z]
         Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
         tempmaxindex2=Policy_a(:)+N_aprime*gpuArray(0:1:N_a*N_z-1)'; % size is [N_a*N_z,1], contains the (aprime,a,z) index; (this shape is just convenient for Howards)
-         
+
         for Howards_counter=1:vfoptions.howards
             % Interpolate EV
             EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_a*N_z,N_z]); % last dimension is zprime
             EVKrontemp=interp1(EVinterpindex1,EVpre,EVinterpindex2); % interpolate V as Policy points to the interpolated indexes
             EVKrontemp=reshape(EVKrontemp,[N_aprime*N_a*N_z,N_z]);  % last dimension is zprime
-            
+
             EVKrontemp=EVKrontemp(tempmaxindex2,:);
             EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
@@ -197,12 +197,12 @@ while vfoptions.postGIrepeat>0
 
     % Current optimal aprime is Policy_a
     % So create an aprime_grid that is just an interpolation within +-vfoptions.maxaprimediff
-    
+
     % First, we switch Policy_a to be the nearest point on the rough grid
     Policy_a=reshape(Policy_a,[1,N_a,N_z]); % Howards can mess with the size
     Policy_a=ceil((Policy_a-1)/(n2short+1))-vfoptions.maxaprimediff+aprimeshifter;
     % ceil((Policy_a-1)/(n2short+1))-vfoptions.maxaprimediff ranges -vfoptions.maxaprimediff:1:vfoptions.maxaprimediff
-    
+
     % First, create an aprime_grid that is just the +-vfoptions.maxaprimediff
     % Note: this code is for models with a single endogenous state
     n_aprimediff=1+2*vfoptions.maxaprimediff;
@@ -210,7 +210,7 @@ while vfoptions.postGIrepeat>0
     aprimeshifter=min(max(Policy_a,1+vfoptions.maxaprimediff),N_a-vfoptions.maxaprimediff);
     aprimeindex=(-vfoptions.maxaprimediff:1:vfoptions.maxaprimediff)' +aprimeshifter; % size n_aprime-by-n_a
     aprime_grid=a_grid(aprimeindex);
-   
+
     % Second, interpolate this
     n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
     n_aprime=n_aprimediff+(n_aprimediff-1)*vfoptions.ngridinterp;
@@ -260,13 +260,13 @@ while vfoptions.postGIrepeat>0
         EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_a,N_z,N_z]); % last dimension is zprime
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV=EVpre.*pi_z_alt2;
-        EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=squeeze(sum(EV,4)); % sum over z', leaving a singular second dimension
         % EV is now [N_aprimediff,N_a,N_z]
 
         % Interpolate EV over aprime_grid
         EVinterp=interp1(EVinterpindex1,EV,EVinterpindex2);
-        
+
         entireRHS=ReturnMatrixfine+DiscountFactorParamsVec*EVinterp; % aprime by a by z
 
         % Calc the max and it's index
@@ -276,7 +276,7 @@ while vfoptions.postGIrepeat>0
         VKrondist=VKron(:)-VKronold(:);
         VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
-        
+
         % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
         if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
             tempmaxindex=shiftdim(Policy_a,1)+addindexforazfine; % aprime index, add the index for a and z, size is [N_a,N_z]

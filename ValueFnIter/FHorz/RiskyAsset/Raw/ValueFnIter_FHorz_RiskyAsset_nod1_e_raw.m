@@ -94,7 +94,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]).*pi_e_J(1,1,:,N_j),3); % Using V_Jplus1
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -108,7 +108,7 @@ else
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z);  % [N_d*N_a1,N_u,N_z]
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -117,8 +117,8 @@ else
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(EVlower==EVupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
-    
-    %  Switch EV from being in terps of a2prime to being in terms of d2 and a2
+
+    %  Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*EVlower+(1-aprimeProbs).*EVupper; % (d23 & a1prime,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     EV=squeeze(sum((EV.*pi_u),2)); % (d23 & a1prime,zprime)
@@ -131,16 +131,16 @@ else
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_z, n_e, d3a1_gridvals, a1a2_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
-        
+
         % Time to refine ReturnMatrix, we can refine out d1
         % no d1 here
 
         % Now put together entireRHS, which just depends on d3
         entireRHS=ReturnMatrix+DiscountedEV_onlyd3;
-                
+
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy3(2,:,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy3(3,:,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
@@ -154,13 +154,13 @@ else
 
             ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_z, special_n_e, d3a1_gridvals, a1a2_gridvals, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
-            
+
             % Time to refine ReturnMatrix, we can refine out d1
             % no d1 here
 
             % Now put together entireRHS, which just depends on d3
             entireRHS_e=ReturnMatrix_e+DiscountedEV_onlyd3;
-            
+
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
 
@@ -169,7 +169,7 @@ else
             Policy3(3,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
             Policy3(1,:,:,e_c,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
         end
-        
+
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -177,7 +177,7 @@ else
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
-                
+
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], special_n_z, special_n_e, d3a1_gridvals, a1a2_gridvals, z_val, e_val, ReturnFnParamsVec);
 
                 % Time to refine ReturnMatrix, we can refine out d1
@@ -185,7 +185,7 @@ else
 
                 % Now put together entireRHS, which just depends on d3
                 entireRHS_ze=ReturnMatrix_ze+DiscountedEV_onlyd3_z;
-                
+
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
 
@@ -205,13 +205,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
@@ -225,7 +225,7 @@ for reverse_j=1:N_j-1
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z);  % [N_d*N_a1,N_u,N_z]
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -234,8 +234,8 @@ for reverse_j=1:N_j-1
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(EVlower==EVupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
-    
-    %  Switch EV from being in terps of a2prime to being in terms of d2 and a2
+
+    %  Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*EVlower+(1-aprimeProbs).*EVupper; % (d23 & a1prime,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     EV=squeeze(sum((EV.*pi_u),2)); % (d23 & a1prime,zprime)
@@ -248,15 +248,15 @@ for reverse_j=1:N_j-1
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_z, n_e, d3a1_gridvals, a1a2_gridvals, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
-        
+
         % Time to refine ReturnMatrix, we can refine out d1
         % no d1 here
 
         % Now put together entireRHS, which just depends on d3
-        entireRHS=ReturnMatrix+DiscountedEV_onlyd3;        
+        entireRHS=ReturnMatrix+DiscountedEV_onlyd3;
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+
         V(:,:,:,jj)=shiftdim(Vtemp,1);
         Policy3(2,:,:,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy3(3,:,:,:,jj)=shiftdim(ceil(maxindex/N_d3),-1);
@@ -269,21 +269,21 @@ for reverse_j=1:N_j-1
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_z, special_n_e, d3a1_gridvals, a1a2_gridvals, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
-            
+
             % Time to refine ReturnMatrix, we can refine out d1
             % no d1 here
 
             % Now put together entireRHS, which just depends on d3
-            entireRHS_e=ReturnMatrix_e+DiscountedEV_onlyd3;            
+            entireRHS_e=ReturnMatrix_e+DiscountedEV_onlyd3;
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            
+
             V(:,:,e_c,jj)=shiftdim(Vtemp,1);
             Policy3(2,:,:,e_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
             Policy3(3,:,:,e_c,jj)=shiftdim(ceil(maxindex/N_d3),-1);
             Policy3(1,:,:,e_c,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
         end
-        
+
     elseif vfoptions.lowmemory==2
 
         for z_c=1:N_z
@@ -292,17 +292,17 @@ for reverse_j=1:N_j-1
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
-                
+
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], special_n_z, special_n_e, d3a1_gridvals, a1a2_gridvals, z_val, e_val, ReturnFnParamsVec);
-                
+
                 % Time to refine ReturnMatrix, we can refine out d1
                 % no d1 here
 
                 % Now put together entireRHS, which just depends on d3
                 entireRHS_ze=ReturnMatrix_ze+DiscountedEV_onlyd3_z;
-                
+
                 %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_ze,[],1);                
+                [Vtemp,maxindex]=max(entireRHS_ze,[],1);
 
                 V(:,z_c,e_c,jj)=Vtemp;
                 Policy3(2,:,z_c,e_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);

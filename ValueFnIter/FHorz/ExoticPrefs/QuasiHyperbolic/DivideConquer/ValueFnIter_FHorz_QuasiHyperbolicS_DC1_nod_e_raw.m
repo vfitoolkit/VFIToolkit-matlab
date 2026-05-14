@@ -154,7 +154,7 @@ else
         aprime_ind=Policy(:,:,:,N_j);
         EV_at_policy=EV(aprime_ind+N_a*zindB);
         Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j)+(beta-beta0beta)*EV_at_policy;
-    
+
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);

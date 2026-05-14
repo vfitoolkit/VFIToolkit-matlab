@@ -44,7 +44,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % First, we want a1a2prime conditional on (d,1,a,z)
         % We would just do
         % [~,maxindex1]=max(ReturnMatrix_ii,[],2);
-        % But there is an error in Matlab for max in second dimesion on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
+        % But there is an error in Matlab for max in second dimension on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
         % So instead for now we instead do following two lines
         [~,maxindex1]=max(permute(ReturnMatrix_ii,[2,1,3,4,5]),[],1);
         maxindex1=permute(maxindex1,[2,1,3,4,5]);
@@ -139,7 +139,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % First, we want a1a2prime conditional on (d,1,a1,a2)
             % We would just do
             % [~,maxindex1]=max(ReturnMatrix_ii,[],2);
-            % But there is an error in Matlab for max in second dimesion on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
+            % But there is an error in Matlab for max in second dimension on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
             % So instead for now we instead do following two lines
             [~,maxindex1]=max(permute(ReturnMatrix_ii,[2,1,3,4]),[],1);
             maxindex1=permute(maxindex1,[2,1,3,4]);
@@ -235,7 +235,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-2);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,3); % sum over z', leaving a singular second dimension
     DiscountedentireEV=DiscountFactorParamsVec*reshape(repmat(shiftdim(EV,-1),N_d,1,1,1),[N_d,N_a1*N_a2,1,1,N_z]); % [d,aprime,1,1,z]
 
@@ -249,7 +249,7 @@ else
         % First, we want a1a2prime conditional on (d,1,a,z)
         % We would just do
         % [~,maxindex1]=max(entireRHS_ii,[],2);
-        % But there is an error in Matlab for max in second dimesion on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
+        % But there is an error in Matlab for max in second dimension on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
         % So instead for now we instead do following two lines
         [~,maxindex1]=max(permute(entireRHS_ii,[2,1,3,4,5]),[],1);
         maxindex1=permute(maxindex1,[2,1,3,4,5]);
@@ -356,7 +356,7 @@ else
             % First, we want a1a2prime conditional on (d,1,a)
             % We would just do
             % [~,maxindex1]=max(entireRHS_ii,[],2);
-            % But there is an error in Matlab for max in second dimesion on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
+            % But there is an error in Matlab for max in second dimension on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
             % So instead for now we instead do following two lines
             [~,maxindex1]=max(permute(entireRHS_ii,[2,1,3,4]),[],1);
             maxindex1=permute(maxindex1,[2,1,3,4]);
@@ -469,7 +469,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=V(:,:,:,jj+1).*shiftdim(pi_z_J(:,:,jj)',-2);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,3); % sum over z', leaving a singular second dimension
     DiscountedentireEV=DiscountFactorParamsVec*reshape(repmat(shiftdim(EV,-1),N_d,1,1,1),[N_d,N_a1*N_a2,1,1,N_z]); % [d,aprime,1,1,z]
 
@@ -483,7 +483,7 @@ for reverse_j=1:N_j-1
         % First, we want a1a2prime conditional on (d,1,a,z)
         % We would just do
         % [~,maxindex1]=max(entireRHS_ii,[],2);
-        % But there is an error in Matlab for max in second dimesion on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
+        % But there is an error in Matlab for max in second dimension on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
         % So instead for now we instead do following two lines
         [~,maxindex1]=max(permute(entireRHS_ii,[2,1,3,4,5]),[],1);
         maxindex1=permute(maxindex1,[2,1,3,4,5]);
@@ -590,7 +590,7 @@ for reverse_j=1:N_j-1
             % First, we want a1a2prime conditional on (d,1,a)
             % We would just do
             % [~,maxindex1]=max(entireRHS_ii,[],2);
-            % But there is an error in Matlab for max in second dimesion on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
+            % But there is an error in Matlab for max in second dimension on GPU: https://au.mathworks.com/matlabcentral/answers/2152160-error-in-index-returned-by-max-in-the-second-dimension-in-obscure-case
             % So instead for now we instead do following two lines
             [~,maxindex1]=max(permute(entireRHS_ii,[2,1,3,4]),[],1);
             maxindex1=permute(maxindex1,[2,1,3,4]);

@@ -3,7 +3,7 @@ function [V, Policy]=ValueFnIter_FieldExp_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, 
 V=struct();
 Policy=struct();
 
-%% Check which vfoptions have been used, set all others to defaults 
+%% Check which vfoptions have been used, set all others to defaults
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
@@ -133,7 +133,7 @@ end
 %% Exogenous shock grids
 [z_gridvals_J,pi_z_J,vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
 
-%% 
+%%
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
@@ -161,7 +161,7 @@ end
 agedepparamnames=fieldnames(AgeDepParams);
 
 vfoptions.outputkron=1;
-%% Now, loop over the ages in 
+%% Now, loop over the ages in
 for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     if vfoptions.verbose==1
         fprintf('Field-experiment: Solving treatment-group initial treatment age %i (of %i to %i) \n',j_p,TreatmentAgeRange(1),TreatmentAgeRange(2))
@@ -253,7 +253,7 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
             end
         end
     end
-    
+
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if N_e==0
         if N_z==0

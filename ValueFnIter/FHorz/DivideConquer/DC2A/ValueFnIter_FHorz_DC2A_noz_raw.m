@@ -5,7 +5,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
 n_a1=n_a(1);
@@ -46,7 +46,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem(a2ind',vfoptions.level1n,1);
     V(curraindex,N_j)=shiftdim(Vtempii,1);
     Policy(curraindex,N_j)=shiftdim(maxindex2,1);
-    
+
     % Attempt for improved version
     maxgap=squeeze(max(max(max(maxindex1(:,1,:,2:end,:)-maxindex1(:,1,:,1:end-1,:),[],5),[],3),[],1));
     for ii=1:(vfoptions.level1n-1)
@@ -86,7 +86,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
 
     end
-    
+
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
@@ -113,7 +113,7 @@ else
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem(a2ind',vfoptions.level1n,1);
     V(curraindex,N_j)=shiftdim(Vtempii,1);
     Policy(curraindex,N_j)=shiftdim(maxindex2,1);
-    
+
     % Attempt for improved version
     maxgap=squeeze(max(max(max(maxindex1(:,1,:,2:end,:)-maxindex1(:,1,:,1:end-1,:),[],5),[],3),[],1));
     for ii=1:(vfoptions.level1n-1)
@@ -167,13 +167,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     DiscountedEV=DiscountFactorParamsVec*reshape(V(:,jj+1),[1,N_a1,N_a2,1,1]); % will autoexand d in 1st-dim
 
     % n-Monotonicity
@@ -193,7 +193,7 @@ for reverse_j=1:N_j-1
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem(a2ind',vfoptions.level1n,1);
     V(curraindex,jj)=shiftdim(Vtempii,1);
     Policy(curraindex,jj)=shiftdim(maxindex2,1);
-    
+
     % Attempt for improved version
     maxgap=squeeze(max(max(max(maxindex1(:,1,:,2:end,:)-maxindex1(:,1,:,1:end-1,:),[],5),[],3),[],1));
     for ii=1:(vfoptions.level1n-1)

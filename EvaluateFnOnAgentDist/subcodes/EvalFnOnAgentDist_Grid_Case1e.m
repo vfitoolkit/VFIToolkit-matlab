@@ -48,7 +48,7 @@ if l_a>=1
         end
     end
 end
-if all(size(z_grid)==[sum(n_z),1]) % kroneker product z_grid
+if all(size(z_grid)==[sum(n_z),1]) % kronecker product z_grid
     z_shift=l_z;
     if l_z>=1
         z1vals=shiftdim(z_grid(1:n_z(1)),-l_a);
@@ -83,7 +83,7 @@ elseif all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
         end
     end
 end
-if all(size(e_grid)==[sum(n_e),1]) % kroneker product e_grid
+if all(size(e_grid)==[sum(n_e),1]) % kronecker product e_grid
     if l_e>=1
         e1vals=shiftdim(e_grid(1:n_e(1)),-l_a-z_shift);
         if l_e>=2
@@ -422,651 +422,651 @@ elseif all(size(e_grid)==[prod(n_e),l_e]) % joint e grid
 end
 
 if l_e==1
-    if l_d==0 && l_a==1 && l_z==1 
+    if l_d==0 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==2 
+    elseif l_d==0 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==3 
+    elseif l_d==0 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==4 
+    elseif l_d==0 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==1 
+    elseif l_d==0 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==2 
+    elseif l_d==0 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==3 
+    elseif l_d==0 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==4 
+    elseif l_d==0 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==1 
+    elseif l_d==0 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==2 
+    elseif l_d==0 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==3 
+    elseif l_d==0 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==4 
+    elseif l_d==0 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==1 
+    elseif l_d==0 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==2 
+    elseif l_d==0 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==3 
+    elseif l_d==0 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==4 
+    elseif l_d==0 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==1 
+    elseif l_d==1 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==2 
+    elseif l_d==1 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==3 
+    elseif l_d==1 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==4 
+    elseif l_d==1 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==1 
+    elseif l_d==1 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==2 
+    elseif l_d==1 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==3 
+    elseif l_d==1 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==4 
+    elseif l_d==1 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==1 
+    elseif l_d==1 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==2 
+    elseif l_d==1 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==3 
+    elseif l_d==1 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==4 
+    elseif l_d==1 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==1 
+    elseif l_d==1 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==2 
+    elseif l_d==1 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==3 
+    elseif l_d==1 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==4 
+    elseif l_d==1 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==1 
+    elseif l_d==2 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==2 
+    elseif l_d==2 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==3 
+    elseif l_d==2 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==4 
+    elseif l_d==2 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==1 
+    elseif l_d==2 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==2 
+    elseif l_d==2 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==3 
+    elseif l_d==2 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==4 
+    elseif l_d==2 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==1 
+    elseif l_d==2 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==2 
+    elseif l_d==2 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==3 
+    elseif l_d==2 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==4 
+    elseif l_d==2 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==1 
+    elseif l_d==2 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==2 
+    elseif l_d==2 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==3 
+    elseif l_d==2 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==4 
+    elseif l_d==2 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==1 
+    elseif l_d==3 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==2 
+    elseif l_d==3 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==3 
+    elseif l_d==3 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==4 
+    elseif l_d==3 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==1 
+    elseif l_d==3 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==2 
+    elseif l_d==3 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==3 
+    elseif l_d==3 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==4 
+    elseif l_d==3 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==1 
+    elseif l_d==3 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==2 
+    elseif l_d==3 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==3 
+    elseif l_d==3 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==4 
+    elseif l_d==3 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==1 
+    elseif l_d==3 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==2 
+    elseif l_d==3 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==3 
+    elseif l_d==3 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==4 
+    elseif l_d==3 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==1 
+    elseif l_d==4 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==2 
+    elseif l_d==4 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==3 
+    elseif l_d==4 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==4 
+    elseif l_d==4 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==1 
+    elseif l_d==4 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==2 
+    elseif l_d==4 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==3 
+    elseif l_d==4 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==4 
+    elseif l_d==4 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==1 
+    elseif l_d==4 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==2 
+    elseif l_d==4 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==3 
+    elseif l_d==4 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==4 
+    elseif l_d==4 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==1 
+    elseif l_d==4 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==2 
+    elseif l_d==4 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==3 
+    elseif l_d==4 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==4 
+    elseif l_d==4 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, ParamCell{:});
     end
 elseif l_e==2
-    if l_d==0 && l_a==1 && l_z==1 
+    if l_d==0 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==2 
+    elseif l_d==0 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==3 
+    elseif l_d==0 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==4 
+    elseif l_d==0 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==1 
+    elseif l_d==0 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==2 
+    elseif l_d==0 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==3 
+    elseif l_d==0 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==4 
+    elseif l_d==0 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==1 
+    elseif l_d==0 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==2 
+    elseif l_d==0 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==3 
+    elseif l_d==0 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==4 
+    elseif l_d==0 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==1 
+    elseif l_d==0 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==2 
+    elseif l_d==0 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==3 
+    elseif l_d==0 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==4 
+    elseif l_d==0 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==1 
+    elseif l_d==1 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==2 
+    elseif l_d==1 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==3 
+    elseif l_d==1 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==4 
+    elseif l_d==1 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==1 
+    elseif l_d==1 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==2 
+    elseif l_d==1 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==3 
+    elseif l_d==1 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==4 
+    elseif l_d==1 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==1 
+    elseif l_d==1 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==2 
+    elseif l_d==1 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==3 
+    elseif l_d==1 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==4 
+    elseif l_d==1 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==1 
+    elseif l_d==1 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==2 
+    elseif l_d==1 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==3 
+    elseif l_d==1 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==4 
+    elseif l_d==1 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==1 
+    elseif l_d==2 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==2 
+    elseif l_d==2 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==3 
+    elseif l_d==2 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==4 
+    elseif l_d==2 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==1 
+    elseif l_d==2 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==2 
+    elseif l_d==2 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==3 
+    elseif l_d==2 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==4 
+    elseif l_d==2 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==1 
+    elseif l_d==2 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==2 
+    elseif l_d==2 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==3 
+    elseif l_d==2 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==4 
+    elseif l_d==2 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==1 
+    elseif l_d==2 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==2 
+    elseif l_d==2 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==3 
+    elseif l_d==2 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==4 
+    elseif l_d==2 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==1 
+    elseif l_d==3 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==2 
+    elseif l_d==3 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==3 
+    elseif l_d==3 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==4 
+    elseif l_d==3 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==1 
+    elseif l_d==3 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==2 
+    elseif l_d==3 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==3 
+    elseif l_d==3 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==4 
+    elseif l_d==3 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==1 
+    elseif l_d==3 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==2 
+    elseif l_d==3 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==3 
+    elseif l_d==3 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==4 
+    elseif l_d==3 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==1 
+    elseif l_d==3 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==2 
+    elseif l_d==3 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==3 
+    elseif l_d==3 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==4 
+    elseif l_d==3 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==1 
+    elseif l_d==4 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==2 
+    elseif l_d==4 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==3 
+    elseif l_d==4 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==4 
+    elseif l_d==4 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==1 
+    elseif l_d==4 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==2 
+    elseif l_d==4 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==3 
+    elseif l_d==4 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==4 
+    elseif l_d==4 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==1 
+    elseif l_d==4 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==2 
+    elseif l_d==4 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==3 
+    elseif l_d==4 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==4 
+    elseif l_d==4 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==1 
+    elseif l_d==4 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==2 
+    elseif l_d==4 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==3 
+    elseif l_d==4 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==4 
+    elseif l_d==4 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, ParamCell{:});
     end
 elseif l_e==3
-    if l_d==0 && l_a==1 && l_z==1 
+    if l_d==0 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==2 
+    elseif l_d==0 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==3 
+    elseif l_d==0 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==4 
+    elseif l_d==0 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==1 
+    elseif l_d==0 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==2 
+    elseif l_d==0 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==3 
+    elseif l_d==0 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==4 
+    elseif l_d==0 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==1 
+    elseif l_d==0 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==2 
+    elseif l_d==0 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==3 
+    elseif l_d==0 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==4 
+    elseif l_d==0 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==1 
+    elseif l_d==0 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==2 
+    elseif l_d==0 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==3 
+    elseif l_d==0 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==4 
+    elseif l_d==0 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==1 
+    elseif l_d==1 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==2 
+    elseif l_d==1 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==3 
+    elseif l_d==1 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==4 
+    elseif l_d==1 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==1 
+    elseif l_d==1 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==2 
+    elseif l_d==1 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==3 
+    elseif l_d==1 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==4 
+    elseif l_d==1 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==1 
+    elseif l_d==1 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==2 
+    elseif l_d==1 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==3 
+    elseif l_d==1 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==4 
+    elseif l_d==1 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==1 
+    elseif l_d==1 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==2 
+    elseif l_d==1 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==3 
+    elseif l_d==1 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==4 
+    elseif l_d==1 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==1 
+    elseif l_d==2 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==2 
+    elseif l_d==2 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==3 
+    elseif l_d==2 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==4 
+    elseif l_d==2 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==1 
+    elseif l_d==2 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==2 
+    elseif l_d==2 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==3 
+    elseif l_d==2 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==4 
+    elseif l_d==2 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==1 
+    elseif l_d==2 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==2 
+    elseif l_d==2 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==3 
+    elseif l_d==2 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==4 
+    elseif l_d==2 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==1 
+    elseif l_d==2 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==2 
+    elseif l_d==2 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==3 
+    elseif l_d==2 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==4 
+    elseif l_d==2 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==1 
+    elseif l_d==3 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==2 
+    elseif l_d==3 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==3 
+    elseif l_d==3 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==4 
+    elseif l_d==3 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==1 
+    elseif l_d==3 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==2 
+    elseif l_d==3 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==3 
+    elseif l_d==3 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==4 
+    elseif l_d==3 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==1 
+    elseif l_d==3 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==2 
+    elseif l_d==3 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==3 
+    elseif l_d==3 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==4 
+    elseif l_d==3 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==1 
+    elseif l_d==3 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==2 
+    elseif l_d==3 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==3 
+    elseif l_d==3 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==4 
+    elseif l_d==3 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==1 
+    elseif l_d==4 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==2 
+    elseif l_d==4 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==3 
+    elseif l_d==4 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==4 
+    elseif l_d==4 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==1 
+    elseif l_d==4 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==2 
+    elseif l_d==4 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==3 
+    elseif l_d==4 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==4 
+    elseif l_d==4 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==1 
+    elseif l_d==4 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==2 
+    elseif l_d==4 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==3 
+    elseif l_d==4 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==4 
+    elseif l_d==4 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==1 
+    elseif l_d==4 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==2 
+    elseif l_d==4 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==3 
+    elseif l_d==4 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==4 
+    elseif l_d==4 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, ParamCell{:});
     end
 elseif l_e==4
-    if l_d==0 && l_a==1 && l_z==1 
+    if l_d==0 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==2 
+    elseif l_d==0 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==3 
+    elseif l_d==0 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==1 && l_z==4 
+    elseif l_d==0 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==1 
+    elseif l_d==0 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==2 
+    elseif l_d==0 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==3 
+    elseif l_d==0 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==2 && l_z==4 
+    elseif l_d==0 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==1 
+    elseif l_d==0 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==2 
+    elseif l_d==0 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==3 
+    elseif l_d==0 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==3 && l_z==4 
+    elseif l_d==0 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==1 
+    elseif l_d==0 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==2 
+    elseif l_d==0 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==3 
+    elseif l_d==0 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==0 && l_a==4 && l_z==4 
+    elseif l_d==0 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==1 
+    elseif l_d==1 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==2 
+    elseif l_d==1 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==3 
+    elseif l_d==1 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==1 && l_z==4 
+    elseif l_d==1 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==1 
+    elseif l_d==1 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==2 
+    elseif l_d==1 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==3 
+    elseif l_d==1 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==2 && l_z==4 
+    elseif l_d==1 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==1 
+    elseif l_d==1 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==2 
+    elseif l_d==1 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==3 
+    elseif l_d==1 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==3 && l_z==4 
+    elseif l_d==1 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==1 
+    elseif l_d==1 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==2 
+    elseif l_d==1 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==3 
+    elseif l_d==1 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==1 && l_a==4 && l_z==4 
+    elseif l_d==1 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==1 
+    elseif l_d==2 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==2 
+    elseif l_d==2 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==3 
+    elseif l_d==2 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==4 
+    elseif l_d==2 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==1 
+    elseif l_d==2 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==2 
+    elseif l_d==2 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==3 
+    elseif l_d==2 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==4 
+    elseif l_d==2 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==1 
+    elseif l_d==2 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==2 
+    elseif l_d==2 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==3 
+    elseif l_d==2 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==3 && l_z==4 
+    elseif l_d==2 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==1 
+    elseif l_d==2 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==2 
+    elseif l_d==2 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==3 
+    elseif l_d==2 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==2 && l_a==4 && l_z==4 
+    elseif l_d==2 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==1 
+    elseif l_d==3 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==2 
+    elseif l_d==3 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==3 
+    elseif l_d==3 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==1 && l_z==4 
+    elseif l_d==3 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==1 
+    elseif l_d==3 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==2 
+    elseif l_d==3 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==3 
+    elseif l_d==3 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==2 && l_z==4 
+    elseif l_d==3 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==1 
+    elseif l_d==3 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==2 
+    elseif l_d==3 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==3 
+    elseif l_d==3 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==3 && l_z==4 
+    elseif l_d==3 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==1 
+    elseif l_d==3 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==2 
+    elseif l_d==3 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==3 
+    elseif l_d==3 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==3 && l_a==4 && l_z==4 
+    elseif l_d==3 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==1 
+    elseif l_d==4 && l_a==1 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==2 
+    elseif l_d==4 && l_a==1 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==3 
+    elseif l_d==4 && l_a==1 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==1 && l_z==4 
+    elseif l_d==4 && l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==1 
+    elseif l_d==4 && l_a==2 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==2 
+    elseif l_d==4 && l_a==2 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==3 
+    elseif l_d==4 && l_a==2 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==2 && l_z==4 
+    elseif l_d==4 && l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==1 
+    elseif l_d==4 && l_a==3 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==2 
+    elseif l_d==4 && l_a==3 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==3 
+    elseif l_d==4 && l_a==3 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==3 && l_z==4 
+    elseif l_d==4 && l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==1 
+    elseif l_d==4 && l_a==4 && l_z==1
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==2 
+    elseif l_d==4 && l_a==4 && l_z==2
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==3 
+    elseif l_d==4 && l_a==4 && l_z==3
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
-    elseif l_d==4 && l_a==4 && l_z==4 
+    elseif l_d==4 && l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, d1vals,d2vals,d3vals,d4vals, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, e1vals, e2vals, e3vals, e4vals, ParamCell{:});
     end
 end

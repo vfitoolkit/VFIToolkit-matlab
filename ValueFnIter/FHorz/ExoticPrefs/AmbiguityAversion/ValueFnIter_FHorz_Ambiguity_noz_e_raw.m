@@ -46,11 +46,11 @@ else
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     ambEV=zeros(N_a,n_ambiguity(N_j)); % aprime, prior
-    for amb_c=1:n_ambiguity(N_j) % Evaluate expections under each of the multiple priors
+    for amb_c=1:n_ambiguity(N_j) % Evaluate expectations under each of the multiple priors
         EV=V_Jplus1.*ambiguity_pi_e_J(1,:,N_j,amb_c);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         ambEV(:,amb_c)=EV;
     end
@@ -61,27 +61,27 @@ else
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
         % (d,aprime,a,e)
-        
+
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %*repmat(EV,1,N_a,N_e);
-        
+
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,N_j)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
-        
+
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a)
-            
+
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a);
-            
+
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            
+
             V(:,e_c,N_j)=shiftdim(Vtemp,1);
             Policy(:,e_c,N_j)=shiftdim(maxindex,1);
         end
@@ -95,19 +95,19 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EVpre=V(:,:,jj+1);
-        
+
     ambEV=zeros(N_a,n_ambiguity(jj)); % aprime, prior
-    for amb_c=1:n_ambiguity(jj) % Evaluate expections under each of the multiple priors
+    for amb_c=1:n_ambiguity(jj) % Evaluate expectations under each of the multiple priors
         EV=EVpre.*ambiguity_pi_e_J(1,:,jj,amb_c);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         ambEV(:,amb_c)=EV;
     end
@@ -118,12 +118,12 @@ for reverse_j=1:N_j-1
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,e)
-        
+
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %*repmat(EV,1,N_a,N_e);
-        
+
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
 
@@ -133,16 +133,16 @@ for reverse_j=1:N_j-1
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a)
-            
+
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a);
-            
+
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            
+
             V(:,e_c,jj)=shiftdim(Vtemp,1);
             Policy(:,e_c,jj)=shiftdim(maxindex,1);
         end
-     
+
     end
 
 end

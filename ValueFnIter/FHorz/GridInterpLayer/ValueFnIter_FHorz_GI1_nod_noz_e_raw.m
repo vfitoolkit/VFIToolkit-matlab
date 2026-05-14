@@ -145,7 +145,7 @@ for reverse_j=1:N_j-1
 
         %Calc the max and it's index
         [~,maxindex]=max(entireRHS,[],1);
-        
+
         % Turn this into the 'midpoint'
         midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is 1-by-n_a-by-n_z

@@ -75,7 +75,7 @@ else
 
     % Use sparse for a few lines until sum over zprime
     EV=EVpre.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
@@ -137,17 +137,17 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EVpre=V(:,:,jj+1);
 
     EV=EVpre.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
@@ -173,7 +173,7 @@ for reverse_j=1:N_j-1
         V(:,:,jj)=shiftdim(Vtempii,1);
         Policy(1,:,:,jj)=shiftdim(squeeze(midpoint),-1); % midpoint
         Policy(2,:,:,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
-        
+
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);

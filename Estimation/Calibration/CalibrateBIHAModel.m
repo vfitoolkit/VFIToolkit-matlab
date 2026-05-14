@@ -61,7 +61,7 @@ caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with o
 caliboptions.useCustomModelStats=0;
 if isfield(caliboptions,'CustomModelStats')
     caliboptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     caliboptions.CustomModelStatsInputs.z_grid=z_grid;
     caliboptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -92,19 +92,19 @@ else
     end
 end
 if ~isfield(heteroagentoptions,'constrainpositive')
-    heteroagentoptions.constrainpositive={}; % names of parameters to be constrainted to be positive (gets converted to a binary-valued vector below)
+    heteroagentoptions.constrainpositive={}; % names of parameters to be constrained to be positive (gets converted to a binary-valued vector below)
 end
 if ~isfield(heteroagentoptions,'constrain0to1')
-    heteroagentoptions.constrain0to1={}; % names of parameters to be constrainted between 0 and 1 (gets converted to a binary-valued vector below)
+    heteroagentoptions.constrain0to1={}; % names of parameters to be constrained between 0 and 1 (gets converted to a binary-valued vector below)
 end
 if ~isfield(heteroagentoptions,'constrainAtoB')
-    heteroagentoptions.constrainAtoB={}; % names of parameters to be constrainted between A and B (gets converted to a binary-valued vector below)
+    heteroagentoptions.constrainAtoB={}; % names of parameters to be constrained between A and B (gets converted to a binary-valued vector below)
 end
 
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
     heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -170,8 +170,8 @@ else
 end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
-calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
-calibomitparamsmatrix=zeros(1,1); % Each row is of size 1-by-1 and holds the omited values of a parameter
+calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omitting the parameter for certain ages
+calibomitparamsmatrix=zeros(1,1); % Each row is of size 1-by-1 and holds the omitted values of a parameter
 for pp=1:nCalibParams
     if any(strcmp(OmitCalibParamsNames,CalibParamNames{pp}))
         % This parameter is under an omit-mask, so need to only use part of it
@@ -218,7 +218,7 @@ if caliboptions.jointoptimization==1
     caliboptions.constrainAtoB=[caliboptions.constrainAtoB; heteroagentoptions.constrainAtoB];
     caliboptions.constrain0to1=[caliboptions.constrain0to1; heteroagentoptions.constrain0to1];
     calibparamsvecindex=[calibparamsvecindex; calibparamsvecindex(end)+(1:1:length(GEPriceParamNames))'];
-    calibomitparams_counter=[calibomitparams_counter; zeros(length(GEPriceParamNames),1)];    
+    calibomitparams_counter=[calibomitparams_counter; zeros(length(GEPriceParamNames),1)];
     nCalibParams=nCalibParams+length(GEPriceParamNames);
 end
 
@@ -232,7 +232,7 @@ actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if isscalar(caliboptions.weights)
     caliboptions.weights=caliboptions.weights.*ones(size(targetmomentvec(actualtarget)));
 else % Make sure it is a column vector
-    if size(caliboptions.weights,1)==1 % currently a row vetor
+    if size(caliboptions.weights,1)==1 % currently a row vector
         caliboptions.weights=caliboptions.weights';
     end
 end
@@ -274,11 +274,11 @@ else
     z_gridvals=[];
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
-% precomputed by the time we get to the value fn, staty dist, etc. So
+% precomputed by the time we get to the value fn, stationary dist, etc. So
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
 
-%% 
+%%
 % caliboptions.logmoments can be specified by names
 if isstruct(caliboptions.logmoments)
     logmomentnames=caliboptions.logmoments;
@@ -309,7 +309,7 @@ if isstruct(caliboptions.logmoments)
 % caliboptions.logmoments will either be scalar, or a vector of zeros and ones
 %    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
 elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(CalibParamNames),1)
-   % If set this up, and then set up 
+   % If set this up, and then set up
    if isscalar(caliboptions.logmoments)
        caliboptions.logmoments=ones(length(targetmomentvec),1); % log all of them
    else
@@ -370,7 +370,7 @@ calibparamsvec0=gather(calibparamsvec0);
 minoptions = optimset('TolX',caliboptions.toleranceparams,'TolFun',caliboptions.toleranceobjective);
 if caliboptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     caliboptions.multiGEcriterion=0;
-    [calibparamsvec,calibobjvalue]=fzero(CalibrationObjectiveFn,calibparamsvec0,minoptions);    
+    [calibparamsvec,calibobjvalue]=fzero(CalibrationObjectiveFn,calibparamsvec0,minoptions);
 elseif caliboptions.fminalgo==1
     [calibparamsvec,calibobjvalue]=fminsearch(CalibrationObjectiveFn,calibparamsvec0,minoptions);
 elseif caliboptions.fminalgo==2
@@ -400,7 +400,7 @@ elseif caliboptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation
         % inopts: options struct, see defopts below
         caliboptions.inopts=[];
     end
-    % varargin (unused): arguments passed to objective function 
+    % varargin (unused): arguments passed to objective function
     if caliboptions.verbose==1
         disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
     end
@@ -411,9 +411,9 @@ elseif caliboptions.fminalgo==5
     error('fminalgo=5 is not possible with model calibration/estimation')
 elseif caliboptions.fminalgo==6
     if ~isfield(caliboptions,'lb') || ~isfield(caliboptions,'ub')
-        error('When using constrained optimization (caliboptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using caliboptions.lb and caliboptions.ub') 
+        error('When using constrained optimization (caliboptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using caliboptions.lb and caliboptions.ub')
     end
-    [calibparamsvec,calibobjvalue]=fmincon(CalibrationObjectiveFn,calibparamsvec0,[],[],[],[],caliboptions.lb,caliboptions.ub,[],minoptions);    
+    [calibparamsvec,calibobjvalue]=fmincon(CalibrationObjectiveFn,calibparamsvec0,[],[],[],[],caliboptions.lb,caliboptions.ub,[],minoptions);
 elseif caliboptions.fminalgo==7 % fsolve()
     error('cannot use fminalgo=7 for estimation (as fsolve() is a multi-objective method)')
 elseif caliboptions.fminalgo==8 % lsqnonlin()

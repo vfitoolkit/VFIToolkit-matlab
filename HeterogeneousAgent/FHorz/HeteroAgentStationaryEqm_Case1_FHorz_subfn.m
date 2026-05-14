@@ -11,7 +11,7 @@ if heteroagentoptions.verbose==2
     end
 end
 
-%% 
+%%
 for ii=1:nGEprices
     Parameters.(GEPriceParamNames{ii})=GEpricesvec(ii);
 end

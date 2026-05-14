@@ -24,7 +24,7 @@ for ff=1:length(FnsToEvaluateNames)
         temp=gather(temp);
     end
     val=sum(temp(~isnan(temp)));
-    
+
     if outputastruct==0
         AggVars(ff)=val;
     else % if outputastruct==1

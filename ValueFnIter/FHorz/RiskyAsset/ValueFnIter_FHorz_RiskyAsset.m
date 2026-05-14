@@ -19,7 +19,7 @@ else
     aprimeFnParamNames={};
 end
 
-%% 
+%%
 % Make sure all the relevant inputs are GPU arrays (not standard arrays)
 pi_u=gpuArray(pi_u);
 u_grid=gpuArray(u_grid);
@@ -40,7 +40,7 @@ else
 end
 
 
-%% Solve based on which setup we have 
+%% Solve based on which setup we have
 if length(n_a2)>1
     error('Have not yet implemented riskyasset for more than one riskyasset')
 end

@@ -101,7 +101,7 @@ else
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
     EV=sum(EV.*pi_e_J(1,:,N_j),2);
-    
+
     if vfoptions.lowmemory==0
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
@@ -176,7 +176,7 @@ else
                 end
             end
         end
-    end    
+    end
 end
 
 
@@ -188,13 +188,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,jj+1);
     EV=sum(EV.*pi_e_J(1,:,jj),2);
 
@@ -272,7 +272,7 @@ for reverse_j=1:N_j-1
                 end
             end
         end
-    end    
+    end
 end
 
 

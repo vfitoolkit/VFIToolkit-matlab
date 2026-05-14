@@ -52,7 +52,7 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 EV=Vnext.*shiftdim(pi_z',-1);
-EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
 DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_a1,N_a2,1,1,N_z]);  % autoexpand (a,z)
@@ -65,11 +65,11 @@ if vfoptions.lowmemory==0
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals, ReturnFnParamsVec,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
-    
+
     %Calc the max and it's index
     [~,maxindex1]=max(entireRHS_ii,[],1);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints(1,:,level1ii,:,:)=maxindex1;
 
     % Attempt for improved version
@@ -91,7 +91,7 @@ if vfoptions.lowmemory==0
             midpoints(1,:,curraindex,:,:)=repelem(loweredge,1,1,length(curraindex),1);
         end
     end
-    
+
     % Turn this into the 'midpoint'
     midpoints=max(min(midpoints,n_a1-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is 1-by-n_a2-by-n_a1-by-n_a2-by-n_z
@@ -123,7 +123,7 @@ elseif vfoptions.lowmemory==1
         %Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints(1,:,level1ii,:)=maxindex1;
 
         % Attempt for improved version

@@ -28,7 +28,7 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 EV=Vnext.*shiftdim(pi_z',-1);
-EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
 DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_a1*N_a2,1,1,N_z]);

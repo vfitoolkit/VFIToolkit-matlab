@@ -108,7 +108,7 @@ if l_a2==1
         a2primeProbs(offBottomOfGrid)=1;
         a2primeProbs(offTopOfGrid)=0;
     end
-    
+
     if aprimeIndexAsColumn==1 % value fn codes want column when no z
 %     aprimeIndexes=reshape(aprimeIndexes,[N_d*N_a,1]);
         a2primeIndexes=a2primeIndexes'; % This is just doing the commented out reshape above

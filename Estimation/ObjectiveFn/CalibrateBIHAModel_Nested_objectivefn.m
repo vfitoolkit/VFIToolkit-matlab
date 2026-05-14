@@ -197,13 +197,13 @@ elseif caliboptions.vectoroutput==2
         Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
-    
+
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 
 
 %% Verbose
-if caliboptions.verbose==1 
+if caliboptions.verbose==1
     if usingcustomstats==1
         fprintf('Current CustomModelStats variables (from caliboptions): \n')
         for ii=1:length(cmsmomentnames)

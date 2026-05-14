@@ -1,6 +1,6 @@
 function Policy=UnKronPolicyIndexes_FHorz_noz_CPU(PolicyKron, n_d,n_a, N_j)
 % Can use vfoptions OR simoptions
-% Input: PolicyKron=zeros(2,N_a,N_j); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+% Input: PolicyKron=zeros(2,N_a,N_j); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 %                       (N_a,N_j) if there is no d
 % Output: Policy (l_d+l_a,n_a,N_j);
 

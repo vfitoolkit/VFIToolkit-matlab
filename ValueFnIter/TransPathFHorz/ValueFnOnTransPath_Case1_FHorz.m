@@ -2,10 +2,10 @@ function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath,
 % transpathoptions, vfoptions are optional inputs
 
 %%
-% I DONT THINK THAT _tminus1 and/or _tplus1 variables ARE USED WITH Value fn. 
+% I DONT THINK THAT _tminus1 and/or _tplus1 variables ARE USED WITH Value fn.
 % AT LEAST NOT IN ANY EXAMPLES I HAVE COME ACROSS. AS SUCH THEY ARE NOT IMPLEMENTED HERE.
 
-%% Check which transpathoptions have been used, set all others to defaults 
+%% Check which transpathoptions have been used, set all others to defaults
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     % If transpathoptions is not given, just use all the defaults
@@ -22,7 +22,7 @@ else
 end
 transpathoptions.parallel=2; % transition path requires GPU
 
-%% Check which vfoptions have been used, set all others to defaults 
+%% Check which vfoptions have been used, set all others to defaults
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
@@ -74,7 +74,7 @@ vfoptions.EVpre=0; % =1 is used by 'Matched Expecations Path', for TPath we want
 
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
 %% Make sure all the relevant inputs are GPU arrays (not standard arrays)
@@ -237,7 +237,7 @@ else
                 % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
                 V=V_final;
                 for ttr=1:T-1 %so t=T-i
-                    
+
                     for kk=1:length(PricePathNames)
                         Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
                     end

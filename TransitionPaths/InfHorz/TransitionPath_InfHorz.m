@@ -1,7 +1,7 @@
-function varargout=TransitionPath_InfHorz(PricePath0, ParamPath, T, V_final, AgentDist_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, vfoptions, simoptions, EntryExitParamNames)
+function varargout=TransitionPath_InfHorz(PricePath0, ParamPath, T, V_final, AgentDist_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions, EntryExitParamNames)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
-% only if it is a 'surprise', not anticipated changes) 
+% only if it is a 'surprise', not anticipated changes)
 %
 % PricePath0 is a structure with fields names being the Prices and each field containing a T-by-1 path. It is the initial guess for the PricePath.
 % ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
@@ -14,14 +14,14 @@ if all(size(d_grid)==[prod(n_z),prod(n_z)])
     error('Check input order: pi_z comes after z_grid') % Keep this error message until end of 2027, can remove after that
 end
 
-%% Check which transpathoptions have been used, set all others to defaults 
+%% Check which transpathoptions have been used, set all others to defaults
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     % If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-5);
     transpathoptions.updateaccuracycutoff=10^(-9); % If the suggested update is less than this then don't bother; 10^(-9) is decent odds to be numerical error anyway (currently only works for transpathoptions.GEnewprice=3)
     transpathoptions.parallel=1+(gpuDeviceCount>0);
-    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 
+    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
                                    % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
@@ -32,7 +32,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     transpathoptions.historyofpricepath=0;
-    transpathoptions.stockvars=0;
+    transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
     transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
     transpathoptions.tanimprovement=1;
 else
@@ -82,7 +82,7 @@ else
         transpathoptions.historyofpricepath=0;
     end
     if ~isfield(transpathoptions,'stockvars')
-        transpathoptions.stockvars=0;
+        transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
     end
     if ~isfield(transpathoptions,'weightsforpath')
         transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns));
@@ -101,7 +101,7 @@ if transpathoptions.graphGEcondns==1
     end
 end
 
-%% Check which vfoptions have been used, set all others to defaults 
+%% Check which vfoptions have been used, set all others to defaults
 vfoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
@@ -182,7 +182,7 @@ if vfoptions.divideandconquer==1
     end
 end
 
-%% Check which simoptions have been used, set all others to defaults 
+%% Check which simoptions have been used, set all others to defaults
 simoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 if exist('simoptions','var')==0
     simoptions.verbose=0;
@@ -238,7 +238,7 @@ if length(fieldnames(PricePath0))~=length(fieldnames(GeneralEqmEqns))
 end
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath0,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePath0,ParamPath,T);
 
 PricePathStruct=struct();
@@ -403,7 +403,7 @@ for gg=1:nGeneralEqmEqns
     GeneralEqmEqnParamNames(gg).Names=temp;
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
 end
-% Now: 
+% Now:
 %  GeneralEqmEqns is still the structure
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(ff).Names contains the names
@@ -420,7 +420,7 @@ if isfield(transpathoptions,'intermediateEqns')
     for gg=1:nIntEqns
         temp=getAnonymousFnInputNames(transpathoptions.intermediateEqns.(intEqnNames{gg}));
         transpathoptions.intermediateEqnParamNames(gg).Names=temp;
-        transpathoptions.intermediateEqnsCell{gg}=transpathoptions.intermediateEqns.(intEqnNames{gg});        
+        transpathoptions.intermediateEqnsCell{gg}=transpathoptions.intermediateEqns.(intEqnNames{gg});
     end
     % Now:
     %  transpathoptions.intermediateEqns is still the structure
@@ -434,50 +434,60 @@ transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,Price
 
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,{},transpathoptions);
 
-use_tplus1price=0;
-if ~isempty(tplus1priceNames)
-    use_tplus1price=1;
-end
-use_tminus1price=0;
-if ~isempty(tminus1priceNames)
-    use_tminus1price=1;
-    for ii=1:length(tminus1priceNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
+% Following lines remove transpathoptions.stockvars from tminus1priceNames, and update use_tminus1price if necessary
+if ~isempty(transpathoptions.stockvars)
+    use_stockvars=1;
+    stockvarsNames=transpathoptions.stockvars;
+    transpathoptions=rmfield(transpathoptions,'stockvars');
+
+
+    % how to find stockvars in PricePathNames
+    stockvarsInPricePathNames=zeros(length(stockvarsNames),1); %% the pp index in PricePathNames that corresponds to each stockvar
+    for kk=1:length(stockvarsNames)
+        % throw error if the stockvar is not in PriceParamNames
+        if ~any(strcmp(stockvarsNames{kk},PricePathNames))
+            fprintf('Following error relates to stockvar: %s \n', stockvarsNames{kk})
+            error('Cannot use a transpathoptions.stockvar which is not in PricePath')
+        end
+        % otherwise, find the matching index
+        for pp=1:length(PricePathNames)
+            if strcmp(stockvarsNames{kk},PricePathNames{pp})
+                stockvarsInPricePathNames(kk)=pp;
+            end
+        end
+        % Check howtoupdate, the 'fraction' must equal one and it must 'add' 
+        % if transpathoptions.GEnewprice==3
+        %     for pp=1:size(transpathoptions.GEnewprice3.howtoupdate,1)
+        %         if strcmp(transpathoptions.GEnewprice3.howtoupdate{pp,2},stockvarsNames{kk}) % find it
+        %             if transpathoptions.GEnewprice3.howtoupdate{pp,3}~=0
+        %                 error('stockvars require that add in howtoupdate is 0')
+        %             end
+        %             if transpathoptions.GEnewprice3.howtoupdate{pp,4}~=1
+        %                 error('stockvars require that fraction in howtoupdate is 1')
+        %             end
+        %         end
+        %     end
+        % end
+    end
+
+    % remove from stockvars from tminus1priceNames [stockvars have _tminus1 in name, but they 'cumulate' so have to be treated separately]
+    for pp=1:length(stockvarsNames)
+        if ~any(strcmp(stockvarsNames{pp},tminus1priceNames))
+            error('transpathoptions.stockvars must appear as prices that are used with _tminus1')
+        else
+            tminus1priceNames(strcmp(tminus1priceNames, stockvarsNames{pp})) = [];
         end
     end
-end
-use_tminus1params=0;
-if ~isempty(tminus1paramNames)
-    use_tminus1params=1;
-    for ii=1:length(tminus1paramNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1paramNames{ii})
-        end
+    if isempty(tminus1priceNames)
+        use_tminus1params=0;
     end
+else
+    use_stockvars=0;
+    stockvarsNames=[];
+    stockvarsInPricePathNames=[];
 end
-use_tminus1AggVars=0;
-if ~isempty(tminus1AggVarsNames)
-    use_tminus1AggVars=1;
-    for ii=1:length(tminus1AggVarsNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
-        end
-    end
-end
-% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
-
-if transpathoptions.verbose==2
-    use_tplus1price
-    use_tminus1price
-    use_tminus1params
-    use_tminus1AggVars
-    % tplus1pricePathkk
-end
-
-
 
 %%
 if transpathoptions.verbose>=1
@@ -491,9 +501,6 @@ if transpathoptions.verbose==2
     PricePathNames
 end
 
-l_p=length(PricePathNames);
-
-
 
 %% If there is entry and exit, then send to relevant command
 if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agententryandexit')==1
@@ -502,7 +509,7 @@ end
 
 %%
 if transpathoptions.GEnewprice~=2
-    [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d,n_a,n_z,vfoptions.n_e, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions,transpathoptions);
+    [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d,n_a,n_z,vfoptions.n_e, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, vfoptions, simoptions,transpathoptions);
 
     % Switch to structure for output
     for pp=1:length(PricePathNames)
@@ -529,7 +536,7 @@ if nargout==1
     varargout={PricePathStruct};
 elseif nargout==2
     varargout={PricePathStruct,GEcondnPath};
-end    
+end
 
 
 end

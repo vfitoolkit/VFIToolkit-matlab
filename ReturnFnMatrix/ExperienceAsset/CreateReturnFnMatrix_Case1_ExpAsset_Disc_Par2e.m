@@ -19,8 +19,8 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 l_d=length(n_d);
-l_a1=length(n_a1); 
-l_a2=length(n_a2); 
+l_a1=length(n_a1);
+l_a2=length(n_a2);
 l_z=length(n_z);
 l_e=length(n_e);
 if l_d>4

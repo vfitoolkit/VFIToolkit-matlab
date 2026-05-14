@@ -89,7 +89,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a2, n_z, d13_gridvals, a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-        
+
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
         ReturnMatrix(becareful)=(ezc1*ReturnMatrix(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
@@ -159,7 +159,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a2,N_z]);    % First, switch V_Jplus1 into Kron form
-    
+
     if warmglow==0 % if warmglow==1 these were already created above
         aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
         [aprimeIndex,aprimeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
@@ -170,12 +170,12 @@ else
     temp=V_Jplus1;
     temp(isfinite(V_Jplus1))=(ezc4*V_Jplus1(isfinite(V_Jplus1))).^ezc5(N_j);
     temp(V_Jplus1==0)=0; % otherwise zero to negative power is set to infinity
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a2, n_z, d13_gridvals, a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z)
-        
+
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
         temp2=ReturnMatrix;
@@ -183,7 +183,7 @@ else
         temp2(ReturnMatrix==0)=-Inf;
 
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -228,12 +228,12 @@ else
         Policy3(3,:,:,N_j)=shiftdim(maxindex,1);
         Policy3(1,:,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a2*zind),1);
         Policy3(2,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
-        
+
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a2, special_n_z, d13_gridvals, a2_grid, z_val, ReturnFnParamsVec);
-            
+
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
             temp2=ReturnMatrix_z;
@@ -243,18 +243,18 @@ else
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=temp.*(ones(N_a2,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2);
-            
+
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
             EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d23,N_u]); % (d,u), the lower aprime
             EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d23,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
-            
+
             % Expectation over u (using pi_u), and then add the lower and upper
             EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
             % EV_z is over (d,1)
-            
+
             % Part of Epstein-Zin is after taking expectation
             temp4=EV_z;
             if warmglow==1
@@ -276,7 +276,7 @@ else
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
             entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,N_j)=Vtemp;
@@ -294,8 +294,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -305,7 +305,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.EZoneminusbeta==2
         ezc1=1-sj(jj)*DiscountFactorParamsVec;
     end
-    
+
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [aprimeIndex,aprimeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
@@ -318,7 +318,7 @@ for reverse_j=1:N_j-1
         WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(jj);
         WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
         %  Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-        
+
         % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
         WG1=WGmatrix(aprimeIndex); % (d,u), the lower aprime
         WG2=WGmatrix(aprimeIndex+1); % (d,u), the upper aprime
@@ -337,17 +337,17 @@ for reverse_j=1:N_j-1
     end
 
     EVpre=V(:,:,jj+1);
-    
+
     % Part of Epstein-Zin is before taking expectation
     temp=EVpre;
     temp(isfinite(EVpre))=(ezc4*EVpre(isfinite(EVpre))).^ezc5(jj);
     temp(EVpre==0)=0;
 
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a2, n_z, d13_gridvals, a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z)
-        
+
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
         temp2=ReturnMatrix;
@@ -355,7 +355,7 @@ for reverse_j=1:N_j-1
         temp2(ReturnMatrix==0)=-Inf;
 
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -404,7 +404,7 @@ for reverse_j=1:N_j-1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a2, special_n_z, d_grid, a2_grid, z_val, ReturnFnParamsVec);
-            
+
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
             temp2=ReturnMatrix_z;
@@ -414,18 +414,18 @@ for reverse_j=1:N_j-1
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=temp.*(ones(N_a2,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2);
-            
+
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
             EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d23,N_u]); % (d,u), the lower aprime
             EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d23,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
-            
+
             % Expectation over u (using pi_u), and then add the lower and upper
             EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
             % EV_z is over (d,1)
-            
+
             % Part of Epstein-Zin is after taking expectation
             temp4=EV_z;
             if warmglow==1
@@ -436,7 +436,7 @@ for reverse_j=1:N_j-1
                 temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
                 temp4(EV_z==0)=0;
             end
-            
+
             % Time to refine
             % First: ReturnMatrix, we can refine out d1
             [temp2_onlyd3,d1index]=max(ezc9*reshape((~isinf(temp2)).*temp2,[N_d1,N_d3,N_a2]),[],1);
@@ -448,7 +448,7 @@ for reverse_j=1:N_j-1
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
             entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;

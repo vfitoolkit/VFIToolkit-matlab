@@ -48,17 +48,17 @@ end
 
 %% Archived code checked if multi-grid was faster than just going directly to using aprime_grid the whole time. Found that multi-grid is faster.
 % if ~isfield(vfoptions,'preinterp')
-%     vfoptions.preinterp=1; 
+%     vfoptions.preinterp=1;
 %     % =2 is way to slow to be useful
 % end
 % if isscalar(n_a)
 %     if N_d==0
 %         if vfoptions.preinterp==1
-%             % Multi-grid: only considers a_grid, then when nearing convergence switches to considering aprime_grid. 
+%             % Multi-grid: only considers a_grid, then when nearing convergence switches to considering aprime_grid.
 %             % Precomputes the entirety of aprime_grid.
 %             [V,Policy]=ValueFnIter_InfHorz_preGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
 %         elseif vfoptions.preinterp==2
-%             % Precomputes the entirety of aprime_grid and just works with this the entire time. 
+%             % Precomputes the entirety of aprime_grid and just works with this the entire time.
 %             % [Multi-grid is better. This was just built for testing/understanding runtimes]
 %             [V,Policy]=ValueFnIter_InfHorz_pre2GI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
 %         end

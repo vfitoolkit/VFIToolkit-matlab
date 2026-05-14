@@ -48,7 +48,7 @@ else
             Policy(l_d,:,:)=ceil(PolicyKron(1,:,:)/prod(n_d(1:l_d-1)));
         end
     end
-    
+
     Policy(l_d+1,:,:)=rem(PolicyKron(2,:,:)-1,n_aprime(1))+1;
     if l_aprime>1
         if l_aprime>2

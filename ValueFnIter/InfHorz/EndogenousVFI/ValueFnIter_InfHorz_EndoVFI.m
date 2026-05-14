@@ -9,7 +9,7 @@ if vfoptions.lowmemory==0
     % Since the return function is independent of time creating it once and
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
-    
+
     if vfoptions.verbose==1
         disp('Creating return fn matrix')
         tic;
@@ -17,7 +17,7 @@ if vfoptions.lowmemory==0
             fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
         end
     end
-    
+
     if isfield(vfoptions,'statedependentparams')
         if vfoptions.returnmatrix==2 % GPU
             if n_SDP==3
@@ -40,14 +40,14 @@ if vfoptions.lowmemory==0
             ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
         end
     end
-    
+
     if vfoptions.verbose==1
         time=toc;
         fprintf('Time to create return fn matrix: %8.4f \n', time)
         disp('Starting Value Function')
         tic;
     end
-    
+
     %%
     if n_d(1)==0
         if vfoptions.parallel==2 % On GPU

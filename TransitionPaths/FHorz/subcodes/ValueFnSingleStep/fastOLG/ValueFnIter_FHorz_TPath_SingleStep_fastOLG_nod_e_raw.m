@@ -25,7 +25,7 @@ ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames
 EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,:,:),3); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
 EVpre=reshape(EVpre,[N_a,1,N_j,N_z]);
 EV=EVpre.*shiftdim(pi_z_J,-2);
-EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
 EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 
 DiscountedEV=DiscountFactorParamsVec.*EV;
@@ -46,7 +46,7 @@ elseif vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e));
     V=zeros(N_a*N_j,N_z,N_e,'gpuArray');
     Policy=zeros(N_a,N_j,N_z,N_e,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
-    
+
     for e_c=1:N_e
         e_vals=e_gridvals_J(1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,N_j,1,prod(n_e),l_e)
 

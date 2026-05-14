@@ -37,10 +37,10 @@ currdist=1;
 %% First, just consider a_grid for next period
 while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
-    
+
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=VKronold.*pi_z_alt;
-    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % aprime by a by z
@@ -49,7 +49,7 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
     [VKron,Policy]=max(entireRHS,[],1);
     VKron=shiftdim(VKron,1); % a by z
 
-    VKrondist=VKron(:)-VKronold(:); 
+    VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
 
@@ -72,10 +72,10 @@ end
 currdist=1; % force going into the next while loop at least one iteration
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
-    
+
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=VKronold.*pi_z_alt;
-    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
@@ -87,10 +87,10 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     [VKron,Policy]=max(entireRHS,[],1);
     VKron=shiftdim(VKron,1); % a by z
 
-    VKrondist=VKron(:)-VKronold(:); 
+    VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    
+
     % Use greedy-Howards Improvement (except for first few and last few iterations, as it is not a good idea there)
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
         tempmaxindex=shiftdim(Policy,1)+addindexforazfine; % aprime index, add the index for a and z

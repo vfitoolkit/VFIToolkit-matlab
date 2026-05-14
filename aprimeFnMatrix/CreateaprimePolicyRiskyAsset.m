@@ -41,7 +41,7 @@ if nargin(aprimeFn)~=l_drisky+l_u+length(aprimeFnParams)
     error('Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
 end
 
-if N_z==0 % To save writing a seperate script for without z
+if N_z==0 % To save writing a separate script for without z
     if l_drisky>=1
         if whichisdforriskyasset(1)==1
             d1_grid=d_grid(1:n_d(1));

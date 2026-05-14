@@ -5,7 +5,7 @@ function AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_nProbs_raw(AgentDi
 % Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z,N_j,N_probs]));
 % PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,N_j,N_probs]));
 
-% precomputed: 
+% precomputed:
 % II1=repelem((1:1:N_a*N_z)',1,N_probs);
 
 pi_z_J=gather(pi_z_J);

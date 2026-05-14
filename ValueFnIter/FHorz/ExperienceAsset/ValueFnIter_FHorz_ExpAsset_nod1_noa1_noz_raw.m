@@ -39,7 +39,7 @@ else
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
-   
+
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
 
@@ -62,8 +62,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -78,10 +78,10 @@ for reverse_j=1:N_j-1
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
-   
+
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;

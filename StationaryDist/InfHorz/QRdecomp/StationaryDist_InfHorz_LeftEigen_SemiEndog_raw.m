@@ -20,7 +20,7 @@ pi_z_semiendog=sparse(pi_z_semiendog);
 try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
     Ptranspose=kron(pi_z_semiendog',ones(N_a,1)).*kron(ones(N_z,1),PtransposeA);
 catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
-    pi_z_semiendog=gather(pi_z_semiendog); % The indexing used can only be donoe on cpu
+    pi_z_semiendog=gather(pi_z_semiendog); % The indexing used can only be done on cpu
     Ptranspose=kron(ones(N_z,1),PtransposeA);
     for ii=1:N_z
         iia=(1:1:N_a)+(ii-1)*N_a;
@@ -43,7 +43,7 @@ end
 % % eigenvectors of P, and what we want are the left eigenvectors of P.
 % % The left eigenvector, normalised to one, will give the stationary distribution.
 % StationaryDistKron=V(:, 1)/sum(V(:, 1));
-% % Note that I didn't need to take the transpose of this answer as I want a column vector 
+% % Note that I didn't need to take the transpose of this answer as I want a column vector
 % % anyway (the underlying math from which I took this used row vectors)
 
 % We are only interested in the largest eigenvector.
@@ -69,9 +69,9 @@ StationaryDistKron=V/sum(V);
 % (otherwise it is indicating that the stationary distribution can be
 % reduced, it would be D in [V,D] = eig(Ptranspose',1);).
 % The second eigenvalue would tell us how quickly the markov process
-% converges to the stationary distribution, specifically 1/SecondEigenvalue gives the order of rate of convergence. 
+% converges to the stationary distribution, specifically 1/SecondEigenvalue gives the order of rate of convergence.
 
-%% 
+%%
 if simoptions.parallel==2 || simoptions.parallel==4 % Return answer on gpu
     StationaryDistKron=gpuArray(StationaryDistKron);
 end

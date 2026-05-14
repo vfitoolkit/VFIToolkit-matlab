@@ -11,7 +11,7 @@ for tt=1:simoptions.simperiods
 
     d2ind=Policy_dsemiexo(currstate(1),currstate(2),currstate(3));
     currstate(1)=PolicyKron(currstate(1),currstate(2),currstate(3));
-    
+
     [~,currstate(2)]=max(cumsumpi_semiz(currstate(2),:,d2ind)>rand(1,1));
     [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
 end

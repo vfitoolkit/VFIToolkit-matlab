@@ -17,14 +17,14 @@ if vfoptions.lowmemory==0
     TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,N_j);
 
     pi_e_J=shiftdim(pi_e_J,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
-    
+
     if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
 
         TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting;
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,N_j)=Vtemp;
@@ -43,10 +43,10 @@ if vfoptions.lowmemory==0
         TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*V_Jplus1; %.*ones(1,N_a,N_e);
-        
+
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,N_j)=shiftdim(maxindex,1);
     end
@@ -75,14 +75,14 @@ if vfoptions.lowmemory==0
         TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*EV; %.*ones(1,N_a,N_e);
-        
+
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
     end
-    
+
 elseif vfoptions.lowmemory==1
     %% Loop over all e
     special_n_e=ones(1,length(n_e));

@@ -23,15 +23,15 @@ Policy(:,N_j)=maxindex;
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
     j=N_j-reverse_j;
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,j);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     VKronNext_j=Vtemp_j; % Has been presaved before it was
     Vtemp_j=V(:,j); % Grab this before it is replaced/updated
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*kron(VKronNext_j,ones(N_d,1))*ones(1,N_a,1);

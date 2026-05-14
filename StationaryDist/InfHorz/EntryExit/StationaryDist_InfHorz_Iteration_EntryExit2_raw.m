@@ -27,7 +27,7 @@ StationaryDistKron=sparse(gather(StationaryDistKron));
 currdist=Inf;
 counter=0;
 while currdist>simoptions.tolerance && (100*counter)<simoptions.maxit
-    
+
     for jj=1:100
         % Tan improvement
         StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
@@ -42,11 +42,11 @@ while currdist>simoptions.tolerance && (100*counter)<simoptions.maxit
     StationaryDistKron=StationaryDistKron+ExitProb*EntryDist;
 
     currdist=sum(abs(StationaryDistKron-StationaryDistKronOld));
-    
+
     counter=counter+1;
     if simoptions.verbose==1
         if rem(counter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', counter, currdist, simoptions.tolerance)            
+            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', counter, currdist, simoptions.tolerance)
         end
     end
 end
@@ -59,7 +59,7 @@ end
 
 if ~(counter<simoptions.maxit)
     disp('WARNING: SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
-end 
+end
 
 
 

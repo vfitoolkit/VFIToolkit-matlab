@@ -14,7 +14,7 @@ function [output] = getFredData(series_id, observation_start, observation_end, u
 % observation_end:   Observations end (as close as possible) at this date
 % units:             Choose levels, percent change on year ago, etc.
 % frequency:         If you want lower frequency than raw data
-% aggregation_method:If you change frequency from raw data, this sets the aggreation method (default is mean)
+% aggregation_method:If you change frequency from raw data, this sets the aggregation method (default is mean)
 % ondate:            If you want only the data that was available at a
 %                    certain date (uses ALFRED).
 % realtime_end:      If you want to use ALFRED's realtime_start and

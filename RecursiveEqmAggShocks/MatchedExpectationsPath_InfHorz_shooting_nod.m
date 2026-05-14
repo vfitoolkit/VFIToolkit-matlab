@@ -105,7 +105,7 @@ end
 %  - First Phi_2^{i+1} is created from Phi_1^{i}
 %  - Iterate on t=3:T, Phi_t^{i+1} is created from Phi_{t-1}^{i+1}
 % Or we can take the fastOLG style approach
-%  - Parallel oever t=2:T, we create Phi_t^{i+1} from Phi_{t-1}^{i}
+%  - Parallel over t=2:T, we create Phi_t^{i+1} from Phi_{t-1}^{i}
 % For now I just use the fastOLG style approach
 fastOLGtheAgentDist=1;
 % But setting this to zero will do the time-loop version that Lee uses.
@@ -178,12 +178,12 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     tic;
 
     % Note: this is only taking expectations over the aggregate shocks, not over the idiosyncratic shocks
-    
+
     % Note: fastOLG, so VPath is (a,j)-by-z
     VPath=reshape(VPath,[N_a,T,N_z]);
-    
+
     Distances=nan(T,T);
-    DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); % Use the closest few expectations [4th dimension: index 1 contains the t-index for the matches, index 2 constains the distances of the matches]
+    DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); % Use the closest few expectations [4th dimension: index 1 contains the t-index for the matches, index 2 contains the distances of the matches]
     % First, we have to find which agent dist with the same aggregate shock today are the 'most similar'
     if recursiveeqmoptions.matchE_distmeasure==1 % Kolmogorov-Smirnoff distance
         % Need to parallelize
@@ -196,7 +196,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
             end
             Distances(tt1,tt2)=dist;
         end
-        % Fill in the lower triangular (distance is symmetric), put Inf on diagonal 
+        % Fill in the lower triangular (distance is symmetric), put Inf on diagonal
         % PARALLELIZE THIS
         for tt1=1:T
             for tt2=1:tt1-1
@@ -279,9 +279,9 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     % Second, take expectations with respect to next period S
     MatchedEV=sum(MatchedEV.*pi_Sprime_T,4); % pi_Sprime_T is [1,T,1,N_S], note that S is determined by t, so only needs the Sprime probabilities and does not have a dimension for S
     % MatchedEV is now [N_a,T,N_z]
-    
+
     matchtime=toc;
-    
+
     %% Update Params to contain the current price path
     % Put the PricePathOld matrix into PricePath structure, and store a copy in Parameters
     for pp=1:length(PricePathNames)
@@ -289,7 +289,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         % Then store PricePath structure in Parameters
         Parameters.(PricePathNames{pp})=PricePath.(PricePathNames{pp});
     end
-    
+
     %% Since we have all the 'next period value fns', we can compute all the value fns in parallel, there is no iterating in the time dimension
     tic;
     if recursiveeqmoptions.divideT==1
@@ -325,11 +325,11 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         VPath=reshape(VPath,[N_a*T,N_z]);
     end
     vfitime=toc;
-    
+
     %% Modify PolicyIndexesPath into forms needed for forward iteration
     tic;
     % Create version of PolicyIndexesPath in form we want for the agent distribution iteration
-    % Creates PolicyaprimezPath, and when using grid interpolation layer also PolicyProbsPath 
+    % Creates PolicyaprimezPath, and when using grid interpolation layer also PolicyProbsPath
     if isscalar(n_a)
         PolicyaprimePath=reshape(PolicyIndexesPath(1,:,1:T-1,:),[N_a*(T-1)*N_z,1]); % aprime index
     elseif length(n_a)==2
@@ -376,7 +376,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     % end
     % THIS DIDN'T WORK AS THEN GOT A MIX OF THIS AGENT DIST WITH THE
     % EXISTING PERIOD 1 POLICY, ETC. AND THAT JUST TURNED INTO A MESS
-    
+
     if fastOLGtheAgentDist==1
         if pathcounter<=5
             distiter=5;
@@ -412,7 +412,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     end
 
     agentdisttime=toc;
-    
+
     %% AggVars
     tic;
     AggVarsPath=EvalFnOnAgentDist_AgeConditionalAggVars_FHorz_fastOLG(AgentDistPath.*AgeWeights_T,[],PolicyValuesPath, FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,T,0,l_a,l_a,l_z,N_a,N_z,a_gridvals,z_gridvals_T_fastOLG,1);
@@ -421,7 +421,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     end
 
     aggvartime=toc;
-    
+
     tic;
     %% General Eqm Eqns
     % Evaluate the general eqm conditions, and based on them create PricePathNew (interpretation depends on transpathoptions)
@@ -456,14 +456,14 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     end
 
     GEtime=toc;
-    
+
     fprintf('Runtimes are: match, vfi, mod, agentdist, aggvar, GE \n')
     [matchtime,vfitime,modtime,agentdisttime,aggvartime,GEtime]
     fprintf('Solving agent dist using fastOLGtheAgentDist=%i (0=loop, 1=parallel) \n', fastOLGtheAgentDist)
 
-    
+
     %% Perform update of prices and give feedback
-    
+
     % See how far apart the price paths are
     CurrentPathDist_price=max(abs(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:)),[],1); % 1-by-prices
     % Notice that the distance is always calculated ignoring the time t=1 & t=T periods, as these needn't ever converges
@@ -471,7 +471,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
 
     % CurrentPathDist=max(abs(GEcondnPath));
     CurrentPathDist_GEcondn=max(abs(GEcondnPath),[],1); % 1-by-GECondns
-    
+
     % Create plots of the transition path (before we update pricepath)
     createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,recursiveeqmoptions);
 
@@ -493,7 +493,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     end
     subplot(2,1,2); plot(1:1:T-1,matchingAggEndoState)
     title('Aggregate value of endogenous state in each match (one line for each S value)')
-    
+
     % Update PricePathOld
     % Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
     if recursiveeqmoptions.weightscheme==0
@@ -518,8 +518,8 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
             PricePathOld(1:T-1,:)=((recursiveeqmoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-recursiveeqmoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-recursiveeqmoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
         end
     end
-    
-    
+
+
     TransPathConvergence_prices=max(CurrentPathDist_price)/recursiveeqmoptions.tolerance; % So when this gets to 1 we have convergence, in prices
     TransPathConvergence_GEcondns=max(GEcondnPath(:).^2)/recursiveeqmoptions.tolerance; % So when this gets to 1 we have convergence, in GE condns
     TransPathConvergence=max(TransPathConvergence_prices,TransPathConvergence_GEcondns); % we require convergence in both
@@ -536,7 +536,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1; is the minimum of both prices and GEcondns) \n',TransPathConvergence)
         fprintf(' \n')
     end
-    
+
     if recursiveeqmoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations
         PricePathHistory{pathcounter,1}=CurrentPathDist_price;

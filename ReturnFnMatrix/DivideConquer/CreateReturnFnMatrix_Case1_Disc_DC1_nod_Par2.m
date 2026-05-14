@@ -21,7 +21,7 @@ elseif l_z==3
     Fmatrix=arrayfun(ReturnFn, aprime_grid, shiftdim(a_grid,-1), shiftdim(z_gridvals(:,1),-2), shiftdim(z_gridvals(:,2),-2), shiftdim(z_gridvals(:,3),-2), ReturnFnParamsCell{:});
 elseif l_z==4
     Fmatrix=arrayfun(ReturnFn, aprime_grid, shiftdim(a_grid,-1), shiftdim(z_gridvals(:,1),-2), shiftdim(z_gridvals(:,2),-2), shiftdim(z_gridvals(:,3),-2), shiftdim(z_gridvals(:,4),-2), ReturnFnParamsCell{:});
-end    
+end
 
 Fmatrix=reshape(Fmatrix,[N_aprime,N_a,N_z]);
 

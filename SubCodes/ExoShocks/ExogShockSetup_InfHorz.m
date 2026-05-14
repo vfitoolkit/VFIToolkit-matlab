@@ -3,8 +3,8 @@ function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Para
 % options will either be vfoptions or simoptions
 % output: z_gridvals, pi_z, options.e_gridvals, options.pi_e
 
-% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
-% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilities
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
 %% Check basic setup
@@ -67,7 +67,7 @@ else
             for ii=1:length(ExogShockFnParamsVec)
                 ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
             end
-            [z_gridvals,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+            [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
         end
         if all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
             z_gridvals=z_grid;

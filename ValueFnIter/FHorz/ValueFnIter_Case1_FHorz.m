@@ -5,7 +5,7 @@ V=nan;
 Policy=nan;
 
 
-%% Check which vfoptions have been used, set all others to defaults 
+%% Check which vfoptions have been used, set all others to defaults
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     % If vfoptions is not given, just use all the defaults
@@ -223,8 +223,8 @@ if vfoptions.parallel<2
 end
 
 
-%% 
-if vfoptions.parallel==2 
+%%
+if vfoptions.parallel==2
     % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
@@ -279,7 +279,7 @@ elseif vfoptions.alreadygridvals==1
 end
 
 
-%% Semi-exogenous shock gridvals and pi 
+%% Semi-exogenous shock gridvals and pi
 if vfoptions.alreadygridvals_semiexo==0
     if prod(vfoptions.n_semiz)>0
         % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
@@ -345,7 +345,7 @@ end
 if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     % When using both semiexo and experience asset, the last decision variable influences semi-exo and the second last decision variable influences the experience asset
-    
+
     if vfoptions.experienceasset==1
         if ~isfield(vfoptions,'l_dexperienceasset')
             vfoptions.l_dexperienceasset=1; % by default, only one decision variable influences the experienceasset
@@ -450,7 +450,7 @@ if vfoptions.riskyasset==1
     % Check that aprimeFn is inputted
     if ~isfield(vfoptions,'aprimeFn')
         error('You have vfoptions.riskyasset=1, but have not setup vfoptions.aprimeFn')
-    end    
+    end
     % Check that the u shocks are inputted
     if ~isfield(vfoptions,'n_u')
         error('You have vfoptions.riskyasset=1, but have not setup vfoptions.n_u')
@@ -495,7 +495,7 @@ if vfoptions.residualasset==1
     n_r=n_a(end); % n_a2 is the experience asset
     a1_grid=a_grid(1:sum(n_a1));
     r_grid=a_grid(sum(n_a1)+1:end);
-    
+
     % Now just send all this to the right value fn iteration command
     [V,Policy]=ValueFnIter_FHorz_ResidAsset(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V, Policy};
@@ -507,7 +507,7 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     if vfoptions.verbose==1
         fprintf('StateDependentVariables_z option is being used \n')
     end
-    
+
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_FHorz_nod_SDVz_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % Policy without d
@@ -515,7 +515,7 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     else
         [VKron, PolicyKron]=ValueFnIter_FHorz_SDVz_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
-    
+
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     V=reshape(VKron,[n_a,n_z,N_j]);
     Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
@@ -532,7 +532,7 @@ if vfoptions.dynasty==1
     if ~isfield(vfoptions,'tolerance')
         vfoptions.tolerance=10^(-9);
     end
-    
+
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_FHorz_Dynasty_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % Policy without d
@@ -540,7 +540,7 @@ if vfoptions.dynasty==1
     else
         [VKron, PolicyKron]=ValueFnIter_FHorz_Dynasty_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
-    
+
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     V=reshape(VKron,[n_a,n_z,N_j]);
     Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
@@ -553,7 +553,7 @@ end
 if any(vfoptions.incrementaltype)
     % Incremental Endogenous States: aprime either equals a, or one grid point higher (unchanged on incremental increase)
     [VKron,PolicyKron]=ValueFnIter_FHorz_Increment(n_d,n_a,n_z,d_grid,a_grid,z_gridvals_J,N_j,pi_z_J,ReturnFn,Parameters,ReturnFnParamNames,DiscountFactorParamNames,vfoptions);
-    
+
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if N_e==0
         V=reshape(VKron,[n_a,n_z,N_j]);

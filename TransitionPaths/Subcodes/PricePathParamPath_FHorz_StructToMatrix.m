@@ -5,9 +5,9 @@ function varargout=PricePathParamPath_FHorz_StructToMatrix(PricePathStruct,Param
 %
 % N_i is an optional input, only used for models with permanent type
 % PricePathSizeVec_ii,ParamPathSizeVec_ii are only output for models with permanent type
-% 
+%
 % Note: Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 
 if ~exist('N_i','var')
     % Note: Internally PricePath is matrix of size T-by-'number of prices', similarly for ParamPath
@@ -63,7 +63,7 @@ if ~exist('N_i','var')
             ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp})';
         end
     end
-    
+
     varargout={PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec};
 
 else
@@ -75,28 +75,28 @@ else
     PricePathNames=fieldnames(PricePathStruct);
     PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
     for pp=1:length(PricePathNames)
-        if isstruct(PricePathStruct.(PricePathNames{pp}))
-            tempptypenames=fieldnames(PricePathStruct.(PricePathNames{pp}));
-            temp=PricePathStruct.(PricePathNames{pp}).(tempptypenames{1});
-            tempsize=size(temp);
-            PricePathSizeVec(pp)=length(tempptypenames)*tempsize(tempsize~=T); % Get the dimension which is not T
-            for ii=1:N_i
-                N_j_temp=N_j.(Names_i{ii});
-                if ~any(PricePathSizeVec(pp)==[1,N_i,N_j_temp,N_i*N_j_temp])
-                    error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
+        for pp=1:length(PricePathNames)
+            if isstruct(PricePathStruct.(PricePathNames{pp}))
+                tempptypenames=fieldnames(PricePathStruct.(PricePathNames{pp}));
+                temp=PricePathStruct.(PricePathNames{pp}).(tempptypenames{1});
+                tempsize=size(temp);
+                PricePathSizeVec(pp)=length(tempptypenames)*tempsize(tempsize~=T); % Get the dimension which is not T
+                for ii=1:N_i
+                    if ~any(PricePathSizeVec(pp)==[1,N_i,N_j,N_i*N_j])
+                        error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
+                    end
+                end
+            else
+                temp=PricePathStruct.(PricePathNames{pp});
+                tempsize=size(temp);
+                PricePathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
+                for ii=1:N_i
+                    if ~any(PricePathSizeVec(pp)==[1,N_i,N_j])
+                        error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
+                    end
                 end
             end
-        else
-            temp=PricePathStruct.(PricePathNames{pp});
-            tempsize=size(temp);
-            PricePathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
-            for ii=1:N_i
-                N_j_temp=N_j.(Names_i{ii});
-                if ~any(PricePathSizeVec(pp)==[1,N_i,N_j_temp])
-                    error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
-                end
-            end
-        end  
+        end
     end
 
 
@@ -109,7 +109,7 @@ else
     else
         PricePathSizeVec_ii=[1;PricePathSizeVec_ii];
     end
-    
+
     PricePathSizeVec=cumsum(PricePathSizeVec);
     if length(PricePathNames)>1
         PricePathSizeVec=[[1,PricePathSizeVec(1:end-1)+1];PricePathSizeVec];

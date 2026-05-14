@@ -101,7 +101,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             for z_c=1:N_z
                 z_val=z_gridvals_J(z_c,:,N_j);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_gridvals, a_grid, z_val, e_val, ReturnFnParamsVec);
-                
+
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_ze).*(ReturnMatrix_ze~=0)); % finite and not zero
                 ReturnMatrix_ze(becareful)=(ezc1*ReturnMatrix_ze(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
@@ -126,9 +126,9 @@ else
 
     % Expectation over e
     temp=sum(temp.*pi_e_J(1,1,:,N_j),3);
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z,n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -139,7 +139,7 @@ else
 
         % Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(EV,N_d,1,1);
@@ -152,23 +152,23 @@ else
             temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
             temp4(entireEV==0)=0;
         end
-        
+
         entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1,N_e);
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf;
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,:,N_j)=Vtemp;
         Policy(:,:,:,N_j)=maxindex;
-        
+
     elseif vfoptions.lowmemory==1
 
         % Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(EV,N_d,1,1);
@@ -197,20 +197,20 @@ else
             temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
             entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
             entireRHS_e(entireRHS_e==0)=-Inf;
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
             V(:,:,e_c,N_j)=Vtemp;
             Policy(:,:,e_c,N_j)=maxindex;
         end
-        
+
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
 
             % Calc the expectation term (except beta)
             EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
 
             entireEV_z=repelem(EV_z,N_d,1,1);
@@ -223,12 +223,12 @@ else
                 temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
                 temp4(entireEV_z==0)=0;
             end
-                        
+
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
 
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_gridvals, a_grid, z_val ,e_val, ReturnFnParamsVec);
-                
+
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_ze).*(ReturnMatrix_ze~=0)); % finite and not zero
                 temp2=ReturnMatrix_ze;
@@ -247,7 +247,7 @@ else
                 Policy(:,z_c,e_c,N_j)=maxindex;
             end
         end
-        
+
     end
 end
 
@@ -258,8 +258,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -284,7 +284,7 @@ for reverse_j=1:N_j-1
             WGmatrix=kron(WGmatrix,ones(N_d,1));
         end
     end
-    
+
     EVpre=V(:,:,:,jj+1);
     % Part of Epstein-Zin is before taking expectation
     temp=EVpre;
@@ -293,9 +293,9 @@ for reverse_j=1:N_j-1
 
     % Expectation over e
     temp=sum(temp.*pi_e_J(1,1,:,jj),3);
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z,n_e, d_gridvals, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -306,7 +306,7 @@ for reverse_j=1:N_j-1
 
         % Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(EV,N_d,1,1);
@@ -319,22 +319,22 @@ for reverse_j=1:N_j-1
             temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
             temp4(entireEV==0)=0;
         end
-        
+
         entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1,N_e);
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf;
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,:,jj)=Vtemp;
         Policy(:,:,:,jj)=maxindex;
-        
+
     elseif vfoptions.lowmemory==1
         % Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(EV,N_d,1,1);
@@ -363,20 +363,20 @@ for reverse_j=1:N_j-1
             temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
             entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
             entireRHS_e(entireRHS_e==0)=-Inf;
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
             V(:,:,e_c,jj)=Vtemp;
             Policy(:,:,e_c,jj)=maxindex;
         end
-        
+
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
 
             % Calc the expectation term (except beta)
             EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
 
             entireEV_z=repelem(EV_z,N_d,1,1);
@@ -389,12 +389,12 @@ for reverse_j=1:N_j-1
                 temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
                 temp4(entireEV_z==0)=0;
             end
-            
+
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
 
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_gridvals, a_grid, z_val ,e_val, ReturnFnParamsVec);
-                
+
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_ze).*(ReturnMatrix_ze~=0)); % finite and not zero
                 temp2=ReturnMatrix_ze;
@@ -413,7 +413,7 @@ for reverse_j=1:N_j-1
                 Policy(:,z_c,e_c,jj)=maxindex;
             end
         end
-        
+
     end
 end
 

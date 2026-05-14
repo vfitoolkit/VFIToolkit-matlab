@@ -37,7 +37,7 @@ else
     end
 end
 if ~isfield(estimoptions,'logmoments')
-    estimoptions.logmoments=0; 
+    estimoptions.logmoments=0;
     % =1 means log() the model moments [target moments and CoVarMatrixDataMoments should already be based on log(moments) if you are using this+
     % =1 means applies log() to all moments, unless you specify them seperately as on next line
     % You can name moments in the same way you would for the targets, e.g.
@@ -74,12 +74,12 @@ if ~isfield(estimoptions,'bootstrapStdErrors')
     estimoptions.bootstrapStdErrors=0; % =1, bootstraps the standard errors (instead of based on derivatives, which is the default)
 end
 if ~isfield(estimoptions,'numbootstrapssims')
-    % When doing two-step GMM, or bootstraping Standard Errors
+    % When doing two-step GMM, or bootstrapping Standard Errors
     estimoptions.numbootstrapsims=100; % Number of simulations
 end
 if ~isfield(estimoptions,'numberinvidualsperbootstrapsim')
-    % When doing two-step GMM, or bootstraping Standard Errors
-    estimoptions.numberinvidualsperbootstrapsim=1000; 
+    % When doing two-step GMM, or bootstrapping Standard Errors
+    estimoptions.numberinvidualsperbootstrapsim=1000;
     % Note that each individual simulation will be N_j periods, so total
     % 'observations' is more like estimoptions.numberinvidualsperbootstrapsim*N_j
     % [Note: you cannot use simoptions.numbersims, as that is overwritten by estimoptions.numberinvidualsperbootstrapsim]
@@ -103,7 +103,7 @@ end
 estimoptions.useCustomModelStats=0;
 if isfield(estimoptions,'CustomModelStats')
     estimoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     estimoptions.CustomModelStatsInputs.z_grid=z_grid;
     estimoptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -142,8 +142,8 @@ else
 end
 estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
-estimomitparams_counter=zeros(length(EstimParamNames),1); % column vector: estimomitparamsvec allows omiting the parameter for certain ages
-estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
+estimomitparams_counter=zeros(length(EstimParamNames),1); % column vector: estimomitparamsvec allows omitting the parameter for certain ages
+estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omitted values of a parameter
 for pp=1:length(EstimParamNames)
     if any(strcmp(OmitEstimParamsNames,EstimParamNames{pp}))
         % This parameter is under an omit-mask, so need to only use part of it
@@ -231,7 +231,7 @@ else
     error('size(WeightingMatrix) should be a square matrix with number of rows (and number of columns) equal to the number of moments to be estimated')
 end
 
-%% 
+%%
 % estimoptions.logmoments can be specified by names
 if isstruct(estimoptions.logmoments)
     logmomentnames=estimoptions.logmoments;
@@ -254,7 +254,7 @@ if isstruct(estimoptions.logmoments)
 % estimoptions.logmoments will either be scalar, or a vector of zeros and ones
 %    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
 elseif any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
-   % If set this up, and then set up 
+   % If set this up, and then set up
    if isscalar(estimoptions.logmoments)
        estimoptions.logmoments=ones(length(targetmomentvec),1); % log all of them
    else
@@ -361,7 +361,7 @@ if estimoptions.skipestimation==0
         [estimparamsvec,fval]=lsqnonlin(EstimateMoMObjectiveFn,estimparamsvec0,[],[],[],[],[],[],[],minoptions);
     end
 
-else % estimoptions.skipestimation==1    
+else % estimoptions.skipestimation==1
     warning('Skipping the estimation step (you have set estimoptions.skipestimation=1 in EstimateLifeCycleModel_MethodOfMoments() [Nothing wrong with this, just warning as want to be sure you did this on purpose]')
     % The values in Parameters are taken as the estimated values for EstimParams
     % Note that we already got these as estimparamsvec0, so we can just set
@@ -390,12 +390,12 @@ end
 
 %% Compute the standard deviation of the estimated parameters
 % Part of the standard deviations is to compute J (the jacobian matrix of derivatives of model moments to the estimated parameters).
-% To make it easier to compute the derivatives by finite-difference, I turn off the parameter constraints and just use the model 
+% To make it easier to compute the derivatives by finite-difference, I turn off the parameter constraints and just use the model
 % parameter values (rather than the internal-transformed-parameters) directly. Just makes it easier to follow what is going on (at least in my head).
-% To faciliate this I use estimoptionsJacobian=estimoptions, but with modifications.
-% Later I did some searching, and it seems there are no precise answers online, but some people (Python 'optimagic' on github) made same decision I did, of taking 
+% To facilitate this I use estimoptionsJacobian=estimoptions, but with modifications.
+% Later I did some searching, and it seems there are no precise answers online, but some people (Python 'optimagic' on github) made same decision I did, of taking
 % derivatives based on 'external' parameters rather than 'internal' (transformed) parameters.
-% Other open issue, what do you do when the resulting standard deviations mean confidence intervals reach outside your contraints?
+% Other open issue, what do you do when the resulting standard deviations mean confidence intervals reach outside your constraints?
 if estimoptions.bootstrapStdErrors==0
     % First, need the Jacobian matrix, which involves computing all the
     % derivatives of the individual moments with respect to the estimated parameters
@@ -421,7 +421,7 @@ if estimoptions.bootstrapStdErrors==0
 
     % For parameters of size 10^(-2) or less, use alternative epsilon values
     epsilonalt=[10^(-2),10^(-2),10^(-1),10^(-1)]; % Note: this must be same length as epsilonmodvec (default follows eedefault)
-    
+
     %% We want to calculate derivatives from epsilon changes in the model parameters
     % I want to do epsilon change in the model parameter, but here I have the unconstrained parameters. So I create an epsilonparamup and
     % epsilonparamdown, which contain the unconstrained values that correspond to epsilon changes in the constrained parameters.
@@ -474,15 +474,15 @@ if estimoptions.bootstrapStdErrors==0
         epsilonparamup(:,ee)=modelestimparamsvecup;
         epsilonparamdown(:,ee)=modelestimparamsvecdown;
     end
-    
-    
+
+
     %% Can now calculate derivatives to the epsilon change in parameters as the finite-difference
     for ee=1:length(epsilonmodvec)
         % ObjValue is used to compute f(x+h), f(x), and f(x-h), and then then can be used to evaluate the finite-differences
         ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
         ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
-        
-        % Note: estimoptions.vectoroutput=1, so ObjValue is a vector 
+
+        % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
         epsilonparamvec=modelestimparamsvec; % and using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
         ObjValue=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
         for pp=1:length(estimparamsvec)
@@ -496,14 +496,14 @@ if estimoptions.bootstrapStdErrors==0
                 ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
             end
         end
-        
+
         % Use finite-difference to compute the derivatives
         J_up=(ObjValue_upwind-ObjValue)./((epsilonparamup(:,ee)-modelestimparamsvec)');
         J_down=(ObjValue-ObjValue_downwind)./((modelestimparamsvec-epsilonparamdown(:,ee))');
         J_centered=(ObjValue_upwind-ObjValue_downwind)./((epsilonparamup(:,ee)-epsilonparamdown(:,ee))');
         % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
-        
-        % J is nmonents-by-nparams
+
+        % J is nmoments-by-nparams
         J_full=J_centered;
         % If epsilon changes pushed us outside the parameter constraints, then we just use the one-sided finite-differences
         for pp=1:length(estimparamsvec)
@@ -513,7 +513,7 @@ if estimoptions.bootstrapStdErrors==0
                 J_full(pp,:)=J_down(pp,:);
             end
         end
-        
+
         % Double-checks: reports various steps around computing the derivatives and standard deviations, and does so for various epsilon sizes
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J=J_full;
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J_centered=J_centered;
@@ -560,12 +560,12 @@ if estimoptions.bootstrapStdErrors==0
             ObjValue_downwind
         end
     end
-    
+
     % For later
     epsilon=epsilonmodvec(eedefault)*epsilonraw; % sqrt(2.2)*10^(-6)
     % What I have here as default uses epsilon of the order 10^(-6)
     % Grey Gordon's numerical derivative code used 10^(-6)
-    
+
     if estimoptions.efficientW==0
         estimparamscovarmatrix=((J'*WeightingMatrix*J)^(-1)) * J'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*J * ((J'*WeightingMatrix*J)^(-1));
         % This is standard formula for the asymptotic variance of method of moments estimator
@@ -589,7 +589,7 @@ end
 
 
 %% Local identification
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
+if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     % The estimate is locally identified if the matrix J is full rank
     estsummary.localidentification.rankJ=rank(J); % If this is greater or equal to number of parameters, then locally identified
     estsummary.localidentification.yesidentified=logical(rank(J)>=length(estimparamsvec));
@@ -599,12 +599,12 @@ end
 
 %% Some additional outputs
 % Mainly, the Sensitivity matrix
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
+if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     % Sensitivity of estimated parameters to the target moments
     % Sensitivity matrix, Lambda, of Andrews, Gentzkow & Shapiro (2017) - Measuring the Sensitivity of Parameter Estimates to Estimation Moments
     SensitivityMatrix=(-(J'*WeightingMatrix*J)^(-1))*(J'*WeightingMatrix);
     estsummary.sensitivitymatrix=SensitivityMatrix;
-    
+
     % Sensitivity of estimated parameters to the pre-calibrated parameters
     % If you have set estimoptions.CalibParamNames; Jorgensen (2023) - Sensitivity to Calibrated Parameters
     % Requires calculating derivatives of the objective vector to the calibrated parameters
@@ -661,7 +661,7 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
         estsummary.doublechecks.Jcalib=Jcalib_centered;
         % also, just so user can see them
         estsummary.doublechecks.Jcalib_up=Jcalib_up;
-        estsummary.doublechecks.Jcalib_down=Jcalib_down;        
+        estsummary.doublechecks.Jcalib_down=Jcalib_down;
     end
 
 end
@@ -674,7 +674,7 @@ for pp=1:length(EstimParamNames)
         [estimparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(estimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
         if sum(penalty)>0
             warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
-        end  
+        end
         % Now store the unconstrained values
         if estimomitparams_counter(pp)>0
             currparamraw=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
@@ -687,7 +687,7 @@ for pp=1:length(EstimParamNames)
     else
         EstimParams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % When skipping estimation, just returns the same parameters as you input
     end
-    
+
     if estimoptions.bootstrapStdErrors==0
         % Note: J and Sigma where calculated on 'external' parameters
         estimparamscovarmatrix_diag=diag(estimparamscovarmatrix); % Just the diagonal of the covar matrix of the parameter vector
@@ -698,7 +698,7 @@ for pp=1:length(EstimParamNames)
         %     % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         %     estsummary.EstimParamsStdDev.(EstimParamNames{pp})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
         % end
-        % If bootstrap std errors, then replace the std dev with the bootstrap distribuiton
+        % If bootstrap std errors, then replace the std dev with the bootstrap distribution
     elseif estimoptions.bootstrapStdErrors==1
         estsummary.EstimParamsStdDev=EstimParamsBootStrapDist;
         estsummary.notes.bootstrap=['Standard errors report distribution of parameter estimates based on ',num2str(estimoptions.numbootstrapsims),' bootstraps, each had ',num2str(estimoptions.numberinvidualsperbootstrapsim),' agents for ',num2str(N_j),' periods (so some ',num2str(N_j*estimoptions.numberinvidualsperbootstrapsim),' observations)' ];
@@ -754,7 +754,7 @@ if estimoptions.skipestimation==1
     estsummary.warningskipestimation='Warning: this estimation used estimoptions.skipestimation=1 (all good, just reminding you as you need to be careful when using skipestimation=1 :)';
 end
 
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
+if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     estsummary.variousmatrices.J=J;
     if estimoptions.efficientW==0
         estsummary.variousmatrices.Omega=CoVarMatrixDataMoments; % Covariance matrix of the data moments

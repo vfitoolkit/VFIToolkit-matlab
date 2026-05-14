@@ -17,10 +17,10 @@ tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance && tempcounter<=maxiter
     VKronold=VKron;
-    
+
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=VKronold.*pi_z_alt;
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     entireRHS=ReturnMatrix+beta*repelem(EV,N_d,1); % z dimension of EV will autoexpand
@@ -36,7 +36,7 @@ while currdist>Tolerance && tempcounter<=maxiter
     VKron=shiftdim(VKron,1); % a by z
 
     % Update currdist
-    VKrondist=VKron(:)-VKronold(:); 
+    VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
 
@@ -44,7 +44,7 @@ while currdist>Tolerance && tempcounter<=maxiter
         Policy_aprime=ceil(PolicyIndexes(:)/N_d);
         for Howards_counter=1:Howards
             EVKrontemp=VKron(Policy_aprime,:);
-            
+
             EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
@@ -53,7 +53,7 @@ while currdist>Tolerance && tempcounter<=maxiter
     end
 
     tempcounter=tempcounter+1;
-    
+
 end
 
 

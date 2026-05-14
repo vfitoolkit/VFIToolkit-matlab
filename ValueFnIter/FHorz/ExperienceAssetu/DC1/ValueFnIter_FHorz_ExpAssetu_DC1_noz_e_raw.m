@@ -34,7 +34,7 @@ level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
  % Fmatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParams,Refine) % Refine is an optional input
-% Note: d is both d1 and d2 
+% Note: d is both d1 and d2
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
@@ -161,7 +161,7 @@ else
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u)
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2)
@@ -290,8 +290,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -313,7 +313,7 @@ for reverse_j=1:N_j-1
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u)
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2)
@@ -324,7 +324,7 @@ for reverse_j=1:N_j-1
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2,n_a1,vfoptions.level1n,n_a2,n_e, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
-        entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % autofill e for DiscountedentireEV 
+        entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % autofill e for DiscountedentireEV
 
         % First, we want a1prime conditional on (d,1,a)
         [~,maxindex1]=max(entireRHS_ii,[],2);

@@ -55,12 +55,12 @@ if vfoptions.EVpre==0
     EVpre=zeros(N_a,1,N_j,N_z);
     EVpre(:,1,1:N_j-1,:)=reshape(V(N_a+1:end,:),[N_a,1,N_j-1,N_z]); % I use zeros in j=N_j so that can just use pi_z_J to create expectations
     EV=EVpre.*shiftdim(pi_z_J,-2);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
     EV=reshape(V,[N_a,1,N_j,N_z]).*shiftdim(pi_z_J,-2); % input V is already of size [N_a,N_j,N_z] and we want to use the whole thing
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
 
@@ -74,16 +74,16 @@ DiscountedEV=shiftdim(DiscountedEV,-1); % [1,aprime,1,j,z]
 DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp; % [n2aprime fine,1,j,z]
 
 if vfoptions.lowmemory==0
-    
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn, n_d, n_z, N_j, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (d,aprime,a and j,z), autofills d&a for expectation term
-    
+
     % First, we want aprime conditional on (d,1,a,j)
     [~,maxindex1]=max(entireRHS_ii,[],2);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints_jj(:,1,level1ii,:,:)=maxindex1;
 
     % Attempt for improved version
@@ -105,7 +105,7 @@ if vfoptions.lowmemory==0
             midpoints_jj(:,1,curraindex,:,:)=repelem(loweredge,1,1,length(curraindex),1);
         end
     end
-    
+
     % Turn this into the 'midpoint'
     midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is n_d-by-1-by-n_a-by-N_j-by-n_z
@@ -140,7 +140,7 @@ elseif vfoptions.lowmemory==1
         % First, we want aprime conditional on (d,1,a,j)
         [~,maxindex1]=max(entireRHS_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
 
         % Attempt for improved version

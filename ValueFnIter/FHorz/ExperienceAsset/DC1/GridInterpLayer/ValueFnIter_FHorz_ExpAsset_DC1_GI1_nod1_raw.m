@@ -141,7 +141,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    Vnext=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
@@ -151,13 +151,13 @@ else
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z);  % [N_d2*N_a1,N_a2,N_z]
 
-    Vlower=reshape(Vnext(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
-    Vupper=reshape(Vnext(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
+    Vlower=reshape(EV(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
+    Vupper=reshape(EV(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,zprime)
     % Already applied the probabilities from interpolating onto grid
 
@@ -168,7 +168,7 @@ else
 
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_z]); % (d2,a1prime,1,a2,zprime)
     % Interpolate EV over aprime_grid
-    DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);   % [N_d2,N_a1prime,1,N_a2] 
+    DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);   % [N_d2,N_a1prime,1,N_a2]
 
     if vfoptions.lowmemory==0
 
@@ -285,8 +285,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -306,7 +306,7 @@ for reverse_j=1:N_j-1
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,zprime)
     % Already applied the probabilities from interpolating onto grid
 
@@ -318,7 +318,7 @@ for reverse_j=1:N_j-1
 
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_z]); % (d2,a1prime,1,a2,zprime)
     % Interpolate EV over aprime_grid
-    DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);   % [N_d2,N_a1prime,1,N_a2] 
+    DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);   % [N_d2,N_a1prime,1,N_a2]
 
     if vfoptions.lowmemory==0
 
@@ -376,7 +376,7 @@ for reverse_j=1:N_j-1
             z_val=z_gridvals_J(z_c,:,jj);
             DiscountedentireEV_z=DiscountedEV(:,:,:,:,z_c);
             DiscountedEVinterp_z=DiscountedEVinterp(:,:,:,:,z_c);
-            
+
             % n-Monotonicity
             ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, vfoptions.level1n, n_a2, special_n_z, d2_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1);
 

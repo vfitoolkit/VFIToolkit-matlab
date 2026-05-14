@@ -13,7 +13,7 @@ if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.maxit=10^6; % In my experience if you need more than 10^6 iterations to reach the steady-state it is because something has gone wrong
-    simoptions.tolerance=10^(-6); % I originally had this at 10^(-9) but this seems to have been overly strict as very hard to acheive and not needed for model accuracy, now set to 10^(-6) [note that this is the max of all error across the agent dist, the L-Infinity norm]
+    simoptions.tolerance=10^(-6); % I originally had this at 10^(-9) but this seems to have been overly strict as very hard to achieve and not needed for model accuracy, now set to 10^(-6) [note that this is the max of all error across the agent dist, the L-Infinity norm]
     simoptions.multiiter=50; % How many iteration steps before check tolerance
     % Options relating to simulation method
     simoptions.ncores=1;
@@ -49,7 +49,7 @@ else
         simoptions.maxit=10^6;
     end
     if ~isfield(simoptions,'tolerance')
-        simoptions.tolerance=10^(-6); % I originally had this at 10^(-9) but this seems to have been overly strict as very hard to acheive and not needed for model accuracy, now set to 10^(-6) [note that this is the max of all error across the agent dist, the L-Infinity norm]
+        simoptions.tolerance=10^(-6); % I originally had this at 10^(-9) but this seems to have been overly strict as very hard to achieve and not needed for model accuracy, now set to 10^(-6) [note that this is the max of all error across the agent dist, the L-Infinity norm]
     end
     if ~isfield(simoptions,'multiiter')
         simoptions.multiiter=50; % How many iteration steps before check tolerance
@@ -147,13 +147,13 @@ if simoptions.agententryandexit==1 % If there is entry and exit use the command 
         Parameters.(EntryExitParamNames.DistOfNewAgents{1})=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a*N_z,1]);
         % Can then just do the rest of the computing the agents distribution exactly as normal.
     end
-    
+
     StationaryDist.pdf=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
     StationaryDist.mass=Parameters.(EntryExitParamNames.MassOfNewAgents{1});
     [StationaryDist]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDist,Parameters,EntryExitParamNames,Policy,N_d,N_a,N_z,pi_z,simoptions);
     StationaryDist.pdf=reshape(StationaryDist.pdf,[n_a,n_z]);
     return
-elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, but of trival nature so mass of agent distribution is unaffected.
+elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, but of trivial nature so mass of agent distribution is unaffected.
     Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
     % (This is used in some infinite horizon models to control the distribution; avoid, e.g., some people/firms saving 'too much')
     % To create initial guess use ('middle' of) the newborns distribution for seed point and do no burnin and short simulations (ignoring exit).
@@ -211,7 +211,7 @@ if isfield(simoptions,'SemiEndogShockFn')
     else
         dbstack
         error('Only simoptions.eigenvector=1 is implemented for StationaryDist when using SemiEndogShockFn')
-    end    
+    end
 end
 
 
@@ -259,7 +259,7 @@ if simoptions.inheritanceasset==1
     return
 end
 
-%% Down to just the baseline case, codes show a couple of possiblities. Only one is used, rest are legacy/demonstration.
+%% Down to just the baseline case, codes show a couple of possibilities. Only one is used, rest are legacy/demonstration.
 
 %%
 if simoptions.gridinterplayer==1
@@ -309,7 +309,7 @@ if simoptions.iterate==1
             Policy_aprime=shiftdim(Policy(2,:,:),1);
         end
     end
-    
+
     if N_z==0
         if N_e==0
             StationaryDist=StationaryDist_InfHorz_IterationTan_noz_raw(StationaryDist,Policy_aprime,N_a,simoptions);

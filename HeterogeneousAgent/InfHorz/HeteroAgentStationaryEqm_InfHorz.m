@@ -40,7 +40,7 @@ if exist('heteroagentoptions','var')
 end
 
 
-%% Check which options have been used, set all others to defaults 
+%% Check which options have been used, set all others to defaults
 N_p=prod(n_p);
 if isempty(n_p)
     N_p=0;
@@ -177,7 +177,7 @@ end
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
     heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -248,7 +248,7 @@ if isfield(vfoptions,'EiidShockFn')
     % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
     if ~isempty(intersect(tempEiidShockFnParamNames,GEPriceParamNames))
         heteroagentoptions.gridsinGE=1;
-    end        
+    end
 end
 % If z (and e) are not determined in GE, then compute z_gridvals and pi_z now (and e_gridvals and pi_e)
 if heteroagentoptions.gridsinGE==0
@@ -275,7 +275,7 @@ else
     z_gridvals=[];
 end
 % Regardless of whether they are done here of in _subfn, they will be
-% precomputed by the time we get to the value fn, staty dist, etc. So
+% precomputed by the time we get to the value fn, stationary dist, etc. So
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
 
@@ -350,7 +350,7 @@ if isfield(heteroagentoptions,'intermediateEqns')
     for gg=1:nIntEqns
         temp=getAnonymousFnInputNames(heteroagentoptions.intermediateEqns.(intEqnNames{gg}));
         heteroagentoptions.intermediateEqnParamNames(gg).Names=temp;
-        heteroagentoptions.intermediateEqnsCell{gg}=heteroagentoptions.intermediateEqns.(intEqnNames{gg});        
+        heteroagentoptions.intermediateEqnsCell{gg}=heteroagentoptions.intermediateEqns.(intEqnNames{gg});
     end
     % Now:
     %  heteroagentoptions.intermediateEqns is still the structure
@@ -365,11 +365,11 @@ for gg=1:nGeneralEqmEqns
     GeneralEqmEqnParamNames(gg).Names=temp;
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
 end
-% Now: 
+% Now:
 %  GeneralEqmEqns is still the structure
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(gg).Names contains the names
-% Note: 
+% Note:
 
 
 %% Set up GEparamsvec0 and parameter constraints
@@ -429,7 +429,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
     end
 
-    
+
     % Choosing algorithm for the optimization problem
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
     minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxIter',heteroagentoptions.maxiter,'MaxFunEvals',10*heteroagentoptions.maxiter);
@@ -547,7 +547,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     for ii=1:length(GEPriceParamNames)
         p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
     end
-    
+
 %%
 elseif heteroagentoptions.maxiter==0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
     % Just use the prices that are currently in Params

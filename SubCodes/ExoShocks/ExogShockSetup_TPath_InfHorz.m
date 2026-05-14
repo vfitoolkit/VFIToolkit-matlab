@@ -13,9 +13,9 @@ function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridv
 %
 % transpathoptions.zepathtrivial=0 when either of zpathtrival and epathtrivial both are zero
 
-% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilties, including pi_z_sparse transition probs
-% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
-% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties, including pi_z_sparse transition probs
+% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilities, including pi_z_sparse transition probs
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilities, including pi_z_sparse transition probs
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
 
@@ -75,7 +75,7 @@ if N_z>0
             elseif overlap2==1 % ExogShockFn depends on a ParamPath parameter
                 transpathoptions.zpathtrivial=0; % z_grid_J and pi_z_J vary over the path
                 transpathoptions.pi_z_T=zeros(N_z,N_z,T,'gpuArray');
-                transpathoptions.z_grid_T=zeros(sum(n_z),T,'gpuArray');
+                transpathoptions.z_gridvals_T=zeros(prod(n_z),length(n_z),T,'gpuArray');
                 for tt=1:T
                     for ii=1:length(ParamPathNames)
                         Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
@@ -90,8 +90,8 @@ if N_z>0
                     pi_z=gpuArray(pi_z);
                     z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
 
-                    transpathoptions.pi_z_T(:,:,:,tt)=pi_z;
-                    transpathoptions.z_grid_T(:,:,tt)=z_grid;
+                    transpathoptions.pi_z_T(:,:,tt)=pi_z;
+                    transpathoptions.z_gridvals_T(:,:,tt)=z_gridvals;
                 end
             end
         end
@@ -119,7 +119,7 @@ if N_z>0
             end
         end
     end
-    
+
     if ~isfield(transpathoptions,'zpathtrivial')
         transpathoptions.zpathtrivial=1;
     end
@@ -176,8 +176,8 @@ if N_e>0
                 e_grid=gpuArray(e_grid);
             elseif overlap2==1 % ExogShockFn depends on a ParamPath parameter
                 transpathoptions.epathtrivial=0; % e_grid and pi_e vary over the path
-                transpathoptions.pi_e_T=zeros(N_e,N_e,T,'gpuArray');
-                transpathoptions.e_grid_T=zeros(sum(n_e),T,'gpuArray');
+                transpathoptions.pi_e_T=zeros(N_e,T,'gpuArray');
+                transpathoptions.e_gridvals_T=zeros(prod(n_e),length(n_e),T,'gpuArray');
                 for tt=1:T
                     for ii=1:length(ParamPathNames)
                         Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
@@ -190,10 +190,10 @@ if N_e>0
                     end
                     [e_grid,pi_e]=options.ExogShockFn(EiidShockFnParamsCell{:});
                     pi_e=gpuArray(pi_e);
-                    e_grid=gpuArray(e_grid);
+                    e_gridvals=CreateGridvals(n_e,gpuArray(e_grid),1);
 
                     transpathoptions.pi_e_T(:,tt)=pi_e;
-                    transpathoptions.e_grid_T(:,:,tt)=e_grid;
+                    transpathoptions.e_gridvals_T(:,:,tt)=e_gridvals;
                 end
             end
         end
@@ -202,7 +202,7 @@ if N_e>0
         if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
             if isfield(options,'e_grid')
                 if size(options.e_grid,2)==1 % stacked-column grid
-                    e_gridvals=options.e_grid.*ones(1,1,N_j,'gpuArray');
+                    e_gridvals=CreateGridvals(n_e,gpuArray(options.e_grid),1);
                 else
                     e_gridvals=options.e_grid;
                 end
@@ -216,7 +216,7 @@ if N_e>0
         elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals and pi_e
             if isfield(options,'pi_e')
                 if size(options.e_grid,2)==1 % stacked-column grid
-                    e_gridvals=options.e_grid.*ones(1,1,N_j,'gpuArray');
+                    e_gridvals=CreateGridvals(n_e,gpuArray(options.e_grid),1);
                 else
                     e_gridvals=options.e_grid;
                 end
@@ -251,9 +251,9 @@ end
 
 
 %% Create ze_gridvals, which is used for AggVars. Will be z_gridvals or e_gridvals if only one of them is used
-% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilties, including pi_z_sparse
-% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
-% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties, including pi_z_sparse
+% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilities, including pi_z_sparse
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilities, including pi_z_sparse
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 if gridpiboth==3 || gridpiboth==2
     ze_gridvals=[];

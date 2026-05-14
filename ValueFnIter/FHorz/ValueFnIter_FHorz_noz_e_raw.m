@@ -43,7 +43,7 @@ else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
     EV=sum(EV.*pi_e_J(1,:,N_j),2);
     entireEV=repelem(EV,N_d,1);
@@ -51,27 +51,27 @@ else
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
         % (d,aprime,a,e)
-        
+
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*repmat(V_Jplus1,1,N_a,N_e);
-        
+
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,N_j)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
-        
+
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a)
-            
+
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a);
-            
+
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            
+
             V(:,e_c,N_j)=shiftdim(Vtemp,1);
             Policy(:,e_c,N_j)=shiftdim(maxindex,1);
         end
@@ -85,25 +85,25 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-            
+
     EV=sum(V(:,:,jj+1).*pi_e_J(1,:,jj),2);
     entireEV=repelem(EV,N_d,1);
-    
+
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,e)
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
-        
+
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
 
@@ -113,16 +113,16 @@ for reverse_j=1:N_j-1
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
-            
+
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
-            
+
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            
+
             V(:,e_c,jj)=shiftdim(Vtemp,1);
             Policy(:,e_c,jj)=shiftdim(maxindex,1);
         end
-     
+
     end
 
 end

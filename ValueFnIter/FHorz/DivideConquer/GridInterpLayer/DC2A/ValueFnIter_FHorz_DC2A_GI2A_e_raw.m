@@ -66,7 +66,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % First, we want a1prime conditional on (d,1,a2prime,a,z,e)
         [~,maxindex1]=max(ReturnMatrix_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,:,level1ii,:,:,:)=maxindex1;
 
         % Attempt for improved version
@@ -113,7 +113,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % First, we want a1prime conditional on (d,1,a2prime,a,z)
             [~,maxindex1]=max(ReturnMatrix_ii,[],2);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,:,level1ii,:,:)=maxindex1;
 
             % Attempt for improved version
@@ -163,7 +163,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % First, we want a1prime conditional on (d,1,a2prime,a)
                 [~,maxindex1]=max(ReturnMatrix_ii,[],2);
 
-                % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+                % Just keep the 'midpoint' version of maxindex1 [as GI]
                 midpoints_jj(:,1,:,level1ii,:)=maxindex1;
 
                 % Attempt for improved version
@@ -212,7 +212,7 @@ else
     EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]).*pi_e_J(1,1,:,N_j),3); % Using V_Jplus1
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_a1,N_a2,1,1,N_z]); % will autoexand d in 1st-dim
@@ -230,7 +230,7 @@ else
         % First, we want a1prime conditional on (d,1,a2prime,a,z,e)
         [~,maxindex1]=max(entireRHS_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,:,level1ii,:,:,:)=maxindex1;
 
         % Attempt for improved version
@@ -283,7 +283,7 @@ else
             % First, we want a1prime conditional on (d,1,a2prime,a,z)
             [~,maxindex1]=max(entireRHS_ii,[],2);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,:,level1ii,:,:)=maxindex1;
 
             % Attempt for improved version
@@ -341,7 +341,7 @@ else
                 % First, we want a1prime conditional on (d,1,a2prime,a)
                 [~,maxindex1]=max(entireRHS_ii,[],2);
 
-                % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+                % Just keep the 'midpoint' version of maxindex1 [as GI]
                 midpoints_jj(:,1,:,level1ii,:)=maxindex1;
 
                 % Attempt for improved version
@@ -404,7 +404,7 @@ for reverse_j=1:N_j-1
     EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_a1,N_a2,1,1,N_z]); % will autoexand d in 1st-dim
@@ -422,7 +422,7 @@ for reverse_j=1:N_j-1
         % First, we want a1prime conditional on (d,1,a2prime,a,z,e)
         [~,maxindex1]=max(entireRHS_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,:,level1ii,:,:,:)=maxindex1;
 
         % Attempt for improved version
@@ -475,7 +475,7 @@ for reverse_j=1:N_j-1
             % First, we want a1prime conditional on (d,1,a2prime,a,z)
             [~,maxindex1]=max(entireRHS_ii,[],2);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,:,level1ii,:,:)=maxindex1;
 
             % Attempt for improved version
@@ -533,7 +533,7 @@ for reverse_j=1:N_j-1
                 % First, we want a1prime conditional on (d,1,a2prime,a)
                 [~,maxindex1]=max(entireRHS_ii,[],2);
 
-                % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+                % Just keep the 'midpoint' version of maxindex1 [as GI]
                 midpoints_jj(:,1,:,level1ii,:)=maxindex1;
 
                 % Attempt for improved version

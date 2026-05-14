@@ -76,7 +76,7 @@ elseif l_z==4
     elseif l_d==4
         Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), ReturnFnParamsCell{:});
     end
-end    
+end
 
 if Level==1 % For level 1
     Fmatrix=reshape(Fmatrix,[N_d,N_aprime,N_a,N_z]);

@@ -63,7 +63,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EVpre=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % First, switch V_Jplus1 into Kron form
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -80,7 +80,7 @@ else
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
@@ -146,8 +146,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -167,7 +167,7 @@ for reverse_j=1:N_j-1
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2-a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,zprime)
@@ -197,7 +197,7 @@ for reverse_j=1:N_j-1
             DiscountedEV_z=DiscountFactorParamsVec*repelem(EV(:,:,z_c),N_d1,N_a1);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2, special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
-            
+
             entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
 
             %Calc the max and it's index

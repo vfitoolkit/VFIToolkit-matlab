@@ -166,7 +166,7 @@ else
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
@@ -174,7 +174,7 @@ else
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -218,7 +218,7 @@ else
             Policy3_ford3_jj(3,:,:,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
 
         end
-        
+
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
@@ -226,7 +226,7 @@ else
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -282,7 +282,7 @@ else
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -300,7 +300,7 @@ else
             DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_bothz]);
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
-            
+
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
                 DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);
@@ -341,7 +341,7 @@ else
     Policy4(1,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_bothz]);
     Policy4(3,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz]);
     Policy4(4,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz]);
-    
+
 end
 
 
@@ -352,8 +352,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -366,7 +366,7 @@ for reverse_j=1:N_j-1
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_bothz]
-    
+
     EVpre=V(:,:,jj+1);
 
 
@@ -377,7 +377,7 @@ for reverse_j=1:N_j-1
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -421,7 +421,7 @@ for reverse_j=1:N_j-1
             Policy3_ford3_jj(3,:,:,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
 
         end
-        
+
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
@@ -429,7 +429,7 @@ for reverse_j=1:N_j-1
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -485,7 +485,7 @@ for reverse_j=1:N_j-1
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -503,7 +503,7 @@ for reverse_j=1:N_j-1
             DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_bothz]);
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
-            
+
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
                 DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);
@@ -544,7 +544,7 @@ for reverse_j=1:N_j-1
     Policy4(1,:,:,jj)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_bothz]);
     Policy4(3,:,:,jj)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz]);
     Policy4(4,:,:,jj)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz]);
-    
+
 
 end
 

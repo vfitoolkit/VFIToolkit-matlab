@@ -37,7 +37,7 @@ for ii=1:N_i
         transpathoptions_temp.verbose=0;
         transpathoptions_temp.verboseparams=0;
     end
-    
+
     % First set up simoptions
     if exist('simoptions','var')
         simoptions_temp=PType_Options(simoptions,Names_i,ii);
@@ -54,12 +54,12 @@ for ii=1:N_i
         simoptions_temp.verbose=0;
         simoptions_temp.verboseparams=0;
         simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-    end 
-    
+    end
+
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-           
+
     PolicyPath_temp=PolicyPath.(Names_i{ii});
 
     % Go through everything which might be dependent on permanent type (PType)
@@ -93,7 +93,7 @@ for ii=1:N_i
     else
         pi_z_temp=pi_z;
     end
-    
+
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
     % these in term.
@@ -118,12 +118,12 @@ for ii=1:N_i
             end
         end
     end
-    
+
     if simoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
-    
+
     if isstruct(AgentDist_initial)
         AgentDist_initial_temp=AgentDist_initial.(Names_i{ii});
     else
@@ -139,7 +139,7 @@ for ii=1:N_i
     else
         jequalOneDist_temp=jequalOneDist;
     end
-    
+
 
     % PricePath can include parameters that differ by ptype
     PricePath_temp=PricePath;
@@ -174,8 +174,8 @@ for ii=1:N_i
             end
         end
     end
-    
-    
+
+
     % Compute the agent distribution path for permanent type ii
     AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp, jequalOneDist_temp, PricePath_temp, ParamPath_temp, PolicyPath_temp, AgeWeightsParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype

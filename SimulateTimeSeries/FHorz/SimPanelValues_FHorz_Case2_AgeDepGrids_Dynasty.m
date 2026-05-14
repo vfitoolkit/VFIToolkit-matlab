@@ -5,7 +5,7 @@ function SimPanelValues=SimPanelValues_FHorz_Case2_AgeDepGrids_Dynasty(InitialDi
 % number of 'variables' to be simulated, second dimension is FHorz, and
 % third dimension is the number-of-simulations
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 
@@ -28,7 +28,7 @@ for jj=1:N_j
 
     if simoptions.parallel==2
         PolicyIndexesKron.(jstr)=KronPolicyIndexes_Case2(Policy.(jstr), n_d_j', n_a_j', n_z_j');%,simoptions); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
-    else % Often Policy will be on gpu but want to iterate on StationaryDist using sparse matrices on cpu. Hence have taken this approach which allows 'Kron' to be done on gpu, where Policy is, and then moved to cpu. 
+    else % Often Policy will be on gpu but want to iterate on StationaryDist using sparse matrices on cpu. Hence have taken this approach which allows 'Kron' to be done on gpu, where Policy is, and then moved to cpu.
         PolicyIndexesKron.(jstr)=gather(KronPolicyIndexes_Case2(Policy.(jstr), n_d_j', n_a_j', n_z_j'));%,simoptions)); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
     end
 end
@@ -52,12 +52,12 @@ for jj=1:N_j
     n_a_j=daz_gridstructure.n_a.(jstr(:));
     n_z_j=daz_gridstructure.n_z.(jstr(:));
     d_grid_j=gather(daz_gridstructure.d_grid.(jstr(:)));
-    
+
 %     aprime_grid_j=gather(daz_gridstructure.aprime_grid.(jstr(:)));
 
     [dPolicy_gridvals_j, ~]=CreateGridvals_PolicyKron(PolicyIndexesKron.(jstr),n_d_j,[],n_a_j,n_z_j,d_grid_j,[],2,1);
     dPolicy_gridvals.(jstr(:))=dPolicy_gridvals_j;
-    
+
     daz_gridstructure.d_grid.(jstr(:))=gather(daz_gridstructure.d_grid.(jstr(:)));
 %     n_a_j=daz_gridstructure.n_a.(jstr(:));
 %     n_z_j=daz_gridstructure.n_z.(jstr(:));
@@ -92,21 +92,21 @@ parfor ii=1:simoptions.numbersims
             N_z_j=daz_gridstructure.N_z.(jstr(:));
             n_a_j=daz_gridstructure.n_a.(jstr(:));
             n_z_j=daz_gridstructure.n_z.(jstr(:));
-            
+
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a_j,a_sub);
             a_gridvals_j=daz_gridstructure.a_gridvals.(jstr(:)); %Old: daz_gridvals(j_ind).a_gridvals_j(a_ind,:);
             a_val=a_gridvals_j(a_ind,:);
-            
+
             z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
             z_ind=sub2ind_homemade(n_z_j,z_sub);
             z_gridvals_j=daz_gridstructure.z_gridvals.(jstr(:)); %Old: daz_gridvals(j_ind).z_gridvals_j(z_ind,:);
-            z_val=z_gridvals_j(z_ind,:);            
-            
+            z_val=z_gridvals_j(z_ind,:);
+
             az_ind=sub2ind_homemade([N_a_j,N_z_j],[a_ind,z_ind]);
             dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
             d_val=dPolicy_gridvals_j(az_ind,:);
-            
+
             for vv=1:length(FnsToEvaluate)
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
                     tempcell=num2cell([d_val,a_val,z_val]');

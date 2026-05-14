@@ -31,15 +31,15 @@ tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance && tempcounter<maxiter
     VKronold=Vunderbar;
-    
+
     for z_c=1:N_z
-        ReturnMatrix_z=ReturnMatrix(:,:,z_c);     
+        ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
-        
+
         entireEV_z=kron(EV_z,ones(N_d,1));
         entireRHS=ReturnMatrix_z+beta0beta*entireEV_z*ones(1,N_a,1); % Use beta0 to calculate Vhat
 
@@ -47,15 +47,15 @@ while currdist>Tolerance && tempcounter<maxiter
         [Vtemp,maxindex]=max(entireRHS,[],1);
         Vhat(:,z_c)=Vtemp;
         Policyhat(:,z_c)=maxindex;
-             
+
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
-        
+
         % Now for Vunderbar
         entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1); % Use beta to calculate Vunderbar
         Vunderbar(:,z_c)=entireRHS(tempmaxindex);
     end
-    
+
     % I assume that once Vunderbar converges so has Vhat?
     VKrondist=reshape(Vunderbar-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
@@ -68,7 +68,7 @@ while currdist>Tolerance && tempcounter<maxiter
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             Vhat=Ftemp+beta0beta*EVKrontemp;
-            
+
             % Iterate Vunderbar
             EVKrontemp=Vhat(ceil(Policyhat/N_d),:);
             EVKrontemp=EVKrontemp.*aaa;
@@ -77,19 +77,19 @@ while currdist>Tolerance && tempcounter<maxiter
             Vunderbar=Ftemp+beta*EVKrontemp;
         end
     end
-    
+
 %     if Verbose==1
 %         if rem(tempcounter,100)==0
 %             disp(tempcounter)
 %             disp(currdist)
 %             fprintf('times: %2.8f, %2.8f, %2.8f \n',time1,time2,time3)
 %         end
-%         
+%
 %         tempcounter=tempcounter+1;
 %     end
 
     tempcounter=tempcounter+1;
-    
+
 end
 
 Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form

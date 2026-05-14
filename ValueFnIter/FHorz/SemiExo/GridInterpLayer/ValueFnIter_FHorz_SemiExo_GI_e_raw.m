@@ -65,7 +65,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
 
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_bothz, n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
         % Treat standard problem as just being the first layer
         [~,maxindex]=max(ReturnMatrix,[],2);
@@ -113,7 +113,7 @@ else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z,N_e]);    % First, switch V_Jplus1 into Kron form
     EV=sum(EV.*pi_e_J(1,1,:,N_j),3);
 
@@ -124,7 +124,7 @@ else
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
@@ -168,7 +168,7 @@ else
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
@@ -221,13 +221,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,:,jj+1);
     EV=sum(EV.*pi_e_J(1,1,:,jj),3);
 
@@ -238,7 +238,7 @@ for reverse_j=1:N_j-1
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
@@ -260,7 +260,7 @@ for reverse_j=1:N_j-1
             aprimez=aprimeindexes+n2aprime*bothzBind;
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[N_d1*n2long,N_a,N_bothz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-            
+
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
 
@@ -284,7 +284,7 @@ for reverse_j=1:N_j-1
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid

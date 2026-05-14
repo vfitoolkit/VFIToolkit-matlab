@@ -64,7 +64,7 @@ else
             % (d,aprime,a,z)
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2; %repmat(EV,1,N_a,1);
@@ -81,7 +81,7 @@ else
         Policy(1,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         Policy(2,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
-        
+
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
             d2_val=d2_gridvals(d2_c,:);
@@ -93,7 +93,7 @@ else
 
                 % Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*pi_semiz(z_c,:);
-                EV_d2z(isnan(EV_d2z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_d2z(isnan(EV_d2z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                 EV_d2z=sum(EV_d2z,2);
 
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*EV_d2z; % EV_z*ones(1,N_a,1);
@@ -121,12 +121,12 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,jj+1);
 
     if vfoptions.lowmemory==0
@@ -138,7 +138,7 @@ for reverse_j=1:N_j-1
             % (d,aprime,a,z)
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2; %repmat(EV,1,N_a,1);
@@ -167,7 +167,7 @@ for reverse_j=1:N_j-1
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*pi_semiz(z_c,:);
-                EV_d2z(isnan(EV_d2z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_d2z(isnan(EV_d2z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                 EV_d2z=sum(EV_d2z,2);
 
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*EV_d2z; % EV_z*ones(1,N_a,1);
@@ -184,7 +184,7 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         Policy(2,:,:,jj)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
-        
+
     end
 end
 

@@ -46,7 +46,7 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 EV=Vnext.*shiftdim(pi_z',-1);
-EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 entireEV=repmat(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1,z]
 
@@ -63,7 +63,7 @@ if vfoptions.lowmemory==0
     % First, we want aprime conditional on (d,1,a,z)
     [~,maxindex1]=max(entireRHS_ii,[],2);
 
-    % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
     midpoints(:,1,level1ii,:)=maxindex1;
 
     % Attempt for improved version
@@ -116,7 +116,7 @@ elseif vfoptions.lowmemory==1
         % First, we want aprime conditional on (d,1,a,z)
         [~,maxindex1]=max(entireRHS_ii,[],2);
 
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints(:,1,level1ii)=maxindex1;
 
         % Attempt for improved version

@@ -1,19 +1,19 @@
 function [z_grid,pi_z] = discretizeAR1_TauchenHussey(mew,rho,sigma,znum,tauchenhusseyoptions)
-% Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation 
+% Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation
 %    of AR(1) process z'=mew+rho*z+e, e~N(0,sigma^2), by Tauchen-Hussey method
 %
-% Input:      
+% Input:
 %   N         scalar, number of nodes for Z
 %   mew       scalar, unconditional mean of process
 %   rho       scalar
 %   sigma     scalar, std. dev. of epsilons
 % Optional inputs (tauchenhusseyoptions)
-%   baseSigma scalar, std. dev. used to calculate Gaussian quadrature weights and nodes, 
+%   baseSigma scalar, std. dev. used to calculate Gaussian quadrature weights and nodes,
 %                 i.e. to build the grid. I recommend that you use baseSigma = w*sigma +
-%                 (1-w)*sigmaZ where sigmaZ = sigma/sqrt(1-rho^2), and w = 0.5 + rho/4. 
+%                 (1-w)*sigmaZ where sigmaZ = sigma/sqrt(1-rho^2), and w = 0.5 + rho/4.
 %                 Tauchen & Hussey recommend baseSigma = sigma, and also mention baseSigma = sigmaZ.
 %
-% Output:     
+% Output:
 %   z_grid    N*1 vector, nodes for Z
 %   pi_z      N*N matrix, transition probabilities
 %
@@ -25,7 +25,7 @@ function [z_grid,pi_z] = discretizeAR1_TauchenHussey(mew,rho,sigma,znum,tauchenh
 % Tauchen and Hussey (1991) - Quadrature-Based Methods for Obtaining Approximate Solutions to Nonlinear Asset Pricing Models
 
 %%
-fprintf('COMMENT: The Tauchen-Hussey method is inferior to the Farmer-Toda method for discretizing AR(1) processes. \n') 
+fprintf('COMMENT: The Tauchen-Hussey method is inferior to the Farmer-Toda method for discretizing AR(1) processes. \n')
 fprintf('         It is strongly recommended you use Farmer-Toda instead. \n')
 
 %% Set default for baseSigma following Floden's suggestion (see above)
@@ -98,7 +98,7 @@ for i=1:m
     else
         z = 2*z - x(i-2);
     end
-    
+
     for iter = 1:MAXIT
         p1 = PIM4;
         p2 = 0;

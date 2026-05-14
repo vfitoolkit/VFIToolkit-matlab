@@ -17,7 +17,7 @@ l_d=length(n_d);
 if N_d==0
     l_d=0;
 end
-l_a=length(n_a); 
+l_a=length(n_a);
 l_z=length(n_z);
 l_e=length(n_e);
 if l_d>4

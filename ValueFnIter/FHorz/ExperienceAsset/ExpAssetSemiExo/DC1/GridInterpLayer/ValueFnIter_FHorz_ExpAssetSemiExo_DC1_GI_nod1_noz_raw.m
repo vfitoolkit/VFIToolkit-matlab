@@ -180,13 +180,13 @@ else
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_semiz);  % [N_d2*N_a1,N_a2,N_semiz]
-    
+
     % Using V_Jplus1
     EVpre=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
@@ -194,7 +194,7 @@ else
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
             EV=EVpre.*shiftdim(pi_semiz_d3',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -261,7 +261,7 @@ else
             Policy3_ford3_jj(2,:,:,d3_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
             Policy3_ford3_jj(3,:,:,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
         end
-        
+
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
@@ -269,7 +269,7 @@ else
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
             EV=EVpre.*shiftdim(pi_semiz_d3',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -354,7 +354,7 @@ else
     Policy4(1,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz]);
     Policy4(3,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz]);
     Policy4(4,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz]);
-    
+
 end
 
 
@@ -365,8 +365,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -390,7 +390,7 @@ for reverse_j=1:N_j-1
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
             EV=EVpre.*shiftdim(pi_semiz_d3',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -466,7 +466,7 @@ for reverse_j=1:N_j-1
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
             EV=EVpre.*shiftdim(pi_semiz_d3',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -541,7 +541,7 @@ for reverse_j=1:N_j-1
             end
         end
     end
-    
+
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
     [V_jj,maxindex]=max(V_ford3_jj,[],3); % max over d3
     V(:,:,jj)=V_jj;

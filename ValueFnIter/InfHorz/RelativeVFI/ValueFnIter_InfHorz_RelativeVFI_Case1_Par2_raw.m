@@ -23,15 +23,15 @@ currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
     PolicyIndexesold=PolicyIndexes;
-    
+
     for z_c=1:N_z
-        ReturnMatrix_z=ReturnMatrix(:,:,z_c);     
+        ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
-        
+
         entireEV_z=kron(EV_z,ones(N_d,1));
         entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1);
 
@@ -39,16 +39,16 @@ while currdist>Tolerance
         [Vtemp,maxindex]=max(entireRHS,[],1);
         VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
-             
+
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
-        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
+        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
     end
-    
+
     VKronend=VKron(end);
-    
+
     % Switch these into relative value function
     VKron=VKron-VKron(end);
-    
+
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     [currdist,extra]=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
 
@@ -56,7 +56,7 @@ while currdist>Tolerance
         aprimeindexes=ceil(PolicyIndexes/N_d);
         for Howards_counter=1:Howards
             EVKrontemp=VKron(aprimeindexes,:);
-            
+
             EVKrontemp=EVKrontemp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
@@ -65,7 +65,7 @@ while currdist>Tolerance
         % Switch these into relative value function
         VKron=VKron-VKron(end);
     end
-    
+
 %     if Verbose==1
 %         if rem(tempcounter,100)==0
             disp(tempcounter)
@@ -76,7 +76,7 @@ while currdist>Tolerance
             fprintf('The VKron(end) value is %8.4f \n',VKronend)
 %             fprintf('times: %2.8f, %2.8f, %2.8f \n',time1,time2,time3)
 %         end
-%         
+%
 %         tempcounter=tempcounter+1;
 %     end
 
@@ -85,7 +85,7 @@ while currdist>Tolerance
     fprintf('currPolicyDist is %i \n',currPolicyDist)
 
     tempcounter=tempcounter+1;
-    
+
 end
 
 Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
@@ -100,17 +100,17 @@ for z_c=1:N_z
     %Calc the condl expectation term (except beta), which depends on z but
     %not on control variables
     EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-    EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV_z=sum(EV_z,2);
-    
+
     entireEV_z=kron(EV_z,ones(N_d,1));
     entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1);
-    
+
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     VKron(:,z_c)=Vtemp;
     PolicyIndexes(:,z_c)=maxindex;
-    
+
     tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
     Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
 end

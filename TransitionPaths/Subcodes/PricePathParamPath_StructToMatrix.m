@@ -5,10 +5,10 @@ function varargout=PricePathParamPath_StructToMatrix(PricePathStruct,ParamPathSt
 %
 % N_i is an optional input, only used for models with permanent type
 % PricePathSizeVec_ii,ParamPathSizeVec_ii are only output for models with permanent type
-% 
+%
 % N_i is an optional input, only used for models with permanent types
 % Note: Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 
 if ~exist('N_i','var')
     PricePathNames=fieldnames(PricePathStruct);
@@ -32,7 +32,7 @@ if ~exist('N_i','var')
             PricePath(:,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=PricePathStruct.(PricePathNames{pp})';
         end
     end
-    
+
     ParamPathNames=fieldnames(ParamPathStruct);
     if ~isempty(ParamPathNames)
         ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
@@ -60,7 +60,7 @@ if ~exist('N_i','var')
         ParamPath=[];
     end
 
-    varargout={PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec}; 
+    varargout={PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec};
 else
     %% With permanent types (need to allow for parameters to depend on permanent type)
     % Note: Internally PricePathOld is matrix of size T-by-'number of prices'.
@@ -96,7 +96,7 @@ else
     else
         PricePathSizeVec_ii=[1;PricePathSizeVec_ii];
     end
-    
+
     PricePathSizeVec=cumsum(PricePathSizeVec);
     if length(PricePathNames)>1
         PricePathSizeVec=[[1,PricePathSizeVec(1:end-1)+1];PricePathSizeVec];
@@ -122,7 +122,7 @@ else
             end
         end
     end
-    
+
     ParamPathNames=fieldnames(ParamPathStruct);
     ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
     for pp=1:length(ParamPathNames)
@@ -144,7 +144,7 @@ else
             end
         end
     end
-    
+
     % Also need what size these are conditional on ptype (as some of PricePath/ParamPath may differ by ptype)
     ParamPathSizeVec_ii=ParamPathSizeVec;
     ParamPathSizeVec_ii(ParamPathSizeVec_ii==N_i)=1; % Just use one of a price that depends on ptype

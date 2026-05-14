@@ -40,8 +40,8 @@ if useptype==0
     % Get all of the moments out of TargetMoments and make them into a vector
     % Also, store all the names
     targetmomentvec=[]; % Can't preallocate as have no idea how big this will be
-    % Ends up a colmumn vector
-    
+    % Ends up a column vector
+
     % First, do those in AllStats
     if usingallstats==1
         allstatmomentnames=cell(1,3);
@@ -278,7 +278,7 @@ if useptype==0
         if any(strcmp(a1vec,{'CorrelationMatrix'}))
             error('TargetMoments.CrossSectionCovarCorr is not allowed to contain CorrelationMatrix as a target (you can target the individual correlations)')
         end
-        
+
     else
         % Placeholders
         crosssecmomentnames=cell(1,4);
@@ -296,7 +296,7 @@ elseif useptype==1
     % Get all of the moments out of TargetMoments and make them into a vector
     % Also, store all the names
     targetmomentvec=[]; % Can't preallocate as have no idea how big this will be
-    % Ends up a colmumn vector (create row vector, then transpose)
+    % Ends up a column vector (create row vector, then transpose)
 
     % First, do those in AllStats
     if usingallstats==1
@@ -577,7 +577,7 @@ elseif useptype==1
         if any(strcmp(a1vec,{'CorrelationMatrix'}))
             error('TargetMoments.CrossSectionCovarCorr is not allowed to contain CorrelationMatrix as a target (you can target the individual correlations)')
         end
-        
+
     else
         % Placeholders
         crosssecmomentnames=cell(1,5);

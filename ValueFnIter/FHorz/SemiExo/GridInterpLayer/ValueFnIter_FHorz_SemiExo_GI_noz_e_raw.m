@@ -116,7 +116,7 @@ else
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
@@ -160,7 +160,7 @@ else
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
@@ -213,12 +213,12 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
 
     if vfoptions.lowmemory==0
@@ -227,7 +227,7 @@ for reverse_j=1:N_j-1
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
@@ -273,7 +273,7 @@ for reverse_j=1:N_j-1
 
             % Calc the condl expectation term (except beta), which depends on z but not on control variables
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2);
 
             % Interpolate EV over aprime_grid

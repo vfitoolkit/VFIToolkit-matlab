@@ -1,4 +1,4 @@
-function varargout=TransitionPath_InfHorz_PType(PricePath0, ParamPath, T, V_final, AgentDist_initial, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, PTypeDistParamNames, transpathoptions, vfoptions, simoptions)
+function varargout=TransitionPath_InfHorz_PType(PricePath0, ParamPath, T, V_final, AgentDist_initial, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions)
 % PricePathOld is a structure with fields names being the Prices and each field containing a T-by-1 path.
 % ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
 
@@ -13,13 +13,13 @@ else
     N_i=Names_i;
 end
 
-%% Check which transpathoptions have been used, set all others to defaults 
+%% Check which transpathoptions have been used, set all others to defaults
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     %If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-4);
     transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 
+    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
                                    % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
     transpathoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
     transpathoptions.oldpathweight=0.9; % default =0.9
@@ -31,7 +31,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     transpathoptions.historyofpricepath=0;
-    transpathoptions.stockvars=0;
+    transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(transpathoptions,'tolerance')
@@ -42,9 +42,9 @@ else
     end
     if ~isfield(transpathoptions,'GEnewprice')
         transpathoptions.GEnewprice=1; % 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
-                                       % 1 is shooting algorithm, 
+                                       % 1 is shooting algorithm,
                                        % 2 is to do optimization routine with 'distance between old and new path'
-                                       % 3 is just same as 0, but easier to set 
+                                       % 3 is just same as 0, but easier to set
     end
     if ~isfield(transpathoptions,'GEptype')
         transpathoptions.GEptype={}; %zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
@@ -82,21 +82,8 @@ else
     if ~isfield(transpathoptions,'historyofpricepath')
         transpathoptions.historyofpricepath=0;
     end
-    if ~isfield(transpathoptions,'stockvars') % stockvars is solely for internal use, the user does not need to set it
-        if ~isfield(transpathoptions,'stockvarinit') && ~isfield(transpathoptions,'stockvars') && ~isfield(transpathoptions,'stockvars')
-            transpathoptions.stockvars=0;
-        else
-            transpathoptions.stockvars=1; % If stockvars has not itself been declared, but at least one of the stock variable options has then set stockvars to 1.
-        end
-    end
-    if transpathoptions.stockvars==1 % Note: If this is not inputted then it is created by the above lines.
-        if ~isfield(transpathoptions,'stockvarinit')
-            error('transpathoptions includes some Stock Variable options but is missing stockvarinit \n')
-        elseif ~isfield(transpathoptions,'stockvarpath0')
-            error('transpathoptions includes some Stock Variable options but is missing stockvarpath0 \n')
-        elseif ~isfield(transpathoptions,'stockvareqns')
-            error('transpathoptions includes some Stock Variable options but is missing stockvareqns \n')
-        end
+    if ~isfield(transpathoptions,'stockvars')
+        transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
     end
 end
 
@@ -141,7 +128,7 @@ end
 
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath0,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec,PricePathSizeVec_ii,ParamPathSizeVec_ii]=PricePathParamPath_StructToMatrix(PricePath0,ParamPath,T,N_i);
 
 
@@ -192,7 +179,7 @@ for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.Names_i{ii};
     PTypeStructure.iistr{ii}=iistr;
-    
+
     %% Sort out vfoptions and simoptions
     PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
     PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
@@ -236,7 +223,7 @@ for ii=1:PTypeStructure.N_i
     % type), or they could be a structure. Only in the case where they are
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
-    
+
     if isa(n_d,'struct')
         PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
     else
@@ -324,17 +311,17 @@ for ii=1:PTypeStructure.N_i
 
 
     if isa(pi_z,'struct')
-        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
+        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occur with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
     else
         PTypeStructure.(iistr).pi_z=pi_z;
     end
-    
+
     PTypeStructure.(iistr).ReturnFn=ReturnFn;
     if isa(ReturnFn,'struct')
         PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
     end
-    
-    % Parameters are allowed to be given as structure, or as vector/matrix (in terms of their dependence on permanent type). 
+
+    % Parameters are allowed to be given as structure, or as vector/matrix (in terms of their dependence on permanent type).
     % So go through each of these in term.
     % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
     PTypeStructure.(iistr).Parameters=Parameters;
@@ -358,7 +345,7 @@ for ii=1:PTypeStructure.N_i
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     PTypeStructure.ParametersRaw=Parameters; % For use in General eqm conditions (as we might want them across ptypes for some purposes)
-    
+
     % The parameter names can be made to depend on the permanent-type
     PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')
@@ -393,9 +380,9 @@ for ii=1:PTypeStructure.N_i
         ReturnFnParamNames={};
     end
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames;
-    
 
-    %% Figure out which functions are actually relevant to the present PType. And then change to FnsToEvaluate as cell so that it is not being recomputed all the time 
+
+    %% Figure out which functions are actually relevant to the present PType. And then change to FnsToEvaluate as cell so that it is not being recomputed all the time
     % Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
 
@@ -519,7 +506,7 @@ end
 
 
 %%
-if transpathoptions.parallel==2 
+if transpathoptions.parallel==2
    PricePath0=gpuArray(PricePath0);
 end
 
@@ -543,7 +530,7 @@ if isfield(transpathoptions,'intermediateEqns')
     for gg=1:nIntEqns
         temp=getAnonymousFnInputNames(transpathoptions.intermediateEqns.(intEqnNames{gg}));
         transpathoptions.intermediateEqnParamNames(gg).Names=temp;
-        transpathoptions.intermediateEqnsCell{gg}=transpathoptions.intermediateEqns.(intEqnNames{gg});        
+        transpathoptions.intermediateEqnsCell{gg}=transpathoptions.intermediateEqns.(intEqnNames{gg});
     end
     % Now:
     %  transpathoptions.intermediateEqns is still the structure
@@ -562,7 +549,7 @@ for gg=1:nGeneralEqmEqns
     GeneralEqmEqnParamNames(gg).Names=temp;
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
 end
-% Now: 
+% Now:
 %  GeneralEqmEqns is still the structure
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(ff).Names contains the names
@@ -572,66 +559,57 @@ end
 transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames,N_i,PricePathSizeVec);
 
 
-%%
-if transpathoptions.stockvars==1 
-    error('transpathoptions.stockvars=1 not yet implemented with PType \n')
-end
-
 if transpathoptions.verbose==1
-    fprintf('Completed setup, beginning transition computination \n')
+    fprintf('Completed setup, beginning transition computation \n')
 end
 
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,PTypeStructure.Names_i,transpathoptions);
+
+% Following lines remove transpathoptions.stockvars from tminus1priceNames, and update use_tminus1price if necessary
+if ~isempty(transpathoptions.stockvars)
+    use_stockvars=1;
+    stockvarsNames=transpathoptions.stockvars;
+    transpathoptions=rmfield(transpathoptions,'stockvars');
+
+
+    % how to find stockvars in PricePathNames
+    stockvarsInPricePathNames=zeros(length(stockvarsNames),1); %% the pp index in PricePathNames that corresponds to each stockvar
+    for kk=1:length(stockvarsNames)
+        % throw error if the stockvar is not in PriceParamNames
+        if ~any(strcmp(stockvarsNames{kk},PricePathNames))
+            fprintf('Following error relates to stockvar: %s \n', stockvarsNames{kk})
+            error('Cannot use a transpathoptions.stockvar which is not in PricePath')
+        end
+        % otherwise, find the matching index
+        for pp=1:length(PricePathNames)
+            if strcmp(stockvarsNames{kk},PricePathNames{pp})
+                stockvarsInPricePathNames(kk)=pp;
+            end
+        end
+    end
+
+    % remove from stockvars from tminus1priceNames [stockvars have _tminus1 in name, but they 'cumulate' so have to be treated separately]
+    for pp=1:length(stockvarsNames)
+        if ~any(strcmp(stockvarsNames{pp},tminus1priceNames))
+            error('transpathoptions.stockvars must appear as prices that are used with _tminus1')
+        else
+            tminus1priceNames(strcmp(tminus1priceNames, stockvarsNames{pp})) = [];
+        end
+    end
+    if isempty(tminus1priceNames)
+        use_tminus1params=0;
+    end
 else
-    tplus1priceNames=[];
-    tminus1priceNames=[];
-    tminus1paramNames=[];
-    tminus1AggVarsNames=[];
-    tplus1pricePathkk=[];  % I cannot remember what this was even for (how is it different rom tplus1priceNames??)
+    use_stockvars=0;
+    stockvarsNames=[];
+    stockvarsInPricePathNames=[];
 end
 
-use_tplus1price=0;
-if ~isempty(tplus1priceNames)
-    use_tplus1price=1;
-end
-use_tminus1price=0;
-if ~isempty(tminus1priceNames)
-    use_tminus1price=1;
-    for ii=1:length(tminus1priceNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
-        end
-    end
-end
-use_tminus1params=0;
-if ~isempty(tminus1paramNames)
-    use_tminus1params=1;
-    for ii=1:length(tminus1paramNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1paramNames{ii})
-        end
-    end
-end
-use_tminus1AggVars=0;
-if ~isempty(tminus1AggVarsNames)
-    use_tminus1AggVars=1;
-    for ii=1:length(tminus1AggVarsNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
-        end
-    end
-end
-% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
-
-if transpathoptions.verbose>1
-    use_tplus1price
-    use_tminus1price
-    use_tminus1params
-    use_tminus1AggVars
-    % tplus1pricePathkk
+if use_stockvars==1
+    error('Cannot yet use ptype for stockvars')
+    % stockvars does not yet work with ptype because in the _shooting command the tt loop over V, Dist, AggVars is done separately from the tt loop over GE condns. Need to rework so that they are all in one tt loop.
 end
 
 
@@ -645,7 +623,7 @@ end
 if transpathoptions.GEnewprice~=2
     % For permanent type, there is just one shooting command,
     % because things like z,e, and fastOLG are handled on a per-PType basis (to permit that they differ across ptype)
-    [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, PTypeDistParamNames, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEeqnNames, nGeneralEqmEqns, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+    [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, PTypeDistParamNames, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEeqnNames, nGeneralEqmEqns, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, transpathoptions, PTypeStructure);
 
     % Switch the solution into structure for output.
     pp_indexinpricepath=zeros(1,length(PricePathNames));

@@ -47,7 +47,7 @@ if N_e==0
             [VKron, PolicyKron]=ValueFnIter_FHorz_ResidAsset_nod_raw(n_a1,n_r,n_z, N_j, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
         else
             [VKron, PolicyKron]=ValueFnIter_FHorz_ResidAsset_raw(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
-        end        
+        end
     end
 else
     if N_z==0

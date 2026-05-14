@@ -64,7 +64,7 @@ else
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     EV=reshape(EV,[N_a1,N_a2,1,1,N_z]);
@@ -105,8 +105,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -115,16 +115,16 @@ for reverse_j=1:N_j-1
     EV=V(:,:,jj+1);
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
-    
+
     EV=reshape(EV,[N_a1,N_a2,1,1,N_z]);
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a1_grid,EV,a1prime_grid);
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn,n_d,n_z,d_gridvals, a1_grid, a2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
-    
+
     % Calc the max and it's index: a1prime(d,1,a2prime,a1,a2,z)
     [~,maxindex]=max(entireRHS,[],2);
 

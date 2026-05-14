@@ -60,7 +60,7 @@ currdist=Inf;
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     %% Given VKronold, obtain VKron
-    
+
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV = VKronold*pi_z_transpose; % (a',z)
 
@@ -89,7 +89,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         EV_z_interp = interp1(a_grid,EV_z,aprime_ii,'linear');
         % entireRHS_ii_z is (N_d,n2long,n_a)
         entireRHS_ii_z = ReturnMatrix_ii_z + DiscountFactorParamsVec*reshape(EV_z_interp,[1,n2long,n_a]); % autofill d into first dimension of EV_z_interp
-        
+
         [Vtempii,maxindex]=max(reshape(entireRHS_ii_z,[N_d*n2long,n_a]),[],1);
         VKron(:,z_c) = Vtempii;
         maxindex_d=rem(maxindex-1,N_d)+1;

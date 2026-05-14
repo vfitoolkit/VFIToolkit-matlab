@@ -44,7 +44,7 @@ Vupper=reshape(Vnext(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
 skipinterp=(Vlower==Vupper);
 aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-% Switch EV from being in terps of a2prime to being in terms of d2 and a2
+% Switch EV from being in terms of a2prime to being in terms of d2 and a2
 EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,zprime)
 % Already applied the probabilities from interpolating onto grid
 
@@ -72,7 +72,7 @@ elseif vfoptions.lowmemory==1
         z_val=z_gridvals(z_c,:);
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*shiftdim(pi_z(z_c,:)',-2);
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,3);
 
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);

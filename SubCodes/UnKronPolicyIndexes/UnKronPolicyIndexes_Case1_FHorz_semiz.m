@@ -61,7 +61,7 @@ else % N_d1>0
         end
         Policy(l_d1,:,:,:,:)=ceil(PolicyKron(1,:,:,:,:)/prod(n_d1(1:l_d1-1)));
     end
-    
+
     Policy(l_d1+1,:,:,:,:)=rem(PolicyKron(2,:,:,:,:)-1,n_d2(1))+1;
     if l_d2>1
         if l_d2>2

@@ -78,7 +78,7 @@ elseif vfoptions.lowmemory==1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
     pi_e_J=shiftdim(pi_e_J,-1); % Move to second dimension (normally -2, but no z so -1)
-    
+
     if ~isfield(vfoptions,'V_Jplus1')
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);

@@ -117,12 +117,12 @@ else
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
             EVinterp=interp1(a_grid,EV_d2,aprime_grid);
-            
+
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
             % Treat standard problem as just being the first layer
@@ -137,7 +137,7 @@ else
             aprimez=aprimeindexes+n2aprime*bothzBind;
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[N_d1*n2long,N_a,N_bothz]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-            
+
             V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
 
@@ -155,7 +155,7 @@ else
         Policy(1,:,:,N_j)=shiftdim(rem(d1aprimeL2_ind-1,N_d1)+1,-1); % d1
         Policy(4,:,:,N_j)=shiftdim(ceil(d1aprimeL2_ind/N_d1),-1); % aprimeL2ind
         Policy(3,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]); % midpoint
-        
+
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
@@ -167,7 +167,7 @@ else
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*shiftdim(pi_bothz(z_c,:)',-1);
-                EV_d2z(isnan(EV_d2z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_d2z(isnan(EV_d2z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                 EV_d2z=sum(EV_d2z,2);
 
                 % Interpolate EV over aprime_grid
@@ -204,7 +204,7 @@ else
         Policy(1,:,:,N_j)=shiftdim(rem(d1aprimeL2_ind-1,N_d1)+1,-1); % d1
         Policy(4,:,:,N_j)=shiftdim(ceil(d1aprimeL2_ind/N_d1),-1); % aprimeL2ind
         Policy(3,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]); % midpoint
-        
+
     end
 end
 
@@ -215,8 +215,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -230,7 +230,7 @@ for reverse_j=1:N_j-1
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
@@ -268,7 +268,7 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=shiftdim(rem(d1aprimeL2_ind-1,N_d1)+1,-1); % d1
         Policy(4,:,:,jj)=shiftdim(ceil(d1aprimeL2_ind/N_d1),-1); % aprimeL2ind
         Policy(3,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]); % midpoint
-        
+
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
@@ -280,7 +280,7 @@ for reverse_j=1:N_j-1
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*shiftdim(pi_bothz(z_c,:)',-1);
-                EV_d2z(isnan(EV_d2z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_d2z(isnan(EV_d2z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                 EV_d2z=sum(EV_d2z,2);
 
                 % Interpolate EV over aprime_grid
@@ -317,7 +317,7 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=shiftdim(rem(d1aprimeL2_ind-1,N_d1)+1,-1); % d1
         Policy(4,:,:,jj)=shiftdim(ceil(d1aprimeL2_ind/N_d1),-1); % aprimeL2ind
         Policy(3,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]); % midpoint
-        
+
     end
 end
 

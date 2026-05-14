@@ -39,7 +39,7 @@ if N_d==0
     for t=1:simperiods
         SimTimeSeriesKron(1,t)=currstate(1); %a_c
         SimTimeSeriesKron(2,t)=currstate(2); %z_c
-        
+
         currstate(1)=PolicyIndexesKron(currstate(1),currstate(2));
         [~,currstate(2)]=max(cumsum_pi_z_semiendog(currstate(2),:,currstate(1))>rand(1,1));
     end
@@ -54,7 +54,7 @@ else
     for t=1:simperiods
         SimTimeSeriesKron(1,t)=currstate(1); %a_c
         SimTimeSeriesKron(2,t)=currstate(2); %z_c
-        
+
         currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2));
         [~,currstate(2)]=max(cumsum_pi_z_semiendog(currstate(2),:,currstate(1))>rand(1,1));
     end

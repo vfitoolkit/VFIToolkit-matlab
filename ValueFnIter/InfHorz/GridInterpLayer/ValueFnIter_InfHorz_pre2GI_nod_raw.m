@@ -24,10 +24,10 @@ tempcounter=1;
 currdist=Inf;
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
-    
+
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=VKronold.*pi_z_alt;
-    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
@@ -39,12 +39,12 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     [VKron,Policy]=max(entireRHS,[],1);
     VKron=shiftdim(VKron,1); % a by z
 
-    VKrondist=VKron(:)-VKronold(:); 
+    VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    
+
     % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
-    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards 
+    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
         tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
         Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
         Policy=Policy(:); % a by z (this shape is just convenient for Howards)

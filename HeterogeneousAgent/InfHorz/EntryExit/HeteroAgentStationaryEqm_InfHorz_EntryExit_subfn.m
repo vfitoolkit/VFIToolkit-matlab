@@ -83,8 +83,8 @@ else % Old version of GeneralEqmEqns as cell
 end
 
 
-    
-    
+
+
 for ii=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{ii})=GEprices(ii);
 end
@@ -134,26 +134,26 @@ StationaryDist=StationaryDist_InfHorz(Policy,n_d,n_a,n_z,pi_z, simoptions,Parame
 
 %% Step 4.1: Evaluate the AggVars.
 if ~isempty(fieldnames(FnsToEvaluate)) % Note that the entry/exit aggregates are treated seperately, so it is possible for this to be empty
-    
+
     if simoptions.endogenousexit==2
         AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, EntryExitParamNames, PolicyWhenExiting);
     else
         AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, EntryExitParamNames);
     end
-    
+
     % Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
-    AggVarNames=fieldnames(FnsToEvaluate); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a stuct
+    AggVarNames=fieldnames(FnsToEvaluate); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a struct
     for aa=1:length(AggVarNames)
         Parameters.(AggVarNames{aa})=AggVars(aa);
     end
-    
+
 else
     AggVars=struct();
     AggVarNames={};
 end
 
 
-%% Step 4.2: Evaluate the general equilibrium condititions.
+%% Step 4.2: Evaluate the general equilibrium conditions.
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 if standardgeneqmcondnsused==1
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
@@ -233,10 +233,10 @@ end
 
 %%
 
-if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
+if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price
     GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
-elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));                                                                                                         
+elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market
+    GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));
 end
 
 GeneralEqmConditions=gather(GeneralEqmConditions);

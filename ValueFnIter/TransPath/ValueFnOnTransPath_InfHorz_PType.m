@@ -32,14 +32,14 @@ for ii=1:N_i
     if ~isfield(vfoptions_temp,'ptypestorecpu')
         vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end
-    
+
     if vfoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-           
+
     V_final_temp=V_final.(Names_i{ii});
     Policy_final_temp=Policy_final.(Names_i{ii});
-    
+
 
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
@@ -121,7 +121,7 @@ for ii=1:N_i
             end
         end
     end
-        
+
     % ParamPath can include parameters that differ by ptype
     ParamPath_temp=ParamPath;
     ParamPathNames=fieldnames(ParamPath);
@@ -141,7 +141,7 @@ for ii=1:N_i
         VPath.(Names_i{ii})=VPath_ii;
         PolicyPath.(Names_i{ii})=PolicyPath_ii;
     end
-        
+
     clear VPath_ii PolicyPath_ii
 
 end

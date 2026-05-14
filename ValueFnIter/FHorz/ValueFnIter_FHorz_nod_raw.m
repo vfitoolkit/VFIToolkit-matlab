@@ -42,7 +42,7 @@ else
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % Using V_Jplus1
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     if vfoptions.lowmemory==0
@@ -83,21 +83,21 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,jj+1);
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
         % (aprime,a,z)
 
@@ -108,16 +108,16 @@ for reverse_j=1:N_j-1
 
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
-        
+
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             EV_z=EV(:,:,z_c);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, ReturnFnParamsVec,0);
-            
+
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z;
-            
+
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;

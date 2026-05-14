@@ -43,23 +43,23 @@ ReturnToExitFnParamsVec=CreateVectorFromParams(Parameters, ReturnToExitFnParamNa
 
 %%
 if vfoptions.lowmemory==0
-    
+
     %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
     % Since the return function is independent of time creating it once and
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
-    
+
     if vfoptions.parallel==2
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
         ReturnToExitMatrix=CreateReturnToExitFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_a, n_z, a_grid, z_gridvals, ReturnToExitFnParamsVec);
     else % CPU
         ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnToExitFnMatrix_Case1_Disc(vfoptions.ReturnToExitFn, n_a, n_z, a_grid, z_gridvals, ReturnToExitFnParamsVec);        
+        ReturnToExitMatrix=CreateReturnToExitFnMatrix_Case1_Disc(vfoptions.ReturnToExitFn, n_a, n_z, a_grid, z_gridvals, ReturnToExitFnParamsVec);
     end
-        
+
     %%
     V0Kron=reshape(V0,[N_a,N_z]);
-        
+
     if n_d(1)==0
         if isfield(vfoptions,'SemiEndogShock')
             pi_z_semiendog=vfoptions.SemiEndogShock;
@@ -91,8 +91,8 @@ if vfoptions.lowmemory==0
             [VKron, Policy,ExitPolicy]=ValueFnIter_InfHorz_EndogExit_Par2_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.keeppolicyonexit);
         end
     end
-    
-elseif vfoptions.lowmemory==1    
+
+elseif vfoptions.lowmemory==1
     error('endogenousexit does allow for vfoptions.lowmemory=1 \n');
 end
 

@@ -58,8 +58,8 @@ if ~isfield(vfoptions,'V_Jplus1')
         % Store
         V(level1ii,:,:,N_j)=shiftdim(Vtempii,1);
         Policy(level1ii,:,:,N_j)=shiftdim(maxindex2,1); % d,aprime
-        
-        % Second level based on montonicity
+
+        % Second level based on monotonicity
         maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
             curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -103,7 +103,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             V(level1ii,:,e_c,N_j)=shiftdim(Vtempii,1);
             Policy(level1ii,:,e_c,N_j)=shiftdim(maxindex2,1); % d,aprime
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -139,7 +139,7 @@ else
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
 
     if vfoptions.lowmemory==0
@@ -147,17 +147,17 @@ else
         % pi_bothz=repmat(pi_semiz_J_permute(:,:,:,N_j),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,N_j),1,N_semiz,N_semiz);
         % % pi_bothz=pi_bothz_J(:,:,:,N_j);
         % % (d2,zprime,z)
-        % 
+        %
         % ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_bothz, n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % % (d & aprime,a,z,e)
-        % 
+        %
         % EV=replem(V_Jplus1,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         % EV=sum(EV,2); % sum over z', leaving a singular second dimension
-        % 
+        %
         % entireEV=repelem(EV,N_d1,1,1);
         % entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
-        % 
+        %
         % % Calc the max and it's index
         % [Vtemp,maxindex]=max(entireRHS,[],1);
         % V(:,:,:,N_j)=Vtemp;
@@ -167,20 +167,20 @@ else
 
         % pi_bothz=repmat(pi_semiz_J_permute(:,:,:,N_j),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,N_j),1,N_semiz,N_semiz);
         % % (d2,zprime,z)
-        % 
+        %
         % EV=replem(V_Jplus1,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         % EV=sum(EV,2); % sum over z', leaving a singular second dimension
-        % 
+        %
         % entireEV=repelem(EV,N_d1,1,1);
-        % 
+        %
         % for e_c=1:N_e
         %     e_val=e_gridvals_J(e_c,:,N_j);
         %     ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_bothz, special_n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
         %     % (d & aprime,a,z)
-        % 
+        %
         %     entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
-        % 
+        %
         %     % Calc the max and it's index
         %     [Vtemp,maxindex]=max(entireRHS_e,[],1);
         %     V(:,:,e_c,N_j)=Vtemp;
@@ -196,15 +196,15 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,:,jj+1);
-        
+
     EV=sum(EV.*pi_e_J(1,1,:,jj),3);
     % (aprime,zprime)
 
@@ -213,7 +213,7 @@ for reverse_j=1:N_j-1
         pi_bothz=repmat(pi_semiz_J_permute(:,:,:,jj),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,jj),1,N_semiz,N_semiz);
 
         EV=repelem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(reshape(EV,[N_d2,N_a,1,N_bothz]),N_d1,1,1); % (d,aprime,1,bothz) [1 is for 'a', to be filled in later]
@@ -233,7 +233,7 @@ for reverse_j=1:N_j-1
         V(level1ii,:,:,jj)=shiftdim(Vtempii,1);
         Policy(level1ii,:,:,jj)=shiftdim(maxindex2,1); % d,aprime
 
-        % Second level based on montonicity
+        % Second level based on monotonicity
         maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
             curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -267,20 +267,20 @@ for reverse_j=1:N_j-1
 
         % pi_bothz=repmat(pi_semiz_J_permute(:,:,:,jj),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,jj),1,N_semiz,N_semiz);
         % timer(1)=toc;
-        % 
+        %
         % EV=replem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         % EV=sum(EV,2); % sum over z', leaving a singular second dimension
-        % 
+        %
         % entireEV=repelem(EV,N_d1,1,1);
-        % 
+        %
         % for e_c=1:N_e
         %     e_val=e_gridvals_J(e_c,:,jj);
         %     ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_bothz, special_n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
         %     % (d & aprime,a,z)
-        % 
+        %
         %     entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
-        % 
+        %
         %     % Calc the max and it's index
         %     [Vtemp,maxindex]=max(entireRHS_e,[],1);
         %     V(:,:,e_c,jj)=Vtemp;

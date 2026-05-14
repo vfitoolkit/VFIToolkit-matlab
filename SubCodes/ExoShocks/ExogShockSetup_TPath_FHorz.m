@@ -163,12 +163,12 @@ if N_z>0
     pi_z_J=gpuArray(pi_z_J);
     z_gridvals_J=gpuArray(z_gridvals_J);
 
-    
+
     % When using fastOLG we want an alternative version of pi_z_J that we use for the agent distribution, call it pi_z_J_sim
     if gridpiboth==2 || gridpiboth==4
         if options.fastOLG==1
             % pi_z_J is currently (z,z',j) [When using options.fastOLG=1 it will get converted later to (j,z',z)]
-            % We want pi_z_J_sim to map (j,z)-to-z', specifically [(N_j-1)*N_z,N_z] 
+            % We want pi_z_J_sim to map (j,z)-to-z', specifically [(N_j-1)*N_z,N_z]
             pi_z_J_sim=gather(reshape(permute(pi_z_J(:,:,1:N_j-1),[3,1,2]),[(N_j-1)*N_z,N_z]));
             % Now extend it to map (j,z)-to-(j+1,z')
             II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
@@ -266,7 +266,7 @@ if N_e>0
                 end
             end
             if overlap2==0
-                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
+                pi_e_J=zeros(N_e,N_j,'gpuArray');
                 e_grid_J=zeros(N_e,N_j,'gpuArray');
                 for jj=1:N_j
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
@@ -282,7 +282,7 @@ if N_e>0
                 transpathoptions.epathtrivial=0; % e_grid_J and pi_e_J vary over the path
                 transpathoptions.pi_e_J_T=zeros(N_e,N_e,N_j,T,'gpuArray');
                 transpathoptions.e_grid_J_T=zeros(sum(n_e),N_j,T,'gpuArray');
-                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
+                pi_e_J=zeros(N_e,N_j,'gpuArray');
                 e_grid_J=zeros(sum(n_e),N_j,'gpuArray');
                 for tt=1:T
                     for ii=1:length(ParamPathNames)
@@ -361,7 +361,7 @@ if N_e>0
     % Make sure they are on grid
     pi_e_J=gpuArray(pi_e_J);
     e_gridvals_J=gpuArray(e_gridvals_J);
-    
+
     % When using fastOLG we want an alternative version of pi_e_J that we use for the agent distribution, call it pi_e_J_sim
     if gridpiboth==2 || gridpiboth==4
         if options.fastOLG==1
@@ -375,7 +375,7 @@ if N_e>0
             end
         end
     end
-    
+
     if transpathoptions.fastOLG==1 % Reshape grid and transition matrix for use with fastOLG
         if N_z>0
             if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
@@ -387,7 +387,7 @@ if N_e>0
                     transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
                     for tt=1:T
                         for jj=1:N_j
-                            e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
                         end
                     end
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
@@ -413,7 +413,7 @@ if N_e>0
                     transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
                     for tt=1:T
                         for jj=1:N_j
-                            e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
                         end
                     end
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
@@ -434,7 +434,7 @@ if N_e>0
                     transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
                     for tt=1:T
                         for jj=1:N_j
-                            e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
                         end
                     end
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from (e,j,t) to (j,e,t)
@@ -458,7 +458,7 @@ if N_e>0
                     transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
                     for tt=1:T
                         for jj=1:N_j
-                            e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
                         end
                     end
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from (e,j,t) to (j,e,t)
@@ -554,8 +554,8 @@ else
                 ze_gridvals_J_T=[repmat(transpathoptions.z_gridvals_J_T,N_e,1,1),repelem(transpathoptions.e_gridvals_J_T,N_z,1,1)];
             elseif transpathoptions.fastOLG==1
                 ze_gridvals_J_T=zeros(N_j,N_ze,l_ze,'gpuArray');
-                ze_gridvals_J_T(:,:,1:l_z,:)=repmat(transpathoptions.z_gridvals_J,1,N_e,1);
-                ze_gridvals_J_T(:,:,l_z+1:end,:)=repmat(squeeze(transpathoptions.e_gridvals_J),1,N_z,1);
+                ze_gridvals_J_T(:,:,1:l_z,:)=repmat(transpathoptions.z_gridvals_J_T,1,N_e,1);
+                ze_gridvals_J_T(:,:,l_z+1:end,:)=repmat(squeeze(transpathoptions.e_gridvals_J_T),1,N_z,1);
             end
         end
 

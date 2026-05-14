@@ -5,7 +5,7 @@ function [z_grid,pi_z]=discretizeAR1_Rouwenhorst(mew,rho,sigma,znum,rouwenhorsto
 % Inputs
 %   mew            - constant term coefficient
 %   rho            - autocorrelation coefficient
-%   sigma          - standard deviation of (gaussion) innovations
+%   sigma          - standard deviation of (gaussian) innovations
 %   znum           - number of states in discretization of z (must be an odd number)
 % Optional Inputs (rouwenhorstoptions)
 %   parallel: set equal to 2 to use GPU, 0 to use CPU

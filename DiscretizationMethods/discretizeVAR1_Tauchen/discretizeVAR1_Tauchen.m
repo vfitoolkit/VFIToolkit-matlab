@@ -1,5 +1,5 @@
 function [z_grid, pi_z]=discretizeVAR1_Tauchen(Mew,Rho,SigmaSq,znum,Tauchen_q, tauchenoptions)
-% Create states vector and transition matrix for the discrete markov process approximation of 
+% Create states vector and transition matrix for the discrete markov process approximation of
 % M-variable VAR(1) process:
 %      z'=mew+rho*z+e, e~N(0,SigmaSq), by Tauchens method
 %
@@ -14,7 +14,7 @@ function [z_grid, pi_z]=discretizeVAR1_Tauchen(Mew,Rho,SigmaSq,znum,Tauchen_q, t
 % Optional inputs (tauchenoptions)
 %   parallel: set equal to 2 to use GPU, 0 to use CPU
 % Outputs
-%   z_grid         - sum(znum)-by-1 column vector; stacked column vector containing the sum(znum) states of 
+%   z_grid         - sum(znum)-by-1 column vector; stacked column vector containing the sum(znum) states of
 %                    the discrete approximation of z for each of the n variables
 %   pi_z           - prod(znum)-by-prod(znum) matrix; transition matrix of the discrete approximation of z;
 %                    pi_z(i,j) is the probability of transitioning from state i to state j
@@ -156,7 +156,7 @@ end
 
 
 %%
-if tauchenoptions.parallel==2 
+if tauchenoptions.parallel==2
     z_grid=gpuArray(z_grid);
     pi_z=gpuArray(pi_z); %(z,zprime)
 end

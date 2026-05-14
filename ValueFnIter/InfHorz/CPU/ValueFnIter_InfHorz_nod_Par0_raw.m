@@ -20,7 +20,7 @@ while currdist>Tolerance && tempcounter<=maxiter
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=VKronold.*shiftdim(pi_z',-1); %kron(ones(N_a,1),pi_z(z_c,:));
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %aprime by a by z
@@ -35,12 +35,12 @@ while currdist>Tolerance && tempcounter<=maxiter
     PolicyIndexes=PolicyIndexes(:); % a by z (this shape is just convenient for Howards)
     VKron=shiftdim(VKron,1); % a by z
 
-    VKrondist=VKron(:)-VKronold(:); 
+    VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    
+
     % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
-    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 
+    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2
         for Howards_counter=1:Howards
             EVKrontemp=VKron(PolicyIndexes,:);
             EVKrontemp=EVKrontemp.*aaa;
@@ -53,7 +53,7 @@ while currdist>Tolerance && tempcounter<=maxiter
     tempcounter=tempcounter+1;
 
 end
-  
+
 Policy=reshape(PolicyIndexes,[1,N_a,N_z]);
 
 

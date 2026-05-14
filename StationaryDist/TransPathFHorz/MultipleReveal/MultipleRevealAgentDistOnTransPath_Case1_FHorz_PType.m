@@ -69,7 +69,7 @@ for rr=1:nReveals
             temp_agentdistsize=size(VPath_rr.(Names_i{ii}));
             RealizedAgentDistPath.(Names_i{ii})=zeros([prod(temp_agentdistsize(1:end-1)),historylength]);
         end
-        
+
         temp=RealizedAgentDistPath.(Names_i{ii});
         temp2=reshape(AgentDistPath_rr.(Names_i{ii}),[prod(temp_agentdistsize(1:end-1)),T]);
         if rr<nReveals

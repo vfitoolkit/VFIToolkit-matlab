@@ -13,7 +13,7 @@ IIind=1:1:N_a*N_z;
 JJind=ones(N_a,N_z);
 
 for jj=1:(N_j-1)
-    
+
     Gammatranspose=sparse(Policy_aprimez(:,:,jj),IIind,JJind,N_a*N_z,N_a*N_z);
 
     % First step of Tan improvement

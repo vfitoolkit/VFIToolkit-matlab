@@ -1,5 +1,5 @@
 function [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d,l_a,l_z,FnsToEvaluate_StructToCell,Case1orCase2)
-% Figure out which functions are actually relevant to the present PType. 
+% Figure out which functions are actually relevant to the present PType.
 % Only the relevant ones need to be evaluated.
 % The dependence of FnsToEvaluate and FnsToEvaluateParamNames are necessarily the same.
 
@@ -14,7 +14,7 @@ end
 
 % Only works for Version 2, that is it hardcodes for isstruct(FnsToEvaluate)==1
 if FnsToEvaluate_StructToCell==0 % Structure
-    % Just conver from struct into the FnsToEvaluate_temp and FnsToEvaluateParamNames_temp format now.
+    % Just convert from struct into the FnsToEvaluate_temp and FnsToEvaluateParamNames_temp format now.
     FnNames=fieldnames(FnsToEvaluate);
     numFnsToEvaluate=length(FnNames);
     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
@@ -85,4 +85,3 @@ end
 FnsAndPTypeIndicator_ii=logical(FnsAndPTypeIndicator_ii);
 
 end
-    

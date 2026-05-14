@@ -9,7 +9,7 @@ function daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_
 %
 % If you only input (n_d,n_a,n_z,N_j,pi_z) you will get a version of
 % daz_gridstructure that only includes 'these', and does not include the
-% grids themselves. [If unsure, you are unlikely to want this option, it is 
+% grids themselves. [If unsure, you are unlikely to want this option, it is
 % intended to speed computation when grids themselves are not needed.]
 
 % Create a structure that contains all of these grids. Can do this once and for all on first run. Seems likely to
@@ -45,12 +45,12 @@ if nargin>5
             n_z_j=n_z;
             z_grid_j=z_grid;
         end
-        
+
         % Following need to be dependent on age.
         N_d_j=prod(n_d_j);
         N_a_j=prod(n_a_j);
         N_z_j=prod(n_z_j);
-        
+
         N_z_jplus1=prod(n_z(:,min(jj+1,N_j))); % Case of jj==N_j is anyway treated seperately
         % Check the sizes of some of the inputs
         if size(d_grid_j)~=[N_d_j, 1]
@@ -84,7 +84,7 @@ if nargin>5
                 return
             end
         end
-        
+
         % Make a three digit number out of jj
         if jj<10
             jstr=['j00',num2str(jj)];
@@ -94,7 +94,7 @@ if nargin>5
             jstr=['j',num2str(jj)];
         end
         daz_gridstructure.jstr{jj}=jstr;
-        
+
         % Store all the grids (and transition matrices) as a structure
         if options.parallel>=2
             % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
@@ -122,7 +122,7 @@ if nargin>5
         daz_gridstructure.n_a.(jstr(:))=n_a_j;
         daz_gridstructure.N_z.(jstr(:))=N_z_j;
         daz_gridstructure.n_z.(jstr(:))=n_z_j;
-        
+
         % Makes future coding easier if I also store zprime, even though in principle it is redundant.
         % Make a three digit number out of jj-1
         jjminus1=jj-1;
@@ -141,7 +141,7 @@ if nargin>5
         daz_gridstructure.N_zprime.(jminus1str(:))=N_z_j;
         daz_gridstructure.n_zprime.(jminus1str(:))=n_z_j;
         daz_gridstructure.zprime_grid.(jminus1str(:))=z_grid_j;
-        
+
         if isfield(options,'lowmemory') % Value fn iteration with lowmemory requires '_gridvals'.
             if options.lowmemory>0
                 % Also create the gridvals, as these will be useful.
@@ -169,9 +169,9 @@ if nargin>5
             end
         end
     end
-    
+
 else % if nargin<=5
-    
+
     % Following lines just repeat the above, but without the grids themselves.
     daz_gridstructure=struct();
     daz_gridstructure.jstr=cell(N_j,1); % preallocate this one since size is known
@@ -192,12 +192,12 @@ else % if nargin<=5
         else % If not dependent on age
             n_z_j=n_z;
         end
-        
+
         % Following need to be dependent on age.
         N_d_j=prod(n_d_j);
         N_a_j=prod(n_a_j);
         N_z_j=prod(n_z_j);
-        
+
         N_z_jplus1=prod(n_z(:,min(jj+1,N_j))); % Case of jj==N_j is anyway treated seperately
         % Check the sizes of some of the inputs
         if size(pi_z_j)~=[N_z_j, N_z_jplus1]
@@ -219,7 +219,7 @@ else % if nargin<=5
                 return
             end
         end
-        
+
         % Make a three digit number out of jj
         if jj<10
             jstr=['j00',num2str(jj)];
@@ -229,7 +229,7 @@ else % if nargin<=5
             jstr=['j',num2str(jj)];
         end
         daz_gridstructure.jstr(jj)=jstr;
-        
+
         % Store all the grids (and transition matrices) as a structure
         if options.parallel==2
             % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
@@ -245,7 +245,7 @@ else % if nargin<=5
         daz_gridstructure.n_a.(jstr(:))=n_a_j;
         daz_gridstructure.N_z.(jstr(:))=N_z_j;
         daz_gridstructure.n_z.(jstr(:))=n_z_j;
-        
+
         % Makes future coding easier if I also store zprime, even though in principle it is redundant.
         % Make a three digit number out of jj-1
         jjminus1=jj-1;
@@ -263,8 +263,8 @@ else % if nargin<=5
         daz_gridstructure.n_aprime.(jminus1str(:))=n_a_j;
         daz_gridstructure.N_zprime.(jminus1str(:))=N_z_j;
         daz_gridstructure.n_zprime.(jminus1str(:))=n_z_j;
-    end  
-        
+    end
+
 end
 
 

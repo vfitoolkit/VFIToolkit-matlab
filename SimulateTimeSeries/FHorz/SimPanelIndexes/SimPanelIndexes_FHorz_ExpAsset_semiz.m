@@ -1,6 +1,6 @@
 function SimPanel=SimPanelIndexes_FHorz_ExpAsset_semiz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, Parameters, simoptions)
 % Inputs should already be on cpu, output is on cpu
-% 
+%
 % Intended to be called from SimPanelValues_FHorz_Case1()
 
 N_d=prod(n_d);
@@ -151,7 +151,7 @@ if simoptions.gridinterplayer==1
     % (a,z,2,j)
     Policy_aprime=repmat(Policy_aprime,1,1,2,1);
     PolicyProbs=repmat(PolicyProbs,1,1,2,1);
-    % Policy_aprime(:,:,1:2,:) lower grid point for a1 is unchanged 
+    % Policy_aprime(:,:,1:2,:) lower grid point for a1 is unchanged
     Policy_aprime(:,:,3:4,:)=Policy_aprime(:,:,3:4,:)+1; % add one to a1, to get upper grid point
 
     aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_semizze,1,N_j]); % probability of upper grid point (from L2 index)
@@ -162,13 +162,13 @@ CumPolicyProbs=cumsum(PolicyProbs,3);
 
 %% Policy_dsemiexo
 
-% d3 is the variable relevant for the semi-exogenous asset. 
+% d3 is the variable relevant for the semi-exogenous asset.
 if l_d3==1
     Policy_dsemiexo=Policy(l_d12+1,:,:,:);
 elseif l_d3==2
     Policy_dsemiexo=Policy(l_d12+1,:,:,:)+n_d(l_d12+1)*(Policy(l_d12+2,:,:,:)-1);
 elseif l_d3==3
-    Policy_dsemiexo=Policy(l_d12+1,:,:,:)+n_d(l_d12+1)*(Policy(l_d12+2,:,:,:)-1)+n_d(l_d12+1)*n_d(l_d12+2)*(Policy(l_d12+3,:,:,:)-1); 
+    Policy_dsemiexo=Policy(l_d12+1,:,:,:)+n_d(l_d12+1)*(Policy(l_d12+2,:,:,:)-1)+n_d(l_d12+1)*n_d(l_d12+2)*(Policy(l_d12+3,:,:,:)-1);
 elseif l_d3==4
     Policy_dsemiexo=Policy(l_d12+1,:,:,:)+n_d(l_d12+1)*(Policy(l_d12+2,:,:,:)-1)+n_d(l_d12+1)*n_d(l_d12+2)*(Policy(l_d12+3,:,:,:)-1)+n_d(l_d12+1)*n_d(l_d12+2)*n_d(l_d12+3)*(Policy(l_d12+4,:,:,:)-1);
 end
@@ -233,7 +233,7 @@ if N_z==0
             SimLifeCycleKron=SimLifeCycleIndexes_FHorz_PolicyProbs_semiz_noz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_semiz_J,cumsumpi_e_J, simoptions, seedpoint);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-        
+
         if simoptions.simpanelindexkron==0 % Convert results out of kron
             SimPanelKron=reshape(SimPanel,[4,N_j*simoptions.numbersims]);
             SimPanel=nan(l_a+l_semiz+l_e+1,N_j*simoptions.numbersims); % (a,semiz,e,j)
@@ -262,7 +262,7 @@ else % N_z>0
         if numel(InitialDist)==N_a*N_semiz*N_z*N_j
             seedpointdim=[N_a,N_semiz,N_z,N_j]; % Initial dist depends on j
         end
-        
+
         SimPanel=nan(4,N_j,simoptions.numbersims); % (a,semiz,z,j)
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
             [~,seedpointind]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
@@ -288,7 +288,7 @@ else % N_z>0
             SimPanel(3,:,:)=SimPanel(4,:,:); % move j forward
             SimPanel=SimPanel(1:3,:,:);
         end
-        
+
     else % z, e
         Policy_aprime=reshape(Policy_aprime,[N_a,N_semiz,N_z,N_e,N_probs,N_j]);
         CumPolicyProbs=reshape(CumPolicyProbs,[N_a,N_semiz,N_z,N_e,N_probs,N_j]);
@@ -307,7 +307,7 @@ else % N_z>0
             SimLifeCycleKron=SimLifeCycleIndexes_FHorz_PolicyProbs_semiz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, simoptions, seedpoint);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-        
+
         if simoptions.simpanelindexkron==0 % Convert results out of kron
             SimPanelKron=reshape(SimPanel,[5,N_j*simoptions.numbersims]);
             SimPanel=nan(l_a+l_semiz+l_z+l_e+1,N_j*simoptions.numbersims); % (a,semiz,z,e,j)

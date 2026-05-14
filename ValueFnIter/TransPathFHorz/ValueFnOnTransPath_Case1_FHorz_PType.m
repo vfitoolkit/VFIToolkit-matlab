@@ -55,15 +55,15 @@ for ii=1:N_i
         vfoptions_temp.verbose=0;
         vfoptions_temp.verboseparams=0;
         vfoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu
-    end 
-    
+    end
+
     if vfoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-           
+
     V_final_temp=V_final.(Names_i{ii});
     Policy_final_temp=Policy_final.(Names_i{ii});
-    
+
 
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
@@ -150,12 +150,12 @@ for ii=1:N_i
             end
         end
     end
-    
+
     if vfoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
-    
+
     % PricePath can include parameters that differ by ptype
     PricePath_temp=PricePath;
     PricePathNames=fieldnames(PricePath);
@@ -200,7 +200,7 @@ for ii=1:N_i
         VPath.(Names_i{ii})=VPath_ii;
         PolicyPath.(Names_i{ii})=PolicyPath_ii;
     end
-        
+
     clear VPath_ii PolicyPath_ii
 
 end

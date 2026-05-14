@@ -16,9 +16,9 @@ AllStats=struct();
 % Evaluate AllStats, but conditional on the restriction being non-zero.
 
 useCondlRest=0;
-% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it). 
+% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it).
 if isfield(simoptions,'conditionalrestrictions')
-    
+
     useCondlRest=1;
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
 
@@ -31,7 +31,7 @@ if isfield(simoptions,'conditionalrestrictions')
     else
         l_z=length(n_z);
     end
-    
+
     % For each conditional restriction, create a 'restricted stationary distribution'
     for rr=1:length(CondlRestnFnNames)
         CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
@@ -49,7 +49,7 @@ if isfield(simoptions,'conditionalrestrictions')
 
         RestrictedAgentDist=AgentDist;
         RestrictedAgentDist(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
-        
+
         % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
         restrictedsamplemass(rr)=sum(RestrictedAgentDist);
         RestrictionStruct(rr).RestrictedAgentDist=RestrictedAgentDist/restrictedsamplemass(rr);
@@ -78,7 +78,7 @@ for ff=1:length(FnsToEvaluateNames)
     %% If there are any conditional restrictions then deal with these
     % Evaluate AllStats, but conditional on the restriction being one.
     if useCondlRest==1
-        % Evaluate the conditinal restrictions:
+        % Evaluate the conditional restrictions:
         % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
         for rr=1:length(CondlRestnFnNames)
             if restrictedsamplemass(rr)>0

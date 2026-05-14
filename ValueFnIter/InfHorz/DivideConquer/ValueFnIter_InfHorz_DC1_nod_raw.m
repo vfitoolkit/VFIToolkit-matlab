@@ -16,7 +16,7 @@ Policy=zeros(N_a,N_z,'gpuArray');
 
 % for Howards, preallocate
 Ftemp=zeros(N_a,N_z,'gpuArray');
-% and we need 
+% and we need
 bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
 ccc=kron(ones(N_a,1,'gpuArray'),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
@@ -33,10 +33,10 @@ tempcounter=1;
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     Vold=V;
-    
+
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=Vold.*Epi_z;
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_a,1,N_z]);

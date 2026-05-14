@@ -67,7 +67,7 @@ for rr=1:nReveals
             temp_policysize=size(PolicyPath_rr.(Names_i{ii}));
             RealizedPolicyPath.(Names_i{ii})=zeros([prod(temp_policysize(1:end-1)),historylength]);
         end
-        
+
         temp=RealizedVPath.(Names_i{ii});
         temp2=reshape(VPath_rr.(Names_i{ii}),[prod(temp_vsize(1:end-1)),T]);
         if rr<nReveals
@@ -82,7 +82,7 @@ for rr=1:nReveals
         if rr<nReveals
             temp(:,revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal_rr);
         else
-            temp(:,revealperiods(rr):end)=temp2(:,1:durationofreveal_rr);            
+            temp(:,revealperiods(rr):end)=temp2(:,1:durationofreveal_rr);
         end
         RealizedPolicyPath.(Names_i{ii})=temp;
     end

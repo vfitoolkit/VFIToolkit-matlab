@@ -23,7 +23,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % Using V_Jplus1
 
     ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
@@ -33,7 +33,7 @@ else
 
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*pi_z(z_c,:);
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
 
         entireEV_z=repelem(EV_z,N_d,1);
@@ -43,7 +43,7 @@ else
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         V(:,z_c,N_j)=Vtemp;
         Policy(:,z_c,N_j)=maxindex;
-    end   
+    end
 end
 
 %% Iterate backwards through j.
@@ -53,23 +53,23 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=V(:,:,jj+1);
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-         
+
     parfor z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
 
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*pi_z(z_c,:);
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
 
         entireEV_z=repelem(EV_z,N_d,1);

@@ -15,8 +15,8 @@ l_d=length(n_d);
 if N_d==0
     l_d=0;
 end
-l_a=length(n_a); 
-l_r=length(n_r); 
+l_a=length(n_a);
+l_r=length(n_r);
 l_z=length(n_z);
 if l_d>4
     error('Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')

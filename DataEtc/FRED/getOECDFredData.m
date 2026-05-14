@@ -9,7 +9,7 @@ function [DateVector, DataMatrix, CountryCodes]=getOECDFredData(code1, code2, ju
 %         if justcountries==2 then also drop Switzerland too.
 %         all other inputs are same as for 'getFredData.m'
 %
-% 
+%
 % It simply calls 'getFredData.m' for each of the OECD member countries. IF
 % you do not have getFredData.m you can get it from robertdkirkby.com
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -37,7 +37,7 @@ elseif justcountries==2
 end
 
 tempseries_id = [code1, 'US', code2];
-if exist('units','var') && exist('frequency','var') && exist('aggregation_method','var') 
+if exist('units','var') && exist('frequency','var') && exist('aggregation_method','var')
     tempfred=getFredData(tempseries_id, observation_start, observation_end, units, frequency, aggregation_method) %, ondate, realtime_end)
 elseif exist('units','var') && exist('frequency','var')
     tempfred=getFredData(tempseries_id, observation_start, observation_end, units, frequency)

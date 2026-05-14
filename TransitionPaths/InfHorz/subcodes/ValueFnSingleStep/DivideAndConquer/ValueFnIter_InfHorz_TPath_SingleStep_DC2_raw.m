@@ -30,7 +30,7 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 EV=Vnext.*shiftdim(pi_z',-1);
-EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 DiscountedentireEV=DiscountFactorParamsVec*reshape(repmat(shiftdim(EV,-1),N_d,1,1,1),[N_d,N_a1*N_a2,1,1,N_z]); % [d,aprime,1,z]
 
@@ -45,7 +45,7 @@ entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV; % move a2prime into same dimens
 % In 2D, this all gets overwritten as each layer2-ii-jj includes the edges, so I can skip it to save time
 % % Now, get and store the full (d,aprime)
 % [~,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a1*N_a2,vfoptions.level1n(1),vfoptions.level1n(2),N_z]),[],1); % Vtempii
-% 
+%
 % % Store
 % V(level11ii,level12jj,:)=shiftdim(Vtempii,1);
 % Policy(level11ii,level12jj,:)=shiftdim(maxindex2,1);
@@ -116,7 +116,7 @@ for ii=1:(vfoptions.level1n(1)-1)
             %  the a2prime is only an 'after maxgap(ii)+1, but needs to be after N_a1'
             dind=rem(maxindex-1,N_d)+1;
             % a1primeind=1;
-            % a2primeind=ceil(maxindex/N_d); 
+            % a2primeind=ceil(maxindex/N_d);
             maxindexfix=dind+N_d*N_a1*(ceil(maxindex/N_d)-1); % put maxindex back together, using N_a1 to determine a2prime, rather than using (maxgap(ii)+1) which is what it originally was in maxindex
             %  the a1prime is relative to loweredge1(dind & zind), need to 'add'  the loweredge1
             %  the a2prime is relative to loweredge2(dind & zind), need to 'add'  the loweredge2

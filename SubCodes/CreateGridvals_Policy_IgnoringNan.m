@@ -54,7 +54,7 @@ if Case1orCase2==1
             else
                 aprimePolicy_gridvals=zeros(N_a*N_z,l_aprime);
             end
-            
+
             for ii=1:N_a*N_z
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
@@ -210,7 +210,7 @@ elseif Case1orCase2==2 % So there is only d, no possibility of any aprime
             end
             dPolicy_gridvals(ii,:)=num2cell(d_val);
         end
-        
+
     end
 end
 

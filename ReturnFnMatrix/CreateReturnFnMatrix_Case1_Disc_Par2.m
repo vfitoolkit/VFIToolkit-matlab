@@ -15,7 +15,7 @@ l_d=length(n_d);
 if N_d==0
     l_d=0;
 end
-l_a=length(n_a); 
+l_a=length(n_a);
 l_z=length(n_z);
 if l_d>4
     error('Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
@@ -178,9 +178,9 @@ elseif l_d==2 && l_a==4 && l_z==2
 elseif l_d==2 && l_a==4 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, ReturnFnParamsCell{:});
 elseif l_d==2 && l_a==4 && l_z==4
-    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ReturnFnParamsCell{:});  
+    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ReturnFnParamsCell{:});
 elseif l_d==2 && l_a==4 && l_z==5
-    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ReturnFnParamsCell{:});  
+    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ReturnFnParamsCell{:});
 elseif l_d==3 && l_a==1 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1primevals, a1vals, z1vals, ReturnFnParamsCell{:});
 elseif l_d==3 && l_a==1 && l_z==2
@@ -218,9 +218,9 @@ elseif l_d==3 && l_a==4 && l_z==2
 elseif l_d==3 && l_a==4 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, ReturnFnParamsCell{:});
 elseif l_d==3 && l_a==4 && l_z==4
-    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ReturnFnParamsCell{:});  
+    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ReturnFnParamsCell{:});
 elseif l_d==3 && l_a==4 && l_z==5
-    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ReturnFnParamsCell{:});  
+    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ReturnFnParamsCell{:});
 elseif l_d==4 && l_a==1 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), a1primevals, a1vals, z1vals, ReturnFnParamsCell{:});
 elseif l_d==4 && l_a==1 && l_z==2

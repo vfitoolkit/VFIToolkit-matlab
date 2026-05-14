@@ -57,7 +57,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for d2_c=1:N_d2
             d2_val=d2_gridvals(d2_c,:);
-            
+
             % n-Monotonicity
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz,n_e, d2_val, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,4);
 
@@ -68,7 +68,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             V_ford2_jj(level1ii,:,:,d2_c)=shiftdim(Vtempii,1);
             Policy_ford2_jj(level1ii,:,:,d2_c)=shiftdim(maxindex1,1); % d,aprime
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(max(maxindex1(1,2:end,:,:)-maxindex1(1,1:end-1,:,:),[],4),[],3));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -115,7 +115,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 V_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(Vtempii,1);
                 Policy_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(maxindex1,1); % d,aprime
 
-                % Second level based on montonicity
+                % Second level based on monotonicity
                 maxgap=squeeze(max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -151,7 +151,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z,N_e]);    % First, switch V_Jplus1 into Kron form    
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z,N_e]);    % First, switch V_Jplus1 into Kron form
     EV=sum(EV.*pi_e_J(1,1,:,N_j),3);
 
     if vfoptions.lowmemory==0
@@ -160,7 +160,7 @@ else
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % n-Monotonicity
@@ -175,7 +175,7 @@ else
             V_ford2_jj(level1ii,:,:,d2_c)=shiftdim(Vtempii,1);
             Policy_ford2_jj(level1ii,:,:,d2_c)=shiftdim(maxindex1,1); % d,aprime
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(max(maxindex1(1,2:end,:,:)-maxindex1(1,1:end-1,:,:),[],4),[],3));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -215,9 +215,9 @@ else
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d2_c,N_j));
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
-            
+
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
 
@@ -233,7 +233,7 @@ else
                 V_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(Vtempii,1);
                 Policy_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(maxindex1,1); % d,aprime
 
-                % Second level based on montonicity
+                % Second level based on monotonicity
                 maxgap=squeeze(max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -278,13 +278,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,:,jj+1);
     EV=sum(EV.*pi_e_J(1,1,:,jj),3);
 
@@ -294,7 +294,7 @@ for reverse_j=1:N_j-1
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz_J(:,:,d2_c,jj)); % reverse order
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % n-Monotonicity
@@ -308,7 +308,7 @@ for reverse_j=1:N_j-1
             V_ford2_jj(level1ii,:,:,d2_c)=shiftdim(Vtempii,1);
             Policy_ford2_jj(level1ii,:,:,d2_c)=shiftdim(maxindex1,1); % d,aprime
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(max(maxindex1(1,2:end,:,:)-maxindex1(1,1:end-1,:,:),[],4),[],3));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -342,13 +342,13 @@ for reverse_j=1:N_j-1
         aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z,N_e]);
         Policy3(2,:,:,:,jj)=shiftdim(aprime_ind,-1);
 
-    elseif vfoptions.lowmemory==1 
+    elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
             d2_val=d2_gridvals(d2_c,:);
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj));
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             for e_c=1:N_e
@@ -366,7 +366,7 @@ for reverse_j=1:N_j-1
                 V_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(Vtempii,1);
                 Policy_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(maxindex1,1); % d,aprime
 
-                % Second level based on montonicity
+                % Second level based on monotonicity
                 maxgap=squeeze(max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;

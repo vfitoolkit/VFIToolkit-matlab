@@ -42,7 +42,7 @@ for rr=1:nReveals
         if rr<nReveals
             temp(revealperiods(rr):revealperiods(rr+1)-1)=temp2(1:durationofreveal_rr);
         else
-            temp(revealperiods(rr):end)=temp2(1:durationofreveal_rr);            
+            temp(revealperiods(rr):end)=temp2(1:durationofreveal_rr);
         end
         RealizedAggVarsPath.(AggVarNames{aa}).Mean=temp;
     end

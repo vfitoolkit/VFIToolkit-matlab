@@ -54,7 +54,7 @@ else
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
@@ -63,7 +63,7 @@ else
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
     aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
-    
+
     % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
     % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
     skipinterp=logical(V_Jplus1(aprimeIndex(:))==V_Jplus1(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
@@ -73,11 +73,11 @@ else
     EV1=aprimeProbs.*reshape(V_Jplus1(aprimeIndex),[N_d23*N_a1,N_u]); % (d,u), the lower aprime
     EV2=(1-aprimeProbs).*reshape(V_Jplus1(aprimeplus1Index),[N_d23*N_a1,N_u]); % (d,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
-    
+
     % Expectation over u (using pi_u), and then add the lower and upper
     EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
     % EV is over (d,1)
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d13,n_a1], [n_a1,n_a2], d13a1_gridvals, a12_gridvals, ReturnFnParamsVec);
     % (d,aprime,a)
 
@@ -105,14 +105,14 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
+
     EV=V(:,jj+1);
 
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
@@ -121,7 +121,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
     aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
-    
+
     % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
     % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
     skipinterp=logical(EV(aprimeIndex(:))==EV(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
@@ -131,11 +131,11 @@ for reverse_j=1:N_j-1
     EV1=aprimeProbs.*reshape(EV(aprimeIndex),[N_d23*N_a1,N_u]); % (d,u), the lower aprime
     EV2=(1-aprimeProbs).*reshape(EV(aprimeplus1Index),[N_d23*N_a1,N_u]); % (d,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
-    
+
     % Expectation over u (using pi_u), and then add the lower and upper
     EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
     % EV is over (d,1)
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d13,n_a1], [n_a1,n_a2], d13a1_gridvals, a12_gridvals, ReturnFnParamsVec);
     % (d,aprime,a)
 

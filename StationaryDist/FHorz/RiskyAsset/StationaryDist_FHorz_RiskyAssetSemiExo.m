@@ -156,13 +156,13 @@ PolicyProbs=reshape(PolicyProbs,[N_a,N_bothze,N_u*2,N_j]);
 
 %% Policy_dsemiexo
 
-% d4 is the variable relevant for the semi-exogenous asset. 
+% d4 is the variable relevant for the semi-exogenous asset.
 if l_d4==1
     Policy_dsemiexo=Policy(l_d123+1,:,:,:);
 elseif l_d4==2
     Policy_dsemiexo=Policy(l_d123+1,:,:,:)+n_d(l_d123+1)*(Policy(l_d123+2,:,:,:)-1);
 elseif l_d4==3
-    Policy_dsemiexo=Policy(l_d123+1,:,:,:)+n_d(l_d123+1)*(Policy(l_d123+2,:,:,:)-1)+n_d(l_d123+1)*n_d(l_d123+2)*(Policy(l_d123+3,:,:,:)-1); 
+    Policy_dsemiexo=Policy(l_d123+1,:,:,:)+n_d(l_d123+1)*(Policy(l_d123+2,:,:,:)-1)+n_d(l_d123+1)*n_d(l_d123+2)*(Policy(l_d123+3,:,:,:)-1);
 elseif l_d4==4
     Policy_dsemiexo=Policy(l_d123+1,:,:,:)+n_d(l_d123+1)*(Policy(l_d123+2,:,:,:)-1)+n_d(l_d123+1)*n_d(l_d123+2)*(Policy(l_d123+3,:,:,:)-1)+n_d(l_d123+1)*n_d(l_d123+2)*n_d(l_d123+3)*(Policy(l_d123+4,:,:,:)-1);
 end
@@ -184,7 +184,7 @@ elseif simoptions.gridinterplayer==1
     % (a,z,2,j)
     Policy_aprime=repmat(Policy_aprime,1,1,2,1);
     PolicyProbs=repmat(PolicyProbs,1,1,2,1);
-    % Policy_aprime(:,:,:,1:2*N_u,:) lower grid point for a1 is unchanged 
+    % Policy_aprime(:,:,:,1:2*N_u,:) lower grid point for a1 is unchanged
     Policy_aprime(:,:,2*N_u+1:end,:)=Policy_aprime(:,:,2*N_u+1:end,:)+1; % add one to a1, to get upper grid point
 
     aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_bothze,1,N_j]); % probability of upper grid point (from L2 index)
@@ -192,7 +192,7 @@ elseif simoptions.gridinterplayer==1
     PolicyProbs(:,:,2*N_u+1:end,:)=PolicyProbs(:,:,2*N_u+1:end,:).*aprimeProbs_upper; % upper a1
 
     if N_z==0 && N_e==0
-        StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,2*N_u*2,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,Parameters);    
+        StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,2*N_u*2,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,Parameters);
     elseif N_e==0 % just z
         StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,2*N_u*2,N_dsemiz,N_a,N_semiz,N_z,N_j,pi_semiz_J,pi_z_J,Parameters);
     elseif N_z==0 % just e

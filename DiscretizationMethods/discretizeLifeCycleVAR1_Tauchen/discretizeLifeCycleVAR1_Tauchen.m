@@ -1,9 +1,9 @@
 function [z_grid_J,pi_z_J]=discretizeLifeCycleVAR1_Tauchen(Mew_J,Rho_J,SigmaSq_J,znum,J,tauchenoptions)
-% This is an extension of the Tauchen method to 'age-dependent parameters' 
-% 
-% Purpose: 
+% This is an extension of the Tauchen method to 'age-dependent parameters'
+%
+% Purpose:
 %       Compute a finite-state Markov chain approximation to age-dependent VAR(1)
-%       process of the form 
+%       process of the form
 %
 %           Z_(j) = Mew(j) + Rho(j)*Z_(j-1) + SigmaSq(j)^(1/2)*epsilon_(j)
 %
@@ -24,8 +24,8 @@ function [z_grid_J,pi_z_J]=discretizeLifeCycleVAR1_Tauchen(Mew_J,Rho_J,SigmaSq_J
 % Optional inputs (farmertodaoptions):
 %   parallel: - set equal to 2 to use GPU, 0 to use CPU
 %   nMoments  - Desired number of moments to match. The default is 2.
-%   method    - String specifying the method used to determine the grid points. 
-%               Accepted inputs are 'even,' 'quantile,' and 'quadrature.' The 
+%   method    - String specifying the method used to determine the grid points.
+%               Accepted inputs are 'even,' 'quantile,' and 'quadrature.' The
 %               default option is 'even.' Please see the paper for more details.
 %   nSigmas   - If method='even' option is specified, nSigmas is used to
 %               determine the number of unconditional standard deviations
@@ -33,13 +33,13 @@ function [z_grid_J,pi_z_J]=discretizeLifeCycleVAR1_Tauchen(Mew_J,Rho_J,SigmaSq_J
 %
 % Outputs:
 %   z_grid_J  - (M x znum^M x J) matrix of states. Each column corresponds to an
-%               M-tuple of values which correspond to the state associated 
+%               M-tuple of values which correspond to the state associated
 %               with each row of P. (Puts znum^M points on each variable,
 %               the grids for the variables are codetermined.) There is one
 %               grid for each age/period J.
 %               Note: z_grid_J are jointly determined.
 %   pi_z_J    - (znum^M x znum^M,J) probability transition matrix. Each row
-%               corresponds to a discrete conditional probability 
+%               corresponds to a discrete conditional probability
 %               distribution over the state M-tuples in X. There is one
 %               transition matrix for each age/period j.
 %
@@ -51,7 +51,7 @@ function [z_grid_J,pi_z_J]=discretizeLifeCycleVAR1_Tauchen(Mew_J,Rho_J,SigmaSq_J
 %     dimensions due to curse of dimensionality issues.
 %
 %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Loosely speaking, this is just an extension of the Tauchen method,
 % realistically though this goes notably beyond the Tauchen method, in
 % particular Tauchen suggests using the product of the marginal cdfs,
@@ -59,7 +59,7 @@ function [z_grid_J,pi_z_J]=discretizeLifeCycleVAR1_Tauchen(Mew_J,Rho_J,SigmaSq_J
 
 l_z=size(Rho_J,1);
 
-warning off MATLAB:singularMatrix % surpress inversion warnings
+warning off MATLAB:singularMatrix % suppress inversion warnings
 
 % mewz=zeros(l_z,J); % period j mean of z
 % SigmaSqz = zeros(l_z,l_z,J); % period j covariance-matrix of z
@@ -255,7 +255,7 @@ end
 
 
 %%
-if tauchenoptions.parallel==2 
+if tauchenoptions.parallel==2
     z_grid_J=gpuArray(z_grid_J);
     pi_z_J=gpuArray(pi_z_J); %(z,zprime)
 end

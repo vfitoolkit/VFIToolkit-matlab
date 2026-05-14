@@ -12,7 +12,7 @@ function AggVars=EvalFnOnAgentDist_AggVars_InfHorz_PType(StationaryDist, Policy,
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
 %
 % The stationary distribution be a structure and will contain both the
-% weights/distribution across the permenant types, as well as a pdf for the
+% weights/distribution across the permanent types, as well as a pdf for the
 % stationary distribution of each specific permanent type.
 %
 % How exactly to handle these differences between permanent (fixed) types
@@ -75,7 +75,7 @@ else
     end
 end
 
-if simoptions.groupptypesforstats==1 
+if simoptions.groupptypesforstats==1
     if isa(StationaryDist.(Names_i{1}), 'gpuArray')
         AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
     else
@@ -87,13 +87,13 @@ end
 
 %%
 for ii=1:N_i
-    
+
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
-    
+
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
-    end    
+    end
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
         PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
         StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
@@ -101,14 +101,14 @@ for ii=1:N_i
         PolicyIndexes_temp=Policy.(Names_i{ii});
         StationaryDist_temp=StationaryDist.(Names_i{ii});
     end
-    
+
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
     % type), or they could be a structure. Only in the case where they are
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
-    
+
     if isstruct(n_d)
         n_d_temp=n_d.(Names_i{ii});
     else
@@ -139,7 +139,7 @@ for ii=1:N_i
     else
         z_grid_temp=z_grid;
     end
-    
+
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
     % these in term.
@@ -160,12 +160,12 @@ for ii=1:N_i
             end
         end
     end
-    
+
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
-    end    
-    
+    end
+
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
     % Allows for FnsToEvaluate as structure.
@@ -175,12 +175,12 @@ for ii=1:N_i
         l_d_temp=1;
     end
     l_a_temp=length(n_a_temp);
-    l_z_temp=length(n_z_temp);  
+    l_z_temp=length(n_z_temp);
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
-    
+
     simoptions_temp.outputasstructure=0;
     StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
-    
+
     if simoptions.groupptypesforstats==1
         for kk=1:numFnsToEvaluate
             jj=WhichFnsForCurrentPType(kk);

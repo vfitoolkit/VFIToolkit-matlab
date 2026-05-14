@@ -4,7 +4,7 @@ if ~exist('simoptions','var')
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.npoints=100; % number of points for lorenz curve
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
-    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     simoptions.gridinterplayer=0;
     % When calling as a subcommand, the following is used internally
@@ -21,7 +21,7 @@ else
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
     if ~isfield(simoptions,'whichstats')
-        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     if ~isfield(simoptions,'gridinterplayer')
@@ -46,7 +46,7 @@ l_a=length(n_a);
 N_a=prod(n_a);
 
 %% Exogenous shock grids
-% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
+% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
 [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 
 %% I want to do some things now, so that they can be used in setting up conditional restrictions
@@ -82,7 +82,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
@@ -101,8 +101,8 @@ end
 % Evaluate AllStats, but conditional on the restriction being non-zero.
 
 useCondlRest=0;
-% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it). 
-if isfield(simoptions,'conditionalrestrictions')    
+% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it).
+if isfield(simoptions,'conditionalrestrictions')
     useCondlRest=1;
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
 
@@ -131,7 +131,7 @@ if isfield(simoptions,'conditionalrestrictions')
 
         RestrictedStationaryDistVec=StationaryDist;
         RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
-        
+
         % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
         restrictedsamplemass(rr)=sum(RestrictedStationaryDistVec(:));
         RestrictionStruct(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass(rr);
@@ -162,7 +162,7 @@ if N_z==0
         %% If there are any conditional restrictions then deal with these
         % Evaluate AllStats, but conditional on the restriction being one.
         if useCondlRest==1
-            % Evaluate the conditinal restrictions:
+            % Evaluate the conditional restrictions:
             % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
             for rr=1:length(CondlRestnFnNames)
                 if restrictedsamplemass(rr)>0
@@ -185,7 +185,7 @@ else % N_z
         %% If there are any conditional restrictions then deal with these
         % Evaluate AllStats, but conditional on the restriction being one.
         if useCondlRest==1
-            % Evaluate the conditinal restrictions:
+            % Evaluate the conditional restrictions:
             % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
             for rr=1:length(CondlRestnFnNames)
                 if restrictedsamplemass(rr)>0

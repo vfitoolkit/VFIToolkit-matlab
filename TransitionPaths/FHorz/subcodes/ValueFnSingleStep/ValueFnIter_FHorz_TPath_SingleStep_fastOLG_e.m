@@ -43,7 +43,7 @@ if strcmp(vfoptions.exoticpreferences,'None')
             end
         end
     end
-else 
+else
     error('Not yet implemented exoticpreferences for transtion paths (email me :)')
 end
 

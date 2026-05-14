@@ -23,20 +23,20 @@ ReturnMatrixLvl1=CreateReturnFnMatrix_Case1_Disc_DC2_nod_Par2(ReturnFn, n_z, a1_
 % if vfoptions.actualV0==0
 %     %% Solve first-level ignoring the second level
 %     % This will hopefully work to give a good initial guess for the second level
-% 
+%
 %     lvl1aprimeindexes=repmat(level11ii',vfoptions.level1n(2),1)+vfoptions.level1n(1)*(repelem(level12jj',vfoptions.level1n(1),1)-1);
-% 
+%
 %     % Now, do value function iteration on just this first level
 %     [V,~]=ValueFnIter_Case1_nod_Par2_raw(zeros(prod(vfoptions.level1n),N_z,'gpuArray'), vfoptions.level1n, n_z, pi_z, DiscountFactorParamsVec, reshape(ReturnMatrixLvl1(lvl1aprimeindexes,:,:,:),[prod(vfoptions.level1n),prod(vfoptions.level1n),N_z]), vfoptions.howards, vfoptions.maxhowards, 100*vfoptions.tolerance, vfoptions.maxiter);
 %     % Note: uses 100*vfoptions.tolerance, as it is just an intial guess
-% 
+%
 %     % Turn this V, which is currently only on the first level grid, into a full V by linear interpolation
-% 
+%
 %     V=interp3(reshape(V,[vfoptions.level1n(1),vfoptions.level1n(2),N_z]),linspace(1,vfoptions.level1n(2),N_a2),linspace(1,vfoptions.level1n(1),N_a1)',(1:1:N_z));
 %     % Note: For reasons known only to matlab, you use interp3(V,Xq,Yq,Zq) with X=1:n, Y=1:m, Z=1:p, where [m,n,p] = size(V).
 %     %       So X and Y are 'reversed' from what you would expect them to be.
 %     % Weird behaviour, presumably something to do with how Matlab views columns as the first dimension.
-% 
+%
 %     if vfoptions.verbose==1
 %         fprintf('Created the initial guess for V based on level 1 of divide-and-conquer \n')
 %     end
@@ -54,7 +54,7 @@ Policy=zeros(N_a1,N_a2,N_z,'gpuArray'); % first dim indexes the optimal choice f
 Ftemp=zeros(N_a1,N_a2,N_z,'gpuArray');
 
 % Precompute
-Epi_z=shiftdim(pi_z',-2); % pi_z in the form we need it to compute the expections
+Epi_z=shiftdim(pi_z',-2); % pi_z in the form we need it to compute the expectations
 
 % For Howards we want
 bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
@@ -71,7 +71,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     Vold=V;
 
     EV=Vold.*Epi_z;
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,3); % sum over z', leaving a singular third dimension
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_a1*N_a2,1,1,N_z]);
 
@@ -85,7 +85,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     % % Store
     % V(level11ii,level12jj,:)=shiftdim(Vtempii,1); % In 2D, this all gets overwritten as each layer2-ii-jj includes the edges, so I can skip it to save time
     % Policy(level11ii,level12jj,:)=shiftdim(maxindex1,1);  % In 2D, this all gets overwritten as each layer2-ii-jj includes the edges, so I can skip it to save time
-    % 
+    %
     % % Need to keep Ftemp for Howards policy iteration improvement
     % Ftemp(level11ii,level12jj,:)=ReturnMatrixLvl1(shiftdim(maxindex1,1)+N_a*(0:1:vfoptions.level1n(1)-1)'+N_a*vfoptions.level1n(1)*(0:1:vfoptions.level1n(2)-1)+N_a*prod(vfoptions.level1n)*shiftdim((0:1:N_z-1),-1));  % In 2D, this all gets overwritten as each layer2-ii-jj includes the edges, so I can skip it to save time
 
@@ -188,7 +188,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     %% Finish up
     % Update currdist
-    Vdist=V(:)-Vold(:); 
+    Vdist=V(:)-Vold(:);
     Vdist(isnan(Vdist))=0;
     currdist=max(abs(Vdist));
 
@@ -204,7 +204,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         V=reshape(V,[N_a1,N_a2,N_z]);
         Ftemp=zeros(N_a1,N_a2,N_z,'gpuArray');
     end
-    
+
     if vfoptions.verbose==1
         if rem(tempcounter,10)==0 % Every 10 iterations
             fprintf(distvstolstr, tempcounter,currdist) % use enough decimal points to be able to see countdown of currdist to 0

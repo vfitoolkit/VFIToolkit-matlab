@@ -61,7 +61,7 @@ entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (aprime,a and j), autofills a dimen
 % Calc the max and it's index
 [~,maxindex1]=max(entireRHS_ii,[],1);
 
-% Just keep the 'midpoint' vesion of maxindex1 [as GI]
+% Just keep the 'midpoint' version of maxindex1 [as GI]
 midpoints_jj(1,level1ii,:)=maxindex1;
 
 % Attempt for improved version
@@ -79,7 +79,7 @@ for ii=1:(vfoptions.level1n-1)
        [~,maxindex]=max(entireRHS_ii,[],1);
         midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
     else
-        loweredge=maxindex1(1,ii,:);       
+        loweredge=maxindex1(1,ii,:);
         midpoints_jj(1,curraindex,:)=repelem(loweredge,1,length(curraindex),1);
     end
 end

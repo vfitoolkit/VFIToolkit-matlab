@@ -56,12 +56,12 @@ for rr=1:nReveals
     else
         RealizedVPath(:,revealperiods(rr):end)=VPath_rr(:,1:durationofreveal_rr);
     end
-    
+
     PolicyPath_rr=reshape(PolicyPath_rr,[prod(temp_policysize(1:end-1)),T]);
     if rr<nReveals
         RealizedPolicyPath(:,revealperiods(rr):revealperiods(rr+1)-1)=PolicyPath_rr(:,1:durationofreveal_rr);
     else
-        RealizedPolicyPath(:,revealperiods(rr):end)=PolicyPath_rr(:,1:durationofreveal_rr);    
+        RealizedPolicyPath(:,revealperiods(rr):end)=PolicyPath_rr(:,1:durationofreveal_rr);
     end
 end
 % Reshape for output (get them out of kron from)

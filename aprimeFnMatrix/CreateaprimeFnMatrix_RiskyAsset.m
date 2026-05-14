@@ -122,7 +122,7 @@ if l_a2==1
     a2primeVals=reshape(a2primeVals,[1,N_d*N_u]);
 
     a2_griddiff=a2_grid(2:end)-a2_grid(1:end-1); % Distance between point and the next point
-    
+
     % For small aprimeVals and a_grid, max() is faster than discretize()
     % http://discourse.vfitoolkit.com/t/example-attanasio-low-sanchez-marcos-2008/257/25
     if N_d*N_u*N_a2<1000000
@@ -168,7 +168,7 @@ if l_a2==1
         a2primeProbs(offBottomOfGrid)=1;
         a2primeProbs(offTopOfGrid)=0;
     end
-    
+
     if aprimeIndexAsColumn==1 % value fn codes want column, simulation codes want matrix
 %     aprimeIndexes=reshape(aprimeIndexes,[N_d*N_u,1]);
         a2primeIndexes=a2primeIndexes'; % This is just doing the commented out reshape above

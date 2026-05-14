@@ -55,9 +55,9 @@ else
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z)
 
@@ -65,7 +65,7 @@ else
         MostTempting=max(TemptationMatrix,[],1);
 
         EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=kron(EV,ones(N_d,1));
@@ -78,24 +78,24 @@ else
 
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,N_j)=shiftdim(maxindex,1);
-        
+
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
-            
+
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2);
-            
+
             entireEV_z=kron(EV_z,ones(N_d,1));
 
             TemptationMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, TemptationFnParamsVec);
             MostTempting_z=max(TemptationMatrix_z,[],1);
             entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,N_j)=Vtemp;
@@ -111,25 +111,25 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames, jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,jj+1);
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z)
 
         TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,jj), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
-        
+
         EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireEV=repelem(EV,N_d,1,1);
@@ -141,29 +141,29 @@ for reverse_j=1:N_j-1
 
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
-        
+
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
-            
+
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2);
-            
+
             entireEV_z=kron(EV_z,ones(N_d,1));
 
             TemptationMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, TemptationFnParamsVec);
             MostTempting_z=max(TemptationMatrix_z,[],1);
             entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
-        end        
+        end
     end
 end
 

@@ -35,14 +35,14 @@ if vfoptions.EVpre==0
     EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,:,:),3); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
     EVpre=reshape(EVpre,[N_a,1,N_j,N_z]);
     EV=EVpre.*shiftdim(pi_z_J,-2);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
     EVpre=[reshape(V,[N_a*N_j,N_z,N_e].*pi_e_J,3)];  % input V is already of size [N_a,N_j] and we want to use the whole thing
     EVpre=reshape(EVpre,[N_a,1,N_j,N_z]);
     EV=EVpre.*shiftdim(pi_z_J,-2);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
 V=zeros(N_a,N_j,N_z,N_e,'gpuArray'); % V is over (a,j)
@@ -54,7 +54,7 @@ if vfoptions.lowmemory==0
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, n_z, n_e, N_j, a_grid, a_grid(level1ii), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (d,aprime,a and j,z,e), autofills a and e for expectation term
-     
+
     [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
 
     % Store
@@ -99,7 +99,7 @@ elseif vfoptions.lowmemory==1
         entireRHS_ii=ReturnMatrix_ii_e+DiscountedEV; % (d,aprime,a and j,z), autofills a for expectation term
 
         [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
- 
+
         % Store
         V(level1ii,:,:,e_c)=Vtempii;
         Policy(level1ii,:,:,e_c)=maxindex1; % d,aprime

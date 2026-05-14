@@ -67,30 +67,10 @@ simoptions.outputasstructure=0;
 simoptions.AggVarNames=AggVarNames;
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-if isstruct(FnsToEvaluate)
-    [tplus1priceNames,tminus1priceNames,~,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames);
-    % tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk.
-    % But omit tminus1AggVarsNames as AggVars are anyway not allowed to take AggVars as inputs.
-else
-    tplus1priceNames=[];
-    tminus1priceNames=[];
-    tplus1pricePathkk=[];
-end
-
-use_tplus1price=0;
-if ~isempty(tplus1priceNames)
-    use_tplus1price=1;
-end
-use_tminus1price=0;
-if ~isempty(tminus1priceNames)
-    use_tminus1price=1;
-    for tt=1:length(tminus1priceNames)
-        if ~isfield(simoptions.initialvalues,tminus1priceNames{tt})
-            error('Using %s as an input (to FnsToEvaluate) but it is not in simoptions.initialvalues \n',tminus1priceNames{tt})
-        end
-    end
-end
-% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
+[tplus1priceNames,tminus1priceNames,~,~,tplus1pricePathkk,...
+    use_tplus1price,use_tminus1price,~,~]=...
+    inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},simoptions);
+% Omit tminus1AggVarsNames as AggVars are anyway not allowed to take AggVars as inputs
 
 %%
 a_gridvals=CreateGridvals(n_a,a_grid,1);
@@ -135,10 +115,10 @@ for tt=1:T
             Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
         end
     end
-    
+
     PolicyValuesPermute=PolicyValuesPath(:,:,:,tt);
     AgentDist=AgentDistPath(:,:,tt);
-    
+
     AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(AgentDist(:), PolicyValuesPermute, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames,AggVarNames, n_a, n_z, a_gridvals, z_gridvals,0);
 
     AggVarsPath(:,tt)=AggVars;

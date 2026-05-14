@@ -22,26 +22,26 @@ ReturnMatrixLvl1=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d
 %     %% Solve first-level ignoring the second level
 %     % This will hopefully work to give a good initial guess for the second level
 %     % We can use 'Refine' on this first level: http://discourse.vfitoolkit.com/t/pure-discretization-with-refinement/206
-% 
+%
 %     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
 %     [ReturnMatrixLvl1_refined,~]=max(reshape(ReturnMatrixLvl1,[N_d,N_a1*N_a2,vfoptions.level1n*N_a2,N_z]),[],1);
 %     ReturnMatrixLvl1_refined=shiftdim(ReturnMatrixLvl1_refined,1);
-% 
+%
 %     lvl1aprimeindexes=repmat(level1ii',N_a2,1)+vfoptions.level1n*(repelem((1:1:N_a2)',vfoptions.level1n,1)-1);
-% 
+%
 %     % Now, do value function iteration on just this first level (we already did Refine, so no d variable)
 %     [V,~]=ValueFnIter_Case1_nod_Par2_raw(zeros(vfoptions.level1n*N_a2,N_z,'gpuArray'), [vfoptions.level1n,N_a2], n_z, pi_z, DiscountFactorParamsVec, ReturnMatrixLvl1_refined(lvl1aprimeindexes,:,:), vfoptions.howards, vfoptions.maxhowards, 100*vfoptions.tolerance, vfoptions.maxiter);
 %     % Note: uses 100*vfoptions.tolerance, as it is just an intial guess
-% 
+%
 %     % Turn this V, which is currently only on the first level grid, into a full V by linear interpolation
-% 
+%
 %     V=interp3(reshape(V,[vfoptions.level1n(1),N_a2,N_z]),(1:1:N_a2),linspace(1,vfoptions.level1n,N_a1)',(1:1:N_z));
 %     % Note: For reasons known only to matlab, you use interp3(V,Xq,Yq,Zq) with X=1:n, Y=1:m, Z=1:p, where [m,n,p] = size(V).
 %     %       So X and Y are 'reversed' from what you would expect them to be.
 %     % Weird behaviour, presumably something to do with how Matlab views columns as the first dimension.
-% 
+%
 %     V=reshape(V,[N_a,N_z]);
-% 
+%
 %     if vfoptions.verbose==1
 %         fprintf('Created the initial guess for V based on level 1 of divide-and-conquer \n')
 %     end
@@ -57,7 +57,7 @@ Policy=zeros(N_a,N_z,'gpuArray');
 Ftemp=zeros(N_a,N_z,'gpuArray');
 
 % Precompute
-Epi_z=shiftdim(pi_z',-1); % pi_z in the form we need it to compute the expections
+Epi_z=shiftdim(pi_z',-1); % pi_z in the form we need it to compute the expectations
 
 % For Howards we want
 bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
@@ -72,10 +72,10 @@ tempcounter=1;
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     Vold=V;
-    
+
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=Vold.*Epi_z;
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
     % EV is (a1a2prime,1,z)
 
@@ -153,10 +153,10 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         end
 
     end
-    
+
     %% Finish up
     % Update currdist
-    Vdist=V(:)-Vold(:); 
+    Vdist=V(:)-Vold(:);
     Vdist(isnan(Vdist))=0;
     currdist=max(abs(Vdist));
 

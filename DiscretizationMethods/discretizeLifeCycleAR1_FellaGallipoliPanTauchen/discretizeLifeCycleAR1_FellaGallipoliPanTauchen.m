@@ -5,7 +5,7 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 % This is an extension of the Tauchen method to 'age-dependent parameters'
 % 
 %  Exteneded-Tauchen method to approximate life-cycle AR(1) process by a discrete Markov chain
-%       z(j) = mew(j)+rho(j)*z(j-1)+ epsilon(j),   epsilion(j)~iid N(0,sigma(j))
+%       z(j) = mew(j)+rho(j)*z(j-1)+ epsilon(j),   epsilon(j)~iid N(0,sigma(j))
 %       with initial condition z(0) = 0 (equivalently z(1)=epsilon(1)) 
 % 
 % Inputs: 
@@ -16,7 +16,7 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 %   J            - Number of 'ages' (finite number of periods)
 % Optional inputs (fellagallipolipanoptions)
 %   nSigmas           - the grid used will be +-nSigmas*(standard deviation of z)
-%                        nSigmas is the hyperparamer of the Tauchen method
+%                        nSigmas is the hyperparameter of the Tauchen method
 %   parallel:         - set equal to 2 to use GPU, 0 to use CPU
 %        You can control the initial period with the following:
 %        By default, assume z0=0

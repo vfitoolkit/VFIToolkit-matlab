@@ -3,7 +3,7 @@ function [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=Transiti
 
 %%
 if simoptions.experienceasset==1
-    
+
     whichisdforexpasset=length(n_d)-simoptions.setup_experienceasset.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
     if N_e==0 && N_z==0
         a2primeIndexesPath=zeros(N_a,T-1,'gpuArray');
@@ -59,7 +59,7 @@ if simoptions.experienceasset==1
     end
 
 
-    if simoptions.setup_experienceasset.N_a1==0 
+    if simoptions.setup_experienceasset.N_a1==0
         error('Not yet implemented for experienceasset without a1 (ask on forum if you need this)')
         % Note to self: Problem is that the create of PolicyaprimePath
         % assumes that there is an a1, if no a1 this needs to be skipped
@@ -256,7 +256,7 @@ elseif N_z>0 && N_e>0
     elseif N_probs>1 % for a reason other than gridinterplayer
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z*N_e,1,T-1]); % so can assume this size later
     end
-    
+
     clear PolicyIndexesPath PolicyaprimePath L2index
     if simoptions.experienceasset==1
         if simoptions.setup_experienceasset.N_a1==0
@@ -270,7 +270,7 @@ elseif N_z>0 && N_e>0
             PolicyProbsPath=a2primeProbsPath;
         end
     end
-    
+
     PolicyaprimezPath=gather(PolicyaprimezPath);
     if simoptions.gridinterplayer==1
         PolicyProbsPath=gather(PolicyProbsPath);

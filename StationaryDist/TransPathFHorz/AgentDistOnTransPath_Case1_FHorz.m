@@ -14,7 +14,7 @@ else
     end
 end
 
-%% Check which simoptions have been used, set all others to defaults 
+%% Check which simoptions have been used, set all others to defaults
 if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.fastOLG=1; % parallel over j, faster but uses more memory
@@ -76,7 +76,7 @@ else
 end
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
 %%
@@ -230,7 +230,7 @@ if simoptions.experienceasset==1
     if ~isfield(simoptions,'aprimeFn')
         error('To use an experience asset you must define simoptions.aprimeFn')
     end
-    
+
     % aprimeFnParamNames in same fashion
     l_d2=length(n_d2);
     l_a2=length(n_a2);
@@ -240,8 +240,8 @@ if simoptions.experienceasset==1
     else
         aprimeFnParamNames={};
     end
-    
-    
+
+
     whichisdforexpasset=length(n_d)-simoptions.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
     if N_e==0 && N_z==0
         a2primeIndexesPath=zeros(N_a,N_j-1,T,'gpuArray');
@@ -262,7 +262,7 @@ if simoptions.experienceasset==1
         for tt=1:T
             aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
             % [N_j,number of params]
-            
+
             [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
             % Note: a2primeIndexes and a2primeProbs are both [N_a,N_z,N_j]
             % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
@@ -270,7 +270,7 @@ if simoptions.experienceasset==1
             a2primeProbsPath(:,:,:,tt)=a2primeProbs(:,:,1:end-1);
         end
     end
-    
+
     if N_e==0 && N_z==0
         a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a,N_j-1,1,T]);
         a2primeIndexesPath=repmat(a2primeIndexesPath,1,1,2,1);
@@ -849,7 +849,7 @@ else
                     AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_nProbs_e_raw(AgentDist,Policy_aprimez,PolicyProbs,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,II1,jequaloneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
-                AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights 
+                AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
             else
                 %% fastOLG=1, z, e, N_probs
                 II=repelem((1:1:N_a*(N_j-1)*N_z*N_e)',1,N_probs);

@@ -12,7 +12,7 @@ else
 end
 l_a=length(n_a);
 
-%% Check which simoptions have been used, set all others to defaults 
+%% Check which simoptions have been used, set all others to defaults
 if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.gridinterplayer=0;
@@ -51,7 +51,7 @@ AgentDistPath(:,1)=gpuArray(full(AgentDist));
 
 if simoptions.experienceasset==0
     l_aprime=l_a; % standard endogenous states
-    
+
     PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
     if l_a==1
         PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:),[N_a*N_z,T]); % aprime index
@@ -63,7 +63,7 @@ if simoptions.experienceasset==0
         PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:)+n_a(1)*(PolicyPath(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyPath(l_d+4,:,:)-1),[N_a*N_z,T]);
     end
     PolicyaprimezPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
-    
+
     if simoptions.gridinterplayer==0
         II1=(1:1:N_a*N_z); % Index for this period (a,z)
         IIones=ones(N_a*N_z,1); % Next period 'probabilities'
@@ -133,7 +133,7 @@ elseif simoptions.experienceasset==1
     else
         aprimeFnParamNames={};
     end
-   
+
     PolicyPath=KronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyPath, n_d, n_a, n_z,T,simoptions);
 
     % Precompute
@@ -141,7 +141,7 @@ elseif simoptions.experienceasset==1
     PolicyProbs=zeros(N_a,N_z,2,'gpuArray'); % preallocate
     Policy_aprime=zeros(N_a,N_z,2,'gpuArray'); % preallocate
     II2=([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
-    
+
     if simoptions.gridinterplayer==0
 
         for tt=1:T-1
@@ -174,7 +174,8 @@ elseif simoptions.experienceasset==1
             end
             PolicyaprimezPath=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
             % PolicyProbs_2D=reshape(PolicyProbs,[N_a*N_z,2]); % sparse matrices are limited to 2D; match PolicyaprimezPath shape
-            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs_raw(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
 

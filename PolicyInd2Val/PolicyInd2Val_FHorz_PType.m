@@ -29,7 +29,7 @@ for ii=1:N_i
         names=fieldnames(N_j);
         N_j_temp=N_j.(names{ii});
     end
-    
+
     d_grid_temp=d_grid;
     if isa(d_grid,'struct')
         names=fieldnames(d_grid);
@@ -38,9 +38,9 @@ for ii=1:N_i
     a_grid_temp=a_grid;
     if isa(a_grid,'struct')
         names=fieldnames(a_grid);
-        a_grid_temp=a_grid.(names{ii});        
+        a_grid_temp=a_grid.(names{ii});
     end
-    
+
     PolicyValues.(Names_i{ii})=PolicyInd2Val_FHorz(PolicyIndexes.(Names_i{ii}),n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,vfoptions);
 end
 

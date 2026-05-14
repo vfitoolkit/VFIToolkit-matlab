@@ -17,17 +17,17 @@ tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance && tempcounter<=maxiter
     VKronold=VKron;
-    
+
     for z_c=1:N_z
-        
+
         zvals=z_gridvals(z_c,:);
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, special_n_z,d_gridvals, a_grid, zvals,ReturnFnParams);
-        
+
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*pi_z(z_c,:);
-        EV_z(isnan(EV_z))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
-        
+
         entireEV_z=kron(EV_z,ones(N_d,1));
         entireRHS=ReturnMatrix_z+beta*entireEV_z;
 
@@ -35,9 +35,9 @@ while currdist>Tolerance && tempcounter<=maxiter
         [Vtemp,maxindex]=max(entireRHS,[],1);
         VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
-             
+
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
-        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
+        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
     end
 
     VKrondist=VKron(:)-VKronold(:);
@@ -47,7 +47,7 @@ while currdist>Tolerance && tempcounter<=maxiter
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             VKrontemp=VKron;
-            
+
             EVKrontemp=VKrontemp(ceil(PolicyIndexes/N_d),:);
             EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
@@ -55,7 +55,7 @@ while currdist>Tolerance && tempcounter<=maxiter
             VKron=Ftemp+beta*EVKrontemp;
         end
     end
-    
+
     tempcounter=tempcounter+1;
 end
 

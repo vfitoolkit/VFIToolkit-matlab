@@ -2,7 +2,7 @@ function PolicyKron=KronPolicyIndexes_Case1_semiz(Policy, n_d1, n_d2, n_a, n_z, 
 
 %Input: Policy (l_d+l_a,n_a,n_z,n_semiz);
 
-%Output: Policy=zeros(3,N_a,N_z,N_semiz); %first dim indexes the optimal choice for d1, d2 and aprime rest of dimensions a,z 
+%Output: Policy=zeros(3,N_a,N_z,N_semiz); %first dim indexes the optimal choice for d1, d2 and aprime rest of dimensions a,z
 %                    (2,N_a,N_z,N_semiz) if there is no d1
 
 N_a=prod(n_a);
@@ -15,12 +15,12 @@ l_a=length(n_a);
 Policy=reshape(Policy,[size(Policy,1),N_a,N_z*N_semiz]);
 
 if n_d1(1)==0
-  
+
     if isa(Policy,'gpuArray')
         % Should test whether code runs faster with this predeclaration of PolicyKron commented or uncommented
-        % PolicyKron=zeros(2,N_a,N_z,N_semiz,'gpuArray'); 
-        
-        if l_d2==1        
+        % PolicyKron=zeros(2,N_a,N_z,N_semiz,'gpuArray');
+
+        if l_d2==1
             PolicyKron(1,:,:,:)=reshape(Policy(1,:,:),[1,N_a,N_z,N_semiz]);
         else
             temp=ones(l_d2,1,'gpuArray')-eye(l_d2,1,'gpuArray');
@@ -29,7 +29,7 @@ if n_d1(1)==0
             PolicyKron(1,:,:,:)=reshape(sum(PolicyTemp,1),[N_a,N_z,N_semiz]);
         end
         % Then, a
-        if l_a==1        
+        if l_a==1
             PolicyKron(2,:,:,:)=reshape(Policy(l_d2+1,:,:),[1,N_a,N_z,N_semiz]);
         else
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
@@ -50,15 +50,15 @@ if n_d1(1)==0
         end
         PolicyKron=reshape(PolicyKron,[2,N_a,N_z,N_semiz]); %Overwrite
     end
-    
+
 else
     l_d1=length(n_d1);
-  
+
     if isa(Policy,'gpuArray')
         % Should test whether code runs faster with this predeclaration of PolicyKron commented or uncommented
-        % PolicyKron=zeros(3,N_a,N_z,'gpuArray'); 
-        
-        if l_d1==1        
+        % PolicyKron=zeros(3,N_a,N_z,'gpuArray');
+
+        if l_d1==1
             PolicyKron(1,:,:,:)=reshape(Policy(1,:,:),[1,N_a,N_z,N_semiz]);
         else
             temp=ones(l_d1,1,'gpuArray')-eye(l_d1,1,'gpuArray');
@@ -67,7 +67,7 @@ else
             PolicyKron(1,:,:,:)=reshape(sum(PolicyTemp,1),[N_a,N_z,N_semiz]);
         end
         % Then, d2
-        if l_d2==1        
+        if l_d2==1
             PolicyKron(2,:,:,:)=reshape(Policy(l_d1+1,:,:),[1,N_a,N_z,N_semiz]);
         else
             temp=ones(l_d2,1,'gpuArray')-eye(l_d2,1,'gpuArray');
@@ -76,7 +76,7 @@ else
             PolicyKron(2,:,:,:)=reshape(sum(PolicyTemp,1),[1,N_a,N_z,N_semiz]);
         end
         % Then, a
-        if l_a==1        
+        if l_a==1
             PolicyKron(3,:,:,:)=reshape(Policy(l_d1+l_d2+1,:,:),[1,N_a,N_z,N_semiz]);
         else
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');

@@ -52,14 +52,14 @@ DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 if vfoptions.lowmemory==0
 
     EV=Vnext.*shiftdim(pi_z',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
     entireEV=repelem(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1,z]
 
     % Interpolate EV over aprime_grid
     EVinterp=reshape(interp1(a1_grid,reshape(EV,[N_a1,N_a2,N_z]),a1prime_grid),[N_a1prime*N_a2,N_z]);
     entireEVinterp=repmat(shiftdim(EVinterp,-1),N_d,1,1,1); % [d,aprime,1,z]
-    
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals, ReturnFnParamsVec,1);
 
@@ -88,7 +88,7 @@ if vfoptions.lowmemory==0
             midpoints(:,1,:,curraindex,:,:)=maxindexfix+(loweredge-1); % THIS MIGHT BE INCORRECT??
         end
     end
-    
+
     % Turn this into the 'midpoint'
     midpoints=max(min(midpoints,n_a(1)-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is n_d-by-1-by-n_a2-by-n_a1-by-n_a2-by-n_z
@@ -109,7 +109,7 @@ if vfoptions.lowmemory==0
     Policy(2,:,:)=maxindexa1prime; % midpoint for a1
     Policy(3,:,:)=maxindexa2prime; % a2
     Policy(4,:,:)=maxindexL2; % a1prime L2index
-    
+
 elseif vfoptions.lowmemory==1
     error('not yet implemented vfoptions.lowmemory==1 with DC2B and GI in InfHorz TPath')
 

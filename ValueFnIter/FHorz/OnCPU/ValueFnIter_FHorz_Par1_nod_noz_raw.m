@@ -23,7 +23,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,1]); % Using V_Jplus1
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, 0, [], a_grid, [], ReturnFnParamsVec);
 
     entireRHS_z=ReturnMatrix+DiscountFactorParamsVec*EV; % autoexpand a into the 2nd-dim of EV

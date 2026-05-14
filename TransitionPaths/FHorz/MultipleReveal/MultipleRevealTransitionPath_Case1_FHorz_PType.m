@@ -11,7 +11,7 @@ function [RealizedPricePath, RealizedParamPath, PricePath, multirevealsummary]=M
 %    prices so we can use them as initial guess for next path)
 % End
 
-% Note: vfoptions_finaleqm and vfoptions_path can be used to set vfoptions differently 
+% Note: vfoptions_finaleqm and vfoptions_path can be used to set vfoptions differently
 % for the final eqm and for the transition path (same for simoptions)
 
 %% Get N_i so can use it to check inputs and set things up
@@ -372,7 +372,7 @@ for rr=1:nReveals
             end
         end
     end
-    
+
     ParamPath_rr=ParamPath.(revealperiodnames{rr});
 
 
@@ -387,13 +387,13 @@ for rr=1:nReveals
             StationaryDist_initial.(Names_i{ii})=reshape(StationaryDist_initial.(Names_i{ii}),tempsize);
         end
     end
-    
+
     %% Compute the transition path
     PricePath_rr=TransitionPath_Case1_FHorz_PType(PricePath0_rr, ParamPath_rr, T, V_final, StationaryDist_initial, jequaloneDist, n_d, n_a, n_z, N_j, Names_i,d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns_Transition, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions_path, vfoptions_path);
     % Keep each of the price paths
     PricePath.(revealperiodnames{rr})=PricePath_rr;
-    
-    
+
+
     % %% Purely for debugging purposes
     % str=['temp',num2str(rr),'.mat'];
     % StationaryDist_initial_rr=StationaryDist_initial;
@@ -405,13 +405,13 @@ for rr=1:nReveals
 
     % You can calculate the value and policy functions for the transition path
     [VPath_rr,PolicyPath_rr]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath_rr, ParamPath_rr, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions,vfoptions_path);
-    
+
     % You can then use these to calculate the agent distribution for the transition path
     AgentDistPath_rr=AgentDistOnTransPath_Case1_FHorz_PType(StationaryDist_initial, jequaloneDist, PricePath_rr, ParamPath_rr, PolicyPath_rr, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z,T, Parameters, transpathoptions, simoptions_path);
 
     % And then we can calculate AggVars for the path
     AggVarsPath_rr=EvalFnOnTransPath_AggVars_Case1_FHorz_PType(FnsToEvaluate, AgentDistPath_rr, PolicyPath_rr, PricePath_rr, ParamPath_rr, Parameters, T, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, transpathoptions, simoptions_path);
-    
+
     % Store these, they might be of interest if user wants to see way too much info about each path :)
     multirevealsummary.VPath.(revealperiodnames{rr})=VPath_rr;
     multirevealsummary.PolicyPath.(revealperiodnames{rr})=PolicyPath_rr;
@@ -568,7 +568,7 @@ for rr=1:nReveals
             RealizedPricePath.(PricesOnPathNames{pp})=temp;
         end
     end
-    
+
     for pp=1:nParamsOnPath
         if any(ParamsOnPath_ptypedependence(pp,:)==1) % depends on ptype
             for ii=1:N_i

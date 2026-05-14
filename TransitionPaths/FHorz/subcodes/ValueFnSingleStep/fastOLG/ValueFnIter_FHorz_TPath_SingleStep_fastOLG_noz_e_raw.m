@@ -28,7 +28,7 @@ if vfoptions.lowmemory==0
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn, n_d, n_e, N_j, d_gridvals, a_grid', a_grid, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
     % fastOLG: ReturnMatrix is [d,aprime,a,j,e]
-    
+
     entirediscountedEV=ReturnMatrix+discountedEV; %(d,aprime)-by-(a,j,e)
 
     %Calc the max and it's index

@@ -28,42 +28,42 @@ beta0beta=beta0*beta; % Discount rate between present period and next period
 tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance && tempcounter<maxiter
-    
+
     VKronold=Vunderbar;
-    
+
     PolicyhatOld=Policyhat;
-    
+
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
-                
+
         entireRHS=ReturnMatrix_z+beta0beta*EV_z*ones(1,N_a,1,'gpuArray'); %aprime by a
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         Vhat(:,z_c)=Vtemp;
         Policyhat(:,z_c)=maxindex;
-        
+
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
-        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
-        
+        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
+
         % Now calculate Vunderbar (use beta instead of beta0)
         % AM I TREATING EV_z CORRECTLY
         entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1,'gpuArray'); %aprime by a
         Vunderbar(:,z_c)=entireRHS(tempmaxindex);
     end
-    
+
     % I assume that once Vunderbar converges so has Vhat?
     VKrondist=reshape(Vunderbar-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
 
-   
 
-    
+
+
 %     % I am guessing that can use Howards to iterate on both of Vhat and Vunderbar
 %     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
 %         for Howards_counter=1:Howards
@@ -73,7 +73,7 @@ while currdist>Tolerance && tempcounter<maxiter
 %             EVKrontemp(isnan(EVKrontemp))=0;
 %             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
 %             Vhat=Ftemp+beta0beta*EVKrontemp;
-%             
+%
 %             % Iterate Vunderber
 %             EVKrontemp=Vhat(Policyhat,:);
 %             EVKrontemp=EVKrontemp.*aaa;
@@ -96,12 +96,12 @@ while currdist>Tolerance && tempcounter<maxiter
             plot(PolicyhatFirst(:,1))
             hold off
             PolicyhatLastGraph=Policyhat;
-            
+
 %             Vunderbar(1:10)
 %             Vhat(1:10)
             [Policyhat(1:10,1),Policyhat(1:10,151),Policyhat(1:10,351),zeros(10,1),Policyhat(end-9:end,1),Policyhat(end-9:end,151),Policyhat(end-9:end,351)]
-            
-            
+
+
             max(max(abs(Policyhat-PolicyhatOld)))
 
             disp(tempcounter)

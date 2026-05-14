@@ -1,4 +1,4 @@
-function [VKron, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_InfHorz_EndogExit2_nod_Par2_raw(VKron, n_a, n_z, pi_z, beta, ReturnMatrix,ReturnToExitMatrix, Howards,Howards2,Tolerance, keeppolicyonexit, exitprobabilities, continuationcost) % Verbose, a_grid, z_grid, 
+function [VKron, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_InfHorz_EndogExit2_nod_Par2_raw(VKron, n_a, n_z, pi_z, beta, ReturnMatrix,ReturnToExitMatrix, Howards,Howards2,Tolerance, keeppolicyonexit, exitprobabilities, continuationcost) % Verbose, a_grid, z_grid,
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
 
 N_a=prod(n_a);
@@ -18,18 +18,18 @@ tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
-    
+
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         ReturnToExitMatrix_z=ReturnToExitMatrix(:,:,z_c);
-        
+
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
-                
+
         entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
-        
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         % Calc the max and it's index when exiting
@@ -42,17 +42,17 @@ while currdist>Tolerance
         % V_z_endogexit=ExitPolicy(:,z_c).*FtempWhenExit+(1-ExitPolicy(:,z_c)).*(Vtemp-continuationcost);
         % V_z_exoexit=ReturnToExitMatrix_z;
         % VKron(:,z_c)=exitprobabilities(1)*V_z_noexit+exitprobabilities(2)*V_z_endoexit+exitprobabilities(3)*V_z_exoexit
-        
+
         VKron(:,z_c)=exitprobabilities(1)*Vtemp+exitprobabilities(2)*(ExitPolicy_z.*FtempWhenExit+(1-ExitPolicy_z).*(Vtemp-continuationcost))+exitprobabilities(3)*FtempWhenExit;
         FWhenExit(:,z_c)=FtempWhenExit;
         PolicyIndexes(:,z_c)=maxindex;
         PolicyWhenExitIndexes(:,z_c)=maxindexWhenExit;  % MOVE THIS OUTSIDE OF THE while loop
-        ExitPolicy(:,z_c)=ExitPolicy_z;        
-        
+        ExitPolicy(:,z_c)=ExitPolicy_z;
+
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
     end
-    
+
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
@@ -63,12 +63,12 @@ while currdist>Tolerance
             %VKrontemp=VKron;
             %EVKrontemp=VKrontemp(PolicyIndexes,:);
             EVKrontemp=VKron(PolicyIndexes,:);
-            
+
             EVKrontemp=EVKrontemp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-            
-            
+
+
             VKron=exitprobabilities(1)*(Ftemp+beta*EVKrontemp)+exitprobabilities(2)*(Ftemp2+beta*(1-ExitPolicy).*EVKrontemp)+exitprobabilities(3)*FWhenExit;
         end
     end

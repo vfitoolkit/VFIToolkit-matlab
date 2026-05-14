@@ -53,11 +53,11 @@ for gg=1:nGeneralEqmEqns
     GeneralEqmEqnParamNames(gg).Names=temp;
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
 end
-% Now: 
+% Now:
 %  GeneralEqmEqns is still the structure
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(gg).Names contains the names
-% Note: 
+% Note:
 
 
 %% Set up GEparamsvec0 and parameter constraints
@@ -74,13 +74,13 @@ end
 %% Enough setup, Time to do the actual finding the HeteroAgentStationaryEqm:
 
 if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
-    
+
     %% Otherwise, use fminsearch to find the general equilibrium
     GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_FHorz_CPU_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
-    
+
     % CPU: hardcodes fminalgo=1
     [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,GEparamsvec0);
-    
+
     % p_eqm_vec contains the (transformed) unconstrained parameters, not the original (constrained) parameter values.
     [p_eqm_vec,~]=ParameterConstraints_TransformParamsToOriginal(p_eqm_vec,0:1:nGEParams,GEPriceParamNames,heteroagentoptions);
     % p_eqm_vec is now the original (constrained) parameter values.
@@ -88,7 +88,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     for ii=1:length(GEPriceParamNames)
         p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
     end
- 
+
 %%
 elseif heteroagentoptions.maxiter==0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
     % Just use the prices that are currently in Params
@@ -126,7 +126,7 @@ if heteroagentoptions.outputGEstruct==1
     % put GeneralEqmConditions structure on cpu for purely cosmetic reasons
     GEeqnNames=fieldnames(GeneralEqmEqns);
     for gg=1:length(GEeqnNames)
-        GeneralEqmConditions.(GEeqnNames{gg})=gather(GeneralEqmConditions.(GEeqnNames{gg})); 
+        GeneralEqmConditions.(GEeqnNames{gg})=gather(GeneralEqmConditions.(GEeqnNames{gg}));
     end
 end
 

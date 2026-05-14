@@ -9,7 +9,7 @@ function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1_PType(Policy, F
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
 %
 % The stationary distribution be a structure and will contain both the
-% weights/distribution across the permenant types, as well as a pdf for the
+% weights/distribution across the permanent types, as well as a pdf for the
 % stationary distribution of each specific permanent type.
 %
 % How exactly to handle these differences between permanent (fixed) types
@@ -76,11 +76,11 @@ end
 %%
 for ii=1:N_i % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii);  % Note: already check for existence of simoptions and created it if it was not inputted
-    
+
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-    
+
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
         PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
     else
@@ -91,15 +91,15 @@ for ii=1:N_i % First set up simoptions
             PolicyIndexes_temp=gather(PolicyIndexes_temp);
         end
     end
-    
-    
+
+
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
     % type), or they could be a structure. Only in the case where they are
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
-    
+
     % Start with those that determine whether the current permanent type is finite or
     % infinite horizon, and whether it is Case 1 or Case 2
     % Figure out which case is relevant to the current PType. This is done
@@ -107,7 +107,7 @@ for ii=1:N_i % First set up simoptions
     % infinite horizon and a finite number for any other finite horizon.
     % First, check if it is a structure, and otherwise just get the
     % relevant value.
-    
+
     % Horizon is determined via N_j
     if isstruct(N_j)
         N_j_temp=N_j.(Names_i{ii});
@@ -116,7 +116,7 @@ for ii=1:N_i % First set up simoptions
     else % is a vector
         N_j_temp=N_j(ii);
     end
-    
+
     if isstruct(n_d)
         n_d_temp=n_d.(Names_i{ii});
     else
@@ -132,8 +132,8 @@ for ii=1:N_i % First set up simoptions
     else
         n_z_temp=n_z;
     end
-    
-    
+
+
     if isstruct(d_grid)
         d_grid_temp=d_grid.(Names_i{ii});
     else
@@ -210,13 +210,13 @@ for ii=1:N_i % First set up simoptions
         end
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
-    
+
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
     end
 
-    
+
     % Figure out which functions are actually relevant to the present
     % PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
@@ -226,11 +226,11 @@ for ii=1:N_i % First set up simoptions
         l_d_temp=1;
     end
     l_a_temp=length(n_a_temp);
-    l_z_temp=length(n_z_temp);  
+    l_z_temp=length(n_z_temp);
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
-    
+
     ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
-    
+
     n_ze_temp=[];
     if isfield(simoptions_temp,'n_semiz') && prod(simoptions_temp.n_semiz)>0
         n_ze_temp=[n_ze_temp,simoptions_temp.n_semiz];
@@ -241,7 +241,7 @@ for ii=1:N_i % First set up simoptions
     if isfield(simoptions_temp,'n_e') && prod(simoptions_temp.n_e)>0
         n_ze_temp=[n_ze_temp,simoptions_temp.n_e];
     end
-    
+
     if isempty(n_ze_temp) % no exogenous states
         if isstruct(FnsToEvaluate)
             FnNames=fieldnames(FnsToEvaluate);
@@ -296,7 +296,7 @@ for ii=1:N_i % First set up simoptions
                 ValuesOnGrid.(Names_i{ii})=gather(reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_ze_temp,N_j_temp]));
             end
         end
-    end    
+    end
 end
 
 end

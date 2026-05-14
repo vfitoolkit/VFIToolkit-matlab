@@ -28,16 +28,16 @@ pi_e=sparse(gather(pi_e));
 currdist=Inf;
 counter=0;
 while currdist>simoptions.tolerance && counter<simoptions.maxit
-    
+
     % First step of Tan improvement
     StationaryDist=reshape(Gammatranspose*StationaryDist,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
     % Second step of Tan improvement
     StationaryDist=reshape(StationaryDist*pi_z,[N_a*N_z,1]);
-    
+
      % Put e back into dist
     StationaryDist=kron(pi_e,StationaryDist);
 
-    % Only check covergence every couple of iterations
+    % Only check convergence every couple of iterations
     if rem(counter,simoptions.multiiter)==0
         StationaryDistKronOld=StationaryDist;
     elseif rem(counter,simoptions.multiiter)==10
@@ -48,7 +48,7 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
 
     if simoptions.verbose==1
         if rem(counter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, full(currdist)/simoptions.tolerance)            
+            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, full(currdist)/simoptions.tolerance)
         end
     end
 end
@@ -59,6 +59,6 @@ StationaryDist=full(StationaryDist);
 
 if ~(counter<simoptions.maxit)
     warning('SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
-end 
+end
 
 end

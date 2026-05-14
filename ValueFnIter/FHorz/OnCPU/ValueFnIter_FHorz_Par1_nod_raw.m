@@ -24,7 +24,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);% Using V_Jplus1
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec);
 
     parfor z_c=1:N_z
@@ -32,7 +32,7 @@ else
 
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*pi_z(z_c,:);
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
 
         entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
@@ -52,14 +52,14 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=V(:,:,jj+1);
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec);
 
     parfor z_c=1:N_z
@@ -67,7 +67,7 @@ for reverse_j=1:N_j-1
 
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*pi_z(z_c,:);
-        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV_z=sum(EV_z,2);
 
         entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);

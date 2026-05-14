@@ -94,7 +94,7 @@ else
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
             % d3_val=d3_grid(d3_c);
@@ -106,7 +106,7 @@ else
             % (d,aprime,a,z)
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -129,7 +129,7 @@ else
             V_ford3_jj(:,:,d3_c)=shiftdim(Vtemp,1);
             Policy_ford3_jj(:,:,d3_c)=shiftdim(maxindex,1);
         end
-        
+
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
             % d3_val=d3_grid(d3_c);
@@ -143,7 +143,7 @@ else
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
-                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                 EV_z=sum(EV_z,2);
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a
@@ -187,8 +187,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -219,7 +219,7 @@ for reverse_j=1:N_j-1
             % (d,aprime,a,z)
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -256,7 +256,7 @@ for reverse_j=1:N_j-1
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_z=EVpre.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
-                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                 EV_z=sum(EV_z,2);
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a

@@ -17,7 +17,7 @@ if N_d~=0
 end
 
 if Parallel==0
-        
+
     if N_d==0
         Fmatrix=zeros(N_a,N_a);
         for i1=1:N_a
@@ -26,10 +26,10 @@ if Parallel==0
                 Fmatrix(i1,i2)=ReturnFn(tempcell{:},ReturnFnParamsCell{:});
             end
         end
-            
+
     else
         Fmatrix=zeros(N_d*N_a,N_a);
-        
+
         for i1=1:N_d
             for i2=1:N_a
                 i1i2=i1+(i2-1)*N_d;
@@ -40,9 +40,9 @@ if Parallel==0
             end
         end
     end
-    
+
 elseif Parallel==1
-    
+
     if N_d==0
         Fmatrix=zeros(N_a,N_a);
         parfor i2=1:N_a
@@ -54,7 +54,7 @@ elseif Parallel==1
             end
             Fmatrix(:,i2)=Fmatrix_a;
         end
-    else        
+    else
         Fmatrix=zeros(N_d*N_a,N_a);
         parfor i3=1:N_a
             Fmatrix_a=zeros(N_d*N_a,1);

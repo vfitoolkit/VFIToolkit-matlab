@@ -46,7 +46,7 @@ end
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if vfoptions.lowmemory==0
-    
+
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -54,7 +54,7 @@ if vfoptions.lowmemory==0
     Policy(:,:,N_j)=maxindex;
 
 elseif vfoptions.lowmemory==1
-    
+
     for z_c=1:N_z
         z_val=[z_gridvals_J(z_c,:,N_j),SDV_z_gridvals(z_c,:)];
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, ReturnFnParamsVec);
@@ -62,7 +62,7 @@ elseif vfoptions.lowmemory==1
         [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
         V(:,z_c,N_j)=Vtemp;
         Policy(:,z_c,N_j)=maxindex;
-    end    
+    end
 end
 
 
@@ -73,13 +73,13 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         sprintf('Finite horizon: %i of %i (counting backwards to 1)',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     if min(SDV_z_IndepOfagej)<1 % If the state dependent variable (depending on z) also depends on age j.
         for ii=1:l_SDV_z
             if SDV_z_IndepOfagej(ii)==0
@@ -88,43 +88,43 @@ for reverse_j=1:N_j-1
             end
         end
     end
-    
+
     EV=V(:,:,jj+1);
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
         for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-            
+
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2);
-            
+
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
-        
+
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=[z_gridvals_J(z_c,:,jj),SDV_z_gridvals(z_c,:)];
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, ReturnFnParamsVec);
-            
+
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2);
-            
+
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;

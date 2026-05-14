@@ -2,7 +2,7 @@ function varargout=HeteroAgentStationaryEqm_InfHorz_PType(n_d, n_a, n_z, Names_i
 % Outputs: [p_eqm, GeneralEqmConditions]
 % Unless you use n_p and p_grid, in which case [p_eq, p_eqm_index, GeneralEqmConditions]
 %
-% Allows for different permanent (fixed) types of agent. 
+% Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_InfHorz_PType for general idea.
 %
 % How exactly to handle these differences between permanent (fixed) types
@@ -15,7 +15,7 @@ function varargout=HeteroAgentStationaryEqm_InfHorz_PType(n_d, n_a, n_z, Names_i
 %
 % Names_i can either be a cell containing the 'names' of the different
 % permanent types, or if there are no structures used (just parameters that
-% depend on permanent type and inputted as vectors or matrices as appropriate) 
+% depend on permanent type and inputted as vectors or matrices as appropriate)
 % then Names_i can just be the number of permanent types (but does not have to be, can still be names).
 
 
@@ -51,7 +51,7 @@ if exist('heteroagentoptions','var')
 end
 
 
-%% Check which options have been used, set all others to defaults 
+%% Check which options have been used, set all others to defaults
 N_p=prod(n_p);
 if isempty(n_p)
     N_p=0;
@@ -153,7 +153,7 @@ end
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
     heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate=FnsToEvaluate;
     heteroagentoptions.CustomModelStatsInputs.n_d=n_d;
@@ -284,7 +284,7 @@ for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.Names_i{ii};
     PTypeStructure.iistr{ii}=iistr;
-    
+
     if exist('vfoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
         if ~isempty(vfoptions)
             PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
@@ -294,7 +294,7 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).vfoptions.verbose=0;
     end
-    
+
     if exist('simoptions','var') % simoptions.verbose (allowed to depend on permanent type)
         if ~isempty(simoptions)
             PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
@@ -304,7 +304,7 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).simoptions.verbose=0;
     end
-    
+
     PTypeStructure.(iistr).simoptions.outputasstructure=0; % Used by AggVars (in heteroagent subfn)
 
     if heteroagentoptions.verbose==1
@@ -317,7 +317,7 @@ for ii=1:PTypeStructure.N_i
     % type), or they could be a structure. Only in the case where they are
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
-    
+
     % Start with those that determine whether the current permanent type is finite or
     % infinite horizon, and whether it is Case 1 or Case 2
     % Figure out which case is relevant to the current PType. This is done
@@ -325,7 +325,7 @@ for ii=1:PTypeStructure.N_i
     % infinite horizon and a finite number for any other finite horizon.
     % First, check if it is a structure, and otherwise just get the
     % relevant value.
-    
+
     PTypeStructure.(iistr).n_d=n_d;
     if isstruct(n_d)
         PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
@@ -344,7 +344,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).n_z=n_z;
     end
     PTypeStructure.(iistr).N_z=prod(PTypeStructure.(iistr).n_z);
-    
+
     if PTypeStructure.(iistr).n_d(1)==0
         PTypeStructure.(iistr).l_d=0;
     else
@@ -399,7 +399,7 @@ for ii=1:PTypeStructure.N_i
         end
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
-    
+
     %% Set up exogenous shock grids now (so they can then just be reused every time)
 
     if isstruct(z_grid)
@@ -446,11 +446,11 @@ for ii=1:PTypeStructure.N_i
         end
     end
     % Regardless of whether they are done here of in _subfn, they will be
-    % precomputed by the time we get to the value fn, staty dist, etc. So
+    % precomputed by the time we get to the value fn, stationary dist, etc. So
     PTypeStructure.(iistr).vfoptions.alreadygridvals=1;
     PTypeStructure.(iistr).simoptions.alreadygridvals=1;
-       
-    
+
+
 
     %% DiscountFactor and ReturnFn
     % The parameter names can be made to depend on the permanent-type
@@ -466,7 +466,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).ReturnFn=ReturnFn;
     end
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,1,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
-    
+
     %% FnsToEvaluate
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
@@ -477,19 +477,18 @@ for ii=1:PTypeStructure.N_i
         l_d_temp=1;
     end
     l_a_temp=length(PTypeStructure.(iistr).n_a);
-    l_z_temp=length(PTypeStructure.(iistr).n_z);  
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    l_z_temp=length(PTypeStructure.(iistr).n_z);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
     PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
     PTypeStructure.(iistr).WhichFnsForCurrentPType=WhichFnsForCurrentPType;
-    % Copied from FHorz/PType version for consistency
     PTypeStructure.(iistr).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
-    
+
     %% PType masses
     if isa(PTypeDistParamNames, 'array')
         PTypeStructure.(iistr).PTypeWeight=PTypeDistParamNames(ii);
     else
-        PTypeStructure.(iistr).PTypeWeight=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1}); % Don't need '.(Names_i{ii}' as this was already done when putting it into PTypeStrucutre, and here I take it straing from PTypeStructure.(iistr).Parameters rather than from Parameters itself.
+        PTypeStructure.(iistr).PTypeWeight=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1}); % Don't need '.(Names_i{ii}' as this was already done when putting it into PTypeStrucutre, and here I take it straight from PTypeStructure.(iistr).Parameters rather than from Parameters itself.
     end
 
     % Ptype masses; Copied from FHorz/PType version for consistency
@@ -521,7 +520,7 @@ if isfield(heteroagentoptions,'intermediateEqns')
     else
         heteroagentoptions.intermediateEqnsptype=zeros(1,nIntEqns); % 1 indicates that this intermediate eqn is 'conditional on permanent type'
     end
-    
+
     heteroagentoptions.intermediateEqnsCell=cell(1,nIntEqns);
     gg_c=0;
     for gg=1:nIntEqns
@@ -575,13 +574,13 @@ if isfield(heteroagentoptions,'intermediateEqns')
                 end
             end
         end
-        heteroagentoptions.intermediateEqnsCell{gg}=heteroagentoptions.intermediateEqns.(intEqnNames{gg});        
+        heteroagentoptions.intermediateEqnsCell{gg}=heteroagentoptions.intermediateEqns.(intEqnNames{gg});
     end
     % Now:
     %  heteroagentoptions.intermediateEqns is still the structure
     %  heteroagentoptions.intermediateEqnsCell is cell
     %  heteroagentoptions.intermediateEqnParamNames(gg_c).Names contains the names
-    % Note: 
+    % Note:
     % intermediateEqnParamNames is based on gg_c, so that they can differ when using by-ptype in which case they use '_name'
 
 end
@@ -625,11 +624,11 @@ for gg=1:nGeneralEqmEqns
     end
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
 end
-% Now: 
+% Now:
 %  GeneralEqmEqns is still the structure
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(gg_c).Names contains the names
-% Note: 
+% Note:
 % GeneralEqmEqnParamNames is based on gg_c, so that they can differ when using by-ptype in which case they use '_name'
 
 
@@ -674,7 +673,7 @@ end
 
 %%
 if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
-    
+
     %%  Otherwise, use fminsearch to find the general equilibrium
     if all(heteroagentoptions.GEptype==0)
         if heteroagentoptions.fminalgo~=8 && heteroagentoptions.fminalgo~=3
@@ -719,7 +718,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         z0.z=GEparamsvec0;
         [sol,GeneralEqmConditions]=solve(prob,z0);
         p_eqm_vec=sol.z;
-        % Note, doesn't really work as automattic differentiation is only for
+        % Note, doesn't really work as automatic differentiation is only for
         % supported functions, and the objective here is not a supported function
     elseif heteroagentoptions.fminalgo==3
         goal=zeros(length(GEparamsvec0),1);
@@ -807,7 +806,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
         [p_eqm_vec,GeneralEqmConditions]=lsqnonlin(GeneralEqmConditionsFnOpt,GEparamsvec0,[],[],[],[],[],[],[],minoptions);
     end
-    
+
     % p_eqm_vec contains the (transformed) unconstrained parameters, not the original (constrained) parameter values.
     [p_eqm_vec,~]=ParameterConstraints_TransformParamsToOriginal(p_eqm_vec,GEpriceindexesB,GEPriceParamNames,heteroagentoptions);
     % p_eqm_vec is now the original (constrained) parameter values.
@@ -885,7 +884,7 @@ if heteroagentoptions.pricehistory==1
     GEpricepath=GEpricepath(:,1:itercount); % drop the NaN at end
     GEcondnpath=GEcondnpath(:,1:itercount); % drop the NaN at end
     PriceHistory.itercount=itercount;
-    
+
     for pp=1:nGEprices
         if GEprice_ptype(pp)==0
             PriceHistory.(GEPriceParamNames{pp})=GEpricepath(GEpriceindexes(pp,1):GEpriceindexes(pp,2),:);

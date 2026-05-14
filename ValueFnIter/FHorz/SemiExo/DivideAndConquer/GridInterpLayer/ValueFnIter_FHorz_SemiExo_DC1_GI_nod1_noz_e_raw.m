@@ -67,10 +67,10 @@ if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d2, n_semiz, n_e, d2_gridvals, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
         % Treat standard problem as just being the first layer
         [~,maxindex1]=max(ReturnMatrix_ii,[],2);
-        % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_Nj(:,1,level1ii,:,:)=maxindex1;
-        
-        % Second level based on montonicity
+
+        % Second level based on monotonicity
         maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
             curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -113,10 +113,10 @@ if ~isfield(vfoptions,'V_Jplus1')
             % Treat standard problem as just being the first layer
             [~,maxindex1]=max(ReturnMatrix_ii_e,[],2);
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_Nj(:,1,level1ii,:)=maxindex1;
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -162,21 +162,21 @@ else
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j); % reverse order
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
 
             % n-Monotonicity
-            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2); % effecitely nod (as just a single d2 point), so use level=2 even for first level
+            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2); % effectively nod (as just a single d2 point), so use level=2 even for first level
             entireRHS_d2ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*EV_d2;
             % Treat standard problem as just being the first layer
             [~,maxindex1]=max(entireRHS_d2ii,[],1); % no d1
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(1,level1ii,:,:)=maxindex1;
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(max(maxindex(1,2:end,:,:)-maxindex(1,1:end-1,:,:),[],4),[],3));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -205,7 +205,7 @@ else
             aprimez=aprimeindexes+n2aprime*semizind; % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez),[n2long,N_a,N_semiz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-            
+
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,:,d2_c)=shiftdim(midpoints_jj,1);
 
@@ -227,7 +227,7 @@ else
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
@@ -241,10 +241,10 @@ else
                 % Treat standard problem as just being the first layer
                 [~,maxindex1]=max(entireRHS_d2iie,[],1); % no d1
 
-                % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+                % Just keep the 'midpoint' version of maxindex1 [as GI]
                 midpoints_jj(1,level1ii,:)=maxindex1;
 
-                % Second level based on montonicity
+                % Second level based on monotonicity
                 maxgap=squeeze(max(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],3)));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -300,12 +300,12 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
 
     if vfoptions.lowmemory==0
@@ -314,7 +314,7 @@ for reverse_j=1:N_j-1
             pi_semiz=pi_semiz_J(:,:,d2_c,jj); % reverse order
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
@@ -325,10 +325,10 @@ for reverse_j=1:N_j-1
             % Treat standard problem as just being the first layer
             [~,maxindex1]=max(entireRHS_d2ii,[],1); % no d1
 
-            % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(1,level1ii,:,:)=maxindex1;
 
-            % Second level based on montonicity
+            % Second level based on monotonicity
             maxgap=squeeze(max(max(maxindex1(1,2:end,:,:)-maxindex1(1,1:end-1,:,:),[],4),[],3));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
@@ -357,7 +357,7 @@ for reverse_j=1:N_j-1
             aprimez=aprimeindexes+n2aprime*semizind; % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez),[n2long,N_a,N_semiz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-            
+
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
 
@@ -379,7 +379,7 @@ for reverse_j=1:N_j-1
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
@@ -393,10 +393,10 @@ for reverse_j=1:N_j-1
                 % Treat standard problem as just being the first layer
                 [~,maxindex1]=max(entireRHS_d2iie,[],1); % no d1
 
-                % Just keep the 'midpoint' vesion of maxindex1 [as GI]
+                % Just keep the 'midpoint' version of maxindex1 [as GI]
                 midpoints_jj(1,level1ii,:,:)=maxindex1;
 
-                % Second level based on montonicity
+                % Second level based on monotonicity
                 maxgap=squeeze(max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;

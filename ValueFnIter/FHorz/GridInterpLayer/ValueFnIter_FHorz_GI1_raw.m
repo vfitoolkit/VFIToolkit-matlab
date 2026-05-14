@@ -86,22 +86,22 @@ else
     EVpre=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
 
     EV=EVpre.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
         % (d,aprime,a,z)
-        
+
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
 
         %Calc the max and it's index
         [~,maxindex]=max(entireRHS,[],2);
-        
+
         % Turn this into the 'midpoint'
         midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is n_d-1-by-n_a-by-n_z
@@ -126,7 +126,7 @@ else
             EVinterp_z=EVinterp(:,:,z_c);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
-            
+
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*shiftdim(EV_z,-1); %*ones(1,N_a,1);
 
             %Calc the max and it's index
@@ -148,7 +148,7 @@ else
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
             Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
         end
-        
+
     end
 end
 
@@ -159,32 +159,32 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     EVpre=V(:,:,jj+1);
 
     EV=EVpre.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
-    
+
     if vfoptions.lowmemory==0
-        
+
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
         % (d,aprime,a,z)
-        
+
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
 
         %Calc the max and it's index
         [~,maxindex]=max(entireRHS,[],2);
-        
+
         % Turn this into the 'midpoint'
         midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is n_d-1-by-n_a-by-n_z
@@ -200,7 +200,7 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=d_ind; % d
         Policy(2,:,:,jj)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
         Policy(3,:,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
-                
+
     elseif vfoptions.lowmemory==1
 
         for z_c=1:N_z
@@ -209,7 +209,7 @@ for reverse_j=1:N_j-1
             EVinterp_z=EVinterp(:,:,z_c);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
-            
+
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*shiftdim(EV_z,-1); %*ones(1,N_a,1);
 
             %Calc the max and it's index

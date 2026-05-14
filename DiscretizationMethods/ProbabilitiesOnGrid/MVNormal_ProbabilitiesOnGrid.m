@@ -7,10 +7,10 @@ function P=MVNormal_ProbabilitiesOnGrid(z_grid,Mew, Sigma, znum, mvnoptions)
 %
 % Inputs:
 %    znum      - 1-by-M, the number of grid points in each dimension
-%    z_grid    - sum(znum)-by-1, a stacked grid 
+%    z_grid    - sum(znum)-by-1, a stacked grid
 %    Mew       - M-by-1 vector of means
 %    Sigma     - M-by-M variance-covariance matrix
-%               OR M-by-1, intrepreted as a diagonal var-covar matrix with zeros on the off-diagonals
+%               OR M-by-1, interpreted as a diagonal var-covar matrix with zeros on the off-diagonals
 %
 % Optional inputs (mvnoptions)
 %   parallel: set equal to 2 to use GPU, 0 to use CPU
@@ -121,16 +121,16 @@ if bruteforce==0
         P = normcdf(z_gridvals+z_gridspacing_up,Mew,Sigma)-normcdf(z_gridvals-z_gridspacing_down,Mew,Sigma);
     else
         P=reshape(mvncdf(z_gridvals-z_gridspacing_down,z_gridvals+z_gridspacing_up,Mew,Sigma),znum);
-        % mvncdf() can put NaN when 
+        % mvncdf() can put NaN when
     end
 
-else 
+else
     %% bruteforce=1
     % This bruteforce is just left here for legacy reasons (so
     % you can see that simulating points and then count onto grid and then
     % normalize will give the same answer, this was just done as a double-check on the above)
 
-    nsample=10^6; % Note, when I set it to 10^7 I actually got an out-of-memmory error as 'sample' was too big to fit in memory
+    nsample=10^6; % Note, when I set it to 10^7 I actually got an out-of-memory error as 'sample' was too big to fit in memory
     sample=mvnrnd(Mew,Sigma,nsample);
 
     % Preallocate for speed
@@ -180,7 +180,7 @@ else
 end
 
 %%
-if mvnoptions.parallel==2 
+if mvnoptions.parallel==2
     P=gpuArray(P); %(z,zprime)
 end
 

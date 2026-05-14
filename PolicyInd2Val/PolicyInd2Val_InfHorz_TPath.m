@@ -53,7 +53,7 @@ else
             PolicyValuesPath(ii,:,:,:)=reshape(d_gridvals(PolicyPath(1,:,:,:),ii),[1,N_a,N_z,T]);
         end
     end
-    
+
     if vfoptions.gridinterplayer==0
         PolicyValuesPath(l_d+1,:,:,:)=a_grid(PolicyPath(l_d+1,:,:,:));
     elseif vfoptions.gridinterplayer==1

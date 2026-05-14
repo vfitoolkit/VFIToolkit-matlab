@@ -172,7 +172,7 @@ elseif caliboptions.vectoroutput==2
         Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
-    
+
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 

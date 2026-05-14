@@ -7,7 +7,7 @@ N_e=prod(n_e);
 % When using n_e, is instead:
 % Input: Policy (l_d+l_a,n_a,n_z,n_e,,N_j,T);
 %
-% Output: Policy=zeros(2,N_a,N_z,N_e,N_j,T); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+% Output: Policy=zeros(2,N_a,N_z,N_e,N_j,T); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 %                       (N_a,N_z,N_e,N_j,T) if there is no d
 
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,N_e,N_j,T]);

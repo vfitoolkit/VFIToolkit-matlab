@@ -4,8 +4,8 @@ function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz_PType(n_z,z_grid,p
 % output: z_gridvals_J, pi_z_J, options.e_gridvals_J, options.pi_e_J
 % All outputs are made dependent on permanent type (as that way the rest of the codes can just assume this)
 
-% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
-% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilities
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
 % Note: must be run after Names_i is setup (so that this is Names_i and not N_i)
@@ -178,7 +178,7 @@ elseif zdependsonptype==1
         else
             pi_z_temp=pi_z.(Names_i{ii});
         end
-        
+
 
         if prod(n_z_temp)==0
             z_gridvals_J.(Names_i{ii})=[];
@@ -303,7 +303,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
         else
             pi_z_temp=pi_z.(Names_i{ii});
         end
-        
+
 
         if prod(n_z_temp)==0
             z_gridvals_J.(Names_i{ii})=[];
@@ -489,7 +489,7 @@ if edependsonptype==0
         elseif gridpiboth==2 % For agent dist, we don't use grid
             options.e_gridvals_J=[];
             % Now just do pi_e_J
-            options.pi_e_J=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
+            options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
             if isfield(options,'EiidShockFn')
                 for jj=1:N_j
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
@@ -506,7 +506,7 @@ if edependsonptype==0
         elseif gridpiboth==3
             % For value fn, both e_gridvals_J and pi_e_J
             options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),'gpuArray');
-            options.pi_e_J=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
+            options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
 
             if isfield(options,'EiidShockFn')
                 for jj=1:N_j
@@ -605,7 +605,7 @@ elseif edependsonptype==1
             elseif gridpiboth==2 % For agent dist, we don't use grid
                 options.e_gridvals_J.(Names_i{ii})=[];
                 % Now just do pi_e_J
-                pi_e_J_temp=zeros(prod(n_e_temp),prod(n_e_temp),'gpuArray');
+                pi_e_J_temp=zeros(prod(n_e_temp),N_j_temp,'gpuArray');
                 if isfield(options,'EiidShockFn')
                     for jj=1:N_j_temp
                         EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
@@ -624,7 +624,7 @@ elseif edependsonptype==1
             elseif gridpiboth==3
                 % For value fn, both e_gridvals_J and pi_e_J
                 e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),'gpuArray');
-                pi_e_J_temp=zeros(prod(n_e_temp),prod(n_e_temp),'gpuArray');
+                pi_e_J_temp=zeros(prod(n_e_temp),N_j_temp,'gpuArray');
 
                 if isfield(options,'EiidShockFn')
                     for jj=1:N_j_temp

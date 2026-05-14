@@ -17,7 +17,7 @@ else
     aprimeFnParamNames={};
 end
 
-%% 
+%%
 % Make sure all the relevant inputs are GPU arrays (not standard arrays)
 pi_u=gpuArray(pi_u);
 u_grid=gpuArray(u_grid);
@@ -51,22 +51,22 @@ end
 
 if vfoptions.refine_d(1)>0
     n_d1=n_d(1:vfoptions.refine_d(1));
-else 
+else
     n_d1=0;
 end
 if vfoptions.refine_d(2)>0
     n_d2=n_d(vfoptions.refine_d(1)+1:vfoptions.refine_d(1)+vfoptions.refine_d(2));
-else 
+else
     n_d2=0;
 end
 if vfoptions.refine_d(3)>0
     n_d3=n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+1:vfoptions.refine_d(1)+vfoptions.refine_d(2)+vfoptions.refine_d(3));
-else 
+else
     n_d3=0;
 end
 if vfoptions.refine_d(4)>0
     n_d4=n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+vfoptions.refine_d(3)+1:end);
-else 
+else
     n_d4=0;
 end
 d1_grid=d_grid(1:sum(n_d1));
@@ -74,7 +74,7 @@ d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
 d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:sum(n_d1)+sum(n_d2)+sum(n_d3));
 d4_grid=d_grid(sum(n_d1)+sum(n_d2)+sum(n_d3)+1:end);
 
-%% Solve 
+%% Solve
 N_d1=prod(n_d1);
 N_a1=prod(n_a1);
 N_e=prod(vfoptions.n_e);
@@ -144,7 +144,7 @@ else % N_e==0
     %             % [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_semiz_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_e,n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
     %         end
     %     end
-    % end 
+    % end
 end
 
 

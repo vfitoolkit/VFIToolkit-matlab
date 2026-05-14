@@ -33,10 +33,10 @@ if initialguessobjects.methodforguess==1
         PricePath.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp})*ones(1,T);
     end
 
-elseif initialguessobjects.methodforguess==2 
+elseif initialguessobjects.methodforguess==2
     % Just pretend that the aggregate shock is an idiosyncratic shock, solve the stationary general eqm of that model.
     n_zS=[n_z,n_S];
-    
+
     % General eqm should be able use S as an input, so I need to put in some kind of value of S into Parameters that can be used for the general eqm eqns
     for SS_c=1:length(n_S)
         Parameters.(AggShockNames{SS_c})=initialguessobjects.Svalue(SS_c);

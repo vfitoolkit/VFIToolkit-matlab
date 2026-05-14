@@ -48,7 +48,7 @@ else
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u)
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2)
@@ -72,8 +72,8 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-    
-    
+
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -93,7 +93,7 @@ for reverse_j=1:N_j-1
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u)
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2)
@@ -104,7 +104,7 @@ for reverse_j=1:N_j-1
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
-    
+
     V(:,jj)=shiftdim(Vtemp,1);
     Policy(:,jj)=shiftdim(maxindex,1);
 

@@ -41,23 +41,22 @@ if heteroagentoptions.verbose==2
     end
 end
 
-%% 
+%%
 for pp=1:nGEprices
     Parameters.(GEPriceParamNames{pp})=GEpricesvec(pp);
 end
 
 
 %%
-Ptype_cells=cell(1,PTypeStructure.N_i); % Hold results in case needed for CustomStats
 AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
-    
+
     iistr=PTypeStructure.iistr{ii};
     for pp=1:length(GEPriceParamNames)
         PTypeStructure.(iistr).Parameters.(GEPriceParamNames{pp})=GEpricesvec(pp);
     end
-    
+
     if heteroagentoptions.gridsinGE(ii)==1
         if isfinite(PTypeStructure.(iistr).N_j)
             % Some of the shock grids depend on parameters that are determined in general eqm
@@ -76,7 +75,7 @@ for ii=1:PTypeStructure.N_i
             PTypeStructure.(iistr).simoptions.pi_e=PTypeStructure.(iistr).vfoptions.pi_e;
         end
     end
-    
+
     % If semiz is determined in GE
     if heteroagentoptions.gridsinGE_semiexo(ii)==1
         if isfinite(PTypeStructure.(iistr).N_j)
@@ -88,7 +87,7 @@ for ii=1:PTypeStructure.N_i
             error('Semiexog in InfHorz not yet implemented')
         end
     end
-    
+
     if isfinite(PTypeStructure.(iistr).N_j)
         [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
         StationaryDist_ii=StationaryDist_FHorz_Case1(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions);
@@ -100,9 +99,7 @@ for ii=1:PTypeStructure.N_i
         % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
         AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).simoptions);
     end
-    if heteroagentoptions.useCustomModelStats==1
-        Ptype_cells{ii}={V_ii,Policy_ii,StationaryDist_ii};
-    end
+
     AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
 
     if heteroagentoptions.useCustomModelStats==1

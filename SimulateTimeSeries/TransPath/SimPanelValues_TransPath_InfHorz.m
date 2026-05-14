@@ -1,7 +1,7 @@
 function SimPanelValues=SimPanelValues_TransPath_InfHorz(PolicyPath, PricePath, ParamPath, T, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, FnsToEvaluate, Parameters, simoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
-% only if it is a 'surprise', not anticipated changes) 
+% only if it is a 'surprise', not anticipated changes)
 
 % Simulates a panel based on PolicyPath of 'numbersims' agents of length
 % 'T' beginning from randomly drawn InitialDist.
@@ -9,11 +9,11 @@ function SimPanelValues=SimPanelValues_TransPath_InfHorz(PolicyPath, PricePath, 
 % number of 'variables' to be simulated, second dimension is FHorz, and
 % third dimension is the number-of-simulations
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
+% InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-T, or n_a-by-n_z)
 
-%% Check which simoptions have been declared, set all others to defaults 
+%% Check which simoptions have been declared, set all others to defaults
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.verbose=0;
@@ -162,46 +162,13 @@ end
 SimPanelIndexes=SimPanelIndexes_FHorz(gather(AgentDist_initial),gather(PolicyPath),n_d,n_a,n_z,T,pi_z_T, simoptions);
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-if isstruct(FnsToEvaluate)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames);
-else
-    tplus1priceNames=[];
-    tminus1priceNames=[];
-    tminus1AggVarsNames=[];
-    tplus1pricePathkk=[];
-end
-
-use_tplus1price=0;
-if ~isempty(tplus1priceNames)
-    use_tplus1price=1;
-end
-use_tminus1price=0;
-if ~isempty(tminus1priceNames)
-    use_tminus1price=1;
-    for tt=1:length(tminus1priceNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{tt})
-            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
-            dbstack
-            break
-        end
-    end
-end
-use_tminus1AggVars=0;
-if ~isempty(tminus1AggVarsNames)
-    use_tminus1AggVars=1;
-    for tt=1:length(tminus1AggVarsNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{tt})
-            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{tt})
-            dbstack
-            break
-        end
-    end
-end
-% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,~,tplus1pricePathkk,...
+    use_tplus1price,use_tminus1price,~,use_tminus1AggVars]=...
+    inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},transpathoptions);
 
 %% Exogenous shock grids (must come after the SimPanelIndexes as it then strips n_semiz and n_e out of simoptions)
 % Pretend to be FHorz of length T
-% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
+% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
 [~,semizze_gridvals_T,~,~,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,T,simoptions,Parameters);
 % N_semizze=prod(n_semizze);
 if N_semizze==0
@@ -232,7 +199,7 @@ if isstruct(FnsToEvaluate)
             FnsToEvaluateParamNames(ff).Names={};
         end
         FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
-    end    
+    end
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
@@ -290,7 +257,7 @@ daprimePolicy_gridvals=gpuArray(daprimePolicy_gridvals);
 SimPanelIndexes=gpuArray(SimPanelIndexes);
 
 SimPanelValues=nan(length(FnsToEvaluate), T, simoptions.numbersims,'gpuArray'); % needs to be NaN to permit that some people might be 'born' later than age j=1
-% Note, having the whole T at this stage makes assiging the values based on the indexes vastly faster
+% Note, having the whole T at this stage makes assigning the values based on the indexes vastly faster
 
 
 %% Create PanelValues from PanelIndexes

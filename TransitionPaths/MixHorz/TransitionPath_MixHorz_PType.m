@@ -1,7 +1,7 @@
 function varargout=TransitionPath_MixHorz_PType(PricePath0, ParamPath, T, V_final, AgentDist_initial, jequalOneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
-% only if it is a 'surprise', not anticipated changes) 
+% only if it is a 'surprise', not anticipated changes)
 %
 % PricePathOld is a structure with fields names being the Prices and each field containing a T-by-1 path.
 % ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
@@ -16,13 +16,13 @@ else
 end
 
 
-%% Check which transpathoptions have been used, set all others to defaults 
+%% Check which transpathoptions have been used, set all others to defaults
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     %If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-4);
     transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 
+    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
                                    % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
     transpathoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
     transpathoptions.PricePathptype_vectoroutput=0; % PricePath that depends on ptype defaults to being output as a structure
@@ -35,7 +35,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     transpathoptions.historyofpricepath=0;
-    transpathoptions.stockvars=0;
+    transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
     transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
     % transpathoptions.updateageweights % Don't declare if not being used
 else
@@ -48,9 +48,9 @@ else
     end
     if ~isfield(transpathoptions,'GEnewprice')
         transpathoptions.GEnewprice=1; % 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
-                                       % 1 is shooting algorithm, 
+                                       % 1 is shooting algorithm,
                                        % 2 is to do optimization routine with 'distance between old and new path'
-                                       % 3 is just same as 0, but easier to set 
+                                       % 3 is just same as 0, but easier to set
     end
     if ~isfield(transpathoptions,'GEptype')
         transpathoptions.GEptype={}; %zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
@@ -88,21 +88,8 @@ else
     if ~isfield(transpathoptions,'historyofpricepath')
         transpathoptions.historyofpricepath=0;
     end
-    if ~isfield(transpathoptions,'stockvars') % stockvars is solely for internal use, the user does not need to set it
-        if ~isfield(transpathoptions,'stockvarinit') && ~isfield(transpathoptions,'stockvars') && ~isfield(transpathoptions,'stockvars')
-            transpathoptions.stockvars=0;
-        else
-            transpathoptions.stockvars=1; % If stockvars has not itself been declared, but at least one of the stock variable options has then set stockvars to 1.
-        end
-    end
-    if transpathoptions.stockvars==1 % Note: If this is not inputted then it is created by the above lines.
-        if ~isfield(transpathoptions,'stockvarinit')
-            error('transpathoptions includes some Stock Variable options but is missing stockvarinit \n')
-        elseif ~isfield(transpathoptions,'stockvarpath0')
-            error('transpathoptions includes some Stock Variable options but is missing stockvarpath0 \n')
-        elseif ~isfield(transpathoptions,'stockvareqns')
-            error('transpathoptions includes some Stock Variable options but is missing stockvareqns \n')
-        end
+    if ~isfield(transpathoptions,'stockvars')
+        transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
     end
     if ~isfield(transpathoptions,'fastOLG')
         transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
@@ -260,19 +247,13 @@ for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.Names_i{ii};
     PTypeStructure.iistr{ii}=iistr;
-    
+
     if exist('vfoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
         PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
     end
-    
+
     if exist('simoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
         PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
-    end
-    
-    % The parameter names can be made to depend on the permanent-type
-    PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
-    if isa(DiscountFactorParamNames,'struct')
-        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
     end
 
     % Need to fill in some defaults
@@ -317,7 +298,7 @@ for ii=1:PTypeStructure.N_i
     % type), or they could be a structure. Only in the case where they are
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
-    
+
     % Start with those that determine whether the current permanent type is finite or
     % infinite horizon, and whether it is Case 1 or Case 2
     % Figure out which case is relevant to the current PType. This is done
@@ -325,7 +306,7 @@ for ii=1:PTypeStructure.N_i
     % infinite horizon and a finite number for any other finite horizon.
     % First, check if it is a structure, and otherwise just get the
     % relevant value.
-    
+
     % Horizon is determined via N_j
     if isstruct(N_j)
         PTypeStructure.(iistr).N_j=N_j.(iistr);
@@ -334,7 +315,7 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).N_j=N_j(ii);
     end
-    
+
     if isa(n_d,'struct')
         PTypeStructure.(iistr).n_d=n_d.(iistr);
     else
@@ -422,20 +403,24 @@ for ii=1:PTypeStructure.N_i
     % end
 
     if isa(pi_z,'struct')
-        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
+        PTypeStructure.(iistr).pi_z=pi_z.(iistr); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occur with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
     else
         PTypeStructure.(iistr).pi_z=pi_z;
     end
 
-    % If using any non-standard endogenous states, setup for those (both FHorz and InfHorz btw)
-    [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    % If using any non-standard endogenous states, setup for those
+    if isfinite(PTypeStructure.(iistr).N_j)
+        [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    else
+        [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_InfHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    end
 
     PTypeStructure.(iistr).ReturnFn=ReturnFn;
     if isa(ReturnFn,'struct')
         PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
     end
-    
-    % Parameters are allowed to be given as structure, or as vector/matrix (in terms of their dependence on permanent type). 
+
+    % Parameters are allowed to be given as structure, or as vector/matrix (in terms of their dependence on permanent type).
     % So go through each of these in term.
     % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
     PTypeStructure.(iistr).Parameters=Parameters;
@@ -464,8 +449,8 @@ for ii=1:PTypeStructure.N_i
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     PTypeStructure.ParametersRaw=Parameters; % For use in General eqm conditions (as we might want them across ptypes for some purposes)
-    
-    
+
+
     % The parameter names can be made to depend on the permanent-type
     PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')
@@ -497,9 +482,9 @@ for ii=1:PTypeStructure.N_i
     %% Implement new way of handling ReturnFn inputs
     ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,Parameters);
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames;
-    
 
-    %% Figure out which functions are actually relevant to the present PType. And then change to FnsToEvaluate as cell so that it is not being recomputed all the time 
+
+    %% Figure out which functions are actually relevant to the present PType. And then change to FnsToEvaluate as cell so that it is not being recomputed all the time
     % Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
 
@@ -670,6 +655,9 @@ for ii=1:PTypeStructure.N_i
     %% If using any non-standard endogenous states, setup for those (both FHorz and InfHorz btw)
     [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
 
+
+    %% Organise V_final and AgentDist_initial
+    % Reshape V_final
     N_j_temp=PTypeStructure.(iistr).N_j;
     if ~isfinite(N_j_temp)
         % Reshape V_final
@@ -794,71 +782,48 @@ for ii=1:PTypeStructure.N_i
                 error('The age weights parameter seems to be the wrong size')
             end
         end
-        % Check ParamPath to see if the AgeWeights vary over the transition
-        % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
-        if isstruct(AgeWeightsParamNames)
-            temp=strcmp(ParamPathNames,AgeWeightsParamNames.(iistr){1});
-        else
-            temp=strcmp(ParamPathNames,AgeWeightsParamNames{1});
-        end
-        if any(temp)
-            transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
-            [~,kk]=max(temp); % Get index for the AgeWeightsParamNames in ParamPathNames
-            % Create AgeWeights_T
-            PTypeStructure.(iistr).AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j_ii-by-T (as transpose)
-            % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
-        end
-        % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
-        if PTypeStructure.(iistr).simoptions.fastOLG==1
-            if N_z==0
-                PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
-            else
-                PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
-            end
-        end
-    
-        %% Set up jequalOneDist_T.(iistr) [hardcodes transpathoptions.trivialjequalonedist=0 and simoptions.fastOLG=1]
-        if ~isstruct(jequalOneDist)
-            jequalOneDist_temp=gpuArray(jequalOneDist);
-        else % jequalOneDist is a structure
-            jequalOneDist_temp=gpuArray(jequalOneDist.(iistr));
-        end
-        % Check if jequalOneDistPath is a path or not (and reshape appropriately)
-        temp=size(jequalOneDist_temp);
-        if temp(end)==T % jequalOneDist depends on T
-            transpathoptions.(iistr).trivialjequalonedist=0;
-            if N_z==0
-                if N_e==0
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,T]);
-                else
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,T]); % simoptions.fastOLG==1
-                end
-            else
-                if N_e==0
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,T]); % simoptions.fastOLG==1
-                else
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,T]); % simoptions.fastOLG==1
-                end
-            end
-            PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
-        else
-            transpathoptions.(iistr).trivialjequalonedist=1;
-            if N_z==0
-                if N_e==0
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,1]);
-                else
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,1]); % simoptions.fastOLG==1
-                end
-            else
-                if N_e==0
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,1]); % simoptions.fastOLG==1
-                else
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,1]); % simoptions.fastOLG==1
-                end
-            end
-            PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
-        end
+    % Check ParamPath to see if the AgeWeights vary over the transition
+    % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
+    temp=strcmp(ParamPathNames,AgeWeightsParamNames.(iistr){1});
+    if any(temp)
+        transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
+        [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
+        % Create AgeWeights_T
+        PTypeStructure.(iistr).AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j-by-T (as transpose)
+        % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
     end
+
+    % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
+    if PTypeStructure.(iistr).simoptions.fastOLG==1
+        if N_z==0
+            PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
+        else
+            PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+        end
+        PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
+    else
+        transpathoptions.(iistr).trivialjequalonedist=1;
+        if N_z==0
+            if N_e==0
+                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]); % if simoptions.fastOLG==0
+                if PTypeStructure.(iistr).simoptions.fastOLG==1
+                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]);
+                end
+            end
+        else
+            if N_e==0
+                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,1]);
+            elseif simoptions.fastOLG==0
+                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z*N_e,1]);
+            else
+                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,N_e]);
+            end
+        end
+        PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
+    end
+
+    AgentDist_initial.(iistr)=AgentDist_init;
+    clear AgentDist_init
 
     %% Which parts of ParamPath and PricePath relate to ptype ii
     % Some ParamPath and PricePath parameters may depend on ptype
@@ -909,7 +874,7 @@ if isfield(transpathoptions,'intermediateEqns')
     for gg=1:nIntEqns
         temp=getAnonymousFnInputNames(transpathoptions.intermediateEqns.(intEqnNames{gg}));
         transpathoptions.intermediateEqnParamNames(gg).Names=temp;
-        transpathoptions.intermediateEqnsCell{gg}=transpathoptions.intermediateEqns.(intEqnNames{gg});        
+        transpathoptions.intermediateEqnsCell{gg}=transpathoptions.intermediateEqns.(intEqnNames{gg});
     end
     % Now:
     %  transpathoptions.intermediateEqns is still the structure
@@ -928,17 +893,12 @@ for gg=1:nGeneralEqmEqns
     GeneralEqmEqnParamNames(gg).Names=temp;
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
 end
-% Now: 
+% Now:
 %  GeneralEqmEqns is still the structure
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(ff).Names contains the names
 
 
-
-%%
-if transpathoptions.stockvars==1 
-    error('transpathoptions.stockvars=1 not yet implemented with PType \n')
-end
 
 if transpathoptions.verbose==1
     fprintf('Completed setup, beginning transition computation \n')
@@ -948,56 +908,67 @@ end
 %% If using a shooting algorithm, set that up
 transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames,N_i,PricePathSizeVec);
 
-%% Check if using _tminus1 and/or _tplus1 variables.
-if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i);
+
+%% Check if using _tminus1 and/or _tplus1 variables, and update PTypeStructure
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i,transpathoptions);
+if isstruct(tminus1AggVarsNames)
+    AggVarsPTypes=fieldnames(tminus1AggVarsNames);
+    for ii=1:length(AggVarsPTypes)
+        PTypeStructure.(AggVarsPTypes{ii}).tminus1AggVarsNames=tminus1AggVarsNames.(AggVarsPTypes{ii});
+    end
+    % inputsFindtplus1tminus1 only validates the cell form of tminus1AggVarsNames; validate struct form here.
+    for nn=1:length(AggVarsPTypes)
+        for ii=1:length(tminus1AggVarsNames.(AggVarsPTypes{nn}))
+            if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
+                error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
+            end
+        end
+    end
+end
+
+% Following lines remove transpathoptions.stockvars from tminus1priceNames, and update use_tminus1price if necessary
+if ~isempty(transpathoptions.stockvars)
+    use_stockvars=1;
+    stockvarsNames=transpathoptions.stockvars;
+    transpathoptions=rmfield(transpathoptions,'stockvars');
+
+
+    % how to find stockvars in PricePathNames
+    stockvarsInPricePathNames=zeros(length(stockvarsNames),1); %% the pp index in PricePathNames that corresponds to each stockvar
+    for kk=1:length(stockvarsNames)
+        % throw error if the stockvar is not in PriceParamNames
+        if ~any(strcmp(stockvarsNames{kk},PricePathNames))
+            fprintf('Following error relates to stockvar: %s \n', stockvarsNames{kk})
+            error('Cannot use a transpathoptions.stockvar which is not in PricePath')
+        end
+        % otherwise, find the matching index
+        for pp=1:length(PricePathNames)
+            if strcmp(stockvarsNames{kk},PricePathNames{pp})
+                stockvarsInPricePathNames(kk)=pp;
+            end
+        end
+    end
+
+    % remove from stockvars from tminus1priceNames [stockvars have _tminus1 in name, but they 'cumulate' so have to be treated separately]
+    for pp=1:length(stockvarsNames)
+        if ~any(strcmp(stockvarsNames{pp},tminus1priceNames))
+            error('transpathoptions.stockvars must appear as prices that are used with _tminus1')
+        else
+            tminus1priceNames(strcmp(tminus1priceNames, stockvarsNames{pp})) = [];
+        end
+    end
+    if isempty(tminus1priceNames)
+        use_tminus1params=0;
+    end
 else
-    tplus1priceNames=[];
-    tminus1priceNames=[];
-    tminus1paramNames=[];
-    tminus1AggVarsNames=[];
-    tplus1pricePathkk=[];  % I cannot remember what this was even for (how is it different rom tplus1priceNames??)
+    use_stockvars=0;
+    stockvarsNames=[];
+    stockvarsInPricePathNames=[];
 end
 
-use_tplus1price=0;
-if ~isempty(tplus1priceNames)
-    use_tplus1price=1;
-end
-use_tminus1price=0;
-if ~isempty(tminus1priceNames)
-    use_tminus1price=1;
-    for ii=1:length(tminus1priceNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
-        end
-    end
-end
-use_tminus1params=0;
-if ~isempty(tminus1paramNames)
-    use_tminus1params=1;
-    for ii=1:length(tminus1paramNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1paramNames{ii})
-        end
-    end
-end
-use_tminus1AggVars=0;
-if ~isempty(tminus1AggVarsNames)
-    use_tminus1AggVars=1;
-    for ii=1:length(tminus1AggVarsNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
-        end
-    end
-end
-% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
-
-if transpathoptions.verbose>1
-    use_tplus1price
-    use_tminus1price
-    use_tminus1params
-    use_tminus1AggVars
-    % tplus1pricePathkk
+if use_stockvars==1
+    error('Cannot yet use ptype for stockvars')
+    % stockvars does not yet work with ptype because in the _shooting command the tt loop over V, Dist, AggVars is done separately from the tt loop over GE condns. Need to rework so that they are all in one tt loop.
 end
 
 
@@ -1007,9 +978,9 @@ end
 
 %% Shooting algorithm
 if transpathoptions.GEnewprice~=2
-    % For permanent type, there is just one shooting command,
-    % because things like z,e, and fastOLG are handled on a per-PType basis (to permit that they differ across ptype)
-    [PricePath,GEcondnPath]=TransitionPath_MixHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+    % For permanent types, there is just one shooting command,
+    % because things like z,e, and fastOLG, as well as ExpAsset are handled on a per-PType basis (to permit that they differ across ptype)
+    [PricePath,GEcondnPathmatrix]=TransitionPath_MixHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, transpathoptions, PTypeStructure);
 
     % Switch the solution into structure for output.
     pp_indexinpricepath=zeros(1,length(PricePathNames));

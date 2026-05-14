@@ -27,12 +27,12 @@ if n_d(1)==0
     if vfoptions.gridinterplayer==1
         Policy(l_aprime+1,:,:,:)=PolicyKron(2,:,:,:);
     end
-    
+
     Policy=reshape(Policy,[l_aprime+extra,n_a,n_z,N_j]);
 else
     l_d=length(n_d);
     Policy=zeros(l_d+l_aprime+extra,N_a,N_z,N_j,'gpuArray');
-    
+
     Policy(1,:,:,:)=rem(PolicyKron(1,:,:,:)-1,n_d(1))+1;
     if l_d>1
         if l_d>2

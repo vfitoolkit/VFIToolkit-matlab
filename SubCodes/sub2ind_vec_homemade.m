@@ -4,9 +4,9 @@ function idx = sub2ind_vec_homemade(sizeA,subvec)
     %and column subscripts in the row vector a.
     %Note: Code will cause error if A is already a vector (so a is scalar)
     % Does this for each row of subvec (which is a matrix)
-    
+
     num_of_vars=size(subvec,2);
-    
+
     idx=subvec(:,1);
     cumprod_sizeA=cumprod(sizeA);
     if num_of_vars>1

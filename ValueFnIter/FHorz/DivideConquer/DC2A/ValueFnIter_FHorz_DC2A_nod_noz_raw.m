@@ -78,7 +78,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(curraindex,N_j)=shiftdim(maxindexfix+loweredge(allind)-1,1);
         end
     end
-  
+
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
@@ -92,7 +92,7 @@ else
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nodz_Par2(ReturnFn, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, ReturnFnParamsVec,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
-    
+
     %Calc the max and it's index
     [~,maxindex1]=max(entireRHS_ii,[],1);
 
@@ -143,7 +143,7 @@ else
             Policy(curraindex,N_j)=shiftdim(maxindexfix+loweredge(allind)-1,1);
         end
     end
-        
+
 end
 
 
@@ -154,19 +154,19 @@ for reverse_j=1:N_j-1
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
     end
-    
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
     DiscountedEV=DiscountFactorParamsVec*reshape(V(:,jj+1),[N_a1,N_a2,1,1]);  % autoexpand (a)
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nodz_Par2(ReturnFn, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, ReturnFnParamsVec,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
-    
+
     %Calc the max and it's index
     [~,maxindex1]=max(entireRHS_ii,[],1);
 
@@ -176,7 +176,7 @@ for reverse_j=1:N_j-1
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem(a2ind',vfoptions.level1n,1);
     V(curraindex,jj)=shiftdim(Vtempii,1);
     Policy(curraindex,jj)=shiftdim(maxindex2,1);
-    
+
     % Attempt for improved version
     maxgap=squeeze(max(max(maxindex1(1,:,2:end,:)-maxindex1(1,:,1:end-1,:),[],4),[],2));
     for ii=1:(vfoptions.level1n-1)
