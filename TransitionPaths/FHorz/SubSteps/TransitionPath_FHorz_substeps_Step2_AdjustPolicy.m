@@ -3,6 +3,7 @@ function [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=Transiti
 
 %%
 if simoptions.experienceasset==1
+    % Note: Have not yet implemented to permite the aprimeFn parameters to vary over time path tt
 
     whichisdforexpasset=length(n_d)-simoptions.setup_experienceasset.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
     if N_e==0 && N_z==0
