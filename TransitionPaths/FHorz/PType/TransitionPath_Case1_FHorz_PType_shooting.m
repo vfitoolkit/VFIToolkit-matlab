@@ -32,7 +32,7 @@ nrows_pricepath=ceil(length(PricePathNames)/ncolumns_pricepath);
 pp_indexinpricepath=zeros(1,length(PricePathNames));
 pp_c=0;
 for pp=1:length(PricePathNames)
-    if PTypeStructure.PricePath_Idependsonptype(pp)==0
+    if isfield(PTypeStructure, 'PricePath_Idependsonptype') && PTypeStructure.PricePath_Idependsonptype(pp)==0
         pp_c=pp_c+1;
         pp_indexinpricepath(pp)=pp_c;
     else
