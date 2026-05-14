@@ -132,7 +132,7 @@ simoptions.AggVarNames=AggVarNames;
 
 
 %% Set up exogenous shock processes
-[z_gridvals_J, ~, ~, e_gridvals_J, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_TPath_FHorz(n_z,z_grid,[],N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
+[z_gridvals_J, ~, ~, e_gridvals_J, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 

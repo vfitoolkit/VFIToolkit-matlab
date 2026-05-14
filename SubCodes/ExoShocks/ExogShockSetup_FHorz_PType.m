@@ -33,14 +33,16 @@ function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz_PType(n_z,z_grid,p
 %     [prod(n_e), length(n_e)]             joint grid for iid e (age- and ptype-independent)
 %     [sum(n_e), N_j]                      stacked column grid for iid e, age-dependent
 %     [prod(n_e), length(n_e), N_j]        joint grid for iid e, age-dependent
+%     [prod(n_e), N_i]                     stacked column grid for iid e, ptype-dependent (last dim is ptype)
+%     [sum(n_e), N_j, N_i]                 stacked column grid for iid e, age- and ptype-dependent
+%     [prod(n_e), length(n_e), N_i]        joint grid for iid e, ptype-dependent
+%     [prod(n_e), length(n_e), N_j, N_i]   joint grid for iid e, age- and ptype-dependent
 %   options.pi_e:
 %     struct keyed by Names_i              each field is one of the per-ptype shapes below
 %     [prod(n_e), 1]                       iid distribution (age- and ptype-independent)
 %     [prod(n_e), N_j]                     iid distribution, age-dependent
-%
-% Note: for e_grid and pi_e, ptype-dependence is only supported via the
-% Names_i-keyed struct form (the last-dim-is-ptype detection used for
-% z_grid / pi_z is not applied to the e variables here).
+%     [prod(n_e), N_i]                     iid distribution, ptype-dependent (last dim is ptype)
+%     [prod(n_e), N_j, N_i]                iid distribution, age- and ptype-dependent
 %
 % If options.ExogShockFn is supplied, it is called once per age j (and, if
 % ExogShockFn is itself a struct keyed by Names_i, once per (i,j)) to
@@ -97,6 +99,9 @@ else
 
     if isstruct(options.e_grid) || isstruct(options.pi_e)
         edependsonptype=1;
+    elseif size(options.e_grid,ndims(options.e_grid))==length(Names_i) || size(options.pi_e,ndims(options.pi_e))==length(Names_i) % last dimension of e_grid/pi_e is of length N_i
+        edependsonptype=2;
+        N_i=length(Names_i);
     end
     if isfield(options,'EiidShockFn')
         if isstruct(options.EiidShockFn)
@@ -730,6 +735,171 @@ elseif edependsonptype==1
                 elseif all(size(e_grid_temp)==[sum(n_e_temp),1]) % basic grid
                     e_gridvals_J_temp=CreateGridvals(n_e_temp,e_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
                     pi_e_J_temp=pi_e_temp.*ones(1,N_j_temp,'gpuArray');
+                end
+                options.e_gridvals_J.(Names_i{ii})=e_gridvals_J_temp;
+                options.pi_e_J.(Names_i{ii})=pi_e_J_temp;
+            end
+        end
+    end
+elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for e_grid &/or pi_e
+    for ii=1:length(Names_i)
+        if ~isstruct(n_e)
+            n_e_temp=n_e;
+        else
+            n_e_temp=n_e.(Names_i{ii});
+        end
+        if ~isstruct(N_j)
+            N_j_temp=N_j;
+        else
+            N_j_temp=N_j.(Names_i{ii});
+        end
+        if ~isstruct(options.e_grid)
+            e_grid_temp=options.e_grid;
+        else
+            e_grid_temp=options.e_grid.(Names_i{ii});
+        end
+        if ~isstruct(options.pi_e)
+            pi_e_temp=options.pi_e;
+        else
+            pi_e_temp=options.pi_e.(Names_i{ii});
+        end
+
+        if prod(n_e_temp)==0
+            options.e_gridvals_J.(Names_i{ii})=[];
+            options.pi_e_J.(Names_i{ii})=[];
+        else
+            if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
+                options.pi_e_J.(Names_i{ii})=[];
+                e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),N_j_temp,'gpuArray');
+                if isfield(options,'EiidShockFn')
+                    for jj=1:N_j_temp
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
+                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                        for pp=1:length(EiidShockFnParamsVec)
+                            EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
+                        end
+                        temp=options.EiidShockFn.(Names_i{ii});
+                        [e_grid_temp,~]=temp(EiidShockFnParamsCell{:});
+                        if all(size(e_grid_temp)==[sum(n_e_temp),1])
+                            e_gridvals_J_temp(:,:,jj)=gpuArray(CreateGridvals(n_e_temp,e_grid_temp,1));
+                        else
+                            e_gridvals_J_temp(:,:,jj)=gpuArray(e_grid_temp);
+                        end
+                    end
+                elseif ndims(e_grid_temp)==4
+                    if all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp),N_j_temp,N_i])
+                        e_gridvals_J_temp=e_grid_temp(:,:,:,ii);
+                    else
+                        error('e_grid_temp is 4D but its size does not match [prod(n_e_temp), length(n_e_temp), N_j_temp, N_i]')
+                    end
+                elseif ndims(e_grid_temp)==3
+                    if all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp),N_j_temp])
+                        e_gridvals_J_temp=e_grid_temp;
+                    elseif all(size(e_grid_temp)==[sum(n_e_temp),N_j_temp,N_i])
+                        for jj=1:N_j_temp
+                            e_gridvals_J_temp(:,:,jj)=CreateGridvals(n_e_temp,e_grid_temp(:,jj,ii),1);
+                        end
+                    elseif all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp),N_i])
+                        e_gridvals_J_temp=e_grid_temp(:,:,ii).*ones(1,1,N_j_temp,'gpuArray');
+                    else
+                        error('e_grid_temp is 3D but its size does not match any expected shape')
+                    end
+                elseif ndims(e_grid_temp)==2
+                    if all(size(e_grid_temp)==[sum(n_e_temp),N_j_temp])
+                        for jj=1:N_j_temp
+                            e_gridvals_J_temp(:,:,jj)=CreateGridvals(n_e_temp,e_grid_temp(:,jj),1);
+                        end
+                    elseif all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp)])
+                        e_gridvals_J_temp=e_grid_temp.*ones(1,1,N_j_temp,'gpuArray');
+                    elseif all(size(e_grid_temp)==[prod(n_e_temp),N_i])
+                        e_gridvals_J_temp=e_grid_temp(:,ii).*ones(1,1,N_j_temp,'gpuArray');
+                    elseif all(size(e_grid_temp)==[sum(n_e_temp),1])
+                        e_gridvals_J_temp=CreateGridvals(n_e_temp,e_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
+                    else
+                        error('e_grid_temp is 2D but its size does not match any expected shape')
+                    end
+                end
+                options.e_gridvals_J.(Names_i{ii})=e_gridvals_J_temp;
+            elseif gridpiboth==2 % For agent dist, we don't use grid
+                options.e_gridvals_J.(Names_i{ii})=[];
+                pi_e_J_temp=zeros(prod(n_e_temp),N_j_temp,'gpuArray');
+                if isfield(options,'EiidShockFn')
+                    for jj=1:N_j_temp
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
+                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                        for pp=1:length(EiidShockFnParamsVec)
+                            EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
+                        end
+                        temp=options.EiidShockFn.(Names_i{ii});
+                        [~,pi_e_temp]=temp(EiidShockFnParamsCell{:});
+                        pi_e_J_temp(:,jj)=gpuArray(pi_e_temp);
+                    end
+                elseif size(pi_e_temp,ndims(pi_e_temp))==N_i
+                    otherdims = repmat({':'},1,ndims(pi_e_temp)-1);
+                    pi_e_J_temp=pi_e_temp(otherdims{:},ii).*ones(1,N_j_temp,'gpuArray');
+                else
+                    pi_e_J_temp=pi_e_temp.*ones(1,N_j_temp,'gpuArray');
+                end
+                options.pi_e_J.(Names_i{ii})=pi_e_J_temp;
+            elseif gridpiboth==3
+                e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),N_j_temp,'gpuArray');
+                pi_e_J_temp=zeros(prod(n_e_temp),N_j_temp,'gpuArray');
+                if isfield(options,'EiidShockFn')
+                    for jj=1:N_j_temp
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
+                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                        for pp=1:length(EiidShockFnParamsVec)
+                            EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
+                        end
+                        temp=options.EiidShockFn.(Names_i{ii});
+                        [e_grid_temp,pi_e_temp]=temp(EiidShockFnParamsCell{:});
+                        pi_e_J_temp(:,jj)=gpuArray(pi_e_temp);
+                        if all(size(e_grid_temp)==[sum(n_e_temp),1])
+                            e_gridvals_J_temp(:,:,jj)=gpuArray(CreateGridvals(n_e_temp,e_grid_temp,1));
+                        else
+                            e_gridvals_J_temp(:,:,jj)=gpuArray(e_grid_temp);
+                        end
+                    end
+                else
+                    if ndims(e_grid_temp)==4
+                        if all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp),N_j_temp,N_i])
+                            e_gridvals_J_temp=e_grid_temp(:,:,:,ii);
+                        else
+                            error('e_grid_temp is 4D but its size does not match [prod(n_e_temp), length(n_e_temp), N_j_temp, N_i]')
+                        end
+                    elseif ndims(e_grid_temp)==3
+                        if all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp),N_j_temp])
+                            e_gridvals_J_temp=e_grid_temp;
+                        elseif all(size(e_grid_temp)==[sum(n_e_temp),N_j_temp,N_i])
+                            for jj=1:N_j_temp
+                                e_gridvals_J_temp(:,:,jj)=CreateGridvals(n_e_temp,e_grid_temp(:,jj,ii),1);
+                            end
+                        elseif all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp),N_i])
+                            e_gridvals_J_temp=e_grid_temp(:,:,ii).*ones(1,1,N_j_temp,'gpuArray');
+                        else
+                            error('e_grid_temp is 3D but its size does not match any expected shape')
+                        end
+                    elseif ndims(e_grid_temp)==2
+                        if all(size(e_grid_temp)==[sum(n_e_temp),N_j_temp])
+                            for jj=1:N_j_temp
+                                e_gridvals_J_temp(:,:,jj)=CreateGridvals(n_e_temp,e_grid_temp(:,jj),1);
+                            end
+                        elseif all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp)])
+                            e_gridvals_J_temp=e_grid_temp.*ones(1,1,N_j_temp,'gpuArray');
+                        elseif all(size(e_grid_temp)==[prod(n_e_temp),N_i])
+                            e_gridvals_J_temp=e_grid_temp(:,ii).*ones(1,1,N_j_temp,'gpuArray');
+                        elseif all(size(e_grid_temp)==[sum(n_e_temp),1])
+                            e_gridvals_J_temp=CreateGridvals(n_e_temp,e_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
+                        else
+                            error('e_grid_temp is 2D but its size does not match any expected shape')
+                        end
+                    end
+                    if size(pi_e_temp,ndims(pi_e_temp))==N_i
+                        otherdims = repmat({':'},1,ndims(pi_e_temp)-1);
+                        pi_e_J_temp=pi_e_temp(otherdims{:},ii).*ones(1,N_j_temp,'gpuArray');
+                    else
+                        pi_e_J_temp=pi_e_temp.*ones(1,N_j_temp,'gpuArray');
+                    end
                 end
                 options.e_gridvals_J.(Names_i{ii})=e_gridvals_J_temp;
                 options.pi_e_J.(Names_i{ii})=pi_e_J_temp;
