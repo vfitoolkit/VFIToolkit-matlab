@@ -71,10 +71,35 @@ else
     % Note: Internally PricePathOld is matrix of size T-by-'number of prices'.
     % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
     % Actually, some of those prices are 1-by-N_j or N_i or both, so is more subtle than this.
-    Names_i=fieldnames(N_j);
     PricePathNames=fieldnames(PricePathStruct);
     PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
-    for pp=1:length(PricePathNames)
+    if isstruct(N_j)
+        Names_i=fieldnames(N_j);
+        for pp=1:length(PricePathNames)
+            if isstruct(PricePathStruct.(PricePathNames{pp}))
+                tempptypenames=fieldnames(PricePathStruct.(PricePathNames{pp}));
+                temp=PricePathStruct.(PricePathNames{pp}).(tempptypenames{1});
+                tempsize=size(temp);
+                PricePathSizeVec(pp)=length(tempptypenames)*tempsize(tempsize~=T); % Get the dimension which is not T
+                for ii=1:N_i
+                    N_j_temp=N_j.(Names_i{ii});
+                    if ~any(PricePathSizeVec(pp)==[1,N_i,N_j_temp,N_i*N_j_temp])
+                        error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
+                    end
+                end
+            else
+                temp=PricePathStruct.(PricePathNames{pp});
+                tempsize=size(temp);
+                PricePathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
+                for ii=1:N_i
+                    N_j_temp=N_j.(Names_i{ii});
+                    if ~any(PricePathSizeVec(pp)==[1,N_i,N_j_temp])
+                        error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
+                    end
+                end
+            end
+        end
+    else
         for pp=1:length(PricePathNames)
             if isstruct(PricePathStruct.(PricePathNames{pp}))
                 tempptypenames=fieldnames(PricePathStruct.(PricePathNames{pp}));

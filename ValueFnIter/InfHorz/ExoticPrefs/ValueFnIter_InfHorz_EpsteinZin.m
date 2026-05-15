@@ -124,6 +124,4 @@ end
 V=reshape(VKron,[n_a,n_z]);
 Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
 
-
 end
-

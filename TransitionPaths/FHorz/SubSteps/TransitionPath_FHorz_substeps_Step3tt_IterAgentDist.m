@@ -15,10 +15,6 @@ if N_e>0 && transpathoptions.epathtrivial==0
     end
 end
 
-if isempty(N_probs)
-    N_probs=0;
-end
-
 if N_z==0 && N_e==0
     if simoptions.fastOLG==0
         % PolicyaprimePath_slowOLG
