@@ -36,6 +36,9 @@ if exist('simoptions','var')==0
     % Exogenous shocks
     simoptions.n_e=0;
     simoptions.n_semiz=0;
+    % When calling as a subcommand, the following is used internally
+    simoptions.alreadygridvals=0; % =1 when calling as a subcommand
+    simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -67,6 +70,13 @@ else
     end
     if ~isfield(simoptions,'n_semiz')
         simoptions.n_semiz=0;
+    end
+    % When calling as a subcommand, the following is used internally
+    if ~isfield(simoptions,'alreadygridvals')
+        simoptions.alreadygridvals=0; % =1 when calling as a subcommand
+    end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
     end
 end
 
@@ -106,9 +116,7 @@ l_ze=l_z+l_e;
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,~,tplus1pricePathkk,...
-    use_tplus1price,use_tminus1price,~,use_tminus1AggVars]=...
-    inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},transpathoptions);
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,~,tplus1pricePathkk,use_tplus1price,use_tminus1price,~,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},transpathoptions);
 
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
@@ -132,7 +140,13 @@ simoptions.AggVarNames=AggVarNames;
 
 
 %% Set up exogenous shock processes
-[z_gridvals_J, ~, ~, e_gridvals_J, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
+if simoptions.alreadygridvals==0
+    % gridpiboth=1: only need z_gridvals_J (and e_gridvals_J if N_e>0)
+    [z_gridvals_J, ~, ~, e_gridvals_J, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
+elseif simoptions.alreadygridvals==1
+    z_gridvals_J=z_grid;
+    e_gridvals_J=simoptions.e_gridvals_J;
+end
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 

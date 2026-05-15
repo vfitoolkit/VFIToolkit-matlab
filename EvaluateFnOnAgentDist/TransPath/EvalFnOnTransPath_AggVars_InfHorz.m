@@ -56,9 +56,7 @@ simoptions.outputasstructure=0;
 simoptions.AggVarNames=AggVarNames;
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-[tplus1priceNames,tminus1priceNames,~,~,tplus1pricePathkk,...
-    use_tplus1price,use_tminus1price,~,~]=...
-    inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},simoptions);
+[tplus1priceNames,tminus1priceNames,~,~,tplus1pricePathkk,use_tplus1price,use_tminus1price,~,~]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},simoptions);
 % Omit tminus1AggVarsNames as AggVars are anyway not allowed to take AggVars as inputs
 
 %%
