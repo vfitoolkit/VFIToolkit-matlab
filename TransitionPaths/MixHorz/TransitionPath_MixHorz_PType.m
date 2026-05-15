@@ -551,12 +551,8 @@ for ii=1:PTypeStructure.N_i
 
 
     %% Organise V_final and AgentDist_initial
-    N_j_temp=PTypeStructure.(iistr).N_j;
-    if ~isfinite(N_j_temp)
-        % Reshape V_final
-        % If no z, then N_z=1 here
-        V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
-    else
+    if isfinite(PTypeStructure.(iistr).N_j)
+        N_j_temp=PTypeStructure.(iistr).N_j;
         % Reshape V_final
         if N_z==0
             if N_e==0
@@ -600,44 +596,27 @@ for ii=1:PTypeStructure.N_i
                     AgeWeights_init=repelem(AgeWeights_init',N_a,1);
                 end
             else
-                if N_e==0
-                    V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_z]);
-                else
-                    V_final.(iistr)=reshape(permute(V_final.(iistr),[1,4,2,3]),[N_a*N_j_temp,N_z,N_e]);
-                end
-            end
-        end
-        % Reshape AgentDist_initial
-        if N_z==0
-            if N_e==0
-                AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a,N_j_temp]); % if simoptions.fastOLG==0
-                AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j_ii]
-                if PTypeStructure.(iistr).simoptions.fastOLG==1
-                    AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_j_temp,1]);
-                    AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
-                end
-            else
-                AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_e,N_j_temp]); % if simoptions.fastOLG==0
-                AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j_ii]
-                if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
-                    AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_e,N_j_temp]),[1,3,2]),[N_a*N_j_temp*N_e,1]);
-                    AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+                AgentDist_init=reshape(AgentDist_init,[N_a*N_e,N_j_temp]); % if simoptions.fastOLG==0
+                AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
+                if PTypeStructure.(iistr).simoptions.fastOLG % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
+                    AgentDist_init=reshape(permute(reshape(AgentDist_init,[N_a,N_e,N_j_temp]),[1,3,2]),[N_a*N_j_temp,N_e]);
+                    AgeWeights_init=repelem(AgeWeights_init',N_a,1);
                 end
             end
         else
             if N_e==0
-                AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z,N_j_temp]); % if simoptions.fastOLG==0
-                AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j_ii]
-                if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
-                    AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_j_temp]),[1,3,2]),[N_a*N_j_temp*N_z,1]);
-                    AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+                AgentDist_init=reshape(AgentDist_init,[N_a*N_z,N_j_temp]); % if simoptions.fastOLG==0
+                AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
+                if PTypeStructure.(iistr).simoptions.fastOLG % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
+                    AgentDist_init=reshape(permute(reshape(AgentDist_init,[N_a,N_z,N_j_temp]),[1,3,2]),[N_a*N_j_temp*N_z,1]);
+                    AgeWeights_init=repelem(AgeWeights_init',N_a,1);
                 end
             else
-                AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z*N_e,N_j_temp]); % if simoptions.fastOLG==0
-                AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j_ii]
-                if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
-                    AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_e,N_j_temp]),[1,4,2,3]),[N_a*N_j_temp*N_z,N_e]);
-                    AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+                AgentDist_init=reshape(AgentDist_init,[N_a*N_z*N_e,N_j_temp]); % if simoptions.fastOLG==0
+                AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
+                if PTypeStructure.(iistr).simoptions.fastOLG % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
+                    AgentDist_init=reshape(permute(reshape(AgentDist_init,[N_a,N_z,N_e,N_j_temp]),[1,4,2,3]),[N_a*N_j_temp*N_z,N_e]);
+                    AgeWeights_init=repelem(AgeWeights_init',N_a,1);
                 end
             end
         end
@@ -729,30 +708,22 @@ for ii=1:PTypeStructure.N_i
             else
                 PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
             end
-        else
-            transpathoptions.(iistr).trivialjequalonedist=1;
-            if N_z==0
-                if N_e==0
-                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]); % if simoptions.fastOLG==0
-                    if PTypeStructure.(iistr).simoptions.fastOLG==1
-                        AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]);
-                    end
-                end
-            else
-                if N_e==0
-                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,1]);
-                elseif simoptions.fastOLG==0
-                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z*N_e,1]);
-                else
-                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,N_e]);
-                end
-            end
         end
-        PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist;
+    else
+        % Reshape V_final
+        % If no z, then N_z=1 here
+        V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
 
-        AgentDist_initial.(iistr)=AgentDist_init;
-        clear AgentDist_init
+        % Reshape AgentDist_initial
+        if N_z==0
+            AgentDist_init=reshape(AgentDist_initial.(iistr),[N_a,1]);
+        else
+            AgentDist_init=reshape(AgentDist_initial.(iistr),[N_a*N_z,1]);
+        end
     end
+
+    AgentDist_initial.(iistr)=AgentDist_init;
+    clear AgentDist_init
 
     %% Which parts of ParamPath and PricePath relate to ptype ii
     % Some ParamPath and PricePath parameters may depend on ptype
@@ -937,6 +908,9 @@ if transpathoptions.GEnewprice~=2
                 end
             end
         end
+    end
+    for gg=1:length(GEeqnNames)
+        GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg)';
     end
 
     if nargout==1
