@@ -551,21 +551,12 @@ for ii=1:PTypeStructure.N_i
 
 
     %% Organise V_final and AgentDist_initial
-    % Reshape V_final
     N_j_temp=PTypeStructure.(iistr).N_j;
     if ~isfinite(N_j_temp)
         % Reshape V_final
         % If no z, then N_z=1 here
         V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
-
-        % Presume all InfHorz ExogShock functions happen only with respect to transition paths (i.e., z_grid_T/e_grid_T and pi_z_T/pi_e_T
     else
-        %% Set up exogenous shock processes
-        [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, PTypeStructure.(iistr).simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
-        % Convert z and e to age-dependent joint-grids and transtion matrix
-        % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
-
-        %% Organise V_final and AgentDist_initial
         % Reshape V_final
         if N_z==0
             if N_e==0
