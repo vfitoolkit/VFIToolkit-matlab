@@ -290,7 +290,7 @@ end
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
 %% Set up exogenous shock processes
-[z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, simoptions]=ExogShockSetup_TPath_InfHorz(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,4);
+[z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, simoptions]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,4);
 % Convert z and e to joint-grids and transition matrix
 % output: z_gridvals, pi_z, e_gridvals, pi_e, transpathoptions,vfoptions,simoptions
 
@@ -457,19 +457,6 @@ if ~isempty(transpathoptions.stockvars)
                 stockvarsInPricePathNames(kk)=pp;
             end
         end
-        % Check howtoupdate, the 'fraction' must equal one and it must 'add' 
-        % if transpathoptions.GEnewprice==3
-        %     for pp=1:size(transpathoptions.GEnewprice3.howtoupdate,1)
-        %         if strcmp(transpathoptions.GEnewprice3.howtoupdate{pp,2},stockvarsNames{kk}) % find it
-        %             if transpathoptions.GEnewprice3.howtoupdate{pp,3}~=0
-        %                 error('stockvars require that add in howtoupdate is 0')
-        %             end
-        %             if transpathoptions.GEnewprice3.howtoupdate{pp,4}~=1
-        %                 error('stockvars require that fraction in howtoupdate is 1')
-        %             end
-        %         end
-        %     end
-        % end
     end
 
     % remove from stockvars from tminus1priceNames [stockvars have _tminus1 in name, but they 'cumulate' so have to be treated separately]

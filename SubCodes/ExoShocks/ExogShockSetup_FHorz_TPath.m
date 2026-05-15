@@ -1,4 +1,4 @@
-function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, options]=ExogShockSetup_TPath_FHorz(n_z,z_grid,pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,options,gridpiboth)
+function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, options]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,options,gridpiboth)
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % Can input vfoptions OR simoptions
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions, options
@@ -23,42 +23,77 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 
 % Accepted input shapes:
 %   z_grid:
-%     [sum(n_z), 1]                       stacked column grid for markov z (age-independent)
-%     [prod(n_z), length(n_z)]            joint grid for markov z (age-independent)
-%     [sum(n_z), N_j]                     stacked column grid for markov z, age-dependent (one column per age)
-%     [prod(n_z), length(n_z), N_j]       joint grid for markov z, age-dependent (one slice per age)
+%     [sum(n_z), 1]                       stacked column grid for markov z (age-independent, time-invariant)
+%     [prod(n_z), length(n_z)]            joint grid for markov z (age-independent, time-invariant)
+%     [sum(n_z), N_j]                     stacked column grid for markov z, age-dependent
+%     [prod(n_z), length(n_z), N_j]       joint grid for markov z, age-dependent
+%     [sum(n_z), T]                       stacked column grid for markov z, time-varying (no age, last dim is T)
+%     [prod(n_z), length(n_z), T]         joint grid for markov z, time-varying (no age, last dim is T)
+%     [sum(n_z), N_j, T]                  stacked column grid for markov z, age-dependent and time-varying
+%     [prod(n_z), length(n_z), N_j, T]    joint grid for markov z, age-dependent and time-varying
 %   pi_z:
-%     [prod(n_z), prod(n_z)]              transition matrix for markov z (age-independent)
-%     [prod(n_z), prod(n_z), N_j]         transition matrix for markov z, age-dependent (one slice per age)
+%     [prod(n_z), prod(n_z)]              transition matrix for markov z (age-independent, time-invariant)
+%     [prod(n_z), prod(n_z), N_j]         transition matrix for markov z, age-dependent
+%     [prod(n_z), prod(n_z), T]           transition matrix for markov z, time-varying (no age, last dim is T)
+%     [prod(n_z), prod(n_z), N_j, T]      transition matrix for markov z, age-dependent and time-varying
 %   options.e_grid:
-%     [sum(n_e), 1]                       stacked column grid for iid e (age-independent)
-%     [prod(n_e), length(n_e)]            joint grid for iid e (age-independent)
-%     [sum(n_e), N_j]                     stacked column grid for iid e, age-dependent (one column per age)
-%     [prod(n_e), length(n_e), N_j]       joint grid for iid e, age-dependent (one slice per age)
+%     [sum(n_e), 1]                       stacked column grid for iid e (age-independent, time-invariant)
+%     [prod(n_e), length(n_e)]            joint grid for iid e (age-independent, time-invariant)
+%     [sum(n_e), N_j]                     stacked column grid for iid e, age-dependent
+%     [prod(n_e), length(n_e), N_j]       joint grid for iid e, age-dependent
+%     [sum(n_e), T]                       stacked column grid for iid e, time-varying (no age, last dim is T)
+%     [prod(n_e), length(n_e), T]         joint grid for iid e, time-varying (no age, last dim is T)
+%     [sum(n_e), N_j, T]                  stacked column grid for iid e, age-dependent and time-varying
+%     [prod(n_e), length(n_e), N_j, T]    joint grid for iid e, age-dependent and time-varying
 %   options.pi_e:
-%     [prod(n_e), 1]                      iid distribution (age-independent)
-%     [prod(n_e), N_j]                    iid distribution, age-dependent (one column per age)
+%     [prod(n_e), 1]                      iid distribution (age-independent, time-invariant)
+%     [prod(n_e), N_j]                    iid distribution, age-dependent
+%     [prod(n_e), T]                      iid distribution, time-varying (no age, last dim is T)
+%     [prod(n_e), N_j, T]                 iid distribution, age-dependent and time-varying
 %
-% Variation along the transition path is not provided via the raw inputs:
-% they are interpreted as time-invariant. Time variation is introduced only
-% if options.ExogShockFn / options.EiidShockFn depends on a name listed in
-% PricePathNames or ParamPathNames -- in that case the shock-fn is called
-% per (t, j) to assemble the time-varying path; the raw z_grid / pi_z /
-% options.e_grid / options.pi_e inputs are otherwise ignored.
+% T always comes after N_j when both are in the input shape. T is inferred
+% from the trailing dimension of the input (and N_j vs T is distinguished
+% by comparing against the known N_j argument).
+%
+% When a time-varying input is supplied for z, transpathoptions.zpathtrivial
+% is set to 0 and the full path is stored in transpathoptions.z_gridvals_J_T
+% ([prod(n_z), length(n_z), N_j, T] joint-grid form) and
+% transpathoptions.pi_z_J_T ([prod(n_z), prod(n_z), N_j, T]). The plain
+% outputs z_gridvals_J and pi_z_J are populated with the tt=1 slice and act
+% as placeholders only -- downstream code reads the full path from
+% transpathoptions.*_J_T. Same convention for e
+% (transpathoptions.epathtrivial, transpathoptions.e_gridvals_J_T,
+% transpathoptions.pi_e_J_T; the placeholders are e_gridvals_J and pi_e_J).
+% Age-independent inputs are broadcast across N_j when building the _J_T
+% fields.
+%
+% Variation along the transition path can also be introduced if
+% options.ExogShockFn / options.EiidShockFn depends on a name listed in
+% PricePathNames or ParamPathNames; the shock-fn is then called per (t, j)
+% to assemble the time-varying path. If neither a time-varying input nor a
+% path-dependent shock-fn is supplied, the inputs are interpreted as
+% time-invariant.
+%
+% Caveat: when N_j == T, the 2D shapes [sum(n_z), N_j] vs [sum(n_z), T]
+% (and similarly for 3D variants) are not distinguishable from the input
+% size alone. The function resolves the trailing dim as N_j in that case
+% (age-dependent, time-invariant). To get unambiguous time-varying
+% behaviour when N_j == T, supply the fully-explicit shape with both axes
+% present, e.g. [sum(n_z), N_j, T].
 %
 % Stacked column grid: each of the underlying univariate grids written one
 % beneath the next in a single column of length sum(n_z). Compact, but the
 % joint state space is only implicit. For example with two markov variables
 % of sizes n_z=[3,2], the column contains the 3 values of z1 followed by the
-% 2 values of z2, giving a 5x1 vector. In the age-dependent form, each age
-% has its own such column, stacked side-by-side.
+% 2 values of z2, giving a 5x1 vector. Age- or time-dependent forms add a
+% trailing dimension of length N_j or T (or both, in that order).
 %
 % Joint grid: every point in the product space listed explicitly, one per
 % row, with each variable in its own column. The number of rows is
 % prod(n_z) and the number of columns is length(n_z). Continuing the
 % example, a joint grid is 6x2: each row pairs one z1 value with one z2
-% value, covering all 6 combinations. In the age-dependent form, the same
-% joint grid is given per age along the third dimension.
+% value, covering all 6 combinations. Age- or time-dependent forms add a
+% trailing dimension of length N_j or T (or both, in that order).
 
 %% Check basic setup
 N_z=prod(n_z);
@@ -148,52 +183,186 @@ if N_z>0
         end
 
     else % Not ExogShockFn, or at least not any more
-        if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
-            pi_z_J=[];
-            % Now just do z_gridvals_J
-            z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
-            if ndims(z_grid)==3 % already an age-dependent joint-grid
-                if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
-                    z_gridvals_J=z_grid;
-                end
-            elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
-                for jj=1:N_j
-                    z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
-                end
-            elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
-                z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
-            elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
-                z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+        % Detect whether the raw z_grid / pi_z inputs are time-varying.
+        % T always comes after N_j when both are in the input shape.
+        z_grid_timevarying=false;
+        if ndims(z_grid)==4
+            z_grid_timevarying=true; % [prod(n_z), length(n_z), N_j, T]
+        elseif ndims(z_grid)==3
+            if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
+                z_grid_timevarying=false; % age-dep time-inv joint
+            elseif size(z_grid,1)==sum(n_z) && size(z_grid,2)==N_j
+                z_grid_timevarying=true;  % [sum(n_z), N_j, T] age-dep time-var stacked
+            elseif size(z_grid,1)==prod(n_z) && size(z_grid,2)==length(n_z)
+                z_grid_timevarying=true;  % [prod(n_z), length(n_z), T] age-indep time-var joint
             end
-        elseif gridpiboth==2 % For agent dist, we don't use grid
-            z_gridvals_J=[];
-            % Now just do pi_z_J
-            if ndims(pi_z)==3
-                if all(size(pi_z)==[N_z,N_z,N_j]) % age-dependent grid
+        elseif ndims(z_grid)==2 && size(z_grid,2)>1
+            if all(size(z_grid)==[prod(n_z),length(n_z)])
+                z_grid_timevarying=false; % age-indep time-inv joint
+            elseif all(size(z_grid)==[sum(n_z),N_j])
+                z_grid_timevarying=false; % age-dep time-inv stacked
+            elseif size(z_grid,1)==sum(n_z)
+                z_grid_timevarying=true;  % [sum(n_z), T] age-indep time-var stacked
+            end
+        end
+        pi_z_timevarying=false;
+        if ndims(pi_z)==4
+            pi_z_timevarying=true; % [N_z, N_z, N_j, T]
+        elseif ndims(pi_z)==3
+            if all(size(pi_z)==[N_z,N_z,N_j])
+                pi_z_timevarying=false; % age-dep time-inv
+            else
+                pi_z_timevarying=true;  % [N_z, N_z, T] time-var no age
+            end
+        end
+
+        if z_grid_timevarying || pi_z_timevarying
+            % Infer T from whichever input is time-varying
+            if pi_z_timevarying
+                T=size(pi_z,ndims(pi_z));
+            else
+                T=size(z_grid,ndims(z_grid));
+            end
+            transpathoptions.zpathtrivial=0;
+
+            % Build transpathoptions.z_gridvals_J_T as [prod(n_z), length(n_z), N_j, T]
+            if z_grid_timevarying
+                if ndims(z_grid)==4
+                    if all(size(z_grid)==[prod(n_z),length(n_z),N_j,T])
+                        transpathoptions.z_gridvals_J_T=gpuArray(z_grid);
+                    else
+                        error('z_grid is 4D but size does not match [prod(n_z), length(n_z), N_j, T]')
+                    end
+                elseif ndims(z_grid)==3
+                    if all(size(z_grid)==[prod(n_z),length(n_z),T]) % age-indep, time-var joint
+                        transpathoptions.z_gridvals_J_T=repmat(reshape(gpuArray(z_grid),[prod(n_z),length(n_z),1,T]),1,1,N_j,1);
+                    elseif all(size(z_grid)==[sum(n_z),N_j,T]) % age-dep, time-var stacked
+                        transpathoptions.z_gridvals_J_T=zeros(prod(n_z),length(n_z),N_j,T,'gpuArray');
+                        for tt=1:T
+                            for jj=1:N_j
+                                transpathoptions.z_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_z,gpuArray(z_grid(:,jj,tt)),1);
+                            end
+                        end
+                    else
+                        error('z_grid is 3D time-varying but size does not match any expected shape')
+                    end
+                else % ndims==2, time-var stacked no age
+                    if all(size(z_grid)==[sum(n_z),T])
+                        transpathoptions.z_gridvals_J_T=zeros(prod(n_z),length(n_z),N_j,T,'gpuArray');
+                        for tt=1:T
+                            z_gridvals_one=CreateGridvals(n_z,gpuArray(z_grid(:,tt)),1);
+                            transpathoptions.z_gridvals_J_T(:,:,:,tt)=repmat(z_gridvals_one,1,1,N_j);
+                        end
+                    else
+                        error('z_grid 2D time-varying but size does not match [sum(n_z), T]')
+                    end
+                end
+            else
+                % z_grid time-invariant: build the age-expanded gridvals, then broadcast across T
+                z_gridvals_J_static=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
+                if ndims(z_grid)==3 && all(size(z_grid)==[prod(n_z),length(n_z),N_j])
+                    z_gridvals_J_static=gpuArray(z_grid);
+                elseif ndims(z_grid)==2 && all(size(z_grid)==[sum(n_z),N_j])
+                    for jj=1:N_j
+                        z_gridvals_J_static(:,:,jj)=CreateGridvals(n_z,gpuArray(z_grid(:,jj)),1);
+                    end
+                elseif ndims(z_grid)==2 && all(size(z_grid)==[prod(n_z),length(n_z)])
+                    z_gridvals_J_static=repmat(gpuArray(z_grid),1,1,N_j);
+                elseif ndims(z_grid)==2 && all(size(z_grid)==[sum(n_z),1])
+                    z_gridvals_J_static=repmat(CreateGridvals(n_z,gpuArray(z_grid),1),1,1,N_j);
+                else
+                    error('z_grid time-invariant but size does not match any expected shape')
+                end
+                transpathoptions.z_gridvals_J_T=repmat(z_gridvals_J_static,1,1,1,T);
+            end
+
+            % Build transpathoptions.pi_z_J_T as [prod(n_z), prod(n_z), N_j, T]
+            if pi_z_timevarying
+                if ndims(pi_z)==4
+                    if all(size(pi_z)==[N_z,N_z,N_j,T])
+                        transpathoptions.pi_z_J_T=gpuArray(pi_z);
+                    else
+                        error('pi_z is 4D but size does not match [N_z, N_z, N_j, T]')
+                    end
+                else % ndims==3 time-var no age
+                    if all(size(pi_z)==[N_z,N_z,T])
+                        transpathoptions.pi_z_J_T=repmat(reshape(gpuArray(pi_z),[N_z,N_z,1,T]),1,1,N_j,1);
+                    else
+                        error('pi_z is 3D time-varying but size does not match [N_z, N_z, T]')
+                    end
+                end
+            else
+                % pi_z time-invariant
+                if ndims(pi_z)==3 && all(size(pi_z)==[N_z,N_z,N_j])
+                    pi_z_J_static=gpuArray(pi_z);
+                elseif ndims(pi_z)==2 && all(size(pi_z)==[N_z,N_z])
+                    pi_z_J_static=repmat(gpuArray(pi_z),1,1,N_j);
+                else
+                    error('pi_z time-invariant but size does not match any expected shape')
+                end
+                transpathoptions.pi_z_J_T=repmat(pi_z_J_static,1,1,1,T);
+            end
+
+            % Plain outputs are tt=1 placeholders; downstream code uses the _J_T fields
+            if gridpiboth==1
+                z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,1);
+                pi_z_J=[];
+            elseif gridpiboth==2
+                z_gridvals_J=[];
+                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,1);
+            elseif gridpiboth==3 || gridpiboth==4
+                z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,1);
+                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,1);
+            end
+        else
+            % Time-invariant inputs: existing logic
+            if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
+                pi_z_J=[];
+                % Now just do z_gridvals_J
+                z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
+                if ndims(z_grid)==3 % already an age-dependent joint-grid
+                    if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
+                        z_gridvals_J=z_grid;
+                    end
+                elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
+                    for jj=1:N_j
+                        z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
+                    end
+                elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
+                    z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
+                elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
+                    z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+                end
+            elseif gridpiboth==2 % For agent dist, we don't use grid
+                z_gridvals_J=[];
+                % Now just do pi_z_J
+                if ndims(pi_z)==3
+                    if all(size(pi_z)==[N_z,N_z,N_j]) % age-dependent grid
+                        pi_z_J=pi_z;
+                    end
+                elseif all(size(pi_z)==[N_z,N_z])
+                    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+                end
+            elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
+                z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
+                pi_z_J=zeros(prod(n_z),prod(n_z),N_j,'gpuArray');
+                if ndims(z_grid)==3 % already an age-dependent joint-grid
+                    if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
+                        z_gridvals_J=z_grid;
+                    end
                     pi_z_J=pi_z;
+                elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
+                    for jj=1:N_j
+                        z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
+                    end
+                    pi_z_J=pi_z;
+                elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
+                    z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
+                    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+                elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
+                    z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+                    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
                 end
-            elseif all(size(pi_z)==[N_z,N_z])
-                pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
-            end
-        elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
-            z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
-            pi_z_J=zeros(prod(n_z),prod(n_z),N_j,'gpuArray');
-            if ndims(z_grid)==3 % already an age-dependent joint-grid
-                if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
-                    z_gridvals_J=z_grid;
-                end
-                pi_z_J=pi_z;
-            elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
-                for jj=1:N_j
-                    z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
-                end
-                pi_z_J=pi_z;
-            elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
-                z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
-                pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
-            elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
-                z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
-                pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
             end
         end
     end
@@ -342,56 +511,197 @@ if N_e>0
             end
         end
 
-    else % Not ExogShockFn, or at least not any more
-        if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
-            if isfield(options,'e_grid')
-                if ndims(options.e_grid)==3 % already age-dependent gridvals
-                    e_gridvals_J=gpuArray(options.e_grid);
-                elseif ndims(options.e_grid)==2
-                    % Could be be age-dependent e_grid_J or e_gridvals
-                    if size(options.e_grid,2)==N_j
-                        if l_e==1
-                            e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridVals() for no apparent reason
-                        else
-                            e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
+    else % Not EiidShockFn, or at least not any more
+        % Detect whether the raw options.e_grid / options.pi_e inputs are time-varying.
+        % T always comes after N_j when both are in the input shape.
+        e_grid_timevarying=false;
+        if isfield(options,'e_grid')
+            if ndims(options.e_grid)==4
+                e_grid_timevarying=true; % [prod(n_e), length(n_e), N_j, T]
+            elseif ndims(options.e_grid)==3
+                if all(size(options.e_grid)==[prod(n_e),length(n_e),N_j])
+                    e_grid_timevarying=false; % age-dep time-inv joint
+                elseif size(options.e_grid,1)==sum(n_e) && size(options.e_grid,2)==N_j
+                    e_grid_timevarying=true;  % [sum(n_e), N_j, T]
+                elseif size(options.e_grid,1)==prod(n_e) && size(options.e_grid,2)==length(n_e)
+                    e_grid_timevarying=true;  % [prod(n_e), length(n_e), T]
+                end
+            elseif ndims(options.e_grid)==2 && size(options.e_grid,2)>1
+                if all(size(options.e_grid)==[prod(n_e),length(n_e)])
+                    e_grid_timevarying=false; % age-indep time-inv joint
+                elseif all(size(options.e_grid)==[sum(n_e),N_j])
+                    e_grid_timevarying=false; % age-dep time-inv stacked
+                elseif size(options.e_grid,1)==sum(n_e)
+                    e_grid_timevarying=true;  % [sum(n_e), T]
+                end
+            end
+        end
+        pi_e_timevarying=false;
+        if isfield(options,'pi_e')
+            if ndims(options.pi_e)==3
+                pi_e_timevarying=true; % [prod(n_e), N_j, T]
+            elseif ndims(options.pi_e)==2 && size(options.pi_e,2)>1
+                if size(options.pi_e,2)==N_j
+                    pi_e_timevarying=false; % age-dep time-inv
+                else
+                    pi_e_timevarying=true;  % [prod(n_e), T]
+                end
+            end
+        end
+
+        if e_grid_timevarying || pi_e_timevarying
+            % Infer T from whichever input is time-varying
+            if pi_e_timevarying
+                T=size(options.pi_e,ndims(options.pi_e));
+            else
+                T=size(options.e_grid,ndims(options.e_grid));
+            end
+            transpathoptions.epathtrivial=0;
+
+            % Build transpathoptions.e_gridvals_J_T as [prod(n_e), length(n_e), N_j, T]
+            if e_grid_timevarying
+                if ndims(options.e_grid)==4
+                    if all(size(options.e_grid)==[prod(n_e),length(n_e),N_j,T])
+                        transpathoptions.e_gridvals_J_T=gpuArray(options.e_grid);
+                    else
+                        error('options.e_grid is 4D but size does not match [prod(n_e), length(n_e), N_j, T]')
+                    end
+                elseif ndims(options.e_grid)==3
+                    if all(size(options.e_grid)==[prod(n_e),length(n_e),T]) % age-indep, time-var joint
+                        transpathoptions.e_gridvals_J_T=repmat(reshape(gpuArray(options.e_grid),[prod(n_e),length(n_e),1,T]),1,1,N_j,1);
+                    elseif all(size(options.e_grid)==[sum(n_e),N_j,T]) % age-dep, time-var stacked
+                        transpathoptions.e_gridvals_J_T=zeros(prod(n_e),length(n_e),N_j,T,'gpuArray');
+                        for tt=1:T
                             for jj=1:N_j
-                                e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid(:,jj),1);
+                                transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,gpuArray(options.e_grid(:,jj,tt)),1);
                             end
                         end
                     else
-                        e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
+                        error('options.e_grid is 3D time-varying but size does not match any expected shape')
                     end
-                end
-                options=rmfield(options,'e_grid');
-            end
-        elseif gridpiboth==2 % For agent dist, we don't use grid
-            if isfield(options,'pi_e')
-                pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray'); % this works regardless of if pi_e depends on j or not
-                options=rmfield(options,'pi_e');
-            end
-        elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
-            if isfield(options,'pi_e')
-                % Just assume there is also options.e_grid
-                if ndims(options.e_grid)==3 % already age-dependent gridvals
-                    e_gridvals_J=gpuArray(options.e_grid);
-                elseif ndims(options.e_grid)==2
-                    % Could be be age-dependent e_grid_J or e_gridvals
-                    if size(options.e_grid,2)==N_j
-                        if l_e==1
-                            e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridVals() for no apparent reason
-                        else
-                            e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
-                            for jj=1:N_j
-                                e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid(:,jj),1);
-                            end
+                else % ndims==2, time-var stacked no age
+                    if all(size(options.e_grid)==[sum(n_e),T])
+                        transpathoptions.e_gridvals_J_T=zeros(prod(n_e),length(n_e),N_j,T,'gpuArray');
+                        for tt=1:T
+                            e_gridvals_one=CreateGridvals(n_e,gpuArray(options.e_grid(:,tt)),1);
+                            transpathoptions.e_gridvals_J_T(:,:,:,tt)=repmat(e_gridvals_one,1,1,N_j);
                         end
                     else
-                        e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
+                        error('options.e_grid 2D time-varying but size does not match [sum(n_e), T]')
                     end
                 end
-                options=rmfield(options,'e_grid');
-                pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');  % this works regardless of if pi_e depends on j or not
-                options=rmfield(options,'pi_e');
+            else
+                % e_grid time-invariant: build age-expanded gridvals, then broadcast across T
+                e_gridvals_J_static=zeros(prod(n_e),length(n_e),N_j,'gpuArray');
+                if ndims(options.e_grid)==3 && all(size(options.e_grid)==[prod(n_e),length(n_e),N_j])
+                    e_gridvals_J_static=gpuArray(options.e_grid);
+                elseif ndims(options.e_grid)==2 && all(size(options.e_grid)==[sum(n_e),N_j])
+                    for jj=1:N_j
+                        e_gridvals_J_static(:,:,jj)=CreateGridvals(n_e,gpuArray(options.e_grid(:,jj)),1);
+                    end
+                elseif ndims(options.e_grid)==2 && all(size(options.e_grid)==[prod(n_e),length(n_e)])
+                    e_gridvals_J_static=repmat(gpuArray(options.e_grid),1,1,N_j);
+                elseif ndims(options.e_grid)==2 && all(size(options.e_grid)==[sum(n_e),1])
+                    e_gridvals_J_static=repmat(CreateGridvals(n_e,gpuArray(options.e_grid),1),1,1,N_j);
+                else
+                    error('options.e_grid time-invariant but size does not match any expected shape')
+                end
+                transpathoptions.e_gridvals_J_T=repmat(e_gridvals_J_static,1,1,1,T);
+            end
+
+            % Build transpathoptions.pi_e_J_T as [prod(n_e), N_j, T]
+            if pi_e_timevarying
+                if ndims(options.pi_e)==3
+                    if all(size(options.pi_e)==[prod(n_e),N_j,T])
+                        transpathoptions.pi_e_J_T=gpuArray(options.pi_e);
+                    else
+                        error('options.pi_e is 3D but size does not match [prod(n_e), N_j, T]')
+                    end
+                else % ndims==2 time-var no age
+                    if all(size(options.pi_e)==[prod(n_e),T])
+                        transpathoptions.pi_e_J_T=repmat(reshape(gpuArray(options.pi_e),[prod(n_e),1,T]),1,N_j,1);
+                    else
+                        error('options.pi_e is 2D time-varying but size does not match [prod(n_e), T]')
+                    end
+                end
+            else
+                % pi_e time-invariant
+                if ndims(options.pi_e)==2 && all(size(options.pi_e)==[prod(n_e),N_j])
+                    pi_e_J_static=gpuArray(options.pi_e);
+                elseif all(size(options.pi_e)==[prod(n_e),1])
+                    pi_e_J_static=repmat(gpuArray(options.pi_e),1,N_j);
+                else
+                    error('options.pi_e time-invariant but size does not match any expected shape')
+                end
+                transpathoptions.pi_e_J_T=repmat(pi_e_J_static,1,1,T);
+            end
+
+            % Plain outputs are tt=1 placeholders; downstream code uses the _J_T fields
+            if gridpiboth==1
+                e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,1);
+                pi_e_J=[];
+            elseif gridpiboth==2
+                e_gridvals_J=[];
+                pi_e_J=transpathoptions.pi_e_J_T(:,:,1);
+            elseif gridpiboth==3 || gridpiboth==4
+                e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,1);
+                pi_e_J=transpathoptions.pi_e_J_T(:,:,1);
+            end
+
+            if isfield(options,'e_grid'); options=rmfield(options,'e_grid'); end
+            if isfield(options,'pi_e'); options=rmfield(options,'pi_e'); end
+        else
+            % Time-invariant inputs: existing logic
+            if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
+                if isfield(options,'e_grid')
+                    if ndims(options.e_grid)==3 % already age-dependent gridvals
+                        e_gridvals_J=gpuArray(options.e_grid);
+                    elseif ndims(options.e_grid)==2
+                        % Could be be age-dependent e_grid_J or e_gridvals
+                        if size(options.e_grid,2)==N_j
+                            if l_e==1
+                                e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridVals() for no apparent reason
+                            else
+                                e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
+                                for jj=1:N_j
+                                    e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid(:,jj),1);
+                                end
+                            end
+                        else
+                            e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
+                        end
+                    end
+                    options=rmfield(options,'e_grid');
+                end
+            elseif gridpiboth==2 % For agent dist, we don't use grid
+                if isfield(options,'pi_e')
+                    pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray'); % this works regardless of if pi_e depends on j or not
+                    options=rmfield(options,'pi_e');
+                end
+            elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
+                if isfield(options,'pi_e')
+                    % Just assume there is also options.e_grid
+                    if ndims(options.e_grid)==3 % already age-dependent gridvals
+                        e_gridvals_J=gpuArray(options.e_grid);
+                    elseif ndims(options.e_grid)==2
+                        % Could be be age-dependent e_grid_J or e_gridvals
+                        if size(options.e_grid,2)==N_j
+                            if l_e==1
+                                e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridVals() for no apparent reason
+                            else
+                                e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
+                                for jj=1:N_j
+                                    e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid(:,jj),1);
+                                end
+                            end
+                        else
+                            e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
+                        end
+                    end
+                    options=rmfield(options,'e_grid');
+                    pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');  % this works regardless of if pi_e depends on j or not
+                    options=rmfield(options,'pi_e');
+                end
             end
         end
     end

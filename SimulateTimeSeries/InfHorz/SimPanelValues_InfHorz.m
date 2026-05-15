@@ -253,11 +253,8 @@ else
 end
 
 a_gridvals=gpuArray(CreateGridvals(n_a,a_grid,1)); % 1 at end indicates output as matrices.
-if all(size(z_grid)==[sum(n_z),1])
-    z_gridvals=gpuArray(CreateGridvals(n_z,z_grid,1)); % 1 at end indicates output as matrices.
-elseif all(size(z_grid)==[prod(n_z),length(n_z)])
-    z_gridvals=gpuArray(z_grid); % already gridvals
-end
+% gridpiboth=1: we only need z_gridvals here (no pi_z)
+[z_gridvals,~,simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,1);
 
 %% Now switch everything to gpu so can use arrayfun() to evaluates all the FnsToEvaluate
 daprimePolicy_gridvals=gpuArray(daprimePolicy_gridvals);

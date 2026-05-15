@@ -94,37 +94,11 @@ for jj=1:N_j
     fullgridvals(jj).dPolicy_gridvals=dPolicy_gridvals_j;
 end
 
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+% gridpiboth=1: we only need z_gridvals_J here (no pi_z_J)
+[z_gridvals_J,~,simoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,simoptions,1);
 
-if fieldexists_pi_z_J
-    for jj=1:N_j
-        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,simoptions.z_grid_J(:,:,jj),1);
-    end
-elseif fieldexists_ExogShockFn==1
-    for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for kk=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-            end
-            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        else
-            [z_grid,~]=simoptions.ExogShockFn(jj);
-        end
-        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,z_grid,1);
-    end
-else
-    if all(size(z_grid)==[sum(n_z),1])
-        z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
-    elseif all(size(z_grid)==[prod(n_z),length(n_z)])
-        z_gridvals=z_grid;
-    end
-    for jj=1:N_j
-        fullgridvals(jj).z_gridvals=z_gridvals;
-    end
+for jj=1:N_j
+    fullgridvals(jj).z_gridvals=z_gridvals_J(:,:,jj);
 end
 
 
