@@ -641,6 +641,7 @@ for ii=1:PTypeStructure.N_i
                 end
             end
         end
+
         % Get AgeWeights and switch into the transpathoptions.ageweightstrivial=0 setup (and this is what subfns hardcode when doing PTypes)
         % It is assumed there is only one Age Weight Parameter (name))
         % AgeWeights_T is (a,j,z)-by-T (create as j-by-T to start, then switch)
@@ -667,6 +668,49 @@ for ii=1:PTypeStructure.N_i
                 error('The age weights parameter seems to be the wrong size')
             end
         end
+
+        %% Set up jequalOneDist_T.(iistr) [hardcodes transpathoptions.trivialjequalonedist=0]
+        if ~isstruct(jequalOneDist)
+            jequalOneDist_temp=gpuArray(jequalOneDist);
+        else % jequalOneDist is a structure
+            jequalOneDist_temp=gpuArray(jequalOneDist.(iistr));
+        end
+        % Check if jequalOneDistPath is a path or not (and reshape appropriately)
+        temp=size(jequalOneDist_temp);
+        if temp(end)==T % jequalOneDist depends on T
+            transpathoptions.(iistr).trivialjequalonedist=0;
+            if N_z==0
+                if N_e==0
+                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,T]);
+                else
+                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,T]); % simoptions.fastOLG==1
+                end
+            else
+                if N_e==0
+                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,T]); % simoptions.fastOLG==1
+                else
+                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,T]); % simoptions.fastOLG==1
+                end
+            end
+            PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
+        else
+            transpathoptions.(iistr).trivialjequalonedist=1;
+            if N_z==0
+                if N_e==0
+                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,1]);
+                else
+                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,1]); % simoptions.fastOLG==1
+                end
+            else
+                if N_e==0
+                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,1]); % simoptions.fastOLG==1
+                else
+                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,1]); % simoptions.fastOLG==1 (how different than simoptions.fastOLG==0?)
+                end
+            end
+            PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
+        end
+
         % Check ParamPath to see if the AgeWeights vary over the transition
         % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
         temp=strcmp(ParamPathNames,AgeWeightsParamNames.(iistr){1});
