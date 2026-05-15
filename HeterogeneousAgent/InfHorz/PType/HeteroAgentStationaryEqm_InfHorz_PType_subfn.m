@@ -115,7 +115,6 @@ if heteroagentoptions.useintermediateEqns==1
     end
 end
 
-
 %% Evaluate General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));

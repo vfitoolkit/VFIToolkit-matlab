@@ -114,6 +114,7 @@ pathcounter=1;
 PricePathNew=zeros(size(PricePathOld),'gpuArray');
 PricePathNew(T,:)=PricePathOld(T,:);
 
+
 %% Iterate on the transition path
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiter
 

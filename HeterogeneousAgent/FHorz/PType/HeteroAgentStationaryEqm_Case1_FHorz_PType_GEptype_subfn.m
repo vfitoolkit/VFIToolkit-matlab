@@ -185,7 +185,6 @@ if isfield(heteroagentoptions,'intermediateEqns')
 end
 
 
-
 %% Evaluate the General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 GEeqnnames=fieldnames(GeneralEqmEqns);

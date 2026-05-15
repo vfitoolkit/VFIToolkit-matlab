@@ -152,7 +152,7 @@ else
     end
 end
 
-%% Get AgeWeights from Parameters   
+%% Get AgeWeights from Parameters
 if isstruct(AgeWeightsParamNames)
     for ii=1:N_i
         try

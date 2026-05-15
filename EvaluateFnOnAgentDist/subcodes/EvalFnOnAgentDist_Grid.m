@@ -26,6 +26,9 @@ if N_z==0
                         daprime5vals=PolicyValuesPermute(:,5);
                         if l_daprime>=6
                             daprime6vals=PolicyValuesPermute(:,6);
+                            if l_daprime>=7
+                                daprime7vals=PolicyValuesPermute(:,7);
+                            end
                         end
                     end
                 end
