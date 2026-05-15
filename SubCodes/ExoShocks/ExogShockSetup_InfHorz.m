@@ -36,6 +36,20 @@ function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Para
 % prod(n_z) and the number of columns is length(n_z). Continuing the
 % example, a joint grid is 6x2: each row pairs one z1 value with one z2
 % value, covering all 6 combinations.
+%
+% Output shapes (function returns):
+%   z_gridvals:
+%     [prod(n_z), length(n_z)]  joint grid (always in joint form, regardless of input shape)
+%     []                        if gridpiboth==2 (only pi_z requested) or prod(n_z)==0
+%   pi_z:
+%     [prod(n_z), prod(n_z)]    transition matrix (rows = from-state, cols = to-state)
+%     []                        if gridpiboth==1 (only grid requested) or prod(n_z)==0
+%   options.e_gridvals:
+%     [prod(n_e), length(n_e)]  joint grid for iid e
+%     []                        if gridpiboth==2 or no e variable
+%   options.pi_e:
+%     [prod(n_e), 1]            iid distribution (column of probabilities)
+%     []                        if gridpiboth==1 or no e variable
 
 %% Check basic setup
 if ~isfield(options,'n_e')
@@ -61,7 +75,6 @@ else
     if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
         pi_z=[];
         % Now just do z_gridvals
-        % z_gridvals=zeros(prod(n_z),length(n_z),'gpuArray');
         if isfield(options,'ExogShockFn')
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames);
             ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -74,6 +87,8 @@ else
             z_gridvals=z_grid;
         elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
             z_gridvals=CreateGridvals(n_z,z_grid,1);
+        else
+            error('z_grid size does not match any expected shape')
         end
         z_gridvals=gpuArray(z_gridvals);
     elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -90,7 +105,6 @@ else
         pi_z=gpuArray(pi_z);
     elseif gridpiboth==3
         % For value fn, both z_gridvals_J and pi_z_J
-        % z_gridvals=zeros(prod(n_z),length(n_z),'gpuArray');
         if isfield(options,'ExogShockFn')
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames);
             ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -103,6 +117,8 @@ else
             z_gridvals=z_grid;
         elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
             z_gridvals=CreateGridvals(n_z,z_grid,1);
+        else
+            error('z_grid size does not match any expected shape')
         end
         z_gridvals=gpuArray(z_gridvals);
         pi_z=gpuArray(pi_z);
@@ -125,7 +141,6 @@ else
     if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
         options.pi_e=[];
         % Now just do e_gridvals_J
-        options.e_gridvals=zeros(prod(options.n_e),length(options.n_e),'gpuArray');
         if isfield(options,'EiidShockFn')
             EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames);
             EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
@@ -138,7 +153,10 @@ else
             options.e_gridvals=options.e_grid;
         elseif all(size(options.e_grid)==[sum(options.n_e),1]) % basic grid
             options.e_gridvals=CreateGridvals(options.n_e,options.e_grid,1);
+        else
+            error('options.e_grid size does not match any expected shape')
         end
+        options.e_gridvals=gpuArray(options.e_gridvals);
     elseif gridpiboth==2 % For agent dist, we don't use grid
         options.e_gridvals=[];
         % Now just do pi_e_J
@@ -150,9 +168,9 @@ else
             end
             [~,options.pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
         end
+        options.pi_e=gpuArray(options.pi_e);
     elseif gridpiboth==3
         % For value fn, both e_gridvals_J and pi_e_J
-        options.e_gridvals=zeros(prod(options.n_e),length(options.n_e),'gpuArray');
         if isfield(options,'EiidShockFn')
             EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames);
             EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
@@ -165,7 +183,11 @@ else
             options.e_gridvals=options.e_grid;
         elseif all(size(options.e_grid)==[sum(options.n_e),1]) % basic grid
             options.e_gridvals=CreateGridvals(options.n_e,options.e_grid,1);
+        else
+            error('options.e_grid size does not match any expected shape')
         end
+        options.e_gridvals=gpuArray(options.e_gridvals);
+        options.pi_e=gpuArray(options.pi_e);
     end
 end
 

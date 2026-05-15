@@ -44,6 +44,23 @@ function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_
 % example, a joint grid is 6x2: each row pairs one z1 value with one z2
 % value, covering all 6 combinations. In the age-dependent form, the same
 % joint grid is given per age along the third dimension.
+%
+% Output shapes (function returns):
+%   z_gridvals_J:
+%     [prod(n_z), length(n_z), N_j]  age-dependent joint grid (always in joint form, regardless of input shape)
+%     []                             if gridpiboth==2 (only pi_z_J requested) or prod(n_z)==0
+%   pi_z_J:
+%     [prod(n_z), prod(n_z), N_j]    age-dependent transition matrix (rows = from-state, cols = to-state)
+%     []                             if gridpiboth==1 (only grid requested) or prod(n_z)==0
+%   options.e_gridvals_J:
+%     [prod(n_e), length(n_e), N_j]  age-dependent joint grid for iid e
+%     []                             if gridpiboth==2 or no e variable
+%   options.pi_e_J:
+%     [prod(n_e), N_j]               age-dependent iid distribution (one column per age)
+%     []                             if gridpiboth==1 or no e variable
+%
+% Age-independent inputs are broadcast across the N_j dimension; age-dependent
+% inputs are passed through (or converted from stacked to joint form per age).
 
 %% Check basic setup
 if ~isfield(options,'n_e')
@@ -99,6 +116,8 @@ else
             z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
         elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
             z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+        else
+            error('z_grid size does not match any expected shape')
         end
     elseif gridpiboth==2 % For agent dist, we don't use grid
         z_gridvals_J=[];
@@ -155,6 +174,8 @@ else
         elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
             z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
             pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+        else
+            error('z_grid size does not match any expected shape')
         end
     end
 end
@@ -193,6 +214,8 @@ else
         elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid
             if all(size(options.e_grid)==[prod(options.n_e),length(options.n_e),N_j])
                 options.e_gridvals_J=options.e_grid;
+            else
+                error('options.e_grid is 3D but its size does not match [prod(n_e), length(n_e), N_j]')
             end
         elseif all(size(options.e_grid)==[sum(options.n_e),N_j]) % age-dependent stacked-grid
             for jj=1:N_j
@@ -202,6 +225,8 @@ else
             options.e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
         elseif all(size(options.e_grid)==[sum(options.n_e),1]) % basic grid
             options.e_gridvals_J=CreateGridvals(options.n_e,options.e_grid,1).*ones(1,1,N_j,'gpuArray');
+        else
+            error('options.e_grid size does not match any expected shape')
         end
     elseif gridpiboth==2 % For agent dist, we don't use grid
         options.e_gridvals_J=[];
@@ -224,7 +249,6 @@ else
         % For value fn, both e_gridvals_J and pi_e_J
         options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),N_j,'gpuArray');
         options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
-
         if isfield(options,'EiidShockFn')
             for jj=1:N_j
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
@@ -243,6 +267,8 @@ else
         elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid
             if all(size(options.e_grid)==[prod(options.n_e),length(options.n_e),N_j])
                 options.e_gridvals_J=options.e_grid;
+            else
+                error('options.e_grid is 3D but its size does not match [prod(n_e), length(n_e), N_j]')
             end
             options.pi_e_J=options.pi_e;
         elseif all(size(options.e_grid)==[sum(options.n_e),N_j]) % age-dependent stacked-grid
@@ -256,6 +282,8 @@ else
         elseif all(size(options.e_grid)==[sum(options.n_e),1]) % basic grid
             options.e_gridvals_J=CreateGridvals(options.n_e,options.e_grid,1).*ones(1,1,N_j,'gpuArray');
             options.pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');
+        else
+            error('options.e_grid size does not match any expected shape')
         end
     end
 end

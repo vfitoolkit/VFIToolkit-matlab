@@ -1,9 +1,9 @@
 function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, options]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,options,gridpiboth)
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % Can input vfoptions OR simoptions
-% output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions, options
-% pi_z_J_sim and pi_e_J_sim are for simoptions.fastOLG=1 (otherwise omitted)
-% ze_gridvals_J_fastOLG is for the fastOLG version of AggVars
+% output: z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, options
+% pi_z_J_sim and pi_e_J_sim are populated only for options.fastOLG=1 with gridpiboth in {2,4} (otherwise returned as [])
+% ze_gridvals_J_fastOLG is for the fastOLG version of AggVars (gridpiboth in {1,4}; otherwise returned as [])
 
 % Sets up
 % transpathoptions.zpathtrivial=1; % z_gridvals_J and pi_z_J are not varying over the path
@@ -94,6 +94,50 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 % example, a joint grid is 6x2: each row pairs one z1 value with one z2
 % value, covering all 6 combinations. Age- or time-dependent forms add a
 % trailing dimension of length N_j or T (or both, in that order).
+%
+% Output shapes (function returns):
+%   z_gridvals_J:
+%     [N_z, l_z, N_j]                       if transpathoptions.fastOLG=0
+%     [N_j, N_z, l_z]                       if transpathoptions.fastOLG=1
+%   pi_z_J:
+%     [N_z, N_z, N_j]                       if transpathoptions.fastOLG=0  (z, z', j)
+%     [N_j, N_z, N_z]                       if transpathoptions.fastOLG=1  (j, z', z)
+%   pi_z_J_sim:
+%     sparse [(N_j-1)*N_z, (N_j-1)*N_z]     if gridpiboth in {2,4} and options.fastOLG=1
+%                                           (block-sparse transition over the joint (j,z) state, jj=1..N_j-1)
+%     []                                    otherwise
+%   e_gridvals_J:
+%     [N_e, l_e, N_j]                       if transpathoptions.fastOLG=0
+%     [N_j, 1, N_e, l_e]                    if transpathoptions.fastOLG=1 and N_z>0
+%     [N_j, N_e, l_e]                       if transpathoptions.fastOLG=1 and N_z=0
+%   pi_e_J:
+%     [N_e, N_j]                            if transpathoptions.fastOLG=0  (e, j)
+%     [N_a*N_j, 1, N_e]                     if transpathoptions.fastOLG=1 and N_z>0  (a-j, 1, e)
+%     [N_a*N_j, N_e]                        if transpathoptions.fastOLG=1 and N_z=0  (a-j, e)
+%   pi_e_J_sim:
+%     [N_a*(N_j-1)*N_z, N_e]                if gridpiboth in {2,4}, options.fastOLG=1, N_z>0
+%     [N_a*(N_j-1), N_e]                    if gridpiboth in {2,4}, options.fastOLG=1, N_z=0
+%     []                                    otherwise
+%   ze_gridvals_J_fastOLG:
+%     [1, N_j, N_ze, l_ze]                  if gridpiboth in {1,4} and N_z>0 and N_e>0
+%     [1, N_j, N_z, l_z]                    if gridpiboth in {1,4} and only z
+%     [1, N_j, N_e, l_e]                    if gridpiboth in {1,4} and only e
+%     []                                    otherwise
+%
+% transpathoptions fields populated:
+%   .zpathtrivial / .epathtrivial            0 if the corresponding path varies over t, else 1
+%   .zepathtrivial                           0 if either z or e path varies over t (i.e. zpathtrivial==0 or epathtrivial==0), else 1
+%   .z_gridvals_J_T                          [N_z, l_z, N_j, T]    if fastOLG=0;  [N_j, N_z, l_z, T]    if fastOLG=1   (when zpathtrivial=0)
+%   .pi_z_J_T                                [N_z, N_z, N_j, T] (z, z', j, t) if fastOLG=0;  [N_j, N_z, N_z, T] (j, z', z, t) if fastOLG=1   (when zpathtrivial=0)
+%   .pi_z_J_alt                              [N_j, N_z, N_z]                                                              (j, z, z'; when options.fastOLG=1 and gridpiboth in {2,3,4})
+%   .pi_z_J_T_alt                            [N_j, N_z, N_z, T]                                                           (j, z, z', t; when options.fastOLG=1 and zpathtrivial=0)
+%   .e_gridvals_J_T                          [N_e, l_e, N_j, T]    if fastOLG=0;  [N_j, 1, N_e, l_e, T] if fastOLG=1 & z; [N_j, N_e, l_e, T] if fastOLG=1 & no z   (when epathtrivial=0)
+%   .pi_e_J_T                                [N_e, N_j, T]         if fastOLG=0;  [N_a*N_j, 1, N_e, T]  if fastOLG=1 & z; [N_a*N_j, N_e, T]  if fastOLG=1 & no z   (when epathtrivial=0)
+%   .pi_e_J_sim_T                            [N_a*(N_j-1)*N_z, N_e, T] if N_z>0; [N_a*(N_j-1), N_e, T] if N_z=0   (when epathtrivial=0, fastOLG=1, gridpiboth in {2,4})
+%   .ze_gridvals_J_T_fastOLG                 [1, N_j, N_ze, l_ze, T] (or only-z / only-e variants as for ze_gridvals_J_fastOLG; when zepathtrivial=0 and gridpiboth in {1,4})
+%
+% options fields populated:
+%   .e_gridvals_J, .pi_e_J — same shapes as the function outputs of the same names.
 
 %% Check basic setup
 N_z=prod(n_z);
@@ -323,6 +367,8 @@ if N_z>0
                 if ndims(z_grid)==3 % already an age-dependent joint-grid
                     if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
                         z_gridvals_J=z_grid;
+                    else
+                        error('z_grid is 3D but its size does not match [prod(n_z), length(n_z), N_j]')
                     end
                 elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
                     for jj=1:N_j
@@ -332,6 +378,8 @@ if N_z>0
                     z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
                 elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
                     z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+                else
+                    error('z_grid size does not match any expected shape')
                 end
             elseif gridpiboth==2 % For agent dist, we don't use grid
                 z_gridvals_J=[];
@@ -339,9 +387,13 @@ if N_z>0
                 if ndims(pi_z)==3
                     if all(size(pi_z)==[N_z,N_z,N_j]) % age-dependent grid
                         pi_z_J=pi_z;
+                    else
+                        error('pi_z is 3D but its size does not match [N_z, N_z, N_j]')
                     end
                 elseif all(size(pi_z)==[N_z,N_z])
                     pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+                else
+                    error('pi_z size does not match any expected shape')
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
                 z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
@@ -349,6 +401,8 @@ if N_z>0
                 if ndims(z_grid)==3 % already an age-dependent joint-grid
                     if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
                         z_gridvals_J=z_grid;
+                    else
+                        error('z_grid is 3D but its size does not match [prod(n_z), length(n_z), N_j]')
                     end
                     pi_z_J=pi_z;
                 elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
@@ -362,6 +416,8 @@ if N_z>0
                 elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
                     z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
                     pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+                else
+                    error('z_grid size does not match any expected shape')
                 end
             end
         end
@@ -402,8 +458,8 @@ if N_z>0
             pi_z_J=permute(pi_z_J,[3,2,1]); % We want it to be (j,z',z) for value function
             transpathoptions.pi_z_J_alt=permute(pi_z_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
             if transpathoptions.zpathtrivial==0
-                transpathoptions.pi_z_J_T=permute(transpathoptions.pi_z_J_T,[3,1,2,4]);  % We want it to be (j,z,z',t)
-                transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % We want it to be (j,z',z,t) [note, this permute is off the previous one]
+                transpathoptions.pi_z_J_T=permute(transpathoptions.pi_z_J_T,[3,2,1,4]);  % We want it to be (j,z',z,t) for value function
+                transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % But is (j,z,z',t) for agent dist with fastOLG [note, this permute is off the previous one]
             end
         elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
             z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z-by-l_z
@@ -419,8 +475,8 @@ if N_z>0
                     end
                 end
                 transpathoptions.z_gridvals_J_T=permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]); % from [N_z,l_z,N_j,T] to [N_j,N_z,l_z,T]
-                transpathoptions.pi_z_J_T=permute(transpathoptions.pi_z_J_T,[3,1,2,4]);  % We want it to be (j,z,z',t)
-                transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % We want it to be (j,z',z,t) [note, this permute is off the previous one]
+                transpathoptions.pi_z_J_T=permute(transpathoptions.pi_z_J_T,[3,2,1,4]);  % We want it to be (j,z',z,t) for value function
+                transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % But is (j,z,z',t) for agent dist with fastOLG [note, this permute is off the previous one]
             end
         end
     end
@@ -652,24 +708,32 @@ if N_e>0
             if isfield(options,'pi_e'); options=rmfield(options,'pi_e'); end
         else
             % Time-invariant inputs: existing logic
-            if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
+            if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
                 if isfield(options,'e_grid')
                     if ndims(options.e_grid)==3 % already age-dependent gridvals
-                        e_gridvals_J=gpuArray(options.e_grid);
+                        if all(size(options.e_grid)==[N_e,l_e,N_j])
+                            e_gridvals_J=gpuArray(options.e_grid);
+                        else
+                            error('options.e_grid is 3D but its size does not match [N_e, l_e, N_j]')
+                        end
                     elseif ndims(options.e_grid)==2
-                        % Could be be age-dependent e_grid_J or e_gridvals
+                        % Could be age-dependent e_grid (stacked) or age-independent
                         if size(options.e_grid,2)==N_j
                             if l_e==1
-                                e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridVals() for no apparent reason
+                                e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridvals() for no apparent reason
                             else
                                 e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
                                 for jj=1:N_j
-                                    e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid(:,jj),1);
+                                    e_gridvals_J(:,:,jj)=CreateGridvals(n_e,options.e_grid(:,jj),1);
                                 end
                             end
-                        else
+                        elseif all(size(options.e_grid)==[prod(n_e),length(n_e)]) || all(size(options.e_grid)==[sum(n_e),1])
                             e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
+                        else
+                            error('options.e_grid size does not match any expected shape')
                         end
+                    else
+                        error('options.e_grid has unexpected number of dimensions (expected 2 or 3)')
                     end
                     options=rmfield(options,'e_grid');
                 end
@@ -678,25 +742,33 @@ if N_e>0
                     pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray'); % this works regardless of if pi_e depends on j or not
                     options=rmfield(options,'pi_e');
                 end
-            elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
+            elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
                 if isfield(options,'pi_e')
                     % Just assume there is also options.e_grid
                     if ndims(options.e_grid)==3 % already age-dependent gridvals
-                        e_gridvals_J=gpuArray(options.e_grid);
+                        if all(size(options.e_grid)==[N_e,l_e,N_j])
+                            e_gridvals_J=gpuArray(options.e_grid);
+                        else
+                            error('options.e_grid is 3D but its size does not match [N_e, l_e, N_j]')
+                        end
                     elseif ndims(options.e_grid)==2
-                        % Could be be age-dependent e_grid_J or e_gridvals
+                        % Could be age-dependent e_grid (stacked) or age-independent
                         if size(options.e_grid,2)==N_j
                             if l_e==1
-                                e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridVals() for no apparent reason
+                                e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridvals() for no apparent reason
                             else
                                 e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
                                 for jj=1:N_j
-                                    e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid(:,jj),1);
+                                    e_gridvals_J(:,:,jj)=CreateGridvals(n_e,options.e_grid(:,jj),1);
                                 end
                             end
-                        else
+                        elseif all(size(options.e_grid)==[prod(n_e),length(n_e)]) || all(size(options.e_grid)==[sum(n_e),1])
                             e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
+                        else
+                            error('options.e_grid size does not match any expected shape')
                         end
+                    else
+                        error('options.e_grid has unexpected number of dimensions (expected 2 or 3)')
                     end
                     options=rmfield(options,'e_grid');
                     pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');  % this works regardless of if pi_e depends on j or not
@@ -790,10 +862,10 @@ if N_e>0
                 pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,N_e]); % Give it the size required for fastOLG value function
                 if transpathoptions.epathtrivial==0
                     transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,e,t)
-                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
+                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:)));
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:));
                     end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
@@ -810,10 +882,10 @@ if N_e>0
                     end
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from (e,j,t) to (j,e,t)
                     transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,e,t)
-                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
+                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:)));
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:));
                     end
                 end
             end
@@ -849,15 +921,15 @@ end
 % gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
 % gridpiboth=2: sometimes (agent dist)    we want just transition probabilities, including pi_z_J_sim alternative transition probs
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
+if transpathoptions.zpathtrivial==0 || transpathoptions.epathtrivial==0
+    transpathoptions.zepathtrivial=0;
+else
+    transpathoptions.zepathtrivial=1;
+end
+
 if gridpiboth==3 || gridpiboth==2
     ze_gridvals_J_fastOLG=[];
 else
-    if transpathoptions.zpathtrivial==0 || transpathoptions.epathtrivial==0
-        transpathoptions.zepathtrivial=0;
-    else
-        transpathoptions.zepathtrivial=1;
-    end
-
     if N_e==0 && N_z==0
         ze_gridvals_J_fastOLG=[];
     else

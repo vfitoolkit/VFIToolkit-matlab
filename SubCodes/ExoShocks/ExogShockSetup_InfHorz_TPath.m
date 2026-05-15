@@ -1,6 +1,6 @@
 function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, options]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPathNames,transpathoptions,options,gridpiboth)
 % Convert z and e to joint-grids and transition matrix
-% output: z_gridvals, pi_z, e_gridvals, pi_e, transpathoptions,vfoptions,simoptions
+% output: z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, options
 
 % Sets up
 % transpathoptions.zpathtrivial=1; % z_gridvals and pi_z are not varying over the path
@@ -66,6 +66,46 @@ function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridv
 % example, a joint grid is 6x2: each row pairs one z1 value with one z2
 % value, covering all 6 combinations. The time-varying form adds a
 % trailing dimension of length T.
+%
+% Output shapes (function returns):
+%   z_gridvals:
+%     [prod(n_z), length(n_z)]    joint grid; if transpathoptions.zpathtrivial==1, this IS the
+%                                 time-invariant grid; if ==0, this is just the tt=1 slice
+%                                 placeholder — downstream code reads transpathoptions.z_gridvals_T
+%     []                          if gridpiboth==2 or N_z==0
+%   pi_z:
+%     [prod(n_z), prod(n_z)]      transition matrix (analogous placeholder convention)
+%     []                          if gridpiboth==1 or N_z==0
+%   pi_z_sparse:
+%     sparse([prod(n_z), prod(n_z)])   CPU-side sparse copy of pi_z
+%     []                               if N_z==0
+%   e_gridvals:
+%     [prod(n_e), length(n_e)]    joint grid for iid e (placeholder convention as above)
+%     []                          if gridpiboth==2 or N_e==0
+%   pi_e:
+%     [prod(n_e), 1]              iid distribution (placeholder convention)
+%     []                          if gridpiboth==1 or N_e==0
+%   pi_e_sparse:
+%     sparse([prod(n_e), 1])      CPU-side sparse copy of pi_e
+%     []                          if N_e==0
+%   ze_gridvals:
+%     [prod(n_z)*prod(n_e), length(n_z)+length(n_e)]   combined grid used for AggVars (gridpiboth==1 or 4)
+%     []                          if gridpiboth==2 or gridpiboth==3 (or both N_z==0 and N_e==0)
+%
+% transpathoptions fields populated:
+%   .zpathtrivial    1 if z_gridvals/pi_z don't vary along the transition path, 0 otherwise
+%   .epathtrivial    analogous for e
+%   .zepathtrivial   =0 iff either of the above is 0 (only set when gridpiboth is 1 or 4)
+%   .gridsinGE       1 if grids depend on a PricePath parameter (recompute every GE iteration); else 0
+% When zpathtrivial==0:
+%   .z_gridvals_T   [prod(n_z), length(n_z), T]
+%   .pi_z_T         [prod(n_z), prod(n_z), T]
+% When epathtrivial==0:
+%   .e_gridvals_T   [prod(n_e), length(n_e), T]
+%   .pi_e_T         [prod(n_e), T]
+% When zepathtrivial==0:
+%   .ze_gridvals_T  [prod(n_z)*prod(n_e), length(n_z)+length(n_e), T]
+% T is inferred from the trailing dimension of whichever time-varying input is supplied.
 
 %% Check basic setup
 N_z=prod(n_z);
@@ -225,11 +265,12 @@ if N_z>0
             if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
                 pi_z=[];
                 % Now just do z_gridvals
-                z_gridvals=zeros(prod(n_z),length(n_z),'gpuArray');
                 if all(size(z_grid)==[sum(n_z),1]) % stacked-column grid
                     z_gridvals=CreateGridvals(n_z,z_grid,1);
                 elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
                     z_gridvals=z_grid;
+                else
+                    error('z_grid size does not match any expected shape')
                 end
             elseif gridpiboth==2 % For agent dist, we don't use grid
                 z_gridvals=[];
@@ -241,6 +282,8 @@ if N_z>0
                 elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
                     z_gridvals=CreateGridvals(n_z,z_grid,1);
                     % pi_z is fine as is
+                else
+                    error('z_grid size does not match any expected shape')
                 end
             end
         end
@@ -409,12 +452,14 @@ if N_e>0
             if isfield(options,'pi_e'); options=rmfield(options,'pi_e'); end
         else
             % Time-invariant inputs: existing logic
-            if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
+            if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
                 if isfield(options,'e_grid')
-                    if size(options.e_grid,2)==1 % stacked-column grid
+                    if all(size(options.e_grid)==[sum(n_e),1]) % stacked-column grid
                         e_gridvals=CreateGridvals(n_e,gpuArray(options.e_grid),1);
-                    else
+                    elseif all(size(options.e_grid)==[prod(n_e),length(n_e)]) % joint grid
                         e_gridvals=options.e_grid;
+                    else
+                        error('options.e_grid time-invariant but size does not match any expected shape')
                     end
                     options=rmfield(options,'e_grid');
                 end
@@ -425,10 +470,12 @@ if N_e>0
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals and pi_e
                 if isfield(options,'pi_e')
-                    if size(options.e_grid,2)==1 % stacked-column grid
+                    if all(size(options.e_grid)==[sum(n_e),1]) % stacked-column grid
                         e_gridvals=CreateGridvals(n_e,gpuArray(options.e_grid),1);
-                    else
+                    elseif all(size(options.e_grid)==[prod(n_e),length(n_e)]) % joint grid
                         e_gridvals=options.e_grid;
+                    else
+                        error('options.e_grid time-invariant but size does not match any expected shape')
                     end
                     options=rmfield(options,'e_grid');
                     pi_e=options.pi_e;
@@ -440,6 +487,7 @@ if N_e>0
     % Make sure they are on grid
     pi_e=gpuArray(pi_e);
     e_gridvals=gpuArray(e_gridvals);
+    pi_e_sparse=sparse(gather(pi_e));
 
     if ~isfield(transpathoptions,'epathtrivial')
         transpathoptions.epathtrivial=1;
