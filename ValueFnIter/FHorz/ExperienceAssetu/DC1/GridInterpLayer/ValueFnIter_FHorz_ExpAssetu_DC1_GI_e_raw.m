@@ -22,7 +22,7 @@ if vfoptions.lowmemory==0
     midpoint=zeros(N_d,1,N_a1,N_a2,N_z,N_e,'gpuArray');
 elseif vfoptions.lowmemory==1
     midpoint=zeros(N_d,1,N_a1,N_a2,N_z,'gpuArray');
-elseif vfoptions.lowmemory==2
+elseif vfoptions.lowmemory>=2
     midpoint=zeros(N_d,1,N_a1,N_a2,'gpuArray');
 end
 
@@ -32,7 +32,7 @@ else
     % precompute
     eind=shiftdim((0:1:N_e-1),-4); % already includes -1
 end
-if vfoptions.lowmemory==2
+if vfoptions.lowmemory>=2
     special_n_z=ones(1,length(n_z));
 else
     % precompute
@@ -150,7 +150,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy3(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
 
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             for e_c=1:N_e
@@ -337,7 +337,7 @@ else
             Policy3(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
 
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -548,7 +548,7 @@ for reverse_j=1:N_j-1
             Policy3(3,:,:,e_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
 
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);

@@ -67,16 +67,16 @@ if fastOLG==0 % (a,z,j)
             else
                 d1grid=d_grid(sum(n_d(1:whichisdforexpasset(1)-1))+1:sum(n_d(1:whichisdforexpasset(1))));
             end
-            d1vals=reshape(d1grid(Policy(whichisdforexpasset(1),:,:)),[N_a*N_z,1]);
+            d1vals=reshape(d1grid(Policy(whichisdforexpasset(1),:,:)),[N_a*N_z,N_j]);
             if l_dexp>=2
                 d2grid=d_grid(sum(n_d(1:whichisdforexpasset(2)-1))+1:sum(n_d(1:whichisdforexpasset(2))));
-                d2vals=reshape(d2grid(Policy(whichisdforexpasset(2),:,:)),[N_a*N_z,1]);
+                d2vals=reshape(d2grid(Policy(whichisdforexpasset(2),:,:)),[N_a*N_z,N_j]);
                 if l_dexp>=3
                     d3grid=d_grid(sum(n_d(1:whichisdforexpasset(3)-1))+1:sum(n_d(1:whichisdforexpasset(3))));
-                    d3vals=reshape(d3grid(Policy(whichisdforexpasset(3),:,:)),[N_a*N_z,1]);
+                    d3vals=reshape(d3grid(Policy(whichisdforexpasset(3),:,:)),[N_a*N_z,N_j]);
                     if l_dexp>=4
                         d4grid=d_grid(sum(n_d(1:whichisdforexpasset(4)-1))+1:sum(n_d(1:whichisdforexpasset(4))));
-                        d4vals=reshape(d4grid(Policy(whichisdforexpasset(4),:,:)),[N_a*N_z,1]);
+                        d4vals=reshape(d4grid(Policy(whichisdforexpasset(4),:,:)),[N_a*N_z,N_j]);
                     end
                 end
             end

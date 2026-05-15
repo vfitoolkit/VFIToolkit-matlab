@@ -16,11 +16,13 @@ a2_grid=gpuArray(a2_grid);
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
-if vfoptions.lowmemory>1
-    special_n_e=ones(1,length(n_e));
-end
-if vfoptions.lowmemory==2
-    special_n_z=ones(1,length(n_z));
+if vfoptions.lowmemory==1
+    special_n_e=ones(1,length(n_e),'gpuArray');
+elseif vfoptions.lowmemory==2
+    special_n_e=ones(1,length(n_e),'gpuArray');
+    special_n_z=ones(1,length(n_z),'gpuArray');
+elseif vfoptions.lowmemory==3
+    error("There is no a1 to iterate, so cannot set vfoptions.lowmemory=3")
 end
 
 

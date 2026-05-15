@@ -28,6 +28,9 @@ if fastOLG==0
     l_aprime=length(n_a);
     if vfoptions.experienceasset==1
         l_aprime=l_aprime-1;
+        if n_d(1)==0
+            n_d=n_d(2:end);
+        end
     end
 
     PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,N_j,T]);
@@ -89,6 +92,9 @@ else
     % If using vfoptions.gridinterplayer=1, it should be aprime_gridvals for the fine grid, not the rough grid
 
     l_aprime=size(a_grid,2);% it is aprime_gridvals, not actually a_grid
+    if vfoptions.experienceasset==1 && n_d(1)==0
+        n_d=n_d(2:end);
+    end
 
     if n_d(1)==0
         PolicyValuesPath=zeros(l_aprime,N_a*N_j*N_z*T,'gpuArray'); % N_a*N_j*N_z*T is because of how indexing gridvals will work

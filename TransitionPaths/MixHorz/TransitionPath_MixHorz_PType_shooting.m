@@ -34,7 +34,7 @@ nrows_pricepath=ceil(length(PricePathNames)/ncolumns_pricepath);
 pp_indexinpricepath=zeros(1,length(PricePathNames));
 pp_c=0;
 for pp=1:length(PricePathNames)
-    if PTypeStructure.PricePath_Idependsonptype(pp)==0
+    if isfield(PTypeStructure, 'PricePath_Idependsonptype') && PTypeStructure.PricePath_Idependsonptype(pp)==0
         pp_c=pp_c+1;
         pp_indexinpricepath(pp)=pp_c;
     else
@@ -153,8 +153,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             [PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,PolicyValuesPath_ii]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath_ii,T,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).d_gridvals,PTypeStructure.(iistr).aprime_gridvals,transpathoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
         else
             %% Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
-            warning("TransitionPath_Case1_MixHorz_PType_shooting not yet hanlding e_gridvals and/or pi_e")
-            [~,PolicyIndexesPath_ii]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter(T,PolicyIndexesPath_ii,V_final.(iistr),PTypeStructure.(iistr).Parameters,PricePathOld_ii,ParamPath_ii,PricePathSizeVec_ii,ParamPathSizeVec_ii,PricePathNames_ii,ParamPathNames_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).d_gridvals, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals,[],PTypeStructure.(iistr).pi_z,[],PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, transpathoptions,PTypeStructure.(iistr).vfoptions);
+            [~,PolicyIndexesPath_ii]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter(T,PolicyIndexesPath_ii,V_final.(iistr),PTypeStructure.(iistr).Parameters,PricePathOld_ii,ParamPath_ii,PricePathSizeVec_ii,ParamPathSizeVec_ii,PricePathNames_ii,ParamPathNames_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).d_gridvals, PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).z_gridvals,PTypeStructure.(iistr).e_gridvals,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).pi_e,PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, transpathoptions,PTypeStructure.(iistr).vfoptions);
 
             %% Modify PolicyIndexesPath into forms needed for forward iteration
             [PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,PolicyValuesPath_ii]=TransitionPath_InfHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath_ii,T,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).d_gridvals,PTypeStructure.(iistr).aprime_gridvals,transpathoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
@@ -254,15 +253,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 end
                 AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
             else
-                warning("TransitionPath_MixHorz_PType_shooting not hanlding pi_e yet")
                 AgentDist_ii_InfHorz=reshape(AgentDist_ii,[PTypeStructure.(iistr).N_a*PTypeStructure.(iistr).N_z,1]);
-                AgentDistnext_ii=TransitionPath_InfHorz_substeps_Step3tt_IterAgentDist(AgentDist_ii_InfHorz,PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,tt,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).pi_z,[],PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,transpathoptions,PTypeStructure.(iistr).simoptions);
+                AgentDistnext_ii=TransitionPath_InfHorz_substeps_Step3tt_IterAgentDist(AgentDist_ii_InfHorz,PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,tt,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).pi_e,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,transpathoptions,PTypeStructure.(iistr).simoptions);
                 if PTypeStructure.(iistr).N_z==0 && PTypeStructure.(iistr).N_e==0
                     PVP_ii_t=PolicyValuesPath_ii(:,:,tt);
                 else
                     PVP_ii_t=PolicyValuesPath_ii(:,:,:,tt);
                 end
-                AggVars_ii=TransitionPath_InfHorz_substeps_Step4tt_AggVars(AgentDist_ii,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).z_gridvals,transpathoptions);
+                AggVars_ii=TransitionPath_InfHorz_substeps_Step4tt_AggVars(AgentDist_ii_InfHorz,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).z_grid,transpathoptions);
             end
 
             for ff=1:length(AggVarNames_ii)

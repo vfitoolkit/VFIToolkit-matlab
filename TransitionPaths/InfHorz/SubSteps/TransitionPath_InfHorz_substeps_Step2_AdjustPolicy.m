@@ -111,10 +111,10 @@ if N_z==0 && N_e==0
         if simoptions.setup_experienceasset.N_a1==0
             PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
         else
-            PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+            PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
         end
         if exist('PolicyProbsPath','var')
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
         else
             PolicyProbsPath=a2primeProbsPath;
         end
@@ -130,19 +130,19 @@ elseif N_z>0 && N_e==0
     PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyIndexesPath,n_d,n_a,n_z,T-1,d_gridvals,aprime_gridvals,vfoptions,1);
     PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_z,T-1]),[2,3,1,4]); %[N_a,N_z,l_d+l_a,T-1]
     % Modify PolicyIndexesPath into forms needed for forward iteration
-    % Create version of PolicyIndexesPath called PolicyaprimePath, which only tracks aprime
-    % If there is z then PolicyaprimezPath
+    % Create version of PolicyIndexesPath called PolicyaprimePath, which only tracks aprime,z
     % When using grid interpolation layer also PolicyProbsPath
     if isscalar(n_a1)
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:),[N_a*N_z,T-1]); % aprime index
+        PolicyaprimezPath=reshape(PolicyIndexesPath(l_d+1,:,:,:),[N_a*N_z,T-1]); % aprime index
     elseif length(n_a1)==2
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1),[N_a*N_z,T-1]);
+        PolicyaprimezPath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1),[N_a*N_z,T-1]);
     elseif length(n_a1)==3
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1)+n_a1(1)*n_a1(2)*(PolicyIndexesPath(l_d+3,:,:,:)-1),[N_a*N_z,T-1]);
+        PolicyaprimezPath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1)+n_a1(1)*n_a1(2)*(PolicyIndexesPath(l_d+3,:,:,:)-1),[N_a*N_z,T-1]);
     elseif length(n_a1)==4
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1)+n_a1(1)*n_a1(2)*(PolicyIndexesPath(l_d+3,:,:,:)-1)+n_a1(1)*n_a1(2)*n_a1(3)*(PolicyIndexesPath(l_d+4,:,:,:)-1),[N_a*N_z,T-1]);
+        PolicyaprimezPath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1)+n_a1(1)*n_a1(2)*(PolicyIndexesPath(l_d+3,:,:,:)-1)+n_a1(1)*n_a1(2)*n_a1(3)*(PolicyIndexesPath(l_d+4,:,:,:)-1),[N_a*N_z,T-1]);
     end
-    PolicyaprimezPath=gather(PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1));
+    PolicyaprimezPath=gather(PolicyaprimezPath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1));
+
     if simoptions.gridinterplayer==1
         L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:,:),[N_a*N_z,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+1,N_a,N_z,T]
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,T-1]); % reinterpret this as lower grid index
@@ -157,15 +157,15 @@ elseif N_z>0 && N_e==0
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,T-1]); % so can assume this size later
     end
 
-    clear PolicyIndexesPath PolicyaprimePath L2index
+    clear PolicyIndexesPath L2index
     if simoptions.experienceasset==1
         if simoptions.setup_experienceasset.N_a1==0
-            PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+            PolicyaprimezPath=repmat(PolicyaprimezPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
         else
-            PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+            PolicyaprimezPath=repmat(PolicyaprimezPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
         end
         if exist('PolicyProbsPath','var')
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
         else
             PolicyProbsPath=a2primeProbsPath;
         end
@@ -182,7 +182,6 @@ elseif N_z==0 && N_e>0
     PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_ze,T-1]),[2,3,1,4]); %[N_a,N_e,l_d+l_a,T-1]
     % Modify PolicyIndexesPath into forms needed for forward iteration
     % Create version of PolicyIndexesPath called PolicyaprimePath, which only tracks aprime
-    % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
     % When using grid interpolation layer also PolicyProbsPath
     if isscalar(n_a1)
         PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:),[N_a*N_e,T-1]); % aprime index
@@ -211,10 +210,10 @@ elseif N_z==0 && N_e>0
         if simoptions.setup_experienceasset.N_a1==0
             PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
         else
-            PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+            PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
         end
         if exist('PolicyProbsPath','var')
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
         else
             PolicyProbsPath=a2primeProbsPath;
         end
@@ -230,19 +229,18 @@ elseif N_z>0 && N_e>0
     PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyIndexesPath,n_d,n_a,[n_z,n_e],T-1,d_gridvals,aprime_gridvals,vfoptions,1);
     PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_z*N_e,T-1]),[2,3,1,4]); %[N_a,N_z*N_e,l_d+l_a,T-1]
     % Modify PolicyIndexesPath into forms needed for forward iteration
-    % Create version of PolicyIndexesPath called PolicyaprimePath, which only tracks aprime
-    % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
+    % Create version of PolicyIndexesPath called PolicyaprimezPath, which only tracks aprime,z
     % When using grid interpolation layer also PolicyProbsPath
     if isscalar(n_a1)
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:,:),[N_a*N_z*N_e,T-1]); % aprime index
+        PolicyaprimezPath=reshape(PolicyIndexesPath(l_d+1,:,:,:,:),[N_a*N_z*N_e,T-1]); % aprime index
     elseif length(n_a1)==2
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:,:)-1),[N_a*N_z*N_e,T-1]);
+        PolicyaprimezPath=reshape(PolicyIndexesPath(l_d+1,:,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:,:)-1),[N_a*N_z*N_e,T-1]);
     elseif length(n_a1)==3
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:,:)-1)+n_a1(1)*n_a1(2)*(PolicyIndexesPath(l_d+3,:,:,:,:)-1),[N_a*N_z*N_e,T-1]);
+        PolicyaprimezPath=reshape(PolicyIndexesPath(l_d+1,:,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:,:)-1)+n_a1(1)*n_a1(2)*(PolicyIndexesPath(l_d+3,:,:,:,:)-1),[N_a*N_z*N_e,T-1]);
     elseif length(n_a1)==4
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:,:)-1)+n_a1(1)*n_a1(2)*(PolicyIndexesPath(l_d+3,:,:,:,:)-1)+n_a1(1)*n_a1(2)*n_a1(3)*(PolicyIndexesPath(l_d+4,:,:,:,:)-1),[N_a*N_z*N_e,T-1]);
+        PolicyaprimezPath=reshape(PolicyIndexesPath(l_d+1,:,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:,:)-1)+n_a1(1)*n_a1(2)*(PolicyIndexesPath(l_d+3,:,:,:,:)-1)+n_a1(1)*n_a1(2)*n_a1(3)*(PolicyIndexesPath(l_d+4,:,:,:,:)-1),[N_a*N_z*N_e,T-1]);
     end
-    PolicyaprimezPath=gather(PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1),N_e,1));
+    PolicyaprimezPath=gather(PolicyaprimezPath+repmat(repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1),N_e,1));
     if simoptions.gridinterplayer==1
         L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:,:,:),[N_a*N_z*N_e,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+1,N_a,N_z,N_e,T]
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z*N_e,1,T-1]); % reinterpret this as lower grid index
@@ -257,15 +255,15 @@ elseif N_z>0 && N_e>0
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z*N_e,1,T-1]); % so can assume this size later
     end
 
-    clear PolicyIndexesPath PolicyaprimePath L2index
+    clear PolicyIndexesPath L2index
     if simoptions.experienceasset==1
         if simoptions.setup_experienceasset.N_a1==0
-            PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+            PolicyaprimezPath=repmat(PolicyaprimezPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
         else
-            PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+            PolicyaprimezPath=repmat(PolicyaprimezPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
         end
         if exist('PolicyProbsPath','var')
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
         else
             PolicyProbsPath=a2primeProbsPath;
         end
@@ -291,8 +289,6 @@ end
 if N_probs==1 % =1 means not being used
     PolicyProbsPath=[];
 end
-
-
 
 
 

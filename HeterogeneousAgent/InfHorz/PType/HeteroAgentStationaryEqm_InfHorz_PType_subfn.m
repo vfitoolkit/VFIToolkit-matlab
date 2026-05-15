@@ -3,6 +3,31 @@ function GeneralEqmConditions=HeteroAgentStationaryEqm_InfHorz_PType_subfn(GEpri
 heteroagentparamsvecindex=0:1:length(GEpricesvec);
 [GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
 
+if heteroagentoptions.verbose>0
+    GEpricesvec_tminus1=zeros(nGEprices,1);
+    AggVars_tminus1=NaN(length(AggVarNames),1);
+
+    for pp=1:nGEprices
+        GEpricesvec_tminus1(pp)=Parameters.(GEPriceParamNames{pp});
+    end
+    GEpricesvec_delta=GEpricesvec-GEpricesvec_tminus1;
+    for aa=1:length(AggVarNames)
+        if isfield(Parameters,AggVarNames{aa})
+            AggVars_tminus1(aa)=Parameters.(AggVarNames{aa});
+        end
+    end
+    if heteroagentoptions.useintermediateEqns==1
+        intEqnnames=fieldnames(heteroagentoptions.intermediateEqns);
+        intermediateEqns_tminus1=zeros(length(intEqnnames),1);
+        for aa=1:length(intEqnnames)
+            if isfield(Parameters,intEqnnames{aa})
+                intEqns_tminus1(aa)=Parameters.(intEqnnames{aa});
+            end
+        end
+    end
+    % We don't do anything special for CustomModelStats, which are not as easily done as others above.
+end
+
 if heteroagentoptions.verbose==2
     fprintf(' \n')
     fprintf('Current GE prices: \n')
@@ -60,6 +85,10 @@ for ii=1:PTypeStructure.N_i
         jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
         if jj>0
             AggVars(kk)=AggVars(kk)+PTypeStructure.(iistr).PTypeWeight*AggVars_ii(jj);
+
+            % Put updated AggVars into subsequent PTypeStructure Parameters, so they can be used for subsequent PType evaluations
+            warning("check AggVar parameter insertion here")
+            PTypeStructure.(iistr).Parameters.(PTypeStructure.(iistr).FnsToEvaluate{kk})=AggVars_ii(jj);
         end
     end
 
@@ -71,12 +100,13 @@ for ii=1:PTypeStructure.N_i
 end
 
 
-
 %% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
 % already did the basic GE params
 % for pp=1:nGEprices
 %     Parameters.(GEPriceParamNames{pp})=GEprices(pp);
 % end
+
+% We pushed AggVars down into the PTypeStructure parameters; this puts them into the unified Parameter structure
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
 end

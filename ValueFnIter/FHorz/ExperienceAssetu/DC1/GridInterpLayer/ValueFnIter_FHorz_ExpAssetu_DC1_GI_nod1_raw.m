@@ -25,7 +25,7 @@ end
 % Preallocate
 if vfoptions.lowmemory==0
     midpoint=zeros(N_d2,1,N_a1,N_a2,N_z,'gpuArray');
-elseif vfoptions.lowmemory==1
+elseif vfoptions.lowmemory>=1
     midpoint=zeros(N_d2,1,N_a1,N_a2,'gpuArray');
 end
 
@@ -94,7 +94,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         Policy3(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
         Policy3(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             % n-Monotonicity
@@ -223,7 +223,7 @@ else
         Policy3(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
         Policy3(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -375,7 +375,7 @@ for reverse_j=1:N_j-1
         Policy3(3,:,:,jj)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
 
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);

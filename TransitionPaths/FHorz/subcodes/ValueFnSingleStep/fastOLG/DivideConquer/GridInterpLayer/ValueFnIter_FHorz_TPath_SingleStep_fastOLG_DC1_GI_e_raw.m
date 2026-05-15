@@ -21,7 +21,8 @@ if vfoptions.lowmemory==0
     midpoints_jj=zeros(N_d,1,N_a,N_j,N_z,N_e,'gpuArray');
 elseif vfoptions.lowmemory==1
     midpoints_jj=zeros(N_d,1,N_a,N_j,N_z,'gpuArray');
-elseif vfoptions.lowmemory==2
+elseif vfoptions.lowmemory>=2
+    % We don't special-case ExpAsset looping in the fastOLG/DC1 case
     midpoints_jj=zeros(N_d,1,N_a,N_j,'gpuArray');
 end
 
@@ -69,19 +70,13 @@ elseif vfoptions.EVpre==1
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
 
-% Interpolate EV over aprime_grid
-EVinterp=interp1(a_grid,EV,aprime_grid);
-
-DiscountedEV=DiscountFactorParamsVec.*EV;
-DiscountedEV=repelem(shiftdim(DiscountedEV,-1),N_d,1,1,1); % [d,aprime,1,j,z]
-
-DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp; % [n2aprime fine,1,j,z]
-
 if vfoptions.lowmemory==0
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2e(ReturnFn, n_d, n_z,n_e,N_j, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J,e_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
+    DiscountedEV=DiscountFactorParamsVec.*EV;
+    DiscountedEV=repelem(shiftdim(DiscountedEV,-1),N_d,1,1,1); % [d,aprime,1,j,z]
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (d,aprime,a,j,z,e), autofills a for expectation term
 
     % First, we want aprime conditional on (d,1,a,j,e)
@@ -110,6 +105,10 @@ if vfoptions.lowmemory==0
         end
     end
 
+    % Interpolate EV over aprime_grid
+    EVinterp=interp1(a_grid,EV,aprime_grid);
+    DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp; % [n2aprime fine,1,j,z]
+
     % Turn this into the 'midpoint'
     midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is n_d-by-1-by-n_a-by-N_j-by-n_z-by-n_e
@@ -128,8 +127,15 @@ if vfoptions.lowmemory==0
 
 elseif vfoptions.lowmemory==1
 
-    special_n_e=ones(1,length(n_e));
+    special_n_e=ones(1,length(n_e),'gpuArray');
     V=zeros(N_a*N_j,N_z,N_e,'gpuArray'); % V is over (a,j,z,e)
+
+    DiscountedEV=DiscountFactorParamsVec.*EV;
+    DiscountedEV=repelem(shiftdim(DiscountedEV,-1),N_d,1,1,1); % [d,aprime,1,j,z]
+
+    % Interpolate EV over aprime_grid
+    EVinterp=interp1(a_grid,EV,aprime_grid);
+    DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp; % [n2aprime fine,1,j,z]
 
     for e_c=1:N_e
         e_vals=e_gridvals_J(1,1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,1,N_j,1,N_z,l_z) for fastOLG with d
@@ -184,14 +190,18 @@ elseif vfoptions.lowmemory==1
 
 elseif vfoptions.lowmemory==2
 
-    special_n_e=ones(1,length(n_e));
-    special_n_z=ones(1,length(n_z));
+    special_n_e=ones(1,length(n_e),'gpuArray');
+    special_n_z=ones(1,length(n_z),'gpuArray');
     V=zeros(N_a*N_j,N_z,N_e,'gpuArray'); % V is over (a,j,z,e)
 
     for z_c=1:N_z
         z_vals=z_gridvals_J(1,1,1,:,z_c,:); % z_gridvals_J has shape (1,1,1,N_j,N_z,l_z) for fastOLG
-        DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);
-        DiscountedEVinterp_z=DiscountedEVinterp(:,:,:,z_c);
+        DiscountedEV_z=DiscountFactorParamsVec.*EV(:,:,:,:,z_c);
+        DiscountedEV_z=repelem(shiftdim(DiscountedEV_z,-1),N_d,1,1,1); % [d,aprime,1,j,z]
+
+        % Interpolate EV over aprime_grid
+        EVinterp_z=interp1(a_grid,EV(:,:,:,:,z_c),aprime_grid);
+        DiscountedEVinterp_z=DiscountFactorParamsVec.*EVinterp_z; % [n2aprime fine,1,j,z]
 
         for e_c=1:N_e
             e_vals=e_gridvals_J(1,1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,1,N_j,1,N_z,l_z) for fastOLG with d

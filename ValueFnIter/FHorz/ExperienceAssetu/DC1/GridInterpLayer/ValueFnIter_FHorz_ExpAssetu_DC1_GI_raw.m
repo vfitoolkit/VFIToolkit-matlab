@@ -17,7 +17,7 @@ a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
-if vfoptions.lowmemory==1
+if vfoptions.lowmemory>=1
     special_n_z=ones(1,length(n_z));
     % Preallocate
     midpoint=zeros(N_d,1,N_a1,N_a2,'gpuArray');
@@ -93,7 +93,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         Policy3(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
         Policy3(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             % n-Monotonicity
@@ -224,7 +224,7 @@ else
         Policy3(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
         Policy3(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -382,7 +382,7 @@ for reverse_j=1:N_j-1
             save tempB.mat midpointB DiscountedEVB level1ii
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);

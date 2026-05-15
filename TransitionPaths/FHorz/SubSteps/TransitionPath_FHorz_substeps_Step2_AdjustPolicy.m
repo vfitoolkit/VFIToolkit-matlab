@@ -34,7 +34,12 @@ if simoptions.experienceasset==1
                 aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,simoptions.setup_experienceasset.aprimeFnParamNames,N_j);
                 % [N_j,number of params]
 
-                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyIndexesPath(:,:,:,:,tt),simoptions.setup_experienceasset.aprimeFn, whichisdforexpasset, n_d, simoptions.setup_experienceasset.n_a1,simoptions.setup_experienceasset.n_a2, N_ze, N_j, simoptions.setup_experienceasset.d_grid, simoptions.setup_experienceasset.a2_grid, aprimeFnParamsVec,transpathoptions.fastOLG);
+                if N_z>0 && N_e>0
+                    PIP_tt=PolicyIndexesPath(:,:,:,:,:,tt);
+                else
+                    PIP_tt=PolicyIndexesPath(:,:,:,:,tt);
+                end
+                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PIP_tt,simoptions.setup_experienceasset.aprimeFn, whichisdforexpasset, n_d, simoptions.setup_experienceasset.n_a1,simoptions.setup_experienceasset.n_a2, N_ze, N_j, simoptions.setup_experienceasset.d_grid, simoptions.setup_experienceasset.a2_grid, aprimeFnParamsVec,transpathoptions.fastOLG);
                 % Note: a2primeIndexes and a2primeProbs are both [N_a,N_z,N_j] for fastOLG=0
                 % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
                 a2primeIndexesPath(:,:,:,tt)=a2primeIndexes(:,:,1:end-1);
@@ -47,7 +52,12 @@ if simoptions.experienceasset==1
                 aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,simoptions.setup_experienceasset.aprimeFnParamNames,N_j);
                 % [N_j,number of params]
 
-                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyIndexesPath(:,:,:,:,tt),simoptions.setup_experienceasset.aprimeFn, whichisdforexpasset, n_d, simoptions.setup_experienceasset.n_a1,simoptions.setup_experienceasset.n_a2, N_ze, N_j, simoptions.setup_experienceasset.d_grid, simoptions.setup_experienceasset.a2_grid, aprimeFnParamsVec,transpathoptions.fastOLG);
+                if N_z>0 && N_e>0
+                    PIP_tt=PolicyIndexesPath(:,:,:,:,:,tt);
+                else
+                    PIP_tt=PolicyIndexesPath(:,:,:,:,tt);
+                end
+                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PIP_tt,simoptions.setup_experienceasset.aprimeFn, whichisdforexpasset, n_d, simoptions.setup_experienceasset.n_a1,simoptions.setup_experienceasset.n_a2, N_ze, N_j, simoptions.setup_experienceasset.d_grid, simoptions.setup_experienceasset.a2_grid, aprimeFnParamsVec,transpathoptions.fastOLG);
                 % Note: a2primeIndexes and a2primeProbs are both [N_a,N_j,N_z] for fastOLG=1
                 % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
                 a2primeIndexesPath(:,:,:,tt)=a2primeIndexes(:,1:end-1,:);
@@ -174,10 +184,10 @@ if transpathoptions.fastOLG==0
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
                 else
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
                 if exist('PolicyProbsPath','var')
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
                 else
                     PolicyProbsPath=a2primeProbsPath;
                 end
@@ -238,10 +248,10 @@ if transpathoptions.fastOLG==0
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
                 else
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
                 if exist('PolicyProbsPath','var')
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
                 else
                     PolicyProbsPath=a2primeProbsPath;
                 end
@@ -302,10 +312,10 @@ if transpathoptions.fastOLG==0
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
                 else
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
                 if exist('PolicyProbsPath','var')
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
                 else
                     PolicyProbsPath=a2primeProbsPath;
                 end
@@ -364,12 +374,12 @@ if transpathoptions.fastOLG==0
                 end
             elseif simoptions.fastOLG==1
                 if simoptions.setup_experienceasset.N_a1==0
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+a2primeIndexesPath;
                 else
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
                 if exist('PolicyProbsPath','var')
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
                 else
                     PolicyProbsPath=a2primeProbsPath;
                 end

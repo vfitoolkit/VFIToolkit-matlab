@@ -27,7 +27,7 @@ elseif vfoptions.lowmemory==1
     % precompute
     zind=shiftdim((0:1:N_z-1),-3); % already includes -1
     zBind=shiftdim((0:1:N_z-1),-1); % already includes -1
-elseif vfoptions.lowmemory==2
+elseif vfoptions.lowmemory>=2
     special_n_e=ones(1,length(n_e));
     special_n_z=ones(1,length(n_z));
 end
@@ -139,7 +139,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 end
             end
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_z
@@ -336,7 +336,7 @@ else
                 end
             end
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -551,7 +551,7 @@ for reverse_j=1:N_j-1
             end
         end
 
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);

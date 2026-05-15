@@ -7,7 +7,7 @@ function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset
 % (fastOLG requires swapping order of j and z)
 
 N_d1=prod(n_d1);
-N_a=prod(n_a);
+N_a=prod(n_a1)*n_a2;
 N_z=prod(n_z);
 N_e=prod(n_e);
 % N_z=0 is handled elsewhere

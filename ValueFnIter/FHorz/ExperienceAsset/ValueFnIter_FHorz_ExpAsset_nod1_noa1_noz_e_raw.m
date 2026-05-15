@@ -110,11 +110,11 @@ for reverse_j=1:N_j-1
 
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
-
+    DiscountedEV=DiscountFactorParamsVec*EV;
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_d2, n_a2, n_e, d2_gridvals, a2_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % should autofill e dimension
+        entireRHS=ReturnMatrix+DiscountedEV; % should autofill e dimension
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -125,7 +125,7 @@ for reverse_j=1:N_j-1
         for e_c=1:N_e
             ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_d2, n_a2, special_n_e, d2_gridvals, a2_grid, e_gridvals_J(e_c,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*EV;
+            entireRHS=ReturnMatrix_e+DiscountedEV;
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);

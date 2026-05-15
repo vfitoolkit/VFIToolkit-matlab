@@ -56,9 +56,5 @@ if tempcounter>=maxiter
     warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
 end
 
-if tempcounter>=maxiter
-    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
-end
-
 
 end

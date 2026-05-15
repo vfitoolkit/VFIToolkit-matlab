@@ -795,7 +795,7 @@ if N_e>0
         end
     end
 
-    if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
+    if transpathoptions.fastOLG==1 % Reshape grid and transition matrix for use with fastOLG
         if N_z>0
             if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
                 e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe: (j,1,N_e,l_e)

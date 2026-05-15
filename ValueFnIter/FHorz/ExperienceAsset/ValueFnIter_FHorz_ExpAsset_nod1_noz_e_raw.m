@@ -61,11 +61,13 @@ else
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
+    
+    DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2,n_a1,n_a1,n_a2,n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
+        entireRHS=ReturnMatrix+DiscountedEV; % should autofill e dimension
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -77,7 +79,7 @@ else
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2,n_a1,n_a1,n_a2,special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, e_val, ReturnFnParamsVec,0,0);
 
-            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
+            entireRHS=ReturnMatrix_e+DiscountedEV; % should autofill e dimension
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);

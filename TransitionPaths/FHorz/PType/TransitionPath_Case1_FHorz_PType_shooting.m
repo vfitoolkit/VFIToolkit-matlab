@@ -32,7 +32,7 @@ nrows_pricepath=ceil(length(PricePathNames)/ncolumns_pricepath);
 pp_indexinpricepath=zeros(1,length(PricePathNames));
 pp_c=0;
 for pp=1:length(PricePathNames)
-    if PTypeStructure.PricePath_Idependsonptype(pp)==0
+    if isfield(PTypeStructure, 'PricePath_Idependsonptype') && PTypeStructure.PricePath_Idependsonptype(pp)==0
         pp_c=pp_c+1;
         pp_indexinpricepath(pp)=pp_c;
     else
@@ -123,6 +123,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
         % Following few lines I would normally do outside of the while loop, but have to set them for each ptype
         % AgentDist=AgentDist_initial.(iistr);
+        % WARNING: The following would overwrite themselves next iteration
         % V_final=V_final.(iistr);
         % AgeWeights_T=AgeWeights_T.(iistr);
         % jequalOneDist_T=jequalOneDist_T.(iistr);
@@ -218,7 +219,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             if transpathoptions.(iistr).trivialjequalonedist==0
                 PTypeStructure.(iistr).jequalOneDist=PTypeStructure.(iistr).jequalOneDist_T(:,tt+1);  % Note: t+1 as we are about to create the next period AgentDist
             end
-            if PTypeStructure.(iistr).simoptions.fastOLG==0 || PTypeStructure.(iistr).N_e>0
+            if ndims(PTypeStructure.(iistr).AgeWeights_T)==2
+                AgeWeights_ii=PTypeStructure.(iistr).AgeWeights_T(:,tt);
+            elseif PTypeStructure.(iistr).simoptions.fastOLG==0 || PTypeStructure.(iistr).N_e>0
                 AgeWeights_ii=PTypeStructure.(iistr).AgeWeights_T(:,:,tt);
             else % simoptions.fastOLG==1
                 AgeWeights_ii=PTypeStructure.(iistr).AgeWeights_T(:,tt);
@@ -228,10 +231,22 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
             %% AggVars
             if PTypeStructure.(iistr).N_z==0 && PTypeStructure.(iistr).N_e==0
-                AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PolicyValuesPath_ii(:,:,:,tt),tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+                PVP_ii_t=PolicyValuesPath_ii(:,:,:,tt);
             else
-                AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PolicyValuesPath_ii(:,:,:,:,tt),tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+                PVP_ii_t=PolicyValuesPath_ii(:,:,:,:,tt);
             end
+            AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+
+            AgentDistnext_ii=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(AgentDist_ii,PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,tt,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).pi_z_J_sim,PTypeStructure.(iistr).pi_e_J,PTypeStructure.(iistr).pi_e_J_sim,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj,PTypeStructure.(iistr).jequalOneDist,transpathoptions,PTypeStructure.(iistr).simoptions);
+
+            %% AggVars
+            if PTypeStructure.(iistr).N_z==0 && PTypeStructure.(iistr).N_e==0
+                PVP_ii_t=PolicyValuesPath_ii(:,:,tt);
+            else
+                PVP_ii_t=PolicyValuesPath_ii(:,:,:,tt);
+            end
+            AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+
             % Uncommenting this allows you to do _tminus1 for AggVars, but only conditional on ptype [not yet possible without conditioning on ptype]
             % for ff=1:length(AggVarNames)
             %     Parameters.(AggVarNames{ff})=AggVars_ii.(AggVarNames{ff}).Mean;
@@ -248,7 +263,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
         end
 
-        AggVarsFullPath(PTypeStructure.(iistr).WhichFnsForCurrentPType,:,ii)=AggVarsPath_ii;
+        AggVarsFullPath(logical(PTypeStructure.(iistr).WhichFnsForCurrentPType),:,ii)=AggVarsPath_ii;
 
     end % done loop over ii
 
@@ -261,7 +276,23 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
     %% Do the general eqm conditions and create PricePathNew based on these
     if all(transpathoptions.GEptype==0)
-        GEcondnPath=zeros(T,length(GEeqnNames));
+        GECondnPath=zeros(T,length(GEeqnNames));
+
+        warning("do we need to do this for AggVars?")
+        % Restore all AggVarNames and tminus1AggVarsNames for GEeqns
+        AggVarNames=cell(1,N_i);
+        tminus1AggVarsNames=cell(1,N_i);
+        use_tminus1AggVars=0;
+        for ii=1:N_i
+            iistr=PTypeStructure.Names_i{ii};
+            AggVarNames{ii}=PTypeStructure.(iistr).AggVarNames;
+            if isfield(PTypeStructure.(iistr), 'tminus1AggVarsNames')
+                use_tminus1AggVars=1;
+                tminus1AggVarsNames{ii}=PTypeStructure.(iistr).tminus1AggVarsNames;
+            end
+        end
+        AggVarNames=vertcat(AggVarNames{:});
+        tminus1AggVarsNames=vertcat(tminus1AggVarsNames{:});
 
         % Parameters that may be relevant to General Eqm
         Parameters=PTypeStructure.ParametersRaw;
@@ -356,7 +387,23 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
         end % Done loop over tt, evaluating the GE conditions
     else % Some GE conditions depend on PType
-        GEcondnPath=zeros(T,nGeneralEqmEqns_acrossptypes);
+        GECondnPath=zeros(T,nGeneralEqmEqns_acrossptypes);
+        error("need to fit these loops together")
+
+        % Restore AggVarNames and tminus1AggVarsNames by PType for GEeqns
+        AggVarNames=cell(1,N_i);
+        tminus1AggVarsNames=cell(1,N_i);
+        use_tminus1AggVars=0;
+        for ii=1:N_i
+            iistr=PTypeStructure.Names_i{ii};
+            AggVarNames{ii}=PTypeStructure.(iistr).AggVarNames;
+            tminus1AggVarsNames{ii}=PTypeStructure.(iistr).tminus1AggVarsNames;
+            if ~isempty(tminus1AggVarsNames{ii})
+                use_tminus1AggVars=1;
+            end
+        end
+        AggVarNames=vertcat(AggVarNames{:});
+        tminus1AggVarsNames=vertcat(tminus1AggVarsNames{:});
 
         % Parameters that may be relevant to General Eqm
         Parameters=PTypeStructure.ParametersRaw;

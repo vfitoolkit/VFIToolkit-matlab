@@ -1,6 +1,17 @@
 function AggVarsPath=EvalFnOnTransPath_AggVars_InfHorz(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,simoptions)
 % AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
 
+%% Check which transpathoptions have been used, set all others to defaults 
+if exist('transpathoptions','var')==0
+    disp('No transpathoptions given, using defaults')
+    %If transpathoptions is not given, just use all the defaults
+    transpathoptions.verbose=0;
+else
+    %Check transpathoptions for missing fields, if there are some fill them with the defaults
+    if ~isfield(transpathoptions,'verbose')
+        transpathoptions.verbose=0;
+    end
+end
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.experienceasset=0;
