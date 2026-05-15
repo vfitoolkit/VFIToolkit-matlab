@@ -21,7 +21,7 @@ pi_u=shiftdim(pi_u,-2); % put it into third dimension
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
 end
-if vfoptions.lowmemory==2
+if vfoptions.lowmemory>=2
     special_n_z=ones(1,length(n_z));
 else
     zind=shiftdim((0:1:N_z-1),-3);
@@ -88,7 +88,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy3(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
         end
 
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -200,7 +200,7 @@ else
             Policy3(2,:,:,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
             Policy3(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);
@@ -328,7 +328,7 @@ for reverse_j=1:N_j-1
             Policy3(2,:,:,e_c,jj)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
             Policy3(3,:,:,e_c,jj)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);

@@ -32,7 +32,7 @@ if vfoptions.lowmemory==0
     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
     [ReturnMatrixfine,dstar]=max(ReturnMatrixfine,[],1);
     ReturnMatrixfine=shiftdim(ReturnMatrixfine,1);
-elseif vfoptions.lowmemory==1 % loop over z
+elseif vfoptions.lowmemory>=1 % loop over z
     %% Refinement: calculate ReturnMatrix and 'remove' the d dimension
     ReturnMatrixfine=zeros(N_d2*N_a1prime,N_a,N_z,'gpuArray'); % 'refined' return matrix
     dstar=zeros(N_d2*N_a1prime,N_a,N_z,'gpuArray');

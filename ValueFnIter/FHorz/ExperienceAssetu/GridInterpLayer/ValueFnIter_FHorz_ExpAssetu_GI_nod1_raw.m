@@ -59,7 +59,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         Policy3(1,:,:,N_j)=d_ind; % d2
         Policy3(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
         Policy3(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,1);
@@ -140,7 +140,7 @@ else
         Policy3(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
         Policy3(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -243,7 +243,7 @@ for reverse_j=1:N_j-1
         Policy3(2,:,:,jj)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
         Policy3(3,:,:,jj)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);

@@ -84,7 +84,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             end
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
          for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -218,7 +218,7 @@ else
             end
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -372,7 +372,7 @@ for reverse_j=1:N_j-1
             end
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
