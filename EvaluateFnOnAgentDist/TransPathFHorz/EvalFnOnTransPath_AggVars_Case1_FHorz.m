@@ -262,7 +262,7 @@ else
             end
 
             if transpathoptions.epathtrivial==0
-                e_gridvals_J=transpathoptions.e_grid_J_T(:,:,tt);
+                e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,tt);
             end
 
             Policy_tt=reshape(PolicyPath(:,:,:,:,tt),[size(PolicyPath,1),n_a,n_e,N_j]);
@@ -309,7 +309,7 @@ else
                 z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
             end
             if transpathoptions.epathtrivial==0
-                simoptions.e_grid_J=transpathoptions.e_grid_J_T(:,:,tt);
+                simoptions.e_grid_J=transpathoptions.e_gridvals_J_T(:,:,tt);
             end
 
             Policy_tt=reshape(PolicyPath(:,:,:,:,:,tt),[size(PolicyPath,1),n_a,n_z,n_e,N_j]);

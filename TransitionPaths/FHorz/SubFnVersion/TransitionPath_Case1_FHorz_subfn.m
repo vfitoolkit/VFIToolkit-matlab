@@ -42,11 +42,11 @@ for i=1:T-1 %so t=T-i
     end
 
     if transpathoptions.zpathprecomputed==1
-        if transpathoptions.zpathtrivial==1
+        if transpathoptions.zpathtrivial==0
             vfoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,i);
-            vfoptions.z_grid_J=transpathoptions.z_grid_J_T(:,:,i);
+            vfoptions.z_grid_J=transpathoptions.z_gridvals_J_T(:,:,:,i);
         end
-        % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in vfoptions already
+        % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in vfoptions already
     end
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use vfoptions.ExogShockFn within  ValueFnIter command
 
@@ -89,11 +89,11 @@ for i=1:T-1
     end
 
     if transpathoptions.zpathprecomputed==1
-        if transpathoptions.zpathtrivial==1
+        if transpathoptions.zpathtrivial==0
             simoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,i);
-            simoptions.z_grid_J=transpathoptions.z_grid_J_T(:,:,i);
+            simoptions.z_grid_J=transpathoptions.z_gridvals_J_T(:,:,:,i);
         end
-        % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in simoptions already
+        % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
     end
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use simoptions.ExogShockFn within StationaryDist and FnEvaluation command
 

@@ -264,11 +264,11 @@ for tt=1:T
 
     % Get current shocks (if applicable)
     if transpathoptions.zpathprecomputed==1
-        if transpathoptions.zpathtrivial==1
+        if transpathoptions.zpathtrivial==0
             simoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
-            simoptions.z_grid_J=transpathoptions.z_grid_J_T(:,:,tt);
+            simoptions.z_grid_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
         end
-        % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in simoptions already
+        % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
     end
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use simoptions.ExogShockFn within  ValueFnIter command
 
