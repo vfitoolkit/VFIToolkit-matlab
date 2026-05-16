@@ -12,6 +12,15 @@ end
 if ~isfield(simoptions,'alreadygridvals')
     simoptions.alreadygridvals=0;
 end
+if ~isfield(simoptions,'alreadygridvals_semiexo')
+    simoptions.alreadygridvals_semiexo=0;
+end
+if ~isfield(simoptions,'n_e')
+    simoptions.n_e=0;
+end
+if ~isfield(simoptions,'n_semiz')
+    simoptions.n_semiz=0;
+end
 if ~isfield(simoptions,'gridinterplayer')
     simoptions.gridinterplayer=0;
 end

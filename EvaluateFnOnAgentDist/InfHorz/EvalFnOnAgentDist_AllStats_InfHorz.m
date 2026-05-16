@@ -12,6 +12,9 @@ if ~exist('simoptions','var')
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.gridinterplayer=0;
     simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 else
     if ~isfield(simoptions,'npoints')
         simoptions.npoints=100;
@@ -31,6 +34,15 @@ else
     end
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
+    end
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
     end
 end
 

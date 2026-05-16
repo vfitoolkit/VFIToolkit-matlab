@@ -1,9 +1,10 @@
-function [V, Policy]=ValueFnFromPolicy_FHorz_PType(Policy, n_d,n_a,n_z, N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
-
+function [V, Policy]=ValueFnFromPolicy_MixHorz_PType(Policy, n_d,n_a,n_z, N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+% Mixed-horizon PType variant: dispatches each ptype to either
+% ValueFnFromPolicy_FHorz (finite N_j) or ValueFnFromPolicy_InfHorz (Inf N_j)
+% based on isfinite(N_j_temp).
 %
 % vfoptions.verbose=1 will give feedback
 % vfoptions.verboseparams=1 will give further feedback on the param values of each permanent type
-%
 
 % N_d=prod(n_d);
 % N_a=prod(n_a);
@@ -143,7 +144,11 @@ for ii=1:N_i
         Policy.(Names_i{ii})=Policy_ii;
     end
 
-    V_ii=ValueFnFromPolicy_FHorz(Policy_ii,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, vfoptions_temp);
+    if isfinite(N_j_temp)
+        V_ii=ValueFnFromPolicy_FHorz(Policy_ii,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, vfoptions_temp);
+    else % InfHorz ptype
+        V_ii=ValueFnFromPolicy_InfHorz(Policy_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, vfoptions_temp);
+    end
 
     if vfoptions_temp.ptypestorecpu==1
         V.(Names_i{ii})=gather(V_ii);

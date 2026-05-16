@@ -29,6 +29,7 @@ if ~exist('simoptions','var')
     simoptions.n_semiz=0;
     % Internal options
     simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
 else
     % Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'transprobs')
@@ -61,6 +62,9 @@ else
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
+    end
 end
 
 if isfield(simoptions,'conditionalrestrictions')
@@ -84,6 +88,9 @@ if simoptions.gridinterplayer==1
     l_daprime=l_daprime-1;
 end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
+if prod(simoptions.n_semiz)>0
+    error('Have not yet implemented semiz variables for InfHorz AutoCorrTransProbs, ask on forum if you need this')
+end
 % Switch to z_gridvals (folding e and semiz into z if appropriate)
 [n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 

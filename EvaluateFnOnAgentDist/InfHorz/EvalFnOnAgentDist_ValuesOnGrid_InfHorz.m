@@ -7,8 +7,26 @@ function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_InfHorz(Policy, FnsToEvalua
 Parallel=1+(gpuDeviceCount>0);
 if ~exist('simoptions','var')
     simoptions.gridinterplayer=0;
-elseif ~isfield(simoptions,'gridinterplayer')
-    simoptions.gridinterplayer=0;
+    simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
+else
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals')
+        simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
+    end
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
 end
 
 if n_d(1)==0
