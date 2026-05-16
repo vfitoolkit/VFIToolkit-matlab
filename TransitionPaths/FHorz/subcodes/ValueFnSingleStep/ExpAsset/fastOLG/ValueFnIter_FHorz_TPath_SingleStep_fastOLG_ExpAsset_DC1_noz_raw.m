@@ -82,7 +82,7 @@ V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray');
 
 % n-Monotonicity
-ReturnMatrix_ii=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, ReturnFnParamsAgeMatrix,1,0);
+ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_noz(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
 
 entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
@@ -105,7 +105,7 @@ for ii=1:(vfoptions.level1n-1)
         loweredge=min(maxindex1(:,1,ii,:,:,:),n_a1-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
         aprimeindexes=loweredge+(0:1:maxgap(ii));
         % aprime possibilities are N_d-by-maxgap(ii)+1-by-1-by-N_j
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1, n_d2, maxgap(ii)+1, level1iidiff(ii),n_a2,N_j, d_gridvals, a1_gridvals(aprimeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, ReturnFnParamsAgeMatrix,2,0);
+        ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_noz(ReturnFn, n_d1, n_d2, maxgap(ii)+1, level1iidiff(ii),n_a2,N_j, d_gridvals, a1_gridvals(aprimeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, ReturnFnParamsAgeMatrix,2,0); % Level=2, Refine=0
         d2aprimejz=d2ind+N_d2*(aprimeindexes-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*jind; % with the current aprimeii(ii):aprimeii(ii+1)
         entireRHS_ii=ReturnMatrix_ii+repelem(reshape(DiscountedEV(d2aprimejz),[N_d*(maxgap(ii)+1),N_a2,N_j]),1,level1iidiff(ii),1,1);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -119,7 +119,7 @@ for ii=1:(vfoptions.level1n-1)
     else
         loweredge=maxindex1(:,1,ii,:,:,:);
         % Just use aprime(ii) for everything
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1, n_d2, 1, level1iidiff(ii),n_a2,N_j, d_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, ReturnFnParamsAgeMatrix,2,0);
+        ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_noz(ReturnFn, n_d1, n_d2, 1, level1iidiff(ii),n_a2,N_j, d_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, ReturnFnParamsAgeMatrix,2,0); % Level=2, Refine=0
         d2aprimejz=d2ind+N_d2*(loweredge-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*jind; % with the current aprimeii(ii):aprimeii(ii+1)
         entireRHS_ii=ReturnMatrix_ii+repelem(reshape(DiscountedEV(d2aprimejz),[N_d,N_a2,N_j]),1,level1iidiff(ii),1,1);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);

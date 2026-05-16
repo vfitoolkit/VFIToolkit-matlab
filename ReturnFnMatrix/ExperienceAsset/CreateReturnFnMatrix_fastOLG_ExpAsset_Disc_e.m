@@ -1,10 +1,15 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1, n_d2, n_a1prime, n_a1,n_a2, n_z,n_e, d_gridvals, a1prime_gridvals, a1_gridvals, a2_gridvals, z_gridvals, e_gridvals, ReturnFnParamsVec,Level,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1prime, n_a1,n_a2, n_z,n_e,N_j, d_gridvals, a1prime_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,Level,Refine) % Refine is an optional input
 % Note: d_gridvals is both d1 and d2 (unless n_d1=1 so there is no d1, in which case is just d2)
 % Level and Refine are about different shapes of inputs/output
 % Set Level=0, unless using Divide-and-Conquer
-% When Level=1 or 2, Refine is ignored
+% Refine=1 splits d1 out as the leading dimension (useful for when EV doesn't depend on d1).
+% Refine=0 keeps d stacked as before.
 
-ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';
+nReturnFnParams=size(ReturnFnParamsAgeMatrix,2);
+ReturnFnParamsCell=cell(nReturnFnParams,1);
+for ii=1:nReturnFnParams
+    ReturnFnParamsCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-6)};
+end
 
 if n_d1(1)==0
     n_d=n_d2;
@@ -74,22 +79,23 @@ if l_a1>=1
     end
 end
 expassetvals=shiftdim(a2_gridvals,-3);
+% fastOLG: z_gridvals_J is (1,1,1,1,j,N_z,l_z) for fastOLG with ExpAsset
 if l_z>=1
-    z1vals=shiftdim(z_gridvals(:,1),-4);
+    z1vals=z_gridvals_J(1,1,1,1,:,:,1);
     if l_z>=2
-        z2vals=shiftdim(z_gridvals(:,2),-4);
+        z2vals=z_gridvals_J(1,1,1,1,:,:,2);
         if l_z>=3
-            z3vals=shiftdim(z_gridvals(:,3),-4);
+            z3vals=z_gridvals_J(1,1,1,1,:,:,3);
             if l_z>=4
-                z4vals=shiftdim(z_gridvals(:,4),-4);
+                z4vals=z_gridvals_J(1,1,1,1,:,:,4);
                 if l_z>=5
-                    z5vals=shiftdim(z_gridvals(:,5),-4);
+                    z5vals=z_gridvals_J(1,1,1,1,:,:,5);
                     if l_z>=6
-                        z6vals=shiftdim(z_gridvals(:,6),-4);
+                        z6vals=z_gridvals_J(1,1,1,1,:,:,6);
                         if l_z>=7
-                            z7vals=shiftdim(z_gridvals(:,7),-4);
+                            z7vals=z_gridvals_J(1,1,1,1,:,:,7);
                             if l_z>=8
-                                z8vals=shiftdim(z_gridvals(:,8),-4);
+                                z8vals=z_gridvals_J(1,1,1,1,:,:,8);
                             end
                         end
                     end
@@ -99,15 +105,15 @@ if l_z>=1
     end
 end
 if l_e>=1
-    e1vals=shiftdim(e_gridvals(:,1),-5);
+    e1vals=shiftdim(e_gridvals_J(:,:,1),-5);
     if l_e>=2
-        e2vals=shiftdim(e_gridvals(:,2),-5);
+        e2vals=shiftdim(e_gridvals_J(:,:,2),-5);
         if l_e>=3
-            e3vals=shiftdim(e_gridvals(:,3),-5);
+            e3vals=shiftdim(e_gridvals_J(:,:,3),-5);
             if l_e>=4
-                e4vals=shiftdim(e_gridvals(:,4),-5);
+                e4vals=shiftdim(e_gridvals_J(:,:,4),-5);
                 if l_e>=5
-                    e5vals=shiftdim(e_gridvals(:,5),-5);
+                    e5vals=shiftdim(e_gridvals_J(:,:,5),-5);
                 end
             end
         end
@@ -1811,15 +1817,27 @@ end
 if Level==0
     N_d1=prod(n_d1);
     if Refine==0 || N_d1==0
-        Fmatrix=reshape(Fmatrix,[N_d*N_a1,N_a1*N_a2,N_z,N_e]);
+        Fmatrix=reshape(Fmatrix,[N_d*N_a1,N_a1*N_a2,N_j,N_z,N_e]);
     elseif Refine==1
         N_d2=prod(n_d2);
-        Fmatrix=reshape(Fmatrix,[N_d1,N_d2*N_a1,N_a1*N_a2,N_z,N_e]);  % want to refine away d1
+        Fmatrix=reshape(Fmatrix,[N_d1,N_d2*N_a1,N_a1*N_a2,N_j,N_z,N_e]);  % want to refine away d1
     end
 elseif Level==1  || Level==3
-    Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a1,N_a2,N_z,N_e]);
+    N_d1=prod(n_d1);
+    if Refine==0 || N_d1==0
+        Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a1,N_a2,N_j,N_z,N_e]);
+    elseif Refine==1
+        N_d2=prod(n_d2);
+        Fmatrix=reshape(Fmatrix,[N_d1,N_d2*N_a1prime,N_a1,N_a2,N_j,N_z,N_e]); % d1 split out for broadcasting
+    end
 elseif Level==2 % For level 2
-    Fmatrix=reshape(Fmatrix,[N_d*N_a1prime,N_a1*N_a2,N_z,N_e]);
+    N_d1=prod(n_d1);
+    if Refine==0 || N_d1==0
+        Fmatrix=reshape(Fmatrix,[N_d*N_a1prime,N_a1*N_a2,N_j,N_z,N_e]);
+    elseif Refine==1
+        N_d2=prod(n_d2);
+        Fmatrix=reshape(Fmatrix,[N_d1,N_d2*N_a1prime,N_a1*N_a2,N_j,N_z,N_e]); % d1 split out for broadcasting
+    end
 end
 
 

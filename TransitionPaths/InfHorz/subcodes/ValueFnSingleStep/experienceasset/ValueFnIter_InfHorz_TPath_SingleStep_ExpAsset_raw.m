@@ -50,7 +50,7 @@ if vfoptions.lowmemory==0
     EV=squeeze(sum(EV,3));
     % EV is over (d2,a1prime,a2,z)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0);
+    ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0); % Level=0, Refine=0
     % (d,aprime,a,z)
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,N_a1);
@@ -64,7 +64,7 @@ if vfoptions.lowmemory==0
 elseif vfoptions.lowmemory==1
 
     for z_c=1:N_z
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0);
+        ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*shiftdim(pi_z(z_c,:)',-2);

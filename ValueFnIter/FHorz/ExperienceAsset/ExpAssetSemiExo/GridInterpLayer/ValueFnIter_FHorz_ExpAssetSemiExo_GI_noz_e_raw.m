@@ -65,7 +65,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         for d3_c=1:N_d3
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
 
-            ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1); % [N_d12,N_d3,N_a1,N_a1*N_a2,N_semiz,N_e]
+            ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1,0); % [N_d12,N_d3,N_a1,N_a1*N_a2,N_semiz,N_e]; Level=1, Refine=0
 
             % Calc the max and it's index
             [~,maxindex]=max(ReturnMatrix,[],2);
@@ -75,7 +75,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % midpoint is n_d-1-by-n_a1-by-n_a2-by-n_semiz-by-n_e
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a1-by-n_a2-by-n_semiz-by-n_e
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1prime_grid(aprimeindexes), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz,N_e]
+            ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1prime_grid(aprimeindexes), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2,0); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz,N_e]; Level=2, Refine=0
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
             V_ford3_jj(:,:,:,d3_c)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d12)+1;
@@ -96,7 +96,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
 
-                ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1); % [N_d12,N_d3,N_a1,N_a1*N_a2,N_semiz]
+                ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1,0); % [N_d12,N_d3,N_a1,N_a1*N_a2,N_semiz]; Level=1, Refine=0
 
                 % Calc the max and it's index
                 [~,maxindex]=max(ReturnMatrix,[],2);
@@ -106,7 +106,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % midpoint is n_d-1-by-n_a1-by-n_a2-by-n_semiz
                 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a1-by-n_a2-by-n_semiz
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(aprimeindexes), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz]
+                ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(aprimeindexes), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2,0); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz]; Level=2, Refine=0
                 [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
                 V_ford3_jj(:,:,e_c,d3_c)=shiftdim(Vtempii,1);
                 d_ind=rem(maxindexL2-1,N_d12)+1;
@@ -130,7 +130,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,N_j);
 
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,1); % [N_d12,N_d3,N_a1,N_a1*N_a2]
+                    ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,1,0); % [N_d12,N_d3,N_a1,N_a1*N_a2]; Level=1, Refine=0
 
                     % Calc the max and it's index
                     [~,maxindex]=max(ReturnMatrix,[],2);
@@ -140,7 +140,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     % midpoint is n_d-1-by-n_a1-by-n_a2
                     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                     % aprime possibilities are n_d-by-n2long-by-n_a1-by-n_a2
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(aprimeindexes), a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,2); % [N_d12,N_a1prime,N_a1,N_a2]
+                    ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(aprimeindexes), a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,2,0); % [N_d12,N_a1prime,N_a1,N_a2]; Level=2, Refine=0
                     [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
                     V_ford3_jj(:,z_c,e_c,d3_c)=shiftdim(Vtempii,1);
                     d_ind=rem(maxindexL2-1,N_d12)+1;
@@ -209,7 +209,7 @@ else
             DiscountedEV=repelem(DiscountedEV,N_d1,1,1,1,1);
             DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1,1,1);
 
-            ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+            ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1,0); % Level=1, Refine=0
             % (d,aprime,a,z)
 
             entireRHS_d3=ReturnMatrix_d3+DiscountedEV; % autofill a1 dim & e dim
@@ -222,7 +222,7 @@ else
             % midpoint is n_d12-1-by-n_a1-by-n_a2-by-n_semiz-by-n_e
             a1primeindexesfine=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d12-by-n2long-by-n_a1-by-n_a2-by-n_semiz-by-n_e
-            ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz,N_e]
+            ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2,0); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz,N_e]; Level=2, Refine=0
             d12a1primea2semiz=(1:1:N_d12)'+N_d12*(a1primeindexesfine-1)+N_d12*N_a1prime*a2ind+N_d12*N_a1prime*N_a2*semizind;
             entireRHS_ii_d3=ReturnMatrix_ii_d3+reshape(DiscountedEVinterp(d12a1primea2semiz(:)),[N_d12*n2long,N_a1*N_a2,N_semiz]);
             [Vtempii,maxindexL2]=max(entireRHS_ii_d3,[],1);
@@ -268,7 +268,7 @@ else
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
 
-                ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
+                ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
                 % (d,aprime,a,z)
 
                 entireRHS_d3=ReturnMatrix_d3+DiscountedEV; % autofill a1 dim & e dim
@@ -281,7 +281,7 @@ else
                 % midpoint is n_d12-1-by-n_a1-by-n_a2-by-n_semiz
                 a1primeindexesfine=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d12-by-n2long-by-n_a1-by-n_a2-by-n_semiz
-                ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz]
+                ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2,0); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz]; Level=2, Refine=0
                 d12a1primea2semiz=(1:1:N_d12)'+N_d12*(a1primeindexesfine-1)+N_d12*N_a1prime*a2ind+N_d12*N_a1prime*N_a2*semizind;
                 entireRHS_ii_d3=ReturnMatrix_ii_d3+reshape(DiscountedEVinterp(d12a1primea2semiz(:)),[N_d12*n2long,N_a1*N_a2,N_semiz,N_e]);
                 [Vtempii,maxindexL2]=max(entireRHS_ii_d3,[],1);
@@ -333,7 +333,7 @@ else
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,N_j);
 
-                    ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,1);
+                    ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
                     % (d,aprime,a,z)
 
                     entireRHS_d3=ReturnMatrix_d3+DiscountedEV_z; % autofill a1 dim & e dim
@@ -346,7 +346,7 @@ else
                     % midpoint is n_d12-1-by-n_a1-by-n_a2
                     a1primeindexesfine=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                     % aprime possibilities are n_d12-by-n2long-by-n_a1-by-n_a2
-                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,2); % [N_d12,N_a1prime,N_a1,N_a2]
+                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,2,0); % [N_d12,N_a1prime,N_a1,N_a2]; Level=2, Refine=0
                     d12a1primea2semiz=(1:1:N_d12)'+N_d12*(a1primeindexesfine-1)+N_d12*N_a1prime*a2ind;
                     entireRHS_ii_d3=ReturnMatrix_ii_d3+reshape(DiscountedEVinterp_z(d12a1primea2semiz(:)),[N_d12*n2long,N_a1*N_a2]);
                     [Vtempii,maxindexL2]=max(entireRHS_ii_d3,[],1);
@@ -429,7 +429,7 @@ for reverse_j=1:N_j-1
             DiscountedEV=repelem(DiscountedEV,N_d1,1,1,1,1);
             DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1,1,1);
 
-            ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
+            ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1,0); % Level=1, Refine=0
             % (d,aprime,a,z)
 
             entireRHS_d3=ReturnMatrix_d3+DiscountedEV; % autofill a1 dim & e dim
@@ -442,7 +442,7 @@ for reverse_j=1:N_j-1
             % midpoint is n_d12-1-by-n_a1-by-n_a2-by-n_semiz-by-n_e
             a1primeindexesfine=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d12-by-n2long-by-n_a1-by-n_a2-by-n_semiz-by-n_e
-            ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz,N_e]
+            ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2,0); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz,N_e]; Level=2, Refine=0
             d12a1primea2semiz=(1:1:N_d12)'+N_d12*(a1primeindexesfine-1)+N_d12*N_a1prime*a2ind+N_d12*N_a1prime*N_a2*semizind;
             entireRHS_ii_d3=ReturnMatrix_ii_d3+reshape(DiscountedEVinterp(d12a1primea2semiz(:)),[N_d12*n2long,N_a1*N_a2,N_semiz,N_e]);
             [Vtempii,maxindexL2]=max(entireRHS_ii_d3,[],1);
@@ -488,7 +488,7 @@ for reverse_j=1:N_j-1
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
 
-                ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,1);
+                ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
                 % (d,aprime,a,z)
 
                 entireRHS_d3=ReturnMatrix_d3+DiscountedEV; % autofill a1 dim & e dim
@@ -501,7 +501,7 @@ for reverse_j=1:N_j-1
                 % midpoint is n_d12-1-by-n_a1-by-n_a2-by-n_semiz
                 a1primeindexesfine=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d12-by-n2long-by-n_a1-by-n_a2-by-n_semiz
-                ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz]
+                ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2,0); % [N_d12,N_a1prime,N_a1,N_a2,N_semiz]; Level=2, Refine=0
                 d12a1primea2semiz=(1:1:N_d12)'+N_d12*(a1primeindexesfine-1)+N_d12*N_a1prime*a2ind+N_d12*N_a1prime*N_a2*semizind;
                 entireRHS_ii_d3=ReturnMatrix_ii_d3+reshape(DiscountedEVinterp(d12a1primea2semiz(:)),[N_d12*n2long,N_a1*N_a2,N_semiz]);
                 [Vtempii,maxindexL2]=max(entireRHS_ii_d3,[],1);
@@ -553,7 +553,7 @@ for reverse_j=1:N_j-1
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,jj);
 
-                    ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,1);
+                    ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
                     % (d,aprime,a,z)
 
                     entireRHS_d3=ReturnMatrix_d3+DiscountedEV_z; % autofill a1 dim & e dim
@@ -566,7 +566,7 @@ for reverse_j=1:N_j-1
                     % midpoint is n_d12-1-by-n_a1-by-n_a2
                     a1primeindexesfine=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                     % aprime possibilities are n_d12-by-n2long-by-n_a1-by-n_a2
-                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,2); % [N_d12,N_a1prime,N_a1,N_a2]
+                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n2long,n_a1,n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,2,0); % [N_d12,N_a1prime,N_a1,N_a2]; Level=2, Refine=0
                     d12a1primea2semiz=(1:1:N_d12)'+N_d12*(a1primeindexesfine-1)+N_d12*N_a1prime*a2ind;
                     entireRHS_ii_d3=ReturnMatrix_ii_d3+reshape(DiscountedEVinterp_z(d12a1primea2semiz(:)),[N_d12*n2long,N_a1*N_a2]);
                     [Vtempii,maxindexL2]=max(entireRHS_ii_d3,[],1);
