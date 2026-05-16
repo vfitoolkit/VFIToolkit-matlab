@@ -91,7 +91,13 @@ if l_u>=1
     if l_u>=2
         u2vals=shiftdim(u_gridvals(:,2),-1);
         if l_u>=3
-            error('Max of two u variables supported (contact if you need more)')
+            u3vals=shiftdim(u_gridvals(:,3),-1);
+            if l_u>=4
+                u4vals=shiftdim(u_gridvals(:,4),-1);
+                if l_u>=5
+                    error('Max of four u variables supported (contact if you need more)')
+                end
+            end
         end
     end
 end
@@ -117,6 +123,26 @@ elseif l_u==2
         a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, u1vals, u2vals, ParamCell{:});
     elseif l_drisky==4
         a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, u1vals, u2vals, ParamCell{:});
+    end
+elseif l_u==3
+    if l_drisky==1
+        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals, u2vals, u3vals, ParamCell{:});
+    elseif l_drisky==2
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, u1vals, u2vals, u3vals, ParamCell{:});
+    elseif l_drisky==3
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, u1vals, u2vals, u3vals, ParamCell{:});
+    elseif l_drisky==4
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, u1vals, u2vals, u3vals, ParamCell{:});
+    end
+elseif l_u==4
+    if l_drisky==1
+        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+    elseif l_drisky==2
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+    elseif l_drisky==3
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+    elseif l_drisky==4
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
     end
 end
 

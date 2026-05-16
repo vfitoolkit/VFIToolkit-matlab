@@ -1,19 +1,38 @@
 function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(Policy,aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, N_j, d_grid, a2_grid, aprimeFnParams, fastOLG)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
+% Age-dependent (_J) version of CreateaprimePolicyExperienceAsset: compute
+% a2prime=aprimeFn(d, a2) using the Policy-chosen d for each state, used in
+% simulation / agent-distribution. Differs from the non-_J version in that
+% Policy depends on age j and aprimeFnParams may vary by j; the function
+% returns a single matrix covering all ages.
+%
 % The input Policy will contain aprime (except for the experience asset)
 % and the decision variables (d2, and where applicable d1). The output is
 % just the Policy for a2prime (the experience asset). As well as the
 % related probabilities.
-
-% Note: aprimeIndex is [N_a,N_z,N_j], so is aprimeProbs which only reports the probability for the lower grid point.
 %
-% Creates the grid points and their 'interpolation' probabilities.
-% Note: aprimeIndexes is always the 'lower' point (the upper points are
-% just aprimeIndexes+1, so no need to waste memory storing them), and the
-% aprimeProbs are the probability of this lower point (prob of upper point
-% is just 1 minus this).
+% Companion file CreateExperienceAssetFnMatrix_J.m does the same for ALL d
+% (not just the Policy-chosen one), used during value-function iteration.
 %
+% Two layout modes controlled by the fastOLG flag:
+%   fastOLG==0 :  state order is (a, z, j).
+%                 Policy has shape [L, N_a, N_z, N_j] and is indexed as
+%                 Policy(k,:,:) — Matlab linearises the trailing dims into
+%                 the last colon, giving N_a*N_z*N_j elements. Reshape to
+%                 [N_a*N_z, N_j].
+%   fastOLG==1 :  state order is (a, j, z).
+%                 Policy has shape [L, N_a, N_j, N_z] and is indexed
+%                 explicitly as Policy(k,:,:,:), reshaped to [N_a, N_j, N_z].
 %
-% Remark: This is same as CreateaprimePolicyExperienceAsset(), with N_j dimension.
+% aprimeFnParams is passed as a [N_j, n_params] matrix and each column is
+% shifted via shiftdim(...,-1) so that j is the SECOND dimension during
+% arrayfun broadcasting — this is what allows per-age parameter values.
+%
+% Output sizes (when N_z==0):
+%   a2primeIndexes - [N_a, N_j]
+%   a2primeProbs   - [N_a, N_j]
+% Output sizes (when N_z>0):
+%   fastOLG==0 : [N_a, N_z, N_j]
+%   fastOLG==1 : [N_a, N_j, N_z]
 
 ParamCell=cell(size(aprimeFnParams,2),1);
 for ii=1:size(aprimeFnParams,2)
@@ -46,16 +65,16 @@ if fastOLG==0 % (a,z,j)
             else
                 d1grid=d_grid(sum(n_d(1:whichisdforexpasset(1)-1))+1:sum(n_d(1:whichisdforexpasset(1))));
             end
-            d1vals=reshape(d1grid(Policy(whichisdforexpasset(1),:)),[N_a,1]);
+            d1vals=reshape(d1grid(Policy(whichisdforexpasset(1),:,:)),[N_a,N_j]);
             if l_dexp>=2
                 d2grid=d_grid(sum(n_d(1:whichisdforexpasset(2)-1))+1:sum(n_d(1:whichisdforexpasset(2))));
-                d2vals=reshape(d2grid(Policy(whichisdforexpasset(2),:)),[N_a,1]);
+                d2vals=reshape(d2grid(Policy(whichisdforexpasset(2),:,:)),[N_a,N_j]);
                 if l_dexp>=3
                     d3grid=d_grid(sum(n_d(1:whichisdforexpasset(3)-1))+1:sum(n_d(1:whichisdforexpasset(3))));
-                    d3vals=reshape(d3grid(Policy(whichisdforexpasset(3),:)),[N_a,1]);
+                    d3vals=reshape(d3grid(Policy(whichisdforexpasset(3),:,:)),[N_a,N_j]);
                     if l_dexp>=4
                         d4grid=d_grid(sum(n_d(1:whichisdforexpasset(4)-1))+1:sum(n_d(1:whichisdforexpasset(4))));
-                        d4vals=reshape(d4grid(Policy(whichisdforexpasset(4),:)),[N_a,1]);
+                        d4vals=reshape(d4grid(Policy(whichisdforexpasset(4),:,:)),[N_a,N_j]);
                     end
                 end
             end
@@ -67,16 +86,16 @@ if fastOLG==0 % (a,z,j)
             else
                 d1grid=d_grid(sum(n_d(1:whichisdforexpasset(1)-1))+1:sum(n_d(1:whichisdforexpasset(1))));
             end
-            d1vals=reshape(d1grid(Policy(whichisdforexpasset(1),:,:)),[N_a*N_z,1]);
+            d1vals=reshape(d1grid(Policy(whichisdforexpasset(1),:,:)),[N_a*N_z,N_j]);
             if l_dexp>=2
                 d2grid=d_grid(sum(n_d(1:whichisdforexpasset(2)-1))+1:sum(n_d(1:whichisdforexpasset(2))));
-                d2vals=reshape(d2grid(Policy(whichisdforexpasset(2),:,:)),[N_a*N_z,1]);
+                d2vals=reshape(d2grid(Policy(whichisdforexpasset(2),:,:)),[N_a*N_z,N_j]);
                 if l_dexp>=3
                     d3grid=d_grid(sum(n_d(1:whichisdforexpasset(3)-1))+1:sum(n_d(1:whichisdforexpasset(3))));
-                    d3vals=reshape(d3grid(Policy(whichisdforexpasset(3),:,:)),[N_a*N_z,1]);
+                    d3vals=reshape(d3grid(Policy(whichisdforexpasset(3),:,:)),[N_a*N_z,N_j]);
                     if l_dexp>=4
                         d4grid=d_grid(sum(n_d(1:whichisdforexpasset(4)-1))+1:sum(n_d(1:whichisdforexpasset(4))));
-                        d4vals=reshape(d4grid(Policy(whichisdforexpasset(4),:,:)),[N_a*N_z,1]);
+                        d4vals=reshape(d4grid(Policy(whichisdforexpasset(4),:,:)),[N_a*N_z,N_j]);
                     end
                 end
             end
@@ -101,7 +120,7 @@ if fastOLG==0 % (a,z,j)
     % Note: the relevant d for experience asset is just the 'whichisdforexpasset' d (this is typically just the last if using just experience asset, but
     % needs to be something else, e.g., when combining experience asset with semi-exogenous state)
     % expasset: aprime(d,a2)
-    a2vals=a2vals.*ones(1,1,1,'gpuArray'); % this is just to fool matlab which otherwise throws an error
+    % Removed: a2vals=a2vals.*ones(1,1,1,'gpuArray'); % was here to fool matlab which otherwise threw an error; restore this line if functionality breaks
     if l_dexp==1
         a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, ParamCell{:});
     elseif l_dexp==2
@@ -209,7 +228,7 @@ elseif fastOLG==1 % (a,j,z)
     % Note: the relevant d for experience asset is just the 'whichisdforexpasset' d (this is typically just the last if using just experience asset, but
     % needs to be something else, e.g., when combining experience asset with semi-exogenous state)
     % expasset: aprime(d,a2)
-    a2vals=a2vals.*ones(1,1,1,'gpuArray'); % this is just to fool matlab which otherwise throws an error
+    % Removed: a2vals=a2vals.*ones(1,1,1,'gpuArray'); % was here to fool matlab which otherwise threw an error; restore this line if functionality breaks
     if l_dexp==1
         a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, ParamCell{:});
     elseif l_dexp==2

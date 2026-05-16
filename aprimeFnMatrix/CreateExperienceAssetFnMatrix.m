@@ -1,16 +1,27 @@
 function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d, n_a2, d_gridvals, a2_grid, aprimeFnParams, aprimeIndexAsColumn)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
-% Note: aprimeIndex is [N_d*N_a2,1], whereas aprimeProbs is [N_d,N_a2]
+% For experienceasset: enumerate a2prime=aprimeFn(d, a2) over ALL d (used
+% during value-function iteration). Because the true value of a2prime will
+% (almost always) lie between two consecutive points in a2_grid, it is
+% linearly interpolated back on to a2_grid. Thus the continuous a2prime is
+% represented by (index of lower grid point in a2primeIndexes, probability
+% of lower grid point in a2primeProbs) on a2_grid; the upper index is
+% implicitly lower+1 with prob 1-minus-prob-of-lower.
 %
-% Creates the grid points and their 'interpolation' probabilities
-% Note: a2primeIndexes is always the 'lower' point (the upper points are
-% just a2primeIndexes+1, so no need to waste memory storing them), and the
-% a2primeProbs are the probability of this lower point (prob of upper point
-% is just 1 minus this).
+% Companion file CreateaprimePolicyExperienceAsset.m does the same but only
+% for the Policy-chosen d (one d per state), used in simulation /
+% agent-distribution. This file is used during value-function iteration
+% where every d must be evaluated.
+%
+% Output sizes:
+%   a2primeIndexes - shape depends on aprimeIndexAsColumn:
+%                      1 => column vector [N_d*N_a2, 1]
+%                      2 => matrix [N_d, N_a2]
+%   a2primeProbs   - [N_d, N_a2]
 
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
     if size(aprimeFnParams(ii))~=[1,1]
-        error('Using GPU for the return fn does not allow for any of aprimeFn parameters to be anything but a scalar')
+        error('Using experienceasset does not allow for any of aprimeFn parameters to be anything but a scalar')
     end
     ParamCell(ii,1)={aprimeFnParams(ii)};
 end

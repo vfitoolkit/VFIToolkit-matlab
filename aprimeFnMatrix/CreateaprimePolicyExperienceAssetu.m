@@ -1,22 +1,31 @@
 function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetu(Policy,aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
+% For experienceassetu: compute a2prime=aprimeFn(d, a2, u) using the
+% Policy-chosen d for each state (one d per state), used in simulation /
+% agent-distribution. Note: u is i.i.d. drawn BETWEEN periods, so Policy
+% does NOT depend on u; u only enters when computing a2prime from the
+% already-chosen d. Because the true value of a2prime will (almost always)
+% lie between two consecutive points in a2_grid, it is linearly
+% interpolated back on to a2_grid. Thus the continuous a2prime is
+% represented by (index of lower grid point in a2primeIndexes, probability
+% of lower grid point in a2primeProbs) on a2_grid; the upper index is
+% implicitly lower+1 with prob 1-minus-prob-of-lower.
+%
 % The input Policy will contain aprime (except for the experience asset)
 % and the decision variables (d2, and where applicable d1). The output is
 % just the Policy for a2prime (the experience asset). As well as the
 % related probabilities.
-
-% Note: aprimeIndex is [N_a,N_z,N_u], so is aprimeProbs which only reports the probability for the lower grid point.
 %
-% Creates the grid points and their 'interpolation' probabilities.
-% Note: aprimeIndexes is always the 'lower' point (the upper points are
-% just aprimeIndexes+1, so no need to waste memory storing them), and the
-% aprimeProbs are the probability of this lower point (prob of upper point
-% is just 1 minus this).
+% Companion file CreateExperienceAssetuFnMatrix.m does the same but for ALL
+% d (not just the Policy-chosen one), used during value-function iteration
+% to find Policy. This file is used afterwards, once Policy has been
+% chosen, for simulation / agent-distribution.
 %
-%
-% Remark: This is like CreateExperienceAssetuFnMatrix(), except
-% instead of looking at all possible d, we only care about those in Policy.
-% The Policy based ones are needed for simulation, while those for all
-% possible d were needed for value function (to find Policy).
+% Output sizes (when N_z==0):
+%   a2primeIndexes - [N_a, N_u]
+%   a2primeProbs   - [N_a, N_u]
+% Output sizes (when N_z>0):
+%   a2primeIndexes - [N_a, N_z, N_u]
+%   a2primeProbs   - [N_a, N_z, N_u]
 
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
@@ -105,13 +114,20 @@ if l_u>=1
     if l_u>=2
         u2vals=shiftdim(u_gridvals(:,2),-1);
         if l_u>=3
-            error('Max of two u variables supported (contact if you need more)')
+            u3vals=shiftdim(u_gridvals(:,3),-1);
+            if l_u>=4
+                u4vals=shiftdim(u_gridvals(:,4),-1);
+                if l_u>=5
+                    error('Max of four u variables supported (contact if you need more)')
+                end
+            end
         end
     end
 end
 
 % Note: the relevant d for experienceassetu is just the 'whichisdforexpasset' d (this is typically just the last if using just experienceassetu)
 % expassetu: aprime(d,a2,u)
+% Removed: a2vals=a2vals.*ones(1,1,1,'gpuArray'); % was here to fool matlab which otherwise threw an error; restore this line if functionality breaks
 if l_u==1
     if l_dexp==1
         a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, ParamCell{:});
@@ -131,6 +147,26 @@ elseif l_u==2
         a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, u2vals, ParamCell{:});
     elseif l_dexp==4
         a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, u2vals, ParamCell{:});
+    end
+elseif l_u==3
+    if l_dexp==1
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, u2vals, u3vals, ParamCell{:});
+    elseif l_dexp==2
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, u2vals, u3vals, ParamCell{:});
+    elseif l_dexp==3
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, u2vals, u3vals, ParamCell{:});
+    elseif l_dexp==4
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, u2vals, u3vals, ParamCell{:});
+    end
+elseif l_u==4
+    if l_dexp==1
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+    elseif l_dexp==2
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+    elseif l_dexp==3
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+    elseif l_dexp==4
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
     end
 end
 

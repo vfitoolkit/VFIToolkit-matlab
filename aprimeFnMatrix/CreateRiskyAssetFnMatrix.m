@@ -1,4 +1,4 @@
-function [a2primeIndexes,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_gridvals, aprimeFnParams, aprimeIndexAsColumn)
+function [a2primeIndexes,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_gridvals, aprimeFnParams, aprimeIndexAsColumn)
 % Note: a2primeIndex is [N_a2*N_u,1], whereas a2primeProbs is [N_a2,N_u]
 %
 % Creates the grid points and their 'interpolation' probabilities
@@ -28,8 +28,8 @@ l_u=length(n_u);
 if l_d>4
     error('The aprimeFn does not allow for more than four of d variable (you have length(n_d)>4)')
 end
-if l_u>5
-    error('The aprimeFn does not allow for more than five of u variable (you have length(n_u)>5)')
+if l_u>4
+    error('The aprimeFn does not allow for more than four of u variable (you have length(n_u)>4)')
 end
 
 if nargin(aprimeFn)~=l_d+l_u+length(aprimeFnParams)
@@ -57,7 +57,7 @@ if l_u>=1
             if l_u>=4
                 u4vals=shiftdim(u_gridvals(:,4),-l_d);
                 if l_u>=5
-                    u5vals=shiftdim(u_gridvals(:,5),-l_d);
+                    error('Max of four u variables supported (contact if you need more)')
                 end
             end
         end
@@ -75,8 +75,6 @@ if l_d==1
         a2primeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals,u3vals, ParamCell{:});
     elseif l_u==4
         a2primeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
-    elseif l_u==5
-        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
     end
 elseif l_d==2
     if l_u==1
@@ -87,8 +85,6 @@ elseif l_d==2
         a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals,u3vals, ParamCell{:});
     elseif l_u==4
         a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
-    elseif l_u==5
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
     end
 elseif l_d==3
     if l_u==1
@@ -99,8 +95,6 @@ elseif l_d==3
         a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals,u3vals, ParamCell{:});
     elseif  l_u==4
         a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
-    elseif  l_u==5
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
     end
 elseif l_d==4
     if l_u==1
@@ -111,8 +105,6 @@ elseif l_d==4
         a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals,u3vals, ParamCell{:});
     elseif l_u==4
         a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
-    elseif l_u==5
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
     end
 end
 
