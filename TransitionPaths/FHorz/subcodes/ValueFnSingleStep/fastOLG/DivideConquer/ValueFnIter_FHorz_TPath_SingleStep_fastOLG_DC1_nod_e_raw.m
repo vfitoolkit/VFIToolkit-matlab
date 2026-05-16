@@ -51,7 +51,7 @@ DiscountedEV=DiscountFactorParamsVec.*EV;
 
 if vfoptions.lowmemory==0
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, n_z, n_e, N_j, a_grid, a_grid(level1ii), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,1);
+    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, n_z, n_e, N_j, a_grid, a_grid(level1ii), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (d,aprime,a and j,z,e), autofills a and e for expectation term
 
@@ -68,7 +68,7 @@ if vfoptions.lowmemory==0
             loweredge=min(maxindex1(1,ii,:,:,:),n_a-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
             aprimeindexes=loweredge+(0:1:maxgap(ii))'; % ' due to no d
             % aprime possibilities are maxgap(ii)+1-by-1-by-N_j-by-N_z-by-N_e
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, n_z, n_e, N_j, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, n_z, n_e, N_j, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
             aprimez=aprimeindexes+N_a*shiftdim((0:1:N_j-1),-1)+N_a*N_j*shiftdim((0:1:N_z-1),-2); % with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountedEV(aprimez); % autofill e for the expectations
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -77,7 +77,7 @@ if vfoptions.lowmemory==0
         else
             loweredge=maxindex1(1,ii,:,:,:);
             % Just use aprime(ii) for everything
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, n_z, n_e, N_j, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, n_z, n_e, N_j, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
             aprimez=loweredge+N_a*shiftdim((0:1:N_j-1),-1)+N_a*N_j*shiftdim((0:1:N_z-1),-2); % with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountedEV(aprimez); % autofill e for the expectations
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -94,7 +94,7 @@ elseif vfoptions.lowmemory==1
         e_vals=e_gridvals_J(1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,j,1,prod(n_e),l_e)
 
         % n-Monotonicity
-        ReturnMatrix_ii_e=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, n_z, special_n_e, N_j, a_grid, a_grid(level1ii), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,1);
+        ReturnMatrix_ii_e=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, n_z, special_n_e, N_j, a_grid, a_grid(level1ii), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,1);
 
         entireRHS_ii=ReturnMatrix_ii_e+DiscountedEV; % (d,aprime,a and j,z), autofills a for expectation term
 
@@ -111,7 +111,7 @@ elseif vfoptions.lowmemory==1
                 loweredge=min(maxindex1(1,ii,:,:),n_a-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
                 aprimeindexes=loweredge+(0:1:maxgap(ii))'; % ' due to no d
                 % aprime possibilities are maxgap(ii)+1-by-1-by-N_j-by-N_z
-                ReturnMatrix_ii_e=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, n_z, special_n_e, N_j, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
+                ReturnMatrix_ii_e=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, n_z, special_n_e, N_j, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
                 aprimez=aprimeindexes+N_a*shiftdim((0:1:N_j-1),-1)+N_a*N_j*shiftdim((0:1:N_z-1),-2); % with the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii_e+DiscountedEV(aprimez);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -120,7 +120,7 @@ elseif vfoptions.lowmemory==1
             else
                 loweredge=maxindex1(1,ii,:,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii_e=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, n_z, special_n_e, N_j, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
+                ReturnMatrix_ii_e=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, n_z, special_n_e, N_j, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
                 aprimez=loweredge+N_a*shiftdim((0:1:N_j-1),-1)+N_a*N_j*shiftdim((0:1:N_z-1),-2); % with the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii_e+DiscountedEV(aprimez);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -141,7 +141,7 @@ elseif vfoptions.lowmemory==2
             e_vals=e_gridvals_J(1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,j,1,prod(n_e),l_e)
 
             % n-Monotonicity
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, special_n_z, special_n_e, N_j, a_grid, a_grid(level1ii), z_vals, e_vals, ReturnFnParamsAgeMatrix,1);
+            ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, special_n_z, special_n_e, N_j, a_grid, a_grid(level1ii), z_vals, e_vals, ReturnFnParamsAgeMatrix,1);
 
             entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z; % (d,aprime,a and j,z), autofills j for expectation term
 
@@ -158,7 +158,7 @@ elseif vfoptions.lowmemory==2
                     loweredge=min(maxindex1(1,ii,:),n_a-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
                     aprimeindexes=loweredge+(0:1:maxgap(ii))'; % ' due to no d
                     % aprime possibilities are maxgap(ii)+1-by-1-by-N_j
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, special_n_z, special_n_e, N_j, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, special_n_z, special_n_e, N_j, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
                     aprime=aprimeindexes+N_a*shiftdim((0:1:N_j-1),-1); % with the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z(aprime);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -167,7 +167,7 @@ elseif vfoptions.lowmemory==2
                 else
                     loweredge=maxindex1(1,ii,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, special_n_z, special_n_e, N_j, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, special_n_z, special_n_e, N_j, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
                     aprime=loweredge+N_a*shiftdim((0:1:N_j-1),-1); % with the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z(aprime);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);

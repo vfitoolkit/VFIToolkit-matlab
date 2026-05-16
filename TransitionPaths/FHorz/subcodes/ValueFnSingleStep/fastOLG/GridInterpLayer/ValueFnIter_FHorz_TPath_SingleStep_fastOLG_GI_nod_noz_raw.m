@@ -32,7 +32,7 @@ EV(:,1,1:N_j-1)=V(:,2:end);
 % Interpolate EV over aprime_grid
 EVinterp=interp1(a_grid,EV,aprime_grid);
 
-ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn, N_j, a_grid, a_grid, ReturnFnParamsAgeMatrix,2);
+ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_noz(ReturnFn, N_j, a_grid, a_grid, ReturnFnParamsAgeMatrix,2);
 
 entireRHS=ReturnMatrix+DiscountFactorParamsVec.*EV; % [N_aprime,N_a,N_j]
 
@@ -44,7 +44,7 @@ midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the 
 % midpoint is 1-by-n_a-by-N_j
 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
 % aprime possibilities are n2long-by-n_a-by-N_j
-ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn,N_j,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsAgeMatrix,2);
+ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_noz(ReturnFn,N_j,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsAgeMatrix,2);
 aprimej=aprimeindexes+n2aprime*jind;
 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*reshape(EVinterp(aprimej(:)),[n2long,N_a,N_j]);
 [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);

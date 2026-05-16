@@ -64,7 +64,7 @@ DiscountedEVinterp=repelem(shiftdim(DiscountedEVinterp,-1),N_d,1,1,1); % [d,apri
 
 if vfoptions.lowmemory==0
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn, n_d, n_z, N_j, d_gridvals, a_grid, a_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,1);
+    ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn, n_d, n_z, N_j, d_gridvals, a_grid, a_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,1);
     % fastOLG: ReturnMatrix is [d,aprime,a,j,z]
 
     entireRHS=ReturnMatrix+DiscountedEV; %  [d,aprime,a,j,z]
@@ -77,7 +77,7 @@ if vfoptions.lowmemory==0
     % midpoint is n_d-by-1-by-n_a-by-N_j-by-n_z
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-N_j-by-n_z
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn,n_d,n_z,N_j,d_gridvals,aprime_grid(aprimeindexes),a_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,2);
+    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn,n_d,n_z,N_j,d_gridvals,aprime_grid(aprimeindexes),a_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,2);
     daprimej=(1:1:N_d)'+N_d*(aprimeindexes-1)+N_d*n2aprime*jind+N_d*n2aprime*N_j*zind;
     entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(daprimej(:)),[N_d*n2long,N_a,N_j,N_z]);
     [V,maxindexL2]=max(entireRHS_ii,[],1);
@@ -98,7 +98,7 @@ elseif vfoptions.lowmemory==1
         DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);
         DiscountedEVinterp_z=DiscountedEVinterp(:,:,:,:,z_c);
 
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn, n_d, special_n_z, N_j, d_gridvals, a_grid, a_grid, z_vals, ReturnFnParamsAgeMatrix,1);
+        ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn, n_d, special_n_z, N_j, d_gridvals, a_grid, a_grid, z_vals, ReturnFnParamsAgeMatrix,1);
         % fastOLG: ReturnMatrix is [d,aprime,a,j]
 
         entireRHS_z=ReturnMatrix_z+DiscountedEV_z; %(d,aprime)-by-(a,j)
@@ -111,7 +111,7 @@ elseif vfoptions.lowmemory==1
         % midpoint is n_d-by-1-by-n_a-by-N_j
         aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-N_j
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn,n_d,special_n_z,N_j,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_vals,ReturnFnParamsAgeMatrix,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn,n_d,special_n_z,N_j,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_vals,ReturnFnParamsAgeMatrix,2);
         daprimej=(1:1:N_d)'+N_d*(aprimeindexes-1)+N_d*n2aprime*jind;
         entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp_z(daprimej(:)),[N_d*n2long,N_a,N_j]);
         [Vtemp,maxindexL2]=max(entireRHS_ii,[],1);

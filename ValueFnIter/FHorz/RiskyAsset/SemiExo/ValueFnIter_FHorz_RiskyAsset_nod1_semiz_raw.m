@@ -67,7 +67,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_d4,n_a1], [n_a1,n_a2], n_bothz, d3d4a1_gridvals, a1a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_d4,n_a1], [n_a1,n_a2], n_bothz, d3d4a1_gridvals, a1a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
@@ -81,7 +81,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for z_c=1:N_bothz
             z_val=bothz_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_d4,n_a1], [n_a1,n_a2], special_n_bothz, d3d4a1_gridvals, a1a2_gridvals, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_d4,n_a1], [n_a1,n_a2], special_n_bothz, d3d4a1_gridvals, a1a2_gridvals, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
@@ -120,7 +120,7 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz(:,:,d4_c)); % reverse order
             d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
-            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
@@ -178,7 +178,7 @@ else
             d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_d4z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], special_n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d4z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], special_n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
@@ -268,7 +268,7 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz(:,:,d4_c)); % reverse order
             d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
-            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV=EV.*shiftdim(pi_bothz',-1);
@@ -327,7 +327,7 @@ for reverse_j=1:N_j-1
             d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
-                ReturnMatrix_d4z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], special_n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d4z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], special_n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables

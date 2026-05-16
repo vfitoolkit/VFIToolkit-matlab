@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2e(ReturnFn, n_d, n_z, n_e, d_gridvals, a1prime_grid, a2prime_grid, a1_grid, a2_grid, z_gridvals, e_gridvals, ReturnFnParamsVec, Level, Refine)
+function Fmatrix=CreateReturnFnMatrix_Disc_DC2B_e(ReturnFn, n_d, n_z, n_e, d_gridvals, a1prime_grid, a2prime_grid, a1_grid, a2_grid, z_gridvals, e_gridvals, ReturnFnParamsVec, Level, Refine)
 % Refine=1 keeps N_a1 and N_a2 as separate dims at Level=2 (useful for broadcasting an EV that has the level1iidiff axis as singleton).
 % Refine=0 stacks them into N_a1*N_a2 as before. Refine has no effect at Level=1 (already keeps N_a1, N_a2 separate).
 

@@ -24,7 +24,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, n_z, d_gridvals, a_grid, r_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_ResidAsset_Disc(ReturnFn, n_d, n_a, n_r, n_z, d_gridvals, a_grid, r_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,:,N_j)=Vtemp;
@@ -34,7 +34,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, special_n_z, d_gridvals, a_grid, r_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_ResidAsset_Disc(ReturnFn, n_d, n_a, n_r, special_n_z, d_gridvals, a_grid, r_grid, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,:,z_c,N_j)=Vtemp;
@@ -70,7 +70,7 @@ else
 
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, n_z, d_gridvals, a_grid, r_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_ResidAsset_Disc(ReturnFn, n_d, n_a, n_r, n_z, d_gridvals, a_grid, r_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z)
 
         EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-2); % Note: shiftdim -3
@@ -88,7 +88,7 @@ else
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, special_n_z, d_gridvals, a_grid, r_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_ResidAsset_Disc(ReturnFn, n_d, n_a, n_r, special_n_z, d_gridvals, a_grid, r_grid, z_val, ReturnFnParamsVec);
 
             EV_z=V_Jplus1.*shiftdim(pi_z_J(z_c,:,N_j)',-2); % Note: shiftdim -3
             EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
@@ -141,7 +141,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, n_z, d_gridvals, a_grid, r_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
+        ReturnMatrix=CreateReturnFnMatrix_ResidAsset_Disc(ReturnFn, n_d, n_a, n_r, n_z, d_gridvals, a_grid, r_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
         % (d,aprime,a,r,z)
 
         EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2); % Note: shiftdim -3
@@ -159,7 +159,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, special_n_z, d_gridvals, a_grid, r_grid, z_val, ReturnFnParamsVec,0);
+            ReturnMatrix_z=CreateReturnFnMatrix_ResidAsset_Disc(ReturnFn, n_d, n_a, n_r, special_n_z, d_gridvals, a_grid, r_grid, z_val, ReturnFnParamsVec,0);
 
             EV_z=EV.*shiftdim(pi_z_J(z_c,:,jj)',-2); % Note: shiftdim -3
             EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)

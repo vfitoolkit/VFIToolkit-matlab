@@ -81,7 +81,7 @@ while currdist>vfoptions.tolerance
                     Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
                 end
 
-                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
                 %        FmatrixKron_j=reshape(FmatrixFn_j(j),[N_d,N_a,N_z]);
                 %        Phi_aprimeKron=Phi_aprimeKronFn_j(j);
                 for z_c=1:N_z
@@ -108,7 +108,7 @@ while currdist>vfoptions.tolerance
                         PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
                     end
                     Phi_aprimeMatrix_z=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
-                    ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
+                    ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
                     for a_c=1:N_a
                         RHSpart2=zeros(N_d,1);
                         for zprime_c=1:N_z
@@ -130,7 +130,7 @@ while currdist>vfoptions.tolerance
                         PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
                     end
                     Phi_aprimeMatrix_a=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, special_n_a, n_z, d_grid, a_val, z_grid,PhiaprimeParamsVec);
-                    ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a,n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
+                    ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, special_n_a,n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
                     for z_c=1:N_z
                         RHSpart2=zeros(N_d,1);
                         for zprime_c=1:N_z
@@ -198,7 +198,7 @@ while currdist>vfoptions.tolerance
                     PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
                 end
 
-                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
                 %        FmatrixKron_j=reshape(FmatrixFn_j(j),[N_d,N_a,N_z]);
                 %        Phi_aprimeKron=Phi_aprimeKronFn_j(j);
                 for z_c=1:N_z
@@ -226,7 +226,7 @@ while currdist>vfoptions.tolerance
                     if vfoptions.phiaprimedependsonage==1
                         PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
                     end
-                    ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
+                    ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
                     for a_c=1:N_a
                         RHSpart2=zeros(N_d,1,'gpuArray');
                         for zprime_c=1:N_z
@@ -251,7 +251,7 @@ while currdist>vfoptions.tolerance
                         PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
                     end
                     Phi_aprimeMatrix_a=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, special_n_a, n_z, d_grid, a_val, z_grid,PhiaprimeParamsVec);
-                    ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a,n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
+                    ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, special_n_a,n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
                     for z_c=1:N_z
                         RHSpart2=zeros(N_d,1);
                         for zprime_c=1:N_z
@@ -323,7 +323,7 @@ while currdist>vfoptions.tolerance
                     Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
                 end
 
-                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
 
                 for z_c=1:N_z
                     for a_c=1:N_a
@@ -346,7 +346,7 @@ while currdist>vfoptions.tolerance
                         PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
                         Phi_aprimeMatrix_z=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, special_n_z, d_grid, a_grid, z_val,PhiaprimeParamsVec);
                     end
-                    ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
+                    ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
                     for a_c=1:N_a
                         RHSpart2=zeros(N_d,1,'gpuArray');
                         for zprime_c=1:N_z
@@ -368,7 +368,7 @@ while currdist>vfoptions.tolerance
                         PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
                     end
                     Phi_aprimeMatrix_a=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, special_n_a, n_z, d_grid, a_val, z_grid,PhiaprimeParamsVec);
-                    ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a,n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
+                    ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, special_n_a,n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
                     for z_c=1:N_z
                         RHSpart2=zeros(N_d,1);
                         for zprime_c=1:N_z
@@ -439,7 +439,7 @@ while currdist>vfoptions.tolerance
                 Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
             end
 
-            ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
             %         FmatrixKron_j=reshape(FmatrixFn_j(jj),[N_d,N_a,N_z]);
             %         Phi_aprimeKron=Phi_aprimeKronFn_j(jj);
 
@@ -504,7 +504,7 @@ while currdist>vfoptions.tolerance
             end
 
             if vfoptions.lowmemory==0
-                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
                 for z_c=1:N_z
 
                     EV_z=zeros(N_d,1);
@@ -526,7 +526,7 @@ while currdist>vfoptions.tolerance
             elseif vfoptions.lowmemory==1
                 for z_c=1:N_z
                     z_val=z_gridvals(z_c,:);
-                    ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
+                    ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
                     EV_z=zeros(N_d,1);
                     for zprime_c=1:N_z
                         if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
@@ -554,7 +554,7 @@ while currdist>vfoptions.tolerance
                     end
                     for a_c=1:N_a
                         a_val=a_gridvals(z_c,:);
-                        ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
+                        ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
 
                         entireRHS=ReturnMatrix_az+DiscountFactorParamsVec*EV_z; %aprime by 1
 
@@ -598,7 +598,7 @@ while currdist>vfoptions.tolerance
                 end
             end
 
-            ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
             EV=zeros(N_d*N_z,N_z,'gpuArray');
             for zprime_c=1:N_z
                 EV(:,zprime_c)=EVpre(Phi_aprimeMatrix(:,zprime_c)*ones(1,N_z),zprime_c); %(d,z')

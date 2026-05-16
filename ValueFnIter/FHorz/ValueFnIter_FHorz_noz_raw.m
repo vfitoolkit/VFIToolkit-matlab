@@ -12,7 +12,7 @@ Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d an
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -25,7 +25,7 @@ else
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
     % (d,aprime,a)
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d,1);
@@ -51,7 +51,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,jj+1);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
     % (d,aprime,a)
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d,1);

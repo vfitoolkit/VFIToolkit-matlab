@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,Refine) % Refine is an optional input
 % If no d variable, just input n_d=0 and d_grid=[]
 
 ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';

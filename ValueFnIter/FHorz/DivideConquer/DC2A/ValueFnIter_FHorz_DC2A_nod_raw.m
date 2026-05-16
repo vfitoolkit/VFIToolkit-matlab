@@ -37,7 +37,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
         % n-Monotonicity
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
         % size(ReturnMatrix_ii) % (aprime, a,z)
         % [n_a,vfoptions.level1n,n_z]
@@ -61,7 +61,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % loweredge is 1-by-n_a2-by-1-by-n_a2-by-n_z
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2-by-n_z
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                 [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
                 V(curraindex,:,N_j)=shiftdim(Vtempii,1);
                 % maxindex needs to be reworked:
@@ -75,7 +75,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             else
                 loweredge=maxindex1(1,:,ii,:,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                 [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
                 V(curraindex,:,N_j)=shiftdim(Vtempii,1);
                 % maxindex needs to be reworked:
@@ -93,7 +93,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         for z_c=1:N_z
             z_vals=z_gridvals_J(z_c,:,N_j);
             % n-Monotonicity
-            ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, special_n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_vals, ReturnFnParamsVec,1);
+            ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, special_n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_vals, ReturnFnParamsVec,1);
 
             %Calc the max and it's index
             [~,maxindex1]=max(ReturnMatrix_ii_z,[],1);
@@ -114,7 +114,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     % loweredge is 1-by-n_a2-by-1-by-n_a2
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
                     % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, special_n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, special_n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
                     [Vtempii,maxindex]=max(ReturnMatrix_ii_z,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
                     % maxindex needs to be reworked:
@@ -128,7 +128,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 else
                     loweredge=maxindex1(1,:,ii,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, special_n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, special_n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
                     [Vtempii,maxindex]=max(ReturnMatrix_ii_z,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
                     % maxindex needs to be reworked:
@@ -157,7 +157,7 @@ else
 
     if vfoptions.lowmemory==0
         % n-Monotonicity
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
         entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
@@ -180,7 +180,7 @@ else
                 % loweredge is 1-by-n_a2-by-1-by-n_a2-by-n_z
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2-by-n_z
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                 aprimez=repelem(aprimeindexes,1,1,level1iidiff(ii),1,1)+N_a1*a2ind+N_a*zBind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[(maxgap(ii)+1)*N_a2,level1iidiff(ii)*N_a2,N_z]));
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -196,7 +196,7 @@ else
             else
                 loweredge=maxindex1(1,:,ii,:,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                 aprimez=repelem(loweredge,1,1,level1iidiff(ii),1,1)+N_a1*a2ind+N_a*zBind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[1*N_a2,level1iidiff(ii)*N_a2,N_z]));
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -217,7 +217,7 @@ else
             z_vals=z_gridvals_J(z_c,:,N_j);
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);
             % n-Monotonicity
-            ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, special_n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_vals, ReturnFnParamsVec,1);
+            ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, special_n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_vals, ReturnFnParamsVec,1);
 
             entireRHS_ii=ReturnMatrix_ii_z+DiscountedEV_z;
 
@@ -240,7 +240,7 @@ else
                     % loweredge is 1-by-n_a2-by-1-by-n_a2
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
                     % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, special_n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, special_n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
                     aprime=repelem(aprimeindexes,1,1,level1iidiff(ii),1,1)+N_a1*a2ind;
                     entireRHS_ii=ReturnMatrix_ii_z+reshape(DiscountedEV_z(aprime),[(maxgap(ii)+1)*N_a2,level1iidiff(ii)*N_a2]);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -256,7 +256,7 @@ else
                 else
                     loweredge=maxindex1(1,:,ii,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, special_n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, special_n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
                     aprime=repelem(loweredge,1,1,level1iidiff(ii),1,1)+N_a1*a2ind;
                     entireRHS_ii=ReturnMatrix_ii_z+reshape(DiscountedEV_z(aprime),[1*N_a2,level1iidiff(ii)*N_a2]);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -301,7 +301,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         % n-Monotonicity
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
         entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
@@ -324,7 +324,7 @@ for reverse_j=1:N_j-1
                 % loweredge is 1-by-n_a2-by-1-by-n_a2-by-n_z
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2-by-n_z
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
                 aprimez=repelem(aprimeindexes,1,1,level1iidiff(ii),1,1)+N_a1*a2ind+N_a*zBind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[(maxgap(ii)+1)*N_a2,level1iidiff(ii)*N_a2,N_z]));
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -340,7 +340,7 @@ for reverse_j=1:N_j-1
             else
                 loweredge=maxindex1(1,:,ii,:,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
                 aprimez=repelem(loweredge,1,1,level1iidiff(ii),1,1)+N_a1*a2ind+N_a*zBind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[1*N_a2,level1iidiff(ii)*N_a2,N_z]));
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -362,7 +362,7 @@ for reverse_j=1:N_j-1
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);
 
             % n-Monotonicity
-            ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, special_n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_vals, ReturnFnParamsVec,1);
+            ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, special_n_z, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_vals, ReturnFnParamsVec,1);
             % (a1prime, a2prime, a1, a2 | z)
 
             entireRHS_ii=ReturnMatrix_ii_z+DiscountedEV_z;
@@ -386,7 +386,7 @@ for reverse_j=1:N_j-1
                     % loweredge is 1-by-n_a2-by-1-by-n_a2
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
                     % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, special_n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, special_n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
                     aprime=repelem(aprimeindexes,1,1,level1iidiff(ii),1,1)+N_a1*a2ind;
                     entireRHS_ii=ReturnMatrix_ii_z+reshape(DiscountedEV_z(aprime),[(maxgap(ii)+1)*N_a2,level1iidiff(ii)*N_a2]);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -402,7 +402,7 @@ for reverse_j=1:N_j-1
                 else
                     loweredge=maxindex1(1,:,ii,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, special_n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, special_n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_vals, ReturnFnParamsVec,2);
                     aprime=repelem(loweredge,1,1,level1iidiff(ii),1,1)+N_a1*a2ind;
                     entireRHS_ii=ReturnMatrix_ii_z+reshape(DiscountedEV_z(aprime),[1*N_a2,level1iidiff(ii)*N_a2]);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);

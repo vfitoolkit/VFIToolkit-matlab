@@ -33,7 +33,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, n_d13, n_a, d13_gridvals, a_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz(ReturnFn, n_d13, n_a, d13_gridvals, a_gridvals, ReturnFnParamsVec);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -61,7 +61,7 @@ else
     EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
     % EV is over (d,1)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, n_d13, n_a, d13_gridvals, a_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz(ReturnFn, n_d13, n_a, d13_gridvals, a_gridvals, ReturnFnParamsVec);
     % (d,aprime,a)
 
     % Time to refine
@@ -109,7 +109,7 @@ for reverse_j=1:N_j-1
     EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
     % EV is over (d,1)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, n_d13, n_a, d13_gridvals, a_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz(ReturnFn, n_d13, n_a, d13_gridvals, a_gridvals, ReturnFnParamsVec);
     % (d,aprime,a)
 
     % Time to refine

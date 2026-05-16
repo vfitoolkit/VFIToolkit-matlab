@@ -25,7 +25,7 @@ EV=sum(EV,2); % sum over z', leaving a singular second dimension
 DiscountedEV=DiscountFactorParamsVec*EV;
 
 % n-Monotonicity
-ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals, ReturnFnParamsVec,1);
+ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals, ReturnFnParamsVec,1);
 
 entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
@@ -43,7 +43,7 @@ for ii=1:(vfoptions.level1n-1)
         % loweredge is 1-by-1-by-n_z
         aprimeindexes=loweredge+(0:1:maxgap(ii))';
         % aprime possibilities are maxgap(ii)+1-by-1-by-n_z
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
         aprimez=aprimeindexes+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
         entireRHS_ii=ReturnMatrix_ii+DiscountedEV(aprimez); % autofill level1iidiff(ii) in 2nd dimension
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -52,7 +52,7 @@ for ii=1:(vfoptions.level1n-1)
     else
         loweredge=maxindex1(1,ii,:);
         % Just use aprime(ii) for everything
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, reshape(a_grid(loweredge),[size(loweredge)]), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, reshape(a_grid(loweredge),[size(loweredge)]), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
         aprimez=loweredge+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
         entireRHS_ii=ReturnMatrix_ii+DiscountedEV(aprimez); % autofill level1iidiff(ii) in 2nd dimension
         % can skip max() over as just a single point

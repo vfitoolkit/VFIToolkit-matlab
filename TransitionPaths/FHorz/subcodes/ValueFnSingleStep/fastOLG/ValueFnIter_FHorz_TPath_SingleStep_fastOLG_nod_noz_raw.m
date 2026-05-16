@@ -19,7 +19,7 @@ DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
 EV=zeros(N_a,1,N_j,'gpuArray');
 EV(:,1,1:N_j-1)=V(:,2:end); % Leave N_j as zeros
 
-ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn, N_j, a_grid, a_grid, ReturnFnParamsAgeMatrix,2);
+ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_noz(ReturnFn, N_j, a_grid, a_grid, ReturnFnParamsAgeMatrix,2);
 
 entireRHS=ReturnMatrix+DiscountFactorParamsVec.*EV; %(aprime)-by-(a,j)
 

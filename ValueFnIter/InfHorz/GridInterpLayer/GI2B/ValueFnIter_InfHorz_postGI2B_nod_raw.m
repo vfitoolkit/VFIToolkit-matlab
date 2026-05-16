@@ -14,7 +14,7 @@ a2_grid=a_grid(N_a1+1:end);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 
-ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_a, n_a, n_z, a_gridvals, a_gridvals, z_gridvals, ReturnFnParams);
+ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_a, n_a, n_z, a_gridvals, a_gridvals, z_gridvals, ReturnFnParams);
 
 pi_z_alt=shiftdim(pi_z',-1);
 pi_z_howards=repelem(pi_z,N_a,1);
@@ -99,7 +99,7 @@ N_aprime=N_a1prime*N_a2;
 N_aprimediff=N_a1primediff*N_a2;
 aprimeindex=repmat(a1primeindex,N_a2,1,1)+N_a1*repelem((0:1:N_a2-1)',N_a1primediff,1,1);
 
-ReturnMatrixfine=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1prime_grid, a2_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParams, 2);
+ReturnMatrixfine=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1prime_grid, a2_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParams, 2);
 
 % For Howards we need
 addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
@@ -193,7 +193,7 @@ while vfoptions.postGIrepeat>0
 
     aprimeindex=repmat(a1primeindex,N_a2,1,1)+N_a1*repelem((0:1:N_a2-1)',N_a1primediff,1,1);
 
-    ReturnMatrixfine=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1prime_grid, a2_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParams, 2);
+    ReturnMatrixfine=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1prime_grid, a2_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParams, 2);
 
     %% Now switch to considering the fine/interpolated aprime_grid
     currdist=1; % force going into the next while loop at least one iteration

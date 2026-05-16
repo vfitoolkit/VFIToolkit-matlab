@@ -41,7 +41,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, d3a1_gridvals, a1a2_gridvals,e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, d3a1_gridvals, a1a2_gridvals,e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -53,7 +53,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec,0);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec,0);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,e_c,N_j)=Vtemp;
@@ -95,7 +95,7 @@ else
     DiscountedEV_onlyd3=DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2],n_e, d3a1_gridvals, a1a2_gridvals,e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2],n_e, d3a1_gridvals, a1a2_gridvals,e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,a,e)
 
         % Time to refine ReturnMatrix, we can refine out d1
@@ -116,7 +116,7 @@ else
 
        for e_c=1:N_e
            e_val=e_gridvals_J(e_c,:,N_j);
-           ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec);
+           ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec);
 
            % Time to refine ReturnMatrix, we can refine out d1
            % no d1 here
@@ -179,7 +179,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, d3a1_gridvals, a1a2_gridvals, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, d3a1_gridvals, a1a2_gridvals, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,a,e)
 
         % Time to refine ReturnMatrix, we can refine out d1
@@ -200,7 +200,7 @@ for reverse_j=1:N_j-1
 
        for e_c=1:N_e
            e_val=e_gridvals_J(e_c,:,jj);
-           ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec);
+           ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec);
 
            % Time to refine ReturnMatrix, we can refine out d1
            % no d1 here

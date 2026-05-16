@@ -37,7 +37,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], d3a1_gridvals, a1a2_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], d3a1_gridvals, a1a2_gridvals, ReturnFnParamsVec);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -78,7 +78,7 @@ else
 
     DiscountedEV_onlyd3=DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], d3a1_gridvals, a1a2_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], d3a1_gridvals, a1a2_gridvals, ReturnFnParamsVec);
     % (d,aprime,a)
 
     % Time to refine ReturnMatrix, we can refine out d1
@@ -136,7 +136,7 @@ for reverse_j=1:N_j-1
 
     DiscountedEV_onlyd3=DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], d3a1_gridvals, a1a2_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], d3a1_gridvals, a1a2_gridvals, ReturnFnParamsVec);
     % (d,aprime,a)
 
     % Time to refine ReturnMatrix, we can refine out d1

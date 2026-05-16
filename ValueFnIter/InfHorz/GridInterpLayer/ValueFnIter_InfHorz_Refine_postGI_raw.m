@@ -13,7 +13,7 @@ da_gridvals=[repmat(d_gridvals,N_a,1),repelem(a_grid,N_d,1)]; % only one aprime
 % Since the return function is independent of time creating it once and then using it every iteration is good for
 % speed, but it does use a lot of memory. Hence the lowmemory option is here.
 if vfoptions.lowmemory==0
-    ReturnMatrixraw=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_da, n_a, n_z, da_gridvals, a_grid, z_gridvals, ReturnFnParams);
+    ReturnMatrixraw=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_da, n_a, n_z, da_gridvals, a_grid, z_gridvals, ReturnFnParams);
     ReturnMatrixraw=reshape(ReturnMatrixraw,[N_d,N_a,N_a,N_z]);
 
     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
@@ -27,7 +27,7 @@ elseif vfoptions.lowmemory==1 % loop over z
     special_n_z=ones(1,l_z);
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_da, n_a, special_n_z, da_gridvals, a_grid, zvals, ReturnFnParams);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_da, n_a, special_n_z, da_gridvals, a_grid, zvals, ReturnFnParams);
         ReturnMatrix_z=reshape(ReturnMatrix_z,[N_d,N_a,N_a]);
         [ReturnMatrix_z,dstar_z]=max(ReturnMatrix_z,[],1);  % solve for dstar
         ReturnMatrix(:,:,z_c)=shiftdim(ReturnMatrix_z,1);
@@ -107,7 +107,7 @@ aprime_grid=interp1((1:1:N_aprimediff)',aprime_grid,linspace(1,N_aprimediff,N_ap
 % Note: aprime_grid is N_aprime-by-N_a-by-N_z
 
 if vfoptions.lowmemory==0
-    ReturnMatrixfine=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
+    ReturnMatrixfine=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
     % ReturnMatrixfineraw=reshape(ReturnMatrixfineraw,[N_d,N_aprime,N_a,N_z]);
 
     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
@@ -122,7 +122,7 @@ elseif vfoptions.lowmemory==1 % loop over z
     special_n_z=ones(1,l_z);
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrixfine_z=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, special_n_z, d_gridvals, aprime_grid(:,:,z_c), a_grid, zvals, ReturnFnParams,1);
+        ReturnMatrixfine_z=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, aprime_grid(:,:,z_c), a_grid, zvals, ReturnFnParams,1);
         ReturnMatrixfine_z=reshape(ReturnMatrixfine_z,[N_d,N_aprime,N_a]);
         [ReturnMatrixfine_z,dstar_z]=max(ReturnMatrixfine_z,[],1); % solve for dstar
         ReturnMatrixfine(:,:,z_c)=shiftdim(ReturnMatrixfine_z,1);
@@ -219,7 +219,7 @@ while vfoptions.postGIrepeat>0
     % Note: aprime_grid is N_aprime-by-N_a-by-N_z
 
     if vfoptions.lowmemory==0
-        ReturnMatrixfine=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
+        ReturnMatrixfine=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
         % ReturnMatrixfineraw=reshape(ReturnMatrixfineraw,[N_d,N_aprime,N_a,N_z]);
 
         % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
@@ -234,7 +234,7 @@ while vfoptions.postGIrepeat>0
         special_n_z=ones(1,l_z);
         for z_c=1:N_z
             zvals=z_gridvals(z_c,:);
-            ReturnMatrixfine_z=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, special_n_z, d_gridvals, aprime_grid(:,:,z_c), a_grid, zvals, ReturnFnParams,1);
+            ReturnMatrixfine_z=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, aprime_grid(:,:,z_c), a_grid, zvals, ReturnFnParams,1);
             ReturnMatrixfine_z=reshape(ReturnMatrixfine_z,[N_d,N_aprime,N_a]);
             [ReturnMatrixfine_z,dstar_z]=max(ReturnMatrixfine_z,[],1); % solve for dstar
             ReturnMatrixfine(:,:,z_c)=shiftdim(ReturnMatrixfine_z,1);

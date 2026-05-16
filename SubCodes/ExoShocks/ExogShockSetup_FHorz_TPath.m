@@ -449,7 +449,7 @@ if N_z>0
 
     if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
         if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
-            z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z-by-l_z
+            z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG(): N_j-by-N_z-by-l_z
             if transpathoptions.zpathtrivial==0
                 temp=transpathoptions.z_grid_J_T;
                 transpathoptions=rmfield(transpathoptions,'z_grid_J_T');
@@ -469,7 +469,7 @@ if N_z>0
                 transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % But is (j,z,z',t) for agent dist with fastOLG [note, this permute is off the previous one]
             end
         elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
-            z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z-by-l_z
+            z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG(): N_j-by-N_z-by-l_z
             pi_z_J=permute(pi_z_J,[3,2,1]); % We want it to be (j,z',z) for value function
             transpathoptions.pi_z_J_alt=permute(pi_z_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
             if transpathoptions.zpathtrivial==0
@@ -812,7 +812,7 @@ if N_e>0
     if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
         if N_z>0
             if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
-                e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe: (j,1,N_e,l_e)
+                e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLGe: (j,1,N_e,l_e)
                 % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
                 if transpathoptions.epathtrivial==0
                     temp=transpathoptions.e_grid_J_T;
@@ -837,7 +837,7 @@ if N_e>0
                     end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
-                e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe: (j,1,N_e,l_e)
+                e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLGe: (j,1,N_e,l_e)
                 pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,1,N_e]); % Give it the size required for fastOLG value function
                 % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
                 if transpathoptions.epathtrivial==0
@@ -860,7 +860,7 @@ if N_e>0
             end
         else
             if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
-                e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG: (j,N_e,l_e)
+                e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG: (j,N_e,l_e)
                 if transpathoptions.epathtrivial==0
                     temp=transpathoptions.e_grid_J_T;
                     transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
@@ -883,7 +883,7 @@ if N_e>0
                     end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
-                e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG: (j,N_e,l_e)
+                e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG: (j,N_e,l_e)
                 pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,N_e]); % Give it the size required for fastOLG value function
                 if transpathoptions.epathtrivial==0
                     temp=transpathoptions.e_grid_J_T;

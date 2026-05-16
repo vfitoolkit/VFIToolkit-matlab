@@ -74,7 +74,7 @@ while currdist>vfoptions.tolerance
 
             if vfoptions.lowmemory==0
 
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+                ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
                 %        FmatrixKron_j=reshape(FmatrixFn_j(j),[N_d,N_a,N_z]);
                 %        Phi_aprimeKron=Phi_aprimeKronFn_j(j);
                 for z_c=1:N_z
@@ -229,7 +229,7 @@ while currdist>vfoptions.tolerance
                 EVpre=V(:,:,jj+1);
             end
 
-            ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
             EV=zeros(N_d*N_z,N_z,'gpuArray');
             for zprime_c=1:N_z
                 EV(:,zprime_c)=EVpre(Phi_aprimeMatrix(:,zprime_c)*ones(1,N_z),zprime_c); %(d,z')
@@ -289,7 +289,7 @@ while currdist>vfoptions.tolerance
             end
 
             if vfoptions.lowmemory==0
-                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
+                ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
                 EV=zeros(N_d*N_z,N_z,'gpuArray');
                 for zprime_c=1:N_z % This can likely be improved
                     EV(:,zprime_c)=EVpre(Phi_aprimeMatrix(:)*ones(1,N_z),zprime_c); %(d,z')
@@ -318,7 +318,7 @@ while currdist>vfoptions.tolerance
 
                 for z_c=1:N_z % Can probably eliminate this loop and replace with a matrix multiplication operation thereby making it faster
                     z_val=z_gridvals(z_c,:);
-                    ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
+                    ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
 
                     entireRHS=ReturnMatrix_z+beta*EV(:,z_c)*ones(1,N_a,1,'gpuArray');
 

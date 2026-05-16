@@ -27,7 +27,7 @@ l_z=length(n_z);
 
 %%
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
     [ReturnMatrix,dstar]=max(ReturnMatrix,[],1); % solve for dstar
     ReturnMatrix=shiftdim(ReturnMatrix,1);
     dstar=shiftdim(dstar,1);
@@ -38,7 +38,7 @@ if vfoptions.lowmemory==1
     dstar=zeros(N_a,N_a,N_z);
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_grid, a_grid, zvals,ReturnFnParams,1); % the 1 at the end if to output for refine
+        ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,n_d, n_a, ones(l_z,1),d_grid, a_grid, zvals,ReturnFnParams,1); % the 1 at the end if to output for refine
         [ReturnMatrix_z,dstar_z]=max(ReturnMatrix_z,[],1); % solve for dstar
         ReturnMatrix(:,:,z_c)=shiftdim(ReturnMatrix_z,1);
         dstar(:,:,z_c)=shiftdim(dstar_z,1);
@@ -49,7 +49,7 @@ elseif vfoptions.lowmemory==2
     dstar=zeros(N_a,N_a,N_z);
     for a_c=1:N_a
         avals=a_gridvals(a_c,:);
-        ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_a, ones(l_a,1),n_z, d_grid, a_grid, avals, z_grid,ReturnFnParams,1); % note: first n_a is n_aprime % the 1 at the end if to output for refine
+        ReturnMatrix_a=CreateReturnFnMatrix_Disc_LowMem2(ReturnFn, n_d, n_a, ones(l_a,1),n_z, d_grid, a_grid, avals, z_grid,ReturnFnParams,1); % note: first n_a is n_aprime % the 1 at the end if to output for refine
         [ReturnMatrix_a,dstar_a]=max(ReturnMatrix_a,[],1); % solve for dstar
         ReturnMatrix(:,a_c,:)=shiftdim(ReturnMatrix_a,1);
         dstar(:,a_c,:)=shiftdim(dstar_a,1);

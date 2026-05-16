@@ -34,7 +34,7 @@ EV=sum(EV,2); % sum over z', leaving a singular second dimension
 DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_a1*N_a2,1,1,N_z]);
 
 % n-Monotonicity
-ReturnMatrix_iijj=CreateReturnFnMatrix_Case1_Disc_DC2_nod_Par2(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level11ii), a2_grid(level12jj), z_gridvals, ReturnFnParamsVec,1);
+ReturnMatrix_iijj=CreateReturnFnMatrix_Disc_DC2_nod(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level11ii), a2_grid(level12jj), z_gridvals, ReturnFnParamsVec,1);
 
 entireRHS_ii=ReturnMatrix_iijj+DiscountedEV; % autoexpand (a,z)
 
@@ -66,7 +66,7 @@ for ii=1:(vfoptions.level1n(1)-1)
             a1primeindexes=loweredge1+repmat((0:1:maxgap1(ii,jj))',maxgap2(ii,jj)+1,1);
             a2primeindexes=loweredge2+repelem((0:1:maxgap2(ii,jj))',maxgap1(ii,jj)+1,1);
             % aprime possibilities are maxgap(ii)+1-by-1-by-1-by-n_z
-            ReturnMatrix_iijj=CreateReturnFnMatrix_Case1_Disc_DC2_nod_Par2(ReturnFn, n_z, a1_grid(a1primeindexes), a2_grid(a2primeindexes), a1_grid(level11ii(ii):level11ii(ii+1)), a2_grid(level12jj(jj):level12jj(jj+1)), z_gridvals, ReturnFnParamsVec,2);
+            ReturnMatrix_iijj=CreateReturnFnMatrix_Disc_DC2_nod(ReturnFn, n_z, a1_grid(a1primeindexes), a2_grid(a2primeindexes), a1_grid(level11ii(ii):level11ii(ii+1)), a2_grid(level12jj(jj):level12jj(jj+1)), z_gridvals, ReturnFnParamsVec,2);
             aprimez=a1primeindexes+N_a1*(a2primeindexes-1)+N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_iijj+DiscountedEV(reshape(aprimez,[(maxgap1(ii,jj)+1)*(maxgap2(ii,jj)+1),1,1,N_z]));  % autofill level11iidiff(ii),level12jjdiff(jj) in 2nd and 3rd dimensions
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -85,7 +85,7 @@ for ii=1:(vfoptions.level1n(1)-1)
             loweredge2=maxindex12(1,ii,jj,:);
             % loweredge is 1-by-1-by-1-by-n_z
             a1primeindexes=loweredge1+(0:1:maxgap1(ii,jj))';
-            ReturnMatrix_iijj=CreateReturnFnMatrix_Case1_Disc_DC2_nod_Par2(ReturnFn, n_z, a1_grid(a1primeindexes), reshape(a2_grid(loweredge2),[1,1,1,N_z]), a1_grid(level11ii(ii):level11ii(ii+1)), a2_grid(level12jj(jj):level12jj(jj+1)), z_gridvals, ReturnFnParamsVec,2);
+            ReturnMatrix_iijj=CreateReturnFnMatrix_Disc_DC2_nod(ReturnFn, n_z, a1_grid(a1primeindexes), reshape(a2_grid(loweredge2),[1,1,1,N_z]), a1_grid(level11ii(ii):level11ii(ii+1)), a2_grid(level12jj(jj):level12jj(jj+1)), z_gridvals, ReturnFnParamsVec,2);
             aprimez=a1primeindexes+N_a1*(loweredge2-1)+N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_iijj+DiscountedEV(reshape(aprimez,[(maxgap1(ii,jj)+1),1,1,N_z]));  % autofill level11iidiff(ii),level12jjdiff(jj) in 2nd and 3rd dimensions
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -99,7 +99,7 @@ for ii=1:(vfoptions.level1n(1)-1)
             loweredge2=min(maxindex12(1,ii,jj,:),N_a2-maxgap2(ii,jj)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
             % loweredge is 1-by-1-by-1-by-n_z (a1prime&a2prime,a1,a2,z)
             a2primeindexes=loweredge2+(0:1:maxgap2(ii,jj))';
-            ReturnMatrix_iijj=CreateReturnFnMatrix_Case1_Disc_DC2_nod_Par2(ReturnFn, n_z, reshape(a1_grid(loweredge1),[1,1,1,N_z]), a2_grid(a2primeindexes), a1_grid(level11ii(ii):level11ii(ii+1)), a2_grid(level12jj(jj):level12jj(jj+1)), z_gridvals, ReturnFnParamsVec,2);
+            ReturnMatrix_iijj=CreateReturnFnMatrix_Disc_DC2_nod(ReturnFn, n_z, reshape(a1_grid(loweredge1),[1,1,1,N_z]), a2_grid(a2primeindexes), a1_grid(level11ii(ii):level11ii(ii+1)), a2_grid(level12jj(jj):level12jj(jj+1)), z_gridvals, ReturnFnParamsVec,2);
             aprimez=loweredge1+N_a1*(a2primeindexes-1)+N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_iijj+DiscountedEV(reshape(aprimez,[(maxgap2(ii,jj)+1),1,1,N_z]));  % autofill level11iidiff(ii),level12jjdiff(jj) in 2nd and 3rd dimensions
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -116,7 +116,7 @@ for ii=1:(vfoptions.level1n(1)-1)
             loweredge1=maxindex11(1,ii,jj,:);
             loweredge2=maxindex12(1,ii,jj,:);
             % loweredge is 1-by-1-by-1-by-n_z (a1prime&a2prime,a1,a2,z)
-            ReturnMatrix_iijj=CreateReturnFnMatrix_Case1_Disc_DC2_nod_Par2(ReturnFn, n_z, reshape(a1_grid(loweredge1),[1,1,1,N_z]), reshape(a2_grid(loweredge2),[1,1,1,N_z]), a1_grid(level11ii(ii):level11ii(ii+1)), a2_grid(level12jj(jj):level12jj(jj+1)), z_gridvals, ReturnFnParamsVec,2);
+            ReturnMatrix_iijj=CreateReturnFnMatrix_Disc_DC2_nod(ReturnFn, n_z, reshape(a1_grid(loweredge1),[1,1,1,N_z]), reshape(a2_grid(loweredge2),[1,1,1,N_z]), a1_grid(level11ii(ii):level11ii(ii+1)), a2_grid(level12jj(jj):level12jj(jj+1)), z_gridvals, ReturnFnParamsVec,2);
             aprimez=loweredge1+N_a1*(loweredge2-1)+N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_iijj+DiscountedEV(reshape(aprimez,[1,1,1,N_z]));  % autofill level11iidiff(ii),level12jjdiff(jj) in 2nd and 3rd dimensions
             % Can skip max() as first dimension is singular

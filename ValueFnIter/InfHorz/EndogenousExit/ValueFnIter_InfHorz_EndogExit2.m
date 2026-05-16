@@ -69,8 +69,8 @@ if vfoptions.lowmemory==0
         ReturnMatrix=ReturnFn;
         ReturnToExitMatrix=vfoptions.ReturnToExitFn; % It is simply assumed that you are doing this for both.
     elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnToExitFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+        ReturnToExitMatrix=CreateReturnFnMatrix_Disc(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnToExitFnParamsVec);
     end
 
     %%

@@ -21,11 +21,11 @@ if vfoptions.lowmemory==0
     if isfield(vfoptions,'statedependentparams')
         if vfoptions.returnmatrix==2 % GPU
             if n_SDP==3
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
+                ReturnMatrix=CreateReturnFnMatrix_Disc_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
             elseif n_SDP==2
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
+                ReturnMatrix=CreateReturnFnMatrix_Disc_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
             elseif n_SDP==1
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
+                ReturnMatrix=CreateReturnFnMatrix_Disc_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
             end
         else
             fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
@@ -37,7 +37,7 @@ if vfoptions.lowmemory==0
         elseif vfoptions.returnmatrix==1
             ReturnMatrix=ReturnFn;
         elseif vfoptions.returnmatrix==2 % GPU
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
         end
     end
 

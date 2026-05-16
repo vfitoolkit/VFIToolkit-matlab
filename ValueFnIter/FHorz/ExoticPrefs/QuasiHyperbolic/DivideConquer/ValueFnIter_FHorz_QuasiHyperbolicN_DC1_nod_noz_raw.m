@@ -18,13 +18,13 @@ level1ii=round(linspace(1,n_a,vfoptions.level1n));
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
     [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
     V(level1ii,N_j)=shiftdim(Vtempii,1);
     Policy(level1ii,N_j)=shiftdim(maxindex,1);
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j)), a_grid(curraindex), ReturnFnParamsVec);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j)), a_grid(curraindex), ReturnFnParamsVec);
         [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
         V(curraindex,N_j)=shiftdim(Vtempii,1);
         Policy(curraindex,N_j)=shiftdim(maxindex,1)+Policy(level1ii(ii),N_j)-1;
@@ -39,7 +39,7 @@ else
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,1]);
 
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
 
     %% V (beta)
     entireRHS_ii=ReturnMatrix_ii+beta*EV;
@@ -49,7 +49,7 @@ else
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
         a_range=Policy_V(level1ii(ii),N_j):Policy_V(level1ii(ii+1),N_j);
-        ReturnMatrix_ii_dc=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(a_range), a_grid(curraindex), ReturnFnParamsVec);
+        ReturnMatrix_ii_dc=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid(a_range), a_grid(curraindex), ReturnFnParamsVec);
         entireRHS_ii=ReturnMatrix_ii_dc+beta*EV(a_range);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(curraindex,N_j)=shiftdim(Vtempii,1);
@@ -63,7 +63,7 @@ else
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
         a_range=Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j);
-        ReturnMatrix_ii_dc=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(a_range), a_grid(curraindex), ReturnFnParamsVec);
+        ReturnMatrix_ii_dc=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid(a_range), a_grid(curraindex), ReturnFnParamsVec);
         entireRHS_ii=ReturnMatrix_ii_dc+beta0beta*EV(a_range);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         Vtilde(curraindex,N_j)=shiftdim(Vtempii,1);
@@ -87,7 +87,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,jj+1);
 
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
 
     %% V (beta)
     entireRHS_ii=ReturnMatrix_ii+beta*EV;
@@ -97,7 +97,7 @@ for reverse_j=1:N_j-1
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
         a_range=Policy_V(level1ii(ii),jj):Policy_V(level1ii(ii+1),jj);
-        ReturnMatrix_ii_dc=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(a_range), a_grid(curraindex), ReturnFnParamsVec);
+        ReturnMatrix_ii_dc=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid(a_range), a_grid(curraindex), ReturnFnParamsVec);
         entireRHS_ii=ReturnMatrix_ii_dc+beta*EV(a_range);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(curraindex,jj)=shiftdim(Vtempii,1);
@@ -111,7 +111,7 @@ for reverse_j=1:N_j-1
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
         a_range=Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj);
-        ReturnMatrix_ii_dc=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(a_range), a_grid(curraindex), ReturnFnParamsVec);
+        ReturnMatrix_ii_dc=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid(a_range), a_grid(curraindex), ReturnFnParamsVec);
         entireRHS_ii=ReturnMatrix_ii_dc+beta0beta*EV(a_range);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         Vtilde(curraindex,jj)=shiftdim(Vtempii,1);

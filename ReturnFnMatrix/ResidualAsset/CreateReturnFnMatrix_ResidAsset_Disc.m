@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, n_z, d_gridvals, a_grid, r_grid, z_gridvals, ReturnFnParamsVec,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_ResidAsset_Disc(ReturnFn, n_d, n_a, n_r, n_z, d_gridvals, a_grid, r_grid, z_gridvals, ReturnFnParamsVec,Refine) % Refine is an optional input
 
 if ~exist('Refine','var')
     Refine=0;

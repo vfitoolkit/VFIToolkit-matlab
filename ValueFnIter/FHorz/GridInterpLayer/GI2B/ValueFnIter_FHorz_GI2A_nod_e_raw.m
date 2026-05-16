@@ -39,7 +39,7 @@ pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2e(ReturnFn, n_z,n_e, a1_grid, a2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_DC2B_nod_e(ReturnFn, n_z,n_e, a1_grid, a2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
     % Calc the max and it's index: a1prime(a2prime,a1,a2,z,e)
     [~,maxindex]=max(ReturnMatrix,[],1);
@@ -49,7 +49,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     % midpoint is 1-by-n_a2-by-n_a1-by-n_a2-by-n_z-by-n_e
     a1primeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n2long-by-n_a2-by-n_a1-by-n_a2-by-n_z-by-n_e
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2e(ReturnFn,n_z,n_e,a1prime_grid(a1primeindexes),a2_grid,a1_grid,a2_grid,z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod_e(ReturnFn,n_z,n_e,a1prime_grid(a1primeindexes),a2_grid,a1_grid,a2_grid,z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
     [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
     maxindexL2a1=rem(maxindexL2-1,n2long)+1;
     maxindexL2a2=ceil(maxindexL2/n2long);
@@ -71,7 +71,7 @@ else
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a1_grid,EV,a1prime_grid);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2e(ReturnFn, n_z,n_e, a1_grid, a2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_DC2B_nod_e(ReturnFn, n_z,n_e, a1_grid, a2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
 
     %Calc the max and it's index
@@ -82,7 +82,7 @@ else
     % midpoint is 1-by-n_a2-by-n_a1-by-n_a2-by-n_z-by-n_e
     a1primeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n2long-by-n_a2-by-n_a1-by-n_a2-by-n_z-by-n_e
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2e(ReturnFn,n_z,n_e,a1prime_grid(a1primeindexes),a2_grid, a1_grid, a2_grid,z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod_e(ReturnFn,n_z,n_e,a1prime_grid(a1primeindexes),a2_grid, a1_grid, a2_grid,z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
     aprimez=a1primeindexes+N_a1fine*a2ind+N_a1fine*N_a2*zBind;
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[n2long*N_a2,N_a,N_z,N_e]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
@@ -119,7 +119,7 @@ for reverse_j=1:N_j-1
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a1_grid,EV,a1prime_grid);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2e(ReturnFn, n_z,n_e, a1_grid, a2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj),e_gridvals_J(:,:,jj),  ReturnFnParamsVec,1);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_DC2B_nod_e(ReturnFn, n_z,n_e, a1_grid, a2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj),e_gridvals_J(:,:,jj),  ReturnFnParamsVec,1);
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
 
     %Calc the max and it's index: a1prime(a2prime,a1,a2)
@@ -130,7 +130,7 @@ for reverse_j=1:N_j-1
     % midpoint is 1-by-n_a2-by-n_a1-by-n_a2-by-n_z-by-n_e
     a1primeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n2long-by-n_a2-by-n_a1-by-n_a2-by-n_z-by-n_e
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2e(ReturnFn,n_z,n_e,a1prime_grid(a1primeindexes),a2_grid, a1_grid, a2_grid,z_gridvals_J(:,:,jj),e_gridvals_J(:,:,jj),  ReturnFnParamsVec,2);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B_nod_e(ReturnFn,n_z,n_e,a1prime_grid(a1primeindexes),a2_grid, a1_grid, a2_grid,z_gridvals_J(:,:,jj),e_gridvals_J(:,:,jj),  ReturnFnParamsVec,2);
     aprimez=a1primeindexes+N_a1fine*a2ind+N_a1fine*N_a2*zBind;
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[n2long*N_a2,N_a,N_z,N_e]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);

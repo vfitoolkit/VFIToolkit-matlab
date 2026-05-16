@@ -49,7 +49,7 @@ if vfoptions.lowmemory==0
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals, ReturnFnParamsVec,1);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals, ReturnFnParamsVec,1);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
 
@@ -68,7 +68,7 @@ if vfoptions.lowmemory==0
             % loweredge is 1-by-1-by-n_z
             aprimeindexes=loweredge+(0:1:maxgap(ii))';
             % aprime possibilities are maxgap(ii)+1-by-1-by-n_z
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
             aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1)+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(aprimez);
             [~,maxindex]=max(entireRHS_ii,[],1);
@@ -84,7 +84,7 @@ if vfoptions.lowmemory==0
     % midpoint is 1-by-n_a-by-n_z
     aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,n_z,aprime_grid(aprimeindexes),a_grid,z_gridvals,ReturnFnParamsVec,2);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,n_z,aprime_grid(aprimeindexes),a_grid,z_gridvals,ReturnFnParamsVec,2);
     aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_z-1),-1);
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_z]);
     [V,maxindexL2]=max(entireRHS_ii,[],1);
@@ -106,7 +106,7 @@ elseif vfoptions.lowmemory==1
         EVinterp_z=interp1(a_grid,EV_z,aprime_grid);
 
         % n-Monotonicity
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_z, a_grid, a_grid(level1ii), z_val, ReturnFnParamsVec,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_z, a_grid, a_grid(level1ii), z_val, ReturnFnParamsVec,1);
 
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV_z;
 
@@ -125,7 +125,7 @@ elseif vfoptions.lowmemory==1
                 % loweredge is 1-by-1
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are maxgap(ii)+1-by-1
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,2);
                 aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1); % the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV_z(aprimez);
                 [~,maxindex]=max(entireRHS_ii,[],1);
@@ -141,7 +141,7 @@ elseif vfoptions.lowmemory==1
         % midpoint is 1-by-n_a
         aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a
-        ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
+        ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
         % aprime=aprimeindexes;
         entireRHS_ii_z=ReturnMatrix_ii_z+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
         [Vtempii,maxindexL2]=max(entireRHS_ii_z,[],1);

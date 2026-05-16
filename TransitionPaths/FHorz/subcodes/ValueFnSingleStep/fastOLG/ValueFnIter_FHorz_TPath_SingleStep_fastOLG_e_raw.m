@@ -32,7 +32,7 @@ DiscountedEV=repelem(DiscountFactorParamsVec.*EV,N_d,1,1,1); % [N_d*N_aprime,1,N
 
 if vfoptions.lowmemory==0
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, a_grid', a_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
+    ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, a_grid', a_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
     % fastOLG: ReturnMatrix is [d,aprime,a,j,z]
 
     entireRHS=ReturnMatrix+DiscountedEV; %(d,aprime)-by-(a,j,z,e)
@@ -52,7 +52,7 @@ elseif vfoptions.lowmemory==1
     for e_c=1:N_e
         e_vals=e_gridvals_J(1,1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,1,j,1,prod(n_e),l_e) for fastOLG with d
 
-        ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, a_grid', a_grid, z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
+        ReturnMatrix_e=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, a_grid', a_grid, z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
         % fastOLG: ReturnMatrix is [d,aprime,a,j,z]
 
         entireRHS_e=ReturnMatrix_e+DiscountedEV; %(d,aprime)-by-(a,j,z)
@@ -75,7 +75,7 @@ elseif vfoptions.lowmemory==2
         for e_c=1:N_e
             e_vals=e_gridvals_J(1,1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,1,j,1,prod(n_e),l_e) for fastOLG with d
 
-            ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, a_grid', a_grid, z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
+            ReturnMatrix_ze=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, a_grid', a_grid, z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
             % fastOLG: ReturnMatrix is [d,aprime,a,j,z]
 
             entireRHS_ze=ReturnMatrix_ze+DiscountedEV_z; %(d,aprime)-by-(a,j)

@@ -19,7 +19,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
@@ -44,7 +44,7 @@ else
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 
@@ -83,7 +83,7 @@ for reverse_j=1:N_j-1
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 

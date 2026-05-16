@@ -46,7 +46,7 @@ beta0=Parameters.(vfoptions.QHadditionaldiscount{1});
 
 %%
 % Use the same ReturnMatrix for both the continuation value, and the value fn
-ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid,ReturnFnParamsVec);
+ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid,ReturnFnParamsVec);
 
 %%
 if strcmp(vfoptions.quasi_hyperbolic,'Naive') % For Naive, just solve the standard value function problem, and then just one step following that.

@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn, n_d, N_j, d_gridvals, aprime_grid, a_grid, ReturnFnParamsAgeMatrix,Level)
+function Fmatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1_noz(ReturnFn, n_d, N_j, d_gridvals, aprime_grid, a_grid, ReturnFnParamsAgeMatrix,Level)
 
 l_d=length(n_d); % won't get here if l_d=0
 l_a=1; % (or else won't get here)

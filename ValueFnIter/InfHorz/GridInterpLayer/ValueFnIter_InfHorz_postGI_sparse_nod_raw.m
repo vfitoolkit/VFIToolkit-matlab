@@ -25,7 +25,7 @@ N_z=prod(n_z);
 a_gridvals      = a_grid; % only one endogenous state, else wouldn't end up here
 
 % ReturnMatrix(a',a,z) with a' on coarse grid
-ReturnMatrix = CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_gridvals, a_gridvals, z_gridvals, ReturnFnParamsVec,1);
+ReturnMatrix = CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, a_gridvals, a_gridvals, z_gridvals, ReturnFnParamsVec,1);
 
 a_ind_howard = repmat((1:1:N_a)',N_z,1); % a varies first, size: [N_a*N_z,1]
 z_ind_howard = repelem((1:1:N_z)',N_a,1); % z varies second, size: [N_a*N_z,1]
@@ -76,7 +76,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         aprime_fine_small = aprime_fine(aprimeindexes);
 
         % ReturnMatrix_fine(a',a) has size: [3+2*n2short,n_a]
-        ReturnMatrix_fine = CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_z, aprime_fine_small, a_gridvals, z_vals, ReturnFnParamsVec,1);
+        ReturnMatrix_fine = CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_z, aprime_fine_small, a_gridvals, z_vals, ReturnFnParamsVec,1);
         EV_z_interp       = interp1(a_grid,EV_z,aprime_fine_small,'linear');
         % entireRHS_fine has size [3+2*n2short,n_a]
         entireRHS_fine    = ReturnMatrix_fine+DiscountFactorParamsVec*EV_z_interp;

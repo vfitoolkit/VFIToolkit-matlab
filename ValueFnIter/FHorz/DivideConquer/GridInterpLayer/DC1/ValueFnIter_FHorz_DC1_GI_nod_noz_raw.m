@@ -35,7 +35,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 if ~isfield(vfoptions,'V_Jplus1')
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
 
     %Calc the max and it's index
     [~,maxindex]=max(ReturnMatrix_ii,[],1);
@@ -45,7 +45,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(midpoints_jj(level1ii(ii)):midpoints_jj(level1ii(ii+1))), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid(midpoints_jj(level1ii(ii)):midpoints_jj(level1ii(ii+1))), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
         [~,maxindex]=max(ReturnMatrix_ii,[],1);
         midpoints_jj(1,curraindex)=maxindex+midpoints_jj(level1ii(ii))-1;
     end
@@ -55,7 +55,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     % midpoint is 1-by-n_a
     aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
     [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
     V(:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,N_j)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
@@ -71,7 +71,7 @@ else
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
     %Calc the max and it's index
     [~,maxindex]=max(entireRHS_ii,[],1);
@@ -81,7 +81,7 @@ else
 
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(midpoints_jj(level1ii(ii)):midpoints_jj(level1ii(ii+1))), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid(midpoints_jj(level1ii(ii)):midpoints_jj(level1ii(ii+1))), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(midpoints_jj(level1ii(ii)):midpoints_jj(level1ii(ii+1)));
         [~,maxindex]=max(entireRHS_ii,[],1);
         midpoints_jj(1,curraindex)=maxindex+midpoints_jj(level1ii(ii))-1;
@@ -92,7 +92,7 @@ else
     % midpoint is 1-by-n_a
     aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid,aprime_grid(aprimeindexes),ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid,aprime_grid(aprimeindexes),ReturnFnParamsVec);
     % aprime=aprimeindexes;
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
@@ -121,7 +121,7 @@ for reverse_j=1:N_j-1
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
     %Calc the max and it's index
     [~,maxindex]=max(entireRHS_ii,[],1);
@@ -131,7 +131,7 @@ for reverse_j=1:N_j-1
 
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(midpoints_jj(level1ii(ii)):midpoints_jj(level1ii(ii+1))), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid(midpoints_jj(level1ii(ii)):midpoints_jj(level1ii(ii+1))), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(midpoints_jj(level1ii(ii)):midpoints_jj(level1ii(ii+1)));
         [~,maxindex]=max(entireRHS_ii,[],1);
         midpoints_jj(1,curraindex)=maxindex+midpoints_jj(level1ii(ii))-1;
@@ -142,7 +142,7 @@ for reverse_j=1:N_j-1
     % midpoint is 1-by-n_a
     aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
     % aprime=aprimeindexes;
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);

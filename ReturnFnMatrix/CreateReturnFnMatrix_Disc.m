@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,Refine) % Refine is an optional input
 % If no d variable, just input n_d=0 and d_gridvals=[]
 
 if ~exist('Refine','var')

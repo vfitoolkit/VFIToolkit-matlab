@@ -32,7 +32,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 1);
         [~,maxindex1]=max(ReturnMatrix_ii,[],1);
         midpoints_jj(1,level1ii,:)=maxindex1;
         maxgap=max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3);
@@ -41,7 +41,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             if maxgap(ii)>0
                 loweredge=min(maxindex1(1,ii,:),n_a-maxgap(ii));
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid(aprimeindexes), a_grid(curraindex), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid(aprimeindexes), a_grid(curraindex), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 2);
                 [~,maxindex]=max(ReturnMatrix_ii,[],1);
                 midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
             else
@@ -50,7 +50,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
         midpoints_jj=max(min(midpoints_jj,n_a-1),2);
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)';
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
         [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
         Vhat(:,:,N_j)=shiftdim(Vtempii,1);
         Policy(1,:,:,N_j)=shiftdim(squeeze(midpoints_jj),-1);
@@ -61,7 +61,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec, 1);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec, 1);
             [~,maxindex1]=max(ReturnMatrix_ii,[],1);
             midpoints_jj(1,level1ii)=maxindex1;
             maxgap=maxindex1(1,2:end)-maxindex1(1,1:end-1);
@@ -70,7 +70,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 if maxgap(ii)>0
                     loweredge=min(maxindex1(1,ii),n_a-maxgap(ii));
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_e, a_grid(aprimeindexes), a_grid(curraindex), e_val, ReturnFnParamsVec, 2);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid(aprimeindexes), a_grid(curraindex), e_val, ReturnFnParamsVec, 2);
                     [~,maxindex]=max(ReturnMatrix_ii,[],1);
                     midpoints_jj(1,curraindex)=maxindex+(loweredge-1);
                 else
@@ -79,7 +79,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             end
             midpoints_jj=max(min(midpoints_jj,n_a-1),2);
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)';
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
             Vhat(:,e_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,e_c,N_j)=shiftdim(squeeze(midpoints_jj),-1);
@@ -100,7 +100,7 @@ else
     Vunderbar=zeros(N_a,N_e,N_j,'gpuArray');
 
     if vfoptions.lowmemory==0
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 1);
 
         %% Vhat (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
@@ -112,7 +112,7 @@ else
             if maxgap(ii)>0
                 loweredge=min(maxindex1(1,ii,:),n_a-maxgap(ii));
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid(aprimeindexes), a_grid(curraindex), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid(aprimeindexes), a_grid(curraindex), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 2);
                 entireRHS_ii=ReturnMatrix_ii+beta0beta*EV(reshape(aprimeindexes(:),[maxgap(ii)+1,1,N_e]));
                 [~,maxindex]=max(entireRHS_ii,[],1);
                 midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
@@ -122,7 +122,7 @@ else
         end
         midpoints_jj=max(min(midpoints_jj,n_a-1),2);
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)';
-        ReturnMatrix_L2=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
+        ReturnMatrix_L2=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
         EVfine=reshape(EVinterp(aprimeindexes(:)),[n2long,N_a,N_e]);
         entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine;
         [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
@@ -137,7 +137,7 @@ else
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
 
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec, 1);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec, 1);
 
             %% Vhat (beta0*beta)
             entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
@@ -149,7 +149,7 @@ else
                 if maxgap(ii)>0
                     loweredge=min(maxindex1(1,ii),n_a-maxgap(ii));
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_e, a_grid(aprimeindexes), a_grid(curraindex), e_val, ReturnFnParamsVec, 2);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid(aprimeindexes), a_grid(curraindex), e_val, ReturnFnParamsVec, 2);
                     entireRHS_ii=ReturnMatrix_ii+beta0beta*EV(aprimeindexes(:));
                     [~,maxindex]=max(entireRHS_ii,[],1);
                     midpoints_jj(1,curraindex)=maxindex+(loweredge-1);
@@ -159,7 +159,7 @@ else
             end
             midpoints_jj=max(min(midpoints_jj,n_a-1),2);
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)';
-            ReturnMatrix_L2_e=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
+            ReturnMatrix_L2_e=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
             EVfine_e=reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
             entireRHS_L2_e=ReturnMatrix_L2_e+beta0beta*EVfine_e;
             [Vtempii,maxindexL2]=max(entireRHS_L2_e,[],1);
@@ -192,7 +192,7 @@ for reverse_j=1:N_j-1
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,jj), ReturnFnParamsVec, 1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,jj), ReturnFnParamsVec, 1);
 
         %% Vhat (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
@@ -204,7 +204,7 @@ for reverse_j=1:N_j-1
             if maxgap(ii)>0
                 loweredge=min(maxindex1(1,ii,:),n_a-maxgap(ii));
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid(aprimeindexes), a_grid(curraindex), e_gridvals_J(:,:,jj), ReturnFnParamsVec, 2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid(aprimeindexes), a_grid(curraindex), e_gridvals_J(:,:,jj), ReturnFnParamsVec, 2);
                 entireRHS_ii=ReturnMatrix_ii+beta0beta*EV(reshape(aprimeindexes(:),[maxgap(ii)+1,1,N_e]));
                 [~,maxindex]=max(entireRHS_ii,[],1);
                 midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
@@ -214,7 +214,7 @@ for reverse_j=1:N_j-1
         end
         midpoints_jj=max(min(midpoints_jj,n_a-1),2);
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)';
-        ReturnMatrix_L2=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,jj),ReturnFnParamsVec,2);
+        ReturnMatrix_L2=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,jj),ReturnFnParamsVec,2);
         EVfine=reshape(EVinterp(aprimeindexes(:)),[n2long,N_a,N_e]);
         entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine;
         [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
@@ -229,7 +229,7 @@ for reverse_j=1:N_j-1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
 
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec, 1);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec, 1);
 
             %% Vhat (beta0*beta)
             entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
@@ -241,7 +241,7 @@ for reverse_j=1:N_j-1
                 if maxgap(ii)>0
                     loweredge=min(maxindex1(1,ii),n_a-maxgap(ii));
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_e, a_grid(aprimeindexes), a_grid(curraindex), e_val, ReturnFnParamsVec, 2);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid(aprimeindexes), a_grid(curraindex), e_val, ReturnFnParamsVec, 2);
                     entireRHS_ii=ReturnMatrix_ii+beta0beta*EV(aprimeindexes(:));
                     [~,maxindex]=max(entireRHS_ii,[],1);
                     midpoints_jj(1,curraindex)=maxindex+(loweredge-1);
@@ -251,7 +251,7 @@ for reverse_j=1:N_j-1
             end
             midpoints_jj=max(min(midpoints_jj,n_a-1),2);
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)';
-            ReturnMatrix_L2_e=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
+            ReturnMatrix_L2_e=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
             EVfine_e=reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
             entireRHS_L2_e=ReturnMatrix_L2_e+beta0beta*EVfine_e;
             [Vtempii,maxindexL2]=max(entireRHS_L2_e,[],1);

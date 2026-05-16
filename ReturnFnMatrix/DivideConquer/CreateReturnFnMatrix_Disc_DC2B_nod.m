@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1prime_grid, a2prime_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParamsVec, Level)
+function Fmatrix=CreateReturnFnMatrix_Disc_DC2B_nod(ReturnFn, n_z, a1prime_grid, a2prime_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParamsVec, Level)
 
 ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';
 

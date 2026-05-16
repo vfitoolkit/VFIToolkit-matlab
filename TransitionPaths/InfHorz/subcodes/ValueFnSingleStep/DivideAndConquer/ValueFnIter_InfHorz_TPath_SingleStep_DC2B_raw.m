@@ -31,7 +31,7 @@ EV=sum(EV,2); % sum over z', leaving a singular second dimension
 DiscountedEV=DiscountFactorParamsVec*reshape(shiftdim(EV,-1),[1,N_a1,N_a2,1,1,N_z]); % [1,a1p,a2p,1,1,z] — pre-discounted; broadcasts over d, level1 (a1), a2state
 
 % n-Monotonicity
-ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals, ReturnFnParamsVec,1,0);
+ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B(ReturnFn, n_d, n_z, d_gridvals, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals, ReturnFnParamsVec,1,0);
 
 entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % d, level1 (a1), a2state all broadcast
 
@@ -54,7 +54,7 @@ for ii=1:(vfoptions.level1n-1)
         % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_z
         a1primeindexes=loweredge+(0:1:maxgap(ii));
         % aprime possibilities are n_d-by-maxgap(ii)+1-by-n_a2-by-1-by-n_a2-by-n_z
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid(a1primeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B(ReturnFn, n_d, n_z, d_gridvals, a1_grid(a1primeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2,1);
         aprimez=a1primeindexes+N_a1*shiftdim((0:1:N_a2-1),-1)+N_a*shiftdim((0:1:N_z-1),-4); % the current aprimeii(ii):aprimeii(ii+1)
         % ReturnMatrix_ii (Refine=1) is [N_d*(maxgap+1)*N_a2, level1iidiff, N_a2, N_z]; EV-indexed reshape is [..., 1, N_a2, N_z]. Broadcast over level1iidiff at dim 2.
         entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[N_d*(maxgap(ii)+1)*N_a2,1,N_a2,N_z]));
@@ -75,7 +75,7 @@ for ii=1:(vfoptions.level1n-1)
     else
         loweredge=maxindex1(:,1,:,ii,:,:);
         % Just use aprime(ii) for everything
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2B(ReturnFn, n_d, n_z, d_gridvals, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2,1);
         aprimez=loweredge+N_a1*shiftdim((0:1:N_a2-1),-1)+N_a*shiftdim((0:1:N_z-1),-4); % the current aprimeii(ii):aprimeii(ii+1)
         entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[N_d*1*N_a2,1,N_a2,N_z]));
         entireRHS_ii=reshape(entireRHS_ii,[N_d*1*N_a2,level1iidiff(ii)*N_a2,N_z]);
