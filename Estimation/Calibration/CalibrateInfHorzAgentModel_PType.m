@@ -236,13 +236,14 @@ elseif isfield(vfoptions,'EiidShockFn')
     end
 end
 if caliboptions.calibrateshocks==0
-    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,vfoptions,3);
-    % output: z_gridvals, pi_z, vfoptions.e_gridvals, vfoptions.pi_e
+    % Internally, only ever use joint-grids (makes all the code much easier to write)
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz_PType(n_z,z_grid,pi_z,Names_i,Parameters,vfoptions,3);
+    % output: z_gridvals (struct keyed by Names_i), pi_z (struct), vfoptions.e_gridvals (struct), vfoptions.pi_e (struct)
     simoptions.e_gridvals=vfoptions.e_gridvals;
     simoptions.pi_e=vfoptions.pi_e;
 else
     z_gridvals=[];
+    pi_z=[];
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
 % precomputed by the time we get to the value fn, stationary dist, etc. So

@@ -28,7 +28,8 @@ if simoptions.gridinterplayer==1
 end
 if Parallel==2
     a_gridvals=CreateGridvals(n_a,a_grid,1);
-    [z_gridvals,~,simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,[],Parameters,simoptions,1);
+    % Switch to z_gridvals (folding e and semiz into z if appropriate)
+    [n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 elseif Parallel==1
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2); % CPU, so must just be simple stacked column for z

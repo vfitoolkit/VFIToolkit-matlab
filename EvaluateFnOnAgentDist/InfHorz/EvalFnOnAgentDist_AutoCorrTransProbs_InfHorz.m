@@ -84,12 +84,8 @@ if simoptions.gridinterplayer==1
     l_daprime=l_daprime-1;
 end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-% Switch to z_gridvals
-if simoptions.alreadygridvals==0
-    [z_gridvals, ~, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,[],Parameters,simoptions,1);
-elseif simoptions.alreadygridvals==1
-    z_gridvals=z_grid;
-end
+% Switch to z_gridvals (folding e and semiz into z if appropriate)
+[n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 
 CorrTransProbs=struct();
 

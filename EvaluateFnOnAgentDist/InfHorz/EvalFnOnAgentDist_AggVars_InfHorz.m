@@ -44,15 +44,11 @@ else
     end
 end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-% Switch to z_gridvals
-if simoptions.alreadygridvals==0
-    if simoptions.parallel<2
-        z_gridvals=z_grid; % On cpu, only basics are allowed. No e.
-    else
-        [z_gridvals, ~, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,[],Parameters,simoptions,1);
-    end
-elseif simoptions.alreadygridvals==1
-    z_gridvals=z_grid;
+% Switch to z_gridvals (folding e and semiz into z if appropriate; CPU path keeps z_grid as-is)
+if simoptions.alreadygridvals==0 && simoptions.parallel<2
+    z_gridvals=z_grid; % On cpu, only basics are allowed. No e.
+else
+    [n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 end
 
 %% Implement new way of handling FnsToEvaluate
