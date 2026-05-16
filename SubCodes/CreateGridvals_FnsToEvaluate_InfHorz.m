@@ -46,8 +46,19 @@ end
 if simoptions.alreadygridvals_semiexo==0
     % Also semiz if that is used
     if prod(simoptions.n_semiz)>0 % If using semi-exogenous shocks
-        % When SemiExogShockSetup_InfHorz exists, replace this error with the analog of the FHorz block (call setup, then fold semiz into z exactly like the alreadygridvals_semiexo==1 branch below).
-        error('SemiExogShockSetup_InfHorz not yet implemented (contact me)')
+        simoptions=SemiExogShockSetup_InfHorz([],simoptions.d_grid,Parameters,simoptions,2,1);
+        % user may input simoptions.semiz_grid or simoptions.semiz_gridvals
+
+        if N_z==0
+            z_gridvals=simoptions.semiz_gridvals;
+            n_z=simoptions.n_semiz;
+            N_z=prod(n_z);
+        else
+            % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+            z_gridvals=[repmat(simoptions.semiz_gridvals,N_z,1),repelem(z_gridvals,prod(simoptions.n_semiz),1)];
+            n_z=[simoptions.n_semiz,n_z];
+            N_z=prod(n_z);
+        end
     end
     if isfield(simoptions,'n_semiz')
         simoptions=rmfield(simoptions,'n_semiz'); % From now on, semiz is just treated as part of z (for rest of EvalFnOnAgentDist)

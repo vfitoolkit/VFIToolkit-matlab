@@ -37,6 +37,7 @@ if exist('simoptions','var')==0
     % When calling as a subcommand, the following is used internally
     simoptions.outputkron=0;
     simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'verbose')
@@ -115,6 +116,9 @@ else
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
+    end
 end
 
 %% Setup for Exogenous Shocks
@@ -132,8 +136,14 @@ N_semiz=prod(simoptions.n_semiz);
 if N_e>0
     error('Have not yet implemented e variables for InfHorz, ask on forum you need this')
 end
-if N_semiz>0
-    error('Have not yet implemented semiz variables for InfHorz, ask on forum if you need this')
+
+%% Semi-exogenous shock gridvals and pi
+if simoptions.alreadygridvals_semiexo==0
+    if N_semiz>0
+        simoptions=SemiExogShockSetup_InfHorz(n_d,simoptions.d_grid,Parameters,simoptions,1,2);
+        % output: simoptions.semiz_gridvals, simoptions.pi_semiz
+        error('Have not yet implemented semiz variables for InfHorz stationary distribution, ask on forum if you need this')
+    end
 end
 
 
