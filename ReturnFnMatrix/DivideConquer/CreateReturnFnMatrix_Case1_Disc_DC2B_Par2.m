@@ -1,4 +1,6 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1prime_grid, a2prime_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParamsVec, Level)
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1prime_grid, a2prime_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParamsVec, Level, Refine)
+% Refine=1 keeps N_a1 and N_a2 as separate dims at Level=2 (useful for broadcasting an EV that has the level1iidiff axis as singleton).
+% Refine=0 stacks them into N_a1*N_a2 as before. Refine has no effect at Level=1 or Level=3 (those keep N_a1, N_a2 separate already).
 
 ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';
 
@@ -74,7 +76,11 @@ end
 if Level==1
     Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a2prime,N_a1,N_a2,N_z]);
 elseif Level==2 % For level 2
-    Fmatrix=reshape(Fmatrix,[N_d*N_a1prime*N_a2prime,N_a1*N_a2,N_z]);
+    if Refine==0
+        Fmatrix=reshape(Fmatrix,[N_d*N_a1prime*N_a2prime,N_a1*N_a2,N_z]);
+    elseif Refine==1
+        Fmatrix=reshape(Fmatrix,[N_d*N_a1prime*N_a2prime,N_a1,N_a2,N_z]); % keep N_a1, N_a2 separate for broadcasting
+    end
 elseif Level==3 % For GI
     Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a2prime,N_a1,N_a2,N_z]);
 end

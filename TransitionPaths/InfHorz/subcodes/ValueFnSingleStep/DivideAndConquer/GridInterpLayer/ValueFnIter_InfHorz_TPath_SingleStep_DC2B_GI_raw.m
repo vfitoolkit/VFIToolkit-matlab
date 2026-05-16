@@ -54,16 +54,16 @@ if vfoptions.lowmemory==0
     EV=Vnext.*shiftdim(pi_z',-1);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
-    entireEV=repelem(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1,z]
+    DiscountedEV=DiscountFactorParamsVec*reshape(shiftdim(EV,-1),[1,N_a1,N_a2,1,1,N_z]); % [1,a1p,a2p,1,1,z] — pre-discounted; broadcasts over d, level1 (a1), a2state
 
     % Interpolate EV over aprime_grid
     EVinterp=reshape(interp1(a1_grid,reshape(EV,[N_a1,N_a2,N_z]),a1prime_grid),[N_a1prime*N_a2,N_z]);
-    entireEVinterp=repmat(shiftdim(EVinterp,-1),N_d,1,1,1); % [d,aprime,1,z]
+    DiscountedEVinterp=DiscountFactorParamsVec*reshape(shiftdim(EVinterp,-1),[1,N_a1prime,N_a2,1,1,N_z]); % [1,a1p,a2p,1,1,z] — pre-discounted
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals, ReturnFnParamsVec,1);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals, ReturnFnParamsVec,1,0);
 
-    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEV,[N_d,N_a1,N_a2,1,1,N_z]); % move a2prime into same dimension as (a1,a2), so second dimension is solely a1prime
+    entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % d, level1 (a1), a2state all broadcast
 
     % First, we want a1prime conditional on (d,1,a2prime,a1,a2,z)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -78,9 +78,10 @@ if vfoptions.lowmemory==0
             % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_z
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-n_a2-by-1-by-n_a2-by-n_z
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid(a1primeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,3);
-            daprimez=(1:1:N_d)'+N_d*repelem(a1primeindexes-1,1,1,1,level1iidiff(ii),1,1)+N_d*N_a1*shiftdim((0:1:N_a2-1),-1)+N_d*N_a*shiftdim((0:1:N_z-1),-4); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d,(maxgap(ii)+1),N_a2,level1iidiff(ii),N_a2,N_z]));
+            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid(a1primeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,3,0);
+            aprimez=a1primeindexes+N_a1*shiftdim((0:1:N_a2-1),-1)+N_a*shiftdim((0:1:N_z-1),-4); % the current aprimeii(ii):aprimeii(ii+1)
+            % ReturnMatrix_ii (Level=3) is 6-D with level1iidiff as dim 4; EV-indexed has singleton dim 4 -> broadcast.
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(aprimez);
             [~,maxindex]=max(entireRHS_ii,[],2);
             midpoints(:,1,:,curraindex,:,:)=maxindex+(loweredge-1);
         else
@@ -94,9 +95,9 @@ if vfoptions.lowmemory==0
     % midpoint is n_d-by-1-by-n_a2-by-n_a1-by-n_a2-by-n_z
     a1primeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % a1prime possibilities are n_d-by-n2long-by-n_a2-by-n_a1-by-n_a2-by-n_z
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1prime_grid(a1primeindexes), a2_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParamsVec,2);
-    daprimez=gpuArray(1:1:N_d)'+N_d*(a1primeindexes-1)+N_d*N_a1prime*shiftdim((0:1:N_a2-1),-1)+N_d*N_a1prime*N_a2*shiftdim((0:1:N_z-1),-4);
-    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d*n2long*N_a2,N_a,N_z]);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1prime_grid(a1primeindexes), a2_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParamsVec,2,0);
+    aprimez=a1primeindexes+N_a1prime*shiftdim((0:1:N_a2-1),-1)+N_a1prime*N_a2*shiftdim((0:1:N_z-1),-4);
+    entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprimez(:)),[N_d*n2long*N_a2,N_a,N_z]);
     [V,maxindex2]=max(entireRHS_ii,[],1);
     V=shiftdim(V,1);
     % midpoint has a1 midpoint, maxindex2 has d, L2index for a1 and index for a2

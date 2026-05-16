@@ -38,13 +38,13 @@ elseif vfoptions.EVpre==1
 end
 V=zeros(N_a,N_j,'gpuArray'); % V is over (a,j)
 
-entireEV=repmat(EV,N_d,1); % [d,aprime]
+DiscountedEV=shiftdim(DiscountFactorParamsVec,-1).*EV; % [1,aprime,1,j] — pre-discounted; broadcasts over d (and level1n)
 
 
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn, n_d, N_j, d_gridvals, a_grid, a_grid(level1ii), ReturnFnParamsAgeMatrix,1);
 
-entireRHS_ii=ReturnMatrix_ii+shiftdim(DiscountFactorParamsVec,-1).*entireEV; % (d,aprime,a and j), autofills j for expectation term
+entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % d, a (level1) broadcast
 
 % First, we want aprime conditional on (d,1,a,j)
 [RMtemp_ii,maxindex1]=max(entireRHS_ii,[],2);
@@ -68,8 +68,8 @@ for ii=1:(vfoptions.level1n-1)
         aprimeindexes=loweredge+(0:1:maxgap(ii));
         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-N_j
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn, n_d, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsAgeMatrix,2);
-        daprime=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a*jind; % all the d, with the current aprimeii(ii):aprimeii(ii+1)
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*reshape(entireEV(daprime(:)),[N_d*(maxgap(ii)+1),level1iidiff(ii),N_j]);
+        aprime=aprimeindexes+N_a*jind; % the current aprimeii(ii):aprimeii(ii+1)
+        entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(aprime(:)),[N_d*(maxgap(ii)+1),1,N_j]); % broadcast level1iidiff at dim 2
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*jBind)-1),1); % loweredge(given the d)
@@ -78,8 +78,8 @@ for ii=1:(vfoptions.level1n-1)
         loweredge=maxindex1(:,1,ii,:);
         % Just use aprime(ii) for everything
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn, n_d, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsAgeMatrix,2);
-        daprime=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d*N_a*jind; % all the d, with the current aprimeii(ii):aprimeii(ii+1)
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*reshape(entireEV(daprime(:)),[N_d*(maxgap(ii)+1),level1iidiff(ii),N_j]);
+        aprime=loweredge+N_a*jind; % the current aprimeii(ii):aprimeii(ii+1)
+        entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(aprime(:)),[N_d,1,N_j]); % broadcast level1iidiff at dim 2
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*jBind)-1),1); % loweredge(given the d)

@@ -23,12 +23,12 @@ DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 EV=Vnext.*shiftdim(pi_z',-1);
 EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
-entireEV=repelem(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1,z]
+DiscountedEV=DiscountFactorParamsVec*shiftdim(EV,-1); % [1,aprime,1,z] — pre-discounted; broadcasts over d (and level1n) at every use site
 
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, a_grid, a_grid(level1ii), z_gridvals, ReturnFnParamsVec,1);
 
-entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV;
+entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
 % First, we want aprime conditional on (d,1,a,z)
 [RMtemp_ii,maxindex1]=max(entireRHS_ii,[],2);
@@ -52,8 +52,8 @@ for ii=1:(vfoptions.level1n-1)
         aprimeindexes=loweredge+(0:1:maxgap(ii));
         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
-        daprimez=(1:1:N_d)'+N_d*(aprimeindexes-1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d*(maxgap(ii)+1),1,N_z])); % autofill level1iidiff(ii) in 2nd dimension
+        aprimez=aprimeindexes+N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+        entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[N_d*(maxgap(ii)+1),1,N_z])); % autofill level1iidiff(ii) in 2nd dimension
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1))-1),1); % loweredge(given the d and z)
@@ -61,8 +61,8 @@ for ii=1:(vfoptions.level1n-1)
         loweredge=maxindex1(:,1,ii,:);
         % Just use aprime(ii) for everything
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
-        daprimez=(1:1:N_d)'+N_d*(loweredge-1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d,1,N_z])); % autofill level1iidiff(ii) in 2nd dimension
+        aprimez=loweredge+N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+        entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[N_d,1,N_z])); % autofill level1iidiff(ii) in 2nd dimension
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1))-1),1); % loweredge(given the d and z)

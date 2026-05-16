@@ -40,7 +40,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         d2_val=d2_gridvals(d2_c,:);
 
         % n-Monotonicity
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1,0);
 
         %Calc the max and it's index
         [~,maxindex1]=max(ReturnMatrix_ii,[],2);
@@ -61,7 +61,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % loweredge is 1-by-n_a2-by-1-by-n_a2-by-n_semiz
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2-by-n_semiz
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2,0);
                 [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
                 V(curraindex,:,N_j)=shiftdim(Vtempii,1);
                 % maxindex needs to be reworked:
@@ -75,7 +75,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             else
                 loweredge=maxindex1(1,:,ii,:,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2,0);
                 [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
                 V(curraindex,:,N_j)=shiftdim(Vtempii,1);
                 % maxindex needs to be reworked:
@@ -108,7 +108,7 @@ else
         DiscountedEV_d2=sum(DiscountedEV_d2,2); % sum over z', leaving a singular second dimension
 
         % n-Monotonicity
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1,0);
 
         entireRHS_ii=ReturnMatrix_ii+DiscountedEV_d2;
 
@@ -131,7 +131,7 @@ else
                 % loweredge is 1-by-n_a2-by-1-by-n_a2-by-n_semiz
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2-by-n_semiz
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2,0);
                 aprime=repelem(aprimeindexes,1,1,level1iidiff(ii),1,1)+N_a1*a2ind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountedEV_d2(reshape(aprime,[(maxgap(ii)+1)*N_a2,level1iidiff(ii)*N_a2,N_semiz]));
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -147,7 +147,7 @@ else
             else
                 loweredge=maxindex1(1,:,ii,:,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2,0);
                 aprime=repelem(loweredge,1,1,level1iidiff(ii),1,1)+N_a1*a2ind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountedEV_d2(reshape(aprime,[1*N_a2,level1iidiff(ii)*N_a2,N_semiz]));
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);

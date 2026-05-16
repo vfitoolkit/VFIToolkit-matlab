@@ -24,7 +24,7 @@ level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 %% Start by setting up ReturnFn for the first-level (as we can reuse this every iteration)
-ReturnMatrixLvl1=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2,n_a1prime,vfoptions.level1n,n_a2, n_z, d_gridvals, a1_gridvals, a1_gridvals(level1ii,:), a2_gridvals, z_gridvals, ReturnFnParamsVec,1,0); % Level=1, Refine=0
+ReturnMatrixLvl1=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2,n_a1prime,vfoptions.level1n,n_a2, n_z, d_gridvals, a1_gridvals, a1_gridvals(level1ii,:), a2_gridvals, z_gridvals, ReturnFnParamsVec,1,1); % Level=1, Refine=1
 
 V=reshape(V0,[N_a,N_z]);
 Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
@@ -76,7 +76,12 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     %% Level 1
     % We can just reuse ReturnMatrixLvl1
-    entireRHS_ii=ReturnMatrixLvl1+repelem(DiscountedEV,N_d1,1,1,1,1);
+    % ReturnMatrixLvl1 is [N_d1, N_d2*N_a1prime, level1n, N_a2, N_z] (Refine=1);
+    % DiscountedEV is [N_d2, N_a1, 1, N_a2, N_z]. Reshape EV to put a singleton in dim 1 so
+    % the N_d1 dim broadcasts without materialising a repelem'd temp.
+    entireRHS_ii=ReturnMatrixLvl1+reshape(DiscountedEV,[1,N_d2*N_a1,1,N_a2,N_z]);
+    % Collapse d1 and d2 back into a single d-axis for the existing max/Policy logic (zero-copy reshape).
+    entireRHS_ii=reshape(entireRHS_ii,[N_d1*N_d2,N_a1,vfoptions.level1n,N_a2,N_z]);
 
     % First, we want a1prime conditional on (d,1,a)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -102,8 +107,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
             ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, n_z, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals, ReturnFnParamsVec,2,0); % Level=2, Refine=0
-            d2aprime=d2_of_d+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV(reshape(d2aprime,[N_d1*N_d2*(maxgap(ii)+1),N_a2,N_z])),1,level1iidiff(ii),1);
+            d2aprimez=d2_of_d+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
+            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV(reshape(d2aprimez,[N_d1*N_d2*(maxgap(ii)+1),N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
@@ -119,8 +124,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             loweredge=maxindex1(:,1,ii,:,:);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2, 1, level1iidiff(ii), n_a2, n_z, d_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals, ReturnFnParamsVec,2,0); % Level=2, Refine=0
-            d2aprime=d2_of_d+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV(reshape(d2aprime,[N_d1*N_d2*1,N_a2,N_z])),1,level1iidiff(ii),1);
+            d2aprimez=d2_of_d+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
+            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV(reshape(d2aprimez,[N_d1*N_d2*1,N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
