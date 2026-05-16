@@ -31,6 +31,12 @@ if ~isfield(simoptions,'experienceassetu')
     simoptions.experienceassetu=0;
 end
 
+if simoptions.parallel<2
+    AggVars=EvalFnOnAgentDist_AggVars_InfHorz_CPU(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
+    return
+end
+
+%%
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -53,12 +59,8 @@ else
     end
 end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-% Switch to z_gridvals (folding e and semiz into z if appropriate; CPU path keeps z_grid as-is)
-if simoptions.alreadygridvals==0 && simoptions.parallel<2
-    z_gridvals=z_grid; % On cpu, only basics are allowed. No e.
-else
-    [n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
-end
+% Switch to z_gridvals (folding e and semiz into z if appropriate)
+[n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -153,100 +155,29 @@ if isstruct(StationaryDist)
 end
 
 
-%%
-if simoptions.parallel==2
-    StationaryDist=gpuArray(StationaryDist);
-    Policy=gpuArray(Policy);
-    n_d=gpuArray(n_d);
-    n_a=gpuArray(n_a);
-    n_z=gpuArray(n_z);
-    d_grid=gpuArray(d_grid);
-    a_gridvals=gpuArray(a_gridvals);
+%% GPU
+StationaryDist=gpuArray(StationaryDist);
+Policy=gpuArray(Policy);
+n_d=gpuArray(n_d);
+n_a=gpuArray(n_a);
+n_z=gpuArray(n_z);
+d_grid=gpuArray(d_grid);
+a_gridvals=gpuArray(a_gridvals);
 
-    StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
+StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
-    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
-    PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
-    for ff=1:length(FnsToEvaluate)
-        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-        Values=reshape(Values,[N_a*N_z,1]);
-        % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-        temp=Values.*StationaryDistVec;
-        AggVars(ff)=sum(temp(~isnan(temp)));
-    end
-
-else % CPU
-
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
-    a_gridvals=num2cell(a_gridvals);
-    z_gridvals=num2cell(z_gridvals);
-
-    StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
-    StationaryDistVec=gather(StationaryDistVec);
-
-    AggVars=zeros(length(FnsToEvaluate),1);
-
-    if l_d>0
-
-        for ff=1:length(FnsToEvaluate)
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
-                Values=zeros(N_a*N_z,1);
-                for ii=1:N_a*N_z
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
-                end
-                % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                temp=Values.*StationaryDistVec;
-                AggVars(ff)=sum(temp(~isnan(temp)));
-            else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
-                Values=zeros(N_a*N_z,1);
-                for ii=1:N_a*N_z
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
-                end
-                % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                temp=Values.*StationaryDistVec;
-                AggVars(ff)=sum(temp(~isnan(temp)));
-            end
-        end
-
-    else % l_d=0
-
-        for ff=1:length(FnsToEvaluate)
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
-                Values=zeros(N_a*N_z,1);
-                for ii=1:N_a*N_z
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
-                end
-                % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                temp=Values.*StationaryDistVec;
-                AggVars(ff)=sum(temp(~isnan(temp)));
-            else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
-                Values=zeros(N_a*N_z,1);
-                for ii=1:N_a*N_z
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
-                end
-                % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                temp=Values.*StationaryDistVec;
-                AggVars(ff)=sum(temp(~isnan(temp)));
-            end
-        end
-    end
-
+for ff=1:length(FnsToEvaluate)
+    FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+    Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+    Values=reshape(Values,[N_a*N_z,1]);
+    % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
+    temp=Values.*StationaryDistVec;
+    AggVars(ff)=sum(temp(~isnan(temp)));
 end
 
 
