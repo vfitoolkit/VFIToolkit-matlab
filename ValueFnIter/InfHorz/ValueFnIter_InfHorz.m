@@ -254,7 +254,7 @@ end
 %% Semi-exogenous shock gridvals and pi
 if vfoptions.alreadygridvals_semiexo==0
     if prod(vfoptions.n_semiz)>0
-        vfoptions=SemiExogShockSetup_InfHorz(n_d,d_grid,Parameters,vfoptions,2,3);
+        vfoptions=SemiExogShockSetup_InfHorz(n_d,d_grid,Parameters,vfoptions,3);
         % output: vfoptions.semiz_gridvals, vfoptions.pi_semiz
         error('Have not yet implemented semiz variables for InfHorz value function iteration, ask on forum if you need this')
     end

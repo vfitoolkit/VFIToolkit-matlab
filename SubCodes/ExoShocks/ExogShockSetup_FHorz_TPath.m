@@ -423,7 +423,14 @@ if N_z>0
         end
     end
     % Make sure they are on grid
-    pi_z_J=gpuArray(pi_z_J);
+    if gridpiboth==2
+        pi_z_J=gather(pi_z_J); % Agent distribution iteration is performed on cpu
+        if isfield(transpathoptions,'pi_z_J_T')
+            transpathoptions.pi_z_J_T=gather(transpathoptions.pi_z_J_T); % Agent distribution iteration is performed on cpu
+        end
+    else
+        pi_z_J=gpuArray(pi_z_J);
+    end
     z_gridvals_J=gpuArray(z_gridvals_J);
 
 
@@ -778,7 +785,14 @@ if N_e>0
         end
     end
     % Make sure they are on grid
-    pi_e_J=gpuArray(pi_e_J);
+    if gridpiboth==2
+        pi_e_J=gather(pi_e_J); % Agent distribution iteration is performed on cpu
+        if isfield(transpathoptions,'pi_e_J_T')
+            transpathoptions.pi_e_J_T=gather(transpathoptions.pi_e_J_T); % Agent distribution iteration is performed on cpu
+        end
+    else
+        pi_e_J=gpuArray(pi_e_J);
+    end
     e_gridvals_J=gpuArray(e_gridvals_J);
 
     % When using fastOLG we want an alternative version of pi_e_J that we use for the agent distribution, call it pi_e_J_sim

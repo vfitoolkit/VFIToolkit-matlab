@@ -294,11 +294,15 @@ if N_z>0
     end
 
     z_gridvals=gpuArray(z_gridvals);
-    pi_z=gpuArray(pi_z);
+    if gridpiboth==2
+        pi_z=gather(pi_z); % Agent distribution iteration is performed on cpu
+    else
+        pi_z=gpuArray(pi_z);
+    end
     pi_z_sparse=sparse(gather(pi_z));
     % z_gridvals is [N_z,l_z]
     % pi_z is [N_z,N_z]
-    % pi_z and z_gridvals are both gpuArrays
+    % pi_z is a gpuArray except when gridpiboth==2 (agent dist) when it is on cpu; z_gridvals is a gpuArray
 end
 
 %% If using e variables do the same for e as we just did for z
@@ -485,7 +489,11 @@ if N_e>0
         end
     end
     % Make sure they are on grid
-    pi_e=gpuArray(pi_e);
+    if gridpiboth==2
+        pi_e=gather(pi_e); % Agent distribution iteration is performed on cpu
+    else
+        pi_e=gpuArray(pi_e);
+    end
     e_gridvals=gpuArray(e_gridvals);
     pi_e_sparse=sparse(gather(pi_e));
 

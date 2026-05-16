@@ -102,7 +102,7 @@ else
             end
             [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
         end
-        pi_z=gpuArray(pi_z);
+        pi_z=gather(pi_z); % Agent distribution iteration is performed on cpu
     elseif gridpiboth==3
         % For value fn, both z_gridvals_J and pi_z_J
         if isfield(options,'ExogShockFn')
@@ -168,7 +168,7 @@ else
             end
             [~,options.pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
         end
-        options.pi_e=gpuArray(options.pi_e);
+        options.pi_e=gather(options.pi_e); % Agent distribution iteration is performed on cpu
     elseif gridpiboth==3
         % For value fn, both e_gridvals_J and pi_e_J
         if isfield(options,'EiidShockFn')

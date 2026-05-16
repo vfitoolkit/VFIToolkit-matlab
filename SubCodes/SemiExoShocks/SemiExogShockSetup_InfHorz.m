@@ -1,4 +1,4 @@
-function options=SemiExogShockSetup_InfHorz(n_d,d_grid,Parameters,options,Parallel,gridpiboth)
+function options=SemiExogShockSetup_InfHorz(n_d,d_grid,Parameters,options,gridpiboth)
 % Convert semiz to joint-grids and transtion matrix (infinite horizon -- no age dimension)
 % options will either be vfoptions or simoptions
 % output: options.semiz_gridvals, options.pi_semiz
@@ -111,24 +111,13 @@ end
 
 
 %% Clean up output
-if Parallel==2 % gpu, for value fn and FnsToEvaluate
-    if gridpiboth==3
-        options.pi_semiz=pi_semiz;
-        options.semiz_gridvals=semiz_gridvals;
-    elseif gridpiboth==2
-        options.pi_semiz=pi_semiz;
-    elseif gridpiboth==1
-        options.semiz_gridvals=semiz_gridvals;
-    end
-else % cpu, for agent dist
-    if gridpiboth==3
-        options.semiz_gridvals=gather(semiz_gridvals);
-        options.pi_semiz=gather(pi_semiz);
-    elseif gridpiboth==2
-        options.pi_semiz=gather(pi_semiz);
-    elseif gridpiboth==1
-        options.semiz_gridvals=gather(semiz_gridvals);
-    end
+if gridpiboth==3
+    options.pi_semiz=pi_semiz;
+    options.semiz_gridvals=semiz_gridvals;
+elseif gridpiboth==2
+    options.pi_semiz=gather(pi_semiz); % Agent distribution iteration is performed on cpu
+elseif gridpiboth==1
+    options.semiz_gridvals=semiz_gridvals;
 end
 % clean up options, so we don't accidently reuse these things
 if isfield(options,'SemiExoStateFn')

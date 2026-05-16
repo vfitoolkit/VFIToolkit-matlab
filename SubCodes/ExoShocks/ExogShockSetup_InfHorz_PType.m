@@ -159,7 +159,7 @@ if zdependsonptype==0
                 end
                 [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
             end
-            pi_z=gpuArray(pi_z);
+            pi_z=gather(pi_z); % Agent distribution iteration is performed on cpu
         elseif gridpiboth==3
             % For value fn, both z_gridvals and pi_z
             if isfield(options,'ExogShockFn')
@@ -245,7 +245,7 @@ elseif zdependsonptype==1
                     temp=options.ExogShockFn.(Names_i{ii});
                     [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
                 end
-                pi_z_out.(Names_i{ii})=gpuArray(pi_z_temp);
+                pi_z_out.(Names_i{ii})=gather(pi_z_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 if isfield(options,'ExogShockFn')
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}));
@@ -343,7 +343,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
                     pi_z_temp=pi_z_temp(otherdims{:},ii);
                 end
-                pi_z_out.(Names_i{ii})=gpuArray(pi_z_temp);
+                pi_z_out.(Names_i{ii})=gather(pi_z_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 if isfield(options,'ExogShockFn')
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}));
@@ -427,7 +427,7 @@ if edependsonptype==0
                 end
                 [~,options.pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
             end
-            options.pi_e=gpuArray(options.pi_e);
+            options.pi_e=gather(options.pi_e); % Agent distribution iteration is performed on cpu
         elseif gridpiboth==3
             if isfield(options,'EiidShockFn')
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames);
@@ -511,7 +511,7 @@ elseif edependsonptype==1
                     temp=options.EiidShockFn.(Names_i{ii});
                     [~,pi_e_temp]=temp(EiidShockFnParamsCell{:});
                 end
-                pi_e_out.(Names_i{ii})=gpuArray(pi_e_temp);
+                pi_e_out.(Names_i{ii})=gather(pi_e_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 if isfield(options,'EiidShockFn')
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}));
@@ -609,7 +609,7 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                     otherdims = repmat({':'},1,ndims(pi_e_temp)-1);
                     pi_e_temp=pi_e_temp(otherdims{:},ii);
                 end
-                pi_e_out.(Names_i{ii})=gpuArray(pi_e_temp);
+                pi_e_out.(Names_i{ii})=gather(pi_e_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 if isfield(options,'EiidShockFn')
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}));

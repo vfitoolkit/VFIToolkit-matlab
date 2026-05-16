@@ -1,10 +1,9 @@
-function [V, Policy]=ValueFnFromPolicy_MixHorz_PType(Policy, n_d,n_a,n_z, N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
-% Mixed-horizon PType variant: dispatches each ptype to either
-% ValueFnFromPolicy_FHorz (finite N_j) or ValueFnFromPolicy_InfHorz (Inf N_j)
-% based on isfinite(N_j_temp).
+function [V, Policy]=ValueFnFromPolicy_InfHorz_PType(Policy, n_d,n_a,n_z, Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+
 %
 % vfoptions.verbose=1 will give feedback
 % vfoptions.verboseparams=1 will give further feedback on the param values of each permanent type
+%
 
 % N_d=prod(n_d);
 % N_a=prod(n_a);
@@ -47,47 +46,42 @@ for ii=1:N_i
 
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
-    if isa(n_d,'struct')
+    if isstruct(n_d)
         n_d_temp=n_d.(Names_i{ii});
     else
         n_d_temp=n_d;
     end
-    if isa(n_a,'struct')
+    if isstruct(n_a)
         n_a_temp=n_a.(Names_i{ii});
     else
         n_a_temp=n_a;
     end
-    if isa(n_z,'struct')
+    if isstruct(n_z)
         n_z_temp=n_z.(Names_i{ii});
     else
         n_z_temp=n_z;
     end
-    if isa(N_j,'struct')
-        N_j_temp=N_j.(Names_i{ii});
-    else
-        N_j_temp=N_j;
-    end
-    if isa(d_grid,'struct')
+    if isstruct(d_grid)
         d_grid_temp=d_grid.(Names_i{ii});
     else
         d_grid_temp=d_grid;
     end
-    if isa(a_grid,'struct')
+    if isstruct(a_grid)
         a_grid_temp=a_grid.(Names_i{ii});
     else
         a_grid_temp=a_grid;
     end
-    if isa(z_grid,'struct')
+    if isstruct(z_grid)
         z_grid_temp=z_grid.(Names_i{ii});
     else
         z_grid_temp=z_grid;
     end
-    if isa(pi_z,'struct')
+    if isstruct(pi_z)
         pi_z_temp=pi_z.(Names_i{ii});
     else
         pi_z_temp=pi_z;
     end
-    if isa(ReturnFn,'struct')
+    if isstruct(ReturnFn)
         ReturnFn_temp=ReturnFn.(Names_i{ii});
     else
         ReturnFn_temp=ReturnFn;
@@ -138,11 +132,7 @@ for ii=1:N_i
         Policy.(Names_i{ii})=Policy_ii;
     end
 
-    if isfinite(N_j_temp)
-        V_ii=ValueFnFromPolicy_FHorz(Policy_ii,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, vfoptions_temp);
-    else % InfHorz ptype
-        V_ii=ValueFnFromPolicy_InfHorz(Policy_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, vfoptions_temp);
-    end
+    V_ii=ValueFnFromPolicy_InfHorz(Policy_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, vfoptions_temp);
 
     if vfoptions_temp.ptypestorecpu==1
         V.(Names_i{ii})=gather(V_ii);

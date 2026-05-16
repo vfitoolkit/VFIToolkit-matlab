@@ -6,18 +6,17 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if exist('vfoptions','var')
-    if isfield(vfoptions,'parallel')
-        if vfoptions.parallel~=2
-            error('ValueFnFromPolicy_FHorz is only available on GPU')
-        end
+if ~exist('vfoptions','var')
+    vfoptions.gridinterplayer=0;
+    % divide-and-conquer is not relevant for ValueFnFromPolicy
+else
+    if gpuDeviceCount==0
+        error('ValueFnFromPolicy_FHorz is only available on GPU')
     end
     if ~isfield(vfoptions,'gridinterplayer')
         vfoptions.gridinterplayer=0;
     end
-else
-    vfoptions=struct();
-    vfoptions.gridinterplayer=0;
+    % divide-and-conquer is not relevant for ValueFnFromPolicy
 end
 
 

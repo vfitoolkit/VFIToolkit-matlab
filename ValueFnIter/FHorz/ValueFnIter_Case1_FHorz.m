@@ -283,7 +283,7 @@ end
 if vfoptions.alreadygridvals_semiexo==0
     if prod(vfoptions.n_semiz)>0
         % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-        vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,2,3);
+        vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,3);
         % output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
         % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
         % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]

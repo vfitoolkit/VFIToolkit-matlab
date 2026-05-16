@@ -140,7 +140,7 @@ end
 %% Semi-exogenous shock gridvals and pi
 if simoptions.alreadygridvals_semiexo==0
     if N_semiz>0
-        simoptions=SemiExogShockSetup_InfHorz(n_d,simoptions.d_grid,Parameters,simoptions,1,2);
+        simoptions=SemiExogShockSetup_InfHorz(n_d,simoptions.d_grid,Parameters,simoptions,2);
         % output: simoptions.semiz_gridvals, simoptions.pi_semiz
         error('Have not yet implemented semiz variables for InfHorz stationary distribution, ask on forum if you need this')
     end

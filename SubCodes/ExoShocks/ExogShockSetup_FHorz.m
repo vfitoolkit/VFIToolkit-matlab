@@ -137,6 +137,7 @@ else
             % whether or not pi_z depends on age, we can just do
             pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
         end
+        pi_z_J=gather(pi_z_J); % Agent distribution iteration is performed on cpu
     elseif gridpiboth==3
         % For value fn, both z_gridvals_J and pi_z_J
         z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
@@ -245,6 +246,7 @@ else
         else
             options.pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');
         end
+        options.pi_e_J=gather(options.pi_e_J); % Agent distribution iteration is performed on cpu
     elseif gridpiboth==3
         % For value fn, both e_gridvals_J and pi_e_J
         options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),N_j,'gpuArray');

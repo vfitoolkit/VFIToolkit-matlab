@@ -62,7 +62,7 @@ d2_grid=simoptions.d_grid(sum(n_d1)+1:end);
 
 
 % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,2,3);
+simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,3);
 % output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
 % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
 % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]

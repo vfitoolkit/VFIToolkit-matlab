@@ -261,7 +261,7 @@ if prod(vfoptions.n_semiz)>0
         end
     end
 
-    vfoptions=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,vfoptions,2,3);
+    vfoptions=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,vfoptions,3);
     simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
     simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
 

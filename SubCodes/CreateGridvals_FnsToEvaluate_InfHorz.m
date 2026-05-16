@@ -31,7 +31,7 @@ end
 if simoptions.alreadygridvals_semiexo==0
     % Also semiz if that is used
     if prod(simoptions.n_semiz)>0 % If using semi-exogenous shocks
-        simoptions=SemiExogShockSetup_InfHorz([],simoptions.d_grid,Parameters,simoptions,2,1);
+        simoptions=SemiExogShockSetup_InfHorz([],simoptions.d_grid,Parameters,simoptions,1);
         % user may input simoptions.semiz_grid or simoptions.semiz_gridvals
 
         if N_z==0

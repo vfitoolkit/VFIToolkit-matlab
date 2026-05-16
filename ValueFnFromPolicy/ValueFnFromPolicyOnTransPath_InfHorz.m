@@ -1,12 +1,24 @@
 function VPath=ValueFnFromPolicyOnTransPath_InfHorz(PolicyPath,V_final,ParamPath,PricePath,T,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 
-if isfield(vfoptions,'exoticpreferences')
-    error('ValueFnFromPolicyOnTransPath_InfHorz() does not yet work with exotic preferences. Please ask on forum if you want/need this feature. \n');
-end
-if isfield(vfoptions,'experienceasset')
-    if vfoptions.experienceasset==1
-        error('ValueFnFromPolicyOnTransPath_InfHorz() does not yet work with experienceasset. Please ask on forum if you want/need this feature. \n');
+if ~exist('vfoptions','var')
+    vfoptions.gridinterplayer=0;
+    % divide-and-conquer is not relevant for ValueFnFromPolicy
+else
+    if gpuDeviceCount==0
+        error('ValueFnFromPolicyOnTransPath_InfHorz is only available on GPU')
     end
+    if ~isfield(vfoptions,'gridinterplayer')
+        vfoptions.gridinterplayer=0;
+    end
+    if isfield(vfoptions,'exoticpreferences')
+        error('ValueFnFromPolicyOnTransPath_InfHorz() does not yet work with exotic preferences. Please ask on forum if you want/need this feature. \n');
+    end
+    if isfield(vfoptions,'experienceasset')
+        if vfoptions.experienceasset==1
+            error('ValueFnFromPolicyOnTransPath_InfHorz() does not yet work with experienceasset. Please ask on forum if you want/need this feature. \n');
+        end
+    end
+    % divide-and-conquer is not relevant for ValueFnFromPolicy
 end
 
 N_d=prod(n_d);

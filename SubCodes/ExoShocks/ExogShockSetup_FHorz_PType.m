@@ -199,6 +199,7 @@ if zdependsonptype==0
                 % whether or not pi_z depends on age, we can just do
                 pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
             end
+            pi_z_J=gather(pi_z_J); % Agent distribution iteration is performed on cpu
         elseif gridpiboth==3
             % For value fn, both z_gridvals_J and pi_z_J
             z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
@@ -337,7 +338,7 @@ elseif zdependsonptype==1
                     % whether or not pi_z depends on age, we can just do
                     pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
                 end
-                pi_z_J.(Names_i{ii})=pi_z_J_temp;
+                pi_z_J.(Names_i{ii})=gather(pi_z_J_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 % For value fn, both z_gridvals_J and pi_z_J
                 z_gridvals_J_temp=zeros(prod(n_z_temp),length(n_z_temp),N_j_temp,'gpuArray');
@@ -491,7 +492,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     % whether or not pi_z depends on age, we can just do
                     pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
                 end
-                pi_z_J.(Names_i{ii})=pi_z_J_temp;
+                pi_z_J.(Names_i{ii})=gather(pi_z_J_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 % For value fn, both z_gridvals_J and pi_z_J
                 z_gridvals_J_temp=zeros(prod(n_z_temp),length(n_z_temp),N_j_temp,'gpuArray');
@@ -622,6 +623,7 @@ if edependsonptype==0
             else
                 options.pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');
             end
+            options.pi_e_J=gather(options.pi_e_J); % Agent distribution iteration is performed on cpu
         elseif gridpiboth==3
             % For value fn, both e_gridvals_J and pi_e_J
             options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),N_j,'gpuArray');
@@ -755,7 +757,7 @@ elseif edependsonptype==1
                 else
                     pi_e_J_temp=pi_e_temp.*ones(1,N_j_temp,'gpuArray');
                 end
-                options.pi_e_J.(Names_i{ii})=pi_e_J_temp;
+                options.pi_e_J.(Names_i{ii})=gather(pi_e_J_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 % For value fn, both e_gridvals_J and pi_e_J
                 e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),N_j_temp,'gpuArray');
@@ -904,7 +906,7 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                 else
                     pi_e_J_temp=pi_e_temp.*ones(1,N_j_temp,'gpuArray');
                 end
-                options.pi_e_J.(Names_i{ii})=pi_e_J_temp;
+                options.pi_e_J.(Names_i{ii})=gather(pi_e_J_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),N_j_temp,'gpuArray');
                 pi_e_J_temp=zeros(prod(n_e_temp),N_j_temp,'gpuArray');

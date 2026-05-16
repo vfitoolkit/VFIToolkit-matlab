@@ -29,20 +29,14 @@ end
 for ii=1:N_i
 
     % First set up vfoptions
-    if exist('vfoptions','var')
-        vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
-        if ~isfield(vfoptions_temp,'verbose')
-            vfoptions_temp.verbose=0;
-        end
-        if ~isfield(vfoptions_temp,'verboseparams')
-            vfoptions_temp.verboseparams=0;
-        end
-        if ~isfield(vfoptions_temp,'ptypestorecpu')
-            vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-        end
-    else
+    vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
+    if ~isfield(vfoptions_temp,'verbose')
         vfoptions_temp.verbose=0;
+    end
+    if ~isfield(vfoptions_temp,'verboseparams')
         vfoptions_temp.verboseparams=0;
+    end
+    if ~isfield(vfoptions_temp,'ptypestorecpu')
         vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end
 
