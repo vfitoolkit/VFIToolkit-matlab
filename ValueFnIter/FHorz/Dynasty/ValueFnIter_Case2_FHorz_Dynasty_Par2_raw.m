@@ -19,11 +19,6 @@ if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
     z_gridvals=CreateGridvals(n_z,z_grid,1);
 end
-if vfoptions.lowmemory>1
-    special_n_a=ones(1,length(n_a));
-    a_gridvals=CreateGridvals(n_a,a_grid,1);
-end
-
 %%
 Vold=zeros(N_a,N_z,N_j);
 tempcounter=1;
@@ -119,28 +114,6 @@ while currdist>vfoptions.tolerance
                             end
                         end
                         entireRHS=ReturnMatrix_z(:,a_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
-
-                        %calculate in order, the maximizing aprime indexes
-                        [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
-                    end
-                end
-            elseif vfoptions.lowmemory==2
-                for a_c=1:N_a
-                    if vfoptions.phiaprimedependsonage==1
-                        PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
-                    end
-                    Phi_aprimeMatrix_a=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, special_n_a, n_z, d_grid, a_val, z_grid,PhiaprimeParamsVec);
-                    ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, special_n_a,n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
-                    for z_c=1:N_z
-                        RHSpart2=zeros(N_d,1);
-                        for zprime_c=1:N_z
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-                                for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_a(d_c,1,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
-                                end
-                            end
-                        end
-                        entireRHS=ReturnMatrix_a(:,1,z_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
 
                         %calculate in order, the maximizing aprime indexes
                         [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
@@ -245,28 +218,6 @@ while currdist>vfoptions.tolerance
                         [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
                     end
                 end
-            elseif vfoptions.lowmemory==2
-                for a_c=1:N_a
-                    if vfoptions.phiaprimedependsonage==1
-                        PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
-                    end
-                    Phi_aprimeMatrix_a=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, special_n_a, n_z, d_grid, a_val, z_grid,PhiaprimeParamsVec);
-                    ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, special_n_a,n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
-                    for z_c=1:N_z
-                        RHSpart2=zeros(N_d,1);
-                        for zprime_c=1:N_z
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-                                for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_a(d_c,1,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
-                                end
-                            end
-                        end
-                        entireRHS=ReturnMatrix_a(:,1,z_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
-
-                        %calculate in order, the maximizing aprime indexes
-                        [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
-                    end
-                end
             end
         end
     end
@@ -357,28 +308,6 @@ while currdist>vfoptions.tolerance
                             end
                         end
                         entireRHS=ReturnMatrix_z(:,a_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
-
-                        %calculate in order, the maximizing aprime indexes
-                        [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
-                    end
-                end
-            elseif vfoptions.lowmemory==2
-                for a_c=1:N_a
-                    if vfoptions.phiaprimedependsonage==1
-                        PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
-                    end
-                    Phi_aprimeMatrix_a=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, special_n_a, n_z, d_grid, a_val, z_grid,PhiaprimeParamsVec);
-                    ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, special_n_a,n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
-                    for z_c=1:N_z
-                        RHSpart2=zeros(N_d,1);
-                        for zprime_c=1:N_z
-                            if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-                                for d_c=1:N_d
-                                    RHSpart2(d_c)=RHSpart2(d_c)+EVpre(Phi_aprimeMatrix_a(d_c,1,z_c),zprime_c)*pi_z(z_c,zprime_c);
-                                end
-                            end
-                        end
-                        entireRHS=ReturnMatrix_a(:,1,z_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
 
                         %calculate in order, the maximizing aprime indexes
                         [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
@@ -541,26 +470,6 @@ while currdist>vfoptions.tolerance
                     [Vtemp,maxindex]=max(entireRHS_z,[],1);
                     V(:,z_c,jj)=Vtemp;
                     Policy(:,z_c,jj)=maxindex;
-                end
-            elseif vfoptions.lowmemory==2
-                EV_z=zeros(N_d,1);
-                for z_c=1:N_Z
-                    for zprime_c=1:N_z
-                        if pi_z(z_c,zprime_c)~=0 %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-                            for d_c=1:N_d
-                                EV_z(d_c)=EV_z(d_c)+EVpre(Phi_aprimeMatrix(d_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
-                            end
-                        end
-                    end
-                    for a_c=1:N_a
-                        a_val=a_gridvals(z_c,:);
-                        ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-
-                        entireRHS=ReturnMatrix_az+DiscountFactorParamsVec*EV_z; %aprime by 1
-
-                        %calculate in order, the maximizing aprime indexes
-                        [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
-                    end
                 end
             end
         end

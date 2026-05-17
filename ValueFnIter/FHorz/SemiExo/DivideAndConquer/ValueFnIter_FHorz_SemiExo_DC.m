@@ -51,10 +51,10 @@ elseif length(n_a)==2
         if N_d1==0
             if N_e==0
                 if N_z==0
-                    [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2B_nod1_noz_raw(n_d2,n_a,n_semiz, N_j, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2A_nod1_noz_raw(n_d2,n_a,n_semiz, N_j, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
                     if vfoptions.lowmemory==0
-                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2B_nod1_raw(n_d2,n_a,n_z,n_semiz, N_j, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2A_nod1_raw(n_d2,n_a,n_z,n_semiz, N_j, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1 % loop over z
 
                     end
@@ -62,13 +62,13 @@ elseif length(n_a)==2
             else
                 if N_z==0
                     if vfoptions.lowmemory==0
-                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2B_nod1_noz_e_raw(n_d2,n_a,n_semiz, vfoptions.n_e, N_j, d2_gridvals, a_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2A_nod1_noz_e_raw(n_d2,n_a,n_semiz, vfoptions.n_e, N_j, d2_gridvals, a_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1 % loop over e
 
                     end
                 else
                     if vfoptions.lowmemory==0
-                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2B_nod1_e_raw(n_d2,n_a,n_z,n_semiz,  vfoptions.n_e, N_j, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2A_nod1_e_raw(n_d2,n_a,n_z,n_semiz,  vfoptions.n_e, N_j, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1 % loop over e
 
                     elseif vfoptions.lowmemory==2 % loop over z & e
@@ -79,10 +79,10 @@ elseif length(n_a)==2
         else
             if N_e==0
                 if N_z==0
-                    [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2B_noz_raw(n_d1, n_d2,n_a,n_semiz, N_j, d1_grid, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2A_noz_raw(n_d1, n_d2,n_a,n_semiz, N_j, d1_grid, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
                     if vfoptions.lowmemory==0
-                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2B_raw(n_d1, n_d2,n_a,n_z,n_semiz, N_j, d1_grid, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2A_raw(n_d1, n_d2,n_a,n_z,n_semiz, N_j, d1_grid, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1 % loop over z
 
                     end
@@ -90,13 +90,13 @@ elseif length(n_a)==2
             else
                 if N_z==0
                     if vfoptions.lowmemory==0
-                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2B_noz_e_raw(n_d1,n_d2,n_a,vfoptions.n_semiz, vfoptions.n_e, N_j, d1_grid, d2_gridvals, a_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2A_noz_e_raw(n_d1,n_d2,n_a,vfoptions.n_semiz, vfoptions.n_e, N_j, d1_grid, d2_gridvals, a_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1 % loop over e
 
                     end
                 else
                     if vfoptions.lowmemory==0
-                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2B_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_grid, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, Policy3]=ValueFnIter_FHorz_SemiExo_DC2A_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_grid, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1 % loop over e
 
                     elseif vfoptions.lowmemory==2 % loop over z & e

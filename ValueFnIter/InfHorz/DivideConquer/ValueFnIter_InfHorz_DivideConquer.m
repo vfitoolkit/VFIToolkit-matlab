@@ -17,8 +17,8 @@ if prod(n_d)==0
         [V,Policy]=ValueFnIter_InfHorz_DC1_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
     elseif length(n_a)==2
         if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
-            vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
-            [V,Policy]=ValueFnIter_InfHorz_DC2B_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2A
+            [V,Policy]=ValueFnIter_InfHorz_DC2A_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
         else
             [V,Policy]=ValueFnIter_InfHorz_DC2_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
         end
@@ -29,8 +29,8 @@ else % N_d
         [V,Policy]=ValueFnIter_InfHorz_DC1_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
     elseif length(n_a)==2
         if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
-            vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
-            [V,Policy]=ValueFnIter_InfHorz_DC2B_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2A
+            [V,Policy]=ValueFnIter_InfHorz_DC2A_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
         else
             [V,Policy]=ValueFnIter_InfHorz_DC2_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
         end

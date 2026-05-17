@@ -171,7 +171,7 @@ if vfoptions.divideandconquer==1
                 error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
             end
         elseif length(n_a)==2
-            vfoptions.level1n=[max(ceil(n_a(1)/50),5),n_a(2)]; % default is DC2B, min of 5 points in level1 for a1
+            vfoptions.level1n=[max(ceil(n_a(1)/50),5),n_a(2)]; % default is DC2A, min of 5 points in level1 for a1
             if n_a(1)<5
                 error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
             end

@@ -7,11 +7,6 @@ V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-if vfoptions.lowmemory>1
-    special_n_a=ones(1,length(n_a));
-    a_gridvals=CreateGridvals(n_a,a_grid,1);
-end
-
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
@@ -42,15 +37,9 @@ if warmglow==1
             WGmatrix=WGmatrix.*ones(1,N_a,N_z);
         elseif vfoptions.lowmemory==1
             WGmatrix=WGmatrix.*ones(1,N_a);
-        elseif vfoptions.lowmemory==2
-            % WGmatrix=WGmatrix;
         end
     else
-        if vfoptions.lowmemory==0 || vfoptions.lowmemory==1
-            WGmatrix=WGmatrix.*ones(1,N_a);
-        elseif vfoptions.lowmemory==2
-            % WGmatrix=WGmatrix;
-        end
+        WGmatrix=WGmatrix.*ones(1,N_a);
     end
 else
     WGmatrix=0;
@@ -203,8 +192,6 @@ for reverse_j=1:N_j-1
         % Now just make it the right shape (currently has aprime, needs the d,a,z dimensions)
         if vfoptions.lowmemory==0
             WGmatrix=WGmatrix.*ones(1,1,N_z);
-        elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
-            % WGmatrix=WGmatrix;
         end
     end
 

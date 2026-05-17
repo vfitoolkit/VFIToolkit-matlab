@@ -14,10 +14,6 @@ if vfoptions.lowmemory>0
     l_z=length(n_z);
     special_n_z=ones(1,l_z);
 end
-if vfoptions.lowmemory>1
-    special_n_r=ones(1,length(n_r));
-    r_gridvals=CreateGridvals(n_r,r_grid,1); % The 1 at end indicates want output in form of matrix.
-end
 
 
 %% j=N_j
@@ -44,16 +40,6 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(:,:,z_c,N_j)=maxindex;
         end
 
-    elseif vfoptions.lowmemory==2
-
-        for r_c=1:N_r
-            r_val=r_gridvals(r_c,:);
-            ReturnMatrix_r=CreateReturnFnMatrix_ResidAsset_Disc(ReturnFn, 0, n_a, special_n_r, n_z, 0, a_grid, r_val, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
-            % Calc the max and it's index
-            [Vtemp,maxindex]=max(ReturnMatrix_r);
-            V(:,r_c,:,N_j)=Vtemp;
-            Policy(:,r_c,:,N_j)=maxindex;
-        end
     end
 else
     % Using V_Jplus1

@@ -180,6 +180,10 @@ if transpathoptions.fastOLG==1 && simoptions.fastOLG==0
     error('If you set transpathoptions.fastOLG=1 then you must have simoptions.fastOLG=1 (I just have not implemented simoptions.fastOLG=0 for this')
 end
 
+if transpathoptions.fastOLG==0 && vfoptions.lowmemory>0
+    error('On transtion paths you can only use vfoptions.lowmemory>0 when using transpathoptions.fastOLG=1, because otherwise the runtimes will anyway be so slow as to be essentially unusable')
+end
+
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.

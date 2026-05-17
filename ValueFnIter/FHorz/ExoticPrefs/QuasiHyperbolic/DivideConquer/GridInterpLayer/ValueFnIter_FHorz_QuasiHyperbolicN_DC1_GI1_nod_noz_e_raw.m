@@ -1,5 +1,5 @@
 function varargout=ValueFnIter_FHorz_QuasiHyperbolicN_DC1_GI1_nod_noz_e_raw(n_a,n_e,N_j, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-% Naive quasi-hyperbolic discounting variant of ValueFnIter_FHorz_DC1_GI_nod_noz_e_raw.
+% Naive quasi-hyperbolic discounting variant of ValueFnIter_FHorz_DC1_GI1_nod_noz_e_raw.
 % No d variables. No z variable. GPU (parallel==2 only).
 %
 % Naive: V_j      = max_{a'} u + beta*EV_{j+1}          (beta, used as EVsource)
