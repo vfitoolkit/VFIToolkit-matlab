@@ -190,8 +190,8 @@ else
                 a1primeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
                 ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, n_z, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2,0); % Level=2, Refine=0
-                daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_z]));
+                d2aprimez=(1:1:N_d2)'+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % [N_d2,maxgap+1,1,N_a2,N_z]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2,N_z]
+                entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d2*(maxgap(ii)+1),level1iidiff(ii),N_a2,N_z])+reshape(DiscountedEV(d2aprimez),[N_d2*(maxgap(ii)+1),1,N_a2,N_z]),[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_z]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 V(curraindex,:,N_j)=shiftdim(Vtempii,1);
                 % maxindex does not need reworking, as with expasset there is no a2prime
@@ -204,8 +204,8 @@ else
                 loweredge=maxindex1(:,1,ii,:,:);
                 % Just use aprime(ii) for everything
                 ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, 1, level1iidiff(ii), n_a2, n_z, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2,0); % Level=2, Refine=0
-                daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2*1,level1iidiff(ii)*N_a2,N_z]));
+                d2aprimez=(1:1:N_d2)'+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % [N_d2,1,1,N_a2,N_z]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2,N_z]
+                entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d2,level1iidiff(ii),N_a2,N_z])+reshape(DiscountedEV(d2aprimez),[N_d2,1,N_a2,N_z]),[N_d2,level1iidiff(ii)*N_a2,N_z]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 V(curraindex,:,N_j)=shiftdim(Vtempii,1);
                 % maxindex does not need reworking, as with expasset there is no a2prime
@@ -249,8 +249,8 @@ else
                     a1primeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
                     ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, special_n_z, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2,0); % Level=2, Refine=0
-                    daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedEV_z(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
+                    d2aprime=(1:1:N_d2)'+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % [N_d2,maxgap+1,1,N_a2]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2]
+                    entireRHS_ii_z=reshape(reshape(ReturnMatrix_ii_z,[N_d2*(maxgap(ii)+1),level1iidiff(ii),N_a2])+reshape(DiscountedEV_z(d2aprime),[N_d2*(maxgap(ii)+1),1,N_a2]),[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]);
                     [Vtempii,maxindex]=max(entireRHS_ii_z,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
                     % maxindex does not need reworking, as with expasset there is no a2prime
@@ -263,8 +263,8 @@ else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
                     ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, 1, level1iidiff(ii), n_a2, special_n_z, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2,0); % Level=2, Refine=0
-                    daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedEV_z(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
+                    d2aprime=(1:1:N_d2)'+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % [N_d2,1,1,N_a2]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2]
+                    entireRHS_ii_z=reshape(reshape(ReturnMatrix_ii_z,[N_d2,level1iidiff(ii),N_a2])+reshape(DiscountedEV_z(d2aprime),[N_d2,1,N_a2]),[N_d2,level1iidiff(ii)*N_a2]);
                     [Vtempii,maxindex]=max(entireRHS_ii_z,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
                     % maxindex does not need reworking, as with expasset there is no a2prime
@@ -348,8 +348,8 @@ for reverse_j=1:N_j-1
                 a1primeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
                 ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, n_z, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals_J(:,:,jj), ReturnFnParamsVec,2,0); % Level=2, Refine=0
-                daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_z]));
+                d2aprimez=(1:1:N_d2)'+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % [N_d2,maxgap+1,1,N_a2,N_z]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2,N_z]
+                entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d2*(maxgap(ii)+1),level1iidiff(ii),N_a2,N_z])+reshape(DiscountedEV(d2aprimez),[N_d2*(maxgap(ii)+1),1,N_a2,N_z]),[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_z]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 V(curraindex,:,jj)=shiftdim(Vtempii,1);
                 % maxindex does not need reworking, as with expasset there is no a2prime
@@ -362,8 +362,8 @@ for reverse_j=1:N_j-1
                 loweredge=maxindex1(:,1,ii,:,:);
                 % Just use aprime(ii) for everything
                 ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, 1, level1iidiff(ii), n_a2, n_z, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals_J(:,:,jj), ReturnFnParamsVec,2,0); % Level=2, Refine=0
-                daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2*1,level1iidiff(ii)*N_a2,N_z]));
+                d2aprimez=(1:1:N_d2)'+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % [N_d2,1,1,N_a2,N_z]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2,N_z]
+                entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d2,level1iidiff(ii),N_a2,N_z])+reshape(DiscountedEV(d2aprimez),[N_d2,1,N_a2,N_z]),[N_d2,level1iidiff(ii)*N_a2,N_z]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 V(curraindex,:,jj)=shiftdim(Vtempii,1);
                 % maxindex does not need reworking, as with expasset there is no a2prime
@@ -407,8 +407,8 @@ for reverse_j=1:N_j-1
                     a1primeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
                     ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, special_n_z, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2,0); % Level=2, Refine=0
-                    daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedEV_z(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
+                    d2aprime=(1:1:N_d2)'+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % [N_d2,maxgap+1,1,N_a2]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2]
+                    entireRHS_ii_z=reshape(reshape(ReturnMatrix_ii_z,[N_d2*(maxgap(ii)+1),level1iidiff(ii),N_a2])+reshape(DiscountedEV_z(d2aprime),[N_d2*(maxgap(ii)+1),1,N_a2]),[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]);
                     [Vtempii,maxindex]=max(entireRHS_ii_z,[],1);
                     V(curraindex,z_c,jj)=shiftdim(Vtempii,1);
                     % maxindex does not need reworking, as with expasset there is no a2prime
@@ -421,8 +421,8 @@ for reverse_j=1:N_j-1
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
                     ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, 1, level1iidiff(ii), n_a2, special_n_z, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2,0); % Level=2, Refine=0
-                    daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedEV_z(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
+                    d2aprime=(1:1:N_d2)'+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % [N_d2,1,1,N_a2]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2]
+                    entireRHS_ii_z=reshape(reshape(ReturnMatrix_ii_z,[N_d2,level1iidiff(ii),N_a2])+reshape(DiscountedEV_z(d2aprime),[N_d2,1,N_a2]),[N_d2,level1iidiff(ii)*N_a2]);
                     [Vtempii,maxindex]=max(entireRHS_ii_z,[],1);
                     V(curraindex,z_c,jj)=shiftdim(Vtempii,1);
                     % maxindex does not need reworking, as with expasset there is no a2prime

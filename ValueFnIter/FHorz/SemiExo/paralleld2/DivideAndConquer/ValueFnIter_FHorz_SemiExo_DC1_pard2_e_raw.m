@@ -28,6 +28,7 @@ if vfoptions.lowmemory==2
     error('vfoptions.lowmemory=2 not available with semi-exogenous states')
 end
 bothzind=shiftdim((0:1:N_bothz-1),-1);
+d2ind=repelem((1:1:N_d2)',N_d1,1); % d2 component of each d=(d1,d2), [N_d,1]
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
 % pi_bothz_J=repmat(permute(pi_semiz_J,[3,2,1,4]),1,N_z,N_z,1).*repelem(permute(pi_z_J,[4,2,1,3]),1,N_semiz,N_semiz,1);
@@ -143,52 +144,117 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
+    EV=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
+    % (aprime,zprime)
 
     if vfoptions.lowmemory==0
 
-        % pi_bothz=repmat(pi_semiz_J_permute(:,:,:,N_j),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,N_j),1,N_semiz,N_semiz);
-        % % pi_bothz=pi_bothz_J(:,:,:,N_j);
-        % % (d2,zprime,z)
-        %
-        % ReturnMatrix=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_bothz, n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
-        % % (d & aprime,a,z,e)
-        %
-        % EV=replem(V_Jplus1,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-        % EV=sum(EV,2); % sum over z', leaving a singular second dimension
-        %
-        % entireEV=repelem(EV,N_d1,1,1);
-        % entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
-        %
-        % % Calc the max and it's index
-        % [Vtemp,maxindex]=max(entireRHS,[],1);
-        % V(:,:,:,N_j)=Vtemp;
-        % Policy(:,:,:,N_j)=maxindex;
+        pi_bothz=repmat(pi_semiz_J_permute(:,:,:,N_j),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,N_j),1,N_semiz,N_semiz);
 
+        EV=repelem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+        EV=sum(EV,2); % sum over z', leaving a singular second dimension
+
+        DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a,1,N_bothz]); % (d2,aprime,1,bothz); d1-dim is implicit singleton, broadcasts at use sites
+
+        % n-Monotonicity
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, n_e, d_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+
+        entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d1,N_d2,N_a,vfoptions.level1n,N_bothz,N_e])+reshape(DiscountedEV,[1,N_d2,N_a,1,N_bothz,1]),[N_d,N_a,vfoptions.level1n,N_bothz,N_e]);
+
+        % First, we want aprime conditional on (d,1,a,z,e)
+        [~,maxindex1]=max(entireRHS_ii,[],2);
+
+        % Now, get and store the full (d,aprime)
+        [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_bothz,N_e]),[],1);
+
+        % Store
+        V(level1ii,:,:,N_j)=shiftdim(Vtempii,1);
+        Policy(level1ii,:,:,N_j)=shiftdim(maxindex2,1); % d,aprime
+
+        % Second level based on monotonicity
+        maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
+        for ii=1:(vfoptions.level1n-1)
+            curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
+            if maxgap(ii)>0
+                loweredge=min(maxindex1(:,1,ii,:,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                aprimeindexes=loweredge+(0:1:maxgap(ii));
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                d2aprimebothz=d2ind+N_d2*(aprimeindexes-1)+N_d2*N_a*shiftdim((0:1:N_bothz-1),-2); % [N_d,maxgap+1,1,N_bothz,N_e]; linear index into DiscountedEV [N_d2,N_a,1,N_bothz]
+                entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(d2aprimebothz),[N_d*(maxgap(ii)+1),1,N_bothz,N_e]);
+                [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                V(curraindex,:,:,N_j)=shiftdim(Vtempii,1);
+                dind=(rem(maxindex-1,N_d)+1);
+                allind=dind+N_d*bothzind+N_d*N_bothz*eind; % loweredge is n_d1-by-1-by-1-by-n_bothz-by-n_e
+                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1)); % loweredge(given the d and z)
+            else
+                loweredge=maxindex1(:,1,ii,:,:);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, n_e, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                d2aprimebothz=d2ind+N_d2*(loweredge-1)+N_d2*N_a*shiftdim((0:1:N_bothz-1),-2); % [N_d,1,1,N_bothz,N_e]; linear index into DiscountedEV [N_d2,N_a,1,N_bothz]
+                entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(d2aprimebothz),[N_d,1,N_bothz,N_e]);
+                [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                V(curraindex,:,:,N_j)=shiftdim(Vtempii,1);
+                dind=(rem(maxindex-1,N_d)+1);
+                allind=dind+N_d*bothzind+N_d*N_bothz*eind;
+                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1));
+            end
+        end
     elseif vfoptions.lowmemory==1
 
-        % pi_bothz=repmat(pi_semiz_J_permute(:,:,:,N_j),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,N_j),1,N_semiz,N_semiz);
-        % % (d2,zprime,z)
-        %
-        % EV=replem(V_Jplus1,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-        % EV=sum(EV,2); % sum over z', leaving a singular second dimension
-        %
-        % entireEV=repelem(EV,N_d1,1,1);
-        %
-        % for e_c=1:N_e
-        %     e_val=e_gridvals_J(e_c,:,N_j);
-        %     ReturnMatrix_e=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_bothz, special_n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,0);
-        %     % (d & aprime,a,z)
-        %
-        %     entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
-        %
-        %     % Calc the max and it's index
-        %     [Vtemp,maxindex]=max(entireRHS_e,[],1);
-        %     V(:,:,e_c,N_j)=Vtemp;
-        %     Policy(:,:,e_c,N_j)=maxindex;
-        % end
+        pi_bothz=repmat(pi_semiz_J_permute(:,:,:,N_j),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,N_j),1,N_semiz,N_semiz);
+
+        EV=repelem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+        EV=sum(EV,2); % sum over z', leaving a singular second dimension
+
+        DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a,1,N_bothz]); % (d2,aprime,1,bothz); d1-dim broadcasts at use sites
+
+        for e_c=1:N_e
+            e_val=e_gridvals_J(e_c,:,N_j);
+
+            % n-Monotonicity
+            ReturnMatrix_ii_e=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, special_n_e, d_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
+
+            entireRHS_ii=reshape(reshape(ReturnMatrix_ii_e,[N_d1,N_d2,N_a,vfoptions.level1n,N_bothz])+reshape(DiscountedEV,[1,N_d2,N_a,1,N_bothz]),[N_d,N_a,vfoptions.level1n,N_bothz]);
+
+            % First, we want aprime conditional on (d,1,a,z)
+            [~,maxindex1]=max(entireRHS_ii,[],2);
+
+            % Now, get and store the full (d,aprime)
+            [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_bothz]),[],1);
+
+            % Store
+            V(level1ii,:,e_c,N_j)=shiftdim(Vtempii,1);
+            Policy(level1ii,:,e_c,N_j)=shiftdim(maxindex2,1); % d,aprime
+
+            % Second level based on monotonicity
+            maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
+            for ii=1:(vfoptions.level1n-1)
+                curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
+                if maxgap(ii)>0
+                    loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii));
+                    aprimeindexes=loweredge+(0:1:maxgap(ii));
+                    ReturnMatrix_ii_e=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
+                    d2aprimebothz=d2ind+N_d2*(aprimeindexes-1)+N_d2*N_a*shiftdim((0:1:N_bothz-1),-2); % [N_d,maxgap+1,1,N_bothz]; linear index into DiscountedEV [N_d2,N_a,1,N_bothz]
+                    entireRHS_ii=ReturnMatrix_ii_e+reshape(DiscountedEV(d2aprimebothz),[N_d*(maxgap(ii)+1),1,N_bothz]);
+                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                    V(curraindex,:,e_c,N_j)=shiftdim(Vtempii,1);
+                    dind=(rem(maxindex-1,N_d)+1);
+                    allind=dind+N_d*bothzind;
+                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1));
+                else
+                    loweredge=maxindex1(:,1,ii,:);
+                    ReturnMatrix_ii_e=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, special_n_e, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
+                    d2aprimebothz=d2ind+N_d2*(loweredge-1)+N_d2*N_a*shiftdim((0:1:N_bothz-1),-2); % [N_d,1,1,N_bothz]; linear index into DiscountedEV [N_d2,N_a,1,N_bothz]
+                    entireRHS_ii=ReturnMatrix_ii_e+reshape(DiscountedEV(d2aprimebothz),[N_d,1,N_bothz]);
+                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                    V(curraindex,:,e_c,N_j)=shiftdim(Vtempii,1);
+                    dind=(rem(maxindex-1,N_d)+1);
+                    allind=dind+N_d*bothzind;
+                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1));
+                end
+            end
+        end
     end
 end
 
@@ -219,12 +285,12 @@ for reverse_j=1:N_j-1
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-        entireEV=repelem(reshape(EV,[N_d2,N_a,1,N_bothz]),N_d1,1,1); % (d,aprime,1,bothz) [1 is for 'a', to be filled in later]
+        DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a,1,N_bothz]); % (d2,aprime,1,bothz); d1-dim is implicit singleton, broadcasts at use sites
 
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, n_e, d_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV;
+        entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d1,N_d2,N_a,vfoptions.level1n,N_bothz,N_e])+reshape(DiscountedEV,[1,N_d2,N_a,1,N_bothz,1]),[N_d,N_a,vfoptions.level1n,N_bothz,N_e]);
 
         % First, we want aprime conditional on (d,1,a,z,e)
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -246,8 +312,8 @@ for reverse_j=1:N_j-1
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_bothz-by-n_e
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
-                daprimez=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a*shiftdim((0:1:N_bothz-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEV(daprimez(:)),[N_d*(maxgap(ii)+1),level1iidiff(ii),N_bothz,N_e]);
+                d2aprimebothz=d2ind+N_d2*(aprimeindexes-1)+N_d2*N_a*shiftdim((0:1:N_bothz-1),-2); % [N_d,maxgap+1,1,N_bothz,N_e]; linear index into DiscountedEV [N_d2,N_a,1,N_bothz]
+                entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(d2aprimebothz),[N_d*(maxgap(ii)+1),1,N_bothz,N_e]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 V(curraindex,:,:,jj)=shiftdim(Vtempii,1);
                 dind=(rem(maxindex-1,N_d)+1);
@@ -257,8 +323,8 @@ for reverse_j=1:N_j-1
                 loweredge=maxindex1(:,1,ii,:,:);
                 % Just use aprime(ii) for everything
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, n_e, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
-                daprimez=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d*N_a*shiftdim((0:1:N_bothz-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEV(daprimez(:)),[N_d,level1iidiff(ii),N_bothz,N_e]);
+                d2aprimebothz=d2ind+N_d2*(loweredge-1)+N_d2*N_a*shiftdim((0:1:N_bothz-1),-2); % [N_d,1,1,N_bothz,N_e]; linear index into DiscountedEV [N_d2,N_a,1,N_bothz]
+                entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(d2aprimebothz),[N_d,1,N_bothz,N_e]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 V(curraindex,:,:,jj)=shiftdim(Vtempii,1);
                 dind=(rem(maxindex-1,N_d)+1);
@@ -268,27 +334,60 @@ for reverse_j=1:N_j-1
         end
     elseif vfoptions.lowmemory==1
 
-        % pi_bothz=repmat(pi_semiz_J_permute(:,:,:,jj),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,jj),1,N_semiz,N_semiz);
-        % timer(1)=toc;
-        %
-        % EV=replem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
-        % EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-        % EV=sum(EV,2); % sum over z', leaving a singular second dimension
-        %
-        % entireEV=repelem(EV,N_d1,1,1);
-        %
-        % for e_c=1:N_e
-        %     e_val=e_gridvals_J(e_c,:,jj);
-        %     ReturnMatrix_e=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_bothz, special_n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,0);
-        %     % (d & aprime,a,z)
-        %
-        %     entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
-        %
-        %     % Calc the max and it's index
-        %     [Vtemp,maxindex]=max(entireRHS_e,[],1);
-        %     V(:,:,e_c,jj)=Vtemp;
-        %     Policy(:,:,e_c,jj)=maxindex;
-        % end
+        pi_bothz=repmat(pi_semiz_J_permute(:,:,:,jj),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,jj),1,N_semiz,N_semiz);
+
+        EV=repelem(EV,N_d2,1).*repmat(pi_bothz,N_a,1,1);
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+        EV=sum(EV,2); % sum over z', leaving a singular second dimension
+
+        DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a,1,N_bothz]); % (d2,aprime,1,bothz); d1-dim broadcasts at use sites
+
+        for e_c=1:N_e
+            e_val=e_gridvals_J(e_c,:,jj);
+
+            % n-Monotonicity
+            ReturnMatrix_ii_e=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, special_n_e, d_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,1);
+
+            entireRHS_ii=reshape(reshape(ReturnMatrix_ii_e,[N_d1,N_d2,N_a,vfoptions.level1n,N_bothz])+reshape(DiscountedEV,[1,N_d2,N_a,1,N_bothz]),[N_d,N_a,vfoptions.level1n,N_bothz]);
+
+            % First, we want aprime conditional on (d,1,a,z)
+            [~,maxindex1]=max(entireRHS_ii,[],2);
+
+            % Now, get and store the full (d,aprime)
+            [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_bothz]),[],1);
+
+            % Store
+            V(level1ii,:,e_c,jj)=shiftdim(Vtempii,1);
+            Policy(level1ii,:,e_c,jj)=shiftdim(maxindex2,1); % d,aprime
+
+            % Second level based on monotonicity
+            maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
+            for ii=1:(vfoptions.level1n-1)
+                curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
+                if maxgap(ii)>0
+                    loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                    aprimeindexes=loweredge+(0:1:maxgap(ii));
+                    ReturnMatrix_ii_e=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2);
+                    d2aprimebothz=d2ind+N_d2*(aprimeindexes-1)+N_d2*N_a*shiftdim((0:1:N_bothz-1),-2); % [N_d,maxgap+1,1,N_bothz]; linear index into DiscountedEV [N_d2,N_a,1,N_bothz]
+                    entireRHS_ii=ReturnMatrix_ii_e+reshape(DiscountedEV(d2aprimebothz),[N_d*(maxgap(ii)+1),1,N_bothz]);
+                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                    V(curraindex,:,e_c,jj)=shiftdim(Vtempii,1);
+                    dind=(rem(maxindex-1,N_d)+1);
+                    allind=dind+N_d*bothzind; % loweredge is n_d-by-1-by-1-by-n_bothz
+                    Policy(curraindex,:,e_c,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1));
+                else
+                    loweredge=maxindex1(:,1,ii,:);
+                    ReturnMatrix_ii_e=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_bothz, special_n_e, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2);
+                    d2aprimebothz=d2ind+N_d2*(loweredge-1)+N_d2*N_a*shiftdim((0:1:N_bothz-1),-2); % [N_d,1,1,N_bothz]; linear index into DiscountedEV [N_d2,N_a,1,N_bothz]
+                    entireRHS_ii=ReturnMatrix_ii_e+reshape(DiscountedEV(d2aprimebothz),[N_d,1,N_bothz]);
+                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                    V(curraindex,:,e_c,jj)=shiftdim(Vtempii,1);
+                    dind=(rem(maxindex-1,N_d)+1);
+                    allind=dind+N_d*bothzind;
+                    Policy(curraindex,:,e_c,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1));
+                end
+            end
+        end
     end
 
 end

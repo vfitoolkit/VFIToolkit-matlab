@@ -22,26 +22,26 @@ if nargin(WarmGlowFn)~=l_a+length(WarmGlowFnParams)
 end
 
 if l_a>=1
-    aprime1vals=a_grid(1:n_a(1));
+    a1primevals=a_grid(1:n_a(1));
     if l_a>=2
-        aprime2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-1);
+        a2primevals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-1);
         if l_a>=3
-            aprime3vals=shiftdim(a_grid(sum(n_a(1:2))+1:sum(n_a(1:3))),-2);
+            a3primevals=shiftdim(a_grid(sum(n_a(1:2))+1:sum(n_a(1:3))),-2);
             if l_a>=4
-                aprime4vals=shiftdim(a_grid(sum(n_a(1:3))+1:sum(n_a(1:4))),-3);
+                a4primevals=shiftdim(a_grid(sum(n_a(1:3))+1:sum(n_a(1:4))),-3);
             end
         end
     end
 end
 
 if l_a==1
-    WGmatrix=arrayfun(WarmGlowFn, aprime1vals, ParamCell{:});
+    WGmatrix=arrayfun(WarmGlowFn, a1primevals, ParamCell{:});
 elseif l_a==2
-    WGmatrix=arrayfun(WarmGlowFn, aprime1vals,aprime2vals, ParamCell{:});
+    WGmatrix=arrayfun(WarmGlowFn, a1primevals,a2primevals, ParamCell{:});
 elseif l_a==3
-    WGmatrix=arrayfun(WarmGlowFn, aprime1vals,aprime2vals,aprime3vals, ParamCell{:});
+    WGmatrix=arrayfun(WarmGlowFn, a1primevals,a2primevals,a3primevals, ParamCell{:});
 elseif l_a==4
-    WGmatrix=arrayfun(WarmGlowFn, aprime1vals,aprime2vals,aprime3vals,aprime4vals, ParamCell{:});
+    WGmatrix=arrayfun(WarmGlowFn, a1primevals,a2primevals,a3primevals,a4primevals, ParamCell{:});
 end
 
 WGmatrix=reshape(WGmatrix,[N_a,1]);

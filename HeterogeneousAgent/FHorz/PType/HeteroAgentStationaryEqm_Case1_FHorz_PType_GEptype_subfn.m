@@ -77,7 +77,7 @@ for ii=1:PTypeStructure.N_i
         StationaryDist.(iistr)=StationaryDist_ii;
     end
 end
-AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2);
+AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights',2);
 % Note: AggVars is a vector
 
 

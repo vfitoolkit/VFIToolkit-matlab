@@ -130,7 +130,7 @@ Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
 %     disp('Creating return fn matrix')
 % end
 % 
-% aprime1vals = a_grid;              %(a',1,1)
+% a1primevals = a_grid;              %(a',1,1)
 % a1vals      = shiftdim(a_grid,-1); %(1,a,1)
 % 
 % ReturnFn.R1
@@ -167,7 +167,7 @@ Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
 %     cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,z2vals,z3vals,z4vals,ParamCell.R1{:});
 % end
 % % ReturnMatrix is (a',a,z)
-% ReturnMatrix=arrayfun(ReturnFn.R2, aprime1vals,cash_on_hand,ParamCell.R2{:});
+% ReturnMatrix=arrayfun(ReturnFn.R2, a1primevals,cash_on_hand,ParamCell.R2{:});
 % 
 % if vfoptions.verbose==1
 %     fprintf('Starting Value Function \n')

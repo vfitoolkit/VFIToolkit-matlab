@@ -1,4 +1,4 @@
-function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+function AgeConditionalStats=LifeCycleProfiles_MixHorz_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -44,6 +44,8 @@ else
     end
 end
 
+computeForThesei=ones(N_i,1); % Used to omit the infinite horizon PTypes from computations (a message is printed to say they are being ignored)
+
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
@@ -56,8 +58,12 @@ if ~exist('simoptions','var')
     if isstruct(N_j)
         N_j_max=0;
         for ii=1:N_i
-            simoptions.agegroupings.(Names_i{ii})=1:1:N_j.(Names_i{ii});
-            N_j_max=max(N_j_max,N_j.(Names_i{ii}));
+            if isfinite(N_j.(Names_i{ii}))
+                simoptions.agegroupings.(Names_i{ii})=1:1:N_j.(Names_i{ii});
+                N_j_max=max(N_j_max,N_j.(Names_i{ii}));
+            else % Infinite horizon
+                computeForThesei(ii)=0;
+            end
         end
     else
         simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
@@ -92,8 +98,12 @@ else
         if isstruct(N_j)
             N_j_max=0;
             for ii=1:N_i
-                simoptions.agegroupings.(Names_i{ii})=1:1:N_j.(Names_i{ii});
-                N_j_max=max(N_j_max,N_j.(Names_i{ii}));
+                if isfinite(N_j.(Names_i{ii}))
+                    simoptions.agegroupings.(Names_i{ii})=1:1:N_j.(Names_i{ii});
+                    N_j_max=max(N_j_max,N_j.(Names_i{ii}));
+                else % Infinite horizon
+                    computeForThesei(ii)=0;
+                end
             end
         else
             simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
@@ -127,11 +137,15 @@ else
             end
         else
             for ii=1:N_i
-                temp=simoptions.agegroupings.(Names_i{ii});
-                if any(temp(2:end)-temp(1:end-1)>4)
-                    % if some agegroupings are 'large', use the slower but lower memory versions
-                    simoptions.whichstats.(Names_i{ii})=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
-                else
+                if isfinite(N_j.(Names_i{ii}))
+                    temp=simoptions.agegroupings.(Names_i{ii});
+                    if any(temp(2:end)-temp(1:end-1)>4)
+                        % if some agegroupings are 'large', use the slower but lower memory versions
+                        simoptions.whichstats.(Names_i{ii})=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+                    else
+                        simoptions.whichstats.(Names_i{ii})=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+                    end
+                else % Infinite horizon
                     simoptions.whichstats.(Names_i{ii})=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
                 end
             end
@@ -155,6 +169,47 @@ else
     end
 end
 
+%% Drop anything that is infinite horizon and print out a message to say so
+if any(computeForThesei==0)
+    N_i=sum(computeForThesei);
+    Names_i2=Names_i;
+    Names_i=cell(N_i,1);
+    ii=0;
+    for ii2=1:length(computeForThesei)
+        if computeForThesei(ii2)==1
+            ii=ii+1;
+            Names_i{ii}=Names_i2{ii2};
+        else % tell the user about it
+            suffix='th';
+            if ii2<4 % Good up to 20 PTypes
+                suffix_cells={'st', 'nd', 'rd'};
+                suffix=suffix_cells{ii2};
+            end
+            fprintf('LifeCycleProfiles_MixHorz_PType: Ignoring the %d%s PType { %s } because it is infinite horizon \n', ii2, suffix, Names_i2{ii2});
+        end
+    end
+    % Eliminate any no longer relevant functions from FnsToEvaluate (those which are only used for infinite horizon)
+    FnsToEvalNames=fieldnames(FnsToEvaluate);
+    FnsToEvaluate2=FnsToEvaluate;
+    clear FnsToEvaluate
+    for ff=1:length(fieldnames(FnsToEvaluate2))
+        if isstruct(FnsToEvaluate2.(FnsToEvalNames{ff}))
+            for ii=1:N_i
+                if isfield(FnsToEvaluate2.(FnsToEvalNames{ff}),Names_i{ii})
+                    FnsToEvaluate.(FnsToEvalNames{ff}).(Names_i{ii})=FnsToEvaluate2.(FnsToEvalNames{ff}).(Names_i{ii});
+                end
+            end
+        else % Relevant to all the PTypes
+            FnsToEvaluate.(FnsToEvalNames{ff})=FnsToEvaluate2.(FnsToEvalNames{ff});
+        end
+    end
+    % Done. Because from here on we just use N_i and Names_i which now only
+    % contain finite horizons. Note that it is anyway only possible to use
+    % a mixture of infinite and finite horizon if you are explicitly using
+    % Names_i. So don't need to worry about vectors over N_i being the
+    % wrong size.
+end
+
 %% Setup to allow different N_j (and different agejshifter)
 if isstruct(simoptions.agegroupings)
     ngroups=zeros(N_i,1);
@@ -164,7 +219,7 @@ if isstruct(simoptions.agegroupings)
 else
     ngroups=length(simoptions.agegroupings)*ones(N_i,1);
 end
-maxngroups=max(ngroups);
+maxngroups=max(ngroups(isfinite(ngroups)));
 if isstruct(simoptions.agejshifter) % if using agejshifter
     tempagejshifter=simoptions.agejshifter;
     simoptions=rmfield(simoptions,'agejshifter');
@@ -177,7 +232,9 @@ if isstruct(simoptions.agejshifter) % if using agejshifter
     if isstruct(N_j)
         N_j_max2=0;
         for ii=1:N_i
-            N_j_max2=max(N_j_max2,simoptions.agejshifter(ii)+N_j.(Names_i{ii}));
+            if isfinite(N_j.(Names_i{ii}))
+                N_j_max2=max(N_j_max2,simoptions.agejshifter(ii)+N_j.(Names_i{ii}));
+            end
         end
     end
 elseif isscalar(simoptions.agejshifter) % not using agejshifter
@@ -188,7 +245,9 @@ else % have inputted as a vector
     if isstruct(N_j)
         N_j_max2=0;
         for ii=1:N_i
-            N_j_max2=max(N_j_max2,simoptions.agejshifter(ii)+N_j.(Names_i{ii}));
+            if isfinite(N_j.(Names_i{ii}))
+                N_j_max2=max(N_j_max2,simoptions.agejshifter(ii)+N_j.(Names_i{ii}));
+            end
         end
     else
         N_j_max2=N_j_max;

@@ -8,6 +8,7 @@ n_bothz=[n_semiz,n_z]; % These are the return function arguments
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 N_d12=N_d1*N_d2;
+d2ind=repelem((1:1:N_d2)',N_d1,1); % [N_d12,1]; maps full d12-index to d2-component
 N_d3=prod(n_d3);
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
@@ -351,8 +352,7 @@ else
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
 
-            DiscountedEV=repelem(DiscountedEV,N_d1,1,1);
-            DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1);
+            % d1-dim is implicit singleton in DiscountedEV/DiscountedEVinterp, broadcasts at use sites
 
             % n-Monotonicity
             ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,vfoptions.level1n,n_a2,n_bothz,n_e, d123_gridvals_val, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1,0); % Level=1, Refine=0
@@ -375,8 +375,8 @@ else
                     a1primeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_bothz-by-n_e
                     ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,n_bothz,n_e, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,3,0); % Level=3, Refine=0
-                    daprime=(1:1:N_d12)'+N_d12*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d12*N_a1*a2ind+N_d12*N_a1*N_a2*bothzind; % the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV(reshape(daprime,[N_d12,(maxgap(ii)+1),level1iidiff(ii),N_a2,N_bothz,N_e]));
+                    d2aprimez=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*bothzind; % [N_d12,maxgap+1,1,N_a2,N_bothz,N_e]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2,N_bothz]
+                    entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV(d2aprimez);
                     [~,maxindex]=max(entireRHS_ii_d3,[],2);
                     midpoint(:,1,curraindex,:,:,:)=maxindex+(loweredge-1);
                 else
@@ -429,8 +429,7 @@ else
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
 
-            DiscountedEV=repelem(DiscountedEV,N_d1,1,1);
-            DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1);
+            % d1-dim is implicit singleton in DiscountedEV/DiscountedEVinterp, broadcasts at use sites
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
@@ -456,8 +455,8 @@ else
                         a1primeindexes=loweredge+(0:1:maxgap(ii));
                         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_bothz
                         ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,n_bothz,special_n_e, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,3,0); % Level=3, Refine=0
-                        daprime=(1:1:N_d12)'+N_d12*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d12*N_a1*a2ind+N_d12*N_a1*N_a2*bothzind; % the current aprimeii(ii):aprimeii(ii+1)
-                        entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV(reshape(daprime,[N_d12,(maxgap(ii)+1),level1iidiff(ii),N_a2,N_bothz]));
+                        d2aprimez=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*bothzind; % [N_d12,maxgap+1,1,N_a2,N_bothz]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2,N_bothz]
+                        entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV(d2aprimez);
                         [~,maxindex]=max(entireRHS_ii_d3,[],2);
                         midpoint(:,1,curraindex,:,:)=maxindex+(loweredge-1);
                     else
@@ -511,8 +510,7 @@ else
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
 
-            DiscountedEV=repelem(DiscountedEV,N_d1,1,1);
-            DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1);
+            % d1-dim is implicit singleton in DiscountedEV/DiscountedEVinterp, broadcasts at use sites
 
             for z_c=1:N_z
                 zind=(1:1:N_semiz)+N_semiz*(z_c-1);
@@ -544,8 +542,8 @@ else
                             a1primeindexes=loweredge+(0:1:maxgap(ii));
                             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-n_semiz
                             ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, e_val, ReturnFnParamsVec,3,0); % Level=3, Refine=0
-                            daprime=(1:1:N_d12)'+N_d12*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d12*N_a1*a2ind+N_d12*N_a1*N_a2*semizind; % the current aprimeii(ii):aprimeii(ii+1)
-                            entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV_z(reshape(daprime,[N_d12,(maxgap(ii)+1),level1iidiff(ii),N_a2,N_semiz]));
+                            d2aprimez=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*semizind; % [N_d12,maxgap+1,1,N_a2,N_semiz]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2,N_semiz]
+                            entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV_z(d2aprimez);
                             [~,maxindex]=max(entireRHS_ii_d3,[],2);
                             midpoint(:,1,curraindex,:,:)=maxindex+(loweredge-1);
                         else
@@ -600,8 +598,7 @@ else
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
 
-            DiscountedEV=repelem(DiscountedEV,N_d1,1,1);
-            DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1);
+            % d1-dim is implicit singleton in DiscountedEV/DiscountedEVinterp, broadcasts at use sites
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
@@ -632,8 +629,8 @@ else
                             a1primeindexes=loweredge+(0:1:maxgap(ii));
                             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
                             ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_bothz,special_n_e, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, e_val, ReturnFnParamsVec,3,0); % Level=3, Refine=0
-                            daprime=(1:1:N_d12)'+N_d12*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d12*N_a1*a2ind; % the current aprimeii(ii):aprimeii(ii+1)
-                            entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV_z(reshape(daprime,[N_d12,(maxgap(ii)+1),level1iidiff(ii),N_a2]));
+                            d2aprime=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind; % [N_d12,maxgap+1,1,N_a2]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2]
+                            entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV_z(d2aprime);
                             [~,maxindex]=max(entireRHS_ii_d3,[],2);
                             midpoint(:,1,curraindex,:)=maxindex+(loweredge-1);
                         else
@@ -726,8 +723,7 @@ for reverse_j=1:N_j-1
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
 
-            DiscountedEV=repelem(DiscountedEV,N_d1,1,1);
-            DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1);
+            % d1-dim is implicit singleton in DiscountedEV/DiscountedEVinterp, broadcasts at use sites
 
             % n-Monotonicity
             ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,vfoptions.level1n,n_a2,n_bothz,n_e, d123_gridvals_val, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1,0); % Level=1, Refine=0
@@ -750,8 +746,8 @@ for reverse_j=1:N_j-1
                     a1primeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_bothz-by-n_e
                     ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,n_bothz,n_e, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,3,0); % Level=3, Refine=0
-                    daprime=(1:1:N_d12)'+N_d12*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d12*N_a1*a2ind+N_d12*N_a1*N_a2*bothzind; % the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV(reshape(daprime,[N_d12,(maxgap(ii)+1),level1iidiff(ii),N_a2,N_bothz,N_e]));
+                    d2aprimez=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*bothzind; % [N_d12,maxgap+1,1,N_a2,N_bothz,N_e]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2,N_bothz]
+                    entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV(d2aprimez);
                     [~,maxindex]=max(entireRHS_ii_d3,[],2);
                     midpoint(:,1,curraindex,:,:,:)=maxindex+(loweredge-1);
                 else
@@ -804,8 +800,7 @@ for reverse_j=1:N_j-1
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
 
-            DiscountedEV=repelem(DiscountedEV,N_d1,1,1);
-            DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1);
+            % d1-dim is implicit singleton in DiscountedEV/DiscountedEVinterp, broadcasts at use sites
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
@@ -831,8 +826,8 @@ for reverse_j=1:N_j-1
                         a1primeindexes=loweredge+(0:1:maxgap(ii));
                         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_bothz
                         ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,n_bothz,special_n_e, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,3,0); % Level=3, Refine=0
-                        daprime=(1:1:N_d12)'+N_d12*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d12*N_a1*a2ind+N_d12*N_a1*N_a2*bothzind; % the current aprimeii(ii):aprimeii(ii+1)
-                        entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV(reshape(daprime,[N_d12,(maxgap(ii)+1),level1iidiff(ii),N_a2,N_bothz]));
+                        d2aprimez=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*bothzind; % [N_d12,maxgap+1,1,N_a2,N_bothz]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2,N_bothz]
+                        entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV(d2aprimez);
                         [~,maxindex]=max(entireRHS_ii_d3,[],2);
                         midpoint(:,1,curraindex,:,:)=maxindex+(loweredge-1);
                     else
@@ -886,8 +881,7 @@ for reverse_j=1:N_j-1
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
 
-            DiscountedEV=repelem(DiscountedEV,N_d1,1,1);
-            DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1);
+            % d1-dim is implicit singleton in DiscountedEV/DiscountedEVinterp, broadcasts at use sites
 
             for z_c=1:N_z
                 zind=(1:1:N_semiz)+N_semiz*(z_c-1);
@@ -919,8 +913,8 @@ for reverse_j=1:N_j-1
                             a1primeindexes=loweredge+(0:1:maxgap(ii));
                             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-n_semiz
                             ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_semiz,special_n_e, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, e_val, ReturnFnParamsVec,3,0); % Level=3, Refine=0
-                            daprime=(1:1:N_d12)'+N_d12*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d12*N_a1*a2ind+N_d12*N_a1*N_a2*semizind; % the current aprimeii(ii):aprimeii(ii+1)
-                            entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV_z(reshape(daprime,[N_d12,(maxgap(ii)+1),level1iidiff(ii),N_a2,N_semiz]));
+                            d2aprimez=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*semizind; % [N_d12,maxgap+1,1,N_a2,N_semiz]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2,N_semiz]
+                            entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV_z(d2aprimez);
                             [~,maxindex]=max(entireRHS_ii_d3,[],2);
                             midpoint(:,1,curraindex,:,:)=maxindex+(loweredge-1);
                         else
@@ -975,8 +969,7 @@ for reverse_j=1:N_j-1
             % Interpolate EV over aprime_grid
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]); % [N_d2,N_a1prime,1,N_a2,N_semiz]
 
-            DiscountedEV=repelem(DiscountedEV,N_d1,1,1);
-            DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1,1);
+            % d1-dim is implicit singleton in DiscountedEV/DiscountedEVinterp, broadcasts at use sites
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
@@ -1007,8 +1000,8 @@ for reverse_j=1:N_j-1
                             a1primeindexes=loweredge+(0:1:maxgap(ii));
                             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
                             ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_bothz,special_n_e, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, e_val, ReturnFnParamsVec,3,0); % Level=3, Refine=0
-                            daprime=(1:1:N_d12)'+N_d12*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d12*N_a1*a2ind; % the current aprimeii(ii):aprimeii(ii+1)
-                            entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV_z(reshape(daprime,[N_d12,(maxgap(ii)+1),level1iidiff(ii),N_a2]));
+                            d2aprime=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind; % [N_d12,maxgap+1,1,N_a2]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2]
+                            entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedEV_z(d2aprime);
                             [~,maxindex]=max(entireRHS_ii_d3,[],2);
                             midpoint(:,1,curraindex,:)=maxindex+(loweredge-1);
                         else

@@ -126,8 +126,8 @@ else
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
             ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,3,0);  % Level 3 as DC1+GI; Level=3, Refine=0
-            daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*a2ind; % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2,(maxgap(ii)+1),level1iidiff(ii),N_a2]));
+            d2aprime=(1:1:N_d2)'+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind; % [N_d2,maxgap+1,1,N_a2]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2]
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(d2aprime);
             [~,maxindex]=max(entireRHS_ii,[],2);
             midpoint(:,1,curraindex,:)=maxindex+(loweredge-1);
         else
@@ -142,8 +142,8 @@ else
     a1primeindexesfine=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint, fine index
     % aprime possibilities are n_d2-by-n2long-by-n_a1-by-n_a2
     ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, 0, n_d2, n2long, n_a1,n_a2, d2_gridvals, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, ReturnFnParamsVec,2,0); % [N_d,N_a1prime,N_a1,N_a2]; Level=2, Refine=0
-    daprime=(1:1:N_d2)'+N_d2*(a1primeindexesfine-1)+N_d2*N_a1prime*a2ind; % the current aprimeii(ii):aprimeii(ii+1)
-    entireRHS_ii=ReturnMatrix_ii+DiscountedEVinterp(reshape(daprime,[N_d2*n2long,N_a1*N_a2]));
+    da1primea2=(1:1:N_d2)'+N_d2*(a1primeindexesfine-1)+N_d2*N_a1prime*a2ind; % [N_d2,n2long,N_a1,N_a2]; linear index into DiscountedEVinterp [N_d2,N_a1prime,1,N_a2]
+    entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(da1primea2),[N_d2*n2long,N_a1*N_a2]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
     V(:,N_j)=shiftdim(Vtempii,1);
     d_ind=rem(maxindexL2-1,N_d2)+1;
@@ -210,8 +210,8 @@ for reverse_j=1:N_j-1
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d2-by-maxgap(ii)+1-by-1-by-n_a2
             ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,3,0);  % Level 3 as DC1+GI; Level=3, Refine=0
-            daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*a2ind; % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2,(maxgap(ii)+1),level1iidiff(ii),N_a2]));
+            d2aprime=(1:1:N_d2)'+N_d2*(a1primeindexes-1)+N_d2*N_a1*a2ind; % [N_d2,maxgap+1,1,N_a2]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2]
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(d2aprime);
             [~,maxindex]=max(entireRHS_ii,[],2); % just a1prime
             midpoint(:,1,curraindex,:)=maxindex+(loweredge-1);
         else
@@ -226,8 +226,8 @@ for reverse_j=1:N_j-1
     a1primeindexesfine=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint, fine index
     % aprime possibilities are n_d2-by-n2long-by-n_a1-by-n_a2
     ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, 0, n_d2, n2long, n_a1,n_a2, d2_gridvals, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, ReturnFnParamsVec,2,0); % [N_d,N_a1prime,N_a1,N_a2]; Level=2, Refine=0
-    d2a1primea2=(1:1:N_d2)'+N_d2*(a1primeindexesfine-1)+N_d2*N_a1prime*a2ind; % the current aprimeii(ii):aprimeii(ii+1)
-    entireRHS_ii=ReturnMatrix_ii+DiscountedEVinterp(reshape(d2a1primea2,[N_d2*n2long,N_a1*N_a2]));
+    da1primea2=(1:1:N_d2)'+N_d2*(a1primeindexesfine-1)+N_d2*N_a1prime*a2ind; % [N_d2,n2long,N_a1,N_a2]; linear index into DiscountedEVinterp [N_d2,N_a1prime,1,N_a2]
+    entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(da1primea2),[N_d2*n2long,N_a1*N_a2]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
     V(:,jj)=shiftdim(Vtempii,1);
     d_ind=rem(maxindexL2-1,N_d2)+1;

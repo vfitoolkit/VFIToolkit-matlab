@@ -79,11 +79,11 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
     % EV is (a1a2prime,1,z)
 
-    DiscountedentireEV=DiscountFactorParamsVec*reshape(repmat(shiftdim(EV,-1),N_d,1,1,1),[N_d,N_a1,N_a2,1,1,N_z]); % [d,aprime,1,1,z]
+    DiscountedEV=DiscountFactorParamsVec*reshape(EV,[1,N_a1,N_a2,1,1,N_z]); % [1,N_a1,N_a2,1,1,N_z]; d-dim is singleton, broadcasts at use sites
 
     %% Level 1
     % We can just reuse ReturnMatrixLvl1 (which has already been refined)
-    entireRHS_ii=ReturnMatrixLvl1+DiscountedentireEV;
+    entireRHS_ii=ReturnMatrixLvl1+DiscountedEV;
 
     % First, we want a1prime conditional on (d,1,a2prime,a,z)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -108,8 +108,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-n_a2-by-1-by-n_a2-by-n_z
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, n_d, n_z, d_gridvals, a1_grid(a1primeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2,0);
-            daprimez=(1:1:N_d)'+N_d*repelem(a1primeindexes-1,1,1,1,level1iidiff(ii),1,1)+N_d*N_a1*shiftdim((0:1:N_a2-1),-1)+N_d*N_a*shiftdim((0:1:N_z-1),-4); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprimez,[N_d*(maxgap(ii)+1)*N_a2,level1iidiff(ii)*N_a2,N_z]));
+            aprimez=a1primeindexes+N_a1*shiftdim((0:1:N_a2-1),-1)+N_a*shiftdim((0:1:N_z-1),-4); % [N_d,maxgap+1,N_a2,1,N_a2,N_z]; linear index into DiscountedEV [1,N_a1,N_a2,1,1,N_z]
+            entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d*(maxgap(ii)+1)*N_a2,level1iidiff(ii),N_a2,N_z])+reshape(DiscountedEV(aprimez),[N_d*(maxgap(ii)+1)*N_a2,1,N_a2,N_z]),[N_d*(maxgap(ii)+1)*N_a2,level1iidiff(ii)*N_a2,N_z]);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex needs to be reworked:
@@ -131,8 +131,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             loweredge=maxindex1(:,1,:,ii,:,:);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, n_d, n_z, d_gridvals, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2,0);
-            daprimez=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,1,level1iidiff(ii),1,1)+N_d*1*shiftdim((0:1:N_a2-1),-1)+N_d*N_a*shiftdim((0:1:N_z-1),-4); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprimez,[N_d*1*N_a2,level1iidiff(ii)*N_a2,N_z]));
+            aprimez=loweredge+N_a1*shiftdim((0:1:N_a2-1),-1)+N_a*shiftdim((0:1:N_z-1),-4); % [N_d,1,N_a2,1,N_a2,N_z]; linear index into DiscountedEV [1,N_a1,N_a2,1,1,N_z]
+            entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d*N_a2,level1iidiff(ii),N_a2,N_z])+reshape(DiscountedEV(aprimez),[N_d*N_a2,1,N_a2,N_z]),[N_d*N_a2,level1iidiff(ii)*N_a2,N_z]);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex needs to be reworked:

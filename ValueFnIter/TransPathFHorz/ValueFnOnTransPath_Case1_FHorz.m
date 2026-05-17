@@ -454,11 +454,11 @@ if transpathoptions.fastOLG==1
         if N_z==0
             % no need to do anything
         else
-            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,e,t), now (daprime,a,e,j,t)
+            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,z,t), now (daprime,a,z,j,t)
         end
     else
         if N_z==0
-            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,z,t), now (daprime,a,z,j,t)
+            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,e,t), now (daprime,a,e,j,t)
         else
             PolicyPath=permute(PolicyPath,[1,2,4,5,3,6]); % was (daprime,a,j,z,e,t), now (daprime,a,z,e,j,t)
         end
