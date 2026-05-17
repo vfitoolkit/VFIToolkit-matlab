@@ -63,14 +63,14 @@ if vfoptions.lowmemory==0
 
     % Because exit is not until the end of period the return to exit is allowed to depend on aprime, and d.
     if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnFnMatrix_Disc_CPU(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnToExitFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec,0);
+        ReturnToExitMatrix=CreateReturnFnMatrix_Disc_CPU(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnToExitFnParamsVec,0);
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
         ReturnToExitMatrix=vfoptions.ReturnToExitFn; % It is simply assumed that you are doing this for both.
     elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnFnMatrix_Disc(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnToExitFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec,0);
+        ReturnToExitMatrix=CreateReturnFnMatrix_Disc(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnToExitFnParamsVec,0);
     end
 
     %%

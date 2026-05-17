@@ -1,6 +1,6 @@
 function [V,Policy]=ValueFnIter_InfHorz_SemiEndog(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions)
 
-ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
+ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
 
 if isa(vfoptions.SemiEndogShockFn,'function_handle')==0
     pi_z_semiendog=vfoptions.SemiEndogShockFn;

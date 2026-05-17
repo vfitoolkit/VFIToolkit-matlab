@@ -148,7 +148,7 @@ else
         % % pi_bothz=pi_bothz_J(:,:,:,N_j);
         % % (d2,zprime,z)
         %
-        % ReturnMatrix=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_bothz, n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        % ReturnMatrix=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_bothz, n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
         % % (d & aprime,a,z,e)
         %
         % EV=replem(V_Jplus1,N_d2,1).*repmat(pi_bothz,N_a,1,1);
@@ -176,7 +176,7 @@ else
         %
         % for e_c=1:N_e
         %     e_val=e_gridvals_J(e_c,:,N_j);
-        %     ReturnMatrix_e=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_bothz, special_n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+        %     ReturnMatrix_e=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_bothz, special_n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,0);
         %     % (d & aprime,a,z)
         %
         %     entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
@@ -276,7 +276,7 @@ for reverse_j=1:N_j-1
         %
         % for e_c=1:N_e
         %     e_val=e_gridvals_J(e_c,:,jj);
-        %     ReturnMatrix_e=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_bothz, special_n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
+        %     ReturnMatrix_e=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_bothz, special_n_e, d_gridvals, a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,0);
         %     % (d & aprime,a,z)
         %
         %     entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;

@@ -27,7 +27,7 @@ l_z=length(n_z);
 
 %%
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec,0);
     [ReturnMatrix,dstar]=max(ReturnMatrix,[],1); % solve for dstar
     ReturnMatrix=shiftdim(ReturnMatrix,1);
     dstar=shiftdim(dstar,1);

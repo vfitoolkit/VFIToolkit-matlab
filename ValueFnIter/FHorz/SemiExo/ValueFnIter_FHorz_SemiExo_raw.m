@@ -40,7 +40,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_bothz, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_bothz, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
         % Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
@@ -53,7 +53,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for z_c=1:N_bothz
             z_val=bothz_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_bothz, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_bothz, d_gridvals, a_grid, z_val, ReturnFnParamsVec,0);
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
@@ -76,7 +76,7 @@ else
             d12c_gridvals=d12_gridvals(:,:,d2_c);
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
             % (d,aprime,a,z)
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
@@ -107,7 +107,7 @@ else
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec,0);
 
                 % Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*shiftdim(pi_bothz(z_c,:)',-1);
@@ -156,7 +156,7 @@ for reverse_j=1:N_j-1
             d12c_gridvals=d12_gridvals(:,:,d2_c);
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
             EV_d2(isnan(EV_d2))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
@@ -187,7 +187,7 @@ for reverse_j=1:N_j-1
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec,0);
 
                 % Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*shiftdim(pi_bothz(z_c,:)',-1);

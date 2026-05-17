@@ -130,7 +130,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             disp('Creating return fn matrix')
         end
 
-        ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
 
         if vfoptions.verbose==1
             fprintf('Starting Value Function \n')

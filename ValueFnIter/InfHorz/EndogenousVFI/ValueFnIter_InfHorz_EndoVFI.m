@@ -33,11 +33,11 @@ if vfoptions.lowmemory==0
         end
     else % Following is the normal/standard behavior
         if vfoptions.returnmatrix==0
-            ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec,0);
         elseif vfoptions.returnmatrix==1
             ReturnMatrix=ReturnFn;
         elseif vfoptions.returnmatrix==2 % GPU
-            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec,0);
         end
     end
 

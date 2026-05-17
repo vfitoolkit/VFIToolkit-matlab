@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1prime, n_a1,n_a2, n_z,n_e, d_gridvals, a1prime_gridvals, a1_gridvals, a2_gridvals, z_gridvals, e_gridvals, ReturnFnParamsVec,Level,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1prime, n_a1,n_a2, n_z,n_e, d_gridvals, a1prime_gridvals, a1_gridvals, a2_gridvals, z_gridvals, e_gridvals, ReturnFnParamsVec,Level,Refine)
 % Note: d_gridvals is both d1 and d2 (unless n_d1=1 so there is no d1, in which case is just d2)
 % Level and Refine are about different shapes of inputs/output
 % Set Level=0, unless using Divide-and-Conquer
@@ -1837,5 +1837,3 @@ end
 
 
 end
-
-

@@ -21,7 +21,7 @@ DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 %%
 if vfoptions.lowmemory==0
 
-    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
 
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=Vnext.*shiftdim(pi_z',-1);
@@ -37,7 +37,7 @@ if vfoptions.lowmemory==0
 elseif vfoptions.lowmemory==1
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
+        ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec,0);
 
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=Vnext.*pi_z(z_c,:);

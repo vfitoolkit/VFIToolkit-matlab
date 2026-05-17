@@ -32,7 +32,7 @@ while currdist>Tolerance
     for z_c=1:N_z
 
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,0, n_a, ones(l_z,1),0, a_grid, zvals,ReturnFnParamsVec);
+        ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,0, n_a, ones(l_z,1),0, a_grid, zvals,ReturnFnParamsVec,0);
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite but not zero
         temp2_z=ReturnMatrix_z;

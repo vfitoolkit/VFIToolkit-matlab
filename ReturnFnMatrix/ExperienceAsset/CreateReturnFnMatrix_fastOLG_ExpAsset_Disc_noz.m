@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_noz(ReturnFn, n_d1, n_d2, n_a1prime, n_a1,n_a2,N_j, d_gridvals, a1prime_gridvals, a1_gridvals, a2_gridvals, ReturnFnParamsAgeMatrix,Level,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_noz(ReturnFn, n_d1, n_d2, n_a1prime, n_a1,n_a2,N_j, d_gridvals, a1prime_gridvals, a1_gridvals, a2_gridvals, ReturnFnParamsAgeMatrix,Level,Refine)
 % Note: d_gridvals is both d1 and d2 (unless n_d1=1 so there is no d1, in which case is just d2)
 % Level and Refine are about different shapes of inputs/output
 % Set Level=0, unless using Divide-and-Conquer
@@ -147,5 +147,3 @@ end
 
 
 end
-
-

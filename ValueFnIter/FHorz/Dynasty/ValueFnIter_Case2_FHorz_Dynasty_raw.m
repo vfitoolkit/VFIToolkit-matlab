@@ -68,7 +68,7 @@ while currdist>vfoptions.tolerance
 
             if vfoptions.lowmemory==0
 
-                ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+                ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec,0);
                 %        FmatrixKron_j=reshape(FmatrixFn_j(j),[N_d,N_a,N_z]);
                 %        Phi_aprimeKron=Phi_aprimeKronFn_j(j);
                 for z_c=1:N_z
@@ -402,7 +402,7 @@ while currdist>vfoptions.tolerance
 
                 for z_c=1:N_z % Can probably eliminate this loop and replace with a matrix multiplication operation thereby making it faster
                     z_val=z_gridvals(z_c,:);
-                    ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
+                    ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec,0);
 
                     entireRHS=ReturnMatrix_z+beta*EV(:,z_c)*ones(1,N_a,1,'gpuArray');
 

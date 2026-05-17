@@ -486,7 +486,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         end
 
         if N_d==0
-            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_z, [], a_grid, z_gridvals, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_z, [], a_grid, z_gridvals, ReturnFnParamsVec,0);
         else
             ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
         end

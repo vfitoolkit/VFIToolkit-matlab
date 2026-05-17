@@ -13,5 +13,3 @@ Fmatrix=arrayfun(ReturnFn, aprime_grid, a_grid', ReturnFnParamsCell{:});
 % size(Fmatrix)=[n_aprime,1]
 
 end
-
-

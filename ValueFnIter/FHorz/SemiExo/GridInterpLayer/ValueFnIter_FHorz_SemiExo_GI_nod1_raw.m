@@ -114,7 +114,7 @@ else
             % Interpolate EV over aprime_grid
             EVinterp_d2=interp1(a_grid,EV,aprime_grid);
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d2, n_a, n_bothz, d2_val, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d2, n_a, n_bothz, d2_val, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2;
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS,[],1); % no d1, loop over d2
@@ -163,7 +163,7 @@ else
                 % Interpolate EV over aprime_grid
                 EVinterp_d2z=interp1(a_grid,EV_d2z,aprime_grid);
 
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d2, n_a, special_n_bothz, d2_val, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d2, n_a, special_n_bothz, d2_val, a_grid, z_val, ReturnFnParamsVec,0);
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*EV_d2z;
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_z,[],1); % no d1, loop over d2
@@ -222,7 +222,7 @@ for reverse_j=1:N_j-1
             % Interpolate EV over aprime_grid
             EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid); % (aprime,1,bothz)
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d2, n_a, n_bothz, d2_val, a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d2, n_a, n_bothz, d2_val, a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2;
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS,[],1); % no d1, loop over d2
@@ -272,7 +272,7 @@ for reverse_j=1:N_j-1
                 % Interpolate EV over aprime_grid
                 EVinterp_d2z=interp1(a_grid,EV_d2z,aprime_grid);
 
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d2, n_a, special_n_bothz, d2_val, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d2, n_a, special_n_bothz, d2_val, a_grid, z_val, ReturnFnParamsVec,0);
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*EV_d2z;
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_z,[],1); % no d1, loop over d2

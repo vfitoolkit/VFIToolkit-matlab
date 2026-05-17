@@ -12,7 +12,7 @@ if vfoptions.lowmemory==0
         tic;
     end
 
-    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec,0);
 
     if vfoptions.verbose==1
         time=toc;

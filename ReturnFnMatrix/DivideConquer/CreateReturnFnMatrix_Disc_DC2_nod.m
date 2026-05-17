@@ -36,5 +36,3 @@ end
 Fmatrix=reshape(Fmatrix,[N_a1a2prime,N_a1,N_a2,N_z]);
 
 end
-
-

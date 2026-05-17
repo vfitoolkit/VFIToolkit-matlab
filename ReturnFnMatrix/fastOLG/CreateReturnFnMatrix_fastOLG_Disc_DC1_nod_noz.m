@@ -22,5 +22,3 @@ Fmatrix=arrayfun(ReturnFn, aprime_grid, shiftdim(a_grid,-1), ReturnFnParamsCell{
 Fmatrix=reshape(Fmatrix,[N_aprime,N_a,N_j]);
 
 end
-
-
