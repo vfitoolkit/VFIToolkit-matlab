@@ -4,7 +4,7 @@ function [V,Policy]=ValueFnIter_FHorz_DC2A_nod_noz_raw(n_a, N_j, a_grid, ReturnF
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(2,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(N_a,N_j,'gpuArray'); % joint (a1prime,a2prime) index at each (a,j) cell
 
 %%
 n_a1=n_a(1);

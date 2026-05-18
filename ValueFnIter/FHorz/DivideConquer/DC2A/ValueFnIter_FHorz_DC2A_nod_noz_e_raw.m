@@ -6,7 +6,7 @@ N_a=prod(n_a);
 N_e=prod(n_e);
 
 V=zeros(N_a,N_e,N_j,'gpuArray');
-Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(N_a,N_e,N_j,'gpuArray'); % joint (a1prime,a2prime) index at each (a,e,j) cell
 
 %%
 n_a1=n_a(1);

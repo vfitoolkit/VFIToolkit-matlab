@@ -171,12 +171,26 @@ AggVarNames=fieldnames(FnsToEvaluate);
 %%
 if exist('vfoptions','var')==0
     vfoptions=struct();
+    vfoptions.n_e=0;
+    vfoptions.n_semiz=0;
 else
     if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=1+(gpuDeviceCount>0);
     end
+    if ~isfield(vfoptions,'n_e')
+        vfoptions.n_e=0;
+    end
+    if ~isfield(vfoptions,'n_semiz')
+        vfoptions.n_semiz=0;
+    end
 end
 simoptions.outputasstructure=0;
+if ~isfield(simoptions,'n_e')
+    simoptions.n_e=0;
+end
+if ~isfield(simoptions,'n_semiz')
+    simoptions.n_semiz=0;
+end
 
 %%
 if vfoptions.parallel==2

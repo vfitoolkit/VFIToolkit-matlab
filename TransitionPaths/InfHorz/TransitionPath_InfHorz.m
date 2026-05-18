@@ -102,7 +102,6 @@ if transpathoptions.graphGEcondns==1
 end
 
 %% Check which vfoptions have been used, set all others to defaults
-vfoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
@@ -181,9 +180,9 @@ if vfoptions.divideandconquer==1
         end
     end
 end
+vfoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 
 %% Check which simoptions have been used, set all others to defaults
-simoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.tolerance=10^(-9);
@@ -212,6 +211,7 @@ else
         end
     end
 end
+simoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 
 %% Check the sizes of some of the inputs
 N_d=prod(n_d);

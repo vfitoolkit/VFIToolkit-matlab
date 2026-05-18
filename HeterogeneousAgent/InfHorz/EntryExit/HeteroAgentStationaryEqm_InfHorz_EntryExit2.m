@@ -15,18 +15,6 @@ l_p=length(n_p);
 p_eqm=struct(); p_eqm_index=nan; GeneralEqmConditions=nan;
 
 %% Check which options have been used, set all others to defaults
-if exist('vfoptions','var')==0
-    %If vfoptions is not given, just use all the defaults
-    vfoptions.parallel=2;
-    %Note that the defaults will be set when we call 'ValueFnIter...'
-    %commands and the like, so no need to set them here except for a few.
-else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if ~isfield(vfoptions,'parallel')
-        vfoptions.parallel=2;
-    end
-end
-
 % Can only get to EntryExit2 when simoptions exists.
 % Check simoptions for missing fields, if there are some fill them with the defaults
 if ~isfield(simoptions,'parallel')
