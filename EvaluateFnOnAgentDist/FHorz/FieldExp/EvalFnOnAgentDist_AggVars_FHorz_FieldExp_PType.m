@@ -90,6 +90,7 @@ end
 
 %%
 for ii=1:N_i
+    iistr=Names_i{ii};
 
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
@@ -98,21 +99,21 @@ for ii=1:N_i
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-        PolicyIndexes_control_temp=gpuArray(Policy.control.(Names_i{ii})); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
+        PolicyIndexes_control_temp=gpuArray(Policy.control.(iistr)); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
         PolicyIndexes_treat_temp=struct();
         for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
-            PolicyIndexes_treat_temp.(['treatmentage',num2str(j_p)])=gpuArray(Policy.(['treatmentage',num2str(j_p)]).(Names_i{ii}));
+            PolicyIndexes_treat_temp.(['treatmentage',num2str(j_p)])=gpuArray(Policy.(['treatmentage',num2str(j_p)]).(iistr));
         end
-        StationaryDist_control_temp=gpuArray(StationaryDist.control.(Names_i{ii}));
-        StationaryDist_treat_temp=gpuArray(StationaryDist.treatment.(Names_i{ii}));
+        StationaryDist_control_temp=gpuArray(StationaryDist.control.(iistr));
+        StationaryDist_treat_temp=gpuArray(StationaryDist.treatment.(iistr));
     else
-        PolicyIndexes_control_temp=Policy.control.(Names_i{ii});
+        PolicyIndexes_control_temp=Policy.control.(iistr);
         PolicyIndexes_treat_temp=struct();
         for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
-            PolicyIndexes_treat_temp.(['treatmentage',num2str(j_p)])=Policy.(['treatmentage',num2str(j_p)]).(Names_i{ii});
+            PolicyIndexes_treat_temp.(['treatmentage',num2str(j_p)])=Policy.(['treatmentage',num2str(j_p)]).(iistr);
         end
-        StationaryDist_control_temp=StationaryDist.control.(Names_i{ii});
-        StationaryDist_treat_temp=StationaryDist.treatment.(Names_i{ii});
+        StationaryDist_control_temp=StationaryDist.control.(iistr);
+        StationaryDist_treat_temp=StationaryDist.treatment.(iistr);
     end
     if isa(StationaryDist_control_temp, 'gpuArray')
         Parallel_temp=2;
@@ -128,37 +129,37 @@ for ii=1:N_i
     % only that to the 'non-PType' version of the command.
 
     if isa(n_d,'struct')
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isa(n_a,'struct')
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isa(n_z,'struct')
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isa(N_j,'struct')
-        N_j_temp=N_j.(Names_i{ii});
+        N_j_temp=N_j.(iistr);
     else
         N_j_temp=N_j;
     end
     if isa(d_grid,'struct')
-        d_grid_temp=d_grid.(Names_i{ii});
+        d_grid_temp=d_grid.(iistr);
     else
         d_grid_temp=d_grid;
     end
     if isa(a_grid,'struct')
-        a_grid_temp=a_grid.(Names_i{ii});
+        a_grid_temp=a_grid.(iistr);
     else
         a_grid_temp=a_grid;
     end
     if isa(z_grid,'struct')
-        z_grid_temp=z_grid.(Names_i{ii});
+        z_grid_temp=z_grid.(iistr);
     else
         z_grid_temp=z_grid;
     end
@@ -400,8 +401,8 @@ for ii=1:N_i
         for kk=1:numFnsToEvaluate
             jj=WhichFnsForCurrentPType(kk);
             if jj>0
-                AggVars_control(kk).(Names_i{ii})=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Control_ii(jj,:);
-                AggVars_treatment(kk).(Names_i{ii})=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Treatment_ii(jj,:);
+                AggVars_control(kk).(iistr)=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Control_ii(jj,:);
+                AggVars_treatment(kk).(iistr)=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Treatment_ii(jj,:);
             end
         end
     end

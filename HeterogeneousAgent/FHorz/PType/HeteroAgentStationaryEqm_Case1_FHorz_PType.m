@@ -367,7 +367,7 @@ for ii=1:PTypeStructure.N_i
 
     % Horizon is determined via N_j
     if isstruct(N_j)
-        PTypeStructure.(iistr).N_j=N_j.(Names_i{ii});
+        PTypeStructure.(iistr).N_j=N_j.(iistr);
     elseif isscalar(N_j)
         PTypeStructure.(iistr).N_j=N_j;
     else
@@ -375,17 +375,17 @@ for ii=1:PTypeStructure.N_i
     end
 
     if isstruct(n_d)
-        PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
+        PTypeStructure.(iistr).n_d=n_d.(iistr);
     else
         PTypeStructure.(iistr).n_d=n_d;
     end
     if isstruct(n_a)
-        PTypeStructure.(iistr).n_a=n_a.(Names_i{ii});
+        PTypeStructure.(iistr).n_a=n_a.(iistr);
     else
         PTypeStructure.(iistr).n_a=n_a;
     end
     if isstruct(n_z)
-        PTypeStructure.(iistr).n_z=n_z.(Names_i{ii});
+        PTypeStructure.(iistr).n_z=n_z.(iistr);
     else
         PTypeStructure.(iistr).n_z=n_z;
     end
@@ -409,12 +409,12 @@ for ii=1:PTypeStructure.N_i
     end
 
     if isstruct(d_grid)
-        PTypeStructure.(iistr).d_grid=d_grid.(Names_i{ii});
+        PTypeStructure.(iistr).d_grid=d_grid.(iistr);
     else
         PTypeStructure.(iistr).d_grid=d_grid;
     end
     if isstruct(a_grid)
-        PTypeStructure.(iistr).a_grid=a_grid.(Names_i{ii});
+        PTypeStructure.(iistr).a_grid=a_grid.(iistr);
     else
         PTypeStructure.(iistr).a_grid=a_grid;
     end
@@ -431,7 +431,7 @@ for ii=1:PTypeStructure.N_i
         if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
             % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
             if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(iistr);
             end
         elseif sum(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i)>=1 % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
@@ -448,7 +448,7 @@ for ii=1:PTypeStructure.N_i
     %% Set up exogenous shock grids now (so they can then just be reused every time)
 
     if isstruct(z_grid)
-        PTypeStructure.(iistr).z_grid=z_grid.(Names_i{ii});
+        PTypeStructure.(iistr).z_grid=z_grid.(iistr);
     else
         % If the last dimension is of length N_i, this indicates dependence on ptype
         nn=size(z_grid,ndims(z_grid));
@@ -460,7 +460,7 @@ for ii=1:PTypeStructure.N_i
         end
     end
     if isstruct(pi_z)
-        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
+        PTypeStructure.(iistr).pi_z=pi_z.(iistr);
     else
         % If the last dimension is of length N_i, this indicates dependence on ptype
         nn=size(pi_z,ndims(pi_z));
@@ -550,14 +550,14 @@ for ii=1:PTypeStructure.N_i
     %% DiscountFactor and ReturnFn
     % The parameter names can be made to depend on the permanent-type
     if isstruct(DiscountFactorParamNames)
-        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
+        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(iistr);
     else
         PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     end
 
     PTypeStructure.(iistr).ReturnFn=ReturnFn;
     if isa(ReturnFn,'struct')
-        PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
+        PTypeStructure.(iistr).ReturnFn=ReturnFn.(iistr);
     end
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
 
@@ -567,7 +567,7 @@ for ii=1:PTypeStructure.N_i
             if isa(jequaloneDist, 'function_handle')
                 [PTypeStructure.(iistr).jequaloneDist,~,PTypeStructure.(iistr).Parameters]=jequaloneDist_PType(jequaloneDist.(iistr),PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_i,PTypeStructure.(iistr).PTypeDistParamNames,0);
             else
-                PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(PTypeStructure.Names_i{ii});
+                PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(iistr);
             end
         else
             error(['You must input jequaloneDist for permanent type ', PTypeStructure.Names_i{ii}, ' \n'])
@@ -579,7 +579,7 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightParamNames;
     if isstruct(AgeWeightParamNames)
         if isfield(AgeWeightParamNames,Names_i{ii})
-            PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightParamNames.(Names_i{ii});
+            PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightParamNames.(iistr);
         else
             error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
         end

@@ -12,7 +12,6 @@ elseif vfoptions.lowmemory==1 % loops over z
 end
 
 % n-Monotonicity
-% vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

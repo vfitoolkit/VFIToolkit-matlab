@@ -12,7 +12,6 @@ Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for d
 midpoints_jj=zeros(N_d,1,N_a,N_j,'gpuArray');
 
 % n-Monotonicity
-% vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 % level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

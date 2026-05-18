@@ -12,7 +12,6 @@ Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d an
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
 % n-Monotonicity
-% vfoptions.level1n=21;
 level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

@@ -22,6 +22,7 @@ end
 
 %% Loop over permanent types
 for ii=1:N_i
+    iistr=Names_i{ii};
 
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii);
@@ -39,8 +40,8 @@ for ii=1:N_i
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
 
-    AgentDist_initial_temp=AgentDist_initial.(Names_i{ii});
-    PolicyPath_temp=PolicyPath.(Names_i{ii});
+    AgentDist_initial_temp=AgentDist_initial.(iistr);
+    PolicyPath_temp=PolicyPath.(iistr);
 
 
     % Go through everything which might be dependent on permanent type (PType)
@@ -50,22 +51,22 @@ for ii=1:N_i
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
     if isa(n_d,'struct')
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isa(n_a,'struct')
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isa(n_z,'struct')
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isa(pi_z,'struct')
-        pi_z_temp=pi_z.(Names_i{ii});
+        pi_z_temp=pi_z.(iistr);
     else
         pi_z_temp=pi_z;
     end
@@ -105,7 +106,7 @@ for ii=1:N_i
     PricePathNames=fieldnames(PricePath);
     for nn=1:length(PricePathNames)
         if isstruct(PricePath_temp.(PricePathNames{nn}))
-            PricePath_temp.(PricePathNames{nn})=PricePath.(PricePathNames{nn}).(Names_i{ii});
+            PricePath_temp.(PricePathNames{nn})=PricePath.(PricePathNames{nn}).(iistr);
         end
     end
     % ParamPath can include parameters that differ by ptype
@@ -113,7 +114,7 @@ for ii=1:N_i
     ParamPathNames=fieldnames(ParamPath);
     for nn=1:length(ParamPathNames)
         if isstruct(ParamPath_temp.(ParamPathNames{nn}))
-            ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(Names_i{ii});
+            ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(iistr);
         end
     end
 
@@ -121,7 +122,7 @@ for ii=1:N_i
     AgentDistPath_ii=AgentDistOnTransPath_InfHorz(AgentDist_initial_temp, PricePath_temp, ParamPath_temp, PolicyPath_temp,n_d_temp,n_a_temp,n_z_temp,pi_z_temp, T, Parameters_temp, simoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
-    AgentDistPath.(Names_i{ii})=AgentDistPath_ii;
+    AgentDistPath.(iistr)=AgentDistPath_ii;
 
 end
 

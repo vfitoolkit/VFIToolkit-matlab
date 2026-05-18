@@ -22,6 +22,7 @@ end
 
 %% Loop over permanent types
 for ii=1:N_i
+    iistr=Names_i{ii};
 
     transpathoptions_temp=PType_Options(transpathoptions,Names_i,ii);
     vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
@@ -37,8 +38,8 @@ for ii=1:N_i
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
 
-    V_final_temp=V_final.(Names_i{ii});
-    Policy_final_temp=Policy_final.(Names_i{ii});
+    V_final_temp=V_final.(iistr);
+    Policy_final_temp=Policy_final.(iistr);
 
 
     % Go through everything which might be dependent on permanent type (PType)
@@ -48,42 +49,42 @@ for ii=1:N_i
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
     if isa(n_d,'struct')
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isa(n_a,'struct')
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isa(n_z,'struct')
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isa(d_grid,'struct')
-        d_grid_temp=d_grid.(Names_i{ii});
+        d_grid_temp=d_grid.(iistr);
     else
         d_grid_temp=d_grid;
     end
     if isa(a_grid,'struct')
-        a_grid_temp=a_grid.(Names_i{ii});
+        a_grid_temp=a_grid.(iistr);
     else
         a_grid_temp=a_grid;
     end
     if isa(z_grid,'struct')
-        z_grid_temp=z_grid.(Names_i{ii});
+        z_grid_temp=z_grid.(iistr);
     else
         z_grid_temp=z_grid;
     end
     if isa(pi_z,'struct')
-        pi_z_temp=pi_z.(Names_i{ii});
+        pi_z_temp=pi_z.(iistr);
     else
         pi_z_temp=pi_z;
     end
     if isa(ReturnFn,'struct')
-        ReturnFn_temp=ReturnFn.(Names_i{ii});
+        ReturnFn_temp=ReturnFn.(iistr);
     else
         ReturnFn_temp=ReturnFn;
     end
@@ -127,7 +128,7 @@ for ii=1:N_i
     ParamPathNames=fieldnames(ParamPath);
     for nn=1:length(ParamPathNames)
         if isstruct(ParamPath_temp.(ParamPathNames{nn}))
-            ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(Names_i{ii});
+            ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(iistr);
         end
     end
 
@@ -135,11 +136,11 @@ for ii=1:N_i
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
     if vfoptions_temp.ptypestorecpu==1
-        VPath.(Names_i{ii})=gather(VPath_ii);
-        PolicyPath.(Names_i{ii})=gather(PolicyPath_ii);
+        VPath.(iistr)=gather(VPath_ii);
+        PolicyPath.(iistr)=gather(PolicyPath_ii);
     else
-        VPath.(Names_i{ii})=VPath_ii;
-        PolicyPath.(Names_i{ii})=PolicyPath_ii;
+        VPath.(iistr)=VPath_ii;
+        PolicyPath.(iistr)=PolicyPath_ii;
     end
 
     clear VPath_ii PolicyPath_ii

@@ -22,7 +22,6 @@ pi_u=shiftdim(pi_u,-2); % put it into third dimension
 midpoint=zeros(N_d,1,N_a1,N_a2,'gpuArray');
 
 % n-Monotonicity
-% vfoptions.level1n=21;
 level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

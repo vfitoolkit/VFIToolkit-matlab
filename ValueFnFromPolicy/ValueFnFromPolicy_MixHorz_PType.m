@@ -28,6 +28,7 @@ else
 end
 
 for ii=1:N_i
+    iistr=Names_i{ii};
 
     % First set up vfoptions
     vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
@@ -48,47 +49,47 @@ for ii=1:N_i
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
     if isa(n_d,'struct')
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isa(n_a,'struct')
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isa(n_z,'struct')
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isa(N_j,'struct')
-        N_j_temp=N_j.(Names_i{ii});
+        N_j_temp=N_j.(iistr);
     else
         N_j_temp=N_j;
     end
     if isa(d_grid,'struct')
-        d_grid_temp=d_grid.(Names_i{ii});
+        d_grid_temp=d_grid.(iistr);
     else
         d_grid_temp=d_grid;
     end
     if isa(a_grid,'struct')
-        a_grid_temp=a_grid.(Names_i{ii});
+        a_grid_temp=a_grid.(iistr);
     else
         a_grid_temp=a_grid;
     end
     if isa(z_grid,'struct')
-        z_grid_temp=z_grid.(Names_i{ii});
+        z_grid_temp=z_grid.(iistr);
     else
         z_grid_temp=z_grid;
     end
     if isa(pi_z,'struct')
-        pi_z_temp=pi_z.(Names_i{ii});
+        pi_z_temp=pi_z.(iistr);
     else
         pi_z_temp=pi_z;
     end
     if isa(ReturnFn,'struct')
-        ReturnFn_temp=ReturnFn.(Names_i{ii});
+        ReturnFn_temp=ReturnFn.(iistr);
     else
         ReturnFn_temp=ReturnFn;
     end
@@ -133,9 +134,9 @@ for ii=1:N_i
     end
 
     if vfoptions_temp.ptypestorecpu==1
-        Policy_ii=gpuArray(Policy.(Names_i{ii}));
+        Policy_ii=gpuArray(Policy.(iistr));
     else
-        Policy.(Names_i{ii})=Policy_ii;
+        Policy.(iistr)=Policy_ii;
     end
 
     if isfinite(N_j_temp)
@@ -145,9 +146,9 @@ for ii=1:N_i
     end
 
     if vfoptions_temp.ptypestorecpu==1
-        V.(Names_i{ii})=gather(V_ii);
+        V.(iistr)=gather(V_ii);
     else
-        V.(Names_i{ii})=V_ii;
+        V.(iistr)=V_ii;
     end
 
     clear V_ii Policy_ii

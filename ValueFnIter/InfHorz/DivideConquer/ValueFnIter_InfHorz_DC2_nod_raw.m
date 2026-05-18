@@ -11,7 +11,6 @@ a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
 
 % n-Monotonicity
-% vfoptions.level1n=[7,5];
 level11ii=round(linspace(1,N_a1,vfoptions.level1n(1)));
 level11iidiff=level11ii(2:end)-level11ii(1:end-1)+1; % Note: For 2D this includes the end-points
 level12jj=round(linspace(1,N_a2,vfoptions.level1n(2)));

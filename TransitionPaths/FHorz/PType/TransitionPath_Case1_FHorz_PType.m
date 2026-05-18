@@ -244,7 +244,7 @@ for ii=1:PTypeStructure.N_i
 
     % Horizon is determined via N_j
     if isstruct(N_j)
-        PTypeStructure.(iistr).N_j=N_j.(Names_i{ii});
+        PTypeStructure.(iistr).N_j=N_j.(iistr);
     elseif isscalar(N_j)
         PTypeStructure.(iistr).N_j=N_j;
     else
@@ -252,7 +252,7 @@ for ii=1:PTypeStructure.N_i
     end
 
     if isa(n_d,'struct')
-        PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
+        PTypeStructure.(iistr).n_d=n_d.(iistr);
     else
         PTypeStructure.(iistr).n_d=n_d;
     end
@@ -264,7 +264,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).l_d=length(n_d);
     end
     if isa(n_a,'struct')
-        PTypeStructure.(iistr).n_a=n_a.(Names_i{ii});
+        PTypeStructure.(iistr).n_a=n_a.(iistr);
     else
         PTypeStructure.(iistr).n_a=n_a;
     end
@@ -276,7 +276,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).l_aprime=PTypeStructure.(iistr).l_aprime-1;
     end
     if isa(n_z,'struct')
-        PTypeStructure.(iistr).n_z=n_z.(Names_i{ii});
+        PTypeStructure.(iistr).n_z=n_z.(iistr);
     else
         PTypeStructure.(iistr).n_z=n_z;
     end
@@ -296,17 +296,17 @@ for ii=1:PTypeStructure.N_i
     end
 
     if isa(d_grid,'struct')
-        PTypeStructure.(iistr).d_grid=gpuArray(d_grid.(Names_i{ii}));
+        PTypeStructure.(iistr).d_grid=gpuArray(d_grid.(iistr));
     else
         PTypeStructure.(iistr).d_grid=gpuArray(d_grid);
     end
     if isa(a_grid,'struct')
-        PTypeStructure.(iistr).a_grid=gpuArray(a_grid.(Names_i{ii}));
+        PTypeStructure.(iistr).a_grid=gpuArray(a_grid.(iistr));
     else
         PTypeStructure.(iistr).a_grid=gpuArray(a_grid);
     end
     if isa(z_grid,'struct')
-        PTypeStructure.(iistr).z_grid=gpuArray(z_grid.(Names_i{ii}));
+        PTypeStructure.(iistr).z_grid=gpuArray(z_grid.(iistr));
     else
         PTypeStructure.(iistr).z_grid=gpuArray(z_grid);
     end
@@ -337,14 +337,14 @@ for ii=1:PTypeStructure.N_i
     % end
 
     if isa(pi_z,'struct')
-        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occur with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
+        PTypeStructure.(iistr).pi_z=pi_z.(iistr); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occur with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
     else
         PTypeStructure.(iistr).pi_z=pi_z;
     end
 
     PTypeStructure.(iistr).ReturnFn=ReturnFn;
     if isa(ReturnFn,'struct')
-        PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
+        PTypeStructure.(iistr).ReturnFn=ReturnFn.(iistr);
     end
 
     % Parameters are allowed to be given as structure, or as vector/matrix (in terms of their dependence on permanent type).
@@ -357,7 +357,7 @@ for ii=1:PTypeStructure.N_i
         if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
             % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
             if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(iistr);
             end
         elseif sum(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i)>=1 % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
@@ -376,7 +376,7 @@ for ii=1:PTypeStructure.N_i
     % The parameter names can be made to depend on the permanent-type
     PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')
-        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
+        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(iistr);
     end
 
     % Implement new way of handling ReturnFn inputs (note l_d, l_a, l_z are just created for this and then not used for anything else later)
@@ -420,9 +420,9 @@ for ii=1:PTypeStructure.N_i
     for kk=1:PTypeStructure.numFnsToEvaluate
         if isa(FnsToEvaluate.(FnNames{kk}),'struct')
             if isfield(FnsToEvaluate.(FnNames{kk}), Names_i{ii})
-                PTypeStructure.(iistr).FnsToEvaluate.(FnNames{kk})=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
+                PTypeStructure.(iistr).FnsToEvaluate.(FnNames{kk})=FnsToEvaluate.(FnNames{kk}).(iistr);
                 % % Figure out FnsToEvaluateParamNames
-                % temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(Names_i{ii}));
+                % temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(iistr));
                 % PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
                 PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
                 PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;

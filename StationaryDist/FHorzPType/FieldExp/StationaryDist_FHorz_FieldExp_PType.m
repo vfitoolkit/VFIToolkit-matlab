@@ -38,6 +38,7 @@ else
 end
 
 for ii=1:N_i
+    iistr=Names_i{ii};
 
     % First set up simoptions
     if exist('simoptions','var')
@@ -62,13 +63,13 @@ for ii=1:N_i
     end
 
     % Because we are looking at the field experiment we need the control-group policy
-    Policy_control=Policy.control.(Names_i{ii});
+    Policy_control=Policy.control.(iistr);
     % And all of the treatment-group policies (one for each initial age)
     Policy_treatment=struct();
     treatmentagenames=fieldnames(Policy);
     for nn=1:length(treatmentagenames)
         if ~strcmp(treatmentagenames{nn},'control')
-            Policy_treatment.(treatmentagenames{nn})=Policy.(treatmentagenames{nn}).(Names_i{ii});
+            Policy_treatment.(treatmentagenames{nn})=Policy.(treatmentagenames{nn}).(iistr);
         end
     end
 
@@ -79,27 +80,27 @@ for ii=1:N_i
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
     if isa(n_d,'struct')
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isa(n_a,'struct')
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isa(n_z,'struct')
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isa(N_j,'struct')
-        N_j_temp=N_j.(Names_i{ii});
+        N_j_temp=N_j.(iistr);
     else
         N_j_temp=N_j;
     end
     if isa(pi_z,'struct')
-        pi_z_temp=pi_z.(Names_i{ii});
+        pi_z_temp=pi_z.(iistr);
     else
         pi_z_temp=pi_z;
     end
@@ -137,7 +138,7 @@ for ii=1:N_i
     jequaloneDist_temp=jequaloneDist;
     if isa(jequaloneDist,'struct')
         if isfield(jequaloneDist,Names_i{ii})
-            jequaloneDist_temp=jequaloneDist.(Names_i{ii});
+            jequaloneDist_temp=jequaloneDist.(iistr);
             % jequaloneDist_temp must be of mass one for the codes to work.
             if sum(jequaloneDist_temp(:))~=1
                 error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
@@ -157,7 +158,7 @@ for ii=1:N_i
     AgeWeightParamNames_temp=AgeWeightsParamNames;
     if isa(AgeWeightsParamNames,'struct')
         if isfield(AgeWeightsParamNames,Names_i{ii})
-            AgeWeightParamNames_temp=AgeWeightsParamNames.(Names_i{ii});
+            AgeWeightParamNames_temp=AgeWeightsParamNames.(iistr);
         else
             if isfinite(N_j_temp)
                 sprintf(['ERROR: You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
@@ -204,9 +205,9 @@ for ii=1:N_i
         StationaryDist_Control_ii=reshape(StationaryDist_Control_ii,[n_a,n_z,simoptions_temp.n_e,TreatmentAgeRange(2)-TreatmentAgeRange(1)+TreatmentDuration]);
     end
     if simoptions_temp.ptypestorecpu==1
-        StationaryDist.control.(Names_i{ii})=gather(StationaryDist_Control_ii);
+        StationaryDist.control.(iistr)=gather(StationaryDist_Control_ii);
     else
-        StationaryDist.control.(Names_i{ii})=StationaryDist_Control_ii;
+        StationaryDist.control.(iistr)=StationaryDist_Control_ii;
     end
 
     if check_ze==2 % no z, no e
@@ -221,9 +222,9 @@ for ii=1:N_i
         StationaryDist_Treat_ii=reshape(StationaryDist_Treat_ii,[n_a,n_z,simoptions_temp.n_e,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1]);
     end
     if simoptions_temp.ptypestorecpu==1
-        StationaryDist.treatment.(Names_i{ii})=gather(StationaryDist_Treat_ii);
+        StationaryDist.treatment.(iistr)=gather(StationaryDist_Treat_ii);
     else
-        StationaryDist.treatment.(Names_i{ii})=StationaryDist_Treat_ii;
+        StationaryDist.treatment.(iistr)=StationaryDist_Treat_ii;
     end
 
 end
