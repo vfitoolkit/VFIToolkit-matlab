@@ -112,7 +112,11 @@ else
         vfoptions.divideandconquer=0;
     elseif vfoptions.divideandconquer==1
         if ~isfield(vfoptions,'level1n')
-            vfoptions.level1n=11;
+            if isscalar(n_a)
+                vfoptions.level1n=round(sqrt(n_a(1)));
+            elseif length(n_a)==2
+                vfoptions.level1n=[round(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
+            end
         end
     end
     if ~isfield(vfoptions,'gridinterplayer')

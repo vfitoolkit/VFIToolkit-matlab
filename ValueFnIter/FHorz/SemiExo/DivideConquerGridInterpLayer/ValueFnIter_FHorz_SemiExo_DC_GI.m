@@ -6,7 +6,7 @@ N_e=prod(vfoptions.n_e);
 
 if vfoptions.divideandconquer==1
     if ~isfield(vfoptions,'level1n')
-        vfoptions.level1n=max(ceil(n_a(1)/50),5); % minimum of 5
+        vfoptions.level1n=round(sqrt(n_a(1)));
         if n_a(1)<5
             error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
         end

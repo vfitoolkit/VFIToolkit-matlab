@@ -1,26 +1,12 @@
-function [V,Policy]=ValueFnIter_FHorz_SemiExo_pard2(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_gridvals,d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_SemiExo_pard2_DC(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_gridvals,d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+% vfoptions are already set by ValueFnIter_FHorz()
+% Handles vfoptions.divideandconquer==1, vfoptions.gridinterplayer==0, vfoptions.pard2==1
 
 N_d1=prod(n_d1);
 N_z=prod(n_z);
 N_e=prod(vfoptions.n_e);
 
 %% Dispatch
-if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
-    % Solve by doing Divide-and-Conquer, and then a grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_SemiExo_pard2_DC_GI(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_gridvals,d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    return
-elseif vfoptions.divideandconquer==1
-    % Solve using Divide-and-Conquer algorithm
-    [V,Policy]=ValueFnIter_FHorz_SemiExo_pard2_DC(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_gridvals,d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    return
-elseif vfoptions.gridinterplayer==1
-    % Solve using grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_SemiExo_pard2_GI(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_gridvals,d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    return
-end
-
-
-%% Plain case: no divide-and-conquer, no grid interpolation layer
 % NOTE: I TRIED PARALLEL OVER d2, BUT IT SEEMED TO BE SLOWER RATHER THAN FASTER. NOT SURE WHY.
 if N_d1==0
     error('vfoptions.pard2 not yet implemented for this combo')
@@ -31,7 +17,7 @@ else
         if N_z==0
             error('vfoptions.pard2 not yet implemented for this combo')
         else
-            [VKron, Policy]=ValueFnIter_FHorz_SemiExo_pard2_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, Policy]=ValueFnIter_FHorz_SemiExo_pard2_DC1_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 end
@@ -72,11 +58,7 @@ if vfoptions.outputkron==0
         else
             V=reshape(VKron,[n_a,vfoptions.n_semiz,n_z,vfoptions.n_e,N_j]);
             if vfoptions.pard2==0
-                if vfoptions.gridinterplayer==0
-                    Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, [vfoptions.n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
-                elseif vfoptions.gridinterplayer==1
-                    Policy=UnKronPolicyIndexes_Case2_FHorz_e(Policy, [n_d,n_a,vfoptions.ngridinterp], n_a, [vfoptions.n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
-                end
+                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, [vfoptions.n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
             elseif vfoptions.pard2==1
                 Policy=UnKronPolicyIndexes_Case2_FHorz_e(reshape(Policy,[N_a,N_semiz*N_z,N_e,N_j]), [n_d,n_a], n_a, [vfoptions.n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
             end

@@ -36,11 +36,16 @@ if ~isfield(vfoptions,'QHadditionaldiscount')
 end
 
 %%
-if vfoptions.divideandconquer==1
+if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
+    % Solve by doing Divide-and-Conquer, and then a grid interpolation layer
+    [V1, Policy,Valt]=ValueFnIter_FHorz_QuasiHyperbolic_DC_GI(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
+elseif vfoptions.divideandconquer==1
+    % Solve using Divide-and-Conquer algorithm
     [V1, Policy,Valt]=ValueFnIter_FHorz_QuasiHyperbolic_DC(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
-end
-if vfoptions.gridinterplayer==1
+elseif vfoptions.gridinterplayer==1
+    % Solve using grid interpolation layer
     [V1, Policy,Valt]=ValueFnIter_FHorz_QuasiHyperbolic_GI(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 end

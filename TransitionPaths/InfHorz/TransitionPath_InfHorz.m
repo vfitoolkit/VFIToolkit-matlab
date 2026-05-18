@@ -166,12 +166,12 @@ end
 if vfoptions.divideandconquer==1
     if ~isfield(vfoptions,'level1n')
         if isscalar(n_a)
-            vfoptions.level1n=max(ceil(n_a(1)/50),5); % minimum of 5
+            vfoptions.level1n=round(sqrt(n_a(1)));
             if n_a(1)<5
                 error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
             end
         elseif length(n_a)==2
-            vfoptions.level1n=[max(ceil(n_a(1)/50),5),n_a(2)]; % default is DC2A, min of 5 points in level1 for a1
+            vfoptions.level1n=[round(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
             if n_a(1)<5
                 error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
             end
