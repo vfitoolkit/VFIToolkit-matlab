@@ -1,16 +1,28 @@
 function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetuFnMatrix(aprimeFn, n_d, n_a2, n_u, d_gridvals, a2_grid, u_gridvals, aprimeFnParams, aprimeIndexAsColumn)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
-% Note: a2primeIndex is [N_d*N_a2*N_u,1], whereas a2primeProbs is [N_d,N_a2,N_u]
+% For experienceassetu: enumerate a2prime=aprimeFn(d, a2, u) over ALL d
+% (used during value-function iteration). Because the true value of a2prime
+% will (almost always) lie between two consecutive points in a2_grid, it is
+% linearly interpolated back on to a2_grid. Thus the continuous a2prime is
+% represented by (index of lower grid point in a2primeIndexes, probability
+% of lower grid point in a2primeProbs) on a2_grid; the upper index is
+% implicitly lower+1 with prob 1-minus-prob-of-lower.
 %
-% Creates the grid points and their 'interpolation' probabilities
-% Note: a2primeIndexes is always the 'lower' point (the upper points are
-% just a2primeIndexes+1, so no need to waste memory storing them), and the
-% a2primeProbs are the probability of this lower point (prob of upper point
-% is just 1 minus this).
+% Companion file CreateaprimePolicyExperienceAssetu.m does the same but only
+% for the Policy-chosen d (one d per state), used in simulation /
+% agent-distribution. This file is used during value-function iteration
+% where every d must be evaluated.
+%
+% Output sizes:
+%   a2primeIndexes - shape depends on aprimeIndexAsColumn:
+%                      1 => column vector [N_d*N_a2*N_u, 1]
+%                      2 => matrix [N_d, N_a2, N_u]
+%                      3 => matrix [N_d*N_a2, N_u]
+%   a2primeProbs   - [N_d, N_a2, N_u]
 
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
     if size(aprimeFnParams(ii))~=[1,1]
-        error('Using GPU for the return fn does not allow for any of aprimeFn parameters to be anything but a scalar')
+        error('Using experienceassetu does not allow for any of aprimeFn parameters to be anything but a scalar')
     end
     ParamCell(ii,1)={aprimeFnParams(ii)};
 end
@@ -55,7 +67,7 @@ if l_u>=1
             if l_u>=4
                 u4vals=shiftdim(u_gridvals(:,4),-1-l_a2);
                 if l_u>=5
-                    u5vals=shiftdim(u_gridvals(:,5),-1-l_a2);
+                    error('Max of four u variables supported (contact if you need more)')
                 end
             end
         end
@@ -105,17 +117,6 @@ elseif l_u==4
         a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
     elseif l_d==4
         a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
-    end
-elseif l_u==5
-    if l_d==1
-        % d1vals(1,1,1,1)=d_grid(1); % Requires special treatment
-        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
-    elseif l_d==2
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
-    elseif l_d==3
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
-    elseif l_d==4
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
     end
 end
 

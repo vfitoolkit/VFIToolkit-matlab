@@ -6,12 +6,12 @@ N_e=prod(vfoptions.n_e);
 
 if ~isfield(vfoptions,'level1n')
     if isscalar(n_a)
-        vfoptions.level1n=max(ceil(n_a(1)/50),5); % minimum of 5
+        vfoptions.level1n=round(sqrt(n_a(1)));
         if n_a(1)<5
             error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
         end
     elseif length(n_a)==2
-        vfoptions.level1n=[max(ceil(sqrt(n_a(1))),5),n_a(2)]; % default is DC2B, min of 5 points in level1 for a1
+        vfoptions.level1n=[round(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
         if n_a(1)<5
             error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
         end
@@ -63,7 +63,7 @@ if isscalar(n_a)
 %% 2 endogenous states
 elseif length(n_a)==2
     if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
-        vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
+        vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2A
         if N_e==0
             if N_z==0
                 if N_d==0
@@ -78,8 +78,6 @@ elseif length(n_a)==2
                     [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             end
-            % Policy without d
-            PolicyKron=shiftdim(PolicyKron,-1);
         else % N_e
             if N_z==0
                 if N_d==0
@@ -94,6 +92,10 @@ elseif length(n_a)==2
                     [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             end
+        end
+        % no-d raws return Policy without the leading singleton dim; add it so UnKronPolicyIndexes_Case1_FHorz[_e][_noz] sees (1,...). With-d raws already return Policy2 with leading dim of size 2.
+        if N_d==0
+            PolicyKron=shiftdim(PolicyKron,-1);
         end
     else
         error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')

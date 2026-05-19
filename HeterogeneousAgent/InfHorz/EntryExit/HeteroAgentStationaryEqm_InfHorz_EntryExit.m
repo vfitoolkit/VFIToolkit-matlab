@@ -41,16 +41,6 @@ else
 end
 
 
-if exist('vfoptions','var')==0
-    % Note that the vfoptions will be set when we call 'ValueFnIter...' commands and the like, so no need to set them here except for a few.
-    vfoptions.parallel=2;
-else
-    % Note that the vfoptions will be set when we call 'ValueFnIter...' commands and the like, so no need to set them here except for a few.
-    if ~isfield(vfoptions,'parallel')
-        vfoptions.parallel=2;
-    end
-end
-
 if exist('simoptions','var')==0
     % Note that the simoptions will be set when we call 'StationaryDist...' commands and the like, so no need to set them here except for a few.
     simoptions.agententryandexit=1;

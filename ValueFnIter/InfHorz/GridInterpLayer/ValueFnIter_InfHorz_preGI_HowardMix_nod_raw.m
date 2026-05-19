@@ -13,7 +13,7 @@ n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between
 n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp;
 N_aprime=prod(n_aprime);
 aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*vfoptions.ngridinterp))';
-ReturnMatrixfine=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_aprime, n_a, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParams);
+ReturnMatrixfine=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_aprime, n_a, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParams);
 ReturnMatrix=ReturnMatrixfine(1:vfoptions.ngridinterp+1:n_aprime,:,:);
 
 

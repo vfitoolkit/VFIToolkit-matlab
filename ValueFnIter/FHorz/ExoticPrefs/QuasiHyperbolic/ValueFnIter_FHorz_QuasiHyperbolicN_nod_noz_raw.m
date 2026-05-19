@@ -23,7 +23,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
@@ -44,7 +44,7 @@ else
 
     EV=V_Jplus1; % Note: The V_Jplus1 input should be V for naive
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     % For naive, we compute V which is the exponential discounter case, and then from this we get Vtilde and
     % Policy (which is Policytilde) that correspond to the naive quasihyperbolic discounter
@@ -76,7 +76,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,jj+1); % Use V (goes into the equation to determine V)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     % For naive, we compute V which is the exponential discounter case, and then from this we get Vtilde and
     % Policy (which is Policytilde) that correspond to the naive quasihyperbolic discounter

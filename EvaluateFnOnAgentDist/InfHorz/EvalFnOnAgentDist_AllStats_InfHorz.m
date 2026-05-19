@@ -12,6 +12,9 @@ if ~exist('simoptions','var')
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.gridinterplayer=0;
     simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
 else
     if ~isfield(simoptions,'npoints')
         simoptions.npoints=100;
@@ -31,6 +34,15 @@ else
     end
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
+    end
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
     end
 end
 
@@ -54,12 +66,8 @@ if simoptions.gridinterplayer==1
     l_daprime=l_daprime-1;
 end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-% Switch to z_gridvals
-if simoptions.alreadygridvals==0
-    [z_gridvals, ~, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,[],Parameters,simoptions,1);
-elseif simoptions.alreadygridvals==1
-    z_gridvals=z_grid;
-end
+% Switch to z_gridvals (folding e and semiz into z if appropriate)
+[n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 
 AllStats=struct();
 

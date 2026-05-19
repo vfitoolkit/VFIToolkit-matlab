@@ -23,7 +23,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     Vhat(:,N_j)=Vtemp;
@@ -44,7 +44,7 @@ else
 
     EV=V_Jplus1; % Note: The V_Jplus1 input should be Vunderbar for sophisticated
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     % For sophisticated we compute Vhat, and the Policy (which is Policyhat)
     % and then we compute Vunderbar.
@@ -77,7 +77,7 @@ for reverse_j=1:N_j-1
 
     EV=Vunderbar(:,jj+1); % Use Vunderbar (goes into the equation to determine Vhat)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     % For sophisticated we compute Vhat, and the Policy (which is Policyhat)
     % and then we compute Vunderbar.

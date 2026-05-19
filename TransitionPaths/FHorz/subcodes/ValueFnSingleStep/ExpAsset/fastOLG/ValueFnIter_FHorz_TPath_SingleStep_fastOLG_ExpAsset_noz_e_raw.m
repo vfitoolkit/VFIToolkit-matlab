@@ -80,7 +80,7 @@ end
 DiscountedEV=DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
 
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, e_gridvals_J, ReturnFnParamsAgeMatrix,0,0);
+    ReturnMatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, e_gridvals_J, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
     entireRHS=ReturnMatrix+DiscountedEV;
 
@@ -99,7 +99,7 @@ elseif vfoptions.lowmemory==1
         e_val=e_gridvals_J(:,e_c,:);
         DiscountedEV_z=DiscountedEV(:,:,:,e_c);
 
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, e_val, ReturnFnParamsAgeMatrix,0,0);
+        ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, e_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
         entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
 

@@ -19,6 +19,7 @@ if exist('vfoptions','var')==0
     vfoptions.n_semiz=0;
     % Internal use only
     vfoptions.outputkron=0; % If 1, leave output in Kron form
+    vfoptions.alreadygridvals=0; % =1 when calling as a subcommand
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'parallel')
@@ -48,6 +49,9 @@ else
     % Internal use only
     if ~isfield(vfoptions,'outputkron')
         vfoptions.outputkron=0; % If 1, leave output in Kron form
+    end
+    if ~isfield(vfoptions,'alreadygridvals')
+        vfoptions.alreadygridvals=0; % =1 when calling as a subcommand
     end
 end
 
@@ -131,7 +135,12 @@ end
 
 
 %% Exogenous shock grids
-[z_gridvals_J,pi_z_J,vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
+if vfoptions.alreadygridvals==0
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
+elseif vfoptions.alreadygridvals==1
+    z_gridvals_J=z_grid;
+    pi_z_J=pi_z;
+end
 
 %%
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)

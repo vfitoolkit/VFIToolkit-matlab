@@ -1,4 +1,4 @@
-function options=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,options,Parallel,gridpiboth)
+function options=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,options,gridpiboth)
 % Convert semiz to age-dependent joint-grids and transtion matrix
 % options will either be options or simoptions
 % output: options.semiz_gridvals_J, options.pi_semiz_J
@@ -203,24 +203,13 @@ for ii=1:N_i
 
 
         %% Clean up output
-        if Parallel==2 % gpu, for value fn and FnsToEvaluate
-            if gridpiboth==3
-                options.pi_semiz_J.(Names_i{ii})=pi_semiz_J;
-                options.semiz_gridvals_J.(Names_i{ii})=semiz_gridvals_J;
-            elseif gridpiboth==2
-                options.pi_semiz_J.(Names_i{ii})=pi_semiz_J;
-            elseif gridpiboth==1
-                options.semiz_gridvals_J.(Names_i{ii})=semiz_gridvals_J;
-            end
-        else % cpu, for agent dist
-            if gridpiboth==3
-                options.semiz_gridvals_J.(Names_i{ii})=gather(semiz_gridvals_J);
-                options.pi_semiz_J.(Names_i{ii})=gather(pi_semiz_J);
-            elseif gridpiboth==2
-                options.pi_semiz_J.(Names_i{ii})=gather(pi_semiz_J);
-            elseif gridpiboth==1
-                options.semiz_gridvals_J.(Names_i{ii})=gather(semiz_gridvals_J);
-            end
+        if gridpiboth==3
+            options.pi_semiz_J.(Names_i{ii})=pi_semiz_J;
+            options.semiz_gridvals_J.(Names_i{ii})=semiz_gridvals_J;
+        elseif gridpiboth==2
+            options.pi_semiz_J.(Names_i{ii})=gather(pi_semiz_J); % Agent distribution iteration is performed on cpu
+        elseif gridpiboth==1
+            options.semiz_gridvals_J.(Names_i{ii})=semiz_gridvals_J;
         end
     end
 end

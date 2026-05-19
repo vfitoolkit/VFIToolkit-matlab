@@ -63,6 +63,28 @@ function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz_PType(n_z,z_grid,p
 % example, a joint grid is 6x2: each row pairs one z1 value with one z2
 % value, covering all 6 combinations. Age- or ptype-dependent versions add
 % a trailing dimension of length N_j or N_i for the corresponding axis.
+%
+% Output shapes (function returns):
+% Outputs are always structs keyed by Names_i (regardless of whether the
+% underlying inputs were ptype-dependent — for ptype-independent inputs the
+% same per-ptype payload is replicated across all fields). This lets
+% downstream code uniformly treat the outputs as ptype-dependent.
+%   z_gridvals_J:
+%     struct keyed by Names_i    each field is [prod(n_z_i), length(n_z_i), N_j_i] age-dependent joint grid,
+%                                or [] if that ptype has prod(n_z_i)==0 or gridpiboth==2
+%   pi_z_J:
+%     struct keyed by Names_i    each field is [prod(n_z_i), prod(n_z_i), N_j_i] age-dependent transition matrix,
+%                                or [] if that ptype has prod(n_z_i)==0 or gridpiboth==1
+%   options.e_gridvals_J:
+%     struct keyed by Names_i    each field is [prod(n_e_i), length(n_e_i), N_j_i] age-dependent joint grid for iid e,
+%                                or [] if that ptype has prod(n_e_i)==0 or gridpiboth==2
+%   options.pi_e_J:
+%     struct keyed by Names_i    each field is [prod(n_e_i), N_j_i] age-dependent iid distribution (one column per age),
+%                                or [] if that ptype has prod(n_e_i)==0 or gridpiboth==1
+%
+% In the ptype-independent case (n_z / n_e / N_j is a scalar or vector, not a
+% struct), the per-ptype values just collapse to n_z / n_e / N_j — i.e. all
+% per-ptype fields share one common shape.
 
 %% Check what we are doing in terms of dependence on permanent type for z
 zdependsonptype=0;
@@ -156,6 +178,8 @@ if zdependsonptype==0
                 z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
             elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
                 z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+            else
+                error('z_grid size does not match any expected shape')
             end
         elseif gridpiboth==2 % For agent dist, we don't use grid
             z_gridvals_J=[];
@@ -175,6 +199,7 @@ if zdependsonptype==0
                 % whether or not pi_z depends on age, we can just do
                 pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
             end
+            pi_z_J=gather(pi_z_J); % Agent distribution iteration is performed on cpu
         elseif gridpiboth==3
             % For value fn, both z_gridvals_J and pi_z_J
             z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
@@ -212,8 +237,20 @@ if zdependsonptype==0
             elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
                 z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
                 pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+            else
+                error('z_grid size does not match any expected shape')
             end
         end
+    end
+    % Broadcast bare arrays into struct keyed by Names_i, so that downstream
+    % code can always treat the outputs as ptype-dependent.
+    z_gridvals_J_bare=z_gridvals_J;
+    pi_z_J_bare=pi_z_J;
+    z_gridvals_J=struct();
+    pi_z_J=struct();
+    for ii=1:length(Names_i)
+        z_gridvals_J.(Names_i{ii})=z_gridvals_J_bare;
+        pi_z_J.(Names_i{ii})=pi_z_J_bare;
     end
 
 elseif zdependsonptype==1
@@ -278,6 +315,8 @@ elseif zdependsonptype==1
                     z_gridvals_J_temp=z_grid_temp.*ones(1,1,N_j_temp,'gpuArray');
                 elseif all(size(z_grid_temp)==[sum(n_z_temp),1]) % basic grid
                     z_gridvals_J_temp=CreateGridvals(n_z_temp,z_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
+                else
+                    error('z_grid_temp size does not match any expected shape')
                 end
                 z_gridvals_J.(Names_i{ii})=z_gridvals_J_temp;
             elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -299,7 +338,7 @@ elseif zdependsonptype==1
                     % whether or not pi_z depends on age, we can just do
                     pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
                 end
-                pi_z_J.(Names_i{ii})=pi_z_J_temp;
+                pi_z_J.(Names_i{ii})=gather(pi_z_J_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 % For value fn, both z_gridvals_J and pi_z_J
                 z_gridvals_J_temp=zeros(prod(n_z_temp),length(n_z_temp),N_j_temp,'gpuArray');
@@ -338,6 +377,8 @@ elseif zdependsonptype==1
                 elseif all(size(z_grid_temp)==[sum(n_z_temp),1]) % basic grid
                     z_gridvals_J_temp=CreateGridvals(n_z_temp,z_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
                     pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
+                else
+                    error('z_grid_temp size does not match any expected shape')
                 end
                 z_gridvals_J.(Names_i{ii})=z_gridvals_J_temp;
                 pi_z_J.(Names_i{ii})=pi_z_J_temp;
@@ -425,6 +466,8 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     else
                         error('z_grid_temp is 2D but its size does not match any expected shape')
                     end
+                else
+                    error('z_grid_temp has unexpected number of dimensions (expected 2, 3, or 4)')
                 end
                 z_gridvals_J.(Names_i{ii})=z_gridvals_J_temp;
             elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -449,7 +492,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     % whether or not pi_z depends on age, we can just do
                     pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
                 end
-                pi_z_J.(Names_i{ii})=pi_z_J_temp;
+                pi_z_J.(Names_i{ii})=gather(pi_z_J_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 % For value fn, both z_gridvals_J and pi_z_J
                 z_gridvals_J_temp=zeros(prod(n_z_temp),length(n_z_temp),N_j_temp,'gpuArray');
@@ -503,6 +546,8 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                         else
                             error('z_grid_temp is 2D but its size does not match any expected shape')
                         end
+                    else
+                        error('z_grid_temp has unexpected number of dimensions (expected 2, 3, or 4)')
                     end
                     if size(pi_z_temp,ndims(pi_z_temp))==N_i
                         otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
@@ -526,12 +571,6 @@ if edependsonptype==0
         options.e_gridvals_J=[];
         options.pi_e_J=[];
     else
-        if ~isfield(options,'e_grid') && ~isfield(options,'EiidShockFn')
-            error('You are using an e (iid) variable, and so need to declare options.e_grid (options refers to either vfoptions or simoptions)')
-        elseif ~isfield(options,'pi_e') && ~isfield(options,'EiidShockFn')
-            error('You are using an e (iid) variable, and so need to declare options.pi_e (options refers to either vfoptions or simoptions)')
-        end
-
         if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
             options.pi_e_J=[];
             % Now just do e_gridvals_J
@@ -553,6 +592,8 @@ if edependsonptype==0
             elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid
                 if all(size(options.e_grid)==[prod(options.n_e),length(options.n_e),N_j])
                     options.e_gridvals_J=options.e_grid;
+                else
+                    error('options.e_grid is 3D but its size does not match [prod(n_e), length(n_e), N_j]')
                 end
             elseif all(size(options.e_grid)==[sum(options.n_e),N_j]) % age-dependent stacked-grid
                 for jj=1:N_j
@@ -562,6 +603,8 @@ if edependsonptype==0
                 options.e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
             elseif all(size(options.e_grid)==[sum(options.n_e),1]) % basic grid
                 options.e_gridvals_J=CreateGridvals(options.n_e,options.e_grid,1).*ones(1,1,N_j,'gpuArray');
+            else
+                error('options.e_grid size does not match any expected shape')
             end
         elseif gridpiboth==2 % For agent dist, we don't use grid
             options.e_gridvals_J=[];
@@ -580,11 +623,11 @@ if edependsonptype==0
             else
                 options.pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');
             end
+            options.pi_e_J=gather(options.pi_e_J); % Agent distribution iteration is performed on cpu
         elseif gridpiboth==3
             % For value fn, both e_gridvals_J and pi_e_J
             options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),N_j,'gpuArray');
             options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
-
             if isfield(options,'EiidShockFn')
                 for jj=1:N_j
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
@@ -603,6 +646,8 @@ if edependsonptype==0
             elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid
                 if all(size(options.e_grid)==[prod(options.n_e),length(options.n_e),N_j])
                     options.e_gridvals_J=options.e_grid;
+                else
+                    error('options.e_grid is 3D but its size does not match [prod(n_e), length(n_e), N_j]')
                 end
                 options.pi_e_J=options.pi_e;
             elseif all(size(options.e_grid)==[sum(options.n_e),N_j]) % age-dependent stacked-grid
@@ -616,8 +661,19 @@ if edependsonptype==0
             elseif all(size(options.e_grid)==[sum(options.n_e),1]) % basic grid
                 options.e_gridvals_J=CreateGridvals(options.n_e,options.e_grid,1).*ones(1,1,N_j,'gpuArray');
                 options.pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');
+            else
+                error('options.e_grid size does not match any expected shape')
             end
         end
+    end
+    % Broadcast bare arrays into struct keyed by Names_i.
+    e_gridvals_J_bare=options.e_gridvals_J;
+    pi_e_J_bare=options.pi_e_J;
+    options.e_gridvals_J=struct();
+    options.pi_e_J=struct();
+    for ii=1:length(Names_i)
+        options.e_gridvals_J.(Names_i{ii})=e_gridvals_J_bare;
+        options.pi_e_J.(Names_i{ii})=pi_e_J_bare;
     end
 elseif edependsonptype==1
     for ii=1:length(Names_i)
@@ -665,9 +721,11 @@ elseif edependsonptype==1
                             e_gridvals_J_temp(:,:,jj)=gpuArray(e_grid_temp);
                         end
                     end
-                elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid
+                elseif ndims(e_grid_temp)==3 % already an age-dependent joint-grid
                     if all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp),N_j_temp])
                         e_gridvals_J_temp=e_grid_temp;
+                    else
+                        error('e_grid_temp is 3D but its size does not match [prod(n_e_temp), length(n_e_temp), N_j_temp]')
                     end
                 elseif all(size(e_grid_temp)==[sum(n_e_temp),N_j_temp]) % age-dependent stacked-grid
                     for jj=1:N_j_temp
@@ -677,6 +735,8 @@ elseif edependsonptype==1
                     e_gridvals_J_temp=e_grid_temp.*ones(1,1,N_j_temp,'gpuArray');
                 elseif all(size(e_grid_temp)==[sum(n_e_temp),1]) % basic grid
                     e_gridvals_J_temp=CreateGridvals(n_e_temp,e_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
+                else
+                    error('e_grid_temp size does not match any expected shape')
                 end
                 options.e_gridvals_J.(Names_i{ii})=e_gridvals_J_temp;
             elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -697,7 +757,7 @@ elseif edependsonptype==1
                 else
                     pi_e_J_temp=pi_e_temp.*ones(1,N_j_temp,'gpuArray');
                 end
-                options.pi_e_J.(Names_i{ii})=pi_e_J_temp;
+                options.pi_e_J.(Names_i{ii})=gather(pi_e_J_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 % For value fn, both e_gridvals_J and pi_e_J
                 e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),N_j_temp,'gpuArray');
@@ -722,6 +782,8 @@ elseif edependsonptype==1
                 elseif ndims(e_grid_temp)==3 % already an age-dependent joint-grid
                     if all(size(e_grid_temp)==[prod(n_e_temp),length(n_e_temp),N_j_temp])
                         e_gridvals_J_temp=e_grid_temp;
+                    else
+                        error('e_grid_temp is 3D but its size does not match [prod(n_e_temp), length(n_e_temp), N_j_temp]')
                     end
                     pi_e_J_temp=pi_e_temp;
                 elseif all(size(e_grid_temp)==[sum(n_e_temp),N_j_temp]) % age-dependent stacked-grid
@@ -735,6 +797,8 @@ elseif edependsonptype==1
                 elseif all(size(e_grid_temp)==[sum(n_e_temp),1]) % basic grid
                     e_gridvals_J_temp=CreateGridvals(n_e_temp,e_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
                     pi_e_J_temp=pi_e_temp.*ones(1,N_j_temp,'gpuArray');
+                else
+                    error('e_grid_temp size does not match any expected shape')
                 end
                 options.e_gridvals_J.(Names_i{ii})=e_gridvals_J_temp;
                 options.pi_e_J.(Names_i{ii})=pi_e_J_temp;
@@ -818,6 +882,8 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                     else
                         error('e_grid_temp is 2D but its size does not match any expected shape')
                     end
+                else
+                    error('e_grid_temp has unexpected number of dimensions (expected 2, 3, or 4)')
                 end
                 options.e_gridvals_J.(Names_i{ii})=e_gridvals_J_temp;
             elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -840,7 +906,7 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                 else
                     pi_e_J_temp=pi_e_temp.*ones(1,N_j_temp,'gpuArray');
                 end
-                options.pi_e_J.(Names_i{ii})=pi_e_J_temp;
+                options.pi_e_J.(Names_i{ii})=gather(pi_e_J_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),N_j_temp,'gpuArray');
                 pi_e_J_temp=zeros(prod(n_e_temp),N_j_temp,'gpuArray');
@@ -893,6 +959,8 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                         else
                             error('e_grid_temp is 2D but its size does not match any expected shape')
                         end
+                    else
+                        error('e_grid_temp has unexpected number of dimensions (expected 2, 3, or 4)')
                     end
                     if size(pi_e_temp,ndims(pi_e_temp))==N_i
                         otherdims = repmat({':'},1,ndims(pi_e_temp)-1);

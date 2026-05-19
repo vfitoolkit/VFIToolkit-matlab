@@ -11,7 +11,7 @@ Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for apri
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -24,7 +24,7 @@ else
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,1]); % Using V_Jplus1
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % autoexpand a in 3rd-dim
 
@@ -52,7 +52,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,jj+1);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % autoexpand a in 3rd-dim
 

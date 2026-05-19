@@ -7,37 +7,17 @@ Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for 
 
 Vnext=sum(V.*shiftdim(pi_e_J,-1),2); % Take expectations over e
 
-%%
-if vfoptions.lowmemory==1
-    special_n_e=ones(1,length(n_e));
-end
-
 
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
-if vfoptions.lowmemory==0
-
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a,n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-    % Calc the max and it's index
-    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,:,N_j)=Vtemp;
-    Policy(:,:,N_j)=maxindex;
-
-elseif vfoptions.lowmemory==1
-
-    for e_c=1:N_e
-        e_val=e_gridvals_J(e_c,:,N_j);
-        ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
-        % Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-        V(:,e_c,N_j)=Vtemp;
-        Policy(:,e_c,N_j)=maxindex;
-    end
-
-end
+ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a,n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
+% Calc the max and it's index
+[Vtemp,maxindex]=max(ReturnMatrix,[],1);
+V(:,:,N_j)=Vtemp;
+Policy(:,:,N_j)=maxindex;
 
 
 %% Iterate backwards through j.
@@ -51,32 +31,15 @@ for reverse_j=1:N_j-1
 
     EV=Vnext(:,1,jj+1);
 
-    if vfoptions.lowmemory==0
+    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a,n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a,n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
+    % Calc the max and it's index
+    [Vtemp,maxindex]=max(entireRHS,[],1);
 
-        % Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-
-        V(:,:,jj)=shiftdim(Vtemp,1);
-        Policy(:,:,jj)=shiftdim(maxindex,1);
-
-    elseif vfoptions.lowmemory==1
-        for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
-
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV;
-
-            % Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_e,[],1);
-
-            V(:,e_c,jj)=shiftdim(Vtemp,1);
-            Policy(:,e_c,jj)=shiftdim(maxindex,1);
-        end
-    end
+    V(:,:,jj)=shiftdim(Vtemp,1);
+    Policy(:,:,jj)=shiftdim(maxindex,1);
 end
 
 %% Output shape for policy

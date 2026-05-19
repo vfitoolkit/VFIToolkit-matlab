@@ -14,7 +14,7 @@ N_z=prod(n_z);
 % Since the return function is independent of time creating it once and then using it every iteration is good for speed, but it does use a lot of memory.
 
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a2, n_z, d_gridvals, a2_grid, z_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2], n_a2, n_z, d_gridvals, a2_grid, z_gridvals, ReturnFnParamsVec);
     ReturnMatrix=reshape(ReturnMatrix,[N_d1,N_d2,N_a2,N_z]);
 
     % For refinement, now we solve for d1*(d2,a,z) that maximizes the ReturnFn
@@ -29,7 +29,7 @@ elseif vfoptions.lowmemory==1 % loop over z
     special_n_z=ones(1,l_z,'gpuArray');
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a2, special_n_z, d_gridvals, a2_grid, zvals, ReturnFnParamsVec);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2], n_a2, special_n_z, d_gridvals, a2_grid, zvals, ReturnFnParamsVec);
         ReturnMatrix_z=reshape(ReturnMatrix_z,[N_d1,N_d2,N_a2,N_z]);
 
         [ReturnMatrix_z,d1star_z]=max(ReturnMatrix_z,[],1); % solve for d1star

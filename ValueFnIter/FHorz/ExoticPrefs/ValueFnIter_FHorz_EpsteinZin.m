@@ -180,8 +180,6 @@ if N_e==0
             [VKron, PolicyKron]=ValueFnIter_FHorz_EpsteinZin_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
         end
     end
-    % Policy without d
-    PolicyKron=shiftdim(PolicyKron,-1);
 else % N_e
     if N_z==0
         if N_d==0
@@ -196,6 +194,12 @@ else % N_e
             [VKron,PolicyKron]=ValueFnIter_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
         end
     end
+end
+
+% no-d raws return Policy without the leading singleton dim; add it so UnKronPolicyIndexes_Case1_FHorz[_e] sees (1,N_a,N_z[,N_e],N_j).
+% with-d raws already return Policy2 with leading dim of size 2, no shiftdim needed.
+if N_d==0
+    PolicyKron=shiftdim(PolicyKron,-1);
 end
 
 if vfoptions.outputkron==0

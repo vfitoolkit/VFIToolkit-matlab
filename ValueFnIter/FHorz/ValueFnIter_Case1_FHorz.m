@@ -117,80 +117,7 @@ if ~all(size(a_grid)==[sum(n_a), 1])
     error('a_grid is not the correct shape (should be of size sum(n_a)-by-1; a (stacked) column vector)')
 end
 
-%%
-if vfoptions.alreadygridvals==0
-    % Check z_grid inputs
-    if isa(z_grid,'function_handle') || isfield(vfoptions,'ExogShockFn')
-        % okay
-    elseif ndims(z_grid)==2
-        if ~all(size(z_grid)==[sum(n_z),1]) && ~all(size(z_grid)==[prod(n_z),length(n_z)]) && ~all(size(z_grid)==[n_z(1),length(n_z)]) && ~all(size(z_grid)==[sum(n_z),N_j])
-            % all(size(z_grid)==[sum(n_z), 1]) is the grid as a stacked vector
-            % all(size(z_grid)==[prod(n_z),length(n_z)]) is a joint-grid
-            % all(size(z_grid)==[n_z(1),length(n_z)]) is a joint-grid
-            % all(size(z_grid)==[sum(n_z), N_j]) is the grid as an age-dependent stacked vector
-            if N_z>0
-                error('z_grid is not the correct shape (typically should be of size sum(n_z)-by-1)')
-            end
-        end
-    elseif ndims(z_grid)==3
-        if ~all(size(z_grid)==[prod(n_z),length(n_z),N_j]) && ~all(size(z_grid)==[n_z(1),length(n_z),N_j])
-            % all(size(z_grid)==[prod(n_z),length(n_z),N_j]) is an age-dependent joint-grid
-            % all(size(z_grid)==[n_z(1),length(n_z),N_j]) is an age-dependent joint-grid
-            if N_z>0
-                error('z_grid is not the correct shape (typically should be of size sum(n_z)-by-N_j)')
-            end
-        end
-    else
-        error('z_grid is not the correct shape (typically should be of size sum(n_z)-by-1)')
-    end
-    % Check pi_z inputs
-    if isa(z_grid,'function_handle') || isfield(vfoptions,'ExogShockFn')
-        % okay (dont need to check pi_z)
-    elseif ndims(pi_z)==2
-        if ~isequal(size(pi_z), [N_z, N_z])
-            if N_z>0
-                error('pi_z is not of size N_z-by-N_z')
-            end
-        end
-    elseif ndims(pi_z)==3
-        if ~isequal(size(pi_z), [N_z, N_z,N_j])
-            if N_z>0
-                error('pi_z is not of size N_z-by-N_z-by-N_j')
-            end
-        end
-    end
-
-
-    if N_e>0 && ~isfield(vfoptions,'EiidShockFn')
-        if isfield(vfoptions,'e_grid_J')
-            error('No longer use vfoptions.e_grid_J, instead just put the age-dependent grid in vfoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
-        elseif ~isfield(vfoptions,'e_grid')
-            error('When using vfoptions.n_e you must declare vfoptions.e_grid')
-        elseif ~isfield(vfoptions,'pi_e')
-            error('When using vfoptions.n_e you must declare vfoptions.pi_e')
-        else
-            % check size of e_grid and pi_e
-            if isfield(vfoptions,'e_grid')
-                if ndims(vfoptions.e_grid)==2
-                    if ~all(size(vfoptions.e_grid)==[sum(vfoptions.n_e), 1]) && ~all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)]) && ~all(size(vfoptions.e_grid)==[sum(vfoptions.n_e), N_j])
-                        error('vfoptions.e_grid is not the correct shape (should be of size sum(n_e)-by-1; or sum(n_e)-by-N_j or N_e-by-l_e or N_e-by-l_e-by_N_j )')
-                    end
-                elseif ndims(vfoptions.e_grid)==3
-                    if ~all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e),N_j])
-                        error('vfoptions.e_grid is not the correct shape (should be of size sum(n_e)-by-1; or sum(n_e)-by-N_j or N_e-by-l_e or N_e-by-l_e-by_N_j )')
-                    end
-                else
-                    error('vfoptions.e_grid is not the correct shape (should be of size sum(n_e)-by-1; or sum(n_e)-by-N_j or N_e-by-l_e or N_e-by-l_e-by_N_j )')
-                end
-            end
-            if isfield(vfoptions,'pi_e')
-                if ~all(size(vfoptions.pi_e)==[prod(vfoptions.n_e),1]) && ~all(size(vfoptions.pi_e)==[prod(vfoptions.n_e),N_j])
-                    error('vfoptions.pi_e is not the correct shape (should be of size N_e-by-1 or N_e-by-N_j)')
-                end
-            end
-        end
-    end
-end
+%% z_grid/pi_z/e_grid/pi_e shape validation is performed inside ExogShockSetup_FHorz (called below).
 
 if vfoptions.parallel<2
     if N_e>0
@@ -283,7 +210,7 @@ end
 if vfoptions.alreadygridvals_semiexo==0
     if prod(vfoptions.n_semiz)>0
         % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-        vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,2,3);
+        vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,3);
         % output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
         % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
         % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]

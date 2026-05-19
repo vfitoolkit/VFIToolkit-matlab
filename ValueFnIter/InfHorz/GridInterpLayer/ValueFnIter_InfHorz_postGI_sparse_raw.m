@@ -27,7 +27,7 @@ N_z=prod(n_z);
 a_gridvals = a_grid; % only one endogenous state, else wouldn't end up here
 
 % ReturnMatrix(d,a',a,z) with a' on coarse grid
-ReturnMatrixraw = CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, a_gridvals, a_gridvals, z_gridvals, ReturnFnParamsVec,1);
+ReturnMatrixraw = CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_gridvals, a_gridvals, z_gridvals, ReturnFnParamsVec,1);
 % Refine away d
 ReturnMatrix = max(ReturnMatrixraw,[],1);
 ReturnMatrix = reshape(ReturnMatrix,[N_a,N_a,N_z]);
@@ -84,7 +84,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         aprime_ii = aprime_grid(aprimeindexes);
 
         % ReturnMatrix_ii_z is (N_d,n2long,n_a)
-        ReturnMatrix_ii_z = CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, special_n_z, d_gridvals, aprime_ii, a_gridvals, z_val, ReturnFnParamsVec,1);
+        ReturnMatrix_ii_z = CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, aprime_ii, a_gridvals, z_val, ReturnFnParamsVec,1);
         % EV_z_interp is (n2long,n_a)
         EV_z_interp = interp1(a_grid,EV_z,aprime_ii,'linear');
         % entireRHS_ii_z is (N_d,n2long,n_a)

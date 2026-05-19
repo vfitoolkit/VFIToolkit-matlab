@@ -1,22 +1,29 @@
 function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset(Policy,aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, d_grid, a2_grid, aprimeFnParams)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
+% For experienceasset: compute a2prime=aprimeFn(d, a2) using the
+% Policy-chosen d for each state (one d per state), used in simulation /
+% agent-distribution. Because the true value of a2prime will (almost
+% always) lie between two consecutive points in a2_grid, it is linearly
+% interpolated back on to a2_grid. Thus the continuous a2prime is
+% represented by (index of lower grid point in a2primeIndexes, probability
+% of lower grid point in a2primeProbs) on a2_grid; the upper index is
+% implicitly lower+1 with prob 1-minus-prob-of-lower.
+%
 % The input Policy will contain aprime (except for the experience asset)
 % and the decision variables (d2, and where applicable d1). The output is
 % just the Policy for a2prime (the experience asset). As well as the
 % related probabilities.
-
-% Note: aprimeIndex is [N_a,N_z], so is aprimeProbs which only reports the probability for the lower grid point.
 %
-% Creates the grid points and their 'interpolation' probabilities.
-% Note: aprimeIndexes is always the 'lower' point (the upper points are
-% just aprimeIndexes+1, so no need to waste memory storing them), and the
-% aprimeProbs are the probability of this lower point (prob of upper point
-% is just 1 minus this).
+% Companion file CreateExperienceAssetFnMatrix.m does the same but for ALL
+% d (not just the Policy-chosen one), used during value-function iteration
+% to find Policy. This file is used afterwards, once Policy has been
+% chosen, for simulation / agent-distribution.
 %
-%
-% Remark: This is like CreateExperienceAssetFnMatrix(), except
-% instead of looking at all possible d, we only care about those in Policy.
-% The Policy based ones are needed for simulation, while those for all
-% possible d were needed for value function (to find Policy).
+% Output sizes (when N_z==0):
+%   a2primeIndexes - [N_a, 1]
+%   a2primeProbs   - [N_a, 1]
+% Output sizes (when N_z>0):
+%   a2primeIndexes - [N_a, N_z]
+%   a2primeProbs   - [N_a, N_z]
 
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
@@ -101,7 +108,7 @@ end
 % Note: the relevant d for experience asset is just the 'whichisdforexpasset' d (this is typically just the last if using just experience asset, but
 % needs to be something else, e.g., when combining experience asset with semi-exogenous state)
 % expasset: aprime(d,a2)
-a2vals=a2vals.*ones(1,1,1,'gpuArray'); % this is just to fool matlab which otherwise throws an error
+% Removed: a2vals=a2vals.*ones(1,1,1,'gpuArray'); % was here to fool matlab which otherwise threw an error; restore this line if functionality breaks
 if l_dexp==1
     a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, ParamCell{:});
 elseif l_dexp==2

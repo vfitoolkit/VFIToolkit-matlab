@@ -7,8 +7,26 @@ function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_InfHorz(Policy, FnsToEvalua
 Parallel=1+(gpuDeviceCount>0);
 if ~exist('simoptions','var')
     simoptions.gridinterplayer=0;
-elseif ~isfield(simoptions,'gridinterplayer')
-    simoptions.gridinterplayer=0;
+    simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
+else
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals')
+        simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
+    end
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
 end
 
 if n_d(1)==0
@@ -28,7 +46,8 @@ if simoptions.gridinterplayer==1
 end
 if Parallel==2
     a_gridvals=CreateGridvals(n_a,a_grid,1);
-    [z_gridvals,~,simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,[],Parameters,simoptions,1);
+    % Switch to z_gridvals (folding e and semiz into z if appropriate)
+    [n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 elseif Parallel==1
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2); % CPU, so must just be simple stacked column for z

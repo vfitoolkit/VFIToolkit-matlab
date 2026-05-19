@@ -69,7 +69,7 @@ end
 DiscountedEV=DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
 
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, ReturnFnParamsAgeMatrix,0,0);
+    ReturnMatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_noz(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
     entireRHS=ReturnMatrix+DiscountedEV;
 

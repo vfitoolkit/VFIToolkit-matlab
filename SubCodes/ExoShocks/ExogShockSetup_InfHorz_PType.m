@@ -50,6 +50,28 @@ function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz_PType(n_z,z_grid,pi_
 % example, a joint grid is 6x2: each row pairs one z1 value with one z2
 % value, covering all 6 combinations. The ptype-dependent version adds a
 % trailing dimension of length N_i.
+%
+% Output shapes (function returns):
+% Outputs are always structs keyed by Names_i (regardless of whether the
+% underlying inputs were ptype-dependent — for ptype-independent inputs the
+% same per-ptype payload is replicated across all fields). This lets
+% downstream code uniformly treat the outputs as ptype-dependent.
+%   z_gridvals:
+%     struct keyed by Names_i    each field is [prod(n_z_i), length(n_z_i)] (joint grid for ptype i),
+%                                or [] if that ptype has prod(n_z_i)==0 or gridpiboth==2
+%   pi_z:
+%     struct keyed by Names_i    each field is [prod(n_z_i), prod(n_z_i)] transition matrix,
+%                                or [] if that ptype has prod(n_z_i)==0 or gridpiboth==1
+%   options.e_gridvals:
+%     struct keyed by Names_i    each field is [prod(n_e_i), length(n_e_i)] joint grid for iid e,
+%                                or [] if that ptype has prod(n_e_i)==0 or gridpiboth==2
+%   options.pi_e:
+%     struct keyed by Names_i    each field is [prod(n_e_i), 1] iid distribution,
+%                                or [] if that ptype has prod(n_e_i)==0 or gridpiboth==1
+%
+% In the ptype-independent case (n_z / n_e is a scalar or vector, not a
+% struct), n_z_i / n_e_i is just n_z / n_e — i.e. all per-ptype fields share
+% one common shape.
 
 %% Check what we are doing in terms of dependence on permanent type for z
 zdependsonptype=0;
@@ -123,6 +145,8 @@ if zdependsonptype==0
                 z_gridvals=z_grid;
             elseif all(size(z_grid)==[sum(n_z),1]) % stacked column grid
                 z_gridvals=CreateGridvals(n_z,z_grid,1);
+            else
+                error('z_grid size does not match any expected shape')
             end
             z_gridvals=gpuArray(z_gridvals);
         elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -135,7 +159,7 @@ if zdependsonptype==0
                 end
                 [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
             end
-            pi_z=gpuArray(pi_z);
+            pi_z=gather(pi_z); % Agent distribution iteration is performed on cpu
         elseif gridpiboth==3
             % For value fn, both z_gridvals and pi_z
             if isfield(options,'ExogShockFn')
@@ -150,10 +174,22 @@ if zdependsonptype==0
                 z_gridvals=z_grid;
             elseif all(size(z_grid)==[sum(n_z),1]) % stacked column grid
                 z_gridvals=CreateGridvals(n_z,z_grid,1);
+            else
+                error('z_grid size does not match any expected shape')
             end
             z_gridvals=gpuArray(z_gridvals);
             pi_z=gpuArray(pi_z);
         end
+    end
+    % Broadcast bare arrays into struct keyed by Names_i, so that downstream
+    % code can always treat the outputs as ptype-dependent.
+    z_gridvals_bare=z_gridvals;
+    pi_z_bare=pi_z;
+    z_gridvals=struct();
+    pi_z=struct();
+    for ii=1:length(Names_i)
+        z_gridvals.(Names_i{ii})=z_gridvals_bare;
+        pi_z.(Names_i{ii})=pi_z_bare;
     end
 
 elseif zdependsonptype==1
@@ -209,7 +245,7 @@ elseif zdependsonptype==1
                     temp=options.ExogShockFn.(Names_i{ii});
                     [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
                 end
-                pi_z_out.(Names_i{ii})=gpuArray(pi_z_temp);
+                pi_z_out.(Names_i{ii})=gather(pi_z_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 if isfield(options,'ExogShockFn')
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}));
@@ -289,6 +325,8 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     else
                         error('z_grid_temp is 2D but its size does not match any expected shape')
                     end
+                else
+                    error('z_grid_temp has unexpected number of dimensions (expected 2 or 3)')
                 end
                 z_gridvals_out.(Names_i{ii})=gpuArray(z_gridvals_temp);
             elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -305,7 +343,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
                     pi_z_temp=pi_z_temp(otherdims{:},ii);
                 end
-                pi_z_out.(Names_i{ii})=gpuArray(pi_z_temp);
+                pi_z_out.(Names_i{ii})=gather(pi_z_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 if isfield(options,'ExogShockFn')
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}));
@@ -337,6 +375,8 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                         else
                             error('z_grid_temp is 2D but its size does not match any expected shape')
                         end
+                    else
+                        error('z_grid_temp has unexpected number of dimensions (expected 2 or 3)')
                     end
                     if size(pi_z_temp,ndims(pi_z_temp))==N_i
                         otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
@@ -373,6 +413,8 @@ if edependsonptype==0
                 options.e_gridvals=options.e_grid;
             elseif all(size(options.e_grid)==[sum(options.n_e),1]) % stacked column grid
                 options.e_gridvals=CreateGridvals(options.n_e,options.e_grid,1);
+            else
+                error('options.e_grid size does not match any expected shape')
             end
             options.e_gridvals=gpuArray(options.e_gridvals);
         elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -385,7 +427,7 @@ if edependsonptype==0
                 end
                 [~,options.pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
             end
-            options.pi_e=gpuArray(options.pi_e);
+            options.pi_e=gather(options.pi_e); % Agent distribution iteration is performed on cpu
         elseif gridpiboth==3
             if isfield(options,'EiidShockFn')
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames);
@@ -399,10 +441,21 @@ if edependsonptype==0
                 options.e_gridvals=options.e_grid;
             elseif all(size(options.e_grid)==[sum(options.n_e),1]) % stacked column grid
                 options.e_gridvals=CreateGridvals(options.n_e,options.e_grid,1);
+            else
+                error('options.e_grid size does not match any expected shape')
             end
             options.e_gridvals=gpuArray(options.e_gridvals);
             options.pi_e=gpuArray(options.pi_e);
         end
+    end
+    % Broadcast bare arrays into struct keyed by Names_i.
+    e_gridvals_bare=options.e_gridvals;
+    pi_e_bare=options.pi_e;
+    options.e_gridvals=struct();
+    options.pi_e=struct();
+    for ii=1:length(Names_i)
+        options.e_gridvals.(Names_i{ii})=e_gridvals_bare;
+        options.pi_e.(Names_i{ii})=pi_e_bare;
     end
 
 elseif edependsonptype==1
@@ -458,7 +511,7 @@ elseif edependsonptype==1
                     temp=options.EiidShockFn.(Names_i{ii});
                     [~,pi_e_temp]=temp(EiidShockFnParamsCell{:});
                 end
-                pi_e_out.(Names_i{ii})=gpuArray(pi_e_temp);
+                pi_e_out.(Names_i{ii})=gather(pi_e_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 if isfield(options,'EiidShockFn')
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}));
@@ -538,6 +591,8 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                     else
                         error('e_grid_temp is 2D but its size does not match any expected shape')
                     end
+                else
+                    error('e_grid_temp has unexpected number of dimensions (expected 2 or 3)')
                 end
                 e_gridvals_out.(Names_i{ii})=gpuArray(e_gridvals_temp);
             elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -554,7 +609,7 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                     otherdims = repmat({':'},1,ndims(pi_e_temp)-1);
                     pi_e_temp=pi_e_temp(otherdims{:},ii);
                 end
-                pi_e_out.(Names_i{ii})=gpuArray(pi_e_temp);
+                pi_e_out.(Names_i{ii})=gather(pi_e_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
                 if isfield(options,'EiidShockFn')
                     EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}));
@@ -586,6 +641,8 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                         else
                             error('e_grid_temp is 2D but its size does not match any expected shape')
                         end
+                    else
+                        error('e_grid_temp has unexpected number of dimensions (expected 2 or 3)')
                     end
                     if size(pi_e_temp,ndims(pi_e_temp))==N_i
                         otherdims = repmat({':'},1,ndims(pi_e_temp)-1);

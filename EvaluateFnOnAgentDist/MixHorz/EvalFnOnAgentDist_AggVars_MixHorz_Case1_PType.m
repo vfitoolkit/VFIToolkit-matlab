@@ -226,10 +226,7 @@ for ii=1:N_i
     AggVarsFull(logical(FnsAndPTypeIndicator_ii),ii)=AggVars_ii;
 end
 
-if size(StationaryDist.ptweights,2)==1
-    StationaryDist.ptweights=StationaryDist.ptweights'; % make sure it is a row vector
-end
-AggVars2=sum(StationaryDist.ptweights.*AggVarsFull,2); % sum across agents
+AggVars2=sum(StationaryDist.ptweights'.*AggVarsFull,2); % sum across agents (ptweights stored as column)
 
 % If using FnsToEvaluate as structure need to get in appropriate form for output
 if isstruct(FnsToEvaluate)

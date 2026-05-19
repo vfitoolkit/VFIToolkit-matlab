@@ -44,6 +44,23 @@ function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_
 % example, a joint grid is 6x2: each row pairs one z1 value with one z2
 % value, covering all 6 combinations. In the age-dependent form, the same
 % joint grid is given per age along the third dimension.
+%
+% Output shapes (function returns):
+%   z_gridvals_J:
+%     [prod(n_z), length(n_z), N_j]  age-dependent joint grid (always in joint form, regardless of input shape)
+%     []                             if gridpiboth==2 (only pi_z_J requested) or prod(n_z)==0
+%   pi_z_J:
+%     [prod(n_z), prod(n_z), N_j]    age-dependent transition matrix (rows = from-state, cols = to-state)
+%     []                             if gridpiboth==1 (only grid requested) or prod(n_z)==0
+%   options.e_gridvals_J:
+%     [prod(n_e), length(n_e), N_j]  age-dependent joint grid for iid e
+%     []                             if gridpiboth==2 or no e variable
+%   options.pi_e_J:
+%     [prod(n_e), N_j]               age-dependent iid distribution (one column per age)
+%     []                             if gridpiboth==1 or no e variable
+%
+% Age-independent inputs are broadcast across the N_j dimension; age-dependent
+% inputs are passed through (or converted from stacked to joint form per age).
 
 %% Check basic setup
 if ~isfield(options,'n_e')
@@ -89,7 +106,7 @@ else
             if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
                 z_gridvals_J=z_grid;
             else
-                error('z_grid is 3D but its size does not match [prod(n_z), length(n_z), N_j]')
+                error('z_grid is 3D but its size does not match [prod(n_z),length(n_z),N_j]; got [%s]',num2str(size(z_grid)))
             end
         elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
             for jj=1:N_j
@@ -99,9 +116,16 @@ else
             z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
         elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
             z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+        else
+            error('z_grid is not the correct shape. Expected one of: [sum(n_z),1] (stacked vector), [prod(n_z),length(n_z)] (joint grid), [sum(n_z),N_j] (age-dependent stacked vector), or [prod(n_z),length(n_z),N_j] (age-dependent joint grid). Got [%s]',num2str(size(z_grid)))
         end
     elseif gridpiboth==2 % For agent dist, we don't use grid
         z_gridvals_J=[];
+        if ~isfield(options,'ExogShockFn')
+            if ~isequal(size(pi_z),[prod(n_z),prod(n_z)]) && ~isequal(size(pi_z),[prod(n_z),prod(n_z),N_j])
+                error('pi_z is the wrong shape: expected [N_z,N_z] or [N_z,N_z,N_j] (where N_z=prod(n_z)), got [%s]',num2str(size(pi_z)))
+            end
+        end
         % Now just do pi_z_J
         pi_z_J=zeros(prod(n_z),prod(n_z),N_j,'gpuArray');
         if isfield(options,'ExogShockFn')
@@ -118,8 +142,14 @@ else
             % whether or not pi_z depends on age, we can just do
             pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
         end
+        pi_z_J=gather(pi_z_J); % Agent distribution iteration is performed on cpu
     elseif gridpiboth==3
         % For value fn, both z_gridvals_J and pi_z_J
+        if ~isfield(options,'ExogShockFn')
+            if ~isequal(size(pi_z),[prod(n_z),prod(n_z)]) && ~isequal(size(pi_z),[prod(n_z),prod(n_z),N_j])
+                error('pi_z is the wrong shape: expected [N_z,N_z] or [N_z,N_z,N_j] (where N_z=prod(n_z)), got [%s]',num2str(size(pi_z)))
+            end
+        end
         z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
         pi_z_J=zeros(prod(n_z),prod(n_z),N_j,'gpuArray');
         if isfield(options,'ExogShockFn')
@@ -141,7 +171,7 @@ else
             if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
                 z_gridvals_J=z_grid;
             else
-                error('z_grid is 3D but its size does not match [prod(n_z), length(n_z), N_j]')
+                error('z_grid is 3D but its size does not match [prod(n_z),length(n_z),N_j]; got [%s]',num2str(size(z_grid)))
             end
             pi_z_J=pi_z;
         elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
@@ -155,6 +185,8 @@ else
         elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
             z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
             pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+        else
+            error('z_grid is not the correct shape. Expected one of: [sum(n_z),1] (stacked vector), [prod(n_z),length(n_z)] (joint grid), [sum(n_z),N_j] (age-dependent stacked vector), or [prod(n_z),length(n_z),N_j] (age-dependent joint grid). Got [%s]',num2str(size(z_grid)))
         end
     end
 end
@@ -193,6 +225,8 @@ else
         elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid
             if all(size(options.e_grid)==[prod(options.n_e),length(options.n_e),N_j])
                 options.e_gridvals_J=options.e_grid;
+            else
+                error('options.e_grid is 3D but its size does not match [prod(n_e),length(n_e),N_j]; got [%s]',num2str(size(options.e_grid)))
             end
         elseif all(size(options.e_grid)==[sum(options.n_e),N_j]) % age-dependent stacked-grid
             for jj=1:N_j
@@ -202,9 +236,16 @@ else
             options.e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
         elseif all(size(options.e_grid)==[sum(options.n_e),1]) % basic grid
             options.e_gridvals_J=CreateGridvals(options.n_e,options.e_grid,1).*ones(1,1,N_j,'gpuArray');
+        else
+            error('options.e_grid is not the correct shape. Expected one of: [sum(n_e),1] (stacked vector), [prod(n_e),length(n_e)] (joint grid), [sum(n_e),N_j] (age-dependent stacked vector), or [prod(n_e),length(n_e),N_j] (age-dependent joint grid). Got [%s]',num2str(size(options.e_grid)))
         end
     elseif gridpiboth==2 % For agent dist, we don't use grid
         options.e_gridvals_J=[];
+        if ~isfield(options,'EiidShockFn')
+            if ~isequal(size(options.pi_e),[prod(options.n_e),1]) && ~isequal(size(options.pi_e),[prod(options.n_e),N_j])
+                error('options.pi_e is the wrong shape: expected [N_e,1] or [N_e,N_j] (where N_e=prod(n_e)), got [%s]',num2str(size(options.pi_e)))
+            end
+        end
         % Now just do pi_e_J
         options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
         if isfield(options,'EiidShockFn')
@@ -220,11 +261,16 @@ else
         else
             options.pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');
         end
+        options.pi_e_J=gather(options.pi_e_J); % Agent distribution iteration is performed on cpu
     elseif gridpiboth==3
         % For value fn, both e_gridvals_J and pi_e_J
+        if ~isfield(options,'EiidShockFn')
+            if ~isequal(size(options.pi_e),[prod(options.n_e),1]) && ~isequal(size(options.pi_e),[prod(options.n_e),N_j])
+                error('options.pi_e is the wrong shape: expected [N_e,1] or [N_e,N_j] (where N_e=prod(n_e)), got [%s]',num2str(size(options.pi_e)))
+            end
+        end
         options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),N_j,'gpuArray');
         options.pi_e_J=zeros(prod(options.n_e),N_j,'gpuArray');
-
         if isfield(options,'EiidShockFn')
             for jj=1:N_j
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
@@ -243,6 +289,8 @@ else
         elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid
             if all(size(options.e_grid)==[prod(options.n_e),length(options.n_e),N_j])
                 options.e_gridvals_J=options.e_grid;
+            else
+                error('options.e_grid is 3D but its size does not match [prod(n_e),length(n_e),N_j]; got [%s]',num2str(size(options.e_grid)))
             end
             options.pi_e_J=options.pi_e;
         elseif all(size(options.e_grid)==[sum(options.n_e),N_j]) % age-dependent stacked-grid
@@ -256,6 +304,8 @@ else
         elseif all(size(options.e_grid)==[sum(options.n_e),1]) % basic grid
             options.e_gridvals_J=CreateGridvals(options.n_e,options.e_grid,1).*ones(1,1,N_j,'gpuArray');
             options.pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');
+        else
+            error('options.e_grid is not the correct shape. Expected one of: [sum(n_e),1] (stacked vector), [prod(n_e),length(n_e)] (joint grid), [sum(n_e),N_j] (age-dependent stacked vector), or [prod(n_e),length(n_e),N_j] (age-dependent joint grid). Got [%s]',num2str(size(options.e_grid)))
         end
     end
 end

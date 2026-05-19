@@ -200,9 +200,7 @@ for ii=1:N_i
                 error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
             end
         else
-            if isfinite(N_j_temp)
-                error(['You must input a jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
-            end
+            error(['You must input a jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
         end
     else
         % Note: when jequaloneDist is not a structure all ptypes must have the same grids
@@ -231,17 +229,11 @@ for ii=1:N_i
         if isfield(AgeWeightsParamNames,Names_i{ii})
             AgeWeightParamNames_temp=AgeWeightsParamNames.(Names_i{ii});
         else
-            if isfinite(N_j_temp)
-                error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
-            end
+            error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
         end
     end
 
-    if isfinite(N_j_temp)
-        StationaryDist_ii=StationaryDist_FHorz_Case1(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp,simoptions_temp);
-    else % PType actually allows for infinite horizon as well
-        StationaryDist_ii=StationaryDist_Case1(Policy_temp,n_d_temp,n_a_temp,n_z_temp,pi_z_temp,simoptions_temp,Parameters_temp); % EntryExitParams not yet supported (is on my to-do list)
-    end
+    StationaryDist_ii=StationaryDist_FHorz_Case1(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp,simoptions_temp);
 
     if simoptions_temp.ptypestorecpu==1
         StationaryDist.(Names_i{ii})=gather(StationaryDist_ii);

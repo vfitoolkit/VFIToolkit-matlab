@@ -15,10 +15,10 @@ N_z=prod(n_z);
 l_a=length(n_a);
 l_z=length(n_z);
 if l_a>4
-    disp('ERROR: Using GPU for the return to exit fn does not allow for more than four of a variable (you have length(n_a)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
+    disp('ERROR: Using GPU for the return to exit fn does not allow for more than four of a variable (you have length(n_a)>4): (in CreateReturnFnMatrix_Disc)')
 end
 if l_z>4
-    disp('ERROR: Using GPU for the return to exit fn does not allow for more than four of z variable (you have length(n_z)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
+    disp('ERROR: Using GPU for the return to exit fn does not allow for more than four of z variable (you have length(n_z)>4): (in CreateReturnFnMatrix_Disc)')
 end
 
 if nargin(ReturnFn)~=l_a+l_z+length(ReturnFnParams)

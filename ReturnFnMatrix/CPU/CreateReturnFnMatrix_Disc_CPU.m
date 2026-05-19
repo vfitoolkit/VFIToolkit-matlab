@@ -1,9 +1,5 @@
-function Fmatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals,ReturnFnParamsVec,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals,ReturnFnParamsVec,Refine)
 % If there is no d variable, just input n_d=0 and d_grid=0
-
-if ~exist('Refine','var')
-    Refine=0;
-end
 
 ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';
 
@@ -115,5 +111,3 @@ if N_d>0
 end
 
 end
-
-

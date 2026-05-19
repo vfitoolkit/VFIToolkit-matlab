@@ -195,7 +195,11 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions.divideandconquer=0; %default
     else
         if PTypeStructure.(iistr).vfoptions.divideandconquer==1
-            PTypeStructure.(iistr).vfoptions.level1n=ceil(n_a/50); % default
+            if isscalar(n_a)
+                PTypeStructure.(iistr).vfoptions.level1n=round(sqrt(n_a(1)));
+            elseif length(n_a)==2
+                PTypeStructure.(iistr).vfoptions.level1n=[round(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
+            end
         end
     end
     if ~isfield(PTypeStructure.(iistr).vfoptions,'gridinterplayer')

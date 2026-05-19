@@ -112,7 +112,11 @@ else
         vfoptions.divideandconquer=0;
     elseif vfoptions.divideandconquer==1
         if ~isfield(vfoptions,'level1n')
-            vfoptions.level1n=11;
+            if isscalar(n_a)
+                vfoptions.level1n=round(sqrt(n_a(1)));
+            elseif length(n_a)==2
+                vfoptions.level1n=[round(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
+            end
         end
     end
     if ~isfield(vfoptions,'gridinterplayer')
@@ -178,6 +182,10 @@ end
 
 if transpathoptions.fastOLG==1 && simoptions.fastOLG==0
     error('If you set transpathoptions.fastOLG=1 then you must have simoptions.fastOLG=1 (I just have not implemented simoptions.fastOLG=0 for this')
+end
+
+if transpathoptions.fastOLG==0 && vfoptions.lowmemory>0
+    error('On transtion paths you can only use vfoptions.lowmemory>0 when using transpathoptions.fastOLG=1, because otherwise the runtimes will anyway be so slow as to be essentially unusable')
 end
 
 

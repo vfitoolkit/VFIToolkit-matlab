@@ -1,11 +1,21 @@
 function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix_J(aprimeFn, n_d, n_a2, N_j, d_gridvals, a2_grid, aprimeFnParams, aprimeIndexAsColumn) % since a2 is one-dimensional, can be a2_grid or a2_gridvals
-% Note: aprimeIndex is [N_d*N_a2,1], whereas aprimeProbs is [N_d,N_a2]
+% Age-dependent (_J) version of CreateExperienceAssetFnMatrix: enumerate
+% a2prime=aprimeFn(d, a2) over ALL d (used during value-function iteration).
+% Continuous a2prime is linearly interpolated back on to a2_grid; output
+% (lower-grid-index, prob-of-lower-grid).
 %
-% Creates the grid points and their 'interpolation' probabilities
-% Note: a2primeIndexes is always the 'lower' point (the upper points are
-% just a2primeIndexes+1, so no need to waste memory storing them), and the
-% a2primeProbs are the probability of this lower point (prob of upper point
-% is just 1 minus this).
+% Companion file CreateaprimePolicyExperienceAsset_J.m does the same but
+% only for the Policy-chosen d, used in simulation / agent-distribution.
+%
+% Dimension layout: d in dim 1, a2 in dim 2, j in dim 3.
+% aprimeFnParams is passed as a [N_j, n_params] matrix; each column is
+% shifted via shiftdim(...,-2) so j lives in dim 3 during arrayfun.
+%
+% Output sizes:
+%   a2primeIndexes - shape depends on aprimeIndexAsColumn:
+%                      1 => matrix [N_d*N_a2, N_j]
+%                      2 => matrix [N_d, N_a2, N_j]
+%   a2primeProbs   - [N_d, N_a2, N_j]
 
 ParamCell=cell(size(aprimeFnParams,2),1);
 for ii=1:size(aprimeFnParams,2)
@@ -66,7 +76,7 @@ if l_a2==1
 
     % For small aprimeVals and a_grid, max() is faster than discretize()
     % http://discourse.vfitoolkit.com/t/example-attanasio-low-sanchez-marcos-2008/257/25
-    if N_d*N_a2*N_a2<1000000
+    if N_d*N_a2*N_j*N_a2<1000000
         [~,a2primeIndexes]=max((a2_grid>a2primeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
         % Note, this is going to find the 'first' grid point which is bigger than a2primeVals
         % This is the 'upper' grid point
@@ -92,6 +102,7 @@ if l_a2==1
         a2primeProbs(offBottomOfGrid)=1;
     else
         a2primeIndexes=discretize(a2primeVals,a2_grid); % Finds the lower grid point
+        a2primeIndexes=reshape(a2primeIndexes,[N_d*N_a2,N_j]); % match the [N_d*N_a2,N_j] shape used in the max branch above
         % Have to have special treatment for trying to leave the ends of the grid
 
         % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
@@ -111,7 +122,7 @@ if l_a2==1
     end
 
     if aprimeIndexAsColumn==1 % value fn codes want column when no z
-        a2primeIndexes=reshape(a2primeIndexes,[N_d*N_a,N_j]);
+        a2primeIndexes=reshape(a2primeIndexes,[N_d*N_a2,N_j]);
     else % aprimeIndexAsColumn==2 % value fn with z, or simulation, want matrix
         a2primeIndexes=reshape(a2primeIndexes,[N_d,N_a2,N_j]);
     end

@@ -9,7 +9,7 @@ level1ii=round(linspace(1,n_a,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 %% Start by setting up ReturnFn for the first-level (as we can reuse this every iteration)
-ReturnMatrixLvl1=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals, ReturnFnParamsVec, 1);
+ReturnMatrixLvl1=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals, ReturnFnParamsVec, 1);
 
 V=reshape(V0,[N_a,N_z]);
 Policy=zeros(N_a,N_z,'gpuArray');
@@ -65,7 +65,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             % loweredge is 1-by-1-by-n_z
             aprimeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are maxgap(ii)+1-by-1-by-n_z
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
             aprimez=repelem(aprimeindexes-1,1,level1iidiff(ii),1)+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(aprimez,[(maxgap(ii)+1),level1iidiff(ii),N_z]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -80,7 +80,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         else
             loweredge=maxindex1(:,1,ii,:);
             % Just use aprime(ii) for everything
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
             aprimez=repelem(loweredge-1,1,level1iidiff(ii),1)+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(aprimez,[1,level1iidiff(ii),N_z]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);

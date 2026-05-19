@@ -42,8 +42,8 @@ end
 % Note: The defaults mean that only four of the following commands get used:
 % ValueFnIter_InfHorz_postGI_nod_raw
 % ValueFnIter_InfHorz_Refine_postGI_raw
-% ValueFnIter_InfHorz_postGI2B_nod_raw
-% ValueFnIter_InfHorz_Refine_postGI2B_raw
+% ValueFnIter_InfHorz_postGI2A_nod_raw
+% ValueFnIter_InfHorz_Refine_postGI2A_raw
 
 
 %% Archived code checked if multi-grid was faster than just going directly to using aprime_grid the whole time. Found that multi-grid is faster.
@@ -101,7 +101,7 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
         if N_d==0
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    [V,Policy]=ValueFnIter_InfHorz_preGI2B_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    [V,Policy]=ValueFnIter_InfHorz_preGI2A_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
                     error('Not yet implemented')
                 end
@@ -112,7 +112,7 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    [V,Policy]=ValueFnIter_InfHorz_Refine_preGI2B_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                    [V,Policy]=ValueFnIter_InfHorz_Refine_preGI2A_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
                     error('Not yet implemented')
                 end
@@ -170,7 +170,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
         if N_d==0
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    [V,Policy]=ValueFnIter_InfHorz_postGI2B_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    [V,Policy]=ValueFnIter_InfHorz_postGI2A_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
                     error('Not yet implemented')
                 end
@@ -181,7 +181,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    [V,Policy]=ValueFnIter_InfHorz_Refine_postGI2B_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                    [V,Policy]=ValueFnIter_InfHorz_Refine_postGI2A_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
                     error('Not yet implemented')
                 end

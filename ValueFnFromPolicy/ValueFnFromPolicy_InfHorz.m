@@ -1,15 +1,16 @@
 function V=ValueFnFromPolicy_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 
-if exist('vfoptions','var')
-    vfoptions.parallel=2; % ValueFnFromPolicy only available for GPU
+if ~exist('vfoptions','var')
+    vfoptions.gridinterplayer=0;
     vfoptions.tolerance=10^(-9);
     vfoptions.maxiter=10^4; % Can be used to stop the VFI after a finite number of iterations
-    if isfield(vfoptions,'exoticpreferences')
-        error('ValueFnFromPolicy_InfHorz() does not yet work with exotic preferences. Please ask on forum if you want/need this feature. \n');
-    end
+    % divide-and-conquer is not relevant for ValueFnFromPolicy
 else
-    if ~isfield(vfoptions,'parallel')
-        vfoptions.parallel=2; % ValueFnFromPolicy only available for GPU
+    if gpuDeviceCount==0
+        error('ValueFnFromPolicy_InfHorz is only available on GPU')
+    end
+    if ~isfield(vfoptions,'gridinterplayer')
+        vfoptions.gridinterplayer=0;
     end
     if ~isfield(vfoptions,'tolerance')
         vfoptions.tolerance=10^(-9);
@@ -17,6 +18,10 @@ else
     if ~isfield(vfoptions,'maxiter')
         vfoptions.maxiter=10^4; % Can be used to stop the VFI after a finite number of iterations
     end
+    if isfield(vfoptions,'exoticpreferences')
+        error('ValueFnFromPolicy_InfHorz() does not yet work with exotic preferences. Please ask on forum if you want/need this feature. \n');
+    end
+    % divide-and-conquer is not relevant for ValueFnFromPolicy
 end
 
 N_d=prod(n_d);

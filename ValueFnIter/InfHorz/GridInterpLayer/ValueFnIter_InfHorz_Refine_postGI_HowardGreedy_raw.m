@@ -14,7 +14,7 @@ da_gridvals=[repmat(d_gridvals,N_a,1),repelem(a_grid,N_d,1)]; % only one aprime
 % then using it every iteration is good for speed, but it does use a
 % lot of memory.
 
-ReturnMatrixraw=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_da, n_a, n_z, da_gridvals, a_grid, z_gridvals, ReturnFnParams);
+ReturnMatrixraw=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_da, n_a, n_z, da_gridvals, a_grid, z_gridvals, ReturnFnParams);
 ReturnMatrixraw=reshape(ReturnMatrixraw,[N_d,N_a,N_a,N_z]);
 
 % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
@@ -94,7 +94,7 @@ N_aprime=prod(n_aprime);
 aprime_grid=interp1((1:1:N_aprimediff)',aprime_grid,linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)');
 % Note: aprime_grid is N_aprime-by-N_a-by-N_z
 
-ReturnMatrixfineraw=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
+ReturnMatrixfineraw=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
 % ReturnMatrixfineraw=reshape(ReturnMatrixfineraw,[N_d,N_aprime,N_a,N_z]);
 
 % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn

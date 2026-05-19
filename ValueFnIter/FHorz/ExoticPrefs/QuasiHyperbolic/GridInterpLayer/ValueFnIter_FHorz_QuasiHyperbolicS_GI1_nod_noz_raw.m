@@ -19,11 +19,11 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     % No discounting at terminal period.
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
     [~,maxindex]=max(ReturnMatrix,[],1);
     midpoint=max(min(maxindex,n_a-1),2);
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)';
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
     [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
     Vhat(:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,N_j)=shiftdim(squeeze(midpoint),-1);
@@ -43,14 +43,14 @@ else
 
     Vunderbar=zeros(N_a,N_j,'gpuArray');
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     % --- Vhat search (beta0*beta) ---
     entireRHS=ReturnMatrix+beta0beta*EV;
     [~,maxindex]=max(entireRHS,[],1);
     midpoint=max(min(maxindex,n_a-1),2);
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)';
-    ReturnMatrix_L2=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    ReturnMatrix_L2=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
     EVfine=reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
     entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine;
     [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
@@ -81,14 +81,14 @@ for reverse_j=1:N_j-1
 
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
     % --- Vhat search (beta0*beta) ---
     entireRHS=ReturnMatrix+beta0beta*EV;
     [~,maxindex]=max(entireRHS,[],1);
     midpoint=max(min(maxindex,n_a-1),2);
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)';
-    ReturnMatrix_L2=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    ReturnMatrix_L2=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
     EVfine=reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
     entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine;
     [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);

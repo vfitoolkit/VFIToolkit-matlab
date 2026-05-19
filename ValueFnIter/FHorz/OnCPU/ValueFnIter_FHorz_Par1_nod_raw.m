@@ -13,7 +13,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec,0);
     % Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,:,N_j)=Vtemp;
@@ -25,7 +25,7 @@ else
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);% Using V_Jplus1
 
-    ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec,0);
 
     parfor z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
@@ -60,7 +60,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,:,jj+1);
 
-    ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec,0);
 
     parfor z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);

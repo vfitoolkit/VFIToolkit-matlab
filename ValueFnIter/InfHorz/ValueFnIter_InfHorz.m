@@ -48,6 +48,7 @@ if ~exist('vfoptions','var')
     vfoptions.outputkron=0;
     % When calling as a subcommand, the following is used internally
     vfoptions.alreadygridvals=0;
+    vfoptions.alreadygridvals_semiexo=0;
 else
     % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'verbose')
@@ -136,6 +137,9 @@ else
     % When calling as a subcommand, the following is used internally
     if ~isfield(vfoptions,'alreadygridvals')
         vfoptions.alreadygridvals=0;
+    end
+    if ~isfield(vfoptions,'alreadygridvals_semiexo')
+        vfoptions.alreadygridvals_semiexo=0;
     end
 end
 
@@ -245,6 +249,15 @@ if vfoptions.alreadygridvals==0
     [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,vfoptions,3);
 elseif vfoptions.alreadygridvals==1
     z_gridvals=z_grid;
+end
+
+%% Semi-exogenous shock gridvals and pi
+if vfoptions.alreadygridvals_semiexo==0
+    if prod(vfoptions.n_semiz)>0
+        vfoptions=SemiExogShockSetup_InfHorz(n_d,d_grid,Parameters,vfoptions,3);
+        % output: vfoptions.semiz_gridvals, vfoptions.pi_semiz
+        error('Have not yet implemented semiz variables for InfHorz value function iteration, ask on forum if you need this')
+    end
 end
 
 %% Separable Return Fn
@@ -473,9 +486,9 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         end
 
         if N_d==0
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, [], a_grid, z_gridvals, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_z, [], a_grid, z_gridvals, ReturnFnParamsVec,0);
         else
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
+            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
         end
 
         if vfoptions.verbose==1

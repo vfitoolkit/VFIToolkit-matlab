@@ -13,7 +13,7 @@ Vtemp_j=V(:,N_j);
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
-ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
+ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
 % Calc the max and it's index
 [Vtemp,maxindex]=max(ReturnMatrix,[],1);
 V(:,N_j)=Vtemp;
@@ -32,7 +32,7 @@ for reverse_j=1:N_j-1
     VKronNext_j=Vtemp_j; % Has been presaved before it was
     Vtemp_j=V(:,j); % Grab this before it is replaced/updated
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*kron(VKronNext_j,ones(N_d,1))*ones(1,N_a,1);
 

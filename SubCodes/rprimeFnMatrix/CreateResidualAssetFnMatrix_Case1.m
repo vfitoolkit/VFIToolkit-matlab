@@ -8,7 +8,7 @@ function [rprimeIndexes,rprimeProbs]=CreateResidualAssetFnMatrix_Case1(rprimeFn,
 % is just 1 minus this).
 
 % Because we have rprime(d,aprime,a,z) we are actually effectively just doing return fn, so simply redirect to there
-rprimeVals=CreateReturnFnMatrix_Case1_Disc_Par2(rprimeFn, n_d, n_a,n_z, d_gridvals, a_grid, z_grid, rprimeFnParamsVec,0);
+rprimeVals=CreateReturnFnMatrix_Disc(rprimeFn, n_d, n_a,n_z, d_gridvals, a_grid, z_grid, rprimeFnParamsVec,0);
 
 l_r=length(n_r);
 N_d=prod(n_d);

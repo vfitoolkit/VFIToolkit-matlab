@@ -6,7 +6,7 @@ function [VKron, Policy]=ValueFnIter_InfHorz_postGI_nod_raw(VKron, n_a, n_z, a_g
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_a, n_a, n_z, a_grid, a_grid, z_gridvals, ReturnFnParams);
+ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_a, n_a, n_z, a_grid, a_grid, z_gridvals, ReturnFnParams);
 
 pi_z_alt=shiftdim(pi_z',-1);
 pi_z_howards=repelem(pi_z,N_a,1);
@@ -80,7 +80,7 @@ N_aprime=prod(n_aprime);
 aprime_grid=interp1((1:1:N_aprimediff)',aprime_grid,linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)');
 % Note: aprime_grid is N_aprime-by-N_a-by-N_z
 
-ReturnMatrixfine=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
+ReturnMatrixfine=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
 
 EVinterpindex1=(1:1:N_aprimediff)';
 EVinterpindex2=linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)';
@@ -171,7 +171,7 @@ while vfoptions.postGIrepeat>0
     aprime_grid=interp1((1:1:N_aprimediff)',aprime_grid,linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)');
     % Note: aprime_grid is N_aprime-by-N_a-by-N_z
 
-    ReturnMatrixfine=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
+    ReturnMatrixfine=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
 
     EVinterpindex1=(1:1:N_aprimediff)';
     EVinterpindex2=linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)';

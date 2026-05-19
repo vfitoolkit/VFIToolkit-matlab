@@ -10,7 +10,7 @@ N_z=prod(n_z);
 % lot of memory.
 
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,1);
+    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,1);
 
     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
     if n_d(1)>0
@@ -25,7 +25,7 @@ elseif vfoptions.lowmemory==1 % loop over z
     special_n_z=ones(1,l_z,'gpuArray');
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, special_n_z,d_gridvals, a_grid, zvals,ReturnFnParamsVec,1); % the 1 at the end is to output for refine
+        ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,n_d, n_a, special_n_z,d_gridvals, a_grid, zvals,ReturnFnParamsVec,1); % the 1 at the end is to output for refine
         [ReturnMatrix_z,dstar_z]=max(ReturnMatrix_z,[],1); % solve for dstar
         ReturnMatrix(:,:,z_c)=shiftdim(ReturnMatrix_z,1);
         dstar(:,:,z_c)=shiftdim(dstar_z,1);

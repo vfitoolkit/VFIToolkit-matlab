@@ -29,20 +29,14 @@ end
 for ii=1:N_i
 
     % First set up vfoptions
-    if exist('vfoptions','var')
-        vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
-        if ~isfield(vfoptions_temp,'verbose')
-            vfoptions_temp.verbose=0;
-        end
-        if ~isfield(vfoptions_temp,'verboseparams')
-            vfoptions_temp.verboseparams=0;
-        end
-        if ~isfield(vfoptions_temp,'ptypestorecpu')
-            vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-        end
-    else
+    vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
+    if ~isfield(vfoptions_temp,'verbose')
         vfoptions_temp.verbose=0;
+    end
+    if ~isfield(vfoptions_temp,'verboseparams')
         vfoptions_temp.verboseparams=0;
+    end
+    if ~isfield(vfoptions_temp,'ptypestorecpu')
         vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end
 
@@ -143,11 +137,7 @@ for ii=1:N_i
         Policy.(Names_i{ii})=Policy_ii;
     end
 
-    if isfinite(N_j_temp)
-        V_ii=ValueFnFromPolicy_FHorz(Policy_ii,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, vfoptions_temp);
-    else % PType actually allows for infinite horizon as well
-        V_ii=ValueFnFromPolicy_InfHorz(Policy_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, vfoptions);
-    end
+    V_ii=ValueFnFromPolicy_FHorz(Policy_ii,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, vfoptions_temp);
 
     if vfoptions_temp.ptypestorecpu==1
         V.(Names_i{ii})=gather(V_ii);
