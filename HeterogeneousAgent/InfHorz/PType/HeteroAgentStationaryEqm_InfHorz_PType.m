@@ -405,12 +405,26 @@ for ii=1:PTypeStructure.N_i
     if isstruct(z_grid)
         PTypeStructure.(iistr).z_grid=z_grid.(Names_i{ii});
     else
-        PTypeStructure.(iistr).z_grid=z_grid;
+        % If the last dimension is of length N_i, this indicates dependence on ptype
+        nn=size(z_grid,ndims(z_grid));
+        if nn==N_i
+            otherdims = repmat({':'},1,ndims(z_grid)-1);
+            PTypeStructure.(iistr).z_grid=z_grid(otherdims{:},ii);
+        else
+            PTypeStructure.(iistr).z_grid=z_grid;
+        end
     end
     if isstruct(pi_z)
         PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
     else
-        PTypeStructure.(iistr).pi_z=pi_z;
+        % If the last dimension is of length N_i, this indicates dependence on ptype
+        nn=size(pi_z,ndims(pi_z));
+        if nn==N_i
+            otherdims = repmat({':'},1,ndims(pi_z)-1);
+            PTypeStructure.(iistr).pi_z=pi_z(otherdims{:},ii);
+        else
+            PTypeStructure.(iistr).pi_z=pi_z;
+        end
     end
 
     % Check if using ExogShockFn or EiidShockFn, and if so, do these use a
