@@ -121,6 +121,22 @@ else
     end
 end
 
+%%
+if simoptions.parallel==2
+    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+    % Some things require simoptions.d_grid or simoptions.a_grid, make sure
+    % they are on GPU if they are used
+    if isfield(simoptions,'d_grid')
+        simoptions.d_grid=gpuArray(simoptions.d_grid);
+    end
+    if isfield(simoptions,'a_grid')
+        simoptions.a_grid=gpuArray(simoptions.a_grid);
+    end
+else
+    error("no CPU support for computing InfHorz Stationary Distribution")
+    return
+end
+
 %% Setup for Exogenous Shocks
 if simoptions.alreadygridvals==0
     if isfield(simoptions,'ExogShockFn')
