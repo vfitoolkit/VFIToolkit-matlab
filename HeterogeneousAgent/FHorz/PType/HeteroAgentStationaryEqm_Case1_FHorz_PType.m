@@ -422,7 +422,7 @@ for ii=1:PTypeStructure.N_i
     %% Parameter Structure
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
-    % these in term.
+    % these in turn.
     % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
     PTypeStructure.(iistr).Parameters=Parameters;
     FullParamNames=fieldnames(Parameters); % all the different parameters

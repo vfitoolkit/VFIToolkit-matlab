@@ -377,7 +377,7 @@ for ii=1:PTypeStructure.N_i
     %% Parameter Structure
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
-    % these in term.
+    % these in turn.
     % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
     PTypeStructure.(iistr).Parameters=Parameters;
     FullParamNames=fieldnames(Parameters); % all the different parameters
@@ -430,7 +430,7 @@ for ii=1:PTypeStructure.N_i
             heteroagentoptions.gridsinGE(ii)=1;
         end
     end
-    % If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
+    % If z (and e) are not determined in GE, then compute z_gridvals and pi_z now (and e_gridvals and pi_e)
     if heteroagentoptions.gridsinGE(ii)==0
         % Some of the shock grids depend on parameters that are determined in general eqm
         [PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
