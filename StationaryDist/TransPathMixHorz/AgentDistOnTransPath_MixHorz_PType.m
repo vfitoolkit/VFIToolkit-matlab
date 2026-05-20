@@ -119,6 +119,14 @@ for ii=1:N_i
         end
     end
 
+    % Move d_grid and a_grid to GPU
+    if isfield(simoptions_temp,'d_grid') && iscolumn(simoptions_temp.d_grid)
+        simoptions_temp.d_grid=gpuArray(simoptions_temp.d_grid);
+    end
+    if isfield(simoptions_temp,'a_grid') && iscolumn(simoptions_temp.a_grid)
+        simoptions_temp.a_grid=gpuArray(simoptions_temp.a_grid);
+    end
+
     if simoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
