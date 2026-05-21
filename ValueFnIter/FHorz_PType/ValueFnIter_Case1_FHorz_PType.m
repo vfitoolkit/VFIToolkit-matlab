@@ -29,6 +29,7 @@ else
 end
 
 for ii=1:N_i
+    iistr=Names_i{ii};
 
     % First set up vfoptions
     if exist('vfoptions','var')
@@ -55,39 +56,39 @@ for ii=1:N_i
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
     if isstruct(n_d)
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isstruct(n_a)
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isstruct(n_z)
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isstruct(N_j)
-        N_j_temp=N_j.(Names_i{ii});
+        N_j_temp=N_j.(iistr);
     else
         N_j_temp=N_j;
     end
     if isstruct(d_grid)
-        d_grid_temp=d_grid.(Names_i{ii});
+        d_grid_temp=d_grid.(iistr);
     else
         d_grid_temp=d_grid;
     end
     if isstruct(a_grid)
-        a_grid_temp=a_grid.(Names_i{ii});
+        a_grid_temp=a_grid.(iistr);
     else
         a_grid_temp=a_grid;
     end
 
     %% Exogenous shocks
     if isstruct(z_grid)
-        z_grid_temp=z_grid.(Names_i{ii});
+        z_grid_temp=z_grid.(iistr);
     else
         nn=size(z_grid,ndims(z_grid));
         if nn==N_i
@@ -98,7 +99,7 @@ for ii=1:N_i
         end
     end
     if isstruct(pi_z)
-        pi_z_temp=pi_z.(Names_i{ii});
+        pi_z_temp=pi_z.(iistr);
     else
         nn=size(pi_z,ndims(pi_z));
         if nn==N_i
@@ -169,7 +170,7 @@ for ii=1:N_i
     end
 
     if isstruct(ReturnFn)
-        ReturnFn_temp=ReturnFn.(Names_i{ii});
+        ReturnFn_temp=ReturnFn.(iistr);
     else
         ReturnFn_temp=ReturnFn;
     end
@@ -211,11 +212,11 @@ for ii=1:N_i
 
 
     if vfoptions_temp.ptypestorecpu==1
-        V.(Names_i{ii})=gather(V_ii);
-        Policy.(Names_i{ii})=gather(Policy_ii);
+        V.(iistr)=gather(V_ii);
+        Policy.(iistr)=gather(Policy_ii);
     else
-        V.(Names_i{ii})=V_ii;
-        Policy.(Names_i{ii})=Policy_ii;
+        V.(iistr)=V_ii;
+        Policy.(iistr)=Policy_ii;
     end
 
     clear V_ii Policy_ii

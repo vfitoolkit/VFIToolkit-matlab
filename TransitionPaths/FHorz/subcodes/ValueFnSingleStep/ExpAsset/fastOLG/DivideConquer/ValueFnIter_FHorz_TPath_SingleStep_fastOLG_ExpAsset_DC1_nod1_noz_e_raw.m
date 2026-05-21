@@ -15,7 +15,6 @@ e_gridvals_J=shiftdim(e_gridvals_J,-4); % [1,1,1,1,N_j,N_e,l_e]
 
 %%
 % n-Monotonicity
-% vfoptions.level1n=11;
 level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

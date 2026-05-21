@@ -19,7 +19,6 @@ zind=shiftdim((0:1:N_z-1),-1); % already includes -1
 d2ind=repelem((1:1:N_d2)',N_d1,1); % d2 part of each (d1,d2) combo, [N_d1*N_d2,1]
 
 % n-Monotonicity
-% vfoptions.level1n=21;
 level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

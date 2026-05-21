@@ -100,7 +100,7 @@ for ttr=1:T-1
 
     Policy=KronPolicyIndexes_Case1(PolicyPath(:,:,:,tt), n_d, n_a, n_z, vfoptions);
     if N_d==0
-        Policy_a=Policy;
+        Policy_a=shiftdim(Policy(1,:,:),1);
     else
         Policy_a=shiftdim(ceil(Policy(2,:,:)),1);
     end

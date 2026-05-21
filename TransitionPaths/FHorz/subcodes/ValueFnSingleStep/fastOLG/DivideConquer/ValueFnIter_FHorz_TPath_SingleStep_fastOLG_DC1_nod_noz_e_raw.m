@@ -15,7 +15,6 @@ e_gridvals_J=shiftdim(e_gridvals_J,-2); % needed shape for ReturnFnMatrix with f
 %%
 
 % n-Monotonicity
-% vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 % level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

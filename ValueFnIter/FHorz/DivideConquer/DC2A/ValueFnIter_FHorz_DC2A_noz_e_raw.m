@@ -18,7 +18,6 @@ a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
 
 % n-Monotonicity
-% vfoptions.level1n=[21,21];
 level1ii=round(linspace(1,n_a(1),vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

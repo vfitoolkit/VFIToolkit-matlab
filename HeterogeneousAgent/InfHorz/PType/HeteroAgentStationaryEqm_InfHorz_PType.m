@@ -328,18 +328,18 @@ for ii=1:PTypeStructure.N_i
 
     PTypeStructure.(iistr).n_d=n_d;
     if isstruct(n_d)
-        PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
+        PTypeStructure.(iistr).n_d=n_d.(iistr);
     else
         PTypeStructure.(iistr).n_d=n_d;
     end
     PTypeStructure.(iistr).n_a=n_a;
     if isstruct(n_a)
-        PTypeStructure.(iistr).n_a=n_a.(Names_i{ii});
+        PTypeStructure.(iistr).n_a=n_a.(iistr);
     else
         PTypeStructure.(iistr).n_a=n_a;
     end
     if isstruct(n_z)
-        PTypeStructure.(iistr).n_z=n_z.(Names_i{ii});
+        PTypeStructure.(iistr).n_z=n_z.(iistr);
     else
         PTypeStructure.(iistr).n_z=n_z;
     end
@@ -363,12 +363,12 @@ for ii=1:PTypeStructure.N_i
     end
 
     if isstruct(d_grid)
-        PTypeStructure.(iistr).d_grid=d_grid.(Names_i{ii});
+        PTypeStructure.(iistr).d_grid=d_grid.(iistr);
     else
         PTypeStructure.(iistr).d_grid=d_grid;
     end
     if isstruct(a_grid)
-        PTypeStructure.(iistr).a_grid=a_grid.(Names_i{ii});
+        PTypeStructure.(iistr).a_grid=a_grid.(iistr);
     else
         PTypeStructure.(iistr).a_grid=a_grid;
     end
@@ -386,7 +386,7 @@ for ii=1:PTypeStructure.N_i
         if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
             % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
             if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(iistr);
             end
         elseif sum(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i)>=1 % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
@@ -403,7 +403,7 @@ for ii=1:PTypeStructure.N_i
     %% Set up exogenous shock grids now (so they can then just be reused every time)
 
     if isstruct(z_grid)
-        PTypeStructure.(iistr).z_grid=z_grid.(Names_i{ii});
+        PTypeStructure.(iistr).z_grid=z_grid.(iistr);
     else
         % If the last dimension is of length N_i, this indicates dependence on ptype
         nn=size(z_grid,ndims(z_grid));
@@ -415,7 +415,7 @@ for ii=1:PTypeStructure.N_i
         end
     end
     if isstruct(pi_z)
-        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
+        PTypeStructure.(iistr).pi_z=pi_z.(iistr);
     else
         % If the last dimension is of length N_i, this indicates dependence on ptype
         nn=size(pi_z,ndims(pi_z));
@@ -469,13 +469,13 @@ for ii=1:PTypeStructure.N_i
     %% DiscountFactor and ReturnFn
     % The parameter names can be made to depend on the permanent-type
     if isstruct(DiscountFactorParamNames)
-        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
+        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(iistr);
     else
         PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     end
 
     if isstruct(ReturnFn)
-        PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
+        PTypeStructure.(iistr).ReturnFn=ReturnFn.(iistr);
     else
         PTypeStructure.(iistr).ReturnFn=ReturnFn;
     end

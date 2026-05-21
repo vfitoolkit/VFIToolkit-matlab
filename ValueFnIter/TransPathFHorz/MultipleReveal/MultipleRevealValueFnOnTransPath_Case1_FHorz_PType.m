@@ -61,30 +61,31 @@ for rr=1:nReveals
     PolicyPath.(revealperiodnames{rr})=PolicyPath_rr;
 
     for ii=1:N_i
+        iistr=Names_i{ii};
         if rr==1
-            temp_vsize=size(VPath_rr.(Names_i{ii}));
-            RealizedVPath.(Names_i{ii})=zeros([prod(temp_vsize(1:end-1)),historylength]);
-            temp_policysize=size(PolicyPath_rr.(Names_i{ii}));
-            RealizedPolicyPath.(Names_i{ii})=zeros([prod(temp_policysize(1:end-1)),historylength]);
+            temp_vsize=size(VPath_rr.(iistr));
+            RealizedVPath.(iistr)=zeros([prod(temp_vsize(1:end-1)),historylength]);
+            temp_policysize=size(PolicyPath_rr.(iistr));
+            RealizedPolicyPath.(iistr)=zeros([prod(temp_policysize(1:end-1)),historylength]);
         end
 
-        temp=RealizedVPath.(Names_i{ii});
-        temp2=reshape(VPath_rr.(Names_i{ii}),[prod(temp_vsize(1:end-1)),T]);
+        temp=RealizedVPath.(iistr);
+        temp2=reshape(VPath_rr.(iistr),[prod(temp_vsize(1:end-1)),T]);
         if rr<nReveals
             temp(:,revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal_rr);
         else
             temp(:,revealperiods(rr):end)=temp2(:,1:durationofreveal_rr);
         end
-        RealizedVPath.(Names_i{ii})=temp;
+        RealizedVPath.(iistr)=temp;
 
-        temp=RealizedPolicyPath.(Names_i{ii});
-        temp2=reshape(PolicyPath_rr.(Names_i{ii}),[prod(temp_policysize(1:end-1)),T]);
+        temp=RealizedPolicyPath.(iistr);
+        temp2=reshape(PolicyPath_rr.(iistr),[prod(temp_policysize(1:end-1)),T]);
         if rr<nReveals
             temp(:,revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal_rr);
         else
             temp(:,revealperiods(rr):end)=temp2(:,1:durationofreveal_rr);
         end
-        RealizedPolicyPath.(Names_i{ii})=temp;
+        RealizedPolicyPath.(iistr)=temp;
     end
 end
 

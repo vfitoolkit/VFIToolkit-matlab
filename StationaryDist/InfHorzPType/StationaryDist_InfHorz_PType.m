@@ -54,6 +54,7 @@ end
 
 %%
 for ii=1:N_i
+    iistr=Names_i{ii};
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii);
     if ~isfield(simoptions_temp,'verbose')
@@ -71,7 +72,7 @@ for ii=1:N_i
     end
 
 
-    Policy_temp=Policy.(Names_i{ii});
+    Policy_temp=Policy.(iistr);
 
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
@@ -80,22 +81,22 @@ for ii=1:N_i
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
     if isstruct(n_d)
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isstruct(n_a)
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isstruct(n_z)
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isstruct(pi_z)
-        pi_z_temp=pi_z.(Names_i{ii});
+        pi_z_temp=pi_z.(iistr);
     else
         pi_z_temp=pi_z;
     end
@@ -129,9 +130,9 @@ for ii=1:N_i
     StationaryDist_ii=StationaryDist_InfHorz(Policy_temp,n_d_temp,n_a_temp,n_z_temp,pi_z_temp,simoptions_temp,Parameters_temp); % EntryExitParams not yet supported (is on my to-do list)
 
     if simoptions_temp.ptypestorecpu==1
-        StationaryDist.(Names_i{ii})=gather(StationaryDist_ii);
+        StationaryDist.(iistr)=gather(StationaryDist_ii);
     else
-        StationaryDist.(Names_i{ii})=StationaryDist_ii;
+        StationaryDist.(iistr)=StationaryDist_ii;
     end
 
 end

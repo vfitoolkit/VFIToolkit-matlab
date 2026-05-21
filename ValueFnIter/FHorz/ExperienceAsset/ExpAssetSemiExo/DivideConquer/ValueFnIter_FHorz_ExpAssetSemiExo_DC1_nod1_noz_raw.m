@@ -35,7 +35,6 @@ Policy_ford3_jj=zeros(N_a,N_semiz,N_d3,'gpuArray');
 
 
 % n-Monotonicity
-% vfoptions.level1n=21;
 level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

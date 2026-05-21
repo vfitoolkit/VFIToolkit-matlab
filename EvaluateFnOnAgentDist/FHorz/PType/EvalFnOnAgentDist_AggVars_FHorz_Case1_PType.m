@@ -81,6 +81,7 @@ end
 
 %%
 for ii=1:N_i
+    iistr=Names_i{ii};
 
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
@@ -89,11 +90,11 @@ for ii=1:N_i
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-        PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Essentially just assuming simoptions.ptypestorecpu=1 as well
-        StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
+        PolicyIndexes_temp=gpuArray(Policy.(iistr)); % Essentially just assuming simoptions.ptypestorecpu=1 as well
+        StationaryDist_temp=gpuArray(StationaryDist.(iistr));
     else
-        PolicyIndexes_temp=Policy.(Names_i{ii});
-        StationaryDist_temp=StationaryDist.(Names_i{ii});
+        PolicyIndexes_temp=Policy.(iistr);
+        StationaryDist_temp=StationaryDist.(iistr);
     end
 
     % Go through everything which might be dependent on permanent type (PType)
@@ -104,39 +105,39 @@ for ii=1:N_i
     % only that to the 'non-PType' version of the command.
 
     if isstruct(n_d)
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isstruct(n_a)
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isstruct(n_z)
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isstruct(N_j)
-        N_j_temp=N_j.(Names_i{ii});
+        N_j_temp=N_j.(iistr);
     else
         N_j_temp=N_j;
     end
     if isstruct(d_grid)
-        d_grid_temp=d_grid.(Names_i{ii});
+        d_grid_temp=d_grid.(iistr);
     else
         d_grid_temp=d_grid;
     end
     if isstruct(a_grid)
-        a_grid_temp=a_grid.(Names_i{ii});
+        a_grid_temp=a_grid.(iistr);
     else
         a_grid_temp=a_grid;
     end
 
     %% Exogenous shocks
     if isstruct(z_grid)
-        z_grid_temp=z_grid.(Names_i{ii});
+        z_grid_temp=z_grid.(iistr);
     else
         nn=size(z_grid,ndims(z_grid));
         if nn==N_i

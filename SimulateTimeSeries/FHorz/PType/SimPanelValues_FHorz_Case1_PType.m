@@ -112,6 +112,7 @@ PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
 %%
 SimPanelValues=nan(length(FnsToEvaluate),simoptions.simperiods,simoptions.numbersims);
 for ii=1:N_i
+    iistr=Names_i{ii};
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
 
@@ -121,7 +122,7 @@ for ii=1:N_i
 
     simoptions_temp.numbersims=PType_numbersims(ii); % How many simulations to do for each PType
 
-    Policy_temp=Policy.(Names_i{ii});
+    Policy_temp=Policy.(iistr);
 
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
@@ -139,32 +140,32 @@ for ii=1:N_i
     % relevant value.
 
     if isstruct(n_d)
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isstruct(n_a)
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isstruct(n_z)
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isstruct(N_j)
-        N_j_temp=N_j.(Names_i{ii});
+        N_j_temp=N_j.(iistr);
     else
         N_j_temp=N_j;
     end
     if isstruct(d_grid)
-        d_grid_temp=d_grid.(Names_i{ii});
+        d_grid_temp=d_grid.(iistr);
     else
         d_grid_temp=d_grid;
     end
     if isstruct(a_grid)
-        a_grid_temp=a_grid.(Names_i{ii});
+        a_grid_temp=a_grid.(iistr);
     else
         a_grid_temp=a_grid;
     end
@@ -172,7 +173,7 @@ for ii=1:N_i
 
     %% Exogenous shocks
     if isstruct(z_grid)
-        z_grid_temp=z_grid.(Names_i{ii});
+        z_grid_temp=z_grid.(iistr);
     else
         nn=size(z_grid,ndims(z_grid));
         if nn==N_i
@@ -183,7 +184,7 @@ for ii=1:N_i
         end
     end
     if isstruct(pi_z)
-        pi_z_temp=pi_z.(Names_i{ii});
+        pi_z_temp=pi_z.(iistr);
     else
         nn=size(pi_z,ndims(pi_z));
         if nn==N_i
@@ -277,7 +278,7 @@ for ii=1:N_i
     %% jequaloneDist
     if isa(jequaloneDist,'struct')
         if isfield(jequaloneDist,Names_i{ii})
-            jequaloneDist_temp=jequaloneDist.(Names_i{ii});
+            jequaloneDist_temp=jequaloneDist.(iistr);
             % jequaloneDist_temp must be of mass one for the codes to work.
             if abs(sum(jequaloneDist_temp(:))-1)>10^(-15) % jequaloneDist_temp(:))~=1, but allowing for small numerical errors
                 fprintf('Info for following error: sum(jequaloneDist_temp(:))-1=%8.16f (should be zero) \n', sum(jequaloneDist_temp(:))-1)

@@ -2,22 +2,36 @@ function V=ValueFnFromPolicy_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, 
 % vfoptions is an optional input (not required)
 % we will fill in defaults if needed (e.g. `gridinterplayer`).
 
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
-
 if ~exist('vfoptions','var')
+    vfoptions.n_e=0;
+    vfoptions.n_semiz=0;
+    vfoptions.experienceasset=0;
     vfoptions.gridinterplayer=0;
     % divide-and-conquer is not relevant for ValueFnFromPolicy
 else
     if gpuDeviceCount==0
         error('ValueFnFromPolicy_FHorz is only available on GPU')
     end
+    if ~isfield(vfoptions,'n_e')
+        vfoptions.n_e=0;
+    end
+    if ~isfield(vfoptions,'n_semiz')
+        vfoptions.n_semiz=0;
+    end
+    if ~isfield(vfoptions,'experienceasset')
+        vfoptions.experienceasset=0;
+    end
     if ~isfield(vfoptions,'gridinterplayer')
         vfoptions.gridinterplayer=0;
     end
     % divide-and-conquer is not relevant for ValueFnFromPolicy
 end
+
+%% Move grids and Policy to GPU (downstream code assumes gpuArray).
+% z, e, semiz are handled inside ExogShockSetup_FHorz / SemiExogShockSetup_FHorz, so don't need conversion here.
+d_grid=gpuArray(d_grid);
+a_grid=gpuArray(a_grid);
+Policy=gpuArray(Policy);
 
 
 %% Exogenous shock grids
@@ -26,51 +40,55 @@ end
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % output: z_gridvals_J, pi_z_J, options.e_gridvals_J, options.pi_e_J
 
-if isfield(vfoptions,'n_semiz')
-    error('cannot yet handle semiz, ask on forum if you need/want')
+%% Dispatch to ExpAsset subfn if experienceasset==1
+if vfoptions.experienceasset==1
+    V=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
 
-%% Implement new way of handling ReturnFn inputs
-if n_d(1)==0
+%% Dispatch to SemiExo subfn if n_semiz>0
+if prod(vfoptions.n_semiz)>0
+    V=ValueFnFromPolicy_FHorz_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
+%%
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+N_e=prod(vfoptions.n_e);
+if N_d==0
     l_d=0;
 else
     l_d=length(n_d);
 end
 l_a=length(n_a);
-l_aprime=l_a;
-l_z=length(n_z);
-if N_z==0
-    l_z=0;
+
+%% Dispatch to GI subfn if gridinterplayer==1
+if vfoptions.gridinterplayer==1
+    V=ValueFnFromPolicy_FHorz_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
-% if isfield(vfoptions,'SemiExoStateFn')
-%     l_z=length(vfoptions.n_semiz)+l_z;
-% end
-l_e=0;
-if isfield(vfoptions,'n_e')
-    l_e=length(vfoptions.n_e);
-end
-%Figure out ReturnFnParamNames from ReturnFn
-temp=getAnonymousFnInputNames(ReturnFn);
-if length(temp)>(l_d+l_aprime+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
-    ReturnFnParamNames={temp{l_d+l_aprime+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z,e)
-else
-    ReturnFnParamNames={};
-end
-% [l_d,l_aprime,l_a,l_z,l_e]
-% ReturnFnParamNames
-% clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
+
+%% Implement new way of handling ReturnFn inputs
+ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
+% Basic setup: the first inputs of ReturnFn will be (d,aprime,a,z,..) and everything after this is a parameter, so we get the names of all these parameters.
+% But this changes if you have e, semiz, or just multiple d, and if you use riskyasset, expasset, etc.
+% So figure out which setup we have, and get the relevant ReturnFnParamNames
 
 
+
+%%
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-
-l_daprime=size(Policy,1);
 
 %%
 if N_z==0 && N_e==0
 
     PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,vfoptions,1);
+    l_daprime=size(PolicyValues,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,1,3]); %[N_a,l_d+l_a,N_j]
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, 0,N_j);
+    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_noz(Policy, n_d, n_a,N_j,vfoptions);
 
     %% Calculate the Value Fn by backward iteration
     V=zeros(N_a,N_j,'gpuArray');
@@ -78,11 +96,9 @@ if N_z==0 && N_e==0
     for reverse_j=0:N_j-1
         jj=N_j-reverse_j; % current period, counts backwards from J-1
 
-        PolicyValuesPermute=permute(PolicyValues(:,:,jj),[2,1]); %[N_a,N_z,l_d+l_a]
-
-        % Evaluate Return Fn (this part is essentially copy-paste from the 'EvaluateFnOnAgentDist' commands)
+        % Evaluate Return Fn
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
-        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
+        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute(:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
 
         if jj==N_j
             V(:,jj)=FofPolicy_jj;
@@ -90,8 +106,8 @@ if N_z==0 && N_e==0
             beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
             EVnext=V(:,jj+1);
 
-            if N_d==0 %length(n_d)==1 && n_d(1)==0
-                optaprime=PolicyIndexesKron(:,jj);
+            if N_d==0
+                optaprime=PolicyIndexesKron(1,:,jj);
             else
                 optaprime=shiftdim(PolicyIndexesKron(2,:,jj),1);
             end
@@ -100,7 +116,7 @@ if N_z==0 && N_e==0
 
             EVnextOfPolicy=EVnext(aprimez_index);
 
-            V(:,:,jj)=FofPolicy_jj+beta*reshape(EVnextOfPolicy,[N_a,1]);
+            V(:,jj)=FofPolicy_jj+beta*reshape(EVnextOfPolicy,[N_a,1]);
         end
     end
 
@@ -109,9 +125,11 @@ if N_z==0 && N_e==0
 
 elseif N_z==0 && N_e>0
 
-    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_e,N_j,d_grid,a_grid,vfoptions,1);
+    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1); % PolicyInd2Val auto-adds vfoptions.n_e
+    l_daprime=size(PolicyValues,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_e,l_d+l_a,N_j]
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_e,N_j);
+    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, vfoptions.n_e,N_j,vfoptions);
 
     %% Calculate the Value Fn by backward iteration
     V=zeros(N_a,N_e,N_j,'gpuArray');
@@ -119,11 +137,9 @@ elseif N_z==0 && N_e>0
     for reverse_j=0:N_j-1
         jj=N_j-reverse_j; % current period, counts backwards from J-1
 
-        PolicyValuesPermute=permute(PolicyValues(:,:,:,jj),[2,3,1]); %[N_a,N_z,l_d+l_a]
-
-        % Evaluate Return Fn (this part is essentially copy-paste from the 'EvaluateFnOnAgentDist' commands)
+        % Evaluate Return Fn
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
-        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_e,a_gridvals,vfoptions.e_gridvals_J(:,:,jj));
+        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute(:,:,:,jj),l_daprime,n_a,vfoptions.n_e,a_gridvals,vfoptions.e_gridvals_J(:,:,jj));
 
         if jj==N_j
             V(:,:,jj)=FofPolicy_jj;
@@ -131,28 +147,29 @@ elseif N_z==0 && N_e>0
             beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
             EVnext=sum(V(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-1),2); % expectation over iid
 
-            if N_d==0 %length(n_d)==1 && n_d(1)==0
-                optaprime=PolicyIndexesKron(:,:,jj);
+            if N_d==0
+                optaprime=PolicyIndexesKron(1,:,:,jj);
             else
                 optaprime=shiftdim(PolicyIndexesKron(2,:,:,jj),1);
             end
 
-            aprimez_index=reshape(optaprime,[N_a*N_e,1])+N_a*(kron((1:1:N_e)',ones(N_a,1,'gpuArray'))-1); % N_a*(z_index-1), but just with lots of kron
-
-            EVnextOfPolicy=EVnext(aprimez_index);
+            % e is iid -> EVnext shape [N_a,1] depends only on aprime
+            EVnextOfPolicy=EVnext(reshape(optaprime,[N_a*N_e,1]));
 
             V(:,:,jj)=FofPolicy_jj+beta*reshape(EVnextOfPolicy,[N_a,N_e]);
         end
     end
 
     %Transforming Value Fn out of Kronecker Form
-    V=reshape(V,[n_a,n_e,N_j]);
+    V=reshape(V,[n_a,vfoptions.n_e,N_j]);
 
 elseif N_z>0 && N_e==0
 
     PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
+    l_daprime=size(PolicyValues,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_z,l_d+l_a,N_j]
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j);
+    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j,vfoptions);
 
     %% Calculate the Value Fn by backward iteration
     V=zeros(N_a,N_z,N_j,'gpuArray');
@@ -160,23 +177,20 @@ elseif N_z>0 && N_e==0
     for reverse_j=0:N_j-1
         jj=N_j-reverse_j; % current period, counts backwards from J-1
 
-        PolicyValuesPermute=permute(PolicyValues(:,:,:,jj),[2,3,1]); %[N_a,N_z,l_d+l_a]
-
-        % Evaluate Return Fn (this part is essentially copy-paste from the 'EvaluateFnOnAgentDist' commands)
+        % Evaluate Return Fn
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
-        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
+        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
 
         if jj==N_j
             V(:,:,jj)=FofPolicy_jj;
         else
             beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
-            EVnext=sum(V(:,:,jj+1).*shiftdim(pi_z_J(:,:,jj)',-2),2); % size N_z-by-1
+            % EVnext(a, z_from) = sum_{z_to} pi(z_from, z_to) * V(a, z_to, jj+1)
+            EVnext=V(:,:,jj+1)*pi_z_J(:,:,jj)'; % [N_a, N_z_from]
             EVnext(isnan(EVnext))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EVnext=sum(EVnext,2); % sum over z', leaving a singular second dimension
-%             EVnext=reshape(EVnext,[N_a,N_z]); % Not necessary as just index into it
 
-            if N_d==0 %length(n_d)==1 && n_d(1)==0
-                optaprime=PolicyIndexesKron(:,:,jj);
+            if N_d==0
+                optaprime=PolicyIndexesKron(1,:,:,jj);
             else
                 optaprime=shiftdim(PolicyIndexesKron(2,:,:,jj),1);
             end
@@ -193,9 +207,12 @@ elseif N_z>0 && N_e==0
     V=reshape(V,[n_a,n_z,N_j]);
 
 elseif N_z>0 && N_e>0
-    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
+
+    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1); % PolicyInd2Val auto-adds vfoptions.n_e
+    l_daprime=size(PolicyValues,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); % [N_a,N_z*N_e,l_d+l_a,N_j] — keep shock dim combined for EvalFnOnAgentDist_Grid
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z, n_e, N_j, vfoptions);
+    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
 
 
     %% Calculate the Value Fn by backward iteration
@@ -204,10 +221,9 @@ elseif N_z>0 && N_e>0
     for reverse_j=0:N_j-1
         jj=N_j-reverse_j; % current period, counts backwards from J-1
 
-        PolicyValuesPermute=permute(PolicyValues(:,:,:,jj),[2,3,1]); %[N_a,N_z,l_d+l_a]
-
+        % Evaluate Return Fn
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
-        FofPolicy_jj=reshape(EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,[n_z,n_e],a_gridvals,[repmat(z_gridvals_J(:,:,jj),N_e,1), repelem(vfoptions.e_gridvals_J(:,:,jj),N_z,1)]),[N_a,N_z,N_e]);
+        FofPolicy_jj=reshape(EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute(:,:,:,jj),l_daprime,n_a,[n_z,vfoptions.n_e],a_gridvals,[repmat(z_gridvals_J(:,:,jj),N_e,1), repelem(vfoptions.e_gridvals_J(:,:,jj),N_z,1)]),[N_a,N_z,N_e]);
 
         if jj==N_j
             V(:,:,:,jj)=FofPolicy_jj;
@@ -219,8 +235,8 @@ elseif N_z>0 && N_e>0
             EVnext=sum(EVnext,2); % sum over z', leaving a singular second dimension
 %             EVnext=reshape(EVnext,[N_a,N_z]); % Not necessary as just index into it
 
-            if N_d==0 %length(n_d)==1 && n_d(1)==0
-                optaprime=PolicyIndexesKron(:,:,:,jj);
+            if N_d==0
+                optaprime=PolicyIndexesKron(1,:,:,:,jj);
             else
                 optaprime=shiftdim(PolicyIndexesKron(2,:,:,:,jj),1);
             end
@@ -235,7 +251,7 @@ elseif N_z>0 && N_e>0
     end
 
     % Transforming Value Fn out of Kronecker Form
-    V=reshape(V,[n_a,n_z,n_e,N_j]);
+    V=reshape(V,[n_a,n_z,vfoptions.n_e,N_j]);
 end
 
 

@@ -33,7 +33,6 @@ aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
 n2aprime=length(aprime_grid);
 
 % n-Monotonicity
-% vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 % level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

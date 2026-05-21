@@ -53,6 +53,7 @@ end
 
 %%
 for ii=1:N_i
+    iistr=Names_i{ii};
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii);
     if ~isfield(simoptions_temp,'verbose')
@@ -70,7 +71,7 @@ for ii=1:N_i
     end
 
 
-    Policy_temp=Policy.(Names_i{ii});
+    Policy_temp=Policy.(iistr);
 
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
@@ -79,29 +80,29 @@ for ii=1:N_i
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
     if isa(n_d,'struct')
-        n_d_temp=n_d.(Names_i{ii});
+        n_d_temp=n_d.(iistr);
     else
         n_d_temp=n_d;
     end
     if isa(n_a,'struct')
-        n_a_temp=n_a.(Names_i{ii});
+        n_a_temp=n_a.(iistr);
     else
         n_a_temp=n_a;
     end
     if isa(n_z,'struct')
-        n_z_temp=n_z.(Names_i{ii});
+        n_z_temp=n_z.(iistr);
     else
         n_z_temp=n_z;
     end
     if isa(N_j,'struct')
-        N_j_temp=N_j.(Names_i{ii});
+        N_j_temp=N_j.(iistr);
     else
         N_j_temp=N_j;
     end
 
     %% Exogenous shocks
     if isstruct(pi_z)
-        pi_z_temp=pi_z.(Names_i{ii});
+        pi_z_temp=pi_z.(iistr);
     else
         nn=size(pi_z,ndims(pi_z));
         if nn==N_i
@@ -186,7 +187,7 @@ for ii=1:N_i
     %% jequaloneDist
     if isa(jequaloneDist,'struct')
         if isfield(jequaloneDist,Names_i{ii})
-            jequaloneDist_temp=jequaloneDist.(Names_i{ii});
+            jequaloneDist_temp=jequaloneDist.(iistr);
             % jequaloneDist_temp must be of mass one for the codes to work.
             if abs(sum(jequaloneDist_temp(:))-1)>10^(-15) % jequaloneDist_temp(:))~=1, but allowing for small numerical errors
                 fprintf('Info for following error: sum(jequaloneDist_temp(:))-1=%8.16f (should be zero) \n', sum(jequaloneDist_temp(:))-1)
@@ -222,7 +223,7 @@ for ii=1:N_i
     AgeWeightParamNames_temp=AgeWeightsParamNames;
     if isa(AgeWeightsParamNames,'struct')
         if isfield(AgeWeightsParamNames,Names_i{ii})
-            AgeWeightParamNames_temp=AgeWeightsParamNames.(Names_i{ii});
+            AgeWeightParamNames_temp=AgeWeightsParamNames.(iistr);
         else
             if isfinite(N_j_temp)
                 error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
@@ -237,9 +238,9 @@ for ii=1:N_i
     end
 
     if simoptions_temp.ptypestorecpu==1
-        StationaryDist.(Names_i{ii})=gather(StationaryDist_ii);
+        StationaryDist.(iistr)=gather(StationaryDist_ii);
     else
-        StationaryDist.(Names_i{ii})=StationaryDist_ii;
+        StationaryDist.(iistr)=StationaryDist_ii;
     end
 
 end

@@ -6,7 +6,6 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 % n-Monotonicity
-% vfoptions.level1n=11;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 

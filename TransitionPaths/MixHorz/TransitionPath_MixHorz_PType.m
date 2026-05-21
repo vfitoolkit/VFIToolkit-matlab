@@ -497,7 +497,7 @@ for ii=1:PTypeStructure.N_i
             if isfield(FnsToEvaluate.(FnNames{kk}), Names_i{ii})
                 PTypeStructure.(iistr).FnsToEvaluate.(FnNames{kk})=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
                 % % Figure out FnsToEvaluateParamNames
-                % temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(Names_i{ii}));
+                % temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(iistr));
                 % PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
                 PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
                 PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;

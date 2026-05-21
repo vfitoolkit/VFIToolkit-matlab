@@ -11,7 +11,6 @@ Policy=zeros(2,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for ap
 midpoints_jj=zeros(1,N_a,'gpuArray');
 
 % n-Monotonicity
-% vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 
 % Grid interpolation
