@@ -39,7 +39,7 @@ if vfoptions.EVpre==0
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z);  % [N_d2*N_a1,N_a2,N_j,N_z]
 
-    EVpre=[sum(V(N_a+1:end,:).*replem(reshape(pi_e_J,[N_j,1,N_e]),N_a-1,1,1),3); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,:,:),3); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-z
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1),:),[N_d2*N_a1,N_a2,N_j,N_z]);
@@ -83,12 +83,10 @@ elseif vfoptions.EVpre==1
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
 
-DiscountedEV=DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
-
 if vfoptions.lowmemory==0
     ReturnMatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_z,n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
-    entireRHS=ReturnMatrix+DiscountedEV;
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
 
     % Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -100,6 +98,7 @@ elseif vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e),'gpuArray');
     V=zeros(N_a*N_j,N_z,N_e,'gpuArray');
     Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray');
+    DiscountedEV=DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
 
     for e_c=1:N_e
         e_val=e_gridvals_J(:,e_c,:);
@@ -121,7 +120,7 @@ elseif vfoptions.lowmemory==2
 
     for z_c=1:N_z
         z_val=z_gridvals_J(:,z_c,:);
-        DiscountedEV_z=DiscountedEV(:,:,:,z_c);
+        DiscountedEV_z=DiscountFactorParamsVec.*repelem(EV(:,:,:,z_c),N_d1,N_a1,1,1);
 
         for e_c=1:N_e
             e_val=e_gridvals_J(:,e_c,:);
@@ -136,12 +135,39 @@ elseif vfoptions.lowmemory==2
             Policy(:,z_c,e_c)=maxindex;
         end
     end
+elseif vfoptions.lowmemory==3
+    special_n_ea=ones(1,length(n_a2),'gpuArray');
+    special_n_z=ones(1,length(n_z),'gpuArray');
+    special_n_e=ones(1,length(n_e),'gpuArray');
+    V=zeros(N_a*N_j,N_z,N_e,'gpuArray');
+    Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray');
+
+    for ea_c=1:N_a2
+        ea_val=a2_grid(ea_c);
+        for z_c=1:N_z
+            z_val=z_gridvals_J(:,z_c,:);
+            DiscountedEV_z=DiscountFactorParamsVec.*repelem(EV(:,:,:,z_c),N_d1,N_a1,1,1);
+    
+            for e_c=1:N_e
+                e_val=e_gridvals_J(:,e_c,:);
+    
+                ReturnMatrix_ze=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, ea_val, z_val, e_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
+    
+                entireRHS_ze=ReturnMatrix_ze+DiscountedEV_z;
+    
+                % Calc the max and it's index
+                [Vtemp,maxindex]=max(entireRHS_ze,[],1);
+                V(:,z_c,e_c)=Vtemp;
+                Policy(:,z_c,e_c)=maxindex;
+            end
+        end
+    end
 end
 
 
 %% fastOLG with z, so need to output to take certain shapes
-% V=reshape(V,[N_a*N_j,N_z,N_e]);
-% Policy=reshape(Policy,[N_a,N_j,N_z,N_e]);
+V=reshape(V,[N_a*N_j,N_z,N_e]);
+Policy=reshape(Policy,[N_a,N_j,N_z,N_e]);
 
 %% Output shape for policy
 Policy=shiftdim(Policy,-1); % so first dim is just one point

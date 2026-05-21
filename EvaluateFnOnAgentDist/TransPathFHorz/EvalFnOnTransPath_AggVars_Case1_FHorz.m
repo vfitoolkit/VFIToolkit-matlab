@@ -143,6 +143,7 @@ simoptions.AggVarNames=AggVarNames;
 if simoptions.alreadygridvals==0
     % gridpiboth=1: only need z_gridvals_J (and e_gridvals_J if N_e>0)
     [z_gridvals_J, ~, ~, e_gridvals_J, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
+    simoptions.alreadygridvals=1; % we call down with z_gridvals_J, so those are already gridvals
 elseif simoptions.alreadygridvals==1
     z_gridvals_J=z_grid;
     e_gridvals_J=simoptions.e_gridvals_J;

@@ -17,9 +17,10 @@ end
 for ff=1:length(FnsToEvaluateNames)
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
     Values=EvalFnOnAgentDist_Grid(FnsToEvaluateCell{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+    % Values comes back as a gpuArray
     Values=reshape(Values,[N_a*N_z,1]);
     % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-    temp=Values.*AgentDist;
+    temp=gather(Values.*AgentDist);
     val=sum(temp(~isnan(temp)));
 
     if outputastruct==0

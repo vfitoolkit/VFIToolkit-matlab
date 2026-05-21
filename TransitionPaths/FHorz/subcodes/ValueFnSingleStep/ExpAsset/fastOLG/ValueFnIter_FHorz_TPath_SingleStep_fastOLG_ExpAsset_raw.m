@@ -79,11 +79,11 @@ elseif vfoptions.EVpre==1
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
 
-DiscountedEV=DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
 
 if vfoptions.lowmemory==0
     ReturnMatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
+    DiscountedEV=DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
     entireRHS=ReturnMatrix+DiscountedEV;
 
     % Calc the max and it's index
@@ -99,7 +99,7 @@ elseif vfoptions.lowmemory==1
 
     for z_c=1:N_z
         z_val=z_gridvals_J(:,z_c,:);
-        DiscountedEV_z=DiscountedEV(:,:,:,z_c);
+        DiscountedEV_z=DiscountFactorParamsVec.*repelem(EV(:,:,:,z_c),N_d1,N_a1,1,1);
 
         ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
@@ -107,15 +107,37 @@ elseif vfoptions.lowmemory==1
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
-        V(:,z_c)=Vtemp;
-        Policy(:,z_c)=maxindex;
+        V(:,z_c)=Vtemp(:);
+        Policy(:,z_c)=maxindex(:);
+    end
+
+elseif vfoptions.lowmemory==3
+    special_n_ea=ones(1,length(n_a2),'gpuArray');
+    special_n_z=ones(1,length(n_z),'gpuArray');
+    V=zeros(N_a*N_j,N_z,'gpuArray');
+    Policy=zeros(N_a*N_j,N_z,'gpuArray');
+
+    for ea_c=1:N_a2
+        ea_val=a2_grid(ea_c);
+        for z_c=1:N_z
+            z_val=z_gridvals_J(:,z_c,:);
+            DiscountedEV_z=DiscountFactorParamsVec.*repelem(EV(:,:,:,z_c),N_d1,N_a1,1,1);
+    
+            ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1, special_n_ea, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, ea_val, z_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
+    
+            entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
+    
+            % Calc the max and it's index
+            [Vtemp,maxindex]=max(entireRHS_z,[],1);
+            V(:,z_c)=Vtemp(:);
+            Policy(:,z_c)=maxindex(:);
+        end
     end
 end
 
-
 %% fastOLG with z, so need to output to take certain shapes
-% V=reshape(V,[N_a*N_j,N_z]);
-% Policy=reshape(Policy,[N_a,N_j,N_z]);
+V=reshape(V,[N_a*N_j,N_z]);
+Policy=reshape(Policy,[N_a,N_j,N_z]);
 
 %% Output shape for policy
 Policy=shiftdim(Policy,-1); % so first dim is just one point
