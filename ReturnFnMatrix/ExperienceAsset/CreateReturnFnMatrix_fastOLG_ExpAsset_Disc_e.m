@@ -104,16 +104,17 @@ if l_z>=1
         end
     end
 end
+% fastOLG: e_gridvals_J is (1,1,1,1,1,j,N_e,l_e) for fastOLG with ExpAsset
 if l_e>=1
-    e1vals=shiftdim(e_gridvals_J(:,:,1),-5);
+    e1vals=e_gridvals_J(1,1,1,1,1,:,:,1);
     if l_e>=2
-        e2vals=shiftdim(e_gridvals_J(:,:,2),-5);
+        e2vals=e_gridvals_J(1,1,1,1,1,:,:,2);
         if l_e>=3
-            e3vals=shiftdim(e_gridvals_J(:,:,3),-5);
+            e3vals=e_gridvals_J(1,1,1,1,1,:,:,3);
             if l_e>=4
-                e4vals=shiftdim(e_gridvals_J(:,:,4),-5);
+                e4vals=e_gridvals_J(1,1,1,1,1,:,:,4);
                 if l_e>=5
-                    e5vals=shiftdim(e_gridvals_J(:,:,5),-5);
+                    e5vals=e_gridvals_J(1,1,1,1,1,:,:,5);
                 end
             end
         end

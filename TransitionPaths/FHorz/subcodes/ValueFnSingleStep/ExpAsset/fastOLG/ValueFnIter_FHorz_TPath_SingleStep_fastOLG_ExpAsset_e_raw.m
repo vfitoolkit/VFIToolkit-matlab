@@ -101,7 +101,7 @@ elseif vfoptions.lowmemory==1
     DiscountedEV=DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
 
     for e_c=1:N_e
-        e_val=e_gridvals_J(:,e_c,:);
+        e_val=e_gridvals_J(:,:,:,:,:,:,:,e_c,:);
 
         ReturnMatrix_e=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_z,special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, e_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
@@ -119,11 +119,11 @@ elseif vfoptions.lowmemory==2
     Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray');
 
     for z_c=1:N_z
-        z_val=z_gridvals_J(:,z_c,:);
+        z_val=z_gridvals_J(:,:,:,:,:,z_c,:);
         DiscountedEV_z=DiscountFactorParamsVec.*repelem(EV(:,:,:,z_c),N_d1,N_a1,1,1);
 
         for e_c=1:N_e
-            e_val=e_gridvals_J(:,e_c,:);
+            e_val=e_gridvals_J(:,:,:,:,:,:,:,e_c,:);
 
             ReturnMatrix_ze=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, e_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
@@ -139,26 +139,26 @@ elseif vfoptions.lowmemory==3
     special_n_ea=ones(1,length(n_a2),'gpuArray');
     special_n_z=ones(1,length(n_z),'gpuArray');
     special_n_e=ones(1,length(n_e),'gpuArray');
-    V=zeros(N_a*N_j,N_z,N_e,'gpuArray');
-    Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray');
+    V=zeros(N_a1,N_a2,N_j,N_z,N_e,'gpuArray');
+    Policy=zeros(N_a1,N_a2,N_j,N_z,N_e,'gpuArray');
 
     for ea_c=1:N_a2
         ea_val=a2_grid(ea_c);
         for z_c=1:N_z
-            z_val=z_gridvals_J(:,z_c,:);
-            DiscountedEV_z=DiscountFactorParamsVec.*repelem(EV(:,:,:,z_c),N_d1,N_a1,1,1);
+            z_val=z_gridvals_J(:,:,:,:,:,z_c,:);
+            DiscountedEV_ea_z=DiscountFactorParamsVec.*repelem(EV(:,ea_c,:,z_c),N_d1,N_a1,1,1);
     
             for e_c=1:N_e
-                e_val=e_gridvals_J(:,e_c,:);
+                e_val=e_gridvals_J(:,:,:,:,:,:,:,e_c,:);
     
-                ReturnMatrix_ze=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, ea_val, z_val, e_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
+                ReturnMatrix_ea_ze=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, n_a1,special_n_ea, special_n_z,special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, ea_val, z_val, e_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
     
-                entireRHS_ze=ReturnMatrix_ze+DiscountedEV_z;
+                entireRHS_ea_ze=ReturnMatrix_ea_ze+DiscountedEV_ea_z;
     
                 % Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_ze,[],1);
-                V(:,z_c,e_c)=Vtemp;
-                Policy(:,z_c,e_c)=maxindex;
+                [Vtemp,maxindex]=max(entireRHS_ea_ze,[],1);
+                V(:,ea_c,:,z_c,e_c)=shiftdim(Vtemp,1);
+                Policy(:,ea_c,:,z_c,e_c)=shiftdim(maxindex,1);
             end
         end
     end

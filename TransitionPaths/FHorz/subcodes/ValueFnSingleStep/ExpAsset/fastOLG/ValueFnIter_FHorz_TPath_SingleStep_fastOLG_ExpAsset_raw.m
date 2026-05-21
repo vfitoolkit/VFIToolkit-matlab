@@ -98,7 +98,7 @@ elseif vfoptions.lowmemory==1
     Policy=zeros(N_a*N_j,N_z,'gpuArray');
 
     for z_c=1:N_z
-        z_val=z_gridvals_J(:,z_c,:);
+        z_val=z_gridvals_J(:,:,:,:,:,z_c,:);
         DiscountedEV_z=DiscountFactorParamsVec.*repelem(EV(:,:,:,z_c),N_d1,N_a1,1,1);
 
         ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
@@ -114,23 +114,23 @@ elseif vfoptions.lowmemory==1
 elseif vfoptions.lowmemory==3
     special_n_ea=ones(1,length(n_a2),'gpuArray');
     special_n_z=ones(1,length(n_z),'gpuArray');
-    V=zeros(N_a*N_j,N_z,'gpuArray');
-    Policy=zeros(N_a*N_j,N_z,'gpuArray');
+    V=zeros(N_a1,N_a2,N_j,N_z,'gpuArray');
+    Policy=zeros(N_a1,N_a2,N_j,N_z,'gpuArray');
 
     for ea_c=1:N_a2
         ea_val=a2_grid(ea_c);
         for z_c=1:N_z
-            z_val=z_gridvals_J(:,z_c,:);
-            DiscountedEV_z=DiscountFactorParamsVec.*repelem(EV(:,:,:,z_c),N_d1,N_a1,1,1);
+            z_val=z_gridvals_J(:,:,:,:,:,z_c,:);
+            DiscountedEV_ea_z=DiscountFactorParamsVec.*repelem(EV(:,ea_c,:,z_c),N_d1,N_a1,1,1);
     
-            ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1, special_n_ea, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, ea_val, z_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
+            ReturnMatrix_ea_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1, special_n_ea, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, ea_val, z_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
     
-            entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
-    
+            entireRHS_ea_z=ReturnMatrix_ea_z+DiscountedEV_ea_z;
+
             % Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_z,[],1);
-            V(:,z_c)=Vtemp(:);
-            Policy(:,z_c)=maxindex(:);
+            [Vtemp,maxindex]=max(entireRHS_ea_z,[],1);
+            V(:,ea_c,:,z_c)=shiftdim(Vtemp,1);
+            Policy(:,ea_c,:,z_c)=shiftdim(maxindex,1);
         end
     end
 end

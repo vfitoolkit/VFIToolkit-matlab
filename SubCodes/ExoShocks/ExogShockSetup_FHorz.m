@@ -204,7 +204,7 @@ else
         error('You are using an e (iid) variable, and so need to declare options.pi_e (options refers to either vfoptions or simoptions)')
     end
 
-    if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
+    if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
         options.pi_e_J=[];
         % Now just do e_gridvals_J
         options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),N_j,'gpuArray');
