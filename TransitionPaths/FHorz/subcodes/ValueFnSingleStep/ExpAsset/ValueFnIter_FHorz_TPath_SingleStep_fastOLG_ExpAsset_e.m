@@ -51,7 +51,19 @@ end
 
 %% Policy in transition paths
 % Note: The actual ordering of N_z,N_e,N_j is not relevant to how this command works, so can just mix them up. [as long as N_z,N_e not n_z,n_e]
-PolicyKron=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron,n_d,n_a,N_j,N_z,N_e,vfoptions);
-PolicyKron=reshape(PolicyKron,[size(PolicyKron,1),N_a,N_j,N_z,N_e]);
+if vfoptions.gridinterplayer==0
+    if N_d1==0
+        PolicyKron=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron,[n_d2,n_a1],N_a,N_j,N_z,N_e,vfoptions);
+    else
+        PolicyKron=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron,[n_d1,n_d2,n_a1],N_a,N_j,N_z,N_e,vfoptions);
+    end
+elseif vfoptions.gridinterplayer==1
+    if N_d1==0
+        PolicyKron=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron,[n_d2,n_a1,vfoptions.level1n],N_a,N_j,N_z,N_e,vfoptions);
+    else
+        PolicyKron=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron,[n_d1,n_d2,n_a1,vfoptions.level1n],N_a,N_j,N_z,N_e,vfoptions);
+    end
+end
+
 
 end

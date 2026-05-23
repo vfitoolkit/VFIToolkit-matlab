@@ -139,7 +139,7 @@ end
 V=reshape(V,[N_a*N_j,N_z]);
 Policy=reshape(Policy,[N_a,N_j,N_z]);
 
-%% Output shape for policy
+%% For experience asset, just output Policy as single index and then use Case2 to UnKron
 Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 

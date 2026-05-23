@@ -17,7 +17,8 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 z_gridvals_J=shiftdim(z_gridvals_J,-4); % [1,1,1,1,N_j,N_z,l_z]
-e_gridvals_J=shiftdim(e_gridvals_J,-5); % [1,1,1,1,1,N_j,N_e,l_e]
+% e_gridvals_J=shiftdim(e_gridvals_J,-5); % [1,1,1,1,1,N_j,N_e,l_e]
+e_gridvals_J=shiftdim(reshape(e_gridvals_J,[N_j,1,1,N_e,[]]),-4); % Make room for N_z,l_z, but align N_j with z_gridvals_J
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z (note: N_aprime is just equal to N_a)
@@ -33,7 +34,7 @@ ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames
 if vfoptions.EVpre==0
     aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_J(aprimeFn, n_d2, n_a2, N_j, d2_gridvals, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    % Note: aprimeIndex is [N_d2,N_a2,N_j], whereas aprimeProbs is [N_d2,N_a2,N_j]
+    % Note: a2primeIndex is [N_d2,N_a2,N_j], whereas a2primeProbs is [N_d2,N_a2,N_j]
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat((a2primeIndex-1),N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
@@ -54,12 +55,12 @@ if vfoptions.EVpre==0
 
     EV=EV.*shiftdim(pi_z_J,-2);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
+    EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a2
 elseif vfoptions.EVpre==1
-    % This is used for 'Matched Expecations Path'
+    % This is used for 'Matched Expectations Path'
     aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_J(aprimeFn, n_d2, n_a2, N_j, d2_gridvals, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    % Note: aprimeIndex is [N_d2,N_a2,N_j], whereas aprimeProbs is [N_d2,N_a2,N_j]
+    % Note: a2primeIndex is [N_d2,N_a2,N_j], whereas a2primeProbs is [N_d2,N_a2,N_j]
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat((a2primeIndex-1),N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
@@ -80,7 +81,7 @@ elseif vfoptions.EVpre==1
 
     EV=EV.*shiftdim(pi_z_J,-2);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
+    EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a2
 end
 
 if vfoptions.lowmemory==0
@@ -109,8 +110,8 @@ elseif vfoptions.lowmemory==1
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_e,[],1);
-        V(:,:,e_c)=Vtemp;
-        Policy(:,:,e_c)=maxindex;
+        V(:,:,e_c)=reshape(Vtemp,[N_a*N_j,N_z]);
+        Policy(:,:,e_c)=reshape(maxindex,[N_a*N_j,N_z]);
     end
 elseif vfoptions.lowmemory==2
     special_n_z=ones(1,length(n_z),'gpuArray');
@@ -131,8 +132,8 @@ elseif vfoptions.lowmemory==2
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_ze,[],1);
-            V(:,z_c,e_c)=Vtemp;
-            Policy(:,z_c,e_c)=maxindex;
+            V(:,z_c,e_c)=Vtemp(:);
+            Policy(:,z_c,e_c)=maxindex(:);
         end
     end
 elseif vfoptions.lowmemory==3
@@ -169,7 +170,7 @@ end
 V=reshape(V,[N_a*N_j,N_z,N_e]);
 Policy=reshape(Policy,[N_a,N_j,N_z,N_e]);
 
-%% Output shape for policy
+%% For experience asset, just output Policy as single index and then use Case2 to UnKron
 Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 

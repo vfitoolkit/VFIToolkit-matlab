@@ -143,7 +143,7 @@ simoptions.AggVarNames=AggVarNames;
 if simoptions.alreadygridvals==0
     % gridpiboth=1: only need z_gridvals_J (and e_gridvals_J if N_e>0)
     [z_gridvals_J, ~, ~, e_gridvals_J, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
-    simoptions.alreadygridvals=1; % we call down with z_gridvals_J, so those are already gridvals
+    % simptions.alreadygridvals means something COMPLETELY different, so don't set here.
 elseif simoptions.alreadygridvals==1
     z_gridvals_J=z_grid;
     e_gridvals_J=simoptions.e_gridvals_J;
@@ -329,7 +329,7 @@ else
 
             Policy_tt=reshape(PolicyPath(:,:,:,:,:,tt),[size(PolicyPath,1),n_a,n_z,n_e,N_j]);
 
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,:,tt), Policy_tt, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, simoptions);
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,:,tt), Policy_tt, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, simoptions);
 
             for ff=1:length(AggVarNames)
                 AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars.(AggVarNames{ff}).Mean;

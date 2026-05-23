@@ -225,6 +225,8 @@ else
         elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid
             if all(size(options.e_grid)==[prod(options.n_e),length(options.n_e),N_j])
                 options.e_gridvals_J=options.e_grid;
+            elseif all(size(options.e_grid)==[N_j,length(options.n_e),prod(options.n_e)])
+                options.e_gridvals_J=permute(options.e_grid,[3,2,1]);
             else
                 error('options.e_grid is 3D but its size does not match [prod(n_e),length(n_e),N_j]; got [%s]',num2str(size(options.e_grid)))
             end

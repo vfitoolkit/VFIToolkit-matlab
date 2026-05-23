@@ -8,7 +8,7 @@ function Fmatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_
 nReturnFnParams=size(ReturnFnParamsAgeMatrix,2);
 ReturnFnParamsCell=cell(nReturnFnParams,1);
 for ii=1:nReturnFnParams
-    ReturnFnParamsCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-6)};
+    ReturnFnParamsCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-4)};
 end
 
 if n_d1(1)==0
@@ -104,17 +104,17 @@ if l_z>=1
         end
     end
 end
-% fastOLG: e_gridvals_J is (1,1,1,1,1,j,N_e,l_e) for fastOLG with ExpAsset
+% fastOLG: e_gridvals_J is (1,1,1,1,j,1,1,N_e,l_e) for fastOLG with ExpAsset
 if l_e>=1
-    e1vals=e_gridvals_J(1,1,1,1,1,:,:,1);
+    e1vals=e_gridvals_J(1,1,1,1,:,1,1,:,1);
     if l_e>=2
-        e2vals=e_gridvals_J(1,1,1,1,1,:,:,2);
+        e2vals=e_gridvals_J(1,1,1,1,:,1,1,:,2);
         if l_e>=3
-            e3vals=e_gridvals_J(1,1,1,1,1,:,:,3);
+            e3vals=e_gridvals_J(1,1,1,1,:,1,1,:,3);
             if l_e>=4
-                e4vals=e_gridvals_J(1,1,1,1,1,:,:,4);
+                e4vals=e_gridvals_J(1,1,1,1,:,1,1,:,4);
                 if l_e>=5
-                    e5vals=e_gridvals_J(1,1,1,1,1,:,:,5);
+                    e5vals=e_gridvals_J(1,1,1,1,:,1,1,:,5);
                 end
             end
         end
