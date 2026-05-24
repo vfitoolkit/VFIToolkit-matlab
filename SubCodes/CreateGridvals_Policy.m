@@ -21,6 +21,9 @@ else
     l_d=length(n_d);
 end
 l_aprime=length(n_aprime);
+if simoptions.experienceasset==1 || simoptions.experienceassetu==1 || simoptions.experienceassetz==1 || simoptions.experienceassetze==1 || simoptions.experienceassete==1 || simoptions.riskyasset==1
+    l_aprime=l_aprime-1;
+end
 
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -32,21 +35,21 @@ end
 Policy=reshape(Policy,[size(Policy,1),N_a*N_z]); % Note: Policy will be (l_d+l_a,n_a,n_z)
 
 if simoptions.gridinterplayer==1
+    % --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
+    if size(Policy,1) > l_d + l_aprime + 1
+        Policy=Policy(1:end-1,:);
+    end
     % switch aprime_grid and Policy to be 'fine' index
     Policy(l_d+1,:)=(1+simoptions.ngridinterp)*(Policy(l_d+1,:)-1)+Policy(end,:);
     Policy=Policy(1:end-1,:);
-    if l_aprime==1
+    N_a1=n_aprime(1);
+    if length(aprime_grid)==N_a1 % if this is the only endogenous state (cannot do "if l_aprime==1" because that was modified above for experienceasset, etc)
         aprime_grid=interp1(1:1:n_aprime,aprime_grid,linspace(1,n_aprime,n_aprime+(n_aprime-1)*simoptions.ngridinterp));
     else
-        N_a1=n_aprime(1);
         a1prime_grid=interp1(1:1:N_a1,aprime_grid(1:n_aprime(1))',linspace(1,N_a1,N_a1+(N_a1-1)*simoptions.ngridinterp))';
         aprime_grid=[a1prime_grid; aprime_grid(n_aprime(1)+1:end)];
         n_aprime(1)=n_aprime(1)+(n_aprime(1)-1)*simoptions.ngridinterp;
     end
-end
-
-if simoptions.experienceasset==1 || simoptions.experienceassetu==1
-    l_aprime=l_aprime-1;
 end
 
 

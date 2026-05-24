@@ -1,15 +1,22 @@
 function PolicyKron=KronPolicyIndexes_Case1_noz(Policy, n_d, n_a, simoptions)
 
-%Input: Policy (l_d+l_a,n_a);
+% Input: Policy (l_d+l_a,n_a);
 
-%Output: Policy=zeros(2,N_a); %first dim indexes the optimal choice for d and aprime rest of dimensions a
-%                       (N_a) if there is no d
+% Output: Policy=zeros(2,N_a); %first dim indexes the optimal choice for d and aprime rest of dimensions a
+%                       (1,N_a) if there is no d
 
 N_a=prod(n_a);
 
 l_a=length(n_a);
 
 Policy=reshape(Policy,[size(Policy,1),N_a]);
+
+% --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
+if size(Policy,1) > (n_d(1)~=0)*length(n_d) + l_a + 1
+    tempsize=size(Policy);
+    Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
+    Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
+end
 
 
 if simoptions.gridinterplayer==0
@@ -18,12 +25,12 @@ if simoptions.gridinterplayer==0
 
     if n_d(1)==0
         if l_a==1
-            PolicyKron=reshape(Policy,[N_a,1]);
+            PolicyKron=reshape(Policy,[1,N_a]);
         else %l_a>1
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
             temp2=gpuArray(cumprod(n_a')); % column vector
             PolicyTemp=(reshape(Policy,[l_a,N_a])-temp*ones(1,N_a,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a,'gpuArray'));
-            PolicyKron=reshape(sum(PolicyTemp,1),[N_a,1]);
+            PolicyKron=reshape(sum(PolicyTemp,1),[1,N_a]);
         end
 
     else

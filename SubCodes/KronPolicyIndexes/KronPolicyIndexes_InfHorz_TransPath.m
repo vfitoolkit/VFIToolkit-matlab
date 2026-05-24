@@ -4,14 +4,14 @@ function PolicyPathKron=KronPolicyIndexes_InfHorz_TransPath(PolicyPath, n_d, n_a
 % Input: Policy (l_d+l_a,n_a,n_z,T);
 %
 % Output: Policy=zeros(2,N_a,N_z,T); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-%                       (N_a,N_z,T) if there is no d
+%                       (1,N_a,N_z,T) if there is no d
 % Differs if simoptions.gridinterplayer=1
 
 % When using n_e, is instead:
 % Input: Policy (l_d+l_a,n_a,n_z,n_e,,T);
 %
 % Output: Policy=zeros(2,N_a,N_z,N_e,T); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-%                       (N_a,N_z,N_e,T) if there is no d
+%                       (1,N_a,N_z,N_e,T) if there is no d
 % Differs if simoptions.gridinterplayer=1
 
 N_d=prod(n_d);
@@ -32,6 +32,13 @@ end
 N_ze=prod(n_ze);
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_ze,T]);
 
+% --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
+if size(PolicyPath,1) > (N_d~=0)*length(n_d) + l_a + 1
+    tempsize=size(PolicyPath);
+    PolicyPath=reshape(PolicyPath,[tempsize(1),prod(tempsize)/tempsize(1)]);
+    PolicyPath=reshape(PolicyPath(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
+end
+
 
 %%
 if N_d==0
@@ -41,7 +48,7 @@ if N_d==0
         temp=[0; ones(l_a-1,1,'gpuArray')];
         temp2=gpuArray(cumprod(n_a')); % column vector
         PolicyTemp=(reshape(PolicyPath(1:l_a,:,:,:),[l_a,N_a*N_ze,T])-temp).*[1; temp2(1:end-1)]; % note, lots of autofilling
-        PolicyPathKron=reshape(sum(PolicyTemp,1),[N_a,N_ze,T]);
+        PolicyPathKron=reshape(sum(PolicyTemp,1),[1,N_a,N_ze,T]);
     elseif simoptions.gridinterplayer==1
         PolicyPathKron=zeros(2,N_a,N_ze,T,'gpuArray');
         PolicyPathKron(1,:,:,:)=PolicyPath(1,:,:,:);
@@ -99,7 +106,7 @@ end
 
 if N_e>0
     if N_d==0 && simoptions.gridinterplayer==0
-        PolicyPathKron=reshape(PolicyPathKron,[N_a,N_z,N_e,T]);
+        PolicyPathKron=reshape(PolicyPathKron,[1,N_a,N_z,N_e,T]);
     else
         PolicyPathKron=reshape(PolicyPathKron,[size(PolicyPathKron,1),N_a,N_z,N_e,T]);
     end

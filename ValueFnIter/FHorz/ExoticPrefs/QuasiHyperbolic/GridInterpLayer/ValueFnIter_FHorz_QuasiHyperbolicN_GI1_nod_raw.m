@@ -10,6 +10,7 @@ N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(2,N_a,N_z,N_j,'gpuArray'); % [midpoint; aprimeL2ind]
+PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
@@ -34,6 +35,13 @@ if ~isfield(vfoptions,'V_Jplus1')
         aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)';
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,n_z,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
         [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
+
+        isInfLower    = (ReturnMatrix_ii(1,     :,:) == -Inf);
+        isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+        inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+        PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
         V(:,:,N_j)=shiftdim(Vtempii,1);
         Policy(1,:,:,N_j)=shiftdim(squeeze(midpoint),-1);
         Policy(2,:,:,N_j)=shiftdim(maxindexL2,-1);
@@ -47,6 +55,13 @@ if ~isfield(vfoptions,'V_Jplus1')
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)';
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
+
+            isInfLower    = (ReturnMatrix_ii(1,     :) == -Inf);
+            isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
+            inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+            inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+            PolicyL2flag(1,:,z_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,z_c,N_j)=shiftdim(squeeze(midpoint),-1);
             Policy(2,:,z_c,N_j)=shiftdim(maxindexL2,-1);
@@ -93,6 +108,13 @@ else
         aprimez=aprimeindexes+n2aprime*zind;
         entireRHS_L2=ReturnMatrix_L2+beta0beta*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_z]);
         [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
+
+        isInfLower    = (ReturnMatrix_L2(1,     :,:) == -Inf);
+        isInfUpper    = (ReturnMatrix_L2(n2long,:,:) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+        inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+        PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
         Vtilde(:,:,N_j)=shiftdim(Vtempii,1);
         Policy(1,:,:,N_j)=shiftdim(squeeze(midpoint),-1);
         Policy(2,:,:,N_j)=shiftdim(maxindexL2,-1);
@@ -122,6 +144,13 @@ else
             ReturnMatrix_L2=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             entireRHS_L2=ReturnMatrix_L2+beta0beta*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
             [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
+
+            isInfLower    = (ReturnMatrix_L2(1,     :) == -Inf);
+            isInfUpper    = (ReturnMatrix_L2(n2long,:) == -Inf);
+            inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+            inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+            PolicyL2flag(1,:,z_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
             Vtilde(:,z_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,z_c,N_j)=shiftdim(squeeze(midpoint),-1);
             Policy(2,:,z_c,N_j)=shiftdim(maxindexL2,-1);
@@ -172,6 +201,13 @@ for reverse_j=1:N_j-1
         aprimez=aprimeindexes+n2aprime*zind;
         entireRHS_L2=ReturnMatrix_L2+beta0beta*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_z]);
         [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
+
+        isInfLower    = (ReturnMatrix_L2(1,     :,:) == -Inf);
+        isInfUpper    = (ReturnMatrix_L2(n2long,:,:) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+        inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+        PolicyL2flag(1,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
         Vtilde(:,:,jj)=shiftdim(Vtempii,1);
         Policy(1,:,:,jj)=shiftdim(squeeze(midpoint),-1);
         Policy(2,:,:,jj)=shiftdim(maxindexL2,-1);
@@ -201,6 +237,13 @@ for reverse_j=1:N_j-1
             ReturnMatrix_L2=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             entireRHS_L2=ReturnMatrix_L2+beta0beta*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
             [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
+
+            isInfLower    = (ReturnMatrix_L2(1,     :) == -Inf);
+            isInfUpper    = (ReturnMatrix_L2(n2long,:) == -Inf);
+            inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+            inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+            PolicyL2flag(1,:,z_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
             Vtilde(:,z_c,jj)=shiftdim(Vtempii,1);
             Policy(1,:,z_c,jj)=shiftdim(squeeze(midpoint),-1);
             Policy(2,:,z_c,jj)=shiftdim(maxindexL2,-1);
@@ -213,7 +256,7 @@ adjust=(Policy(2,:,:,:)<1+n2short+1);
 Policy(1,:,:,:)=Policy(1,:,:,:)-adjust;
 Policy(2,:,:,:)=adjust.*Policy(2,:,:,:)+(1-adjust).*(Policy(2,:,:,:)-n2short-1);
 
-Policy=squeeze(Policy(1,:,:,:)+N_a*(Policy(2,:,:,:)-1));
+Policy=squeeze(Policy(1,:,:,:)+N_a*(Policy(2,:,:,:)-1)+N_a*(n2short+2)*(PolicyL2flag-1));
 
 %%
 nOutputs=nargout;

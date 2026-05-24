@@ -29,6 +29,13 @@ end
 N_ze=prod(n_ze);
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_ze,T]);
 
+% --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
+if simoptions.gridinterplayer==1 && size(PolicyPath,1) > length(n_d) + length(n_a) + 1
+    tempsize=size(PolicyPath);
+    PolicyPath=reshape(PolicyPath,[tempsize(1),prod(tempsize)/tempsize(1)]);
+    PolicyPath=reshape(PolicyPath(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
+end
+
 %%
 % Split decision variables into the standard ones and the one relevant to the experience asset
 if isscalar(n_d)

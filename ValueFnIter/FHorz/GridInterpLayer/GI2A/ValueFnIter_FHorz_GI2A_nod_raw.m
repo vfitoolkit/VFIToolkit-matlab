@@ -5,6 +5,8 @@ N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % first dim is (a1prime midpoint,a2prime,a1prime L2)
+PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+% When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
 
 %%
 n_a1=n_a(1);
@@ -53,6 +55,16 @@ if ~isfield(vfoptions,'V_Jplus1')
     [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
     maxindexL2a1=rem(maxindexL2-1,n2long)+1;
     maxindexL2a2=ceil(maxindexL2/n2long);
+
+    % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen a2prime)
+    linidx_lower  = 1                  + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*zind;
+    linidx_upper  = n2long*maxindexL2a2                          + n2long*N_a2*a12ind + n2long*N_a2*N_a*zind;
+    isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+    inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+    PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
     V(:,:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,:,N_j)=midpoint(maxindexL2a2+N_a2*a12ind+N_a2*N_a*zind); % a1prime midpoint
     Policy(2,:,:,N_j)=maxindexL2a2; % a2prime
@@ -88,6 +100,16 @@ else
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
     maxindexL2a1=rem(maxindexL2-1,n2long)+1;
     maxindexL2a2=ceil(maxindexL2/n2long);
+
+    % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen a2prime)
+    linidx_lower  = 1                  + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*zind;
+    linidx_upper  = n2long*maxindexL2a2                          + n2long*N_a2*a12ind + n2long*N_a2*N_a*zind;
+    isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+    inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+    PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
     V(:,:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,:,N_j)=midpoint(maxindexL2a2+N_a2*a12ind+N_a2*N_a*zind); % a1prime midpoint
     Policy(2,:,:,N_j)=maxindexL2a2; % a2prime
@@ -136,6 +158,16 @@ for reverse_j=1:N_j-1
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
     maxindexL2a1=rem(maxindexL2-1,n2long)+1;
     maxindexL2a2=ceil(maxindexL2/n2long);
+
+    % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen a2prime)
+    linidx_lower  = 1                  + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*zind;
+    linidx_upper  = n2long*maxindexL2a2                          + n2long*N_a2*a12ind + n2long*N_a2*N_a*zind;
+    isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+    inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+    PolicyL2flag(1,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
     V(:,:,jj)=shiftdim(Vtempii,1);
     Policy(1,:,:,jj)=midpoint(maxindexL2a2+N_a2*a12ind+N_a2*N_a*zind); % a1prime midpoint
     Policy(2,:,:,jj)=maxindexL2a2; % a2prime
@@ -151,7 +183,7 @@ adjust=(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoi
 Policy(1,:,:,:)=Policy(1,:,:,:)-adjust; % lower grid point
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-Policy=Policy(1,:,:,:)+N_a1*(Policy(2,:,:,:)-1)+N_a1*N_a2*(Policy(3,:,:,:)-1);
+Policy=Policy(1,:,:,:)+N_a1*(Policy(2,:,:,:)-1)+N_a1*N_a2*(Policy(3,:,:,:)-1)+N_a1*N_a2*(n2short+2)*(PolicyL2flag-1);
 
 
 end

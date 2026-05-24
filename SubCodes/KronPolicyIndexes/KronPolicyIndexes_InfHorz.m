@@ -1,7 +1,7 @@
 function PolicyKron=KronPolicyIndexes_InfHorz(Policy, n_d, n_a, n_z, vfoptions)
 
 % Input: Policy (l_d+l_aprime,n_a,n_z);
-% Output: if no d, then Policy=zeros(N_a,N_z); % indexes the optimal choice for aprime as function of a,z
+% Output: if no d, then Policy=zeros(1,N_a,N_z); % indexes the optimal choice for aprime as function of a,z
 %         if d, then Policy=zeros(2,N_a,N_z);  % indexes the optimal choice for d,aprime as function of a,z
 % This can all be a bit different based on vfoptions
 
@@ -10,7 +10,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 if N_d==0 && isscalar(n_a) && vfoptions.gridinterplayer==0
-    Policy=reshape(Policy,[N_a,N_z]);
+    Policy=reshape(Policy,[1,N_a,N_z]);
 else
     Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
 end
@@ -21,18 +21,22 @@ if vfoptions.experienceasset==1
     n_a=n_a(1:end-1); % is only used a n_aprime for here one
 end
 
+% --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
+if vfoptions.gridinterplayer==1 && size(Policy,1) > (N_d~=0)*length(n_d) + l_aprime + 1
+    tempsize=size(Policy);
+    Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
+    Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
+end
+
 if N_d==0 && vfoptions.gridinterplayer==0
     if l_aprime==1
         PolicyKron=Policy;
     elseif l_aprime==2
         PolicyKron=Policy(1,:,:)+n_a(1)*(Policy(2,:,:)-1);
-        PolicyKron=shiftdim(PolicyKron,1);
     elseif l_aprime==3
         PolicyKron=Policy(1,:,:)+n_a(1)*(Policy(2,:,:)-1)+n_a(1)*n_a(2)*(Policy(3,:,:)-1);
-        PolicyKron=shiftdim(PolicyKron,1);
     elseif l_aprime==4
         PolicyKron=Policy(1,:,:)+n_a(1)*(Policy(2,:,:)-1)+n_a(1)*n_a(2)*(Policy(3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(4,:,:)-1);
-        PolicyKron=shiftdim(PolicyKron,1);
     end
 elseif N_d==0 && vfoptions.gridinterplayer==1
     if l_aprime<=2

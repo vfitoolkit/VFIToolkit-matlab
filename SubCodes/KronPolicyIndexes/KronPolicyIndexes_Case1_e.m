@@ -3,7 +3,7 @@ function PolicyKron=KronPolicyIndexes_Case1_e(Policy, n_d, n_a, n_z, n_e, simopt
 % Input: Policy (l_d+l_a,n_a,n_z,n_e);
 %
 % Output: PolicyKron=zeros(2,N_a,N_z,N_e); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-%                       (N_a,N_z,N_e) if there is no d
+%                       (1,N_a,N_z,N_e) if there is no d
 % Note: simoptions.gridinterplayer=1 means there will be an additional index for the second layer in both the input and output versions
 
 N_a=prod(n_a);
@@ -11,6 +11,13 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 l_a=length(n_a);
+
+% --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
+if size(Policy,1) > (n_d(1)~=0)*length(n_d) + l_a + 1
+    tempsize=size(Policy);
+    Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
+    Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
+end
 
 if simoptions.gridinterplayer==0
     % Reshape Policy
@@ -22,12 +29,12 @@ if simoptions.gridinterplayer==0
 
     if n_d(1)==0
         if l_a==1
-            PolicyKron=reshape(Policy,[N_a,N_z,N_e]);
+            PolicyKron=reshape(Policy,[1,N_a,N_z,N_e]);
         else %l_a>1
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
             temp2=gpuArray(cumprod(n_a')); % column vector
             PolicyTemp=(reshape(Policy,[l_a,N_a*N_z*N_e])-temp*ones(1,N_a*N_z*N_e,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a*N_z*N_e,'gpuArray'));
-            PolicyKron=reshape(sum(PolicyTemp,1),[N_a,N_z,N_e]);
+            PolicyKron=reshape(sum(PolicyTemp,1),[1,N_a,N_z,N_e]);
         end
     else
         l_d=length(n_d);

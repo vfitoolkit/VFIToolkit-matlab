@@ -10,6 +10,17 @@ N_z=prod(n_z);
 
 l_d=length(n_d);
 
+% --- TEMPORARY (pilot): detect and strip PolicyL2flag if Policy was packed with it (gridinterplayer only)
+if isfield(vfoptions,'gridinterplayer') && vfoptions.gridinterplayer==1
+    L2flag_stride = prod(n_d(1:end-1)) * (n_d(end) + 2);   % pre-fix max Policy value
+    if max(PolicyKron(:)) > L2flag_stride
+        PolicyL2flag = floor((PolicyKron-1) / L2flag_stride) + 1;
+        PolicyKron   = mod((PolicyKron-1), L2flag_stride) + 1;
+    else
+        PolicyL2flag = 2 * ones(size(PolicyKron), 'like', PolicyKron);
+    end
+end
+
 Policy=zeros(l_d,N_a,N_z,N_j,'gpuArray');
 
 Policy(1,:,:,:)=shiftdim(rem(PolicyKron-1,n_d(1))+1,-1);
@@ -24,5 +35,9 @@ end
 
 Policy=reshape(Policy,[l_d,n_a,n_z,N_j]);
 
+% --- TEMPORARY (pilot): append PolicyL2flag as trailing channel for comparison
+if isfield(vfoptions,'gridinterplayer') && vfoptions.gridinterplayer==1
+    Policy = cat(1, Policy, reshape(PolicyL2flag, [1, n_a, n_z, N_j]));
+end
 
 end

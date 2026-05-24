@@ -11,6 +11,7 @@ N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % [d_ind; midpoint; aprimeL2ind]
+PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
@@ -39,6 +40,14 @@ if ~isfield(vfoptions,'V_Jplus1')
         [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
         V(:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d)+1;
+        L2offset = ceil(maxindexL2/N_d);
+        linidx_lower = d_ind + N_d*n2long*aind + N_d*n2long*N_a*zind;
+        linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
+        isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+        inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+        inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+        PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         allind=d_ind+N_d*aind+N_d*N_a*zind;
         Policy(1,:,:,N_j)=d_ind;
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -55,6 +64,14 @@ if ~isfield(vfoptions,'V_Jplus1')
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;
+            L2offset = ceil(maxindexL2/N_d);
+            linidx_lower = d_ind + N_d*n2long*aind;
+            linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+            isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+            isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+            inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+            inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+            PolicyL2flag(1,:,z_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             allind=d_ind+N_d*aind;
             Policy(1,:,z_c,N_j)=d_ind;
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -104,6 +121,14 @@ else
         [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
         Vtilde(:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d)+1;
+        L2offset = ceil(maxindexL2/N_d);
+        linidx_lower = d_ind + N_d*n2long*aind + N_d*n2long*N_a*zind;
+        linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
+        isInfLower = (ReturnMatrix_L2(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
+        inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+        inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+        PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         allind=d_ind+N_d*aind+N_d*N_a*zind;
         Policy(1,:,:,N_j)=d_ind;
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -136,6 +161,14 @@ else
             [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
             Vtilde(:,z_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;
+            L2offset = ceil(maxindexL2/N_d);
+            linidx_lower = d_ind + N_d*n2long*aind;
+            linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+            isInfLower = (ReturnMatrix_L2(linidx_lower) == -Inf);
+            isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
+            inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+            inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+            PolicyL2flag(1,:,z_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             allind=d_ind+N_d*aind;
             Policy(1,:,z_c,N_j)=d_ind;
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -189,6 +222,14 @@ for reverse_j=1:N_j-1
         [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
         Vtilde(:,:,jj)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d)+1;
+        L2offset = ceil(maxindexL2/N_d);
+        linidx_lower = d_ind + N_d*n2long*aind + N_d*n2long*N_a*zind;
+        linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
+        isInfLower = (ReturnMatrix_L2(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
+        inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+        inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+        PolicyL2flag(1,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         allind=d_ind+N_d*aind+N_d*N_a*zind;
         Policy(1,:,:,jj)=d_ind;
         Policy(2,:,:,jj)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -221,6 +262,14 @@ for reverse_j=1:N_j-1
             [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
             Vtilde(:,z_c,jj)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;
+            L2offset = ceil(maxindexL2/N_d);
+            linidx_lower = d_ind + N_d*n2long*aind;
+            linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+            isInfLower = (ReturnMatrix_L2(linidx_lower) == -Inf);
+            isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
+            inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+            inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+            PolicyL2flag(1,:,z_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             allind=d_ind+N_d*aind;
             Policy(1,:,z_c,jj)=d_ind;
             Policy(2,:,z_c,jj)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -234,7 +283,7 @@ adjust=(Policy(3,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1);
 
-Policy=squeeze(Policy(1,:,:,:)+N_d*(Policy(2,:,:,:)-1)+N_d*N_a*(Policy(3,:,:,:)-1));
+Policy=squeeze(Policy(1,:,:,:)+N_d*(Policy(2,:,:,:)-1)+N_d*N_a*(Policy(3,:,:,:)-1)+N_d*N_a*(n2short+2)*(PolicyL2flag-1));
 
 %%
 nOutputs=nargout;
