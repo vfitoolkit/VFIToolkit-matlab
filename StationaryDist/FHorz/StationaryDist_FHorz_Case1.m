@@ -7,6 +7,9 @@ if exist('simoptions','var')==0
     % Alternative endo states
     simoptions.experienceasset=0;
     simoptions.experienceassetu=0;
+    simoptions.experienceassete=0;
+    simoptions.experienceassetz=0;
+    simoptions.experienceassetze=0;
     simoptions.riskyasset=0;
     simoptions.residualasset=0;
     % Exogenous shocks
@@ -32,6 +35,15 @@ else
     end
     if ~isfield(simoptions,'experienceassetu')
         simoptions.experienceassetu=0;
+    end
+    if ~isfield(simoptions,'experienceassete')
+        simoptions.experienceassete=0;
+    end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
+    end
+    if ~isfield(simoptions,'experienceassetze')
+        simoptions.experienceassetze=0;
     end
     if ~isfield(simoptions,'riskyasset')
         simoptions.riskyasset=0;
@@ -59,6 +71,13 @@ else
     if ~isfield(simoptions,'alreadygridvals_semiexo')
         simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
     end
+    % Some options require two other inputs, and these have to be on the GPU
+    if isfield(simoptions,'d_grid')
+        simoptions.d_grid=gpuArray(simoptions.d_grid);
+    end
+    if isfield(simoptions,'a_grid')
+        simoptions.a_grid=gpuArray(simoptions.a_grid);
+    end
 end
 
 %% Check for the age weights parameter, and make sure it is a row vector
@@ -72,17 +91,7 @@ if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
 end
 
 %%
-if simoptions.parallel==2
-   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-   % Some things require simoptions.d_grid or simoptions.a_grid, make sure
-   % they are on GPU if they are used
-   if isfield(simoptions,'d_grid')
-       simoptions.d_grid=gpuArray(simoptions.d_grid);
-   end
-   if isfield(simoptions,'a_grid')
-       simoptions.a_grid=gpuArray(simoptions.a_grid);
-   end
-else
+if simoptions.parallel<2
    % CPU can be used, but only for the basics. Is kept separate here so that the rest of the codes can just assume you have GPU and work with it.
    StationaryDist=StationaryDist_FHorz_CPU(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
    return
@@ -92,7 +101,7 @@ end
 %% Exogenous shock grids
 if simoptions.alreadygridvals==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions,2);
+    [z_gridvals_J, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions,2);
     % note: output z_gridvals_J, pi_z_J, and simoptions.e_gridvals_J, simoptions.pi_e_J
     %
     % size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
@@ -181,6 +190,42 @@ if simoptions.experienceassetu==1
 
     else
         StationaryDist=StationaryDist_FHorz_ExpAssetuSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
+        return
+    end
+end
+if simoptions.experienceassete==1
+    if ~isfield(simoptions,'l_dexperienceassete')
+        simoptions.l_dexperienceassete=1; % by default, only one decision variable influences the experienceassete
+    end
+    if N_semiz==0
+        StationaryDist=StationaryDist_FHorz_ExpAssete(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+        return
+    else
+        StationaryDist=StationaryDist_FHorz_ExpAsseteSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
+        return
+    end
+end
+if simoptions.experienceassetz==1
+    if ~isfield(simoptions,'l_dexperienceassetz')
+        simoptions.l_dexperienceassetz=1; % by default, only one decision variable influences the experienceassetz
+    end
+    if N_semiz==0
+        StationaryDist=StationaryDist_FHorz_ExpAssetz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,z_gridvals_J,pi_z_J,Parameters,simoptions);
+        return
+    else
+        StationaryDist=StationaryDist_FHorz_ExpAssetzSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,z_gridvals_J,pi_z_J,Parameters,simoptions);
+        return
+    end
+end
+if simoptions.experienceassetze==1
+    if ~isfield(simoptions,'l_dexperienceassetze')
+        simoptions.l_dexperienceassetze=1; % by default, only one decision variable influences the experienceassetze
+    end
+    if N_semiz==0
+        StationaryDist=StationaryDist_FHorz_ExpAssetze(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,z_gridvals_J,pi_z_J,Parameters,simoptions);
+        return
+    else
+        StationaryDist=StationaryDist_FHorz_ExpAssetzeSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,z_gridvals_J,pi_z_J,Parameters,simoptions);
         return
     end
 end

@@ -113,7 +113,7 @@ else
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, n_d1,n_d2,n_a1,vfoptions.level1n,n_a2, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, ReturnFnParamsVec,1,0); % Level=1, Refine=0
 
-    entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % autofill 3rd dim to N_a1;
+    entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV,N_d1,1,1,1); % autofill 3rd dim to N_a1;
 
     % First, we want a1prime conditional on (d,1,a)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -201,7 +201,7 @@ for reverse_j=1:N_j-1
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, n_d1,n_d2,n_a1,vfoptions.level1n,n_a2, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, ReturnFnParamsVec,1,0); % Level=1, Refine=0
 
-    entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % autofill 3rd dim to N_a1;
+    entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV,N_d1,1,1,1); % autofill 3rd dim to N_a1;
 
     % First, we want a1prime conditional on (d,1,a)
     [~,maxindex1]=max(entireRHS_ii,[],2);

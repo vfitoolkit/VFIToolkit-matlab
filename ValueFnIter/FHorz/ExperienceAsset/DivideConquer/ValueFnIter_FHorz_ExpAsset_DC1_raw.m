@@ -167,7 +167,7 @@ else
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2,n_a1,vfoptions.level1n,n_a2,n_z, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1,0); % Level=1, Refine=0
 
-        entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
+        entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV,N_d1,1,1,1,1);
 
         % First, we want a1prime conditional on (d,1,a)
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -224,7 +224,7 @@ else
             % n-Monotonicity
             ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2,n_a1,vfoptions.level1n,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
 
-            entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedEV_z;
+            entireRHS_ii_z=ReturnMatrix_ii_z+repelem(DiscountedEV_z,N_d1,1,1,1);
 
             % First, we want a1prime conditional on (d,1,a)
             [~,maxindex1]=max(entireRHS_ii_z,[],2);
@@ -319,7 +319,7 @@ for reverse_j=1:N_j-1
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2,n_a1,vfoptions.level1n,n_a2,n_z, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_gridvals_J(:,:,jj), ReturnFnParamsVec,1,0); % Level=1, Refine=0
 
-        entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
+        entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV,N_d1,1,1,1,1);
 
         % First, we want a1prime conditional on (d,1,a)
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -376,7 +376,7 @@ for reverse_j=1:N_j-1
             % n-Monotonicity
             ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d2,n_a1,vfoptions.level1n,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
 
-            entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedEV_z;
+            entireRHS_ii_z=ReturnMatrix_ii_z+repelem(DiscountedEV_z,N_d1,1,1,1);
 
             % First, we want a1prime conditional on (d,1,a)
             [~,maxindex1]=max(entireRHS_ii_z,[],2);

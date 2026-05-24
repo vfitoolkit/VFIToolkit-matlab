@@ -52,31 +52,23 @@ if prod(vfoptions.n_semiz)>0
     return
 end
 
-%%
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
-N_e=prod(vfoptions.n_e);
-if N_d==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
-l_a=length(n_a);
-
 %% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
     V=ValueFnFromPolicy_FHorz_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     return
 end
 
+%%
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+N_e=prod(vfoptions.n_e);
+
 %% Implement new way of handling ReturnFn inputs
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
 % Basic setup: the first inputs of ReturnFn will be (d,aprime,a,z,..) and everything after this is a parameter, so we get the names of all these parameters.
 % But this changes if you have e, semiz, or just multiple d, and if you use riskyasset, expasset, etc.
 % So figure out which setup we have, and get the relevant ReturnFnParamNames
-
-
 
 %%
 a_gridvals=CreateGridvals(n_a,a_grid,1);

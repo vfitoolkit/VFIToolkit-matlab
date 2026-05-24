@@ -119,6 +119,13 @@ else
     if ~isfield(simoptions,'alreadygridvals_semiexo')
         simoptions.alreadygridvals_semiexo=0;
     end
+    % Some options require two other inputs, and these have to be on the GPU
+    if isfield(simoptions,'d_grid')
+        simoptions.d_grid=gpuArray(simoptions.d_grid);
+    end
+    if isfield(simoptions,'a_grid')
+        simoptions.a_grid=gpuArray(simoptions.a_grid);
+    end
 end
 
 %% Setup for Exogenous Shocks
@@ -311,7 +318,11 @@ if simoptions.iterate==1
     end
 
     if N_d==0
-        Policy_aprime=Policy;
+        if N_z==0 && N_e==0
+            Policy_aprime=shiftdim(Policy(1,:),1);
+        else
+            Policy_aprime=shiftdim(Policy(1,:,:),1);
+        end
     else
         if N_z==0 && N_e==0
             Policy_aprime=shiftdim(Policy(2,:),1);

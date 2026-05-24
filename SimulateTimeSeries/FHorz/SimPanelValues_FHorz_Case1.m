@@ -102,9 +102,12 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 % N_semizze set below
 
-%% Simulate Panel Indexes
-d_grid=gather(d_grid);
-a_grid=gather(a_grid);
+%% Move Policy and grids to GPU
+d_grid=gpuArray(d_grid);
+a_grid=gpuArray(a_grid);
+Policy=gpuArray(Policy);
+if isfield(simoptions,'d_grid'); simoptions.d_grid=gpuArray(simoptions.d_grid); end
+if isfield(simoptions,'a_grid'); simoptions.a_grid=gpuArray(simoptions.a_grid); end
 
 N_semiz=prod(simoptions.n_semiz);
 N_z=prod(n_z);
@@ -164,9 +167,9 @@ end
 simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
 if simoptions.experienceasset==1
     if N_semiz==0
-        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     else
-        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     end
 elseif simoptions.experienceassetu==1
     if N_semiz==0
@@ -197,11 +200,12 @@ end
 % Note: semiz, z and e are from here on all just rolled together in n_z, z_gridvals_J, N_z and l_z
 
 %% Implement new way of handling FnsToEvaluate
-% Figure out l_daprime from Policy
-l_daprime=size(Policy,1);
-if simoptions.gridinterplayer==1
-    l_daprime=l_daprime-1;
+% Figure out l_aprime and l_daprime
+l_aprime=l_a;
+if simoptions.experienceasset==1 || simoptions.experienceassetu==1
+    l_aprime=l_aprime-1;
 end
+l_daprime=l_d+l_aprime;
 
 % Note: l_semizze
 if isstruct(FnsToEvaluate)
@@ -238,10 +242,6 @@ else
 end
 
 % Note that dPolicy and aprimePolicy will depend on age
-l_aprime=l_a;
-if simoptions.experienceasset==1 || simoptions.experienceassetu==1
-    l_aprime=l_aprime-1;
-end
 if N_d==0
     if N_semizze==0
         daprimePolicy_gridvals=zeros(N_a,l_aprime,N_j);

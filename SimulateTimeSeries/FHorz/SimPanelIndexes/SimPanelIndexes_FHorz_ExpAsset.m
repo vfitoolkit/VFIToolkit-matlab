@@ -16,7 +16,7 @@ l_a=length(n_a);
 N_z=prod(n_z);
 if N_z>0
     l_z=length(n_z);
-    cumsumpi_z_J=cumsum(pi_z_J,2);
+    cumsumpi_z_J=gather(cumsum(pi_z_J,2));
 else
     l_z=0;
 end
@@ -139,7 +139,8 @@ if simoptions.gridinterplayer==1
 end
 CumPolicyProbs=cumsum(PolicyProbs,3);
 
-
+Policy_aprime=gather(Policy_aprime);
+CumPolicyProbs=gather(CumPolicyProbs);
 
 
 %% First do the case without e variables, otherwise do with e variables

@@ -4,6 +4,9 @@ function AggVarsPath=EvalFnOnTransPath_AggVars_InfHorz(FnsToEvaluate,AgentDistPa
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.experienceasset=0;
+    simoptions.experienceassetz=0;
+    simoptions.experienceassete=0;
+    simoptions.experienceassetze=0;
     simoptions.gridinterplayer=0;
     simoptions.n_e=0;
     simoptions.n_semiz=0;
@@ -11,6 +14,15 @@ else
     % Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
+    end
+    if ~isfield(simoptions,'experienceassete')
+        simoptions.experienceassete=0;
+    end
+    if ~isfield(simoptions,'experienceassetze')
+        simoptions.experienceassetze=0;
     end
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;

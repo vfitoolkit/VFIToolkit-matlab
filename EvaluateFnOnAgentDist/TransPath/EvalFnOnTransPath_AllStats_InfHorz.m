@@ -12,6 +12,9 @@ if ~exist('simoptions','var')
     simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
+    simoptions.experienceassetz=0;
+    simoptions.experienceassete=0;
+    simoptions.experienceassetze=0;
     simoptions.n_e=0;
     simoptions.n_semiz=0;
 else
@@ -37,6 +40,15 @@ else
     % Model setup
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
+    end
+    if ~isfield(simoptions,'experienceassete')
+        simoptions.experienceassete=0;
+    end
+    if ~isfield(simoptions,'experienceassetze')
+        simoptions.experienceassetze=0;
     end
     if ~isfield(simoptions,'n_e')
         simoptions.n_e=0;
@@ -82,7 +94,11 @@ simoptions.AggVarNames=FnsToEvaluateNames;
 % Omit tminus1AggVarsNames as AggVars are anyway not allowed to take AggVars as inputs
 
 %%
-d_gridvals=CreateGridvals(n_d,d_grid,1);
+if size(d_grid=[prod(n_d),length(n_d)])
+    d_gridvals=d_grid; % already joint-grid
+else
+    d_gridvals=CreateGridvals(n_d,d_grid,1); % convert stacked-column to joint-grid
+end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 if simoptions.experienceasset==0
     if simoptions.gridinterplayer==1

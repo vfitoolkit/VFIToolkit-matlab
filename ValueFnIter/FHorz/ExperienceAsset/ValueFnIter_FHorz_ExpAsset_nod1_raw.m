@@ -71,7 +71,7 @@ else
     DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_jj), ReturnFnParamsVec,0,0); % Level=0, Refine=0
+        ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
         entireRHS=ReturnMatrix+DiscountedEV;
 

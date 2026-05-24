@@ -113,22 +113,22 @@ if N_semiz>0
     simoptions.Parameters=Parameters; % Need to be able to pass a copy of this to SimPanelIndexes
     if N_z>0
         if N_e>0
-            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z], N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, [simoptions.n_semiz,n_z], simoptions.n_e, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
         else
-            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z], N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z], N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
         end
     else
         if N_e>0
-            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, simoptions.n_semiz, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, simoptions.n_semiz, simoptions.n_e, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
         else
-            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, simoptions.n_semiz, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, simoptions.n_semiz, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
         end
     end
 else
     if N_e>0
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z, simoptions.n_e, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
     else
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
     end
 end
 PolicyIndexesKron=gather(PolicyIndexesKron);
@@ -197,17 +197,9 @@ end
 
 for jj=1:N_j
     if N_e==0
-        if n_d(1)==0
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
-        else
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
-        end
+        [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
     else
-        if n_d(1)==0
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,jj),[N_a,N_ze]),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
-        else
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,:,jj),[2,N_a,N_ze]),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
-        end
+        [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
     end
     if n_d(1)==0
         daprimePolicy_gridvals(:,:,jj)=aprimePolicy_gridvals_j;

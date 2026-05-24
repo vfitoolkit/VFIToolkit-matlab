@@ -30,6 +30,15 @@ end
 if ~isfield(simoptions,'experienceassetu')
     simoptions.experienceassetu=0;
 end
+if ~isfield(simoptions,'experienceassetz')
+    simoptions.experienceassetz=0;
+end
+if ~isfield(simoptions,'experienceassete')
+    simoptions.experienceassete=0;
+end
+if ~isfield(simoptions,'experienceassetze')
+    simoptions.experienceassetze=0;
+end
 
 if simoptions.parallel<2
     AggVars=EvalFnOnAgentDist_AggVars_InfHorz_CPU(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);

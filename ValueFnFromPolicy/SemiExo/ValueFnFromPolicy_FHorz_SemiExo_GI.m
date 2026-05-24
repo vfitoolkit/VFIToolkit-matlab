@@ -64,18 +64,17 @@ l_daprime=size(PolicyValues,1);
 
 %% Extract per-state indices from Policy: d_semiz_idx, aprime1_midpoint, aprime_other_idx, L2_idx
 % Strip trailing L2flag channel if present (Policy may carry it; we only need l_d+l_aprime+1 channels)
-size_first=l_d+l_aprime+1;
-if size(Policy,1) > size_first
+if size(Policy,1) > (l_d+l_aprime+1)
     tempsize=size(Policy);
     Policy=reshape(Policy,[tempsize(1), prod(tempsize)/tempsize(1)]);
-    Policy=reshape(Policy(1:size_first,:), [size_first, tempsize(2:end)]);
+    Policy=reshape(Policy(1:l_d+l_aprime+1,:), [(l_d+l_aprime+1), tempsize(2:end)]);
 end
 
 % Reshape Policy to Kron form
 if N_e==0
-    Policy_k=reshape(Policy,[size_first, N_a, N_shocks, N_j]);
+    Policy_k=reshape(Policy,[l_d+l_aprime+1, N_a, N_shocks, N_j]);
 else
-    Policy_k=reshape(Policy,[size_first, N_a, N_shocks, N_e, N_j]);
+    Policy_k=reshape(Policy,[l_d+l_aprime+1, N_a, N_shocks, N_e, N_j]);
 end
 
 % d_semiz_idx: last l_dsemiz components of d
@@ -107,26 +106,21 @@ a1_upper=min(a1_lower+1, n_a(1));
 a1_upper(a1_lower>=n_a(1))=n_a(1);
 a1_lower(a1_lower<1)=1;
 
-% Other aprime components (if l_aprime>1): standard indices in original grid
-% Build full kron-style lower and upper aprime index over n_a
-if l_aprime==1
+% Build full kron-style lower and upper aprime index over n_a.
+% Only a1 is interpolated; remaining aprime components stay on the standard grid
+% and contribute the same offset to both lower and upper.
+if l_a==1
+    %% GI1
     aprime_lower_idx=a1_lower;
     aprime_upper_idx=a1_upper;
+elseif l_a==2
+    %% GI2A: a1 is interpolated, a2 is on the standard grid
+    a2_idx=shiftdim(Policy_k(l_d+2,:,:,:,:),1);
+    a2_off=n_a(1)*(a2_idx-1);
+    aprime_lower_idx=a1_lower+a2_off;
+    aprime_upper_idx=a1_upper+a2_off;
 else
-    cumprods_a=[1, cumprod(n_a(1:end-1))];
-    if N_e==0
-        aprime_lower_idx=a1_lower;
-        aprime_upper_idx=a1_upper;
-    else
-        aprime_lower_idx=a1_lower;
-        aprime_upper_idx=a1_upper;
-    end
-    % Add contributions from a2, a3, ... (these don't change between lower and upper)
-    for ii=2:l_aprime
-        comp=shiftdim(Policy_k(l_d+ii,:,:,:,:),1);
-        aprime_lower_idx=aprime_lower_idx+cumprods_a(ii)*(comp-1);
-        aprime_upper_idx=aprime_upper_idx+cumprods_a(ii)*(comp-1);
-    end
+    error('ValueFnFromPolicy_FHorz_SemiExo_GI: only l_a==1 (GI1) and l_a==2 (GI2A) are supported')
 end
 
 %% Joint shock gridvals for ReturnFn

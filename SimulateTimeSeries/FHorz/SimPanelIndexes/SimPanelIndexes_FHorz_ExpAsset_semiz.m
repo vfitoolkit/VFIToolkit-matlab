@@ -160,6 +160,9 @@ if simoptions.gridinterplayer==1
 end
 CumPolicyProbs=cumsum(PolicyProbs,3);
 
+Policy_aprime=gather(Policy_aprime);
+CumPolicyProbs=gather(CumPolicyProbs);
+
 %% Policy_dsemiexo
 
 % d3 is the variable relevant for the semi-exogenous asset.

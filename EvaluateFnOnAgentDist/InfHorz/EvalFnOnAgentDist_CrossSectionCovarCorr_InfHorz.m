@@ -14,6 +14,9 @@ if ~exist('simoptions','var')
     simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
+    simoptions.experienceassetz=0;
+    simoptions.experienceassete=0;
+    simoptions.experienceassetze=0;
     simoptions.inheritanceasset=0;
     simoptions.n_e=0;
     simoptions.n_semiz=0;
@@ -28,6 +31,15 @@ else
     % Model setup
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
+    end
+    if ~isfield(simoptions,'experienceassete')
+        simoptions.experienceassete=0;
+    end
+    if ~isfield(simoptions,'experienceassetze')
+        simoptions.experienceassetze=0;
     end
     if ~isfield(simoptions,'inheritanceasset')
         simoptions.inheritanceasset=0;

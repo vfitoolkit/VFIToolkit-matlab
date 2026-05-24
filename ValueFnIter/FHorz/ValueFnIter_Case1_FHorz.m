@@ -19,6 +19,9 @@ if exist('vfoptions','var')==0
     vfoptions.dynasty=0;
     vfoptions.experienceasset=0;
     vfoptions.experienceassetu=0;
+    vfoptions.experienceassete=0;
+    vfoptions.experienceassetz=0;
+    vfoptions.experienceassetze=0;
     vfoptions.riskyasset=0;
     vfoptions.residualasset=0;
     vfoptions.n_ambiguity=0;
@@ -63,6 +66,15 @@ else
     end
     if ~isfield(vfoptions,'experienceassetu')
         vfoptions.experienceassetu=0;
+    end
+    if ~isfield(vfoptions,'experienceassete')
+        vfoptions.experienceassete=0;
+    end
+    if ~isfield(vfoptions,'experienceassetz')
+        vfoptions.experienceassetz=0;
+    end
+    if ~isfield(vfoptions,'experienceassetze')
+        vfoptions.experienceassetze=0;
     end
     if ~isfield(vfoptions,'riskyasset')
         vfoptions.riskyasset=0;
@@ -132,11 +144,8 @@ if vfoptions.parallel<2
     if ~strcmp(vfoptions.exoticpreferences,'None')
         error('Sorry but exoticpreferences are not implemented for cpu, you will need a gpu to use them')
     end
-    if ~vfoptions.experienceasset==0
-        error('Sorry but experienceasset are not implemented for cpu, you will need a gpu to use them')
-    end
-    if ~vfoptions.experienceassetu==0
-        error('Sorry but experienceassetu are not implemented for cpu, you will need a gpu to use them')
+    if ~vfoptions.experienceasset==0 || ~vfoptions.experienceassetu==0  || ~vfoptions.experienceassetz==0  || ~vfoptions.experienceassete==0  || ~vfoptions.experienceassetze==0
+        error('Sorry but experience assets are not implemented for cpu, you will need a gpu to use them')
     end
     if ~vfoptions.riskyasset==0
         error('Sorry but riskyasset are not implemented for cpu, you will need a gpu to use them')
@@ -267,9 +276,10 @@ end
 % experienceasset: aprime(d,a)
 % experienceassetu: aprime(d,a,u)
 % experienceassetz: aprime(d,a,z)
+% experienceassete: aprime(d,a,e)
 % experienceassetze: aprime(d,a,z,e)
 
-if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
+if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1 || vfoptions.experienceassetz==1 || vfoptions.experienceassete==1 || vfoptions.experienceassetze==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     % When using both semiexo and experience asset, the last decision variable influences semi-exo and the second last decision variable influences the experience asset
 
@@ -281,12 +291,30 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
         if ~isfield(vfoptions,'l_dexperienceassetu')
             vfoptions.l_dexperienceassetu=1; % by default, only one decision variable influences the experienceassetu
         end
+    elseif vfoptions.experienceassete==1
+        if ~isfield(vfoptions,'l_dexperienceassete')
+            vfoptions.l_dexperienceassete=1; % by default, only one decision variable influences the experienceassete
+        end
+    elseif vfoptions.experienceassetz==1
+        if ~isfield(vfoptions,'l_dexperienceassetz')
+            vfoptions.l_dexperienceassetz=1; % by default, only one decision variable influences the experienceassetz
+        end
+    elseif vfoptions.experienceassetze==1
+        if ~isfield(vfoptions,'l_dexperienceassetze')
+            vfoptions.l_dexperienceassetze=1; % by default, only one decision variable influences the experienceassetze
+        end
     end
 
     if vfoptions.experienceasset==1
         vfoptions.l_d2=vfoptions.l_dexperienceasset;
     elseif vfoptions.experienceassetu==1
         vfoptions.l_d2=vfoptions.l_dexperienceassetu;
+    elseif vfoptions.experienceassete==1
+        vfoptions.l_d2=vfoptions.l_dexperienceassete;
+    elseif vfoptions.experienceassetz==1
+        vfoptions.l_d2=vfoptions.l_dexperienceassetz;
+    elseif vfoptions.experienceassetze==1
+        vfoptions.l_d2=vfoptions.l_dexperienceassetze;
     end
 
     if prod(vfoptions.n_semiz)>0
@@ -349,10 +377,12 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
+    elseif vfoptions.experienceassete==1
+        [V,Policy]=ValueFnIter_FHorz_ExpAssete(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     elseif vfoptions.experienceassetz==1
-        % I want to implement this too :)
+        [V,Policy]=ValueFnIter_FHorz_ExpAssetz(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     elseif vfoptions.experienceassetze==1
-        % I want to implement this too :)
+        [V,Policy]=ValueFnIter_FHorz_ExpAssetze(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 
     varargout={V, Policy};
@@ -362,9 +392,9 @@ end
 
 %% Deal with risky asset if need to do that
 if vfoptions.riskyasset==1
-    % It is simply assumed that the experience asset is the last asset, and that all decisions influence it.
+    % It is simply assumed that the risky asset is the last asset, and that all decisions influence it.
 
-    % Split endogenous assets into the standard ones and the experience asset
+    % Split endogenous assets into the standard ones and the risky asset
     if isscalar(n_a)
         n_a1=0;
     else
@@ -413,13 +443,13 @@ end
 
 %% Deal with residual asset if need to do that
 if vfoptions.residualasset==1
-    % Split endogenous assets into the standard ones and the experience asset
+    % Split endogenous assets into the standard ones and the residual asset
     if isscalar(n_a)
         n_a1=0;
     else
         n_a1=n_a(1:end-1);
     end
-    n_r=n_a(end); % n_a2 is the experience asset
+    n_r=n_a(end); % n_a2 is the residual asset
     a1_grid=a_grid(1:sum(n_a1));
     r_grid=a_grid(sum(n_a1)+1:end);
 

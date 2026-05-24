@@ -24,7 +24,7 @@ end
 [V,Policy]=ValueFnIter_InfHorz(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-PolicyKron=KronPolicyIndexes_InfHorz(Policy, n_d, n_a, n_z);%,simoptions);
+PolicyKron=KronPolicyIndexes_InfHorz(Policy, n_d, n_a, n_z, vfoptions);
 if simoptions.parallel~=2 % To cover the case when using gpu to solve value fn, but cpu to solve agent dist
     PolicyKron=gather(PolicyKron);
 end

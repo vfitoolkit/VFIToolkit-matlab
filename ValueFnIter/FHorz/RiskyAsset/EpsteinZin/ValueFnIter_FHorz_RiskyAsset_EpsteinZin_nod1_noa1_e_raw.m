@@ -502,8 +502,6 @@ for reverse_j=1:N_j-1
         entireRHS=ezc1*temp2+shiftdim(DiscountFactorParamsVec*ezc9*temp4_onlyd3,1);
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-        entireRHStempB=entireRHS; % DEBUG
-
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf;
@@ -513,11 +511,6 @@ for reverse_j=1:N_j-1
         V(:,:,:,jj)=shiftdim(Vtemp,1);
         Policy2(2,:,:,:,jj)=shiftdim(maxindex,1);
         Policy2(1,:,:,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
-
-        if jj==78
-            temp4B=temp4; temp2B=temp2;  entireRHSB=entireRHS; VtempB=Vtemp;
-            save tempB.mat temp4B temp2B entireRHSB VtempB ezc3 entireRHStempB
-        end
 
     elseif vfoptions.lowmemory==1
 

@@ -148,7 +148,6 @@ else
         Policy3(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
 
     elseif vfoptions.lowmemory==1
-        DiscountedEV=repelem(DiscountedEV,N_d1,1); % precompute this as we need in a loop
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);

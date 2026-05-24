@@ -103,6 +103,9 @@ elseif Parallel==1
     % CPU
     simoptions.experienceasset=0; % needs to be set so can use CreateGridvals_Policy()
     simoptions.experienceassetu=0; % needs to be set so can use CreateGridvals_Policy()
+    simoptions.experienceassetz=0; % needs to be set so can use CreateGridvals_Policy()
+    simoptions.experienceassete=0; % needs to be set so can use CreateGridvals_Policy()
+    simoptions.experienceassetze=0; % needs to be set so can use CreateGridvals_Policy()
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
 
     if l_d>0

@@ -22,21 +22,21 @@ if N_e==0
     if N_z==0
         VcontrolKron=reshape(V.control,[N_a,N_j]);
         ValtcontrolKron=reshape(V.control,[N_a,N_j]);
-        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1_noz(Policy.control, n_d, n_a, N_j);
+        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1_noz(Policy.control, n_d, n_a, N_j, vfoptions);
     else
         VcontrolKron=reshape(V.control,[N_a,N_z,N_j]);
         ValtcontrolKron=reshape(V.control,[N_a,N_z,N_j]);
-        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1(Policy.control, n_d, n_a, n_z, N_j);
+        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1(Policy.control, n_d, n_a, n_z, N_j, vfoptions);
     end
 else
     if N_z==0
         VcontrolKron=reshape(V.control,[N_a,N_e,N_j]);
         ValtcontrolKron=reshape(V.control,[N_a,N_e,N_j]);
-        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1(Policy.control, n_d, n_a, vfoptions.n_e, N_j); % Treat e as z (because no z)
+        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1(Policy.control, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
     else
         VcontrolKron=reshape(V.control,[N_a,N_z,N_e,N_j]);
         ValtcontrolKron=reshape(V.control,[N_a,N_z,N_e,N_j]);
-        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1(Policy.control, n_d, n_a, n_z, N_j, vfoptions.n_e);
+        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1_e(Policy.control, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
     end
 end
 
@@ -114,40 +114,29 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     % Note: vfoptions.outputkron=1;
     [VKron_jp, PolicyKron_jp]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,TreatmentDuration,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
+    % Align PolicyKron_jp with PolicycontrolKron shape in the no-d case
+    if N_d==0
+        PolicyKron_jp=reshape(PolicyKron_jp,[1,size(PolicyKron_jp)]);
+    end
+
     % Combine VKron_jp and PolicyKron_jp with the control versions
     VKron=VcontrolKron;
     PolicyKron=PolicycontrolKron;
     if N_e==0
         if N_z==0
             VKron(:,j_p:j_p+TreatmentDuration-1)=VKron_jp;
-            if N_d==0
-                PolicyKron(:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
-            else
-                PolicyKron(:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
-            end
+            PolicyKron(:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
         else
             VKron(:,:,j_p:j_p+TreatmentDuration-1)=VKron_jp;
-            if N_d==0
-                PolicyKron(:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
-            else
-                PolicyKron(:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
-            end
+            PolicyKron(:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
         end
     else
         if N_z==0
             VKron(:,:,j_p:j_p+TreatmentDuration-1)=VKron_jp;
-            if N_d==0
-                PolicyKron(:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
-            else
-                PolicyKron(:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
-            end
+            PolicyKron(:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
         else
             VKron(:,:,:,j_p:j_p+TreatmentDuration-1)=VKron_jp;
-            if N_d==0
-                PolicyKron(:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
-            else
-                PolicyKron(:,:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
-            end
+            PolicyKron(:,:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
         end
     end
 

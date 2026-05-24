@@ -101,12 +101,12 @@ else
 end
 
 if N_z==0
-    PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T);
+    PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T, simoptions);
 else
     if N_e>0
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T, n_e);
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_e(PolicyPath, n_d, n_a, n_z, simoptions.n_e, N_j, T, simoptions);
     else
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T);
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T, simoptions);
     end
 end
 %% Internally PricePath is matrix of size T-by-'number of prices'.
@@ -141,26 +141,14 @@ for tt=1:T
         AgentDist=gpuArray(AgentDist);
     end
     % Get current Policy
-    if n_d(1)>0
-        if N_z>0
-            if N_e>0
-                Policy=PolicyPath(:,:,:,:,:,tt); % (d,a'),a,z,e,j
-            else
-                Policy=PolicyPath(:,:,:,:,tt); % (d,a'),a,z,j
-            end
+    if N_z>0
+        if N_e>0
+            Policy=PolicyPath(:,:,:,:,:,tt); % (d_kron,a_kron),a,z,e,j
         else
-            Policy=PolicyPath(:,:,:,tt); % (d,a'),a,j
+            Policy=PolicyPath(:,:,:,:,tt); % (d_kron,a_kron),a,z,j
         end
     else
-        if N_z>0
-            if N_e>0
-                Policy=PolicyPath(:,:,:,:,tt); % a,z,e,j
-            else
-                Policy=PolicyPath(:,:,:,tt); % a,z,j
-            end
-        else
-            Policy=PolicyPath(:,:,tt); % a,j
-        end
+        Policy=PolicyPath(:,:,:,tt); % (d_kron,a_kron),a,j
     end
     % Get current ParamPath and PricePath
     for kk=1:length(PricePathNames)
@@ -208,6 +196,8 @@ for tt=1:T
 
     if N_z==0
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_noz(Policy, n_d, n_a, N_j,simoptions);
+    elseif N_e>0
+        PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_e(Policy, n_d, n_a, n_z, simoptions.n_e, N_j,simoptions);
     else
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,simoptions);
     end

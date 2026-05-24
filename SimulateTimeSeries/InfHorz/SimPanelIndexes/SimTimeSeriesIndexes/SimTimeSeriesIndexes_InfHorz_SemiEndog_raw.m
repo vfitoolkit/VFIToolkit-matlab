@@ -28,36 +28,20 @@ SimTimeSeriesKron=zeros(2,simperiods);
 currstate=seedpoint;
 % cumsum_pi_z=cumsum(pi_z,2);
 
-if N_d==0
-%     optaprime=1;
-    if burnin>0
-        for t=1:burnin
-            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2));
-            [~,currstate(2)]=max(cumsum_pi_z_semiendog(currstate(2),:,currstate(1))>rand(1,1));
-        end
-    end
-    for t=1:simperiods
-        SimTimeSeriesKron(1,t)=currstate(1); %a_c
-        SimTimeSeriesKron(2,t)=currstate(2); %z_c
+optaprime=1+(N_d>0); % 1 if no d, 2 if d
 
-        currstate(1)=PolicyIndexesKron(currstate(1),currstate(2));
+if burnin>0
+    for t=1:burnin
+        currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
         [~,currstate(2)]=max(cumsum_pi_z_semiendog(currstate(2),:,currstate(1))>rand(1,1));
     end
-else
-%     optaprime=2;
-    if burnin>0
-        for t=1:burnin
-            currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2));
-            [~,currstate(2)]=max(cumsum_pi_z_semiendog(currstate(2),:,currstate(1))>rand(1,1));
-        end
-    end
-    for t=1:simperiods
-        SimTimeSeriesKron(1,t)=currstate(1); %a_c
-        SimTimeSeriesKron(2,t)=currstate(2); %z_c
+end
+for t=1:simperiods
+    SimTimeSeriesKron(1,t)=currstate(1); %a_c
+    SimTimeSeriesKron(2,t)=currstate(2); %z_c
 
-        currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2));
-        [~,currstate(2)]=max(cumsum_pi_z_semiendog(currstate(2),:,currstate(1))>rand(1,1));
-    end
+    currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
+    [~,currstate(2)]=max(cumsum_pi_z_semiendog(currstate(2),:,currstate(1))>rand(1,1));
 end
 
 if MoveSTSKtoGPU==1

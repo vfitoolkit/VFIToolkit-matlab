@@ -1,6 +1,7 @@
 function Fmatrix=CreateReturnFnMatrix_Disc_DC2A_e(ReturnFn, n_d, n_z, n_e, d_gridvals, a1prime_grid, a2prime_grid, a1_grid, a2_grid, z_gridvals, e_gridvals, ReturnFnParamsVec, Level, Refine)
-% Refine=1 keeps N_a1 and N_a2 as separate dims at Level=2 (useful for broadcasting an EV that has the level1iidiff axis as singleton).
-% Refine=0 stacks them into N_a1*N_a2 as before. Refine has no effect at Level=1 (already keeps N_a1, N_a2 separate).
+% Refine=1 at Level=1 collapses N_d into the N_a1prime row (useful when d is singular, e.g. inside a d2_c loop with special_n_d2=ones, so downstream can treat output like the _nod variant).
+% Refine=1 at Level=2 keeps N_a1 and N_a2 as separate dims (useful for broadcasting an EV that has the level1iidiff axis as singleton).
+% Refine=0 keeps the default shapes.
 
 ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';
 
@@ -26,8 +27,13 @@ end
 if Level==1
     N_a1prime=length(a1prime_grid); % Because l_a=1
     a1prime_grid=shiftdim(a1prime_grid,-1);
-elseif Level==2
+elseif Level==2 || Level==3
     N_a1prime=size(a1prime_grid,2); % Because l_a=1
+    % Level 3 has level 2 inputs but level 1 outputs, used for GI
+% elseif Level==4
+elseif Level==5 % Level 2 inputs, but for doing semiz without d1, so d2 is singular inside the loop over d2
+    N_a1prime=size(a1prime_grid,1);
+    a1prime_grid=shiftdim(a1prime_grid,-1); % extra -1 for the singular d2
 end
 N_a2prime=N_a2;
 
@@ -201,9 +207,13 @@ elseif l_e==4
     end
 end
 
-if Level==1
-    Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a2prime,N_a1,N_a2,N_z,N_e]);
-elseif Level==2 % For level 2
+if Level==1 || Level==3 % For GI
+    if Refine==0
+        Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a2prime,N_a1,N_a2,N_z,N_e]);
+    elseif Refine==1
+        Fmatrix=reshape(Fmatrix,[N_d*N_a1prime,N_a2prime,N_a1,N_a2,N_z,N_e]); % collapse N_d into N_a1prime row
+    end
+elseif Level==2 || Level==4 || Level==5 % Level 5 = singular d2 inside d2_c loop
     if Refine==0
         Fmatrix=reshape(Fmatrix,[N_d*N_a1prime*N_a2prime,N_a1*N_a2,N_z,N_e]);
     elseif Refine==1

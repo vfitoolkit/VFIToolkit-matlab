@@ -33,6 +33,9 @@ if exist('simoptions','var')==0
     simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
+    simoptions.experienceassetz=0;
+    simoptions.experienceassete=0;
+    simoptions.experienceassetze=0;
     % Exogenous shocks
     simoptions.n_e=0;
     simoptions.n_semiz=0;
@@ -63,6 +66,15 @@ else
     end
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
+    end
+    if ~isfield(simoptions,'experienceassete')
+        simoptions.experienceassete=0;
+    end
+    if ~isfield(simoptions,'experienceassetze')
+        simoptions.experienceassetze=0;
     end
     % Exogenous shocks
     if ~isfield(simoptions,'n_e')

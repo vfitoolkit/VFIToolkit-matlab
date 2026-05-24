@@ -4,6 +4,12 @@ function V=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid
 % Policy stores d and a1prime only (a2prime is implicit). For lookup of V at next period, a2prime is
 % (in general) fractional and is linearly interpolated onto the a2_grid via a2primeIndex/a2primeProbs.
 
+%% Dispatch to SemiExo subfn if n_semiz>0
+if prod(vfoptions.n_semiz)>0
+    V=ValueFnFromPolicy_FHorz_ExpAsset_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
 %% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
     V=ValueFnFromPolicy_FHorz_ExpAsset_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);

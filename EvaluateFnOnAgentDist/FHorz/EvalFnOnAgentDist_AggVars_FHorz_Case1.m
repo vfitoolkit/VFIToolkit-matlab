@@ -43,7 +43,7 @@ N_a=prod(n_a);
 
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_daprime from Policy
-l_daprime=size(Policy,1)-simoptions.gridinterplayer; % Note: simoptions.gridinterplayer=1 means that PolicyIndexes has an extra 'second layer index'
+l_daprime=size(Policy,1)-2*simoptions.gridinterplayer; % Note: simoptions.gridinterplayer=1 means that PolicyIndexes has an extra 'second layer index' and 'flag'
 
 % Note: l_z includes e and semiz (when appropriate)
 if isstruct(FnsToEvaluate)

@@ -24,7 +24,6 @@ else
         vfoptions.level1n=[vfoptions.level1n,n_a(2:end)]; % user only needs to declare level1n for first dimension. Fill out the rest with n_a(2:end).
     end
 end
-vfoptions.level1n=min(vfoptions.level1n,n_a); % Otherwise causes errors
 
 %% 1 endogenous state
 if isscalar(n_a)
@@ -61,76 +60,78 @@ if isscalar(n_a)
         PolicyKron=shiftdim(PolicyKron,-1);
     end
 %% 2 endogenous states
-elseif length(n_a)==2
-    if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
-        vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2A
-        if N_e==0
-            if N_z==0
-                if N_d==0
-                    [VKron,PolicyKron]=ValueFnIter_FHorz_DC2A_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
-            else
-                if N_d==0
-                    [VKron,PolicyKron]=ValueFnIter_FHorz_DC2A_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
-            end
-        else % N_e
-            if N_z==0
-                if N_d==0
-                    [VKron,PolicyKron]=ValueFnIter_FHorz_DC2A_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_gridvals, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
-            else
-                if N_d==0
-                    [VKron,PolicyKron]=ValueFnIter_FHorz_DC2A_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
-            end
+elseif length(n_a)>=2
+    if length(vfoptions.level1n)>1
+        if vfoptions.level1n(2)>=n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
+            vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2A
+        else
+            error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')
         end
-        % no-d raws return Policy without the leading singleton dim; add it so UnKronPolicyIndexes_Case1_FHorz[_e][_noz] sees (1,...). With-d raws already return Policy2 with leading dim of size 2.
-        if N_d==0
-            PolicyKron=shiftdim(PolicyKron,-1);
-        end
-    else
-        error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')
-        % if N_e==0
-        %     if N_z==0
-        %         if N_d==0
-        %             % [VKron,PolicyKron]=ValueFnIter_FHorz_DC2_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %         else
-        %             % [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %         end
-        %     else
-        %         if N_d==0
-        %             % [VKron,PolicyKron]=ValueFnIter_FHorz_DC2_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %         else
-        %             [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %         end
-        %     end
-        % else % N_e
-        %     if N_z==0
-        %         if N_d==0
-        %             % [VKron,PolicyKron]=ValueFnIter_FHorz_DC2_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %         else
-        %             % [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %         end
-        %     else
-        %         if N_d==0
-        %             % [VKron,PolicyKron]=ValueFnIter_FHorz_DC2_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %         else
-        %             % [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        %         end
-        %     end
-        % end
     end
-else
-    error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
+
+    if N_e==0
+        if N_z==0
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_DC2A_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_DC2A_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        end
+    else % N_e
+        if N_z==0
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_DC2A_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_gridvals, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_DC2A_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_DC2A_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        end
+    end
+    % no-d raws return Policy without the leading singleton dim; add it so UnKronPolicyIndexes_Case1_FHorz[_e][_noz] sees (1,...). With-d raws already return Policy2 with leading dim of size 2.
+    if N_d==0
+        PolicyKron=shiftdim(PolicyKron,-1);
+    end
+
+    % if N_e==0
+    %     if N_z==0
+    %         if N_d==0
+    %             % [VKron,PolicyKron]=ValueFnIter_FHorz_DC2_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    %         else
+    %             % [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    %         end
+    %     else
+    %         if N_d==0
+    %             % [VKron,PolicyKron]=ValueFnIter_FHorz_DC2_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    %         else
+    %             [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    %         end
+    %     end
+    % else % N_e
+    %     if N_z==0
+    %         if N_d==0
+    %             % [VKron,PolicyKron]=ValueFnIter_FHorz_DC2_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    %         else
+    %             % [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    %         end
+    %     else
+    %         if N_d==0
+    %             % [VKron,PolicyKron]=ValueFnIter_FHorz_DC2_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    %         else
+    %             % [VKron, PolicyKron]=ValueFnIter_FHorz_DC2_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    %         end
+    %     end
+    % end
 end
 
 
