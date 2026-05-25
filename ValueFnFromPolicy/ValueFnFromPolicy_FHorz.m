@@ -6,6 +6,10 @@ if ~exist('vfoptions','var')
     vfoptions.n_e=0;
     vfoptions.n_semiz=0;
     vfoptions.experienceasset=0;
+    vfoptions.experienceassetu=0;
+    vfoptions.experienceassetz=0;
+    vfoptions.experienceassete=0;
+    vfoptions.experienceassetze=0;
     vfoptions.gridinterplayer=0;
     % divide-and-conquer is not relevant for ValueFnFromPolicy
 else
@@ -20,6 +24,18 @@ else
     end
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
+    end
+    if ~isfield(vfoptions,'experienceassetu')
+        vfoptions.experienceassetu=0;
+    end
+    if ~isfield(vfoptions,'experienceassetz')
+        vfoptions.experienceassetz=0;
+    end
+    if ~isfield(vfoptions,'experienceassete')
+        vfoptions.experienceassete=0;
+    end
+    if ~isfield(vfoptions,'experienceassetze')
+        vfoptions.experienceassetze=0;
     end
     if ~isfield(vfoptions,'gridinterplayer')
         vfoptions.gridinterplayer=0;
@@ -43,6 +59,30 @@ Policy=gpuArray(Policy);
 %% Dispatch to ExpAsset subfn if experienceasset==1
 if vfoptions.experienceasset==1
     V=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
+%% Dispatch to ExpAssetu subfn if experienceassetu==1
+if vfoptions.experienceassetu==1
+    V=ValueFnFromPolicy_FHorz_ExpAssetu(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
+%% Dispatch to ExpAssetz subfn if experienceassetz==1
+if vfoptions.experienceassetz==1
+    V=ValueFnFromPolicy_FHorz_ExpAssetz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
+%% Dispatch to ExpAssete subfn if experienceassete==1
+if vfoptions.experienceassete==1
+    V=ValueFnFromPolicy_FHorz_ExpAssete(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
+%% Dispatch to ExpAssetze subfn if experienceassetze==1
+if vfoptions.experienceassetze==1
+    V=ValueFnFromPolicy_FHorz_ExpAssetze(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     return
 end
 

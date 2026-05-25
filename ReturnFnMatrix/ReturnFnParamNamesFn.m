@@ -30,6 +30,18 @@ if isfield(vfoptions,'experienceasset')
     % One of the endogenous states should only be counted once.
     l_aprime=l_aprime-vfoptions.experienceasset;
 end
+if isfield(vfoptions,'experienceassetz')
+    % One of the endogenous states should only be counted once.
+    l_aprime=l_aprime-vfoptions.experienceassetz;
+end
+if isfield(vfoptions,'experienceassete')
+    % One of the endogenous states should only be counted once.
+    l_aprime=l_aprime-vfoptions.experienceassete;
+end
+if isfield(vfoptions,'experienceassetze')
+    % One of the endogenous states should only be counted once.
+    l_aprime=l_aprime-vfoptions.experienceassetze;
+end
 if isfield(vfoptions,'experienceassetu')
     % One of the endogenous states should only be counted once.
     l_aprime=l_aprime-vfoptions.experienceassetu;

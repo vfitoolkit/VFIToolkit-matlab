@@ -160,9 +160,6 @@ if simoptions.gridinterplayer==1
 end
 CumPolicyProbs=cumsum(PolicyProbs,3);
 
-Policy_aprime=gather(Policy_aprime);
-CumPolicyProbs=gather(CumPolicyProbs);
-
 %% Policy_dsemiexo
 
 % d3 is the variable relevant for the semi-exogenous asset.
@@ -177,7 +174,7 @@ elseif l_d3==4
 end
 Policy_dsemiexo=shiftdim(Policy_dsemiexo,1);
 
-%% Simulations are done of cpu
+%% Simulations are done on cpu
 Policy_aprime=gather(Policy_aprime);
 CumPolicyProbs=gather(CumPolicyProbs);
 Policy_dsemiexo=gather(Policy_dsemiexo);

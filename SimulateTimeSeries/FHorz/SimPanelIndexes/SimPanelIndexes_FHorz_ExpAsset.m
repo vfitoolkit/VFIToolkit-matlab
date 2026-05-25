@@ -139,9 +139,9 @@ if simoptions.gridinterplayer==1
 end
 CumPolicyProbs=cumsum(PolicyProbs,3);
 
+%% Simulations are done on cpu
 Policy_aprime=gather(Policy_aprime);
 CumPolicyProbs=gather(CumPolicyProbs);
-
 
 %% First do the case without e variables, otherwise do with e variables
 if N_z==0

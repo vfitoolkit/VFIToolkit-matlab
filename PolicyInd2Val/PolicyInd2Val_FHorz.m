@@ -131,6 +131,8 @@ if isfield(vfoptions,'n_semiz')
 end
 
 
+
+
 %%
 if N_z==0
     if l_d==0

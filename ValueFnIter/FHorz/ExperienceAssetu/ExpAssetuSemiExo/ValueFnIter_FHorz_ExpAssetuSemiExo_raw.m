@@ -241,7 +241,7 @@ for reverse_j=1:N_j-1
 
             entireRHS=ReturnMatrix_d3+DiscountFactorParamsVec*repelem(EV,N_d1,N_a1,1);
 
-            %Calc the max and it's index
+            % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
 
             V_ford3_jj(:,:,d3_c)=shiftdim(Vtemp,1);
@@ -259,7 +259,7 @@ for reverse_j=1:N_j-1
                 z_val=bothz_gridvals_J(z_c,:,jj);
                 ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-                %Calc the condl expectation term (except beta), which depends on z but not on control variables
+                % Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_z=EVpre.*(ones(N_a,1,'gpuArray')*pi_bothz_d3(z_c,:));
                 EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                 EV_z=sum(EV_z,2);

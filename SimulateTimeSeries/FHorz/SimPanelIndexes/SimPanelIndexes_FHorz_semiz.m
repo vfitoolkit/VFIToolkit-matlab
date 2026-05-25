@@ -123,6 +123,10 @@ elseif l_d2==4
 end
 Policy_dsemiexo=shiftdim(Policy_dsemiexo,1);
 
+%% Simulations are done on cpu
+Policy_aprime=gather(Policy_aprime);
+CumPolicyProbs=gather(CumPolicyProbs);
+Policy_dsemiexo=gather(Policy_dsemiexo);
 
 
 %% Do the simulations themselves
