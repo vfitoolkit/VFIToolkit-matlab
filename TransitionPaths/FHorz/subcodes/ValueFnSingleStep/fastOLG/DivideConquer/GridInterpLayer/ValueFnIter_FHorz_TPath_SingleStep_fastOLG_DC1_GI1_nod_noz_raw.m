@@ -4,7 +4,7 @@ function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_GI1_nod_noz_
 N_a=prod(n_a);
 
 % V=zeros(N_a,N_j,'gpuArray'); % V is over (a,j)
-Policy=zeros(2,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime (layer 1 and layer 2)
+Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime (layer 1, layer 2, and L2 flag)
 
 %%
 
@@ -95,6 +95,13 @@ entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprimej(:)),[n2long,N_a,
 V=shiftdim(Vtempii,1);
 Policy(1,:,:)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
 Policy(2,:,:)=shiftdim(maxindexL2,-1); % aprimeL2ind
+
+% L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+isInfLower    = (ReturnMatrix_ii(1,     :,:) == -Inf);
+isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
+inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+Policy(3,:,:) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
 % Currently Policy(1,:) is the midpoint, and Policy(2,:) the second layer
 % (which ranges -n2short-1:1:1+n2short). It is much easier to use later if

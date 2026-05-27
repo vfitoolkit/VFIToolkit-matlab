@@ -6,6 +6,8 @@ N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
+PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+% When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
 
 %%
 
@@ -77,6 +79,15 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(1,:,N_j)=d_ind; % d
     Policy(2,:,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
     Policy(3,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    L2offset = ceil(maxindexL2/N_d);
+    linidx_lower = d_ind                  + N_d*n2long*aind;
+    linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+    inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -131,6 +142,15 @@ else
     Policy(1,:,N_j)=d_ind; % d
     Policy(2,:,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
     Policy(3,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    L2offset = ceil(maxindexL2/N_d);
+    linidx_lower = d_ind                  + N_d*n2long*aind;
+    linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+    inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 end
 
@@ -195,6 +215,15 @@ for reverse_j=1:N_j-1
     Policy(1,:,jj)=d_ind; % d
     Policy(2,:,jj)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
     Policy(3,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    L2offset = ceil(maxindexL2/N_d);
+    linidx_lower = d_ind                  + N_d*n2long*aind;
+    linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+    inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 end
 
@@ -207,6 +236,6 @@ adjust=(Policy(3,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(2,:,:)=Policy(2,:,:)-adjust; % lower grid point
 Policy(3,:,:)=adjust.*Policy(3,:,:)+(1-adjust).*(Policy(3,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-Policy=squeeze(Policy(1,:,:)+N_d*(Policy(2,:,:)-1)+N_d*N_a*(Policy(3,:,:)-1));
+Policy=squeeze(Policy(1,:,:)+N_d*(Policy(2,:,:)-1)+N_d*N_a*(Policy(3,:,:)-1)+N_d*N_a*(n2short+2)*(PolicyL2flag-1));
 
 end

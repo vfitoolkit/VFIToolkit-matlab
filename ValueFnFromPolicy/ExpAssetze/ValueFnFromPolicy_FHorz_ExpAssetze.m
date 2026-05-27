@@ -3,6 +3,11 @@ function V=ValueFnFromPolicy_FHorz_ExpAssetze(Policy,n_d,n_a,n_z,N_j,d_grid,a_gr
 % experienceassetze: a2prime = aprimeFn(d_expasset, a2, z, e) -- depends on Markov z and iid e.
 % Requires both N_z>0 and N_e>0.
 
+%% Dispatch to SemiExo subfn if n_semiz>0
+if prod(vfoptions.n_semiz)>0
+    V=ValueFnFromPolicy_FHorz_ExpAssetze_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
 %% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
     V=ValueFnFromPolicy_FHorz_ExpAssetze_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
@@ -106,8 +111,10 @@ for reverse_j=0:N_j-1
     Policy_slice=Policy_k(:,:,:,:,jj); % [l_d+l_a1, N_a, N_z, N_e]
 
     % Step 1: a2primeIndex, a2primeProbs -- helper handles (a, z, e) directly
-    [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetze(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, vfoptions.n_e, d_grid, a2_grid, z_gridvals_J(:,:,jj), vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
-    % shape [N_a, N_z, N_e]
+    [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetze(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, vfoptions.n_e, 0,N_z,N_e, d_grid, a2_grid, z_gridvals_J(:,:,jj), vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
+    % helper returns [N_a, N_z*N_e]; reshape to [N_a, N_z, N_e] for downstream 3D indexing
+    a2primeIndex=reshape(a2primeIndex,[N_a,N_z,N_e]);
+    a2primeProbs=reshape(a2primeProbs,[N_a,N_z,N_e]);
 
     % Step 2: ReturnFn at policy
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);

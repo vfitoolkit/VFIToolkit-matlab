@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_nod1_semiz_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_z,n_u,N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_RiskyAssetSemiExo_nod1_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_z,n_u,N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 % d2: aprimeFn but not ReturnFn
 % d3: both ReturnFn and aprimeFn
 % d4: ReturnFn but not aprimeFn, and determines semiz transitions

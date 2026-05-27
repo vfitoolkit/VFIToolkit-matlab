@@ -59,19 +59,24 @@ end
 l_d=length(n_d);
 l_a=length(n_a);
 
-% Split a into a1 (standard) and a2 (experience asset)
+% Split a into a1 (standard) and a2 (experience asset).
+% noa1 case (n_a is scalar): use n_a1=0, N_a1=0 (toolkit convention). Override l_a1=0 explicitly
+% since length(0)=1. Downstream lookup has explicit `if N_a1==0` branches.
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_ExpAssetu_SemiExo: case with no a1 (experience asset as only asset) not yet implemented')
+    n_a1=0;
+    N_a1=0;
+    l_a1=0;
+else
+    n_a1=n_a(1:end-1);
+    N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
-n_a1=n_a(1:end-1);
-N_a1=prod(n_a1);
 n_a2=n_a(end);
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
-l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit)
+l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit); 0 in noa1 case
 
 % Which d drives the experience asset. With semiz, d ordering is [...other, d_expasset, d_semiz];
 % the last l_dsemiz are for semiz, the l_d2 immediately before them drive the expasset.
@@ -241,38 +246,56 @@ for reverse_j=0:N_j-1
             end
         end
 
-        % Step 4: per-state lookup -- combine (i) d_semiz indirection, (ii) a2 interpolation, (iii) sum over u with pi_u
+        % Step 4: per-state lookup. Mirrors standard SemiExo VFI's skipinterp+isnan
+        % so policies landing on infeasible-on-both-sides next-states give the same
+        % finite V as the argmax V. EVnext_byd2 is already pre-collapsed over (z', semiz')
+        % per d_semiz choice; skipinterp triggers when EV_lo == EV_up at policy state.
+        % Order: skipinterp -> interpolate -> sum over u -> isnan clear.
         if N_e==0
             a1p=a1prime_idx(:,:,jj);   % [N_a, N_shocks]
             d2_jj=d_semiz_idx(:,:,jj); % [N_a, N_shocks]
             if N_z==0
-                a1p_r=reshape(a1p,[N_a, N_semiz]);
                 d2_r =reshape(d2_jj,[N_a, N_semiz]);
                 a2pIdx=a2primeIndex; a2pPrb=a2primeProbs;        % [N_a, N_semiz, N_u]
-                aprime_low=a1p_r+N_a1*(a2pIdx-1);                 % [N_a, N_semiz, N_u]
-                aprime_up =a1p_r+N_a1*(a2pIdx);
+                if N_a1==0
+                    aprime_low=a2pIdx;                            % [N_a, N_semiz, N_u]
+                    aprime_up =a2pIdx+1;
+                else
+                    a1p_r=reshape(a1p,[N_a, N_semiz]);
+                    aprime_low=a1p_r+N_a1*(a2pIdx-1);             % [N_a, N_semiz, N_u]
+                    aprime_up =a1p_r+N_a1*(a2pIdx);
+                end
                 base_off=reshape(N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_r(:)-1), [N_a, N_semiz]);
                 lo_idx=aprime_low+base_off; % broadcast over u
                 up_idx=aprime_up +base_off;
                 EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_u]);
                 EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_u]);
+                a2pPrb(EV_lo==EV_up)=0; % skipinterp
                 per_u=a2pPrb.*EV_lo+(1-a2pPrb).*EV_up;
                 EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-2), 3); % [N_a, N_semiz]
+                EVnext_atpolicy(isnan(EVnext_atpolicy))=0;
                 V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
             else
-                a1p_r=reshape(a1p,[N_a, N_semiz, N_z]);
                 d2_r =reshape(d2_jj,[N_a, N_semiz, N_z]);
                 a2pIdx=reshape(a2primeIndex,[N_a, N_semiz, N_z, N_u]);
                 a2pPrb=reshape(a2primeProbs,[N_a, N_semiz, N_z, N_u]);
-                aprime_low=a1p_r+N_a1*(a2pIdx-1);
-                aprime_up =a1p_r+N_a1*(a2pIdx);
+                if N_a1==0
+                    aprime_low=a2pIdx;
+                    aprime_up =a2pIdx+1;
+                else
+                    a1p_r=reshape(a1p,[N_a, N_semiz, N_z]);
+                    aprime_low=a1p_r+N_a1*(a2pIdx-1);
+                    aprime_up =a1p_r+N_a1*(a2pIdx);
+                end
                 base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_r(:)-1), [N_a, N_semiz, N_z]);
                 lo_idx=aprime_low+base_off;
                 up_idx=aprime_up +base_off;
                 EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_z, N_u]);
                 EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_z, N_u]);
+                a2pPrb(EV_lo==EV_up)=0; % skipinterp
                 per_u=a2pPrb.*EV_lo+(1-a2pPrb).*EV_up;
                 EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-3), 4); % [N_a, N_semiz, N_z]
+                EVnext_atpolicy(isnan(EVnext_atpolicy))=0;
                 V(:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks]);
             end
         else
@@ -280,38 +303,54 @@ for reverse_j=0:N_j-1
                 EVnext_atpolicy=zeros(N_a, N_semiz, N_e, 'gpuArray');
                 for e_c=1:N_e
                     block=(e_c-1)*N_shocks + (1:N_shocks);
-                    a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz]);
                     d2_e =reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz]);
                     a2pIdx_e=reshape(a2primeIndex(:,block,:),[N_a, N_semiz, N_u]);
                     a2pPrb_e=reshape(a2primeProbs(:,block,:),[N_a, N_semiz, N_u]);
-                    aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                    aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                    if N_a1==0
+                        aprime_low_e=a2pIdx_e;
+                        aprime_up_e =a2pIdx_e+1;
+                    else
+                        a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz]);
+                        aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
+                        aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                    end
                     base_off=reshape(N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_e(:)-1), [N_a, N_semiz]);
                     lo_idx=aprime_low_e+base_off;
                     up_idx=aprime_up_e +base_off;
                     EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_u]);
                     EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_u]);
+                    a2pPrb_e(EV_lo==EV_up)=0; % skipinterp
                     per_u=a2pPrb_e.*EV_lo+(1-a2pPrb_e).*EV_up;
-                    EVnext_atpolicy(:,:,e_c)=sum(per_u .* shiftdim(pi_u,-2), 3);
+                    EV_summed=sum(per_u .* shiftdim(pi_u,-2), 3);
+                    EV_summed(isnan(EV_summed))=0;
+                    EVnext_atpolicy(:,:,e_c)=EV_summed;
                 end
                 V(:,:,:,jj)=F_jj+beta*EVnext_atpolicy;
             else
                 EVnext_atpolicy=zeros(N_a, N_semiz, N_z, N_e, 'gpuArray');
                 for e_c=1:N_e
                     block=(e_c-1)*N_shocks + (1:N_shocks);
-                    a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                     d2_e =reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                     a2pIdx_e=reshape(a2primeIndex(:,block,:),[N_a, N_semiz, N_z, N_u]);
                     a2pPrb_e=reshape(a2primeProbs(:,block,:),[N_a, N_semiz, N_z, N_u]);
-                    aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                    aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                    if N_a1==0
+                        aprime_low_e=a2pIdx_e;
+                        aprime_up_e =a2pIdx_e+1;
+                    else
+                        a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
+                        aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
+                        aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                    end
                     base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1), [N_a, N_semiz, N_z]);
                     lo_idx=aprime_low_e+base_off;
                     up_idx=aprime_up_e +base_off;
                     EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_z, N_u]);
                     EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_z, N_u]);
+                    a2pPrb_e(EV_lo==EV_up)=0; % skipinterp
                     per_u=a2pPrb_e.*EV_lo+(1-a2pPrb_e).*EV_up;
-                    EVnext_atpolicy(:,:,:,e_c)=sum(per_u .* shiftdim(pi_u,-3), 4);
+                    EV_summed=sum(per_u .* shiftdim(pi_u,-3), 4);
+                    EV_summed(isnan(EV_summed))=0;
+                    EVnext_atpolicy(:,:,:,e_c)=EV_summed;
                 end
                 V(:,:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks, N_e]);
             end

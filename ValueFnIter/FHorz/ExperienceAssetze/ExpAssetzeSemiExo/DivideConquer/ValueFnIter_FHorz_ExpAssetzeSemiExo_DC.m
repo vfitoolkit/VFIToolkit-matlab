@@ -1,0 +1,66 @@
+function [V,Policy]=ValueFnIter_FHorz_ExpAssetzeSemiExo_DC(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d12_gridvals , d2_gridvals, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+% d1 is any other decision, d2 determines experience asset, d3 determines semi-exog state
+% a1 is standard endogenous state, a2 is experience asset
+% z is exogenous markov state (required), semiz is semi-exog state, e is i.i.d. (required)
+% Handles vfoptions.divideandconquer==1, vfoptions.gridinterplayer==0
+
+N_d1=prod(n_d1);
+N_d2=prod(n_d2);
+N_d3=prod(n_d3);
+N_a1=prod(n_a1);
+N_z=prod(n_z);
+N_e=prod(vfoptions.n_e);
+
+%% Divide-and-conquer level1n setup (divide-and-conquer requires the standard endogenous state)
+if N_a1==0
+    error('Have not implemented experience assets with semi-exogenous shocks, without also having a standard asset')
+end
+if ~isfield(vfoptions,'level1n')
+    vfoptions.level1n=round(sqrt(n_a1(1)));
+    if n_a1(1)<5
+        error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
+    end
+    if vfoptions.verbose==1
+        fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
+    end
+end
+vfoptions.level1n=min(vfoptions.level1n,n_a1);
+
+%% Dispatch
+if N_d1==0
+    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetzeSemiExo_DC1_nod1_e_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d2_gridvals, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+else
+    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetzeSemiExo_DC1_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d12_gridvals, d2_gridvals, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+end
+
+
+%%
+if vfoptions.outputkron==0
+    if N_d1==0 % Policy3
+        PolicyKron=shiftdim(PolicyKron(1,:,:,:,:)+N_d2*(PolicyKron(2,:,:,:,:)-1)+N_d2*N_d3*(PolicyKron(3,:,:,:,:)-1),1);
+    else % Policy4
+        PolicyKron=shiftdim(PolicyKron(1,:,:,:,:)+N_d1*(PolicyKron(2,:,:,:,:)-1)+N_d1*N_d2*(PolicyKron(3,:,:,:,:)-1)+N_d1*N_d2*N_d3*(PolicyKron(4,:,:,:,:)-1),1);
+    end
+
+    n_bothz=[vfoptions.n_semiz,n_z];
+    if N_d1>0
+        n_d=[n_d1,n_d2,n_d3];
+    else
+        n_d=[n_d2,n_d3];
+    end
+    if n_a1>0
+        n_a=[n_a1,n_a2];
+        n_d=[n_d,n_a1];
+    else
+        n_a=n_a2;
+    end
+
+    V=reshape(VKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+    Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_bothz, vfoptions.n_e, N_j, vfoptions);
+else
+    V=VKron;
+    Policy=PolicyKron;
+end
+
+
+end

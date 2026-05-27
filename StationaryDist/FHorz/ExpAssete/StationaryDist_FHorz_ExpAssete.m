@@ -65,15 +65,9 @@ PolicyProbs=zeros(N_a,N_ze,2,N_j,'gpuArray'); % The third dimension is lower/upp
 whichisdforexpassete=length(n_d)-simoptions.l_dexperienceassete+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssete(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpassete, n_d, n_a1,n_a2, simoptions.n_e, d_grid, a2_grid, simoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
-    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_e]
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssete(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpassete, n_d, n_a1,n_a2, simoptions.n_e, 0,N_z,N_e, d_grid, a2_grid, simoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
+    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_ze] with z varying fastest -- matches N_ze=[n_z,n_e] ordering.
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
-    if N_z>0
-        % Expand to [N_a,N_z*N_e] with z varying fastest -- matches N_ze=[n_z,n_e] ordering.
-        % repelem replicates each e-column N_z times, so column k=z+(e-1)*N_z gets aprimeIndexes(:,e).
-        aprimeIndexes=repelem(aprimeIndexes,1,N_z);
-        aprimeProbs=repelem(aprimeProbs,1,N_z);
-    end
 
     if l_a==1 % just experience asset
         Policy_aprime(:,:,1,jj)=aprimeIndexes;

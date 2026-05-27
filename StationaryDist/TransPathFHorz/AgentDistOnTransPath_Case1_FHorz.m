@@ -59,7 +59,8 @@ end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-N_e=prod(simoptions.n_e);
+n_e=simoptions.n_e;
+N_e=prod(n_e);
 
 if N_z==0
     if N_e==0
@@ -885,12 +886,12 @@ else
         if simoptions.fastOLG==1
             AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_e,T]),[1,3,2,4]);
         end
-        AgentDistPath=reshape(AgentDistPath,[n_a,simoptions.n_e,N_j,T]);
+        AgentDistPath=reshape(AgentDistPath,[n_a,n_e,N_j,T]);
     else
         if simoptions.fastOLG==1
             AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_z,N_e,T]),[1,3,4,2,5]);
         end
-        AgentDistPath=reshape(AgentDistPath,[n_a,n_z,simoptions.n_e,N_j,T]);
+        AgentDistPath=reshape(AgentDistPath,[n_a,n_z,n_e,N_j,T]);
     end
 end
 

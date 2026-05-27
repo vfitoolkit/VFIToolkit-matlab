@@ -51,19 +51,24 @@ end
 l_d=length(n_d);
 l_a=length(n_a);
 
-% Split a into a1 (standard) and a2 (experience asset)
+% Split a into a1 (standard) and a2 (experience asset).
+% noa1 case (n_a is scalar): use n_a1=0, N_a1=0 (toolkit convention). Override l_a1=0 explicitly
+% since length(0)=1. Downstream lookup has explicit `if N_a1==0` branches.
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_ExpAsset_SemiExo: case with no a1 (experience asset as only asset) not yet implemented')
+    n_a1=0;
+    N_a1=0;
+    l_a1=0;
+else
+    n_a1=n_a(1:end-1);
+    N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
-n_a1=n_a(1:end-1);
-N_a1=prod(n_a1);
 n_a2=n_a(end);
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
-l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit)
+l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit); 0 in the noa1 case
 
 % Which d drives the experience asset. With semiz, d ordering is [...other, d_expasset, d_semiz];
 % the last l_dsemiz are for semiz, the l_d2 immediately before them drive the expasset.
@@ -239,11 +244,17 @@ for reverse_j=0:N_j-1
         % Step 4: per-state lookup, combining
         %   (i)  d_semiz indirection: pick d2-slice of EVnext_byd2 via d_semiz_idx
         %   (ii) a2 interpolation: a2primeProbs * EVnext[..., a2_low, ...] + (1-a2primeProbs) * EVnext[..., a2_up, ...]
+        % In the noa1 case (N_a1==0), aprime_low/up reduce to a2primeIndex/a2primeIndex+1.
         if N_e==0
-            a1p=a1prime_idx(:,:,jj);    % [N_a, N_shocks]
             d2_jj=d_semiz_idx(:,:,jj);  % [N_a, N_shocks]
-            aprime_low=a1p+N_a1*(a2primeIndex-1);
-            aprime_up =a1p+N_a1*(a2primeIndex);
+            if N_a1==0
+                aprime_low=a2primeIndex;
+                aprime_up =a2primeIndex+1;
+            else
+                a1p=a1prime_idx(:,:,jj);    % [N_a, N_shocks]
+                aprime_low=a1p+N_a1*(a2primeIndex-1);
+                aprime_up =a1p+N_a1*(a2primeIndex);
+            end
             if N_z==0
                 a_lo=reshape(aprime_low,[N_a, N_semiz]);
                 a_up=reshape(aprime_up, [N_a, N_semiz]);
@@ -271,12 +282,17 @@ for reverse_j=0:N_j-1
                 EVnext_atpolicy=zeros(N_a, N_semiz, N_e, 'gpuArray');
                 for e_c=1:N_e
                     block=(e_c-1)*N_shocks + (1:N_shocks);
-                    a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz]);
                     a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz]);
                     a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz]);
                     d2_e=reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz]);
-                    aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                    aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                    if N_a1==0
+                        aprime_low_e=a2pIdx_e;
+                        aprime_up_e =a2pIdx_e+1;
+                    else
+                        a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz]);
+                        aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
+                        aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                    end
                     base_off=N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_e(:)-1);
                     lo_idx=aprime_low_e(:)+base_off;
                     up_idx=aprime_up_e(:)+base_off;
@@ -287,12 +303,17 @@ for reverse_j=0:N_j-1
                 EVnext_atpolicy=zeros(N_a, N_semiz, N_z, N_e, 'gpuArray');
                 for e_c=1:N_e
                     block=(e_c-1)*N_shocks + (1:N_shocks);
-                    a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                     a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_z]);
                     a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_z]);
                     d2_e=reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
-                    aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                    aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                    if N_a1==0
+                        aprime_low_e=a2pIdx_e;
+                        aprime_up_e =a2pIdx_e+1;
+                    else
+                        a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
+                        aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
+                        aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                    end
                     base_off=N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1);
                     lo_idx=aprime_low_e(:)+base_off;
                     up_idx=aprime_up_e(:)+base_off;

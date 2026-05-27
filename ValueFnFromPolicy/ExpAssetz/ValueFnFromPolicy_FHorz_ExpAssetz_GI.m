@@ -120,13 +120,13 @@ for reverse_j=0:N_j-1
     % Step 1: a2primeIndex, a2primeProbs (helper expects [L, N_a, N_z]; loop over e when N_e>0)
     if N_e==0
         Policy_slice=Policy_k(:,:,:,jj);
-        [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetz(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
+        [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetz(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, 0,N_z,0, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
     else
         Policy_zE=reshape(Policy_k(:,:,:,jj),[size_first, N_a, N_z, N_e]);
         a2primeIndex=zeros(N_a, N_z, N_e, 'gpuArray');
         a2primeProbs=zeros(N_a, N_z, N_e, 'gpuArray');
         for e_idx=1:N_e
-            [a2pi, a2pp]=CreateaprimePolicyExperienceAssetz(Policy_zE(:,:,:,e_idx), aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
+            [a2pi, a2pp]=CreateaprimePolicyExperienceAssetz(Policy_zE(:,:,:,e_idx), aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, 0,N_z,0, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
             a2primeIndex(:,:,e_idx)=a2pi;
             a2primeProbs(:,:,e_idx)=a2pp;
         end

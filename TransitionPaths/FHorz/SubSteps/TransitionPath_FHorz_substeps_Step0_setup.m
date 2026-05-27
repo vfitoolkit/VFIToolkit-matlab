@@ -11,6 +11,13 @@ if simoptions.experienceasset==1
     N_probs=N_probs*2;
 end
 
+% --- TEMPORARY (pilot): flag-aware GI workers propagate an extra PolicyL2flag channel through
+% UnKron. All four fastOLG GI families (plain GI1, DC1_GI1, ExpAsset GI1, ExpAsset DC1_GI1)
+% are now flag-aware, so the extra slot is always present whenever gridinterplayer==1.
+flag_extra=0;
+if vfoptions.gridinterplayer==1
+    flag_extra=1;
+end
 
 %% slowOLG
 if transpathoptions.fastOLG==0
@@ -22,7 +29,7 @@ if transpathoptions.fastOLG==0
         if vfoptions.gridinterplayer==0
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath=zeros(l_d+l_aprime+1+flag_extra,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
         if N_probs==1
             if simoptions.fastOLG==0
@@ -54,7 +61,7 @@ if transpathoptions.fastOLG==0
         if vfoptions.gridinterplayer==0
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath=zeros(l_d+l_aprime+1+flag_extra,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
         if N_probs==1
             if simoptions.fastOLG==0
@@ -86,7 +93,7 @@ if transpathoptions.fastOLG==0
         if vfoptions.gridinterplayer==0
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_e,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_e,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath=zeros(l_d+l_aprime+1+flag_extra,N_a,N_e,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
         if N_probs==1
             if simoptions.fastOLG==0
@@ -118,7 +125,7 @@ if transpathoptions.fastOLG==0
         if vfoptions.gridinterplayer==0
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_z,N_e,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,N_e,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath=zeros(l_d+l_aprime+1+flag_extra,N_a,N_z,N_e,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
         if N_probs==1
             if simoptions.fastOLG==0
@@ -150,7 +157,7 @@ elseif transpathoptions.fastOLG==1
         if vfoptions.gridinterplayer==0
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath=zeros(l_d+l_aprime+1+flag_extra,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
         if N_probs==1
             II1=1:1:N_a*(N_j-1);
@@ -169,7 +176,7 @@ elseif transpathoptions.fastOLG==1
         if vfoptions.gridinterplayer==0
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,N_z,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath=zeros(l_d+l_aprime+1+flag_extra,N_a,N_j,N_z,T-1,'gpuArray'); %Periods 1 to T-1
         end
         if N_probs==1
             II1=1:1:N_a*(N_j-1)*N_z;
@@ -188,7 +195,7 @@ elseif transpathoptions.fastOLG==1
         if vfoptions.gridinterplayer==0
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,N_e,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_e,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath=zeros(l_d+l_aprime+1+flag_extra,N_a,N_j,N_e,T-1,'gpuArray'); %Periods 1 to T-1
         end
         if N_probs==1
             II1=1:1:N_a*(N_j-1)*N_e;
@@ -207,7 +214,7 @@ elseif transpathoptions.fastOLG==1
         if vfoptions.gridinterplayer==0
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath=zeros(l_d+l_aprime+1+flag_extra,N_a,N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
         end
         if N_probs==1
             II1=1:1:N_a*(N_j-1)*N_z*N_e;

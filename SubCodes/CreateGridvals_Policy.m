@@ -54,7 +54,8 @@ end
 
 
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
-if Case1orCase2==1
+% Note: If Case1 and l_aprime==0, just treat as Case2 (can happen, e.g., with one endogenous state which is an experienceasset)
+if Case1orCase2==1 && l_aprime>0
     if l_d>0
         Policy_d=Policy(1:l_d,:)';
         Policy_aprime=Policy(l_d+1:end,:)';

@@ -87,7 +87,7 @@ if vfoptions.outputkron==0
             Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
         else
             V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, [n_z, n_semiz], vfoptions.n_e, N_j, vfoptions);
+            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, [n_semiz, n_z], vfoptions.n_e, N_j, vfoptions);
         end
     end
 else

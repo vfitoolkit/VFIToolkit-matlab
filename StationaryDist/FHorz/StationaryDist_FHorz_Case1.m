@@ -71,12 +71,25 @@ else
     if ~isfield(simoptions,'alreadygridvals_semiexo')
         simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
     end
-    % Some options require two other inputs, and these have to be on the GPU
+    % Some options require certain other inputs, and these have to be on the GPU
     if isfield(simoptions,'d_grid')
         simoptions.d_grid=gpuArray(simoptions.d_grid);
+    elseif simoptions.experienceasset==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1 || simoptions.experienceassetu==1
+        error('When using any kind of experience asset you must set simoptions.d_grid')
+    elseif simoptions.riskyasset==1
+        error('When using a risky asset you must set simoptions.d_grid')
     end
     if isfield(simoptions,'a_grid')
         simoptions.a_grid=gpuArray(simoptions.a_grid);
+    elseif simoptions.experienceasset==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1 || simoptions.experienceassetu==1
+        error('When using any kind of experience asset you must set simoptions.a_grid')
+    end
+    if isfield(simoptions,'z_grid')
+        simoptions.z_grid=gpuArray(simoptions.z_grid);
+    elseif simoptions.experienceassetz==1
+        error('When using experienceassetz you must set simoptions.z_grid')
+    elseif simoptions.experienceassetze==1
+        error('When using experienceassetze you must set simoptions.z_grid')
     end
 end
 
@@ -97,21 +110,34 @@ if simoptions.parallel<2
    return
 end
 
-
 %% Exogenous shock grids
 if simoptions.alreadygridvals==0
-    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions,2);
-    % note: output z_gridvals_J, pi_z_J, and simoptions.e_gridvals_J, simoptions.pi_e_J
-    %
-    % size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
-    % size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
-    % size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
-    % size(pi_e_J)=[prod(n_e),N_j]
-    % If no z, then z_gridvals_J=[] and pi_z_J=[]
-    % If no e, then e_gridvals_J=[] and pi_e_J=[]
+    if isfield(simoptions,'z_grid')
+        % things like experienceassetz and experienceassetze require z_gridvals_J
+        % simoptions.experienceassete does not require z_gridvals_J, but we do need to build simoptions.e_gridvals_J
+        [z_gridvals_J, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,simoptions.z_grid,pi_z,N_j,Parameters,simoptions,3);
+    elseif simoptions.experienceassete==1
+        % Only pi_z_J for any z in the model [and we don't have simoptions.z_grid, so cannot just create even though we don't need)
+        [~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions,2);
+        % But need both for e
+        [~, ~, simoptions]=ExogShockSetup_FHorz(0,[],pi_z,N_j,Parameters,simoptions,3);
+    else
+        % This is the default
+        % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+        [~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions,2);
+        % note: output z_gridvals_J, pi_z_J, and simoptions.e_gridvals_J, simoptions.pi_e_J
+        %
+        % size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
+        % size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
+        % size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
+        % size(pi_e_J)=[prod(n_e),N_j]
+        % If no z, then z_gridvals_J=[] and pi_z_J=[]
+        % If no e, then e_gridvals_J=[] and pi_e_J=[]
+    end
 elseif simoptions.alreadygridvals==1
-    % z_gridvals_J=z_grid;
+    if isfield(simoptions,'z_grid')
+        z_gridvals_J=z_grid;
+    end
     pi_z_J=pi_z;
 end
 

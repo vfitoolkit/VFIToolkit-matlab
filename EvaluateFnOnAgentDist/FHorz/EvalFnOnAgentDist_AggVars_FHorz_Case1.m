@@ -2,7 +2,10 @@ function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,Policy, Fn
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
+    % Model setup
     simoptions.gridinterplayer=0;
+    simoptions.n_semiz=0;
+    simoptions.n_e=0;
     % Largely just for internal use
     simoptions.parallel=1+(gpuDeviceCount>0);
     % When calling as a subcommand, the following is used internally
@@ -12,8 +15,15 @@ else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0;
     end
+    % Model setup
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
     end
     % Largely just for internal use
     if ~isfield(simoptions,'parallel')

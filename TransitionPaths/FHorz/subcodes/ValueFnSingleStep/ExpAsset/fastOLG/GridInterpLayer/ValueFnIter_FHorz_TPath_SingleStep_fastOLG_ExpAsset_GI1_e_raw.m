@@ -19,7 +19,7 @@ N_e=prod(n_e);
 z_gridvals_J=shiftdim(z_gridvals_J,-4); % [1,1,1,1,N_j,N_z,l_z]
 e_gridvals_J=shiftdim(e_gridvals_J,-5); % [1,1,1,1,1,N_j,N_e,l_e]
 
-Policy3=zeros(3,N_a,N_j,N_z,N_e,'gpuArray'); % first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
+Policy3=zeros(4,N_a,N_j,N_z,N_e,'gpuArray'); % first dim indexes the optimal choice for d and a1prime rest of dimensions a,z (d, midpoint, a1primeL2ind, L2flag)
 
 %% Grid interpolation
 % vfoptions.ngridinterp=9;
@@ -128,6 +128,15 @@ if vfoptions.lowmemory==0
     Policy3(1,:,:,:,:)=dind; % d
     Policy3(2,:,:,:,:)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
     Policy3(3,:,:,:,:)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    L2offset=ceil(maxindexL2/N_d);
+    linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j,N_z,N_e])                  +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-3)+N_d*n2long*N_a*N_j*N_z*shiftdim(gpuArray(0:1:N_e-1),-4);
+    linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j,N_z,N_e])+N_d*(n2long-1)   +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-3)+N_d*n2long*N_a*N_j*N_z*shiftdim(gpuArray(0:1:N_e-1),-4);
+    isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
+    isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
+    inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+    inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+    Policy3(4,:,:,:,:)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
 elseif vfoptions.lowmemory==1
     V=zeros(N_a,N_j,N_z,N_e,'gpuArray');
@@ -158,6 +167,15 @@ elseif vfoptions.lowmemory==1
         Policy3(1,:,:,:,e_c)=dind; % d
         Policy3(2,:,:,:,e_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
         Policy3(3,:,:,:,e_c)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
+        % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+        L2offset=ceil(maxindexL2/N_d);
+        linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j,N_z])                  +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-3);
+        linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j,N_z])+N_d*(n2long-1)   +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-3);
+        isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
+        isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
+        inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+        inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+        Policy3(4,:,:,:,e_c)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
     end
 elseif vfoptions.lowmemory==2
     V=zeros(N_a,N_j,N_z,N_e,'gpuArray');
@@ -194,6 +212,15 @@ elseif vfoptions.lowmemory==2
             Policy3(1,:,:,z_c,e_c)=dind; % d
             Policy3(2,:,:,z_c,e_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
             Policy3(3,:,:,z_c,e_c)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
+            % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+            L2offset=ceil(maxindexL2/N_d);
+            linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j])                  +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2);
+            linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j])+N_d*(n2long-1)   +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2);
+            isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
+            isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
+            inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+            inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+            Policy3(4,:,:,z_c,e_c)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
         end
     end
 end
@@ -212,7 +239,7 @@ Policy3(2,:,:,:,:)=Policy3(2,:,:,:,:)-adjust; % lower grid point
 Policy3(3,:,:,:,:)=adjust.*Policy3(3,:,:,:,:)+(1-adjust).*(Policy3(3,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 %% For experience asset, just output Policy as single index and then use Case2 to UnKron
-Policy=Policy3(1,:,:,:,:)+N_d*(Policy3(2,:,:,:,:)-1)+N_d*N_a1*(Policy3(3,:,:,:,:)-1);
+Policy=Policy3(1,:,:,:,:)+N_d*(Policy3(2,:,:,:,:)-1)+N_d*N_a1*(Policy3(3,:,:,:,:)-1)+N_d*N_a1*(n2short+2)*(Policy3(4,:,:,:,:)-1);
 % Output shape for policy, first dim is just one point
 
 

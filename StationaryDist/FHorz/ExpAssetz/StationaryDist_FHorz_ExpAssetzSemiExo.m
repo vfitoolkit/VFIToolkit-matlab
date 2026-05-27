@@ -86,16 +86,9 @@ PolicyProbs=zeros(N_a,N_bothze,2,N_j,'gpuArray'); % The third dimension is lower
 whichisdforexpassetz=length(n_d)-simoptions.l_dexperienceassetz-simoptions.l_dsemiz+1:length(n_d)-simoptions.l_dsemiz;  % is just saying which is the decision variable that influences the experience asset (it is the 'second last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssetz(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpassetz, n_d, n_a1,n_a2, n_z, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
-    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z]
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssetz(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpassetz, n_d, n_a1,n_a2, n_z, N_semiz,N_z,N_e, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
+    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_bothze] with semiz fastest, then z, then e -- matches n_bothze=[n_semiz,n_z,n_e] ordering.
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
-    % Expand to [N_a,N_bothze] = [N_a,N_semiz*N_z*N_e] with semiz fastest, then z, then e -- matches n_bothze=[n_semiz,n_z,n_e] ordering.
-    aprimeIndexes=repelem(aprimeIndexes,1,N_semiz); % [N_a,N_semiz*N_z] -- each z-column replicated N_semiz times (semiz fastest)
-    aprimeProbs=repelem(aprimeProbs,1,N_semiz);
-    if N_e>0
-        aprimeIndexes=repmat(aprimeIndexes,1,N_e); % [N_a,N_semiz*N_z*N_e] -- block tiled over e
-        aprimeProbs=repmat(aprimeProbs,1,N_e);
-    end
 
     if l_a==1
         Policy_aprime(:,:,1,jj)=aprimeIndexes;

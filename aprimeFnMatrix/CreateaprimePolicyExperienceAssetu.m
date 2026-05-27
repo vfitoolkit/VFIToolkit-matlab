@@ -1,4 +1,4 @@
-function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetu(Policy,aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
+function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetu(Policy,aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_semizze, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
 % For experienceassetu: compute a2prime=aprimeFn(d, a2, u) using the
 % Policy-chosen d for each state (one d per state), used in simulation /
 % agent-distribution. Note: u is i.i.d. drawn BETWEEN periods, so Policy
@@ -24,8 +24,8 @@ function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetu(Polic
 %   a2primeIndexes - [N_a, N_u]
 %   a2primeProbs   - [N_a, N_u]
 % Output sizes (when N_z>0):
-%   a2primeIndexes - [N_a, N_z, N_u]
-%   a2primeProbs   - [N_a, N_z, N_u]
+%   a2primeIndexes - [N_a, N_semizze, N_u]
+%   a2primeProbs   - [N_a, N_semizze, N_u]
 
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
@@ -50,7 +50,11 @@ if nargin(aprimeFn)~=l_dexp+1+l_u+length(aprimeFnParams)
     error('Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
 end
 
-if N_z==0 % To save writing a separate script for without z
+if l_u>=5
+    error('Max of four u variables supported (contact if you need more)')
+end
+
+if N_semizze==0 % To save writing a separate script for without z
     if l_dexp>=1
         if whichisdforexpasset(1)==1
             d1grid=d_grid(1:n_d(1));
@@ -78,103 +82,84 @@ else
         else
             d1grid=d_grid(sum(n_d(1:whichisdforexpasset(1)-1))+1:sum(n_d(1:whichisdforexpasset(1))));
         end
-        d1vals=reshape(d1grid(Policy(whichisdforexpasset(1),:,:)),[N_a*N_z,1]);
+        d1vals=reshape(d1grid(Policy(whichisdforexpasset(1),:,:)),[N_a,N_semizze]);
         if l_dexp>=2
             d2grid=d_grid(sum(n_d(1:whichisdforexpasset(2)-1))+1:sum(n_d(1:whichisdforexpasset(2))));
-            d2vals=reshape(d2grid(Policy(whichisdforexpasset(2),:,:)),[N_a*N_z,1]);
+            d2vals=reshape(d2grid(Policy(whichisdforexpasset(2),:,:)),[N_a,N_semizze]);
             if l_dexp>=3
                 d3grid=d_grid(sum(n_d(1:whichisdforexpasset(3)-1))+1:sum(n_d(1:whichisdforexpasset(3))));
-                d3vals=reshape(d3grid(Policy(whichisdforexpasset(3),:,:)),[N_a*N_z,1]);
+                d3vals=reshape(d3grid(Policy(whichisdforexpasset(3),:,:)),[N_a,N_semizze]);
                 if l_dexp>=4
                     d4grid=d_grid(sum(n_d(1:whichisdforexpasset(4)-1))+1:sum(n_d(1:whichisdforexpasset(4))));
-                    d4vals=reshape(d4grid(Policy(whichisdforexpasset(4),:,:)),[N_a*N_z,1]);
+                    d4vals=reshape(d4grid(Policy(whichisdforexpasset(4),:,:)),[N_a,N_semizze]);
                 end
             end
         end
     end
 end
 
-if N_z==0
-    if N_a1==0
-        a2vals=a2_grid;
-    else
-        a2vals=kron(a2_grid,ones(N_a1,1));
-    end
+if N_a1==0
+    a2vals=a2_grid;
 else
-    if N_a1==0
-        a2vals=kron(ones(N_z,1),a2_grid);
-    else
-        a2vals=kron(ones(N_z,1),kron(a2_grid,ones(N_a1,1)));
-    end
+    a2vals=repelem(a2_grid,N_a1,1);
 end
 
 u_gridvals=CreateGridvals(n_u,u_grid,1);
-if l_u>=1
-    u1vals=shiftdim(u_gridvals(:,1),-1);
-    if l_u>=2
-        u2vals=shiftdim(u_gridvals(:,2),-1);
-        if l_u>=3
-            u3vals=shiftdim(u_gridvals(:,3),-1);
-            if l_u>=4
-                u4vals=shiftdim(u_gridvals(:,4),-1);
-                if l_u>=5
-                    error('Max of four u variables supported (contact if you need more)')
-                end
-            end
-        end
-    end
+if N_semizze==0
+    shifter=-1;
+else
+    shifter=-2;
 end
 
 % Note: the relevant d for experienceassetu is just the 'whichisdforexpasset' d (this is typically just the last if using just experienceassetu)
-% expassetu: aprime(d,a2,u)
-% Removed: a2vals=a2vals.*ones(1,1,1,'gpuArray'); % was here to fool matlab which otherwise threw an error; restore this line if functionality breaks
+%% expassetu: aprime(d,a2,u)
 if l_u==1
     if l_dexp==1
-        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, shiftdim(u_gridvals(:,1),shifter), ParamCell{:});
     elseif l_dexp==2
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, shiftdim(u_gridvals(:,1),shifter), ParamCell{:});
     elseif l_dexp==3
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, shiftdim(u_gridvals(:,1),shifter), ParamCell{:});
     elseif l_dexp==4
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, shiftdim(u_gridvals(:,1),shifter), ParamCell{:});
     end
 elseif l_u==2
     if l_dexp==1
-        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), ParamCell{:});
     elseif l_dexp==2
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), ParamCell{:});
     elseif l_dexp==3
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), ParamCell{:});
     elseif l_dexp==4
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), ParamCell{:});
     end
 elseif l_u==3
     if l_dexp==1
-        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, u2vals, u3vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), shiftdim(u_gridvals(:,3),shifter), ParamCell{:});
     elseif l_dexp==2
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, u2vals, u3vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), shiftdim(u_gridvals(:,3),shifter), ParamCell{:});
     elseif l_dexp==3
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, u2vals, u3vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), shiftdim(u_gridvals(:,3),shifter), ParamCell{:});
     elseif l_dexp==4
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, u2vals, u3vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), shiftdim(u_gridvals(:,3),shifter), ParamCell{:});
     end
 elseif l_u==4
     if l_dexp==1
-        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), shiftdim(u_gridvals(:,3),shifter), shiftdim(u_gridvals(:,4),shifter), ParamCell{:});
     elseif l_dexp==2
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), shiftdim(u_gridvals(:,3),shifter), shiftdim(u_gridvals(:,4),shifter), ParamCell{:});
     elseif l_dexp==3
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), shiftdim(u_gridvals(:,3),shifter), shiftdim(u_gridvals(:,4),shifter), ParamCell{:});
     elseif l_dexp==4
-        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, u2vals, u3vals, u4vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, shiftdim(u_gridvals(:,1),shifter), shiftdim(u_gridvals(:,2),shifter), shiftdim(u_gridvals(:,3),shifter), shiftdim(u_gridvals(:,4),shifter), ParamCell{:});
     end
 end
 
 %% Calcuate grid indexes and probs from the values
-if N_z==0
+if N_semizze==0
     a2primeVals=reshape(a2primeVals,[1,N_a*N_u]);
 else
-    a2primeVals=reshape(a2primeVals,[1,N_a*N_z*N_u]);
+    a2primeVals=reshape(a2primeVals,[1,N_a*N_semizze*N_u]);
 end
 
 a2_griddiff=a2_grid(2:end)-a2_grid(1:end-1); % Distance between point and the next point
@@ -197,12 +182,12 @@ a2primeProbs=1-aprime_residual./a2_griddiff(a2primeIndexes);
 a2primeProbs(offBottomOfGrid)=1;
 a2primeProbs(offTopOfGrid)=0;
 
-if N_z==0
+if N_semizze==0
     a2primeIndexes=reshape(a2primeIndexes,[N_a,N_u]); % Index of lower grid point
     a2primeProbs=reshape(a2primeProbs,[N_a,N_u]); % Probability of lower grid point
 else
-    a2primeIndexes=reshape(a2primeIndexes,[N_a,N_z,N_u]); % Index of lower grid point
-    a2primeProbs=reshape(a2primeProbs,[N_a,N_z,N_u]); % Probability of lower grid point
+    a2primeIndexes=reshape(a2primeIndexes,[N_a,N_semizze,N_u]); % Index of lower grid point
+    a2primeProbs=reshape(a2primeProbs,[N_a,N_semizze,N_u]); % Probability of lower grid point
 end
 
 end

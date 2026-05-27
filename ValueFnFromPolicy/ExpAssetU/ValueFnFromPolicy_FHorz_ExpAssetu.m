@@ -46,22 +46,25 @@ end
 l_d=length(n_d);
 l_a=length(n_a);
 
-% Split a into a1 (standard) and a2 (experience asset)
+% Split a into a1 (standard) and a2 (experience asset).
+% noa1 case (n_a is scalar -- experience asset is the only endogenous state): use n_a1=0, N_a1=0
+% (toolkit convention; matches StationaryDist_FHorz_ExpAssetu). Note we have to override l_a1=0
+% because length(0)=1, not 0. Downstream, the lookup section has explicit `if N_a1==0` branches.
 if isscalar(n_a)
     n_a1=0;
     N_a1=0;
-    error('ValueFnFromPolicy_FHorz_ExpAssetu: case with no a1 (experience asset as only asset) not yet implemented')
+    l_a1=0;
 else
     n_a1=n_a(1:end-1);
     N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
 n_a2=n_a(end);
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
-l_aprime=l_a1;
+l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit); 0 in the noa1 case
 
 % Which d affects the experience asset (default: last d only)
 if isfield(vfoptions,'l_dexperienceassetu')
@@ -200,54 +203,93 @@ for reverse_j=0:N_j-1
             EVnext(isnan(EVnext))=0;
         end
 
-        % Step 4: interpolated lookup -- broadcast a1prime over u, sum out u with pi_u
+        % Step 4: interpolated lookup. Mirrors standard VFI's skipinterp+isnan
+        % so that policies landing on infeasible-on-both-sides next-states (where
+        % the standard VFI's argmax zeros the contribution via NaN propagation +
+        % isnan clear) give the same finite V here. Order matters: sum over u
+        % BEFORE pi_z multiplication and isnan clear, so NaN from skipinterp
+        % absorbs -Inf at non-skipinterp positions within the same (a,z,z') cell.
         if N_z==0 && N_e==0
-            % a1p [N_a]; a2pi/pp [N_a, N_u]
-            a1p=a1prime_idx(:,jj); % [N_a]
-            aprime_low=a1p+N_a1*(a2primeIndex-1); % [N_a, N_u]
-            aprime_up =a1p+N_a1*(a2primeIndex);
-            EV_low=reshape(EVnext(aprime_low(:)),[N_a,N_u]);
-            EV_up =reshape(EVnext(aprime_up(:)), [N_a,N_u]);
-            per_u=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up; % [N_a, N_u]
-            EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-1), 2); % [N_a, 1]
+            if N_a1==0
+                aprime_low=a2primeIndex;     % [N_a, N_u]
+                aprime_up =a2primeIndex+1;
+            else
+                a1p=a1prime_idx(:,jj); % [N_a]
+                aprime_low=a1p+N_a1*(a2primeIndex-1); % [N_a, N_u]
+                aprime_up =a1p+N_a1*(a2primeIndex);
+            end
+            Vlower=reshape(EVnext(aprime_low(:)),[N_a,N_u]);
+            Vupper=reshape(EVnext(aprime_up(:)), [N_a,N_u]);
+            a2pPrb=a2primeProbs;
+            a2pPrb(Vlower==Vupper)=0; % skipinterp
+            EV=a2pPrb.*Vlower+(1-a2pPrb).*Vupper;
+            EVnext_atpolicy=sum(EV .* shiftdim(pi_u,-1), 2); % sum over u -> [N_a, 1]
+            EVnext_atpolicy(isnan(EVnext_atpolicy))=0;
             V(:,jj)=F_jj+beta*EVnext_atpolicy;
         elseif N_z==0 && N_e>0
-            % a1p [N_a, N_e]; a2pi/pp [N_a, N_e, N_u]
-            a1p=a1prime_idx(:,:,jj); % [N_a, N_e]
-            aprime_low=a1p+N_a1*(a2primeIndex-1); % broadcast -> [N_a, N_e, N_u]
-            aprime_up =a1p+N_a1*(a2primeIndex);
-            EV_low=reshape(EVnext(aprime_low(:)),[N_a,N_e,N_u]);
-            EV_up =reshape(EVnext(aprime_up(:)), [N_a,N_e,N_u]);
-            per_u=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
-            EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-2), 3); % [N_a, N_e]
+            if N_a1==0
+                aprime_low=a2primeIndex;     % [N_a, N_e, N_u]
+                aprime_up =a2primeIndex+1;
+            else
+                a1p=a1prime_idx(:,:,jj); % [N_a, N_e]
+                aprime_low=a1p+N_a1*(a2primeIndex-1); % broadcast -> [N_a, N_e, N_u]
+                aprime_up =a1p+N_a1*(a2primeIndex);
+            end
+            % EVnext already has pi_e summed out (e is iid); matches standard VFI noz+e EVpre.
+            Vlower=reshape(EVnext(aprime_low(:)),[N_a,N_e,N_u]);
+            Vupper=reshape(EVnext(aprime_up(:)), [N_a,N_e,N_u]);
+            a2pPrb=a2primeProbs;
+            a2pPrb(Vlower==Vupper)=0; % skipinterp on pi_e-collapsed EVnext
+            EV=a2pPrb.*Vlower+(1-a2pPrb).*Vupper;
+            EVnext_atpolicy=sum(EV .* shiftdim(pi_u,-2), 3); % sum over u -> [N_a, N_e]
+            EVnext_atpolicy(isnan(EVnext_atpolicy))=0;
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         elseif N_z>0 && N_e==0
-            % a1p [N_a, N_z]; a2pi/pp [N_a, N_z, N_u]
-            a1p=a1prime_idx(:,:,jj);
-            aprime_low=a1p+N_a1*(a2primeIndex-1); % broadcast -> [N_a, N_z, N_u]
-            aprime_up =a1p+N_a1*(a2primeIndex);
-            zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1]);
-            lin_low=aprime_low+zidxoffset;
-            lin_up =aprime_up +zidxoffset;
-            EV_low=reshape(EVnext(lin_low(:)),[N_a,N_z,N_u]);
-            EV_up =reshape(EVnext(lin_up(:)), [N_a,N_z,N_u]);
-            per_u=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
-            EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-2), 3); % [N_a, N_z]
+            if N_a1==0
+                aprime_low=a2primeIndex;     % [N_a, N_z, N_u]
+                aprime_up =a2primeIndex+1;
+            else
+                a1p=a1prime_idx(:,:,jj);
+                aprime_low=a1p+N_a1*(a2primeIndex-1); % broadcast -> [N_a, N_z, N_u]
+                aprime_up =a1p+N_a1*(a2primeIndex);
+            end
+            % Per-z' interpolation against V(:,:,jj+1) directly (not EVnext, which has pi_z already summed).
+            Vnext=V(:,:,jj+1); % [N_a, N_z']
+            zprimeoffset=reshape(N_a*gpuArray(0:N_z-1),[1,1,1,N_z]); % [1,1,1,N_z']
+            Vlower=reshape(Vnext(aprime_low+zprimeoffset),[N_a,N_z,N_u,N_z]);
+            Vupper=reshape(Vnext(aprime_up +zprimeoffset),[N_a,N_z,N_u,N_z]);
+            a2pPrb4=repmat(a2primeProbs,[1,1,1,N_z]);
+            a2pPrb4(Vlower==Vupper)=0; % skipinterp
+            EV4=a2pPrb4.*Vlower+(1-a2pPrb4).*Vupper; % [N_a, N_z, N_u, N_z']
+            EV4=sum(EV4 .* shiftdim(pi_u,-2), 3); % sum over u -> [N_a, N_z, 1, N_z']
+            EV4=EV4 .* reshape(pi_z_J(:,:,jj),[1,N_z,1,N_z]); % weight by pi_z(z, z')
+            EV4(isnan(EV4))=0;
+            EVnext_atpolicy=reshape(sum(EV4,4),[N_a,N_z]); % sum over z'
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         else
-            % a1p [N_a, N_z*N_e] flat -> [N_a, N_z, N_e]
-            a1p=reshape(a1prime_idx(:,:,jj),[N_a, N_z, N_e]);
+            % a2pi/pp flat [N_a, N_z*N_e, N_u] -> [N_a, N_z, N_e, N_u]
             a2pIdx=reshape(a2primeIndex,[N_a, N_z, N_e, N_u]);
             a2pPrb=reshape(a2primeProbs,[N_a, N_z, N_e, N_u]);
-            aprime_low=a1p+N_a1*(a2pIdx-1); % broadcast a1p over u -> [N_a, N_z, N_e, N_u]
-            aprime_up =a1p+N_a1*(a2pIdx);
-            zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1,1]);
-            lin_low=aprime_low+zidxoffset;
-            lin_up =aprime_up +zidxoffset;
-            EV_low=reshape(EVnext(lin_low(:)),[N_a,N_z,N_e,N_u]);
-            EV_up =reshape(EVnext(lin_up(:)), [N_a,N_z,N_e,N_u]);
-            per_u=a2pPrb.*EV_low+(1-a2pPrb).*EV_up;
-            EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-3), 4); % [N_a, N_z, N_e]
+            if N_a1==0
+                aprime_low=a2pIdx;     % [N_a, N_z, N_e, N_u]
+                aprime_up =a2pIdx+1;
+            else
+                a1p=reshape(a1prime_idx(:,:,jj),[N_a, N_z, N_e]);
+                aprime_low=a1p+N_a1*(a2pIdx-1); % broadcast a1p over u -> [N_a, N_z, N_e, N_u]
+                aprime_up =a1p+N_a1*(a2pIdx);
+            end
+            % Pre-collapse pi_e (e iid), keep z' for per-z' skipinterp (matches standard VFI z+e branch).
+            EVpre=reshape(sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj),-2), 3),[N_a,N_z]); % [N_a, N_z']
+            zprimeoffset=reshape(N_a*gpuArray(0:N_z-1),[1,1,1,1,N_z]); % [1,1,1,1,N_z']
+            Vlower=reshape(EVpre(aprime_low+zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
+            Vupper=reshape(EVpre(aprime_up +zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
+            a2pPrb5=repmat(a2pPrb,[1,1,1,1,N_z]);
+            a2pPrb5(Vlower==Vupper)=0; % skipinterp
+            EV5=a2pPrb5.*Vlower+(1-a2pPrb5).*Vupper; % [N_a, N_z, N_e, N_u, N_z']
+            EV5=sum(EV5 .* shiftdim(pi_u,-3), 4); % sum over u -> [N_a, N_z, N_e, 1, N_z']
+            EV5=EV5 .* reshape(pi_z_J(:,:,jj),[1,N_z,1,1,N_z]); % weight by pi_z(z, z')
+            EV5(isnan(EV5))=0;
+            EVnext_atpolicy=reshape(sum(EV5,5),[N_a,N_z,N_e]); % sum over z'
             V(:,:,:,jj)=F_jj+beta*EVnext_atpolicy;
         end
     end

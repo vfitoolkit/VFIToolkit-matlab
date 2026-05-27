@@ -7,6 +7,7 @@ N_a=prod(n_a);
 N_semiz=prod(n_semiz);
 
 V=zeros(N_a,N_semiz,N_j,'gpuArray');
+PolicyL2flag=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 % Policy: 4 channels [d2, a1prime midpoint, a2prime, a1prime L2]
 Policy=zeros(4,N_a,N_semiz,N_j,'gpuArray');
 
@@ -40,6 +41,7 @@ V_ford2=zeros(N_a,N_semiz,N_d2,'gpuArray');
 mid_ford2=zeros(N_a,N_semiz,N_d2,'gpuArray');
 L2a1_ford2=zeros(N_a,N_semiz,N_d2,'gpuArray');
 L2a2_ford2=zeros(N_a,N_semiz,N_d2,'gpuArray');
+L2flag_ford2=2*ones(N_a,N_semiz,N_d2,'gpuArray');
 
 %% j=N_j
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
@@ -84,6 +86,15 @@ if ~isfield(vfoptions,'V_Jplus1')
         mid_ford2(:,:,d2_c)=midpoints_jj(maxindexL2a2+N_a2*a12ind+N_a2*N_a*semizind);
         L2a1_ford2(:,:,d2_c)=shiftdim(maxindexL2a1,1);
         L2a2_ford2(:,:,d2_c)=shiftdim(maxindexL2a2,1);
+
+        % L2 flag for this d2 (no d1)
+        linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*semizind;
+        linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*semizind;
+        isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+        inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+        inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+        L2flag_ford2(:,:,d2_c) = squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper));
     end
 
     % Take max over d2_c
@@ -95,6 +106,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(2,:,:,N_j)=reshape(mid_ford2(idx), [1,N_a,N_semiz]);
     Policy(3,:,:,N_j)=reshape(L2a2_ford2(idx),[1,N_a,N_semiz]);
     Policy(4,:,:,N_j)=reshape(L2a1_ford2(idx),[1,N_a,N_semiz]);
+    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_semiz]);
 else
     % Using V_Jplus1
     DiscountFactorParamsVec=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames, N_j));
@@ -149,6 +161,15 @@ else
         mid_ford2(:,:,d2_c)=midpoints_jj(maxindexL2a2+N_a2*a12ind+N_a2*N_a*semizind);
         L2a1_ford2(:,:,d2_c)=shiftdim(maxindexL2a1,1);
         L2a2_ford2(:,:,d2_c)=shiftdim(maxindexL2a2,1);
+
+        % L2 flag for this d2 (no d1)
+        linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*semizind;
+        linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*semizind;
+        isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+        inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+        inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+        L2flag_ford2(:,:,d2_c) = squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper));
     end
 
     [V_jj,d2_max]=max(V_ford2,[],3);
@@ -159,6 +180,7 @@ else
     Policy(2,:,:,N_j)=reshape(mid_ford2(idx), [1,N_a,N_semiz]);
     Policy(3,:,:,N_j)=reshape(L2a2_ford2(idx),[1,N_a,N_semiz]);
     Policy(4,:,:,N_j)=reshape(L2a1_ford2(idx),[1,N_a,N_semiz]);
+    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_semiz]);
 end
 
 %% Backward iteration
@@ -221,6 +243,15 @@ for reverse_j=1:N_j-1
         mid_ford2(:,:,d2_c)=midpoints_jj(maxindexL2a2+N_a2*a12ind+N_a2*N_a*semizind);
         L2a1_ford2(:,:,d2_c)=shiftdim(maxindexL2a1,1);
         L2a2_ford2(:,:,d2_c)=shiftdim(maxindexL2a2,1);
+
+        % L2 flag for this d2 (no d1)
+        linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*semizind;
+        linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*semizind;
+        isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+        inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+        inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+        L2flag_ford2(:,:,d2_c) = squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper));
     end
 
     [V_jj,d2_max]=max(V_ford2,[],3);
@@ -231,6 +262,7 @@ for reverse_j=1:N_j-1
     Policy(2,:,:,jj)=reshape(mid_ford2(idx), [1,N_a,N_semiz]);
     Policy(3,:,:,jj)=reshape(L2a2_ford2(idx),[1,N_a,N_semiz]);
     Policy(4,:,:,jj)=reshape(L2a1_ford2(idx),[1,N_a,N_semiz]);
+    PolicyL2flag(1,:,:,jj)=reshape(L2flag_ford2(idx),[1,N_a,N_semiz]);
 end
 
 
@@ -239,7 +271,7 @@ adjust=(Policy(4,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
 Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1);
 
-Policy=Policy(1,:,:,:)+N_d2*(Policy(2,:,:,:)-1)+N_d2*N_a1*(Policy(3,:,:,:)-1)+N_d2*N_a1*N_a2*(Policy(4,:,:,:)-1);
+Policy=Policy(1,:,:,:)+N_d2*(Policy(2,:,:,:)-1)+N_d2*N_a1*(Policy(3,:,:,:)-1)+N_d2*N_a1*N_a2*(Policy(4,:,:,:)-1)+N_d2*N_a1*N_a2*(n2short+2)*(PolicyL2flag-1);
 
 
 end

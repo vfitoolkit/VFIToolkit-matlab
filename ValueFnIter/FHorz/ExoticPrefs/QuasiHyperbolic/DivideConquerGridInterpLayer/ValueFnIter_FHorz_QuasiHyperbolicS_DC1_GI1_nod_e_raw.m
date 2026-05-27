@@ -11,6 +11,7 @@ N_e=prod(n_e);
 
 Vhat=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(2,N_a,N_z,N_e,N_j,'gpuArray'); % [midpoint; aprimeL2ind]
+PolicyL2flag=2*ones(1,N_a,N_z,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 
 if vfoptions.lowmemory>=1
     special_n_e=ones(1,length(n_e));
@@ -68,6 +69,12 @@ if ~isfield(vfoptions,'V_Jplus1')
         Policy(1,:,:,:,N_j)=shiftdim(squeeze(midpoints_jj),-1);
         Policy(2,:,:,:,N_j)=shiftdim(maxindexL2,-1);
 
+        isInfLower    = (ReturnMatrix_ii(1,     :,:,:) == -Inf);
+        isInfUpper    = (ReturnMatrix_ii(n2long,:,:,:) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+        inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+        PolicyL2flag(1,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -95,6 +102,12 @@ if ~isfield(vfoptions,'V_Jplus1')
             Vhat(:,:,e_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,:,e_c,N_j)=shiftdim(squeeze(midpoints_jj),-1);
             Policy(2,:,:,e_c,N_j)=shiftdim(maxindexL2,-1);
+
+            isInfLower    = (ReturnMatrix_ii(1,     :,:) == -Inf);
+            isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
+            inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+            inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+            PolicyL2flag(1,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
 
     elseif vfoptions.lowmemory==2
@@ -126,6 +139,12 @@ if ~isfield(vfoptions,'V_Jplus1')
                 Vhat(:,z_c,e_c,N_j)=shiftdim(Vtempii,1);
                 Policy(1,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoints_jj),-1);
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(maxindexL2,-1);
+
+                isInfLower    = (ReturnMatrix_ii(1,     :) == -Inf);
+                isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
+                inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+                inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+                PolicyL2flag(1,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             end
         end
     end
@@ -180,6 +199,13 @@ else
         Vhat(:,:,:,N_j)=shiftdim(Vtempii,1);
         Policy(1,:,:,:,N_j)=shiftdim(squeeze(midpoints_jj),-1);
         Policy(2,:,:,:,N_j)=shiftdim(maxindexL2,-1);
+
+        isInfLower    = (ReturnMatrix_L2(1,     :,:,:) == -Inf);
+        isInfUpper    = (ReturnMatrix_L2(n2long,:,:,:) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+        inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+        PolicyL2flag(1,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
         linidx=double(reshape(maxindexL2,[1,N_a*N_z*N_e]))+n2long*(0:N_a*N_z*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z,N_e]);
         Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j)+(beta-beta0beta)*EV_at_policy;
@@ -219,6 +245,13 @@ else
             Vhat(:,:,e_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,:,e_c,N_j)=shiftdim(squeeze(midpoints_jj),-1);
             Policy(2,:,:,e_c,N_j)=shiftdim(maxindexL2,-1);
+
+            isInfLower    = (ReturnMatrix_L2(1,     :,:) == -Inf);
+            isInfUpper    = (ReturnMatrix_L2(n2long,:,:) == -Inf);
+            inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+            inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+            PolicyL2flag(1,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
             linidx_e=double(reshape(maxindexL2,[1,N_a*N_z]))+n2long*(0:N_a*N_z-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,N_z]);
             Vunderbar(:,:,e_c,N_j)=Vhat(:,:,e_c,N_j)+(beta-beta0beta)*EV_at_policy_e;
@@ -261,6 +294,13 @@ else
                 Vhat(:,z_c,e_c,N_j)=shiftdim(Vtempii,1);
                 Policy(1,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoints_jj),-1);
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(maxindexL2,-1);
+
+                isInfLower    = (ReturnMatrix_L2(1,     :) == -Inf);
+                isInfUpper    = (ReturnMatrix_L2(n2long,:) == -Inf);
+                inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+                inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+                PolicyL2flag(1,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
                 linidx_ze=double(reshape(maxindexL2,[1,N_a]))+n2long*(0:N_a-1);
                 EV_at_policy_ze=reshape(EVfine_ze(linidx_ze),[N_a,1]);
                 Vunderbar(:,z_c,e_c,N_j)=Vhat(:,z_c,e_c,N_j)+(beta-beta0beta)*EV_at_policy_ze;
@@ -324,6 +364,13 @@ for reverse_j=1:N_j-1
         Vhat(:,:,:,jj)=shiftdim(Vtempii,1);
         Policy(1,:,:,:,jj)=shiftdim(squeeze(midpoints_jj),-1);
         Policy(2,:,:,:,jj)=shiftdim(maxindexL2,-1);
+
+        isInfLower    = (ReturnMatrix_L2(1,     :,:,:) == -Inf);
+        isInfUpper    = (ReturnMatrix_L2(n2long,:,:,:) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+        inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+        PolicyL2flag(1,:,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
         linidx=double(reshape(maxindexL2,[1,N_a*N_z*N_e]))+n2long*(0:N_a*N_z*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z,N_e]);
         Vunderbar(:,:,:,jj)=Vhat(:,:,:,jj)+(beta-beta0beta)*EV_at_policy;
@@ -363,6 +410,13 @@ for reverse_j=1:N_j-1
             Vhat(:,:,e_c,jj)=shiftdim(Vtempii,1);
             Policy(1,:,:,e_c,jj)=shiftdim(squeeze(midpoints_jj),-1);
             Policy(2,:,:,e_c,jj)=shiftdim(maxindexL2,-1);
+
+            isInfLower    = (ReturnMatrix_L2(1,     :,:) == -Inf);
+            isInfUpper    = (ReturnMatrix_L2(n2long,:,:) == -Inf);
+            inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+            inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+            PolicyL2flag(1,:,:,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
             linidx_e=double(reshape(maxindexL2,[1,N_a*N_z]))+n2long*(0:N_a*N_z-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,N_z]);
             Vunderbar(:,:,e_c,jj)=Vhat(:,:,e_c,jj)+(beta-beta0beta)*EV_at_policy_e;
@@ -405,6 +459,13 @@ for reverse_j=1:N_j-1
                 Vhat(:,z_c,e_c,jj)=shiftdim(Vtempii,1);
                 Policy(1,:,z_c,e_c,jj)=shiftdim(squeeze(midpoints_jj),-1);
                 Policy(2,:,z_c,e_c,jj)=shiftdim(maxindexL2,-1);
+
+                isInfLower    = (ReturnMatrix_L2(1,     :) == -Inf);
+                isInfUpper    = (ReturnMatrix_L2(n2long,:) == -Inf);
+                inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+                inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+                PolicyL2flag(1,:,z_c,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
                 linidx_ze=double(reshape(maxindexL2,[1,N_a]))+n2long*(0:N_a-1);
                 EV_at_policy_ze=reshape(EVfine_ze(linidx_ze),[N_a,1]);
                 Vunderbar(:,z_c,e_c,jj)=Vhat(:,z_c,e_c,jj)+(beta-beta0beta)*EV_at_policy_ze;
@@ -418,7 +479,7 @@ adjust=(Policy(2,:,:,:,:)<1+n2short+1);
 Policy(1,:,:,:,:)=Policy(1,:,:,:,:)-adjust;
 Policy(2,:,:,:,:)=adjust.*Policy(2,:,:,:,:)+(1-adjust).*(Policy(2,:,:,:,:)-n2short-1);
 
-Policy=squeeze(Policy(1,:,:,:,:)+N_a*(Policy(2,:,:,:,:)-1));
+Policy=squeeze(Policy(1,:,:,:,:)+N_a*(Policy(2,:,:,:,:)-1)+N_a*(n2short+2)*(PolicyL2flag-1));
 
 %%
 nOutputs=nargout;

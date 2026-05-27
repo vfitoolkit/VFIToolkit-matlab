@@ -11,6 +11,7 @@ N_z=prod(n_z);
 
 Vhat=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % [d_ind; midpoint; aprimeL2ind]
+PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 
 if vfoptions.lowmemory==0
     midpoints_jj=zeros(N_d,1,N_a,N_z,'gpuArray');
@@ -64,6 +65,15 @@ if ~isfield(vfoptions,'V_Jplus1')
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1);
         Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1);
 
+        L2offset=ceil(maxindexL2/N_d);
+        linidx_lower=d_ind                + N_d*n2long*aind + N_d*n2long*N_a*zBind;
+        linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zBind;
+        isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
+        isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
+        inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+        inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -94,6 +104,15 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(1,:,z_c,N_j)=d_ind;
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1);
             Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1);
+
+            L2offset=ceil(maxindexL2/N_d);
+            linidx_lower=d_ind                + N_d*n2long*aind;
+            linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+            isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
+            isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
+            inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+            inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 
@@ -151,6 +170,16 @@ else
         Policy(1,:,:,N_j)=d_ind;
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1);
         Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1);
+
+        L2offset=ceil(maxindexL2/N_d);
+        linidx_lower=d_ind                + N_d*n2long*aind + N_d*n2long*N_a*zBind;
+        linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zBind;
+        isInfLower=(ReturnMatrix_L2(linidx_lower)==-Inf);
+        isInfUpper=(ReturnMatrix_L2(linidx_upper)==-Inf);
+        inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+        inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
         linidx=double(reshape(maxindexL2,[1,N_a*N_z]))+N_d*n2long*(0:N_a*N_z-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z]);
         Vunderbar(:,:,N_j)=Vhat(:,:,N_j)+(beta-beta0beta)*EV_at_policy;
@@ -194,6 +223,16 @@ else
             Policy(1,:,z_c,N_j)=d_ind;
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1);
             Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1);
+
+            L2offset=ceil(maxindexL2/N_d);
+            linidx_lower=d_ind                + N_d*n2long*aind;
+            linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+            isInfLower=(ReturnMatrix_L2(linidx_lower)==-Inf);
+            isInfUpper=(ReturnMatrix_L2(linidx_upper)==-Inf);
+            inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+            inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
             linidx_z=double(reshape(maxindexL2,[1,N_a]))+N_d*n2long*(0:N_a-1);
             EV_at_policy_z=reshape(EVfine_z(linidx_z),[N_a,1]);
             Vunderbar(:,z_c,N_j)=Vhat(:,z_c,N_j)+(beta-beta0beta)*EV_at_policy_z;
@@ -258,6 +297,16 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=d_ind;
         Policy(2,:,:,jj)=shiftdim(squeeze(midpoints_jj(allind)),-1);
         Policy(3,:,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1);
+
+        L2offset=ceil(maxindexL2/N_d);
+        linidx_lower=d_ind                + N_d*n2long*aind + N_d*n2long*N_a*zBind;
+        linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zBind;
+        isInfLower=(ReturnMatrix_L2(linidx_lower)==-Inf);
+        isInfUpper=(ReturnMatrix_L2(linidx_upper)==-Inf);
+        inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+        inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+        PolicyL2flag(1,:,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
         linidx=double(reshape(maxindexL2,[1,N_a*N_z]))+N_d*n2long*(0:N_a*N_z-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z]);
         Vunderbar(:,:,jj)=Vhat(:,:,jj)+(beta-beta0beta)*EV_at_policy;
@@ -301,6 +350,16 @@ for reverse_j=1:N_j-1
             Policy(1,:,z_c,jj)=d_ind;
             Policy(2,:,z_c,jj)=shiftdim(squeeze(midpoints_jj(allind)),-1);
             Policy(3,:,z_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1);
+
+            L2offset=ceil(maxindexL2/N_d);
+            linidx_lower=d_ind                + N_d*n2long*aind;
+            linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+            isInfLower=(ReturnMatrix_L2(linidx_lower)==-Inf);
+            isInfUpper=(ReturnMatrix_L2(linidx_upper)==-Inf);
+            inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+            inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+            PolicyL2flag(1,:,z_c,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
             linidx_z=double(reshape(maxindexL2,[1,N_a]))+N_d*n2long*(0:N_a-1);
             EV_at_policy_z=reshape(EVfine_z(linidx_z),[N_a,1]);
             Vunderbar(:,z_c,jj)=Vhat(:,z_c,jj)+(beta-beta0beta)*EV_at_policy_z;
@@ -313,7 +372,7 @@ adjust=(Policy(3,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1);
 
-Policy=squeeze(Policy(1,:,:,:)+N_d*(Policy(2,:,:,:)-1)+N_d*N_a*(Policy(3,:,:,:)-1));
+Policy=squeeze(Policy(1,:,:,:)+N_d*(Policy(2,:,:,:)-1)+N_d*N_a*(Policy(3,:,:,:)-1)+N_d*N_a*(n2short+2)*(PolicyL2flag-1));
 
 %%
 nOutputs=nargout;

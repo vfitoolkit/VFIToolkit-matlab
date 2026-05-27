@@ -10,7 +10,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 % fastOLG, so a-j-z
-Policy=zeros(3,N_a,N_j,N_z,'gpuArray'); % first dim indexes the optimal choice for d and aprime
+Policy=zeros(4,N_a,N_j,N_z,'gpuArray'); % first dim indexes the optimal choice for d and aprime (d, midpoint, L2, L2 flag)
 
 z_gridvals_J=shiftdim(z_gridvals_J,-3); % [1,1,1,N_j,N_z,l_z]
 
@@ -121,6 +121,16 @@ if vfoptions.lowmemory==0
     Policy(2,:,:,:)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
     Policy(3,:,:,:)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    L2offset=ceil(maxindexL2/N_d);
+    linidx_lower=d_ind                  +N_d*n2long*aBind+N_d*n2long*N_a*jBind+N_d*n2long*N_a*N_j*zBind;
+    linidx_upper=d_ind+N_d*(n2long-1)   +N_d*n2long*aBind+N_d*n2long*N_a*jBind+N_d*n2long*N_a*N_j*zBind;
+    isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
+    isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
+    inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+    inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+    Policy(4,:,:,:)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
+
 elseif vfoptions.lowmemory==1
 
     special_n_z=ones(1,length(n_z));
@@ -177,6 +187,16 @@ elseif vfoptions.lowmemory==1
         Policy(1,:,:,z_c)=d_ind; % d
         Policy(2,:,:,z_c)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
         Policy(3,:,:,z_c)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+
+        % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+        L2offset=ceil(maxindexL2/N_d);
+        linidx_lower=d_ind                  +N_d*n2long*aBind+N_d*n2long*N_a*jBind;
+        linidx_upper=d_ind+N_d*(n2long-1)   +N_d*n2long*aBind+N_d*n2long*N_a*jBind;
+        isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
+        isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
+        inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
+        inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
+        Policy(4,:,:,z_c)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
     end
 end
 

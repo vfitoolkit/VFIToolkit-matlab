@@ -3,6 +3,11 @@ function V=ValueFnFromPolicy_FHorz_ExpAssete(Policy,n_d,n_a,n_z,N_j,d_grid,a_gri
 % experienceassete: a2prime = aprimeFn(d_expasset, a2, e) -- depends on the iid (start-of-period) shock e.
 % Requires N_e>0; may have z too.
 
+%% Dispatch to SemiExo subfn if n_semiz>0
+if prod(vfoptions.n_semiz)>0
+    V=ValueFnFromPolicy_FHorz_ExpAssete_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
 %% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
     V=ValueFnFromPolicy_FHorz_ExpAssete_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
@@ -117,7 +122,7 @@ for reverse_j=0:N_j-1
     % Step 1: a2primeIndex, a2primeProbs (helper expects Policy shape [L, N_a, N_e]; loop over z when N_z>0)
     if N_z==0
         Policy_slice=Policy_k(:,:,:,jj); % [l_d+l_a1, N_a, N_e]
-        [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssete(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, vfoptions.n_e, d_grid, a2_grid, vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
+        [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssete(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, vfoptions.n_e, 0,0,N_e, d_grid, a2_grid, vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
         % shape [N_a, N_e]
     else
         Policy_zE=reshape(Policy_k(:,:,:,jj),[l_d+l_a1, N_a, N_z, N_e]);
@@ -126,7 +131,7 @@ for reverse_j=0:N_j-1
         for z_idx=1:N_z
             % Helper needs Policy slice shape [L, N_a, N_e]
             Pz=reshape(Policy_zE(:,:,z_idx,:),[l_d+l_a1, N_a, N_e]);
-            [a2pi, a2pp]=CreateaprimePolicyExperienceAssete(Pz, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, vfoptions.n_e, d_grid, a2_grid, vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
+            [a2pi, a2pp]=CreateaprimePolicyExperienceAssete(Pz, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, vfoptions.n_e, 0,0,N_e, d_grid, a2_grid, vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
             a2primeIndex(:,z_idx,:)=reshape(a2pi,[N_a,1,N_e]);
             a2primeProbs(:,z_idx,:)=reshape(a2pp,[N_a,1,N_e]);
         end

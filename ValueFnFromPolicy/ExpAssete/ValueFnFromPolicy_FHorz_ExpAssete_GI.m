@@ -120,14 +120,14 @@ for reverse_j=0:N_j-1
     % Step 1: a2primeIndex, a2primeProbs (helper expects [L, N_a, N_e]; loop over z when N_z>0)
     if N_z==0
         Policy_slice=Policy_k(:,:,:,jj);
-        [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssete(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, vfoptions.n_e, d_grid, a2_grid, vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
+        [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssete(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, vfoptions.n_e, 0,0,N_e, d_grid, a2_grid, vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
     else
         Policy_zE=reshape(Policy_k(:,:,:,jj),[size_first, N_a, N_z, N_e]);
         a2primeIndex=zeros(N_a, N_z, N_e, 'gpuArray');
         a2primeProbs=zeros(N_a, N_z, N_e, 'gpuArray');
         for z_idx=1:N_z
             Pz=reshape(Policy_zE(:,:,z_idx,:),[size_first, N_a, N_e]);
-            [a2pi, a2pp]=CreateaprimePolicyExperienceAssete(Pz, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, vfoptions.n_e, d_grid, a2_grid, vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
+            [a2pi, a2pp]=CreateaprimePolicyExperienceAssete(Pz, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, vfoptions.n_e, 0,0,N_e, d_grid, a2_grid, vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
             a2primeIndex(:,z_idx,:)=reshape(a2pi,[N_a,1,N_e]);
             a2primeProbs(:,z_idx,:)=reshape(a2pp,[N_a,1,N_e]);
         end

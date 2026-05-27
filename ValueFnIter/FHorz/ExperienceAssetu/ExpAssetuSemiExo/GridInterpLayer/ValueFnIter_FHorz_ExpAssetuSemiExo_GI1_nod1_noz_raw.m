@@ -14,23 +14,21 @@ N_u=prod(n_u);
 V=zeros(N_a,N_semiz,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d2,d3,a1prime seperately
 Policy4=zeros(4,N_a,N_semiz,N_j,'gpuArray');
+PolicyL2flag=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
-if vfoptions.lowmemory>0
+if vfoptions.lowmemory==1
     special_n_semiz=ones(1,length(n_semiz));
-else
-    % precompute
-    semizind=shiftdim((0:1:N_semiz-1),-3); % already includes -1
-    semizBind=shiftdim(gpuArray(0:1:N_semiz-1),-1); % already includes -1
 end
 
 % Preallocate
 V_ford3_jj=zeros(N_a,N_semiz,N_d3,'gpuArray');
 Policy3_ford3_jj=zeros(3,N_a,N_semiz,N_d3,'gpuArray');
+flag_ford3_jj=2*ones(N_a,N_semiz,N_d3,'gpuArray');
 
 % Grid interpolation
 % vfoptions.ngridinterp=9;
@@ -39,9 +37,11 @@ n2long=vfoptions.ngridinterp*2+3; % total number of aprime points we end up look
 a1prime_grid=interp1(1:1:n_a1(1),a1_gridvals,linspace(1,n_a1(1),n_a1(1)+(n_a1(1)-1)*n2short));
 N_a1prime=length(a1prime_grid);
 
-aind=0:1:N_a-1; % already includes -1
+aind=gpuArray(0:1:N_a-1); % already includes -1
 
 a2ind=shiftdim(gpuArray(0:1:N_a2-1),-2); % already includes -1
+semizind=shiftdim(gpuArray(0:1:N_semiz-1),-3); % already includes -1
+semizBind=shiftdim(gpuArray(0:1:N_semiz-1),-1); % already includes -1
 
 %% j=N_j
 
@@ -73,6 +73,16 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy3_ford3_jj(1,:,:,d3_c)=d_ind; % d2
             Policy3_ford3_jj(2,:,:,d3_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
             Policy3_ford3_jj(3,:,:,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+            % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d2)
+            dL2           = rem(maxindexL2-1,N_d2)+1;
+            L2offset      = ceil(maxindexL2/N_d2);
+            linidx_lower  = dL2                   + N_d2*n2long*aind + N_d2*n2long*N_a*semizBind;
+            linidx_upper  = dL2 + N_d2*(n2long-1) + N_d2*n2long*aind + N_d2*n2long*N_a*semizBind;
+            isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
+            isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
+            inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+            inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+            flag_ford3_jj(:,:,d3_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
 
         end
     elseif vfoptions.lowmemory==1
@@ -101,6 +111,16 @@ if ~isfield(vfoptions,'V_Jplus1')
                 Policy3_ford3_jj(1,:,z_c,d3_c)=d_ind; % d2
                 Policy3_ford3_jj(2,:,z_c,d3_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
                 Policy3_ford3_jj(3,:,z_c,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+                % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d2)
+                dL2           = rem(maxindexL2-1,N_d2)+1;
+                L2offset      = ceil(maxindexL2/N_d2);
+                linidx_lower  = dL2                   + N_d2*n2long*aind;
+                linidx_upper  = dL2 + N_d2*(n2long-1) + N_d2*n2long*aind;
+                isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
+                isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
+                inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+                inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+                flag_ford3_jj(:,z_c,d3_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
             end
         end
     end
@@ -114,14 +134,15 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy4(1,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz]);
     Policy4(3,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz]);
     Policy4(4,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz]);
+    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix(aprimeFn, n_d2, n_a2, n_u, d2_gridvals, a2_grid, u_gridvals, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
 
-    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2,N_u]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2,N_u]
+    aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2,N_u]
+    aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2,N_u]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_semiz);  % [N_d2*N_a1,N_a2,N_u,N_semiz]
 
     EVpre=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);
@@ -179,6 +200,16 @@ else
             Policy3_ford3_jj(1,:,:,d3_c)=d_ind; % d2
             Policy3_ford3_jj(2,:,:,d3_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
             Policy3_ford3_jj(3,:,:,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+            % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d2)
+            dL2           = rem(maxindexL2-1,N_d2)+1;
+            L2offset      = ceil(maxindexL2/N_d2);
+            linidx_lower  = dL2                   + N_d2*n2long*aind + N_d2*n2long*N_a*semizBind;
+            linidx_upper  = dL2 + N_d2*(n2long-1) + N_d2*n2long*aind + N_d2*n2long*N_a*semizBind;
+            isInfLower    = (ReturnMatrix_ii_d3(linidx_lower) == -Inf);
+            isInfUpper    = (ReturnMatrix_ii_d3(linidx_upper) == -Inf);
+            inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+            inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+            flag_ford3_jj(:,:,d3_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
         end
 
     elseif vfoptions.lowmemory==1
@@ -235,6 +266,16 @@ else
                 Policy3_ford3_jj(1,:,z_c,d3_c)=d_ind; % d2
                 Policy3_ford3_jj(2,:,z_c,d3_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
                 Policy3_ford3_jj(3,:,z_c,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+                % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d2)
+                dL2           = rem(maxindexL2-1,N_d2)+1;
+                L2offset      = ceil(maxindexL2/N_d2);
+                linidx_lower  = dL2                   + N_d2*n2long*aind;
+                linidx_upper  = dL2 + N_d2*(n2long-1) + N_d2*n2long*aind;
+                isInfLower    = (ReturnMatrix_ii_d3z(linidx_lower) == -Inf);
+                isInfUpper    = (ReturnMatrix_ii_d3z(linidx_upper) == -Inf);
+                inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+                inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+                flag_ford3_jj(:,z_c,d3_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
             end
         end
     end
@@ -248,6 +289,7 @@ else
     Policy4(1,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz]);
     Policy4(3,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz]);
     Policy4(4,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz]);
+    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 end
 
 
@@ -269,8 +311,8 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix(aprimeFn, n_d2, n_a2, n_u, d2_gridvals, a2_grid, u_gridvals, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
 
-    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2,N_u]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2,N_u]
+    aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2,N_u]
+    aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2,N_u]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_semiz);  % [N_d2*N_a1,N_a2,N_u,N_semiz]
 
     EVpre=V(:,:,jj+1);
@@ -325,6 +367,16 @@ for reverse_j=1:N_j-1
             Policy3_ford3_jj(1,:,:,d3_c)=d_ind; % d2
             Policy3_ford3_jj(2,:,:,d3_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
             Policy3_ford3_jj(3,:,:,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+            % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d2)
+            dL2           = rem(maxindexL2-1,N_d2)+1;
+            L2offset      = ceil(maxindexL2/N_d2);
+            linidx_lower  = dL2                   + N_d2*n2long*aind + N_d2*n2long*N_a*semizBind;
+            linidx_upper  = dL2 + N_d2*(n2long-1) + N_d2*n2long*aind + N_d2*n2long*N_a*semizBind;
+            isInfLower    = (ReturnMatrix_ii_d3(linidx_lower) == -Inf);
+            isInfUpper    = (ReturnMatrix_ii_d3(linidx_upper) == -Inf);
+            inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+            inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+            flag_ford3_jj(:,:,d3_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
         end
 
     elseif vfoptions.lowmemory==1
@@ -381,6 +433,16 @@ for reverse_j=1:N_j-1
                 Policy3_ford3_jj(1,:,z_c,d3_c)=d_ind; % d2
                 Policy3_ford3_jj(2,:,z_c,d3_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
                 Policy3_ford3_jj(3,:,z_c,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+                % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d2)
+                dL2           = rem(maxindexL2-1,N_d2)+1;
+                L2offset      = ceil(maxindexL2/N_d2);
+                linidx_lower  = dL2                   + N_d2*n2long*aind;
+                linidx_upper  = dL2 + N_d2*(n2long-1) + N_d2*n2long*aind;
+                isInfLower    = (ReturnMatrix_ii_d3z(linidx_lower) == -Inf);
+                isInfUpper    = (ReturnMatrix_ii_d3z(linidx_upper) == -Inf);
+                inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+                inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+                flag_ford3_jj(:,z_c,d3_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
             end
         end
     end
@@ -394,6 +456,7 @@ for reverse_j=1:N_j-1
     Policy4(1,:,:,jj)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz]);
     Policy4(3,:,:,jj)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz]);
     Policy4(4,:,:,jj)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz]);
+    PolicyL2flag(1,:,:,jj)=reshape(flag_ford3_jj((1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 
 end
 
@@ -409,7 +472,7 @@ Policy4(3,:,:,:)=Policy4(3,:,:,:)-adjust; % lower grid point
 Policy4(4,:,:,:)=adjust.*Policy4(4,:,:,:)+(1-adjust).*(Policy4(4,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 %% For experience asset, just output Policy as single index and then use Case2 to UnKron
-Policy=shiftdim(Policy4(1,:,:,:)+N_d2*(Policy4(2,:,:,:)-1)+N_d2*N_d3*(Policy4(3,:,:,:)-1)+N_d2*N_d3*N_a1*(Policy4(4,:,:,:)-1),1);
+Policy=shiftdim(Policy4(1,:,:,:)+N_d2*(Policy4(2,:,:,:)-1)+N_d2*N_d3*(Policy4(3,:,:,:)-1)+N_d2*N_d3*N_a1*(Policy4(4,:,:,:)-1)+N_d2*N_d3*N_a1*(n2short+2)*(PolicyL2flag-1),1);
 
 
 end

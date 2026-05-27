@@ -89,6 +89,18 @@ d1_grid=d_grid(1:sum(n_d1));
 d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
 d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
 
+%% Dispatch
+if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
+    [V,Policy]=ValueFnIter_FHorz_RiskyAsset_DC_GI(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    return
+elseif vfoptions.divideandconquer==1
+    [V,Policy]=ValueFnIter_FHorz_RiskyAsset_DC(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    return
+elseif vfoptions.gridinterplayer==1
+    [V,Policy]=ValueFnIter_FHorz_RiskyAsset_GI(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    return
+end
+
 if N_e==0
     if N_a1==0
         if N_z==0

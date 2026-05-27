@@ -192,7 +192,7 @@ else
 
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
 
-            %Calc the max and it's index
+            % Calc the max and it's index
             [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
 
             V(level1ii,:,e_c,N_j)=shiftdim(Vtempii,1);

@@ -21,8 +21,6 @@ if vfoptions.lowmemory>0
 end
 if vfoptions.lowmemory==2
     special_n_z=ones(1,length(n_z));
-else
-    zind=shiftdim((0:1:N_z-1),-3);
 end
 
 % Grid interpolation
@@ -32,11 +30,12 @@ n2long=vfoptions.ngridinterp*2+3; % total number of aprime points we end up look
 a1prime_grid=interp1(1:1:n_a1(1),a1_gridvals,linspace(1,n_a1(1),n_a1(1)+(n_a1(1)-1)*n2short));
 N_a1prime=length(a1prime_grid);
 
-aind=0:1:N_a-1; % already includes -1
-zindB=shiftdim((0:1:N_z-1),-1); % already includes -1
+aind=gpuArray(0:1:N_a-1); % already includes -1
+zind=shiftdim(gpuArray(0:1:N_z-1),-3); % already includes -1
+zindB=shiftdim(gpuArray(0:1:N_z-1),-1); % already includes -1
 zeindB=zindB+N_z*shiftdim((0:1:N_e-1),-2); % already includes -1
 
-a2ind=shiftdim((0:1:N_a2-1),-2); % already includes -1
+a2ind=shiftdim(gpuArray(0:1:N_a2-1),-2); % already includes -1
 
 
 %% j=N_j
@@ -146,8 +145,8 @@ else
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzeFnMatrix(aprimeFn, n_d2, n_a2, n_z, n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_z,N_e], whereas aprimeProbs is [N_d2,N_a2,N_z,N_e]   (z,e here are current)
 
-    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat((a2primeIndex-1),N_a1,1,1,1); % [N_d2*N_a1,N_a2,N_z,N_e]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex,N_a1,1,1,1); % [N_d2*N_a1,N_a2,N_z,N_e]
+    aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat((a2primeIndex-1),N_a1,1,1,1); % [N_d2*N_a1,N_a2,N_z,N_e]
+    aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex,N_a1,1,1,1); % [N_d2*N_a1,N_a2,N_z,N_e]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,1,N_z); % [N_d2*N_a1,N_a2,N_z,N_e,N_z]   (replicate over zprime)
 
     Vlower=reshape(EVpre(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z,N_e,N_z]); % (d2*a1prime,a2,z_cur,e_cur,zprime)
@@ -298,8 +297,8 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzeFnMatrix(aprimeFn, n_d2, n_a2, n_z, n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_z,N_e], whereas aprimeProbs is [N_d2,N_a2,N_z,N_e]   (z,e here are current)
 
-    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat((a2primeIndex-1),N_a1,1,1,1); % [N_d2*N_a1,N_a2,N_z,N_e]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex,N_a1,1,1,1); % [N_d2*N_a1,N_a2,N_z,N_e]
+    aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat((a2primeIndex-1),N_a1,1,1,1); % [N_d2*N_a1,N_a2,N_z,N_e]
+    aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex,N_a1,1,1,1); % [N_d2*N_a1,N_a2,N_z,N_e]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,1,N_z); % [N_d2*N_a1,N_a2,N_z,N_e,N_z]   (replicate over zprime)
 
     EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3); % integrate out eprime

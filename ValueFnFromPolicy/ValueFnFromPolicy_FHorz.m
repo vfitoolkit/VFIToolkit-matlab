@@ -56,6 +56,12 @@ Policy=gpuArray(Policy);
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % output: z_gridvals_J, pi_z_J, options.e_gridvals_J, options.pi_e_J
 
+%% Dispatch to QuasiHyperbolic subfn if exoticpreferences=='QuasiHyperbolic'
+if isfield(vfoptions,'exoticpreferences') && strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    V=ValueFnFromPolicy_FHorz_QuasiHyperbolic(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
 %% Dispatch to ExpAsset subfn if experienceasset==1
 if vfoptions.experienceasset==1
     V=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);

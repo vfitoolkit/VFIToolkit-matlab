@@ -160,7 +160,7 @@ if N_z==0
     else
         Policy=reshape(Policy,[l_d+l_aprime,N_a*N_j]);
         PolicyValues=zeros(l_d+l_aprime,N_a*N_j,'gpuArray');
-
+        
         temp_d_grid=d_grid(1:cumsum_n_d(1));
         PolicyValues(1,:)=temp_d_grid(Policy(1,:));
         if l_d>1

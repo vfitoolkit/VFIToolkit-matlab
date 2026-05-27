@@ -15,17 +15,21 @@ else
     l_a=length(n_a);
 end
 l_aprime=l_a;
-l_z=length(n_z);
+
+%% Exogenous states
+l_z=length(n_z); % markov
 if prod(n_z)==0
     l_z=0;
 end
-if isfield(vfoptions,'n_semiz') && prod(vfoptions.n_semiz)>0
-    l_z=l_z+length(vfoptions.n_semiz);
+l_semizze=l_z;
+if isfield(vfoptions,'n_semiz') && prod(vfoptions.n_semiz)>0 % semi-exogenous markov
+    l_semizze=l_semizze+length(vfoptions.n_semiz);
 end
-l_e=0;
-if isfield(vfoptions,'n_e') && prod(vfoptions.n_e)>0
-    l_e=length(vfoptions.n_e);
+if isfield(vfoptions,'n_e') && prod(vfoptions.n_e)>0 % iid
+    l_semizze=l_semizze+length(vfoptions.n_e);
 end
+
+%% Endogenous states
 if isfield(vfoptions,'experienceasset')
     % One of the endogenous states should only be counted once.
     l_aprime=l_aprime-vfoptions.experienceasset;
@@ -62,16 +66,15 @@ if isfield(vfoptions,'refine_d')
     % Remove d2
     l_d=l_d-vfoptions.refine_d(2);
 end
-% Figure out ReturnFnParamNames from ReturnFn
+
+
+%% Figure out ReturnFnParamNames from ReturnFn
 temp=getAnonymousFnInputNames(ReturnFn);
-if length(temp)>(l_d+l_aprime+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
-    ReturnFnParamNames={temp{l_d+l_aprime+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z,e)
+if length(temp)>(l_d+l_aprime+l_a+l_semizze) % This is largely pointless, the ReturnFn is always going to have some parameters
+    ReturnFnParamNames={temp{l_d+l_aprime+l_a+l_semizze+1:end}}; % the first inputs will always be (d,aprime,a,z,e)
 else
     ReturnFnParamNames={};
 end
-% [l_d,l_aprime,l_a,l_z,l_e]
-% ReturnFnParamNames
-% clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
 
 % Decided to do the check of the parameters to here.
 % Inputs to ReturnFn should all be in Parameters, and should either be scalar or age-dependent

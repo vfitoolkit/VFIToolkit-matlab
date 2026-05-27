@@ -3,6 +3,11 @@ function V=ValueFnFromPolicy_FHorz_ExpAssetz(Policy,n_d,n_a,n_z,N_j,d_grid,a_gri
 % experienceassetz: a2prime = aprimeFn(d_expasset, a2, z) -- depends on the Markov shock z.
 % Requires N_z>0; may have e too.
 
+%% Dispatch to SemiExo subfn if n_semiz>0
+if prod(vfoptions.n_semiz)>0
+    V=ValueFnFromPolicy_FHorz_ExpAssetz_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
 %% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
     V=ValueFnFromPolicy_FHorz_ExpAssetz_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
@@ -28,7 +33,6 @@ if N_d==0
     error('ValueFnFromPolicy_FHorz_ExpAssetz: experienceassetz requires at least one decision variable (the one driving a2prime)')
 end
 l_d=length(n_d);
-l_a=length(n_a);
 l_z=length(n_z);
 
 % Split a into a1 (standard) and a2 (experience asset)
@@ -41,12 +45,11 @@ else
     N_a1=prod(n_a1);
 end
 n_a2=n_a(end);
-N_a2=prod(n_a2);
-a1_grid=a_grid(1:sum(n_a1));
+% N_a2=prod(n_a2);
+% a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
 l_a1=length(n_a1);
 l_a2=length(n_a2);
-l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit)
 
 % Which d affects the experience asset (default: last d only)
 if isfield(vfoptions,'l_dexperienceassetz')
@@ -55,7 +58,7 @@ else
     l_d2=1;
 end
 whichisdforexpasset=(l_d-l_d2+1):l_d;
-n_d2=n_d(end-l_d2+1:end);
+% n_d2=n_d(end-l_d2+1:end);
 
 % aprimeFnParamNames: first inputs are (d_expasset..., a2, z)
 temp=getAnonymousFnInputNames(aprimeFn);
@@ -83,21 +86,21 @@ l_daprime=size(PolicyValues,1); % = l_d + l_a1
 PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); % [N_a, N_ze, l_daprime, N_j]
 
 %% Reshape Policy to canonical Kron form
-Policy_k=reshape(Policy,[l_d+l_a1, N_a, N_ze, N_j]);
+Policy=reshape(Policy,[l_d+l_a1, N_a, N_ze, N_j]);
 
 %% Build a1prime joint index across N_a1 dims (from Policy)
-a1prime_idx=ones(N_a, N_ze, N_j, 'gpuArray');
+Policy_a1prime=ones(N_a, N_ze, N_j, 'gpuArray');
 cumprods_a1=[1, cumprod(n_a1(1:end-1))];
 for ii=1:l_a1
-    comp=shiftdim(Policy_k(l_d+ii, :, :, :),1);
-    a1prime_idx=a1prime_idx+cumprods_a1(ii)*(comp-1);
+    comp=shiftdim(Policy(l_d+ii, :, :, :),1);
+    Policy_a1prime=Policy_a1prime+cumprods_a1(ii)*(comp-1);
 end
 
 %% Joint z+e gridvals for ReturnFn when both present
 if N_e>0
-    joint_zegridvals_J=zeros(N_z*N_e, length(n_z)+length(vfoptions.n_e), N_j, 'gpuArray');
+    ze_gridvals_J=zeros(N_z*N_e, length(n_z)+length(vfoptions.n_e), N_j, 'gpuArray');
     for jj=1:N_j
-        joint_zegridvals_J(:,:,jj)=[repmat(z_gridvals_J(:,:,jj),N_e,1), repelem(vfoptions.e_gridvals_J(:,:,jj),N_z,1)];
+        ze_gridvals_J(:,:,jj)=[repmat(z_gridvals_J(:,:,jj),N_e,1), repelem(vfoptions.e_gridvals_J(:,:,jj),N_z,1)];
     end
 end
 
@@ -116,15 +119,15 @@ for reverse_j=0:N_j-1
 
     % Step 1: a2primeIndex, a2primeProbs (helper expects Policy shape [L, N_a, N_z]; loop over e when N_e>0)
     if N_e==0
-        Policy_slice=Policy_k(:,:,:,jj); % [l_d+l_a1, N_a, N_z]
-        [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetz(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
+        Policy_jj=Policy(:,:,:,jj); % [l_d+l_a1, N_a, N_z]
+        [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetz(Policy_jj, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, 0,N_z,0, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
         % shape [N_a, N_z]
     else
-        Policy_zE=reshape(Policy_k(:,:,:,jj),[l_d+l_a1, N_a, N_z, N_e]);
+        Policy_zE=reshape(Policy(:,:,:,jj),[l_d+l_a1, N_a, N_z, N_e]);
         a2primeIndex=zeros(N_a, N_z, N_e, 'gpuArray');
         a2primeProbs=zeros(N_a, N_z, N_e, 'gpuArray');
         for e_idx=1:N_e
-            [a2pi, a2pp]=CreateaprimePolicyExperienceAssetz(Policy_zE(:,:,:,e_idx), aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
+            [a2pi, a2pp]=CreateaprimePolicyExperienceAssetz(Policy_zE(:,:,:,e_idx), aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, 0,N_z,0, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
             a2primeIndex(:,:,e_idx)=a2pi;
             a2primeProbs(:,:,e_idx)=a2pp;
         end
@@ -136,7 +139,7 @@ for reverse_j=0:N_j-1
         F_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell, PolicyValuesPermute(:,:,:,jj), l_daprime, n_a, n_z, a_gridvals, z_gridvals_J(:,:,jj));
         % [N_a, N_z]
     else
-        F_jj=reshape(EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell, PolicyValuesPermute(:,:,:,jj), l_daprime, n_a, [n_z,vfoptions.n_e], a_gridvals, joint_zegridvals_J(:,:,jj)), [N_a, N_z, N_e]);
+        F_jj=reshape(EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell, PolicyValuesPermute(:,:,:,jj), l_daprime, n_a, [n_z,vfoptions.n_e], a_gridvals, ze_gridvals_J(:,:,jj)), [N_a, N_z, N_e]);
     end
 
     if jj==N_j
@@ -160,7 +163,7 @@ for reverse_j=0:N_j-1
 
         % Step 4: interpolated lookup
         if N_e==0
-            a1p=a1prime_idx(:,:,jj); % [N_a, N_z]
+            a1p=Policy_a1prime(:,:,jj); % [N_a, N_z]
             aprime_low=a1p+N_a1*(a2primeIndex-1);
             aprime_up =a1p+N_a1*(a2primeIndex);
             zidxoffset=N_a*gpuArray(0:N_z-1); % [1, N_z]
@@ -171,7 +174,7 @@ for reverse_j=0:N_j-1
             EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         else
-            a1p=reshape(a1prime_idx(:,:,jj),[N_a, N_z, N_e]);
+            a1p=reshape(Policy_a1prime(:,:,jj),[N_a, N_z, N_e]);
             aprime_low=a1p+N_a1*(a2primeIndex-1);
             aprime_up =a1p+N_a1*(a2primeIndex);
             zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1]);

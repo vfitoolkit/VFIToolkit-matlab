@@ -23,6 +23,9 @@ else
         transpathoptions.verbose=0;
     end
 end
+% Because of how the EvalFnOnTransPath_AggVars_Case1_FHorz() command is coded, it requires the fastOLG=0 version of z_gridvals_J and e_gridvals_J
+transpathoptions.fastOLG=0;
+
 
 %% Check which simoptions have been used, set all others to defaults
 if exist('simoptions','var')==0
@@ -133,7 +136,7 @@ l_ze=l_z+l_e;
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 % Figure out l_daprime from Policy
-l_daprime=size(PolicyPath,1)-simoptions.gridinterplayer; % Note: simoptions.gridinterplayer=1 means that PolicyIndexes has an extra 'second layer index'
+l_daprime=size(PolicyPath,1)-2*simoptions.gridinterplayer; % Note: simoptions.gridinterplayer=1 means that PolicyIndexes has an extra 'second layer index'
 
 AggVarNames=fieldnames(FnsToEvaluate);
 for ff=1:length(AggVarNames)
@@ -170,6 +173,7 @@ end
 % and
 % transpathoptions.gridsinGE=1; % grids depend on a GE parameter and so need to be recomputed every iteration
 %                           =0; % grids are exogenous
+
 
 %%
 % n_dalt=n_d(1:end-simoptions.gridinterplayer);
@@ -244,7 +248,7 @@ if N_e==0
             end
 
             if transpathoptions.zpathtrivial==0
-                z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,tt);
+                z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
             end
 
             Policy_tt=reshape(PolicyPath(:,:,:,:,tt),[size(PolicyPath,1),n_a,n_z,N_j]);

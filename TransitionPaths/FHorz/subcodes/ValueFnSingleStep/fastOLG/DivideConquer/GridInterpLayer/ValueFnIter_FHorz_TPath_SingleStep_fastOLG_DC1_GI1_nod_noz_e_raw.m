@@ -9,7 +9,7 @@ N_e=prod(n_e);
 
 
 % fastOLG, so a-j-e
-Policy=zeros(2,N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime
+Policy=zeros(3,N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for aprime (midpoint, L2, L2 flag)
 
 e_gridvals_J=shiftdim(e_gridvals_J,-2); % needed shape for ReturnFnMatrix with fastOLG without z
 
@@ -109,6 +109,13 @@ if vfoptions.lowmemory==0
     Policy(1,:,:,:)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
     Policy(2,:,:,:)=shiftdim(maxindexL2,-1); % aprimeL2ind
 
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    isInfLower    = (ReturnMatrix_ii(1,     :,:,:) == -Inf);
+    isInfUpper    = (ReturnMatrix_ii(n2long,:,:,:) == -Inf);
+    inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+    inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+    Policy(3,:,:,:) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
+
 elseif vfoptions.lowmemory==1
 
     special_n_e=ones(1,length(n_e));
@@ -160,6 +167,13 @@ elseif vfoptions.lowmemory==1
         V(:,e_c)=reshape(Vtempii,[N_a*N_j,1]);
         Policy(1,:,:,e_c)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
         Policy(2,:,:,e_c)=shiftdim(maxindexL2,-1); % aprimeL2ind
+
+        % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+        isInfLower    = (ReturnMatrix_ii(1,     :,:) == -Inf);
+        isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+        inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+        Policy(3,:,:,e_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
     end
 end
 

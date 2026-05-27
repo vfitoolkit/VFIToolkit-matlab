@@ -15,14 +15,14 @@ if ~isfield(caliboptions,'constrainpositive')
     % Then use p=exp(x) in the model.
 end
 if ~isfield(caliboptions,'constrain0to1')
-    caliboptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    caliboptions.constrain0to1={}; % names of parameters to constrained to be 0 to 1 (gets converted to binary-valued vector below)
     % Handle 0 to 1 constraints by using log-odds function to switch parameter p into unconstrained x, so x=log(p/(1-p))
     % Then use the logistic-sigmoid p=1/(1+exp(-x)) when evaluating model.
 end
 if ~isfield(caliboptions,'constrainAtoB')
-    caliboptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    caliboptions.constrainAtoB={}; % names of parameters to constrained to be A to B (gets converted to binary-valued vector below)
     % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
-    % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
+    % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-A)*y
 elseif ~isempty(caliboptions.constrainAtoB)
     if ~isfield(caliboptions,'constrainAtoBlimits')
         error('You have used caliboptions.constrainAtoB, but are missing caliboptions.constrainAtoBlimits')
@@ -95,6 +95,10 @@ if ~isfield(heteroagentoptions,'constrain0to1')
 end
 if ~isfield(heteroagentoptions,'constrainAtoB')
     heteroagentoptions.constrainAtoB={}; % names of parameters to be constrained between A and B (gets converted to a binary-valued vector below)
+elseif ~isempty(heteroagentoptions.constrainAtoB)
+    if ~isfield(heteroagentoptions,'constrainAtoBlimits')
+        error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
+    end
 end
 
 heteroagentoptions.useCustomModelStats=0;
@@ -221,6 +225,15 @@ if caliboptions.jointoptimization==1
     caliboptions.constrainpositive=[caliboptions.constrainpositive; heteroagentoptions.constrainpositive];
     caliboptions.constrainAtoB=[caliboptions.constrainAtoB; heteroagentoptions.constrainAtoB];
     caliboptions.constrain0to1=[caliboptions.constrain0to1; heteroagentoptions.constrain0to1];
+    % Also concatenate constrainAtoBlimits (the per-parameter A/B bounds matrix),
+    % otherwise GE price params using constrainAtoB lose their bounds in joint mode.
+    if ~isfield(caliboptions,'constrainAtoBlimits')
+        caliboptions.constrainAtoBlimits=zeros(nCalibParams,2);
+    end
+    if ~isfield(heteroagentoptions,'constrainAtoBlimits')
+        heteroagentoptions.constrainAtoBlimits=zeros(nGEParams,2);
+    end
+    caliboptions.constrainAtoBlimits=[caliboptions.constrainAtoBlimits; heteroagentoptions.constrainAtoBlimits];
     calibparamsvecindex=[calibparamsvecindex; calibparamsvecindex(end)+(1:1:length(GEPriceParamNames))'];
     calibomitparams_counter=[calibomitparams_counter; zeros(length(GEPriceParamNames),1)];    
     nCalibParams=nCalibParams+length(GEPriceParamNames);

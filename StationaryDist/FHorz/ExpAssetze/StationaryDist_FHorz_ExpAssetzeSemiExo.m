@@ -82,14 +82,9 @@ PolicyProbs=zeros(N_a,N_bothze,2,N_j,'gpuArray'); % The third dimension is lower
 whichisdforexpassetze=length(n_d)-simoptions.l_dexperienceassetze-simoptions.l_dsemiz+1:length(n_d)-simoptions.l_dsemiz;  % is just saying which is the decision variable that influences the experience asset (it is the 'second last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssetze(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpassetze, n_d, n_a1,n_a2, n_z, simoptions.n_e, d_grid, a2_grid, z_gridvals_J(:,:,jj), simoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
-    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z,N_e]
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssetze(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpassetze, n_d, n_a1,n_a2, n_z, simoptions.n_e, N_semiz,N_z,N_e, d_grid, a2_grid, z_gridvals_J(:,:,jj), simoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
+    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_bothze] with semiz fastest, then z, then e -- matches n_bothze=[n_semiz,n_z,n_e] ordering.
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
-    % Expand to [N_a,N_bothze] = [N_a,N_semiz*N_z*N_e] with semiz fastest, then z, then e.
-    aprimeIndexes=reshape(aprimeIndexes,[N_a,N_z*N_e]); % flatten (z,e) with z fastest within e -- matches column-major reshape
-    aprimeIndexes=repelem(aprimeIndexes,1,N_semiz);    % replicate each (z,e)-column N_semiz times consecutively -- semiz fastest
-    aprimeProbs=reshape(aprimeProbs,[N_a,N_z*N_e]);
-    aprimeProbs=repelem(aprimeProbs,1,N_semiz);
 
     if l_a==1
         Policy_aprime(:,:,1,jj)=aprimeIndexes;

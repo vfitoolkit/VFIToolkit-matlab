@@ -20,8 +20,11 @@ if ~exist('simoptions','var')
     % Model setup
     simoptions.gridinterplayer=0;
     simoptions.experienceasset=0;
-    simoptions.experienceassetu=0; % note, experienceassetu=1 not yet implemented
-    simoptions.riskyasset=0; % note, riskyasset=1 not yet implemented
+    simoptions.experienceassetu=0;
+    simoptions.experienceassetz=0;
+    simoptions.experienceassete=0;
+    simoptions.experienceassetze=0;
+    simoptions.riskyasset=0;
     simoptions.n_semiz=0;
     simoptions.n_e=0;
     % When calling as a subcommand, the following is used internally
@@ -54,11 +57,20 @@ else
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
     end
-    if ~isfield(simoptions,'riskyasset')
-        simoptions.riskyasset=0;
-    end
     if ~isfield(simoptions,'experienceassetu')
         simoptions.experienceassetu=0;
+    end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
+    end
+    if ~isfield(simoptions,'experienceassete')
+        simoptions.experienceassete=0;
+    end
+    if ~isfield(simoptions,'experienceassetze')
+        simoptions.experienceassetze=0;
+    end
+    if ~isfield(simoptions,'riskyasset')
+        simoptions.riskyasset=0;
     end
     if ~isfield(simoptions,'n_semiz')
         simoptions.n_semiz=0;
@@ -79,6 +91,26 @@ else
     end
     if ~isfield(simoptions,'simpanelindexkron')
         simoptions.simpanelindexkron=0;
+    end
+    % Some options require certain other inputs, and these have to be on the GPU
+    if isfield(simoptions,'d_grid')
+        simoptions.d_grid=gpuArray(simoptions.d_grid);
+    elseif simoptions.experienceasset==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1 || simoptions.experienceassetu==1
+        error('When using any kind of experience asset you must set simoptions.d_grid')
+    elseif simoptions.riskyasset==1
+        error('When using a risky asset you must set simoptions.d_grid')
+    end
+    if isfield(simoptions,'a_grid')
+        simoptions.a_grid=gpuArray(simoptions.a_grid);
+    elseif simoptions.experienceasset==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1 || simoptions.experienceassetu==1
+        error('When using any kind of experience asset you must set simoptions.a_grid')
+    end
+    if isfield(simoptions,'z_grid')
+        simoptions.z_grid=gpuArray(simoptions.z_grid);
+    elseif simoptions.experienceassetz==1
+        error('When using experienceassetz you must set simoptions.z_grid')
+    elseif simoptions.experienceassetze==1
+        error('When using experienceassetze you must set simoptions.z_grid')
     end
 end
 
@@ -106,8 +138,6 @@ N_a=prod(n_a);
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 Policy=gpuArray(Policy);
-if isfield(simoptions,'d_grid'); simoptions.d_grid=gpuArray(simoptions.d_grid); end
-if isfield(simoptions,'a_grid'); simoptions.a_grid=gpuArray(simoptions.a_grid); end
 
 N_semiz=prod(simoptions.n_semiz);
 N_z=prod(n_z);
@@ -144,24 +174,22 @@ else
 end
 N_semizze=prod(n_semizze);
 
-if N_z>0
-    if ndims(pi_z)==3
-        pi_z_J=pi_z;
-    else
-        pi_z_J=repelem(pi_z,1,1,N_j);
-    end
-else
-    pi_z_J=[];
+%% Exogenous shock grids
+if simoptions.alreadygridvals==0
+    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+    [z_gridvals_J, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,simoptions,3);
+    % note: output z_gridvals_J, pi_z_J, and simoptions.e_gridvals_J, simoptions.pi_e_J
+    %
+    % size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
+    % size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
+    % size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
+    % size(pi_e_J)=[prod(n_e),N_j]
+    % If no z, then z_gridvals_J=[] and pi_z_J=[]
+    % If no e, then e_gridvals_J=[] and pi_e_J=[]
+elseif simoptions.alreadygridvals==1
+    z_gridvals_J=z_grid;
+    pi_z_J=pi_z;
 end
-
-if N_e>0
-    if size(simoptions.pi_e,2)==N_j
-        simoptions.pi_e_J=simoptions.pi_e;
-    else
-        simoptions.pi_e_J=repelem(simoptions.pi_e,1,N_j);
-    end
-end
-
 
 %% Send off to different simulation commands based on the setup (with/without z and e is handled within the commands)
 simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
@@ -173,17 +201,39 @@ if simoptions.experienceasset==1
     end
 elseif simoptions.experienceassetu==1
     if N_semiz==0
-        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     else
-        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+    end
+elseif simoptions.experienceassetz==1
+    if N_semiz==0
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,z_gridvals_J,gather(pi_z_J), Parameters, simoptions);
+    else
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetz_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,z_gridvals_J,gather(pi_z_J), Parameters, simoptions);
+    end
+elseif simoptions.experienceassete==1
+    if N_semiz==0
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssete(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+    else
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssete_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+    end
+elseif simoptions.experienceassetze==1
+    if N_semiz==0
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetze(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,z_gridvals_J,gather(pi_z_J), Parameters, simoptions);
+    else
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetze_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,z_gridvals_J,gather(pi_z_J), Parameters, simoptions);
     end
 elseif simoptions.riskyasset==1
-    error('Cannot yet simulate panel with simoptions.riskyasset=1, ask on forum if you want this')
+    if N_semiz==0
+        SimPanelIndexes=SimPanelIndexes_FHorz_RiskyAsset(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+    else
+        SimPanelIndexes=SimPanelIndexes_FHorz_RiskyAsset_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+    end
 else
     if N_semiz==0
-        SimPanelIndexes=SimPanelIndexes_FHorz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), simoptions);
+        SimPanelIndexes=SimPanelIndexes_FHorz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), simoptions);
     else
-        SimPanelIndexes=SimPanelIndexes_FHorz_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+        SimPanelIndexes=SimPanelIndexes_FHorz_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     end
 end
 % Note: SimPanelIndexes contains semiz,z,e all in a single dimension (as that suits how the gridvals are created below)
@@ -202,7 +252,7 @@ end
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_aprime and l_daprime
 l_aprime=l_a;
-if simoptions.experienceasset==1 || simoptions.experienceassetu==1
+if simoptions.experienceasset==1 || simoptions.experienceassetu==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1
     l_aprime=l_aprime-1;
 end
 l_daprime=l_d+l_aprime;
@@ -242,27 +292,25 @@ else
 end
 
 % Note that dPolicy and aprimePolicy will depend on age
-if N_d==0
-    if N_semizze==0
-        daprimePolicy_gridvals=zeros(N_a,l_aprime,N_j);
-    else
-        daprimePolicy_gridvals=zeros(N_a*N_semizze,l_aprime,N_j);
-    end
+if N_semizze==0
+    daprimePolicy_gridvals=zeros(N_a,l_daprime,N_j);
 else
-    if N_semizze==0
-        daprimePolicy_gridvals=zeros(N_a,l_d+l_aprime,N_j);
-    else
-        daprimePolicy_gridvals=zeros(N_a*N_semizze,l_d+l_aprime,N_j);
-    end
+    daprimePolicy_gridvals=zeros(N_a*N_semizze,l_daprime,N_j);
 end
 
 for jj=1:N_j
-    if N_d==0
-        [~,aprimePolicy_gridvals_j]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_semizze,[],a_grid,simoptions,1, 1); % handles gridinterplayer=1 in here
-        daprimePolicy_gridvals(:,:,jj)=aprimePolicy_gridvals_j;
+    if l_aprime==0 
+        % E.g., a model with just one endogenous state, which is an experience asset
+        [dPolicy_gridvals_j,~]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_semizze,d_grid,a_grid,simoptions,1, 1); % handles gridinterplayer=1 in here
+        daprimePolicy_gridvals(:,:,jj)=dPolicy_gridvals_j;
     else
-        [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_semizze,d_grid,a_grid,simoptions,1, 1); % handles gridinterplayer=1 in here
-        daprimePolicy_gridvals(:,:,jj)=[dPolicy_gridvals_j, aprimePolicy_gridvals_j];
+        if N_d==0
+            [~,aprimePolicy_gridvals_j]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_semizze,[],a_grid,simoptions,1, 1); % handles gridinterplayer=1 in here
+            daprimePolicy_gridvals(:,:,jj)=aprimePolicy_gridvals_j;
+        else
+            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_semizze,d_grid,a_grid,simoptions,1, 1); % handles gridinterplayer=1 in here
+            daprimePolicy_gridvals(:,:,jj)=[dPolicy_gridvals_j, aprimePolicy_gridvals_j];
+        end
     end
 end
 

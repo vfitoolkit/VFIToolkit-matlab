@@ -1,6 +1,7 @@
 function [calibparamsvec,caliboptions]=ParameterConstraints_TransformParamsToUnconstrained(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions,constraintsbyname)
 % Change from 'constrained' to 'unconstrained' parameters.
 % Constrained parameters as the original model parameters.
+% This is used for both calibration/estimation and general eqm, so caliboptions might be estimoptions or heteroagentoptions
 %
 % constraintsbyname=1, caliboptions currently contains the constraints by name, they will be converted to vector in output
 %                  =0, caliboptions already has constraints as vector
@@ -61,6 +62,23 @@ if constraintsbyname==1
     end
 end
 
+%% Throw an error if you constrain a parameter that is not being calibrated/being determined in general eqm
+% Throw error if any element in cell A is not in cell CalibParamNames
+if any(~ismember(caliboptions.constrainpositivenames, CalibParamNames))
+    temp=caliboptions.constrainpositivenames(~ismember(caliboptions.constrainpositivenames, CalibParamNames));
+    warning('Error on the next line is due to parameter %s \n', temp{1});
+    error('Problem with your constraints, one of the parameter names you constrainpositive is not in AAAParamNames (AAA is likely CalibParamNames, EstimParamNames, or GEPriceParamNames depending what you are up to)');
+end
+if any(~ismember(caliboptions.constrain0to1names, CalibParamNames))
+    temp=caliboptions.constrain0to1names(~ismember(caliboptions.constrain0to1names, CalibParamNames));
+    warning('Error on the next line is due to parameter %s \n', temp{1});
+    error('Problem with your constraints, one of the parameter names you constrain0to1 is not in AAAParamNames (AAA is likely CalibParamNames, EstimParamNames, or GEPriceParamNames depending what you are up to)');
+end
+if any(~ismember(caliboptions.constrainAtoBnames, CalibParamNames))
+    temp=caliboptions.constrainAtoBnames(~ismember(caliboptions.constrainAtoBnames, CalibParamNames));
+    warning('Error on the next line is due to parameter %s \n', temp{1});
+    error('Problem with your constraints, one of the parameter names you constrainAtoB is not in AAAParamNames (AAA is likely CalibParamNames, EstimParamNames, or GEPriceParamNames depending what you are up to)');
+end
 
 %% Convert the parameters
 for pp=1:length(CalibParamNames)

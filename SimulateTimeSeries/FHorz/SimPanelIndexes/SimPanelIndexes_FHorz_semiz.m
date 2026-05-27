@@ -125,7 +125,9 @@ Policy_dsemiexo=shiftdim(Policy_dsemiexo,1);
 
 %% Simulations are done on cpu
 Policy_aprime=gather(Policy_aprime);
-CumPolicyProbs=gather(CumPolicyProbs);
+if simoptions.gridinterplayer==1
+    CumPolicyProbs=gather(CumPolicyProbs);
+end
 Policy_dsemiexo=gather(Policy_dsemiexo);
 
 

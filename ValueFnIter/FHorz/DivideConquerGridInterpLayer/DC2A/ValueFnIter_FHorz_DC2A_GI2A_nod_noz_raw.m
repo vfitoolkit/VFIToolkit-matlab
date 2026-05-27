@@ -5,6 +5,7 @@ N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim is (a1prime midpoint,a2prime,a1prime L2)
+PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 n_a1=n_a(1);
@@ -89,6 +90,15 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(2,:,N_j)=maxindexL2a2; % a2prime
     Policy(3,:,N_j)=maxindexL2a1; % a1primeL2ind
 
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+    linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+    inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
@@ -144,6 +154,15 @@ else
     Policy(1,:,N_j)=midpoints_jj(maxindexL2a2+N_a2*a12ind); % a1prime midpoint
     Policy(2,:,N_j)=maxindexL2a2; % a2prime
     Policy(3,:,N_j)=maxindexL2a1; % a1primeL2ind
+
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+    linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+    inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 
@@ -210,6 +229,15 @@ for reverse_j=1:N_j-1
     Policy(1,:,jj)=midpoints_jj(maxindexL2a2+N_a2*a12ind); % a1prime midpoint
     Policy(2,:,jj)=maxindexL2a2; % a2prime
     Policy(3,:,jj)=maxindexL2a1; % a1primeL2ind
+
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+    linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+    inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 
@@ -221,7 +249,7 @@ adjust=(Policy(3,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(1,:,:)=Policy(1,:,:)-adjust; % lower grid point
 Policy(3,:,:)=adjust.*Policy(3,:,:)+(1-adjust).*(Policy(3,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-Policy=Policy(1,:,:)+N_a1*(Policy(2,:,:)-1)+N_a1*N_a2*(Policy(3,:,:)-1);
+Policy=Policy(1,:,:)+N_a1*(Policy(2,:,:)-1)+N_a1*N_a2*(Policy(3,:,:)-1)+N_a1*N_a2*(n2short+2)*(PolicyL2flag-1);
 
 
 

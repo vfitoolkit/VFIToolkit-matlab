@@ -34,22 +34,25 @@ end
 l_d=length(n_d);
 l_a=length(n_a);
 
-% Split a into a1 (standard) and a2 (experience asset)
+% Split a into a1 (standard) and a2 (experience asset).
+% noa1 case (n_a is scalar -- experience asset is the only endogenous state): use n_a1=0, N_a1=0
+% (toolkit convention; matches StationaryDist_FHorz_ExpAsset). Note we have to override l_a1=0
+% because length(0)=1, not 0. Downstream, the lookup section has explicit `if N_a1==0` branches.
 if isscalar(n_a)
     n_a1=0;
     N_a1=0;
-    error('ValueFnFromPolicy_FHorz_ExpAsset: case with no a1 (experience asset as only asset) not yet implemented')
+    l_a1=0;
 else
     n_a1=n_a(1:end-1);
     N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
 n_a2=n_a(end);
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
-l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit)
+l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit); 0 in the noa1 case
 
 % Which d affects the experience asset (default: last d only)
 if isfield(vfoptions,'l_dexperienceasset')
@@ -204,28 +207,45 @@ for reverse_j=0:N_j-1
         %   aprime_low_kron = a1prime + N_a1 * (a2primeIndex - 1)
         %   aprime_up_kron  = a1prime + N_a1 *  a2primeIndex
         %   EVnext_atpolicy = a2primeProbs * EVnext[aprime_low, ...] + (1-a2primeProbs) * EVnext[aprime_up, ...]
+        % In the noa1 case (N_a1==0), aprime_low/up reduce to a2primeIndex/a2primeIndex+1
+        % (no a1prime to combine with; a1prime_idx is unused).
         if N_z==0 && N_e==0
-            a1p=a1prime_idx(:,jj); % [N_a]
-            aprime_low=a1p+N_a1*(a2primeIndex-1); % [N_a, 1]
-            aprime_up =a1p+N_a1*(a2primeIndex);
+            if N_a1==0
+                aprime_low=a2primeIndex;     % [N_a, 1]
+                aprime_up =a2primeIndex+1;
+            else
+                a1p=a1prime_idx(:,jj); % [N_a]
+                aprime_low=a1p+N_a1*(a2primeIndex-1); % [N_a, 1]
+                aprime_up =a1p+N_a1*(a2primeIndex);
+            end
             EV_low=EVnext(aprime_low);
             EV_up =EVnext(aprime_up);
             EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up; % [N_a, 1]
             V(:,jj)=F_jj+beta*EVnext_atpolicy;
         elseif N_z==0 && N_e>0
             % a1prime_idx, a2primeIndex shape: [N_a, N_e]; EVnext shape: [N_a, 1]
-            a1p=a1prime_idx(:,:,jj); % [N_a, N_e]
-            aprime_low=a1p+N_a1*(a2primeIndex-1);
-            aprime_up =a1p+N_a1*(a2primeIndex);
+            if N_a1==0
+                aprime_low=a2primeIndex;
+                aprime_up =a2primeIndex+1;
+            else
+                a1p=a1prime_idx(:,:,jj); % [N_a, N_e]
+                aprime_low=a1p+N_a1*(a2primeIndex-1);
+                aprime_up =a1p+N_a1*(a2primeIndex);
+            end
             EV_low=reshape(EVnext(aprime_low(:)),[N_a,N_e]);
             EV_up =reshape(EVnext(aprime_up(:)), [N_a,N_e]);
             EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         elseif N_z>0 && N_e==0
             % a1prime_idx, a2primeIndex shape: [N_a, N_z]; EVnext shape: [N_a, N_z]
-            a1p=a1prime_idx(:,:,jj);
-            aprime_low=a1p+N_a1*(a2primeIndex-1);
-            aprime_up =a1p+N_a1*(a2primeIndex);
+            if N_a1==0
+                aprime_low=a2primeIndex;
+                aprime_up =a2primeIndex+1;
+            else
+                a1p=a1prime_idx(:,:,jj);
+                aprime_low=a1p+N_a1*(a2primeIndex-1);
+                aprime_up =a1p+N_a1*(a2primeIndex);
+            end
             zidxoffset=N_a*gpuArray(0:N_z-1); % [1, N_z]
             lin_low=aprime_low+zidxoffset; % broadcast: [N_a, N_z]
             lin_up =aprime_up +zidxoffset;
@@ -236,11 +256,16 @@ for reverse_j=0:N_j-1
         else
             % a1prime_idx, a2primeIndex shape: [N_a, N_z*N_e]; EVnext shape: [N_a, N_z]
             % For each (a, z, e), look up at aprime in dim 1 of EVnext, and z (=current state's z) in dim 2.
-            a1p=reshape(a1prime_idx(:,:,jj),[N_a, N_z, N_e]);
             a2pIdx=reshape(a2primeIndex,[N_a, N_z, N_e]);
             a2pPrb=reshape(a2primeProbs,[N_a, N_z, N_e]);
-            aprime_low=a1p+N_a1*(a2pIdx-1);
-            aprime_up =a1p+N_a1*(a2pIdx);
+            if N_a1==0
+                aprime_low=a2pIdx;
+                aprime_up =a2pIdx+1;
+            else
+                a1p=reshape(a1prime_idx(:,:,jj),[N_a, N_z, N_e]);
+                aprime_low=a1p+N_a1*(a2pIdx-1);
+                aprime_up =a1p+N_a1*(a2pIdx);
+            end
             zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1]); % [1, N_z, 1]
             lin_low=aprime_low+zidxoffset;
             lin_up =aprime_up +zidxoffset;
