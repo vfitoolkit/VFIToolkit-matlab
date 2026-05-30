@@ -298,12 +298,6 @@ for ii=1:N_i
     if ~isfield(simoptions_temp,'alreadygridvals_semiexo')
         simoptions_temp.alreadygridvals_semiexo=0;
     end
-    if ~isfield(simoptions_temp,'n_e')
-        simoptions_temp.n_e=0;
-    end
-    if ~isfield(simoptions_temp,'n_semiz')
-        simoptions_temp.n_semiz=0;
-    end
     [n_z_temp,z_gridvals_temp,N_z_temp,l_z_temp,simoptions_temp]=CreateGridvals_FnsToEvaluate_InfHorz(n_z_temp,z_grid_temp,simoptions_temp,Parameters_temp);
     if N_z_temp==0
         N_z_temp=1; % Just makes things easier below

@@ -160,7 +160,7 @@ for ii=1:N_i % First set up simoptions
     end
 
     % e
-    if isfield(simoptions_temp,'n_e')
+    if prod(simoptions_temp.n_e)>0
         % If simoptions_temp.e_grid is a structure that was already dealt with by PType_Options() command
         if ~isstruct(simoptions.e_grid)
             % So just need to check if last dimension is of length N_i
@@ -173,7 +173,7 @@ for ii=1:N_i % First set up simoptions
     end
 
     % semiz
-    if isfield(simoptions_temp,'n_semiz')
+    if prod(simoptions_temp.n_semiz)>0
         % If simoptions_temp.semiz_grid is a structure that was already dealt with by PType_Options() command
         if ~isstruct(simoptions.semiz_grid)
             % So just need to check if last dimension is of length N_i
