@@ -5,12 +5,6 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(n_e);
 
-if N_z==0
-    l_z=0;
-else
-    l_z=length(n_z);
-end
-
 V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
@@ -250,8 +244,6 @@ for reverse_j=1:N_j-1
 end
 
 %%
-Policy2=zeros(2,N_a,N_z,N_e,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
+Policy=shiftdim(Policy,-1);
 
 end

@@ -12,8 +12,19 @@ l_aprime=length(n_a);
 n_aprime=n_a;
 extra=(vfoptions.gridinterplayer==1);
 
+% --- TEMPORARY (pilot): detect extra L2flag channel passed through from flag-aware GI worker
+has_L2flag=false;
+if isfield(vfoptions,'gridinterplayer') && vfoptions.gridinterplayer==1
+    expected_in_channels=(n_d(1)>0)+1+1; % d_kron (if d) + aprime_kron + L2
+    if size(PolicyKron,1)>expected_in_channels
+        has_L2flag=true;
+        PolicyL2flag=PolicyKron(end,:,:);
+    end
+end
+flag_extra=double(has_L2flag);
+
 if n_d(1)==0
-    Policy=zeros(l_aprime+extra,N_a,N_z,'gpuArray');
+    Policy=zeros(l_aprime+extra+flag_extra,N_a,N_z,'gpuArray');
 
     Policy(1,:,:)=rem(PolicyKron(1,:,:)-1,n_aprime(1))+1;
     if l_aprime>1
@@ -28,11 +39,14 @@ if n_d(1)==0
     if vfoptions.gridinterplayer==1
         Policy(l_aprime+1,:,:)=PolicyKron(2,:,:);
     end
+    if has_L2flag
+        Policy(l_aprime+2,:,:)=PolicyL2flag;
+    end
 
-    Policy=reshape(Policy,[l_aprime+extra,n_a,n_z]);
+    Policy=reshape(Policy,[l_aprime+extra+flag_extra,n_a,n_z]);
 else
     l_d=length(n_d);
-    Policy=zeros(l_d+l_aprime+extra,N_a,N_z,'gpuArray');
+    Policy=zeros(l_d+l_aprime+extra+flag_extra,N_a,N_z,'gpuArray');
 
     if l_d>1 && all(n_d(2:end)==1) % using d_gridvals
         Policy(1,:,:)=PolicyKron(1,:,:);
@@ -62,8 +76,11 @@ else
     if vfoptions.gridinterplayer==1
         Policy(l_d+l_aprime+1,:,:)=PolicyKron(3,:,:);
     end
+    if has_L2flag
+        Policy(l_d+l_aprime+2,:,:)=PolicyL2flag;
+    end
 
-    Policy=reshape(Policy,[l_d+l_aprime+extra,n_a,n_z]);
+    Policy=reshape(Policy,[l_d+l_aprime+extra+flag_extra,n_a,n_z]);
 end
 
 

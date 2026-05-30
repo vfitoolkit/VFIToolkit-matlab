@@ -1,4 +1,4 @@
-function [Vunderbar,Policy2,Vhat]=ValueFnIter_FHorz_QuasiHyperbolicS_DC1_raw(n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vunderbar,Policy,Vhat]=ValueFnIter_FHorz_QuasiHyperbolicS_DC1_raw(n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Sophisticated quasi-hyperbolic discounting variant of ValueFnIter_FHorz_DC1_raw.
 % Has d (decision) variables. Uses divide-and-conquer on a (GPU, parallel==2 only).
 %
@@ -293,9 +293,6 @@ for reverse_j=1:N_j-1
     end
 end
 
-%%
-Policy2=zeros(2,N_a,N_z,N_j,'gpuArray');
-Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
+Policy=shiftdim(Policy,-1);
 
 end

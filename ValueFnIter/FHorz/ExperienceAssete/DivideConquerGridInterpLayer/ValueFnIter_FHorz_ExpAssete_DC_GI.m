@@ -5,7 +5,6 @@ function [V,Policy]=ValueFnIter_FHorz_ExpAssete_DC_GI(n_d1,n_d2,n_a1,n_a2,n_z, N
 N_d1=prod(n_d1);
 N_a1=prod(n_a1);
 N_z=prod(n_z);
-N_e=prod(vfoptions.n_e);
 
 %% Divide-and-conquer level1n setup (divide-and-conquer requires the standard endogenous state)
 if N_a1==0
@@ -37,28 +36,28 @@ else % d1 variable
     end
 end
 
+
 %%
-if vfoptions.outputkron==0
-    if n_d1>0
-        n_d=[n_d1,n_d2];
-    else
-        n_d=n_d2;
-    end
-    n_a=[n_a1,n_a2];
-    n_d=[n_d,n_a1];
-    n_d=[n_d,vfoptions.ngridinterp]; % for the L2 indexes
-    % Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if N_z==0
-        V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-    else
-        V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-    end
-else
+if vfoptions.outputkron==1
     V=VKron;
     Policy=PolicyKron;
+    return
 end
 
+if n_d1>0
+    n_d=[n_d1,n_d2];
+else
+    n_d=n_d2;
+end
+n_a=[n_a1,n_a2];
+
+% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+if N_z==0
+    V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+    Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron, n_d, n_a1, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+else
+    V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+    Policy=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron, n_d, n_a1, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+end
 
 end

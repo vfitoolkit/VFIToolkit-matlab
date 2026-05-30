@@ -67,35 +67,37 @@ end
 
 
 %%
-if vfoptions.outputkron==0
-    if n_d(1)==0
-        n_dmod=n_a1;
-    else
-        n_dmod=[n_d,n_a1];
-    end
-    n_a=[n_a1,n_r];
-    if n_d==0
-        PolicyKron=reshape(PolicyKron,[prod(n_a),prod(n_z),N_j]);
-    else
-        PolicyKron=reshape(PolicyKron,[2,prod(n_a),prod(n_z),N_j]);
-        PolicyKron=shiftdim(PolicyKron(1,:,:,:)+prod(n_d)*(PolicyKron(2,:,:,:)-1),1);
-    end
-    % Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if N_e==0
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dmod, n_a, n_z, N_j, vfoptions);
-    else
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dmod, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-        else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_dmod, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-        end
-    end
-else
+if vfoptions.outputkron==1
     V=VKron;
     Policy=PolicyKron;
+    return
+end
+
+n_a=[n_a1,n_r];
+
+% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+if N_d==0
+    if N_e==0
+        if N_z==0
+            error('Not yet implemented')
+        else
+            V=reshape(VKron,[n_a,n_z,N_j]);
+            Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_a1, n_a, n_z, N_j, vfoptions);
+        end
+    else
+        error('Not yet implemented')
+    end
+else
+    if N_e==0
+        if N_z==0
+            error('Not yet implemented')
+        else
+            V=reshape(VKron,[n_a,n_z,N_j]);
+            Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron, n_d,n_a1, n_a, n_z, N_j, vfoptions);
+        end
+    else
+        error('Not yet implemented')
+    end
 end
 
 

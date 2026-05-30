@@ -51,18 +51,17 @@ end
 
 
 %% Policy in transition paths
-% Note: The actual ordering of N_z,N_j is not relevant to how this command works, so can just mix them up. [as long as N_z not n_z]
 if vfoptions.gridinterplayer==0
     if N_d1==0
-        PolicyKron=UnKronPolicyIndexes_Case2_FHorz(PolicyKron,[n_d2,n_a1],N_a,N_j,N_z,vfoptions);
+        PolicyKron=UnKronPolicyIndexes1_FHorz_z(PolicyKron,[n_d2,n_a1],N_a,N_z,N_j,vfoptions);
     else
-        PolicyKron=UnKronPolicyIndexes_Case2_FHorz(PolicyKron,[n_d1,n_d2,n_a1],N_a,N_j,N_z,vfoptions);
+        PolicyKron=UnKronPolicyIndexes1_FHorz_z(PolicyKron,[n_d1,n_d2,n_a1],N_a,N_z,N_j,vfoptions);
     end
-elseif vfoptions.gridinterplayer==1
+else % vfoptions.gridinterplayer==1
     if N_d1==0
-        PolicyKron=UnKronPolicyIndexes_Case2_FHorz(PolicyKron,[n_d2,n_a1,vfoptions.level1n],N_a,N_j,N_z,vfoptions);
+        PolicyKron=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d2,n_a1,N_a,N_z,N_j,vfoptions);
     else
-        PolicyKron=UnKronPolicyIndexes_Case2_FHorz(PolicyKron,[n_d1,n_d2,n_a1,vfoptions.level1n],N_a,N_j,N_z,vfoptions);
+        PolicyKron=UnKronPolicyIndexes2_FHorz_z(PolicyKron,[n_d1,n_d2],n_a1,N_a,N_z,N_j,vfoptions);
     end
 end
 

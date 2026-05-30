@@ -16,7 +16,7 @@ n_d23=[n_d2,n_d3];
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy3=zeros(3,N_a,N_j,'gpuArray'); % three: d1, d2, d3
+Policy=zeros(3,N_a,N_j,'gpuArray'); % three: d1, d2, d3
 
 %%
 u_grid=gpuArray(u_grid);
@@ -38,9 +38,9 @@ if ~isfield(vfoptions,'V_Jplus1')
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
-    Policy3(1,:,N_j)=shiftdim(rem(maxindex-1,N_d1)+1,-1);
-    Policy3(2,:,N_j)=1; % is meaningless anyway
-    Policy3(3,:,N_j)=shiftdim(ceil(maxindex/N_d1),-1);
+    Policy(1,:,N_j)=shiftdim(rem(maxindex-1,N_d1)+1,-1);
+    Policy(2,:,N_j)=1; % is meaningless anyway
+    Policy(3,:,N_j)=shiftdim(ceil(maxindex/N_d1),-1);
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
@@ -75,9 +75,9 @@ else
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,N_j)=Vtemp;
-    Policy3(3,:,N_j)=shiftdim(maxindex,1);
-    Policy3(1,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind),1);
-    Policy3(2,:,N_j)=shiftdim(d2index(maxindex),1);
+    Policy(3,:,N_j)=shiftdim(maxindex,1);
+    Policy(1,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind),1);
+    Policy(2,:,N_j)=shiftdim(d2index(maxindex),1);
 end
 
 %% Iterate backwards through j.
@@ -123,12 +123,11 @@ for reverse_j=1:N_j-1
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,jj)=Vtemp;
-    Policy3(3,:,N_j)=shiftdim(maxindex,1);
-    Policy3(1,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind),1);
-    Policy3(2,:,N_j)=shiftdim(d2index(maxindex),1);
+    Policy(3,:,N_j)=shiftdim(maxindex,1);
+    Policy(1,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind),1);
+    Policy(2,:,N_j)=shiftdim(d2index(maxindex),1);
 end
 
-Policy=Policy3(1,:,:)+N_d1*(Policy3(2,:,:)-1)+N_d1*N_d2*(Policy3(3,:,:)-1); % d1, d2, d3
 
 
 

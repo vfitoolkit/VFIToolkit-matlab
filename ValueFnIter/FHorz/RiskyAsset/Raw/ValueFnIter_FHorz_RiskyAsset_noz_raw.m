@@ -21,7 +21,7 @@ N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy4=zeros(4,N_a,N_j,'gpuArray'); % d1, d2, d3, a1prime
+Policy=zeros(4,N_a,N_j,'gpuArray'); % d1, d2, d3, a1prime
 
 %%
 u_grid=gpuArray(u_grid);
@@ -44,10 +44,10 @@ if ~isfield(vfoptions,'V_Jplus1')
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
     dindex=rem(maxindex-1,N_d)+1;
-    Policy4(1,:,N_j)=shiftdim(rem(dindex-1,N_d1)+1,-1);
-    Policy4(2,:,N_j)=1; % is meaningless anyway
-    Policy4(3,:,N_j)=shiftdim(ceil(dindex/N_d1),-1);
-    Policy4(4,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+    Policy(1,:,N_j)=shiftdim(rem(dindex-1,N_d1)+1,-1);
+    Policy(2,:,N_j)=1; % is meaningless anyway
+    Policy(3,:,N_j)=shiftdim(ceil(dindex/N_d1),-1);
+    Policy(4,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a2,1]);    % First, switch V_Jplus1 into Kron form
@@ -92,10 +92,10 @@ else
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,N_j)=Vtemp;
-    Policy4(3,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-    Policy4(4,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
-    Policy4(1,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
-    Policy4(2,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
+    Policy(3,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+    Policy(4,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
+    Policy(1,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
+    Policy(2,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
 end
 
 %% Iterate backwards through j.
@@ -150,13 +150,12 @@ for reverse_j=1:N_j-1
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,jj)=Vtemp;
-    Policy4(3,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-    Policy4(4,:,jj)=shiftdim(ceil(maxindex/N_d3),-1);
-    Policy4(1,:,jj)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
-    Policy4(2,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
+    Policy(3,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+    Policy(4,:,jj)=shiftdim(ceil(maxindex/N_d3),-1);
+    Policy(1,:,jj)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
+    Policy(2,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
 end
 
-Policy=Policy4(1,:,:)+N_d1*(Policy4(2,:,:)-1)+N_d1*N_d2*(Policy4(3,:,:)-1)+N_d1*N_d2*N_d3*(Policy4(4,:,:)-1); % d1, d2, d3, a1prime
 
 
 end

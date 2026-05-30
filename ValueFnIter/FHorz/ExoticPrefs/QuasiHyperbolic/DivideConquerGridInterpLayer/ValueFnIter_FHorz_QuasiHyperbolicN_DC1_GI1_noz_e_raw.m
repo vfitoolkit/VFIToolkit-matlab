@@ -1,4 +1,4 @@
-function varargout=ValueFnIter_FHorz_QuasiHyperbolicN_DC1_GI1_noz_e_raw(n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vtilde,Policy,V]=ValueFnIter_FHorz_QuasiHyperbolicN_DC1_GI1_noz_e_raw(n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Naive quasi-hyperbolic discounting variant of ValueFnIter_FHorz_DC1_GI1_noz_e_raw.
 % Has d variables. No z variable. GPU (parallel==2 only).
 %
@@ -428,19 +428,14 @@ for reverse_j=1:N_j-1
     end
 end
 
-%% Post-process Policy: convert [d_ind, midpoint, aprimeL2ind] to canonical combined index
+%% Currently Policy(2,:) is the midpoint, and Policy(3,:) the second layer
+% (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
+% we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
+% counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1);
 
-Policy=squeeze(Policy(1,:,:,:)+N_d*(Policy(2,:,:,:)-1)+N_d*N_a*(Policy(3,:,:,:)-1)+N_d*N_a*(n2short+2)*(PolicyL2flag-1));
-
-%%
-nOutputs=nargout;
-if nOutputs==2
-    varargout={Vtilde,Policy};
-elseif nOutputs==3
-    varargout={Vtilde,Policy,V};
-end
+Policy=[Policy;PolicyL2flag];
 
 end

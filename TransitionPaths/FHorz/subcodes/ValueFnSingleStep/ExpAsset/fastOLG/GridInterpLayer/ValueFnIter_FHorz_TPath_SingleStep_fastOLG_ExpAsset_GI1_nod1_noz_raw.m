@@ -23,6 +23,8 @@ d2ind=gpuArray(1:1:N_d2)';
 aind=shiftdim(gpuArray(0:1:N_a-1),-2);
 a2ind=shiftdim(gpuArray(0:1:N_a2-1),-2);
 jind=shiftdim(gpuArray(0:1:N_j-1),-3);
+aindB=gpuArray(0:1:N_a-1);
+jindB=shiftdim(gpuArray(0:1:N_j-1),-1);
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j (note: N_aprime is just equal to N_a)
@@ -44,7 +46,8 @@ if vfoptions.EVpre==0
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2,N_j]
 
-    EVpre=[V(N_a+1:end); zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EVpre=[V(:,2:N_j), zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    % EVpre is (aprime,j)
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-1
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1)),[N_d2*N_a1,N_a2,N_j]);
@@ -112,8 +115,8 @@ Policy3(2,:,:)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
 Policy3(3,:,:)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
 % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
 L2offset=ceil(maxindexL2/N_d2);
-linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j])                   +N_d2*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d2*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2);
-linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j])+N_d2*(n2long-1)   +N_d2*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d2*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2);
+linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j])                   +N_d2*n2long*aindB+N_d2*n2long*N_a*jindB;
+linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j])+N_d2*(n2long-1)   +N_d2*n2long*aindB+N_d2*n2long*N_a*jindB;
 isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
 isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
 inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
@@ -133,9 +136,7 @@ adjust=(Policy3(3,:,:)<1+n2short+1); % if second layer is choosing below midpoin
 Policy3(2,:,:)=Policy3(2,:,:)-adjust; % lower grid point
 Policy3(3,:,:)=adjust.*Policy3(3,:,:)+(1-adjust).*(Policy3(3,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-%% For experience asset, just output Policy as single index and then use Case2 to UnKron
-Policy=Policy3(1,:,:)+N_d2*(Policy3(2,:,:)-1)+N_d2*N_a1*(Policy3(3,:,:)-1)+N_d2*N_a1*(n2short+2)*(Policy3(4,:,:)-1);
-% Output shape for policy, first dim is just one point
+Policy=Policy3;
 
 
 

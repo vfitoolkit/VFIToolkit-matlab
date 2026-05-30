@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_raw(V,n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_raw(V,n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z
@@ -16,9 +16,7 @@ z_gridvals_J=shiftdim(z_gridvals_J,-3); % [1,1,1,N_j,N_z,l_z]
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z (note: N_aprime is just equal to N_a)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -37,12 +35,12 @@ elseif vfoptions.EVpre==1
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
 
-DiscountedEV=DiscountFactorParamsVec.*EV;
+DiscountedEV=reshape(DiscountFactor_J,[1,1,N_j]).*EV;
 DiscountedEV=repelem(DiscountedEV,N_d,1,1,1); % [d & aprime,1,j,z]
 
 if vfoptions.lowmemory==0
 
-    ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn, n_d, n_z, N_j, d_gridvals, a_grid', a_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,2);
+    ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc(ReturnFn, n_d, n_a, n_z, N_j, d_gridvals, a_grid, a_grid, z_gridvals_J, ReturnFnParamsAgeMatrix);
     % fastOLG: ReturnMatrix is [d & aprime,a,j,z]
 
     entireRHS=ReturnMatrix+DiscountedEV; %  [d & aprime,a,j,z]
@@ -63,7 +61,7 @@ elseif vfoptions.lowmemory==1
         z_vals=z_gridvals_J(1,1,1,:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
         DiscountedEV_z=DiscountedEV(:,:,:,z_c);
 
-        ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn, n_d, special_n_z, N_j, d_gridvals, a_grid', a_grid, z_vals, ReturnFnParamsAgeMatrix,2);
+        ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_Disc(ReturnFn, n_d, n_a, special_n_z, N_j, d_gridvals, a_grid, a_grid, z_vals, ReturnFnParamsAgeMatrix);
         % fastOLG: ReturnMatrix is [d,aprime,a,j]
 
         entireRHS_z=ReturnMatrix_z+DiscountedEV_z; %(d,aprime)-by-(a,j)
@@ -77,12 +75,10 @@ end
 
 %% fastOLG with z, so need to output to take certain shapes
 % V=reshape(V,[N_a*N_j,N_z]);
-% Policy=reshape(Policy,[N_a,N_j,N_z]);
+% Policy=reshape(Policy,[1,N_a,N_j,N_z]);
 
-%% Separate d and aprime
-Policy2=zeros(2,N_a,N_j,N_z,'gpuArray'); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
+%% Output shape for policy
+Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 
 end

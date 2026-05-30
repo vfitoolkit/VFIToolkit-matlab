@@ -1,4 +1,4 @@
-function [Vtilde,Policy2,V]=ValueFnIter_FHorz_QuasiHyperbolicN_noz_e_raw(n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J,pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vtilde,Policy,V]=ValueFnIter_FHorz_QuasiHyperbolicN_noz_e_raw(n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J,pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Naive quasi-hyperbolic discounting
 %
 % DiscountFactorParamNames is the standard discount factor beta
@@ -14,7 +14,7 @@ N_a=prod(n_a);
 N_e=prod(n_e);
 
 V=zeros(N_a,N_e,N_j,'gpuArray');
-Policy=zeros(N_a,N_e,N_j,'gpuArray'); % indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(N_a,N_e,N_j,'gpuArray'); % indexes the optimal choice for d and aprime, rest of dimensions a,z
 
 %%
 if vfoptions.lowmemory>0
@@ -180,9 +180,6 @@ for reverse_j=1:N_j-1
     end
 end
 
-%%
-Policy2=zeros(2,N_a,N_e,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
+Policy=shiftdim(Policy,-1);
 
 end

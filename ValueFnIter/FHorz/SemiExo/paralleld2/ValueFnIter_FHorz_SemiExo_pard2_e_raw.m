@@ -3,7 +3,6 @@ function [V,Policy]=ValueFnIter_FHorz_SemiExo_pard2_e_raw(n_d1,n_d2,n_a,n_z,n_se
 n_bothz=[n_semiz,n_z]; % These are the return function arguments
 
 n_d=[n_d1,n_d2];
-d_gridvals=[repmat(d1_gridvals,N_d2,1),repelem(d2_gridvals,N_d1,1)];
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -13,10 +12,13 @@ N_z=prod(n_z);
 N_bothz=prod(n_bothz);
 N_e=prod(n_e);
 
+
 V=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 
 %%
+d_gridvals=[repmat(d1_gridvals,N_d2,1),repelem(d2_gridvals,N_d1,1)];
+
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
 end

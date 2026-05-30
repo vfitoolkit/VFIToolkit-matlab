@@ -107,42 +107,58 @@ end
 
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-if N_d==0
-    PolicyKron=shiftdim(PolicyKron,-1);
-end
-
-if N_d==0
-    Case2policies=[n_a,vfoptions.ngridinterp];
+if vfoptions.outputkron==1
+    V1=V1Kron;
+    Policy=PolicyKron;
+    Valt=ValtKron;
 else
-    Case2policies=[n_d,n_a,vfoptions.ngridinterp];
-end
+    if N_d==0
+        if N_e==0
+            if N_z==0
+                Policy=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_a,n_a,N_j,vfoptions);
+            else
+                Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_a,n_a,n_z,N_j,vfoptions);
+            end
+        else
+            if N_z==0
+                Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
+            else
+                Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+            end
+        end
+    else
+        if N_e==0
+            if N_z==0
+                Policy=UnKronPolicyIndexes2_FHorz_noz(PolicyKron,n_d,n_a,n_a,N_j,vfoptions);
+            else
+                Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d,n_a,n_a,n_z,N_j,vfoptions);
+            end
+        else
+            if N_z==0
+                Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
+            else
+                Policy=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron,n_d,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+            end
+        end
+    end
 
-if vfoptions.outputkron==0
     if N_e==0
         if N_z==0
             V1=reshape(V1Kron,[n_a,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_noz(PolicyKron, Case2policies, n_a, N_j, vfoptions);
             Valt=reshape(ValtKron,[n_a,N_j]);
         else
             V1=reshape(V1Kron,[n_a,n_z,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, Case2policies, n_a, n_z, N_j, vfoptions);
             Valt=reshape(ValtKron,[n_a,n_z,N_j]);
         end
     else
         if N_z==0
             V1=reshape(V1Kron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, Case2policies, n_a, vfoptions.n_e, N_j, vfoptions);
             Valt=reshape(ValtKron,[n_a,vfoptions.n_e,N_j]);
         else
             V1=reshape(V1Kron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, Case2policies, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
             Valt=reshape(ValtKron,[n_a,n_z,vfoptions.n_e,N_j]);
         end
     end
-else
-    V1=V1Kron;
-    Policy=PolicyKron;
-    Valt=ValtKron;
 end
 
 end

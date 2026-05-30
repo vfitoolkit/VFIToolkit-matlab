@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames)
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames)
 % fastOLG just means parallelize over "age" (j)
 
 N_d=prod(n_d);
@@ -14,16 +14,14 @@ N_a=prod(n_a);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 EV=zeros(N_a,1,N_j,'gpuArray');
 EV(:,1,1:N_j-1)=V(:,2:end);
 
-DiscountedEV=repelem(DiscountFactorParamsVec.*EV,N_d,1,1); % [N_d*N_aprime,1,N_j]
+DiscountedEV=repelem(reshape(DiscountFactor_J,[1,1,N_j]).*EV,N_d,1,1); % [N_d*N_aprime,1,N_j]
 
-ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1_noz(ReturnFn, n_d, N_j, d_gridvals, a_grid', a_grid, ReturnFnParamsAgeMatrix,2);
+ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_noz(ReturnFn, n_d, n_a, N_j, d_gridvals, a_grid, a_grid, ReturnFnParamsAgeMatrix);
 
 entireRHS=ReturnMatrix+DiscountedEV; %(d,aprime)-by-(a,j)
 
@@ -32,10 +30,8 @@ entireRHS=ReturnMatrix+DiscountedEV; %(d,aprime)-by-(a,j)
 V=squeeze(V); % V is over (a,j)
 Policy=squeeze(Policy); % Policy is over (a,j)
 
-%% Separate d and aprime
-Policy2=zeros(2,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
+%% Output shape for policy
+Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 
 end

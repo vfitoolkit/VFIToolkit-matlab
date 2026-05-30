@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions)
 % fastOLG just means parallelize over "age" (j)
 
 N_d=prod(n_d);
@@ -23,9 +23,7 @@ jBind=shiftdim(gpuArray(0:1:N_j-1),-1);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 if vfoptions.EVpre==0
     EV=zeros(N_a,N_j,'gpuArray');
@@ -37,7 +35,7 @@ elseif vfoptions.EVpre==1
 end
 V=zeros(N_a,N_j,'gpuArray'); % V is over (a,j)
 
-DiscountedEV=shiftdim(DiscountFactorParamsVec,-1).*EV; % [1,aprime,1,j] — pre-discounted; broadcasts over d (and level1n)
+DiscountedEV=shiftdim(reshape(DiscountFactor_J,[1,1,N_j]),-1).*EV; % [1,aprime,1,j] — pre-discounted; broadcasts over d (and level1n)
 
 
 % n-Monotonicity
@@ -85,10 +83,8 @@ for ii=1:(vfoptions.level1n-1)
     end
 end
 
-%% Separate d and aprime
-Policy2=zeros(2,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
+%% Output shape for policy
+Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 
 end

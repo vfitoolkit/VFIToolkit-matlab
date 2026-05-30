@@ -93,4 +93,6 @@ for reverse_j=1:N_j-1
     Vunderbar(:,jj)=Vhat(:,jj)+(beta-beta0beta)*EV_at_policy;
 end
 
+Policy=shiftdim(Policy,-1);
+
 end

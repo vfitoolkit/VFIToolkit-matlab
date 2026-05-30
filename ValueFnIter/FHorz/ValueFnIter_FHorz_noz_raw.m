@@ -1,10 +1,10 @@
-function [V,Policy2]=ValueFnIter_FHorz_noz_raw(n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_noz_raw(n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(1,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %% j=N_j
 
@@ -17,7 +17,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
-    Policy(:,N_j)=maxindex;
+    Policy(1,:,N_j)=maxindex;
 else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -33,7 +33,7 @@ else
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,N_j)=Vtemp;
-    Policy(:,N_j)=maxindex;
+    Policy(1,:,N_j)=maxindex;
 end
 
 %% Iterate backwards through j.
@@ -59,12 +59,8 @@ for reverse_j=1:N_j-1
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,jj)=Vtemp;
-    Policy(:,jj)=maxindex;
+    Policy(1,:,jj)=maxindex;
 end
 
-%%
-Policy2=zeros(2,N_a,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 end

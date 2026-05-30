@@ -24,7 +24,7 @@ elseif vfoptions.lowmemory==1
 end
 
 zind=shiftdim(gpuArray(0:1:N_z-1),-1);  % 1-by-1-by-N_z
-zindB=gpuArray(0:1:N_z-1);  % 1-by-N_z (for EV_at_Policy indexing)
+zindB=gpuArray(0:1:N_z-1); % 1-by-N_z, for EV_from_Policy
 
 % n-Monotonicity
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
@@ -260,5 +260,7 @@ for reverse_j=1:N_j-1
         end
     end
 end
+
+Policy=shiftdim(Policy,-1);
 
 end

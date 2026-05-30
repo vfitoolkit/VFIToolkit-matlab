@@ -41,7 +41,7 @@ for reverse_j=1:N_j-1
     Policy(:,jj)=maxindex;
 end
 
-%% Output shape for policy
+%%
 Policy=shiftdim(Policy,-1);
 
 end

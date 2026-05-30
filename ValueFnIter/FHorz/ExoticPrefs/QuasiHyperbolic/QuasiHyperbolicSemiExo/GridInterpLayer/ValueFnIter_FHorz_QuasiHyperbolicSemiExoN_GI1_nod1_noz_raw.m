@@ -1,4 +1,4 @@
-function varargout=ValueFnIter_FHorz_QuasiHyperbolicSemiExoN_GI1_nod1_noz_raw(n_d2, n_a, n_semiz, N_j, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vtilde,Policy,V]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoN_GI1_nod1_noz_raw(n_d2, n_a, n_semiz, N_j, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Naive QH + SemiExo + GI: no d1, no z (only semiz).
 
 N_d2=prod(n_d2);
@@ -335,14 +335,6 @@ adjust=(Policy(3,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1);
 
-Policy=squeeze(Policy(1,:,:,:)+N_d2*(Policy(2,:,:,:)-1)+N_d2*N_a*(Policy(3,:,:,:)-1)+N_d2*N_a*(n2short+2)*(PolicyL2flag-1));
-
-%%
-nOutputs=nargout;
-if nOutputs==2
-    varargout={Vtilde,Policy};
-elseif nOutputs==3
-    varargout={Vtilde,Policy,V};
-end
+Policy=[Policy;PolicyL2flag];
 
 end

@@ -24,7 +24,7 @@ d23_grid=[d2_grid; d3_grid];
 N_a=N_a1*N_a2;
 
 V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
-Policy4=zeros(4,N_a,N_z,N_e,N_j,'gpuArray'); % d1, d2, d3, a1prime
+Policy=zeros(4,N_a,N_z,N_e,N_j,'gpuArray'); % d1, d2, d3, a1prime
 
 %%
 d13_grid=gpuArray(d13_grid);
@@ -126,20 +126,20 @@ if ~isfield(vfoptions,'V_Jplus1')
             [Vtemp,maxindex]=max(entireRHS,[],1);
 
             V(:,:,:,N_j)=Vtemp;
-            Policy4(3,:,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-            Policy4(4,:,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),1);
-            Policy4(1,:,:,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind+N_d3*N_a*N_z*eind),1);
-            Policy4(2,:,:,:,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in WGmatrix
+            Policy(3,:,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+            Policy(4,:,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),1);
+            Policy(1,:,:,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind+N_d3*N_a*N_z*eind),1);
+            Policy(2,:,:,:,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in WGmatrix
         elseif warmglow==0
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix,[],1);
 
             V(:,:,:,N_j)=Vtemp;
             dindex=rem(maxindex-1,N_d13)+1;
-            Policy4(1,:,:,:,N_j)=rem(dindex-1,N_d1)+1;
-            Policy4(2,:,:,:,N_j)=1; % d2, meaningless
-            Policy4(3,:,:,:,N_j)=ceil(dindex/N_d1);
-            Policy4(4,:,:,:,N_j)=ceil(maxindex/N_d13);
+            Policy(1,:,:,:,N_j)=rem(dindex-1,N_d1)+1;
+            Policy(2,:,:,:,N_j)=1; % d2, meaningless
+            Policy(3,:,:,:,N_j)=ceil(dindex/N_d1);
+            Policy(4,:,:,:,N_j)=ceil(maxindex/N_d13);
         end
 
 
@@ -166,20 +166,20 @@ if ~isfield(vfoptions,'V_Jplus1')
                 [Vtemp,maxindex]=max(entireRHS,[],1);
 
                 V(:,:,e_c,N_j)=Vtemp;
-                Policy4(3,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-                Policy4(4,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
-                Policy4(1,:,:,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
-                Policy4(2,:,:,e_c,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in WGmatrix
+                Policy(3,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+                Policy(4,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
+                Policy(1,:,:,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
+                Policy(2,:,:,e_c,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in WGmatrix
             elseif warmglow==0
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
 
                 V(:,:,e_c,N_j)=Vtemp;
                 dindex=rem(maxindex-1,N_d13)+1;
-                Policy4(1,:,:,e_c,N_j)=rem(dindex-1,N_d1)+1;
-                Policy4(2,:,:,e_c,N_j)=1; % d2, meaningless
-                Policy4(3,:,:,e_c,N_j)=ceil(dindex/N_d1);
-                Policy4(4,:,:,e_c,N_j)=ceil(maxindex/N_d13);
+                Policy(1,:,:,e_c,N_j)=rem(dindex-1,N_d1)+1;
+                Policy(2,:,:,e_c,N_j)=1; % d2, meaningless
+                Policy(3,:,:,e_c,N_j)=ceil(dindex/N_d1);
+                Policy(4,:,:,e_c,N_j)=ceil(maxindex/N_d13);
             end
         end
 
@@ -208,20 +208,20 @@ if ~isfield(vfoptions,'V_Jplus1')
                     [Vtemp,maxindex]=max(entireRHS,[],1);
 
                     V(:,z_c,e_c,N_j)=Vtemp;
-                    Policy4(3,:,z_c,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-                    Policy4(4,:,z_c,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
-                    Policy4(1,:,z_c,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*aind),1);
-                    Policy4(2,:,z_c,e_c,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in WGmatrix
+                    Policy(3,:,z_c,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+                    Policy(4,:,z_c,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
+                    Policy(1,:,z_c,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*aind),1);
+                    Policy(2,:,z_c,e_c,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in WGmatrix
                 elseif warmglow==0
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
 
                     V(:,z_c,e_c,N_j)=Vtemp;
                     dindex=rem(maxindex-1,N_d13)+1;
-                    Policy4(1,:,z_c,e_c,N_j)=rem(dindex-1,N_d1)+1;
-                    Policy4(2,:,z_c,e_c,N_j)=1; % d2, meaningless
-                    Policy4(3,:,z_c,e_c,N_j)=ceil(dindex/N_d1);
-                    Policy4(4,:,z_c,e_c,N_j)=ceil(maxindex/N_d13);
+                    Policy(1,:,z_c,e_c,N_j)=rem(dindex-1,N_d1)+1;
+                    Policy(2,:,z_c,e_c,N_j)=1; % d2, meaningless
+                    Policy(3,:,z_c,e_c,N_j)=ceil(dindex/N_d1);
+                    Policy(4,:,z_c,e_c,N_j)=ceil(maxindex/N_d13);
                 end
             end
         end
@@ -308,10 +308,10 @@ else
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
-        Policy4(3,:,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-        Policy4(4,:,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),1);
-        Policy4(1,:,:,:,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind+N_d3*N_a1*N_a*N_z*eind),1);
-        Policy4(2,:,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
+        Policy(3,:,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+        Policy(4,:,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),1);
+        Policy(1,:,:,:,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind+N_d3*N_a1*N_a*N_z*eind),1);
+        Policy(2,:,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
 
     elseif vfoptions.lowmemory==1
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
@@ -376,10 +376,10 @@ else
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
             V(:,:,e_c,N_j)=shiftdim(Vtemp,1);
-            Policy4(3,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-            Policy4(4,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
-            Policy4(1,:,:,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind),1);
-            Policy4(2,:,:,e_c,N_j)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
+            Policy(3,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+            Policy(4,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
+            Policy(1,:,:,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind),1);
+            Policy(2,:,:,e_c,N_j)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
         end
 
     elseif vfoptions.lowmemory==2
@@ -446,10 +446,10 @@ else
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
                 V(:,z_c,e_c,N_j)=Vtemp;
-                Policy4(3,:,z_c,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-                Policy4(4,:,z_c,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
-                Policy4(1,:,z_c,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind),1);
-                Policy4(2,:,z_c,e_c,N_j)=shiftdim(d2index(maxindex),1); % note: no a in temp4
+                Policy(3,:,z_c,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+                Policy(4,:,z_c,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
+                Policy(1,:,z_c,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind),1);
+                Policy(2,:,z_c,e_c,N_j)=shiftdim(d2index(maxindex),1); % note: no a in temp4
             end
         end
     end
@@ -581,10 +581,10 @@ for reverse_j=1:N_j-1
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,:,jj)=shiftdim(Vtemp,1);
-        Policy4(3,:,:,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-        Policy4(4,:,:,:,jj)=shiftdim(ceil(maxindex/N_d3),1);
-        Policy4(1,:,:,:,jj)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind+N_d3*N_a1*N_a*N_z*eind),1);
-        Policy4(2,:,:,:,jj)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
+        Policy(3,:,:,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+        Policy(4,:,:,:,jj)=shiftdim(ceil(maxindex/N_d3),1);
+        Policy(1,:,:,:,jj)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind+N_d3*N_a1*N_a*N_z*eind),1);
+        Policy(2,:,:,:,jj)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
 
     elseif vfoptions.lowmemory==1
 
@@ -651,10 +651,10 @@ for reverse_j=1:N_j-1
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
             V(:,:,e_c,jj)=shiftdim(Vtemp,1);
-            Policy4(3,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-            Policy4(4,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
-            Policy4(1,:,:,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind),1);
-            Policy4(2,:,:,e_c,N_j)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
+            Policy(3,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+            Policy(4,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
+            Policy(1,:,:,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind),1);
+            Policy(2,:,:,e_c,N_j)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
         end
 
     elseif vfoptions.lowmemory==2
@@ -722,17 +722,16 @@ for reverse_j=1:N_j-1
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
                 V(:,z_c,e_c,jj)=Vtemp;
-                Policy4(3,:,z_c,e_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-                Policy4(4,:,z_c,e_c,jj)=shiftdim(ceil(maxindex/N_d3),1);
-                Policy4(1,:,z_c,e_c,jj)=shiftdim(d1index(maxindex+N_d3*N_a1*aind),1);
-                Policy4(2,:,z_c,e_c,jj)=shiftdim(d2index(maxindex),1); % note: no a in temp4
+                Policy(3,:,z_c,e_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+                Policy(4,:,z_c,e_c,jj)=shiftdim(ceil(maxindex/N_d3),1);
+                Policy(1,:,z_c,e_c,jj)=shiftdim(d1index(maxindex+N_d3*N_a1*aind),1);
+                Policy(2,:,z_c,e_c,jj)=shiftdim(d2index(maxindex),1); % note: no a in temp4
             end
         end
     end
 
 end
 
-Policy=Policy4(1,:,:,:,:)+N_d1*(Policy4(2,:,:,:,:)-1)+N_d1*N_d2*(Policy4(3,:,:,:,:)-1)+N_d1*N_d2*N_d3*(Policy4(4,:,:,:,:)-1); % d1, d2, d3, a1prime
 
 
 end

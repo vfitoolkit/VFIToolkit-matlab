@@ -92,6 +92,12 @@ if vfoptions.experienceassetze==1
     return
 end
 
+%% Dispatch to RiskyAsset subfn if riskyasset==1
+if vfoptions.riskyasset==1
+    V=ValueFnFromPolicy_FHorz_RiskyAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
 %% Dispatch to SemiExo subfn if n_semiz>0
 if prod(vfoptions.n_semiz)>0
     V=ValueFnFromPolicy_FHorz_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);

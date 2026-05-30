@@ -3,7 +3,7 @@ function [V, Policy]=ValueFnIter_FHorz_nod_noz_raw(n_a,N_j, a_grid, ReturnFn, Pa
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(1,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %% j=N_j
 
@@ -16,7 +16,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
-    Policy(:,N_j)=maxindex;
+    Policy(1,:,N_j)=maxindex;
 else
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -32,7 +32,7 @@ else
     [Vtemp,maxindex]=max(entireRHS,[],1);
 
     V(:,N_j)=shiftdim(Vtemp,1);
-    Policy(:,N_j)=shiftdim(maxindex,1);
+    Policy(1,:,N_j)=maxindex;
 end
 
 
@@ -60,7 +60,7 @@ for reverse_j=1:N_j-1
     [Vtemp,maxindex]=max(entireRHS,[],1);
 
     V(:,jj)=shiftdim(Vtemp,1);
-    Policy(:,jj)=shiftdim(maxindex,1);
+    Policy(1,:,jj)=maxindex;
 end
 
 

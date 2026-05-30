@@ -11,21 +11,45 @@ if vfoptions.divideandconquer==0
         if N_d1==0
             [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_nod1_noz_e_raw(VKron,n_d2,n_a1,n_a2,n_e, N_j, d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         else
-            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_noz_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_e, N_j, d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_noz_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_e, N_j, d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         end
-    else
-        error('Have not yet implemented grid interpolation layer for FHorz TPath without fastOLG=1. Ask on forum if you need this.')
+    else % vfoptions.gridinterplayer==1
+        if N_d1==0
+            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_GI1_nod1_noz_e_raw(VKron,n_d2,n_a1,n_a2,n_e, N_j, d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        else
+            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_GI1_noz_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_e, N_j, d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        end
     end
-else
-    error('Have not yet implemented divide and conquer for FHorz TPath without fastOLG=1. Ask on forum if you need this.')
+else % vfoptions.divideandconquer==1
+    if vfoptions.gridinterplayer==0
+        if N_d1==0
+            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_DC1_nod1_noz_e_raw(VKron,n_d2,n_a1,n_a2,n_e, N_j, d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        else
+            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_DC1_noz_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_e, N_j, d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        end
+    else % vfoptions.gridinterplayer==1
+        if N_d1==0
+            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_DC1_GI1_nod1_noz_e_raw(VKron,n_d2,n_a1,n_a2,n_e, N_j, d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        else
+            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_DC1_GI1_noz_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_e, N_j, d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        end
+    end
 end
 
 %% Policy in transition paths
-if N_d1==0
-    PolicyKron=UnKronPolicyIndexes_Case2_FHorz(PolicyKron,[n_d2,n_a1],N_a,N_e,N_j,vfoptions);
-else
-    PolicyKron=UnKronPolicyIndexes_Case2_FHorz(PolicyKron,[n_d1,n_d2,n_a1],N_a,N_e,N_j,vfoptions);
+% Treat the e-dim as the z-dim (no z) and use the _FHorz_z UnKron family
+if vfoptions.gridinterplayer==0
+    if N_d1==0
+        PolicyKron=UnKronPolicyIndexes1_FHorz_z(PolicyKron,[n_d2,n_a1],N_a,N_e,N_j,vfoptions);
+    else
+        PolicyKron=UnKronPolicyIndexes1_FHorz_z(PolicyKron,[n_d1,n_d2,n_a1],N_a,N_e,N_j,vfoptions);
+    end
+else % vfoptions.gridinterplayer==1
+    if N_d1==0
+        PolicyKron=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d2,n_a1,N_a,N_e,N_j,vfoptions);
+    else
+        PolicyKron=UnKronPolicyIndexes2_FHorz_z(PolicyKron,[n_d1,n_d2],n_a1,N_a,N_e,N_j,vfoptions);
+    end
 end
-% PolicyKron=reshape(PolicyKron,[size(PolicyKron,1),N_a,N_e,N_j]);
 
 end

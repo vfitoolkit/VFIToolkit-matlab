@@ -12,7 +12,7 @@ function [Vtilde,Policy,V]=ValueFnIter_FHorz_QuasiHyperbolicN_nod_noz_raw(n_a,N_
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(N_a,N_j,'gpuArray'); % indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(N_a,N_j,'gpuArray'); % indexes the optimal choice for aprime, rest of dimensions a,z
 
 
 %% j=N_j
@@ -90,5 +90,7 @@ for reverse_j=1:N_j-1
     Vtilde(:,jj)=Vtemp; % Evaluate what would have done under exponential discounting
     Policy(:,jj)=maxindex; % Use the policy from solving the problem of Vtilde
 end
+
+Policy=shiftdim(Policy,-1);
 
 end

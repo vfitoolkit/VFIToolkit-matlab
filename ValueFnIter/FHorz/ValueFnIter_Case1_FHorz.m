@@ -485,10 +485,19 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
         [VKron, PolicyKron]=ValueFnIter_FHorz_SDVz_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 
-    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    V=reshape(VKron,[n_a,n_z,N_j]);
-    Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
+    if vfoptions.outputkron==1
+        varargout={VKron, PolicyKron};
+        return
+    end
 
+    if N_d==0
+        n_daprime=n_a;
+    else
+        n_daprime=[n_d,n_a];
+    end
+
+    V=reshape(VKron,[n_a,n_z,N_j]);
+    Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_daprime,n_a,n_z,N_j,vfoptions);
     varargout={V, Policy};
     return
 end
@@ -510,36 +519,24 @@ if vfoptions.dynasty==1
         [VKron, PolicyKron]=ValueFnIter_FHorz_Dynasty_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 
-    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    V=reshape(VKron,[n_a,n_z,N_j]);
-    Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
-
-    varargout={V, Policy};
-    return
-end
-
-%% Detect if using incremental endogenous states and solve this using purediscretization, prior to the main purediscretization routines
-if any(vfoptions.incrementaltype)
-    % Incremental Endogenous States: aprime either equals a, or one grid point higher (unchanged on incremental increase)
-    [VKron,PolicyKron]=ValueFnIter_FHorz_Increment(n_d,n_a,n_z,d_grid,a_grid,z_gridvals_J,N_j,pi_z_J,ReturnFn,Parameters,ReturnFnParamNames,DiscountFactorParamNames,vfoptions);
-
-    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if N_e==0
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
-    else
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-        else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-        end
+    if vfoptions.outputkron==1
+        varargout={VKron, PolicyKron};
+        return
     end
 
+    if N_d==0
+        n_daprime=n_a;
+    else
+        n_daprime=[n_d,n_a];
+    end
+
+    V=reshape(VKron,[n_a,n_z,N_j]);
+    Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_daprime,n_a,n_z,N_j,vfoptions);
     varargout={V, Policy};
     return
 end
+
+
 
 %% Semi-exogenous state
 % The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
@@ -613,32 +610,34 @@ end
 
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-if N_d==0
-    PolicyKron=shiftdim(PolicyKron,-1);
-end
-if vfoptions.outputkron==0
-    if N_e==0
-        if N_z==0
-            V=reshape(VKron,[n_a,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
-        else
-            V=reshape(VKron,[n_a,n_z,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
-        end
-    else
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-        else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-        end
-    end
-else
-    V=VKron;
-    Policy=PolicyKron;
+if vfoptions.outputkron==1
+    varargout={VKron, PolicyKron};
+    return
 end
 
+if N_d==0
+    n_daprime=n_a;
+else
+    n_daprime=[n_d,n_a];
+end
+
+if N_e==0
+    if N_z==0
+        V=reshape(VKron,[n_a,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_daprime,n_a,N_j,vfoptions);
+    else
+        V=reshape(VKron,[n_a,n_z,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_daprime,n_a,n_z,N_j,vfoptions);
+    end
+else
+    if N_z==0
+        V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_daprime,n_a,vfoptions.n_e,N_j,vfoptions);  % Treat e as z (because no z)
+    else
+        V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron,n_daprime,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+    end
+end
 
 varargout={V, Policy};
 

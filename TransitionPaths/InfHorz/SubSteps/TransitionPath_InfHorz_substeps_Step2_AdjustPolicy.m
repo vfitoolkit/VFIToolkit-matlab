@@ -95,7 +95,10 @@ if N_z==0 && N_e==0
     end
     % Just use PolicyaprimePath for simoptions.gridinterplayer==0, otherwise
     if simoptions.gridinterplayer==1
-        L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:),[N_a,1,T-1]); % PolicyPath is of size [l_d+l_aprime+1,N_a,T]
+        L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:),[N_a,1,T-1]); % PolicyPath is of size [l_d+l_aprime+2,N_a,T]
+        L2flag=reshape(PolicyIndexesPath(l_d+l_aprime+2,:,:),[N_a,1,T-1]); % 1=force lower, 2=usual, 3=force upper
+        L2index(L2flag==1)=1;                                % force all weight to lower
+        L2index(L2flag==3)=1+simoptions.ngridinterp+1;       % force all weight to upper
         PolicyaprimePath=reshape(PolicyaprimePath,[N_a,1,T-1]); % reinterpret this as lower grid index
         PolicyaprimePath=repelem(PolicyaprimePath,1,2,1); % create copy that will be the upper grid index
         PolicyaprimePath(:,2,:)=PolicyaprimePath(:,2,:)+1; % upper grid index
@@ -144,7 +147,10 @@ elseif N_z>0 && N_e==0
     end
     PolicyaprimezPath=gather(PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1));
     if simoptions.gridinterplayer==1
-        L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:,:),[N_a*N_z,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+1,N_a,N_z,T]
+        L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:,:),[N_a*N_z,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+2,N_a,N_z,T]
+        L2flag=reshape(PolicyIndexesPath(l_d+l_aprime+2,:,:,:),[N_a*N_z,1,T-1]); % 1=force lower, 2=usual, 3=force upper
+        L2index(L2flag==1)=1;                                % force all weight to lower
+        L2index(L2flag==3)=1+simoptions.ngridinterp+1;       % force all weight to upper
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,T-1]); % reinterpret this as lower grid index
         PolicyaprimezPath=repelem(PolicyaprimezPath,1,2,1); % create copy that will be the upper grid index
         PolicyaprimezPath(:,2,:)=PolicyaprimezPath(:,2,:)+1; % upper grid index
@@ -195,7 +201,10 @@ elseif N_z==0 && N_e>0
     end
     % Just use PolicyaprimePath for simoptions.gridinterplayer==0, otherwise
     if simoptions.gridinterplayer==1
-        L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:,:),[N_a*N_e,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+1,N_a,N_e,T]
+        L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:,:),[N_a*N_e,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+2,N_a,N_e,T]
+        L2flag=reshape(PolicyIndexesPath(l_d+l_aprime+2,:,:,:),[N_a*N_e,1,T-1]); % 1=force lower, 2=usual, 3=force upper
+        L2index(L2flag==1)=1;                                % force all weight to lower
+        L2index(L2flag==3)=1+simoptions.ngridinterp+1;       % force all weight to upper
         PolicyaprimePath=reshape(PolicyaprimePath,[N_a*N_e,1,T-1]); % reinterpret this as lower grid index
         PolicyaprimePath=repelem(PolicyaprimePath,1,2,1); % create copy that will be the upper grid index
         PolicyaprimePath(:,2,:)=PolicyaprimePath(:,2,:)+1; % upper grid index
@@ -244,7 +253,10 @@ elseif N_z>0 && N_e>0
     end
     PolicyaprimezPath=gather(PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1),N_e,1));
     if simoptions.gridinterplayer==1
-        L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:,:,:),[N_a*N_z*N_e,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+1,N_a,N_z,N_e,T]
+        L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:,:,:),[N_a*N_z*N_e,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+2,N_a,N_z,N_e,T]
+        L2flag=reshape(PolicyIndexesPath(l_d+l_aprime+2,:,:,:,:),[N_a*N_z*N_e,1,T-1]); % 1=force lower, 2=usual, 3=force upper
+        L2index(L2flag==1)=1;                                % force all weight to lower
+        L2index(L2flag==3)=1+simoptions.ngridinterp+1;       % force all weight to upper
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z*N_e,1,T-1]); % reinterpret this as lower grid index
         PolicyaprimezPath=repelem(PolicyaprimezPath,1,2,1); % create copy that will be the upper grid index
         PolicyaprimezPath(:,2,:)=PolicyaprimezPath(:,2,:)+1; % upper grid index

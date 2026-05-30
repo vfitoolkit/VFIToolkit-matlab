@@ -5,7 +5,7 @@ N_a=prod(n_a);
 N_e=prod(n_e);
 
 V=zeros(N_a,N_e,N_j,'gpuArray');
-Policy=zeros(N_a,N_e,N_j,'gpuArray'); % no d variable
+Policy=zeros(1,N_a,N_e,N_j,'gpuArray'); % no d variable
 
 
 %%
@@ -20,10 +20,10 @@ if vfoptions.lowmemory==0
 
     if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0); % Because no z, can treat e like z and call Par2 rather than Par2e
-        %Calc the max and it's index
+        % Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        Policy(:,:,N_j)=maxindex;
+        Policy(1,:,:,N_j)=maxindex;
     else
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
@@ -33,13 +33,13 @@ if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % autofill a&e in EV
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,N_j)=shiftdim(Vtemp,1);
-        Policy(:,:,N_j)=shiftdim(maxindex,1);
+        Policy(1,:,:,N_j)=shiftdim(maxindex,1);
     end
 
 
@@ -61,13 +61,13 @@ if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % autofill a&e in EV
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,jj)=shiftdim(Vtemp,1);
-        Policy(:,:,jj)=shiftdim(maxindex,1);
+        Policy(1,:,:,jj)=shiftdim(maxindex,1);
     end
 elseif vfoptions.lowmemory==1
     %% Loop over all e
@@ -86,7 +86,7 @@ elseif vfoptions.lowmemory==1
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,e_c,N_j)=Vtemp;
-            Policy(:,e_c,N_j)=maxindex;
+            Policy(1,:,e_c,N_j)=maxindex;
         end
     else
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -99,13 +99,13 @@ elseif vfoptions.lowmemory==1
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec,0);
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; % autofill a in EV
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
 
             V(:,e_c,N_j)=shiftdim(Vtemp,1);
-            Policy(:,e_c,N_j)=shiftdim(maxindex,1);
+            Policy(1,:,e_c,N_j)=shiftdim(maxindex,1);
         end
     end
 
@@ -129,13 +129,13 @@ elseif vfoptions.lowmemory==1
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec,0);
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; % autofill a in EV
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
 
             V(:,e_c,jj)=shiftdim(Vtemp,1);
-            Policy(:,e_c,jj)=shiftdim(maxindex,1);
+            Policy(1,:,e_c,jj)=shiftdim(maxindex,1);
         end
     end
 end

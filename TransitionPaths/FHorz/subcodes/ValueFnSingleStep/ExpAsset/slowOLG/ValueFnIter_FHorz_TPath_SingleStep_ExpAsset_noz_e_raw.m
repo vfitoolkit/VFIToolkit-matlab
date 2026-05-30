@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_noz_e_raw(V,n_d1,n_d2,n_a1,n_a2,n_e,N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_noz_e_raw(V,n_d1,n_d2,n_a1,n_a2,n_e,N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -107,5 +107,6 @@ for reverse_j=1:N_j-1
 
 end
 
+Policy=shiftdim(Policy,-1);
 
 end

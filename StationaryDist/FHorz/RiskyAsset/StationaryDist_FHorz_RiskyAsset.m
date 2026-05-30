@@ -61,7 +61,7 @@ N_e=prod(simoptions.n_e);
 N_z=prod(n_z);
 
 if N_z==0 && N_e==0
-    StationaryDist=StationaryDist_FHorz_RiskyAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_u,N_j,d_grid,a2_grid,u_grid,pi_u,Parameters,simoptions);
+    StationaryDist=StationaryDist_FHorz_RiskyAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_u,N_j,simoptions.d_grid,a2_grid,u_grid,pi_u,Parameters,simoptions);
     return
 end
 

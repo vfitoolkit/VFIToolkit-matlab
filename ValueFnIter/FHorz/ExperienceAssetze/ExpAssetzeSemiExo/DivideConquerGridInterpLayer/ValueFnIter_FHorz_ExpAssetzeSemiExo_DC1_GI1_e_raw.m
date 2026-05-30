@@ -20,7 +20,7 @@ N_bothz=N_semiz*N_z;
 N_e=prod(n_e);
 
 V=zeros(N_a,N_bothz,N_e,N_j,'gpuArray');
-Policy5=zeros(5,N_a,N_bothz,N_e,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_bothz,N_e,N_j,'gpuArray');
 PolicyL2flag=2*ones(1,N_a,N_bothz,N_e,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
@@ -224,13 +224,13 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     [V_jj,maxindex]=max(V_ford3_jj,[],4);
     V(:,:,:,N_j)=V_jj;
-    Policy5(3,:,:,:,N_j)=shiftdim(maxindex,-1);
+    Policy(3,:,:,:,N_j)=shiftdim(maxindex,-1);
     maxindex=reshape(maxindex,[N_a*N_bothz*N_e,1]);
     temp=4*((1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)-1);
-    Policy5(1,:,:,:,N_j)=reshape(Policy4_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]);
-    Policy5(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
-    Policy5(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
-    Policy5(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_bothz,N_e]);
+    Policy(1,:,:,:,N_j)=reshape(Policy4_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]);
+    Policy(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
+    Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_bothz,N_e]);
     flat_idx=(1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1);
     PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj(flat_idx),[1,N_a,N_bothz,N_e]);
 else
@@ -487,13 +487,13 @@ else
 
     [V_jj,maxindex]=max(V_ford3_jj,[],4);
     V(:,:,:,N_j)=V_jj;
-    Policy5(3,:,:,:,N_j)=shiftdim(maxindex,-1);
+    Policy(3,:,:,:,N_j)=shiftdim(maxindex,-1);
     maxindex=reshape(maxindex,[N_a*N_bothz*N_e,1]);
     temp=4*((1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)-1);
-    Policy5(1,:,:,:,N_j)=reshape(Policy4_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]);
-    Policy5(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
-    Policy5(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
-    Policy5(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_bothz,N_e]);
+    Policy(1,:,:,:,N_j)=reshape(Policy4_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]);
+    Policy(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
+    Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_bothz,N_e]);
     flat_idx=(1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1);
     PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj(flat_idx),[1,N_a,N_bothz,N_e]);
 end
@@ -760,25 +760,24 @@ for reverse_j=1:N_j-1
 
     [V_jj,maxindex]=max(V_ford3_jj,[],4);
     V(:,:,:,jj)=V_jj;
-    Policy5(3,:,:,:,jj)=shiftdim(maxindex,-1);
+    Policy(3,:,:,:,jj)=shiftdim(maxindex,-1);
     maxindex=reshape(maxindex,[N_a*N_bothz*N_e,1]);
     temp=4*((1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)-1);
-    Policy5(1,:,:,:,jj)=reshape(Policy4_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]);
-    Policy5(2,:,:,:,jj)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
-    Policy5(4,:,:,:,jj)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
-    Policy5(5,:,:,:,jj)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_bothz,N_e]);
+    Policy(1,:,:,:,jj)=reshape(Policy4_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]);
+    Policy(2,:,:,:,jj)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
+    Policy(4,:,:,:,jj)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,jj)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_bothz,N_e]);
     flat_idx=(1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1);
     PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_jj(flat_idx),[1,N_a,N_bothz,N_e]);
 end
 
 
 %% Switch from midpoint to lower grid index
-adjust=(Policy5(5,:,:,:,:)<1+n2short+1);
-Policy5(4,:,:,:,:)=Policy5(4,:,:,:,:)-adjust;
-Policy5(5,:,:,:,:)=adjust.*Policy5(5,:,:,:,:)+(1-adjust).*(Policy5(5,:,:,:,:)-n2short-1);
+adjust=(Policy(5,:,:,:,:)<1+n2short+1);
+Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-adjust;
+Policy(5,:,:,:,:)=adjust.*Policy(5,:,:,:,:)+(1-adjust).*(Policy(5,:,:,:,:)-n2short-1);
 
-%% Combine into single Policy index
-Policy=shiftdim(Policy5(1,:,:,:,:)+N_d1*(Policy5(2,:,:,:,:)-1)+N_d1*N_d2*(Policy5(3,:,:,:,:)-1)+N_d1*N_d2*N_d3*(Policy5(4,:,:,:,:)-1)+N_d1*N_d2*N_d3*N_a1*(Policy5(5,:,:,:,:)-1)+N_d12*N_d3*N_a1*(n2short+2)*(PolicyL2flag-1),1);
+Policy=[Policy; PolicyL2flag];
 
 
 end

@@ -25,4 +25,13 @@ function options_temp=PType_Options(options,Names_i,ii)
         end
     end
     % Note that options that are declared only for 'other' PTypes are not set, and so they will just follow the defaults.
+
+
+    %% Set some required options
+    if ~isfield(options_temp,'n_e')
+        options_temp.n_e=0;
+    end
+    if ~isfield(options_temp,'n_semiz')
+        options_temp.n_semiz=0;
+    end
 end

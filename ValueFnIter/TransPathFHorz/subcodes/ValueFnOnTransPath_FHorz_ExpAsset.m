@@ -51,6 +51,7 @@ end
 
 l_daprime=length(n_d)+length(n_a)-1; % remove experienceasset from l_aprime
 
+
 %%
 if N_e==0
     if N_z==0
@@ -58,7 +59,7 @@ if N_e==0
             %% fastOLG=0, no z, no e
             VPath=zeros(N_a,N_j,T,'gpuArray');
             VPath(:,:,T)=V_final;
-            PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,T,'gpuArray'); %Periods 1 to T-1
             PolicyPath(:,:,:,T)=Policy_final;
 
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
@@ -80,10 +81,11 @@ if N_e==0
             end
         else
             %% fastOLG=1, no z, no e
+            % Unusual for fastOLG as leave it as a-by-j rather than (a,j)-by-1. Saves a reshape.
 
             VPath=zeros(N_a,N_j,T,'gpuArray');
             VPath(:,:,T)=V_final;
-            PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
             PolicyPath(:,:,:,T)=Policy_final;
 
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
@@ -110,7 +112,7 @@ if N_e==0
             %% fastOLG=0, z, no e
             VPath=zeros(N_a,N_z,N_j,T,'gpuArray');
             VPath(:,:,:,T)=V_final;
-            PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
             PolicyPath(:,:,:,:,T)=Policy_final;
 
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
@@ -145,7 +147,7 @@ if N_e==0
             % Note: fastOLG with z: use V as (a,j)-by-z and Policy as a-by-j-by-z
             VPath=zeros(N_a*N_j,N_z,T,'gpuArray');
             VPath(:,:,T)=V_final;
-            PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_j,N_z,T,'gpuArray');
+            PolicyPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_z,T,'gpuArray');
             PolicyPath(:,:,:,:,T)=Policy_final;
 
             %First, go from T-1 to 1 calculating the Value function and Optimal
@@ -183,7 +185,7 @@ else % N_e
             %% fastOLG=0, no z, e
             VPath=zeros(N_a,N_e,N_j,T,'gpuArray');
             VPath(:,:,:,T)=V_final;
-            PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
             PolicyPath(:,:,:,:,T)=Policy_final;
 
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
@@ -215,7 +217,7 @@ else % N_e
             % Note: fastOLG with e: use V as (a,j)-by-e and Policy as a-by-j-by-e
             VPath=zeros(N_a*N_j,N_e,T,'gpuArray');
             VPath(:,:,T)=V_final;
-            PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_j,N_e,T,'gpuArray');
+            PolicyPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_e,T,'gpuArray');
             PolicyPath(:,:,:,:,T)=Policy_final;
 
             %First, go from T-1 to 1 calculating the Value function and Optimal
@@ -250,7 +252,7 @@ else % N_e
             %% fastOLG=0, z, e
             VPath=zeros(N_a,N_z,N_e,N_j,T,'gpuArray');
             VPath(:,:,:,:,T)=V_final;
-            PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_z,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
             PolicyPath(:,:,:,:,:,T)=Policy_final;
 
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
@@ -285,7 +287,7 @@ else % N_e
             %% fastOLG=1, z, e
             VPath=zeros(N_a*N_j,N_z,N_e,T,'gpuArray');
             VPath(:,:,:,T)=V_final;
-            PolicyPath=zeros(l_daprime+(vfoptions.gridinterplayer>0),N_a,N_j,N_z,N_e,T,'gpuArray');
+            PolicyPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_z,N_e,T,'gpuArray');
             PolicyPath(:,:,:,:,:,T)=Policy_final;
 
             %First, go from T-1 to 1 calculating the Value function and Optimal

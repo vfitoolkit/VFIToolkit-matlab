@@ -13,7 +13,7 @@ N_e=prod(n_e);
 
 V=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,a1prime seperately
-Policy4=zeros(4,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy=zeros(4,N_a,N_semiz,N_e,N_j,'gpuArray');
 PolicyL2flag=2*ones(1,N_a,N_semiz,N_e,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
@@ -257,12 +257,12 @@ if ~isfield(vfoptions,'V_Jplus1')
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
     [V_jj,maxindex]=max(V_ford3_jj,[],4); % max over d3
     V(:,:,:,N_j)=V_jj;
-    Policy4(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d3 is just maxindex
+    Policy(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
     temp=3*( (1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1) -1);
-    Policy4(1,:,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz,N_e]);
-    Policy4(3,:,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]);
-    Policy4(4,:,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]);
+    Policy(1,:,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz,N_e]);
+    Policy(3,:,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]);
+    Policy(4,:,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]);
     PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -552,12 +552,12 @@ else
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
     [V_jj,maxindex]=max(V_ford3_jj,[],4); % max over d3
     V(:,:,:,N_j)=V_jj;
-    Policy4(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d3 is just maxindex
+    Policy(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
     temp=3*( (1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1) -1);
-    Policy4(1,:,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz,N_e]);
-    Policy4(3,:,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]);
-    Policy4(4,:,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]);
+    Policy(1,:,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz,N_e]);
+    Policy(3,:,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]);
+    Policy(4,:,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]);
     PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 end
 
@@ -858,12 +858,12 @@ for reverse_j=1:N_j-1
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
     [V_jj,maxindex]=max(V_ford3_jj,[],4); % max over d3
     V(:,:,:,jj)=V_jj;
-    Policy4(2,:,:,:,jj)=shiftdim(maxindex,-1); % d3 is just maxindex
+    Policy(2,:,:,:,jj)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
     temp=3*( (1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1) -1);
-    Policy4(1,:,:,:,jj)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz,N_e]);
-    Policy4(3,:,:,:,jj)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]);
-    Policy4(4,:,:,:,jj)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]);
+    Policy(1,:,:,:,jj)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_semiz,N_e]);
+    Policy(3,:,:,:,jj)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]);
+    Policy(4,:,:,:,jj)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]);
     PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 end
 
@@ -875,12 +875,11 @@ end
 % (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
 % we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
 % counting 0:nshort+1 up from this.
-adjust=(Policy4(4,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
-Policy4(3,:,:,:,:)=Policy4(3,:,:,:,:)-adjust; % lower grid point
-Policy4(4,:,:,:,:)=adjust.*Policy4(4,:,:,:,:)+(1-adjust).*(Policy4(4,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+adjust=(Policy(4,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
+Policy(3,:,:,:,:)=Policy(3,:,:,:,:)-adjust; % lower grid point
+Policy(4,:,:,:,:)=adjust.*Policy(4,:,:,:,:)+(1-adjust).*(Policy(4,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-%% For experience asset, just output Policy as single index and then use Case2 to UnKron
-Policy=shiftdim(Policy4(1,:,:,:,:)+N_d2*(Policy4(2,:,:,:,:)-1)+N_d2*N_d3*(Policy4(3,:,:,:,:)-1)+N_d2*N_d3*N_a1*(Policy4(4,:,:,:,:)-1)+N_d2*N_d3*N_a1*(n2short+2)*(PolicyL2flag-1),1);
+Policy=[Policy;PolicyL2flag];
 
 
 end

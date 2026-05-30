@@ -17,58 +17,39 @@ else
         if N_z==0
             error('vfoptions.pard2 not yet implemented for this combo')
         else
-            [VKron, Policy]=ValueFnIter_FHorz_SemiExo_pard2_DC1_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            warning(' I TRIED PARALLEL OVER d2, BUT IT SEEMED TO BE SLOWER RATHER THAN FASTER. NOT SURE WHY.')
+            [VKron, PolicyKron]=ValueFnIter_FHorz_SemiExo_pard2_DC1_e_raw(n_d1,n_d2,n_a,n_z,n_semiz,  vfoptions.n_e, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 end
 
 
 
-% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-n_d=[n_d1,n_d2];
-if vfoptions.pard2==1
-    N_a=prod(n_a);
-    N_semiz=prod(n_semiz);
-end
-if vfoptions.outputkron==0
-    if N_e==0
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_semiz,N_j]);
-            if vfoptions.pard2==0
-                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_d2, n_a, vfoptions.n_semiz, N_j, vfoptions);
-            elseif vfoptions.pard2==1
-                Policy=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, vfoptions.n_semiz, N_j, vfoptions);
-            end
-        else
-            V=reshape(VKron,[n_a,vfoptions.n_semiz,n_z,N_j]);
-            if vfoptions.pard2==0
-                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_d2, n_a, [vfoptions.n_semiz,n_z], N_j, vfoptions);
-            elseif vfoptions.pard2==1
-                Policy=UnKronPolicyIndexes_Case2_FHorz(reshape(Policy,[N_a,N_semiz*N_z,N_e,N_j]), [n_d,n_a], n_a, [vfoptions.n_semiz,n_z], N_j, vfoptions);
-            end
-        end
-    else
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_semiz, vfoptions.n_e,N_j]);
-            if vfoptions.pard2==0
-                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, vfoptions.n_semiz, vfoptions.n_e, N_j, vfoptions);
-            elseif vfoptions.pard2==1
-                Policy=UnKronPolicyIndexes_Case1_FHorz_e(Policy, n_d, n_a, vfoptions.n_semiz, vfoptions.n_e, N_j, vfoptions);
-            end
-        else
-            V=reshape(VKron,[n_a,vfoptions.n_semiz,n_z,vfoptions.n_e,N_j]);
-            if vfoptions.pard2==0
-                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, [vfoptions.n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
-            elseif vfoptions.pard2==1
-                Policy=UnKronPolicyIndexes_Case2_FHorz_e(reshape(Policy,[N_a,N_semiz*N_z,N_e,N_j]), [n_d,n_a], n_a, [vfoptions.n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
-            end
-        end
-    end
-else
+
+%% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+if vfoptions.outputkron==1
     V=VKron;
-    Policy=Policy3;
+    Policy=PolicyKron;
+    return
 end
 
+% Because of how we have N_semiz*N_z together, use the _z commands to UnKron
+if N_z==0
+    n_bothz=n_semiz;
+else
+    n_bothz=[n_semiz,n_z];
+end
+
+
+if N_d1==0
+    error('vfoptions.pard2 not yet implemented for this combo')
+else
+    if N_e==0
+        error('vfoptions.pard2 not yet implemented for this combo')
+    else
+        Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron,[n_d1,n_d2,n_a],n_a,n_bothz,n_e,N_j,vfoptions);
+    end
+end
 
 
 end

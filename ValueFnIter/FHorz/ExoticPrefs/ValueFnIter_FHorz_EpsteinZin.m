@@ -3,9 +3,6 @@ function [V, Policy]=ValueFnIter_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_gridvals, a_
 % Formulation depends on whether using utility-units or consumption-units
 % See appendix to the 'Intro to Life-Cycle models' for an explanation
 
-V=nan;
-Policy=nan;
-
 N_d=prod(n_d);
 % N_a=prod(n_a);
 N_z=prod(n_z);
@@ -196,29 +193,36 @@ else % N_e
     end
 end
 
-% no-d raws return Policy without the leading singleton dim; add it so UnKronPolicyIndexes_Case1_FHorz[_e] sees (1,N_a,N_z[,N_e],N_j).
-% with-d raws already return Policy2 with leading dim of size 2, no shiftdim needed.
-if N_d==0
-    PolicyKron=shiftdim(PolicyKron,-1);
-end
 
-if vfoptions.outputkron==0
-    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if N_e==0
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
-    else
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-        else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-        end
-    end
-else
+%% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+if vfoptions.outputkron==1
     V=VKron;
     Policy=PolicyKron;
+    return
+end
+
+if N_d==0
+    n_daprime=n_a;
+else
+    n_daprime=[n_d,n_a];
+end
+
+if N_e==0
+    if N_z==0
+        V=reshape(VKron,[n_a,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_daprime,n_a,N_j,vfoptions);
+    else
+        V=reshape(VKron,[n_a,n_z,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_daprime,n_a,n_z,N_j,vfoptions);
+    end
+else
+    if N_z==0
+        V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_daprime,n_a,vfoptions.n_e,N_j,vfoptions);  % Treat e as z (because no z)
+    else
+        V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron,n_daprime,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+    end
 end
 
 

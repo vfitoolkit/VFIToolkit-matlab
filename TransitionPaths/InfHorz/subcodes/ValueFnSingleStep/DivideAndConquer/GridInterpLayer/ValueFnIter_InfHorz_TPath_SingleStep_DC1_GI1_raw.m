@@ -36,7 +36,7 @@ n2aprime=length(aprime_grid);
 % aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
 
 V=zeros(N_a,N_z,'gpuArray');
-Policy=zeros(3,N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(4,N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z (extra channel for PolicyL2flag pilot)
 
 %%
 % Create a vector containing all the return function parameters (in order)
@@ -100,6 +100,15 @@ if vfoptions.lowmemory==0
     Policy(1,:,:)=d_ind; % d
     Policy(2,:,:)=shiftdim(squeeze(midpoints(allind)),-1); % midpoint
     Policy(3,:,:)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    L2offset = ceil(maxindexL2/N_d);
+    linidx_lower = d_ind                  + N_d*n2long*aind + N_d*n2long*N_a*zind;
+    linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+    inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+    Policy(4,:,:) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 elseif vfoptions.lowmemory==1
     for z_c=1:N_z
@@ -153,6 +162,15 @@ elseif vfoptions.lowmemory==1
         Policy(1,:,z_c)=d_ind; % d
         Policy(2,:,z_c)=shiftdim(squeeze(midpoints(allind)),-1); % midpoint
         Policy(3,:,z_c)=shiftdim(ceil(maxindex2/N_d),-1); % aprimeL2ind
+        % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+        L2offset = ceil(maxindex2/N_d);
+        linidx_lower = d_ind                  + N_d*n2long*aind;
+        linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+        isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+        inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+        inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+        Policy(4,:,z_c) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
     end
 end
 
@@ -166,7 +184,7 @@ Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1);
 
 %% Policy in transition paths
 l_d=length(n_d);
-Policy2=zeros(l_d+2,N_a,N_z);
+Policy2=zeros(l_d+3,N_a,N_z); % +3 = midpoint, aprimeL2ind, L2flag (pilot)
 % sort d variables
 Policy2(1,:,:)=rem(Policy(1,:,:)-1,n_d(1))+1;
 if l_d>1
@@ -178,6 +196,6 @@ if l_d>1
     Policy2(l_d,:,:)=ceil(Policy(1,:,:)/prod(n_d(1:l_d-1)));
 end
 % rest are already in right shape
-Policy2(l_d+1:end,:,:)=Policy(2:3,:,:);
+Policy2(l_d+1:end,:,:)=Policy(2:4,:,:);
 
 end

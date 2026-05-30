@@ -21,7 +21,7 @@ if N_z==0 && N_e==0
     if vfoptions.gridinterplayer==0
         PolicyIndexesPath=zeros(l_d+l_aprime,N_a,T-1,'gpuArray'); %Periods 1 to T-1
     elseif vfoptions.gridinterplayer==1
-        PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,T-1,'gpuArray'); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(l_d+l_aprime+2,N_a,T-1,'gpuArray'); %Periods 1 to T-1 (+2 = L2index + L2flag)
     end
     if N_probs==1
         II1=1:1:N_a;
@@ -38,7 +38,7 @@ elseif N_z>0 && N_e==0
     if vfoptions.gridinterplayer==0
         PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
     elseif vfoptions.gridinterplayer==1
-        PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(l_d+l_aprime+2,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1 (+2 = L2index + L2flag)
     end
     if N_probs==1
         II1=1:1:N_a*N_z;
@@ -55,7 +55,7 @@ elseif N_z==0 && N_e>0
     if vfoptions.gridinterplayer==0
         PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_e,T-1,'gpuArray'); %Periods 1 to T-1
     elseif vfoptions.gridinterplayer==1
-        PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_e,T-1,'gpuArray'); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(l_d+l_aprime+2,N_a,N_e,T-1,'gpuArray'); %Periods 1 to T-1 (+2 = L2index + L2flag)
     end
     if N_probs==1
         II1=1:1:N_a*N_e;
@@ -72,7 +72,7 @@ elseif N_z>0 && N_e>0
     if vfoptions.gridinterplayer==0
         PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
     elseif vfoptions.gridinterplayer==1
-        PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(l_d+l_aprime+2,N_a,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1 (+2 = L2index + L2flag)
     end
     if N_probs==1
         II1=1:1:N_a*N_z*N_e;

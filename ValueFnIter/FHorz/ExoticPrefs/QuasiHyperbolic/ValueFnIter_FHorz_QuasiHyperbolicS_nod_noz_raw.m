@@ -12,7 +12,7 @@ function [Vunderbar,Policy,Vhat]=ValueFnIter_FHorz_QuasiHyperbolicS_nod_noz_raw(
 N_a=prod(n_a);
 
 Vhat=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(N_a,N_j,'gpuArray'); % indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(N_a,N_j,'gpuArray'); % indexes the optimal choice for aprime, rest of dimensions a,z
 
 
 %% j=N_j
@@ -91,5 +91,7 @@ for reverse_j=1:N_j-1
     maxindexfull=maxindex+N_a*(0:1:N_a-1);
     Vunderbar(:,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
 end
+
+Policy=shiftdim(Policy,-1);
 
 end

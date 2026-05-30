@@ -4,7 +4,7 @@ function StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDis
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
 % Policy_aprime and PolicyProbs are currently [N_a,N_z*N_e,N_probs,N_j]
-Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1),1,N_e);  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
+Policy_aprimez=Policy_aprime+repmat(N_a*(0:1:N_z-1),1,N_e);  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
 Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z*N_e,N_probs,N_j])); % sparse() requires inputs to be 2-D
 PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z*N_e,N_probs,N_j])); % sparse() requires inputs to be 2-D
 

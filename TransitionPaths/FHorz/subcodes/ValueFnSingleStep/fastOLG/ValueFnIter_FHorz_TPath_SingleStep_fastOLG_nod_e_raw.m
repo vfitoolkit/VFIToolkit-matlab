@@ -14,9 +14,7 @@ e_gridvals_J=reshape(e_gridvals_J,[1,1,N_j,1,N_e,length(n_e)]); % [1,1,N_j,1,N_e
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z (note: N_aprime is just equal to N_a)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -28,11 +26,11 @@ EV=EVpre.*shiftdim(pi_z_J,-2);
 EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
 EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 
-DiscountedEV=DiscountFactorParamsVec.*EV;
+DiscountedEV=reshape(DiscountFactor_J,[1,1,N_j]).*EV;
 
 if vfoptions.lowmemory==0
 
-    ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, n_z, n_e, N_j, a_grid, a_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,1);
+    ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_nod_e(ReturnFn, n_a, n_z, n_e, N_j, a_grid, a_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix);
     % fastOLG: ReturnMatrix is [aprime,a,j,z]
 
     entireRHS=ReturnMatrix+DiscountedEV; %(aprime)-by-(a,j)-by-z-by-e
@@ -50,7 +48,7 @@ elseif vfoptions.lowmemory==1
     for e_c=1:N_e
         e_vals=e_gridvals_J(1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,N_j,1,prod(n_e),l_e)
 
-        ReturnMatrix_e=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, n_z, special_n_e, N_j, a_grid, a_grid, z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,1);
+        ReturnMatrix_e=CreateReturnFnMatrix_fastOLG_Disc_nod_e(ReturnFn, n_a, n_z, special_n_e, N_j, a_grid, a_grid, z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix);
         % fastOLG: ReturnMatrix is [aprime,a,j,z] (e)
 
         entireRHS_e=ReturnMatrix_e+DiscountedEV; %(aprime)-by-(a,j)-by-z
@@ -60,6 +58,7 @@ elseif vfoptions.lowmemory==1
         V(:,:,e_c)=reshape(Vtemp,[N_a*N_j,N_z]);
         Policy(:,:,:,e_c)=reshape(maxindex,[N_a,N_j,N_z]);
     end
+    Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 elseif vfoptions.lowmemory==2
 
@@ -75,7 +74,7 @@ elseif vfoptions.lowmemory==2
         for e_c=1:N_e
             e_vals=e_gridvals_J(1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,N_j,1,prod(n_e),l_e)
 
-            ReturnMatrix_ze=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_e(ReturnFn, special_n_z, special_n_e, N_j, a_grid, a_grid, z_vals, e_vals, ReturnFnParamsAgeMatrix,1);
+            ReturnMatrix_ze=CreateReturnFnMatrix_fastOLG_Disc_nod_e(ReturnFn, n_a, special_n_z, special_n_e, N_j, a_grid, a_grid, z_vals, e_vals, ReturnFnParamsAgeMatrix);
             % fastOLG: ReturnMatrix is [aprime,a,j] (z,e)
 
             entireRHS_ze=ReturnMatrix_ze+DiscountedEV_z; %(aprime)-by-(a,j)
@@ -86,7 +85,7 @@ elseif vfoptions.lowmemory==2
             Policy(:,:,z_c,e_c)=reshape(maxindex,[N_a,N_j]);
         end
     end
-
+    Policy=shiftdim(Policy,-1); % so first dim is just one point
 end
 
 
@@ -94,9 +93,5 @@ end
 % V=reshape(V,[N_a*N_j,N_z,N_e]);
 % Policy=reshape(Policy,[N_a,N_j,N_z,N_e]);
 
-%% Output shape for policy
-if vfoptions.lowmemory>0
-    Policy=shiftdim(Policy,-1); % so first dim is just one point
-end
 
 end

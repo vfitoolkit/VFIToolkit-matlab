@@ -40,7 +40,7 @@ zBind=shiftdim(gpuArray(0:1:N_z-1),-3); % already includes -1
 a12ind=repmat(gpuArray(0:1:N_a1-1),1,N_a2)+N_a1*repelem(gpuArray(0:1:N_a2-1),1,N_a1);
 
 V=zeros(N_a,N_z,'gpuArray');
-Policy=zeros(3,N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(4,N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z (extra channel for PolicyL2flag pilot)
 
 %%
 
@@ -106,6 +106,14 @@ if vfoptions.lowmemory==0
     Policy(1,:,:)=midpoints(maxindexL2a2+N_a2*a12ind+N_a2*N_a*zind); % a1prime midpoint
     Policy(2,:,:)=maxindexL2a2; % a2prime
     Policy(3,:,:)=maxindexL2a1; % a1primeL2ind
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*zind;
+    linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind + n2long*N_a2*N_a*zind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+    inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+    Policy(4,:,:) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 elseif vfoptions.lowmemory==1
 
@@ -160,6 +168,14 @@ elseif vfoptions.lowmemory==1
         Policy(1,:,z_c)=midpoints(maxindexL2a2+N_a2*a12ind); % a1prime midpoint
         Policy(2,:,z_c)=maxindexL2a2; % a2prime
         Policy(3,:,z_c)=maxindexL2a1; % a1primeL2ind
+        % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+        linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+        linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+        isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+        inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+        inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+        Policy(4,:,z_c) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
     end
 end
 

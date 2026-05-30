@@ -40,7 +40,7 @@ N_a1prime=length(a1prime_grid);
 % aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
 
 V=zeros(N_a,N_z,'gpuArray');
-Policy=zeros(4,N_a,N_z,'gpuArray'); % first dim: d,a1,a2,a1L2
+Policy=zeros(5,N_a,N_z,'gpuArray'); % first dim: d,a1,a2,a1L2,L2flag (pilot)
 
 %%
 % Create a vector containing all the return function parameters (in order)
@@ -109,6 +109,16 @@ if vfoptions.lowmemory==0
     Policy(2,:,:)=maxindexa1prime; % midpoint for a1
     Policy(3,:,:)=maxindexa2prime; % a2
     Policy(4,:,:)=maxindexL2; % a1prime L2index
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    aBind = (0:1:N_a-1)';
+    zBind = (0:1:N_z-1);
+    linidx_lower = d_ind                  + N_d*n2long*(maxindexa2prime-1) + N_d*n2long*N_a2*aBind + N_d*n2long*N_a2*N_a*zBind;
+    linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*(maxindexa2prime-1) + N_d*n2long*N_a2*aBind + N_d*n2long*N_a2*N_a*zBind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+    inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+    Policy(5,:,:) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 elseif vfoptions.lowmemory==1
     error('not yet implemented vfoptions.lowmemory==1 with DC2A and GI in InfHorz TPath')
@@ -134,7 +144,7 @@ Policy(4,:,:)=L2;
 
 %% Policy in transition paths
 l_d=length(n_d);
-Policy2=zeros(l_d+3,N_a,N_z);
+Policy2=zeros(l_d+4,N_a,N_z); % +4 = a1 midpoint, a2prime, a1prime L2index, L2flag (pilot)
 % sort d variables
 Policy2(1,:,:)=rem(Policy(1,:,:)-1,n_d(1))+1;
 if l_d>1
@@ -146,7 +156,7 @@ if l_d>1
     Policy2(l_d,:,:)=ceil(Policy(1,:,:)/prod(n_d(1:l_d-1)));
 end
 % rest are already in right shape
-Policy2(l_d+1:end,:,:)=Policy(2:4,:,:);
+Policy2(l_d+1:end,:,:)=Policy(2:5,:,:);
 
 
 end

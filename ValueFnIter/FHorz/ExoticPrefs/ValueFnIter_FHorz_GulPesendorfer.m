@@ -69,8 +69,6 @@ if N_d==0
             [VKron,PolicyKron]=ValueFnIter_FHorz_GulPesendorfer_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
         end
     end
-    % Policy without d
-    PolicyKron=shiftdim(PolicyKron,-1);
 else
     if N_e==0
         if N_z==0
@@ -87,23 +85,36 @@ else
     end
 end
 
-if vfoptions.outputkron==0
-    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if N_e==0
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
-    else
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-        else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-        end
-    end
-else
+
+%% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+if vfoptions.outputkron==1
     V=VKron;
     Policy=PolicyKron;
+    return
+end
+
+if N_d==0
+    n_daprime=n_a;
+else
+    n_daprime=[n_d,n_a];
+end
+
+if N_e==0
+    if N_z==0
+        V=reshape(VKron,[n_a,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_daprime,n_a,N_j,vfoptions);
+    else
+        V=reshape(VKron,[n_a,n_z,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_daprime,n_a,n_z,N_j,vfoptions);
+    end
+else
+    if N_z==0
+        V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_daprime,n_a,vfoptions.n_e,N_j,vfoptions);  % Treat e as z (because no z)
+    else
+        V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron,n_daprime,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+    end
 end
 
 

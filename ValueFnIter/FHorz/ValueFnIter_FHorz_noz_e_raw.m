@@ -1,11 +1,11 @@
-function [V,Policy2]=ValueFnIter_FHorz_noz_e_raw(n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_noz_e_raw(n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_e=prod(n_e);
 
 V=zeros(N_a,N_e,N_j,'gpuArray');
-Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(1,N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
 if vfoptions.lowmemory>0
@@ -22,10 +22,10 @@ pi_e_J=shiftdim(pi_e_J,-1); % Move to second dimension (normally -2, but no z so
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);  % Because no z, can treat e like z and call Par2 rather than Par2e
-        %Calc the max and it's index
+        % Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        Policy(:,:,N_j)=maxindex;
+        Policy(1,:,:,N_j)=maxindex;
 
     elseif vfoptions.lowmemory==1
 
@@ -35,7 +35,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,e_c,N_j)=Vtemp;
-            Policy(:,e_c,N_j)=maxindex;
+            Policy(1,:,e_c,N_j)=maxindex;
         end
 
     end
@@ -52,13 +52,13 @@ else
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);  % Because no z, can treat e like z and call Par2 rather than Par2e
         % (d,aprime,a,e)
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*repmat(V_Jplus1,1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; % autofill a&e for EV
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,N_j)=shiftdim(Vtemp,1);
-        Policy(:,:,N_j)=shiftdim(maxindex,1);
+        Policy(1,:,:,N_j)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
 
@@ -67,13 +67,13 @@ else
             ReturnMatrix_e=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec,0);
             % (d,aprime,a)
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV; % autofill a for EV
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
 
             V(:,e_c,N_j)=shiftdim(Vtemp,1);
-            Policy(:,e_c,N_j)=shiftdim(maxindex,1);
+            Policy(1,:,e_c,N_j)=shiftdim(maxindex,1);
         end
     end
 end
@@ -99,37 +99,33 @@ for reverse_j=1:N_j-1
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
         % (d,aprime,a,e)
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; % autofill a&e for EV
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,jj)=shiftdim(Vtemp,1);
-        Policy(:,:,jj)=shiftdim(maxindex,1);
+        Policy(1,:,:,jj)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec,0);
-            % (d,aprime,a,z)
+            % (d,aprime,a)
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV; % autofill a for EV
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
 
             V(:,e_c,jj)=shiftdim(Vtemp,1);
-            Policy(:,e_c,jj)=shiftdim(maxindex,1);
+            Policy(1,:,e_c,jj)=shiftdim(maxindex,1);
         end
 
     end
 
 end
 
-%%
-Policy2=zeros(2,N_a,N_e,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 end

@@ -12,15 +12,81 @@ if vfoptions.divideandconquer==0
         else
             [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_noz_raw(VKron,n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
-    else
-        error('Have not yet implemented grid interpolation layer for FHorz TPath without fastOLG=1. Ask on forum if you need this.')
+    else % vfoptions.gridinterplayer==1
+        if isscalar(n_a)
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_GI1_nod_noz_raw(VKron,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_GI1_noz_raw(VKron,n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else % 2 endogenous states
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_GI2A_nod_noz_raw(VKron,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_GI2A_noz_raw(VKron,n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        end
     end
-else
-    error('Have not yet implemented divide and conquer for FHorz TPath without fastOLG=1. Ask on forum if you need this.')
+else % vfoptions.divideandconquer==1
+    if ~isscalar(n_a) && length(vfoptions.level1n)>1
+        if vfoptions.level1n(2)>=n_a(2)
+            vfoptions.level1n=vfoptions.level1n(1);
+        else
+            error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')
+        end
+    end
+    if vfoptions.gridinterplayer==0
+        if isscalar(n_a)
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_DC1_nod_noz_raw(VKron,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_DC1_noz_raw(VKron,n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else % 2 endogenous states
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_DC2A_nod_noz_raw(VKron,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_DC2A_noz_raw(VKron,n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        end
+    else % vfoptions.gridinterplayer==1
+        if isscalar(n_a)
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_DC1_GI1_nod_noz_raw(VKron,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_DC1_GI1_noz_raw(VKron,n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else % 2 endogenous states
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_DC2A_GI2A_nod_noz_raw(VKron,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_DC2A_GI2A_noz_raw(VKron,n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        end
+    end
 end
 
 %% Policy in transition paths
-PolicyKron=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron,n_d,n_a,N_j,vfoptions);
-PolicyKron=reshape(PolicyKron,[size(PolicyKron,1),N_a,N_j]);
-
+if isscalar(n_a)
+    if N_d==0
+        PolicyKron=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_a,N_a,N_j,vfoptions);
+    else
+        if vfoptions.gridinterplayer==0
+            PolicyKron=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,[n_d,n_a],N_a,N_j,vfoptions);
+        else
+            PolicyKron=UnKronPolicyIndexes2_FHorz_noz(PolicyKron,n_d,n_a,N_a,N_j,vfoptions);
+        end
+    end
+else
+    n_a1=n_a(1);
+    n_a2=n_a(2:end);
+    if N_d==0
+        if vfoptions.gridinterplayer==0
+            PolicyKron=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_a,N_a,N_j,vfoptions);
+        else
+            PolicyKron=UnKronPolicyIndexes2_FHorz_noz(PolicyKron,n_a1,n_a2,N_a,N_j,vfoptions);
+        end
+    else
+        PolicyKron=UnKronPolicyIndexes3_FHorz_noz(PolicyKron,n_d,n_a1,n_a2,N_a,N_j,vfoptions);
+    end
 end

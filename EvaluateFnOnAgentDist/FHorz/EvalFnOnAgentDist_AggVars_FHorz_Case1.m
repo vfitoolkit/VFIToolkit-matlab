@@ -189,40 +189,6 @@ else % N_z
             end
             AggVars(ii)=sum(sum(Values.*StationaryDist));
         end
-    elseif simoptions.lowmemory==2 % loop over age j, and over the exogenous state
-        % Loop over z (which is all exogenous states, if there is an e or semiz variable it has just been rolled into z)
-        AggVars=zeros(length(FnsToEvaluate),N_z,'gpuArray');
-        StationaryDist=permute(reshape(StationaryDist,[N_a,N_z,N_j]),[1,3,2]); % permute moves z to last dimension
-
-        if n_d(1)>0
-            Policy=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
-        else
-            Policy=reshape(Policy,[N_a,N_z,N_j]);
-        end
-
-        for z_c=1:N_z
-            StationaryDistVec_z=StationaryDist(:,:,z_c); % This is why I did the permute (to avoid a reshape here). Not actually sure whether all the reshapes would be faster than the permute or not?
-            if n_d(1)>0
-                PolicyValues=PolicyInd2Val_FHorz(Policy(:,:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parallel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
-            else
-                PolicyValues=PolicyInd2Val_FHorz(Policy(:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parallel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
-            end
-
-            for ii=1:length(FnsToEvaluate)
-                Values=nan(N_a*N_z,N_j,'gpuArray');
-                for jj=1:N_j
-                    % Includes check for cases in which no parameters are actually required
-                    if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
-                        FnToEvaluateParamsVec=[];
-                    else
-                        FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-                    end
-                    Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, [e_gridvals_J(e_c,:,jj),FnToEvaluateParamsVec],PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
-                end
-                AggVars(ii,z_c)=sum(sum(Values.*StationaryDistVec_z));
-            end
-        end
-        AggVars=sum(AggVars,2); % sum over e (note that the weighting by pi_e is already implicit in the stationary dist)
     end
 end
 

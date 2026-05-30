@@ -22,9 +22,7 @@ level1ii=round(linspace(1,n_a,vfoptions.level1n));
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z*N_e (note: N_aprime is just equal to N_a)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -46,7 +44,7 @@ elseif vfoptions.EVpre==1
 end
 V=zeros(N_a,N_j,N_z,N_e,'gpuArray'); % V is over (a,j)
 
-DiscountedEV=DiscountFactorParamsVec.*EV;
+DiscountedEV=reshape(DiscountFactor_J,[1,1,N_j]).*EV;
 
 if vfoptions.lowmemory==0
     % n-Monotonicity

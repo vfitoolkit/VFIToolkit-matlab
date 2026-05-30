@@ -18,7 +18,7 @@ N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a2,N_z,N_j,'gpuArray');
-Policy2=zeros(2,N_a2,N_z,N_j,'gpuArray'); % d2, d3
+Policy=zeros(2,N_a2,N_z,N_j,'gpuArray'); % d2, d3
 
 %%
 d3_grid=gpuArray(d3_grid);
@@ -107,15 +107,15 @@ if ~isfield(vfoptions,'V_Jplus1')
             [Vtemp,maxindex]=max(entireRHS,[],1);
 
             V(:,:,N_j)=Vtemp;
-            Policy2(1,:,:,N_j)=shiftdim(d2index(maxindex),1); % d2
-            Policy2(2,:,:,N_j)=shiftdim(maxindex,1); % d3
+            Policy(1,:,:,N_j)=shiftdim(d2index(maxindex),1); % d2
+            Policy(2,:,:,N_j)=shiftdim(maxindex,1); % d3
         else
             % no point in Refine (as there effectively is no d2)
             [Vtemp,maxindex]=max(ReturnMatrix,[],1);
 
             V(:,:,N_j)=Vtemp;
-            Policy2(1,:,:,N_j)=1; % d2, is anyway meaningless
-            Policy2(2,:,:,N_j)=shiftdim(ceil(maxindex),1); % d3
+            Policy(1,:,:,N_j)=1; % d2, is anyway meaningless
+            Policy(2,:,:,N_j)=shiftdim(ceil(maxindex),1); % d3
         end
 
     elseif vfoptions.lowmemory==1
@@ -146,8 +146,8 @@ if ~isfield(vfoptions,'V_Jplus1')
                 [Vtemp,maxindex]=max(ReturnMatrix_z+WGmatrix,[],1);
             end
             V(:,z_c,N_j)=Vtemp;
-            Policy2(1,:,z_c,N_j)=shiftdim(d2index(maxindex),1);
-            Policy2(2,:,z_c,N_j)=shiftdim(maxindex,1);
+            Policy(1,:,z_c,N_j)=shiftdim(d2index(maxindex),1);
+            Policy(2,:,z_c,N_j)=shiftdim(maxindex,1);
         end
 
     end
@@ -220,8 +220,8 @@ else
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,N_j)=Vtemp;
-        Policy2(1,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
-        Policy2(2,:,:,N_j)=shiftdim(maxindex,1);
+        Policy(1,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
+        Policy(2,:,:,N_j)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
@@ -274,8 +274,8 @@ else
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            Policy2(1,:,z_c,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
-            Policy2(2,:,z_c,N_j)=shiftdim(maxindex,1);
+            Policy(1,:,z_c,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
+            Policy(2,:,z_c,N_j)=shiftdim(maxindex,1);
         end
     end
 end
@@ -389,8 +389,8 @@ for reverse_j=1:N_j-1
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,jj)=shiftdim(Vtemp,1);
-        Policy2(1,:,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
-        Policy2(2,:,:,jj)=shiftdim(maxindex,1);
+        Policy(1,:,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
+        Policy(2,:,:,jj)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
@@ -443,13 +443,12 @@ for reverse_j=1:N_j-1
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;
-            Policy2(1,:,z_c,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
-            Policy2(2,:,z_c,jj)=shiftdim(maxindex,1);
+            Policy(1,:,z_c,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
+            Policy(2,:,z_c,jj)=shiftdim(maxindex,1);
         end
     end
 end
 
-Policy=Policy2(1,:,:,:)+N_d2*(Policy2(2,:,:,:)-1); % d2, d3
 
 
 end

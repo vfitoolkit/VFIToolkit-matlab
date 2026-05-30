@@ -186,9 +186,7 @@ adjust=(Policy3(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpo
 Policy3(2,:,:,:)=Policy3(2,:,:,:)-adjust; % lower grid point
 Policy3(3,:,:,:)=adjust.*Policy3(3,:,:,:)+(1-adjust).*(Policy3(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-%% For experience asset, just output Policy as single index and then use Case2 to UnKron
-Policy=Policy3(1,:,:,:)+N_d2*(Policy3(2,:,:,:)-1)+N_d2*N_a1*(Policy3(3,:,:,:)-1)+N_d2*N_a1*(n2short+2)*(Policy3(4,:,:,:)-1);
-% Output shape for policy, first dim is just one point
+Policy=Policy3;
 
 
 

@@ -32,9 +32,7 @@ zBind=shiftdim(gpuArray(0:1:N_z-1),-2);
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z (note: N_aprime is just equal to N_a)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -56,10 +54,10 @@ end
 % Interpolate EV over aprime_grid
 EVinterp=interp1(a_grid,EV,aprime_grid);
 
-DiscountedEV=DiscountFactorParamsVec.*EV;
+DiscountedEV=reshape(DiscountFactor_J,[1,1,N_j]).*EV;
 DiscountedEV=repelem(shiftdim(DiscountedEV,-1),N_d,1,1,1); % [d,aprime,1,j,z]
 
-DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp;
+DiscountedEVinterp=reshape(DiscountFactor_J,[1,1,N_j]).*EVinterp;
 DiscountedEVinterp=repelem(shiftdim(DiscountedEVinterp,-1),N_d,1,1,1); % [d,aprime,1,j,z]
 
 if vfoptions.lowmemory==0
@@ -152,13 +150,9 @@ adjust=(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoi
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust; % lower grid point
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-% Leave the first dimension as is
-% Policy=squeeze(Policy(1,:,:,:)+N_d*(Policy(2,:,:,:)-1)+N_d*N_a*(Policy(3,:,:,:)-1));
-
 %% fastOLG with z, so need to output to take certain shapes
 % V=reshape(V,[N_a*N_j,N_z]);
-% Policy=reshape(Policy,[N_a,N_j,N_z]);
-% Note that in fastOLG, we do not separate d from aprime in Policy
+% Policy=reshape(Policy,[size(Policy,1),N_a,N_j,N_z]);
 
 
 end

@@ -4,7 +4,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(1,N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
 if vfoptions.lowmemory>0
@@ -22,7 +22,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        Policy(:,:,N_j)=maxindex;
+        Policy(1,:,:,N_j)=maxindex;
 
     elseif vfoptions.lowmemory==1
 
@@ -32,7 +32,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            Policy(:,z_c,N_j)=maxindex;
+            Policy(1,:,z_c,N_j)=maxindex;
         end
     end
 else
@@ -56,7 +56,7 @@ else
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,N_j)=shiftdim(Vtemp,1);
-        Policy(:,:,N_j)=shiftdim(maxindex,1);
+        Policy(1,:,:,N_j)=maxindex;
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
@@ -70,7 +70,7 @@ else
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            Policy(:,z_c,N_j)=maxindex;
+            Policy(1,:,z_c,N_j)=maxindex;
         end
     end
 end
@@ -107,7 +107,7 @@ for reverse_j=1:N_j-1
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,jj)=shiftdim(Vtemp,1);
-        Policy(:,:,jj)=shiftdim(maxindex,1);
+        Policy(1,:,:,jj)=maxindex;
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
@@ -121,7 +121,7 @@ for reverse_j=1:N_j-1
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;
-            Policy(:,z_c,jj)=maxindex;
+            Policy(1,:,z_c,jj)=maxindex;
         end
     end
 end

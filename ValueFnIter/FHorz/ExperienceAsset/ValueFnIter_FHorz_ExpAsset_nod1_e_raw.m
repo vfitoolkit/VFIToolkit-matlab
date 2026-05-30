@@ -223,7 +223,8 @@ for reverse_j=1:N_j-1
     end
 end
 
-%% For experience asset, just output Policy as is and then use Case2 to UnKron
+%%
+Policy=shiftdim(Policy,-1);
 
 
 

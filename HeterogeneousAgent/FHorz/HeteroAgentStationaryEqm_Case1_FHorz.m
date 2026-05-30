@@ -221,7 +221,7 @@ end
 % If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
 if heteroagentoptions.gridsinGE==0
     % Some of the shock grids depend on parameters that are determined in general eqm
-    [z_grid, pi_z, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
     % Note: these are actually z_gridvals_J and pi_z_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % Note, will be [] if no e
     simoptions.pi_e_J=vfoptions.pi_e_J; % Note, will be [] if no e
@@ -231,6 +231,10 @@ if heteroagentoptions.gridsinGE==0
             heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z_J;
         end
         simoptions=rmfield(simoptions,'ExogShockFn');
+    end
+    % Some things need simoptions.z_grid, so use the gridvals version
+    if isfield(simoptions,'z_grid')
+        simoptions.z_grid=z_gridvals_J; % Assumes z_grid and simoptions.z_grid are the same, but cannot think why they would not be
     end
 end
 % Regardless of whether they are done here of in _subfn, they will be
@@ -268,6 +272,18 @@ if isstruct(FnsToEvaluate)
     if isfield(simoptions,'experienceassetu')
         % One of the endogenous states should only be counted once
         l_aprime=l_aprime-simoptions.experienceassetu;
+    end
+    if isfield(simoptions,'experienceassetz')
+        % One of the endogenous states should only be counted once
+        l_aprime=l_aprime-simoptions.experienceassetz;
+    end
+    if isfield(simoptions,'experienceassete')
+        % One of the endogenous states should only be counted once
+        l_aprime=l_aprime-simoptions.experienceassete;
+    end
+    if isfield(simoptions,'experienceassetze')
+        % One of the endogenous states should only be counted once
+        l_aprime=l_aprime-simoptions.experienceassetze;
     end
     if isfield(simoptions,'riskyasset')
         % One of the endogenous states should only be counted once
@@ -354,15 +370,15 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
 
     %% Otherwise, use fminsearch to find the general equilibrium
     if heteroagentoptions.fminalgo~=3 && heteroagentoptions.fminalgo~=8
-        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z_J, d_grid, a_grid, z_gridvals_J, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
     elseif heteroagentoptions.fminalgo==3
         heteroagentoptions.outputGEform=1; % vector
-        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z_J, d_grid, a_grid, z_gridvals_J, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
     elseif heteroagentoptions.fminalgo==8
         heteroagentoptions.outputGEform=1; % vector
         weightsbackup=heteroagentoptions.multiGEweights;
         heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z_J, d_grid, a_grid, z_gridvals_J, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
         heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
     end
 
@@ -522,7 +538,7 @@ if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
     if isfield(heteroagentoptions,'constrainAtoB')
         heteroagentoptions.constrainAtoB=zeros(length(p_eqm_vec),1);
     end
-    GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
+    GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z_J, d_grid, a_grid, z_gridvals_J, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
     GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
 end
 if heteroagentoptions.outputGEstruct==1

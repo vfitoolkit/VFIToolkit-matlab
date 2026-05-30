@@ -18,7 +18,7 @@ N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_e,N_j,'gpuArray');
-Policy2=zeros(2,N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(2,N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
 u_grid=gpuArray(u_grid);
@@ -44,8 +44,8 @@ if ~isfield(vfoptions,'V_Jplus1')
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        Policy2(1,:,:,N_j)=1; % is meaningless anyway
-        Policy2(2,:,:,N_j)=shiftdim(maxindex,-1);
+        Policy(1,:,:,N_j)=1; % is meaningless anyway
+        Policy(2,:,:,N_j)=shiftdim(maxindex,-1);
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -54,8 +54,8 @@ if ~isfield(vfoptions,'V_Jplus1')
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,e_c,N_j)=Vtemp;
-            Policy2(1,:,e_c,N_j)=1; % is meaningless anyway
-            Policy2(2,:,e_c,N_j)=shiftdim(maxindex,-1);
+            Policy(1,:,e_c,N_j)=1; % is meaningless anyway
+            Policy(2,:,e_c,N_j)=shiftdim(maxindex,-1);
         end
     end
 else
@@ -93,8 +93,8 @@ else
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,N_j)=shiftdim(Vtemp,1);
-        Policy2(2,:,:,N_j)=shiftdim(maxindex,1);
-        Policy2(1,:,:,N_j)=shiftdim(d2index(maxindex),1);
+        Policy(2,:,:,N_j)=shiftdim(maxindex,1);
+        Policy(1,:,:,N_j)=shiftdim(d2index(maxindex),1);
 
     elseif vfoptions.lowmemory==1
         % Time to refine
@@ -113,8 +113,8 @@ else
            %Calc the max and it's index
            [Vtemp,maxindex]=max(entireRHS_e,[],1);
            V(:,e_c,N_j)=Vtemp;
-           Policy2(2,:,e_c,N_j)=shiftdim(maxindex,1);
-           Policy2(1,:,e_c,N_j)=shiftdim(d2index(maxindex),1);
+           Policy(2,:,e_c,N_j)=shiftdim(maxindex,1);
+           Policy(1,:,e_c,N_j)=shiftdim(d2index(maxindex),1);
         end
 
     end
@@ -164,8 +164,8 @@ for reverse_j=1:N_j-1
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,jj)=shiftdim(Vtemp,1);
-        Policy2(2,:,:,jj)=shiftdim(maxindex,1);
-        Policy2(1,:,:,jj)=shiftdim(d2index(maxindex),1);
+        Policy(2,:,:,jj)=shiftdim(maxindex,1);
+        Policy(1,:,:,jj)=shiftdim(d2index(maxindex),1);
 
     elseif vfoptions.lowmemory==1
 
@@ -187,14 +187,13 @@ for reverse_j=1:N_j-1
            %Calc the max and it's index
            [Vtemp,maxindex]=max(entireRHS_e,[],1);
            V(:,e_c,jj)=Vtemp;
-           Policy2(2,:,e_c,N_j)=shiftdim(maxindex,1);
-           Policy2(1,:,e_c,N_j)=shiftdim(d2index(maxindex),1);
+           Policy(2,:,e_c,N_j)=shiftdim(maxindex,1);
+           Policy(1,:,e_c,N_j)=shiftdim(d2index(maxindex),1);
         end
 
     end
 end
 
-Policy=Policy2(1,:,:,:)+N_d2*(Policy2(2,:,:,:)-1); % d2, d3
 
 
 end

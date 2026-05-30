@@ -94,27 +94,41 @@ elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') % Output: [Vunderbar,P
 end
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-% PolicyKron is Policy3 form: (d1,d2,aprime) or (d2,aprime) if no d1
+if vfoptions.outputkron==1
+    V1=V1Kron;
+    Policy=PolicyKron;
+    Valt=ValtKron;
+    return
+end
+
+% Because of how we have N_semiz*N_z together, use the _z commands to UnKron
 if N_z==0
     n_bothz=vfoptions.n_semiz;
 else
     n_bothz=[vfoptions.n_semiz,n_z];
 end
 
-if vfoptions.outputkron==0
+% First dimension of PolicyKron is (d1,d2,aprime), or if no d1, then (d2,aprime)
+if N_d1==0
     if N_e==0
         V1=reshape(V1Kron,[n_a,n_bothz,N_j]);
+        Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
         Valt=reshape(ValtKron,[n_a,n_bothz,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_noz(PolicyKron, n_d1, n_d2, n_a, n_bothz, N_j, vfoptions);
     else
-        V1=reshape(V1Kron,[n_a,n_bothz, vfoptions.n_e,N_j]);
-        Valt=reshape(ValtKron,[n_a,n_bothz, vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(PolicyKron, n_d1,n_d2, n_a, n_bothz, vfoptions.n_e, N_j, vfoptions);
+        V1=reshape(V1Kron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+        Valt=reshape(ValtKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
     end
 else
-    V1=V1Kron;
-    Policy=PolicyKron;
-    Valt=ValtKron;
+    if N_e==0
+        V1=reshape(V1Kron,[n_a,n_bothz,N_j]);
+        Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron,n_d1,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
+        Valt=reshape(ValtKron,[n_a,n_bothz,N_j]);
+    else
+        V1=reshape(V1Kron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron,n_d1,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+        Valt=reshape(ValtKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+    end
 end
 
 

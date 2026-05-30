@@ -515,7 +515,7 @@ adjust=(Policy(3,:,:,:,:)<1+n2short+1);
 Policy(2,:,:,:,:)=Policy(2,:,:,:,:)-adjust;
 Policy(3,:,:,:,:)=adjust.*Policy(3,:,:,:,:)+(1-adjust).*(Policy(3,:,:,:,:)-n2short-1);
 
-Policy=squeeze(Policy(1,:,:,:,:)+N_d2*(Policy(2,:,:,:,:)-1)+N_d2*N_a*(Policy(3,:,:,:,:)-1)+N_d2*N_a*(n2short+2)*(PolicyL2flag-1));
+Policy=[Policy;PolicyL2flag];
 
 V1=Vtilde;
 Valt=V;

@@ -21,7 +21,7 @@ N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy3=zeros(3,N_a,N_j,'gpuArray'); % d2, d3, a1prime
+Policy=zeros(3,N_a,N_j,'gpuArray'); % d2, d3, a1prime
 
 %%
 pi_u=shiftdim(pi_u,-1); % 2nd dimension
@@ -43,9 +43,9 @@ if ~isfield(vfoptions,'V_Jplus1')
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
     dindex=rem(maxindex-1,N_d)+1;
-    Policy3(1,:,N_j)=1; % is meaningless anyway
-    Policy3(2,:,N_j)=shiftdim(ceil(dindex),-1);
-    Policy3(3,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+    Policy(1,:,N_j)=1; % is meaningless anyway
+    Policy(2,:,N_j)=shiftdim(ceil(dindex),-1);
+    Policy(3,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
@@ -90,9 +90,9 @@ else
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,N_j)=Vtemp;
-    Policy3(2,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-    Policy3(3,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
-    Policy3(1,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
+    Policy(2,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+    Policy(3,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
+    Policy(1,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
 end
 
 %% Iterate backwards through j.
@@ -148,11 +148,11 @@ for reverse_j=1:N_j-1
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,jj)=Vtemp;
-    Policy3(2,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-    Policy3(3,:,jj)=shiftdim(ceil(maxindex/N_d3),-1);
-    Policy3(1,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
+    Policy(2,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+    Policy(3,:,jj)=shiftdim(ceil(maxindex/N_d3),-1);
+    Policy(1,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
 end
 
-Policy=Policy3(1,:,:)+N_d2*(Policy3(2,:,:)-1)+N_d2*N_d3*(Policy3(3,:,:)-1); % d2, d3, a1prime
+
 
 end

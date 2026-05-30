@@ -28,7 +28,7 @@ n2aprime=length(aprime_grid);
 % aprime_grid=repelem(a_grid,1+n2short,1);
 % aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
 
-Policy=zeros(2,N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(3,N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z (extra channel for PolicyL2flag pilot)
 
 %%
 
@@ -90,6 +90,16 @@ if vfoptions.lowmemory==0
     V=shiftdim(V,1);
     Policy(1,:,:)=shiftdim(squeeze(midpoints),-1); % midpoint
     Policy(2,:,:)=shiftdim(maxindexL2,-1); % aprimeL2ind
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    aind = 0:1:N_a-1;
+    zind = shiftdim(0:1:N_z-1, -1);
+    linidx_lower = 1      + n2long*aind + n2long*N_a*zind;
+    linidx_upper = n2long + n2long*aind + n2long*N_a*zind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+    inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+    Policy(3,:,:) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 elseif vfoptions.lowmemory==1
     V=zeros(N_a,N_z,'gpuArray'); % preallocate
@@ -147,6 +157,15 @@ elseif vfoptions.lowmemory==1
         V(:,z_c)=shiftdim(Vtempii,1);
         Policy(1,:,z_c)=shiftdim(squeeze(midpoints),-1); % midpoint
         Policy(2,:,z_c)=shiftdim(maxindexL2,-1); % aprimeL2ind
+        % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+        aind = 0:1:N_a-1;
+        linidx_lower = 1      + n2long*aind;
+        linidx_upper = n2long + n2long*aind;
+        isInfLower = (ReturnMatrix_ii_z(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_ii_z(linidx_upper) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+        inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+        Policy(3,:,z_c) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
     end
 end
 

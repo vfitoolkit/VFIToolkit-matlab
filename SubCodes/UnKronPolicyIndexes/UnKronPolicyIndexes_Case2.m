@@ -5,6 +5,9 @@ function Policy=UnKronPolicyIndexes_Case2(PolicyKron, n_d, n_a, n_z,vfoptions)
 % Output: Policy is (l_d,n_a,n_z);
 %
 % Note: if you input (Policy,n_d,N_a,N_z,vfoptions) then the output only unpacks the first dimension and is (l_d,N_a,N_z)
+%
+% If using vfoptions.gridinterplayer==1
+% input n_d=[n_d,vfoptions.ngridinterp,3]; % L2 and L2flag
 
 N_a=prod(n_a);
 N_z=prod(n_z);

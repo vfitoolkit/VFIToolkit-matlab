@@ -166,3 +166,10 @@ elseif vfoptions.lowmemory==1
         end
     end
 end
+
+
+%%
+Policy=shiftdim(Policy,-1);
+
+
+end

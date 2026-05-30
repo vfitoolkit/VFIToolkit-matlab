@@ -8,7 +8,7 @@ N_a=N_a1*N_a2;
 N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
+Policy=zeros(N_a,N_z,N_j,'gpuArray'); % indexes the optimal choice for d and a1prime rest of dimensions a,z
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -169,7 +169,8 @@ for reverse_j=1:N_j-1
     end
 end
 
-%% For experience asset, just output Policy as is and then use Case2 to UnKron
+%%
+Policy=shiftdim(Policy,-1);
 
 
 end

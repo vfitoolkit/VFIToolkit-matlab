@@ -136,7 +136,7 @@ if simoptions.alreadygridvals==0
     end
 elseif simoptions.alreadygridvals==1
     if isfield(simoptions,'z_grid')
-        z_gridvals_J=z_grid;
+        z_gridvals_J=simoptions.z_grid;
     end
     pi_z_J=pi_z;
 end

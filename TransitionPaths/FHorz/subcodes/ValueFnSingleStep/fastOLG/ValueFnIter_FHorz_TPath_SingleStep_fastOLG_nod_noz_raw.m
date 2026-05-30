@@ -12,16 +12,14 @@ N_a=prod(n_a);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 EV=zeros(N_a,1,N_j,'gpuArray');
 EV(:,1,1:N_j-1)=V(:,2:end); % Leave N_j as zeros
 
-ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_noz(ReturnFn, N_j, a_grid, a_grid, ReturnFnParamsAgeMatrix,2);
+ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_nod_noz(ReturnFn, n_a, N_j, a_grid, a_grid, ReturnFnParamsAgeMatrix);
 
-entireRHS=ReturnMatrix+DiscountFactorParamsVec.*EV; %(aprime)-by-(a,j)
+entireRHS=ReturnMatrix+reshape(DiscountFactor_J,[1,1,N_j]).*EV; %(aprime)-by-(a,j)
 
 % Calc the max and it's index
 [V,Policy]=max(entireRHS,[],1);

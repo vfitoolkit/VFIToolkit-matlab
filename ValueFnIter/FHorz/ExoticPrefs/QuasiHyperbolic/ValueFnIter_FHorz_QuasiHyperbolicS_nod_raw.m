@@ -13,7 +13,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 Vhat=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(N_a,N_z,N_j,'gpuArray'); % indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(N_a,N_z,N_j,'gpuArray'); % indexes the optimal choice for aprime, rest of dimensions a,z
 
 %%
 if vfoptions.lowmemory>0
@@ -173,5 +173,7 @@ for reverse_j=1:N_j-1
         end
     end
 end
+
+Policy=shiftdim(Policy,-1);
 
 end

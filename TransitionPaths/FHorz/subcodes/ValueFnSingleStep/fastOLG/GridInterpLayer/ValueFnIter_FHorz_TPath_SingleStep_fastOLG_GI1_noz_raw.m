@@ -25,17 +25,15 @@ jBind=shiftdim(gpuArray(0:1:N_j-1),-1);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 EV=zeros(N_a,1,N_j,'gpuArray');
 EV(:,1,1:N_j-1)=V(:,2:end);
 % Interpolate EV over aprime_grid
 EVinterp=interp1(a_grid,EV,aprime_grid);
 
-DiscountedEV=repelem(shiftdim(DiscountFactorParamsVec.*EV,-1),N_d,1,1); % [1,N_a,1,N_j], singular first dimension for d
-DiscountedEVinterp=repelem(DiscountFactorParamsVec.*EVinterp,N_d,1,1); % [N_d*n2aprime,1,N_j], singular first dimension for d
+DiscountedEV=repelem(shiftdim(reshape(DiscountFactor_J,[1,1,N_j]).*EV,-1),N_d,1,1); % [1,N_a,1,N_j], singular first dimension for d
+DiscountedEVinterp=repelem(reshape(DiscountFactor_J,[1,1,N_j]).*EVinterp,N_d,1,1); % [N_d*n2aprime,1,N_j], singular first dimension for d
 
 ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1_noz(ReturnFn, n_d, N_j, d_gridvals, a_grid, a_grid, ReturnFnParamsAgeMatrix,1);
 
@@ -70,16 +68,13 @@ inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
 Policy(4,:,:)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
 
-% Currently Policy(2,:) is the midpoint, and Policy(3,:) the second layer
+%% Currently Policy(2,:) is the midpoint, and Policy(3,:) the second layer
 % (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
 % we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
 % counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(2,:,:)=Policy(2,:,:)-adjust; % lower grid point
 Policy(3,:,:)=adjust.*Policy(3,:,:)+(1-adjust).*(Policy(3,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-% Leave the first dimension as is
-% Policy=squeeze(Policy(1,:,:)+N_d*(Policy(2,:,:)-1)+N_d*N_a*(Policy(3,:,:)-1));
 
 
 end

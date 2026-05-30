@@ -7,7 +7,7 @@ N_a=N_a1*N_a2;
 N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
-Policy3=zeros(3,N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
+Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
 PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 
 %%
@@ -53,9 +53,9 @@ if ~isfield(vfoptions,'V_Jplus1')
         V(:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d2)+1;
         allind=d_ind+N_d2*aind+N_d2*N_a*zindB; % midpoint is n_d2-by-1-by-n_a1-by-n_a2-by-n_z
-        Policy3(1,:,:,N_j)=d_ind; % d2
-        Policy3(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-        Policy3(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+        Policy(1,:,:,N_j)=d_ind; % d2
+        Policy(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
+        Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
         % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d)
         L2offset      = ceil(maxindexL2/N_d2);
         linidx_lower  = d_ind                   + N_d2*n2long*aind + N_d2*n2long*N_a*zindB;
@@ -82,9 +82,9 @@ if ~isfield(vfoptions,'V_Jplus1')
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d2)+1;
             allind=d_ind+N_d2*aind; % midpoint is n_d-by-1-by-n_a1-by-n_a2
-            Policy3(1,:,z_c,N_j)=d_ind; % d2
-            Policy3(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-            Policy3(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+            Policy(1,:,z_c,N_j)=d_ind; % d2
+            Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
             % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d)
             L2offset      = ceil(maxindexL2/N_d2);
             linidx_lower  = d_ind                   + N_d2*n2long*aind;
@@ -149,9 +149,9 @@ else
         V(:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d2)+1;
         allind=d_ind+N_d2*aind+N_d2*N_a*zindB; % midpoint is n_d-by-1-by-n_a1-by-n_a2-by-n_z
-        Policy3(1,:,:,N_j)=d_ind; % d2
-        Policy3(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-        Policy3(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+        Policy(1,:,:,N_j)=d_ind; % d2
+        Policy(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
+        Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
         % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d)
         L2offset      = ceil(maxindexL2/N_d2);
         linidx_lower  = d_ind                   + N_d2*n2long*aind + N_d2*n2long*N_a*zindB;
@@ -189,9 +189,9 @@ else
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d2)+1;
             allind=d_ind+N_d2*aind; % midpoint is n_d-by-1-by-n_a1-by-n_a2
-            Policy3(1,:,z_c,N_j)=d_ind; % d2
-            Policy3(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-            Policy3(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+            Policy(1,:,z_c,N_j)=d_ind; % d2
+            Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
             % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d)
             L2offset      = ceil(maxindexL2/N_d2);
             linidx_lower  = d_ind                   + N_d2*n2long*aind;
@@ -267,9 +267,9 @@ for reverse_j=1:N_j-1
         V(:,:,jj)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d2)+1;
         allind=d_ind+N_d2*aind+N_d2*N_a*zindB; % midpoint is n_d-by-1-by-n_a1-by-n_a2-by-n_z
-        Policy3(1,:,:,jj)=d_ind; % d2
-        Policy3(2,:,:,jj)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-        Policy3(3,:,:,jj)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+        Policy(1,:,:,jj)=d_ind; % d2
+        Policy(2,:,:,jj)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
+        Policy(3,:,:,jj)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
         % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d)
         L2offset      = ceil(maxindexL2/N_d2);
         linidx_lower  = d_ind                   + N_d2*n2long*aind + N_d2*n2long*N_a*zindB;
@@ -306,9 +306,9 @@ for reverse_j=1:N_j-1
             V(:,z_c,jj)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d2)+1;
             allind=d_ind+N_d2*aind; % midpoint is n_d-by-1-by-n_a1-by-n_a2
-            Policy3(1,:,z_c,jj)=d_ind; % d2
-            Policy3(2,:,z_c,jj)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-            Policy3(3,:,z_c,jj)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
+            Policy(1,:,z_c,jj)=d_ind; % d2
+            Policy(2,:,z_c,jj)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
+            Policy(3,:,z_c,jj)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind
             % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d)
             L2offset      = ceil(maxindexL2/N_d2);
             linidx_lower  = d_ind                   + N_d2*n2long*aind;
@@ -330,12 +330,11 @@ end
 % (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
 % we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
 % counting 0:nshort+1 up from this.
-adjust=(Policy3(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
-Policy3(2,:,:,:)=Policy3(2,:,:,:)-adjust; % lower grid point
-Policy3(3,:,:,:)=adjust.*Policy3(3,:,:,:)+(1-adjust).*(Policy3(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+adjust=(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
+Policy(2,:,:,:)=Policy(2,:,:,:)-adjust; % lower grid point
+Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-%% For experience asset, just output Policy as single index and then use Case2 to UnKron
-Policy=shiftdim(Policy3(1,:,:,:)+N_d2*(Policy3(2,:,:,:)-1)+N_d2*N_a1*(Policy3(3,:,:,:)-1)+N_d2*N_a1*(n2short+2)*(PolicyL2flag-1),1);
+Policy=[Policy;PolicyL2flag];
 
 
 end

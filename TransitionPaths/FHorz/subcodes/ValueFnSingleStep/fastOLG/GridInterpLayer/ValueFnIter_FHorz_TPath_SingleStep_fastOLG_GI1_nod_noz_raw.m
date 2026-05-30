@@ -23,9 +23,7 @@ jind=shiftdim(gpuArray(0:1:N_j-1),-1);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 EV=zeros(N_a,1,N_j,'gpuArray');
 EV(:,1,1:N_j-1)=V(:,2:end);
@@ -34,7 +32,7 @@ EVinterp=interp1(a_grid,EV,aprime_grid);
 
 ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_noz(ReturnFn, N_j, a_grid, a_grid, ReturnFnParamsAgeMatrix,2);
 
-entireRHS=ReturnMatrix+DiscountFactorParamsVec.*EV; % [N_aprime,N_a,N_j]
+entireRHS=ReturnMatrix+reshape(DiscountFactor_J,[1,1,N_j]).*EV; % [N_aprime,N_a,N_j]
 
 %Calc the max and it's index
 [~,maxindex]=max(entireRHS,[],1);
@@ -46,7 +44,7 @@ aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprim
 % aprime possibilities are n2long-by-n_a-by-N_j
 ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_noz(ReturnFn,N_j,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsAgeMatrix,2);
 aprimej=aprimeindexes+n2aprime*jind;
-entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*reshape(EVinterp(aprimej(:)),[n2long,N_a,N_j]);
+entireRHS_ii=ReturnMatrix_ii+reshape(DiscountFactor_J,[1,1,N_j]).*reshape(EVinterp(aprimej(:)),[n2long,N_a,N_j]);
 [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
 V=shiftdim(Vtempii,1);
 Policy(1,:,:)=shiftdim(squeeze(midpoint),-1); % midpoint
@@ -59,7 +57,7 @@ inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
 inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
 Policy(3,:,:) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
-% Currently Policy(1,:) is the midpoint, and Policy(2,:) the second layer
+%% Currently Policy(1,:) is the midpoint, and Policy(2,:) the second layer
 % (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
 % we switch Policy(1,:) to 'lower grid point' and then have Policy(2,:)
 % counting 0:nshort+1 up from this.

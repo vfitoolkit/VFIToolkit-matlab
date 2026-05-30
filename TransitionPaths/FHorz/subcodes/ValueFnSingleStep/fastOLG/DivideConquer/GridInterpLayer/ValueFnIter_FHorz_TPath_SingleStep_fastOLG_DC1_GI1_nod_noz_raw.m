@@ -32,9 +32,7 @@ jind=shiftdim(gpuArray(0:1:N_j-1),-1);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j),2);
 
 if vfoptions.EVpre==0
     EV=zeros(N_a,N_j,'gpuArray');
@@ -48,8 +46,8 @@ end
 % Interpolate EV over aprime_grid
 EVinterp=interp1(a_grid,EV,aprime_grid);
 
-DiscountedEV=DiscountFactorParamsVec.*EV;
-DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp;
+DiscountedEV=reshape(DiscountFactor_J,[1,1,N_j]).*EV;
+DiscountedEVinterp=reshape(DiscountFactor_J,[1,1,N_j]).*EVinterp;
 
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_nod_noz(ReturnFn, N_j, a_grid, a_grid(level1ii), ReturnFnParamsAgeMatrix,1);
@@ -110,9 +108,6 @@ Policy(3,:,:) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isI
 adjust=(Policy(2,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(1,:,:)=Policy(1,:,:)-adjust; % lower grid point
 Policy(2,:,:)=adjust.*Policy(2,:,:)+(1-adjust).*(Policy(2,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-% Leave the first dimension as is
-% Policy=squeeze(Policy(1,:,:)+N_a*(Policy(2,:,:)-1));
 
 
 

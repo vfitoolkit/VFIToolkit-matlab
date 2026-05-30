@@ -1,4 +1,4 @@
-function varargout=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_GI1_raw(n_d1, n_d2, n_a, n_z, n_semiz, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vunderbar,Policy,Vhat]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_GI1_raw(n_d1, n_d2, n_a, n_z, n_semiz, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Sophisticated QH + SemiExo + GI: with d1, with z.
 % Vhat_search yields midpoint+L2 policy; Vunderbar = Vhat + (beta-beta0beta)*EV_at_policy.
 % L2flag detection runs on Vhat's (beta0beta) Return matrix.
@@ -339,14 +339,6 @@ adjust=(Policy(4,:,:,:)<1+n2short+1);
 Policy(3,:,:,:)=Policy(3,:,:,:)-adjust;
 Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1);
 
-Policy=squeeze(Policy(1,:,:,:)+N_d1*(Policy(2,:,:,:)-1)+N_d*(Policy(3,:,:,:)-1)+N_d*N_a*(Policy(4,:,:,:)-1)+N_d*N_a*(n2short+2)*(PolicyL2flag-1));
-
-%% Output order matches plain QH SemiExo S raw: (Vunderbar, Policy, Vhat)
-nOutputs=nargout;
-if nOutputs==2
-    varargout={Vunderbar,Policy};
-elseif nOutputs==3
-    varargout={Vunderbar,Policy,Vhat};
-end
+Policy=[Policy;PolicyL2flag];
 
 end

@@ -36,7 +36,7 @@ if exist('vfoptions','var')==0
     % Exogenous shocks
     vfoptions.n_e=0;
 else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
+    % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'divideandconquer')
         vfoptions.divideandconquer=0;
     elseif vfoptions.divideandconquer==1
@@ -67,6 +67,10 @@ else
     end
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
+    elseif vfoptions.experienceasset==1
+        if isfield(vfoptions,'level1n')
+            vfoptions.level1n=vfoptions.level1n(1);
+        end
     end
     % Exogenous shocks
     if ~isfield(vfoptions,'n_e')
@@ -76,9 +80,8 @@ end
 vfoptions.parallel=2; % transition path requires GPU
 vfoptions.EVpre=0; % =1 is used by 'Matched Expecations Path', for TPath we want =0 (this relates to details of fastOLG=1 value fn code)
 
-if transpathoptions.fastOLG==0 && vfoptions.lowmemory>0
-    error('On transtion paths you can only use vfoptions.lowmemory>0 when using transpathoptions.fastOLG=1, because otherwise the runtimes will anyway be so slow as to be essentially unusable')
-end
+% Note: vfoptions.lowmemory is now supported with transpathoptions.fastOLG=0 too
+% (raws error individually if an unsupported lowmemory value is passed).
 
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
@@ -146,6 +149,7 @@ if N_e==0
     if N_z==0
         Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_j]);
         V_final=reshape(V_final,[N_a,N_j]);
+        % Note: Unusually, here fastOLG is a-by-j, rather than (a,j)-by-1. Saves a reshape.
     else
         Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_z,N_j]);
         if transpathoptions.fastOLG==0
@@ -209,6 +213,7 @@ else
                 end
             else
                 %% fastOLG=1, no z, no e
+                % Unusual for fastOLG as leave it as a-by-j rather than (a,j)-by-1. Saves a reshape.
 
                 VPath=zeros(N_a,N_j,T,'gpuArray');
                 VPath(:,:,T)=V_final;
@@ -298,7 +303,7 @@ else
                     % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
                     PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
-                    VPath(:,:,T-ttr)=V;
+                    VPath(:,:,T-ttr)=V; % fastOLG: so (a,j)-by-z
                 end
             end
         end

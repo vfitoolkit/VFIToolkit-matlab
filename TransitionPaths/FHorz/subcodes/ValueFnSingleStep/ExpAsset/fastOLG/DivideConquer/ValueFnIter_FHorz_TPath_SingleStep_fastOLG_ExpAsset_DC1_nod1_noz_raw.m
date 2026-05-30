@@ -24,7 +24,6 @@ jind=shiftdim(gpuArray(0:1:N_j-1),-3);
 
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -39,7 +38,8 @@ if vfoptions.EVpre==0
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2,N_j]
 
-    EVpre=[V(N_a+1:end); zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EVpre=[V(:,2:N_j), zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    % EVpre is (aprime,j)
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-1
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1)),[N_d2*N_a1,N_a2,N_j]);
@@ -77,7 +77,7 @@ elseif vfoptions.EVpre==1
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j]); % (aprime,1,j), 2nd dim will be autofilled with a
 end
 
-DiscountedEV=DiscountFactorParamsVec.*reshape(EV,[N_d2,N_a1,1,N_a2,N_j]); % (d2,a1prime,1,a2,j,z)
+DiscountedEV=reshape(DiscountFactorParamsVec,[1,1,1,1,N_j]).*reshape(EV,[N_d2,N_a1,1,N_a2,N_j]); % (d2,a1prime,1,a2,j,z)
 
 V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray');
@@ -120,7 +120,7 @@ for ii=1:(vfoptions.level1n-1)
     else
         loweredge=maxindex1(:,1,ii,:,:,:);
         % Just use aprime(ii) for everything
-        ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, 0, n_d2, 1, level1iidiff(ii),n_a2,N_j, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, ReturnFnParamsAgeMatrix,2,0); % Level=2, Refine=0
+        ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_noz(ReturnFn, 0, n_d2, 1, level1iidiff(ii),n_a2,N_j, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, ReturnFnParamsAgeMatrix,2,0); % Level=2, Refine=0
         d2aprimej=d2ind+N_d2*(loweredge-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*jind; % with the current aprimeii(ii):aprimeii(ii+1)
         entireRHS_ii=ReturnMatrix_ii+repelem(reshape(DiscountedEV(d2aprimej),[N_d2,N_a2,N_j]),1,level1iidiff(ii),1,1);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);

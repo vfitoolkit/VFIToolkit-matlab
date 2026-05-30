@@ -1,4 +1,4 @@
-function varargout=ValueFnIter_FHorz_QuasiHyperbolicS_DC1_GI1_raw(n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicS_DC1_GI1_raw(n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Sophisticated quasi-hyperbolic discounting variant of ValueFnIter_FHorz_DC1_GI1_raw.
 % Has d variables. GPU (parallel==2 only).
 %
@@ -66,8 +66,8 @@ if ~isfield(vfoptions,'V_Jplus1')
         Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1);
 
         L2offset=ceil(maxindexL2/N_d);
-        linidx_lower=d_ind                + N_d*n2long*aind + N_d*n2long*N_a*zBind;
-        linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zBind;
+        linidx_lower=d_ind                + N_d*n2long*aind + N_d*n2long*N_a*zind;
+        linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
         isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
         isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
@@ -172,8 +172,8 @@ else
         Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1);
 
         L2offset=ceil(maxindexL2/N_d);
-        linidx_lower=d_ind                + N_d*n2long*aind + N_d*n2long*N_a*zBind;
-        linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zBind;
+        linidx_lower=d_ind                + N_d*n2long*aind + N_d*n2long*N_a*zind;
+        linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
         isInfLower=(ReturnMatrix_L2(linidx_lower)==-Inf);
         isInfUpper=(ReturnMatrix_L2(linidx_upper)==-Inf);
         inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
@@ -299,8 +299,8 @@ for reverse_j=1:N_j-1
         Policy(3,:,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1);
 
         L2offset=ceil(maxindexL2/N_d);
-        linidx_lower=d_ind                + N_d*n2long*aind + N_d*n2long*N_a*zBind;
-        linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zBind;
+        linidx_lower=d_ind                + N_d*n2long*aind + N_d*n2long*N_a*zind;
+        linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
         isInfLower=(ReturnMatrix_L2(linidx_lower)==-Inf);
         isInfUpper=(ReturnMatrix_L2(linidx_upper)==-Inf);
         inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
@@ -367,19 +367,14 @@ for reverse_j=1:N_j-1
     end
 end
 
-%% Post-process Policy: convert [d_ind, midpoint, aprimeL2ind] to canonical combined index
+%% Currently Policy(2,:) is the midpoint, and Policy(3,:) the second layer
+% (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
+% we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
+% counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1);
 
-Policy=squeeze(Policy(1,:,:,:)+N_d*(Policy(2,:,:,:)-1)+N_d*N_a*(Policy(3,:,:,:)-1)+N_d*N_a*(n2short+2)*(PolicyL2flag-1));
-
-%%
-nOutputs=nargout;
-if nOutputs==2
-    varargout={Vhat,Policy};
-elseif nOutputs==3
-    varargout={Vhat,Policy,Vunderbar};
-end
+Policy=[Policy;PolicyL2flag];
 
 end

@@ -100,56 +100,104 @@ else
 end
 
 if N_bothze==0
-    Policy=reshape(Policy,[size(Policy,1),N_a,1,N_j]);
+    Policy=reshape(Policy,[size(Policy,1),N_a,N_j]);
 else
     Policy=reshape(Policy,[size(Policy,1),N_a,N_bothze,N_j]);
 end
 
 %% riskyasset transitions
-Policy_aprime=zeros(N_a,max(1,N_bothze),N_u,2,N_j,'gpuArray'); % the lower grid point
-PolicyProbs=zeros(N_a,max(1,N_bothze),N_u,2,N_j,'gpuArray'); % probabilities of grid points
-whichisdforriskyasset=(simoptions.refine_d(1)+1):1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (namely, d2 and d3 both do)
-for jj=1:N_j
-    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyRiskyAsset(Policy(1:l_d,:,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_bothze, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec);
-    % Note: aprimeIndexes and aprimeProbs are both [N_a,max(1,N_bothze),N_u]
-    % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
+if N_bothze==0
+    Policy_aprime=zeros(N_a,N_u,2,N_j,'gpuArray'); % the lower grid point
+    PolicyProbs=zeros(N_a,N_u,2,N_j,'gpuArray'); % probabilities of grid points
+    whichisdforriskyasset=(simoptions.refine_d(1)+1):1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (namely, d2 and d3 both do)
+    for jj=1:N_j
+        aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
+        [aprimeIndexes, aprimeProbs]=CreateaprimePolicyRiskyAsset(Policy(1:l_d,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_bothze, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec);
+        % Note: aprimeIndexes and aprimeProbs are both [N_a,N_u]
+        % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
 
-    if l_a==1 % just riskyasset
-        Policy_aprime(:,:,:,1,jj)=aprimeIndexes;
-        Policy_aprime(:,:,:,2,jj)=aprimeIndexes+1;
-    elseif l_a==2 % one other asset, then riskyasset
-        Policy_aprime(:,:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(aprimeIndexes-1);
-        Policy_aprime(:,:,:,2,jj)=Policy_aprime(:,:,:,1,jj)+n_a(1);
-    elseif l_a==3 % two other assets, then riskyasset
-        Policy_aprime(:,:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+n_a(1)*n_a(2)*(aprimeIndexes-1);
-        Policy_aprime(:,:,:,2,jj)=Policy_aprime(:,:,:,1,jj)+n_a(1)*n_a(2);
-    else
-        error('Not yet implemented riskyasset with length(n_a)>3')
+        if l_a==1 % just riskyasset
+            Policy_aprime(:,:,1,jj)=aprimeIndexes;
+            Policy_aprime(:,:,2,jj)=aprimeIndexes+1;
+        elseif l_a==2 % one other asset, then riskyasset
+            Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,jj),1)+n_a(1)*(aprimeIndexes-1);
+            Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1);
+        elseif l_a==3 % two other assets, then riskyasset
+            Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,jj),1)-1)+n_a(1)*n_a(2)*(aprimeIndexes-1);
+            Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1)*n_a(2);
+        else
+            error('Not yet implemented riskyasset with length(n_a)>3')
+        end
+
+        % Encode the u probabilities (pi_u) into the PolicyProbs
+        PolicyProbs(:,:,1,jj)=aprimeProbs.*shiftdim(pi_u,-1); % lower grid point probability (and probability of u)
+        PolicyProbs(:,:,2,jj)=(1-aprimeProbs).*shiftdim(pi_u,-1); % upper grid point probability (and probability of u)
     end
 
-    % Encode the u probabilities (pi_u) into the PolicyProbs
-    PolicyProbs(:,:,:,1,jj)=aprimeProbs.*shiftdim(pi_u,-2); % lower grid point probability (and probability of u)
-    PolicyProbs(:,:,:,2,jj)=(1-aprimeProbs).*shiftdim(pi_u,-2); % upper grid point probability (and probability of u)
+    Policy_aprime=reshape(Policy_aprime,[N_a,N_u*2,N_j]);
+    PolicyProbs=reshape(PolicyProbs,[N_a,N_u*2,N_j]);
+
+    N_probs=N_u*2;
+    if simoptions.gridinterplayer==1
+        N_probs=2*N_u*2;
+        % (a,N_u*2,j)
+        Policy_aprime=repmat(Policy_aprime,1,2,1);
+        PolicyProbs=repmat(PolicyProbs,1,2,1);
+        % Policy_aprime(:,1:N_u*2,:) lower grid point for a1 is unchanged
+        Policy_aprime(:,N_u*2+1:end,:)=Policy_aprime(:,N_u*2+1:end,:)+1; % add one to a1, to get upper grid point
+
+        aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,1,N_j]); % probability of upper grid point (from L2 index)
+        PolicyProbs(:,1:N_u*2,:)=PolicyProbs(:,1:N_u*2,:).*(1-aprimeProbs_upper); % lower a1
+        PolicyProbs(:,N_u*2+1:end,:)=PolicyProbs(:,N_u*2+1:end,:).*aprimeProbs_upper; % upper a1
+    end
+    CumPolicyProbs=cumsum(PolicyProbs,2);
+
+else
+    Policy_aprime=zeros(N_a,N_bothze,N_u,2,N_j,'gpuArray'); % the lower grid point
+    PolicyProbs=zeros(N_a,N_bothze,N_u,2,N_j,'gpuArray'); % probabilities of grid points
+    whichisdforriskyasset=(simoptions.refine_d(1)+1):1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (namely, d2 and d3 both do)
+    for jj=1:N_j
+        aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
+        [aprimeIndexes, aprimeProbs]=CreateaprimePolicyRiskyAsset(Policy(1:l_d,:,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_bothze, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec);
+        % Note: aprimeIndexes and aprimeProbs are both [N_a,N_bothze,N_u]
+        % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
+
+        if l_a==1 % just riskyasset
+            Policy_aprime(:,:,:,1,jj)=aprimeIndexes;
+            Policy_aprime(:,:,:,2,jj)=aprimeIndexes+1;
+        elseif l_a==2 % one other asset, then riskyasset
+            Policy_aprime(:,:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(aprimeIndexes-1);
+            Policy_aprime(:,:,:,2,jj)=Policy_aprime(:,:,:,1,jj)+n_a(1);
+        elseif l_a==3 % two other assets, then riskyasset
+            Policy_aprime(:,:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+n_a(1)*n_a(2)*(aprimeIndexes-1);
+            Policy_aprime(:,:,:,2,jj)=Policy_aprime(:,:,:,1,jj)+n_a(1)*n_a(2);
+        else
+            error('Not yet implemented riskyasset with length(n_a)>3')
+        end
+
+        % Encode the u probabilities (pi_u) into the PolicyProbs
+        PolicyProbs(:,:,:,1,jj)=aprimeProbs.*shiftdim(pi_u,-2); % lower grid point probability (and probability of u)
+        PolicyProbs(:,:,:,2,jj)=(1-aprimeProbs).*shiftdim(pi_u,-2); % upper grid point probability (and probability of u)
+    end
+
+    Policy_aprime=reshape(Policy_aprime,[N_a,N_bothze,N_u*2,N_j]);
+    PolicyProbs=reshape(PolicyProbs,[N_a,N_bothze,N_u*2,N_j]);
+
+    N_probs=N_u*2;
+    if simoptions.gridinterplayer==1
+        N_probs=2*N_u*2;
+        % (a,z,N_u*2,j)
+        Policy_aprime=repmat(Policy_aprime,1,1,2,1);
+        PolicyProbs=repmat(PolicyProbs,1,1,2,1);
+        % Policy_aprime(:,:,1:N_u*2,:) lower grid point for a1 is unchanged
+        Policy_aprime(:,:,N_u*2+1:end,:)=Policy_aprime(:,:,N_u*2+1:end,:)+1; % add one to a1, to get upper grid point
+
+        aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_bothze,1,N_j]); % probability of upper grid point (from L2 index)
+        PolicyProbs(:,:,1:N_u*2,:)=PolicyProbs(:,:,1:N_u*2,:).*(1-aprimeProbs_upper); % lower a1
+        PolicyProbs(:,:,N_u*2+1:end,:)=PolicyProbs(:,:,N_u*2+1:end,:).*aprimeProbs_upper; % upper a1
+    end
+    CumPolicyProbs=cumsum(PolicyProbs,3);
 end
-
-Policy_aprime=reshape(Policy_aprime,[N_a,max(1,N_bothze),N_u*2,N_j]);
-PolicyProbs=reshape(PolicyProbs,[N_a,max(1,N_bothze),N_u*2,N_j]);
-
-N_probs=N_u*2;
-if simoptions.gridinterplayer==1
-    N_probs=2*N_u*2;
-    % (a,z,N_u*2,j)
-    Policy_aprime=repmat(Policy_aprime,1,1,2,1);
-    PolicyProbs=repmat(PolicyProbs,1,1,2,1);
-    % Policy_aprime(:,:,1:N_u*2,:) lower grid point for a1 is unchanged
-    Policy_aprime(:,:,N_u*2+1:end,:)=Policy_aprime(:,:,N_u*2+1:end,:)+1; % add one to a1, to get upper grid point
-
-    aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,max(1,N_bothze),1,N_j]); % probability of upper grid point (from L2 index)
-    PolicyProbs(:,:,1:N_u*2,:)=PolicyProbs(:,:,1:N_u*2,:).*(1-aprimeProbs_upper); % lower a1
-    PolicyProbs(:,:,N_u*2+1:end,:)=PolicyProbs(:,:,N_u*2+1:end,:).*aprimeProbs_upper; % upper a1
-end
-CumPolicyProbs=cumsum(PolicyProbs,3);
 
 %% Simulations are done on cpu
 Policy_aprime=gather(Policy_aprime);

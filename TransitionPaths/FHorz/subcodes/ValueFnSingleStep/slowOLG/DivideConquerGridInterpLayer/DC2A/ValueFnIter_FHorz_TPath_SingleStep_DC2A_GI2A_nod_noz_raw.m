@@ -1,0 +1,193 @@
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_DC2A_GI2A_nod_noz_raw(V,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+% The V input is next period value fn (across all ages), the V output is this period.
+% divide-and-conquer in the first endo state
+
+N_a=prod(n_a);
+
+Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim is (a1prime midpoint,a2prime,a1prime L2)
+PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+
+if vfoptions.lowmemory>0
+    error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_DC2A_GI2A_nod_noz_raw')
+end
+
+%%
+n_a1=n_a(1);
+n_a2=n_a(2:end);
+N_a1=prod(n_a1);
+N_a2=prod(n_a2);
+a1_grid=a_grid(1:N_a1);
+a2_grid=a_grid(N_a1+1:end);
+
+% preallocate
+midpoints_jj=zeros(1,N_a2,N_a1,N_a2,'gpuArray');
+
+% n-Monotonicity
+level1ii=round(linspace(1,N_a1,vfoptions.level1n));
+% level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
+
+% Grid interpolation
+% vfoptions.ngridinterp=9;
+n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
+n2long=vfoptions.ngridinterp*2+3; % total number of aprime points we end up looking at in second layer
+a1prime_grid=interp1(1:1:N_a1,a1_grid,linspace(1,N_a1,N_a1+(N_a1-1)*n2short))';
+N_a1fine=length(a1prime_grid);
+% aprime_grid=[a1prime_grid; a2_grid];
+
+% For debugging, uncomment next two lines, with this 'aprime_grid' you
+% should get exact same value fn as without interpolation (as it doesn't
+% really interpolate, it just repeats points)
+% aprime_grid=repelem(a_grid,1+n2short,1);
+% aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
+
+% precompute
+a2ind=gpuArray(0:1:N_a2-1); % already includes -1
+
+a12ind=repmat(gpuArray(0:1:N_a1-1),1,N_a2)+N_a1*repelem(gpuArray(0:1:N_a2-1),1,N_a1);
+
+
+%% j=N_j: terminal age has no continuation in TPath
+% Temporarily save the time period of V that is being replaced
+Vtemp_j=V(:,N_j);
+
+% Create a vector containing all the return function parameters (in order)
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
+
+% n-Monotonicity
+ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A_nod_noz(ReturnFn, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, ReturnFnParamsVec,1);
+
+% Calc the max and it's index
+[~,maxindex1]=max(ReturnMatrix_ii,[],1);
+
+% Just keep the 'midpoint' version of maxindex1 [as GI]
+midpoints_jj(1,:,level1ii,:)=maxindex1;
+
+% Attempt for improved version
+maxgap=squeeze(max(max(maxindex1(1,:,2:end,:)-maxindex1(1,:,1:end-1,:),[],4),[],2));
+for ii=1:(vfoptions.level1n-1)
+    curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
+    if maxgap(ii)>0
+        loweredge=min(maxindex1(1,:,ii,:),N_a1-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+        % loweredge is 1-by-n_a2-by-1-by-n_a2
+        aprimeindexes=loweredge+(0:1:maxgap(ii))';
+        % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A_nod_noz(ReturnFn, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, ReturnFnParamsVec,1);
+        [~,maxindex]=max(ReturnMatrix_ii,[],1);
+        midpoints_jj(1,:,curraindex,:)=maxindex+(loweredge-1);
+    else
+        loweredge=maxindex1(1,:,ii,:,:);
+        midpoints_jj(1,:,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1);
+    end
+end
+
+% Turn this into the 'midpoint'
+midpoints_jj=max(min(midpoints_jj,n_a1-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+% midpoint is 1-by-n_a2-by-n_a1-by-n_a2
+a1primeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+% aprime possibilities are n2long-by-n_a2-by-n_a1-by-n_a2
+ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A_nod_noz(ReturnFn,a1prime_grid(a1primeindexes),a2_grid,a1_grid,a2_grid,ReturnFnParamsVec,2);
+[Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
+maxindexL2a1=rem(maxindexL2-1,n2long)+1;
+maxindexL2a2=ceil(maxindexL2/n2long);
+V(:,N_j)=shiftdim(Vtempii,1);
+Policy(1,:,N_j)=midpoints_jj(maxindexL2a2+N_a2*a12ind); % a1prime midpoint
+Policy(2,:,N_j)=maxindexL2a2; % a2prime
+Policy(3,:,N_j)=maxindexL2a1; % a1primeL2ind
+
+% L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
+
+%% Iterate backwards through j.
+for reverse_j=1:N_j-1
+    jj=N_j-reverse_j;
+
+    % Create a vector containing all the return function parameters (in order)
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
+    VKronNext_j=Vtemp_j; % Has been presaved before it was replaced
+    Vtemp_j=V(:,jj); % Grab this before it is replaced/updated
+
+    DiscountedEV=DiscountFactorParamsVec*reshape(VKronNext_j,[N_a1,N_a2]);
+    % Interpolate EV over aprime_grid
+    DiscountedEVinterp=interp1(a1_grid,DiscountedEV,a1prime_grid);
+
+    % n-Monotonicity
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A_nod_noz(ReturnFn, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, ReturnFnParamsVec,1);
+
+    entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
+
+    %Calc the max and it's index
+    [~,maxindex1]=max(entireRHS_ii,[],1);
+
+    % Just keep the 'midpoint' version of maxindex1 [as GI]
+    midpoints_jj(1,:,level1ii,:)=maxindex1;
+
+    % Attempt for improved version
+    maxgap=squeeze(max(max(maxindex1(1,:,2:end,:)-maxindex1(1,:,1:end-1,:),[],4),[],2));
+    for ii=1:(vfoptions.level1n-1)
+        curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
+        if maxgap(ii)>0
+            loweredge=min(maxindex1(1,:,ii,:),N_a1-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+            % loweredge is 1-by-n_a2-by-1-by-n_a2
+            aprimeindexes=loweredge+(0:1:maxgap(ii))';
+            % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A_nod_noz(ReturnFn, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, ReturnFnParamsVec,1);
+            aprime=aprimeindexes+N_a1*a2ind;
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprime,[(maxgap(ii)+1),N_a2,1,N_a2])); % autoexpand level1iidiff(ii) in 3rd-dim
+            [~,maxindex]=max(entireRHS_ii,[],1);
+            midpoints_jj(1,:,curraindex,:)=maxindex+(loweredge-1);
+        else
+            loweredge=maxindex1(1,:,ii,:,:);
+            midpoints_jj(1,:,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1);
+        end
+    end
+
+    % Turn this into the 'midpoint'
+    midpoints_jj=max(min(midpoints_jj,n_a1-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+    % midpoint is 1-by-n_a2-by-n_a1-by-n_a2
+    a1primeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+    % aprime possibilities are n2long-by-n_a2-by-n_a1-by-n_a2
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A_nod_noz(ReturnFn,a1prime_grid(a1primeindexes),a2_grid, a1_grid, a2_grid,ReturnFnParamsVec,2);
+    aprime=a1primeindexes+N_a1fine*a2ind;
+    entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprime),[n2long*N_a2,N_a]);
+    [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+    maxindexL2a1=rem(maxindexL2-1,n2long)+1;
+    maxindexL2a2=ceil(maxindexL2/n2long);
+    V(:,jj)=shiftdim(Vtempii,1);
+    Policy(1,:,jj)=midpoints_jj(maxindexL2a2+N_a2*a12ind); % a1prime midpoint
+    Policy(2,:,jj)=maxindexL2a2; % a2prime
+    Policy(3,:,jj)=maxindexL2a1; % a1primeL2ind
+
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    linidx_lower = 1      + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+    linidx_upper = n2long + n2long*(maxindexL2a2-1) + n2long*N_a2*a12ind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+    inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+end
+
+
+%% Currently Policy(1,:) is the midpoint, and Policy(3,:) the second layer
+% (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
+% we switch Policy(1,:) to 'lower grid point' and then have Policy(3,:)
+% counting 0:nshort+1 up from this.
+adjust=(Policy(3,:,:)<1+n2short+1); % if second layer is choosing below midpoint
+Policy(1,:,:)=Policy(1,:,:)-adjust; % lower grid point
+Policy(3,:,:)=adjust.*Policy(3,:,:)+(1-adjust).*(Policy(3,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+
+Policy=[Policy; PolicyL2flag];
+
+
+
+end
