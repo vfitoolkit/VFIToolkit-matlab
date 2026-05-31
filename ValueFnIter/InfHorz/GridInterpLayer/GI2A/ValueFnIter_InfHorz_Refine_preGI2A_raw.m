@@ -153,7 +153,7 @@ end
 
 %% Switch policy to lower grid index and L2 index (is currently index on fine grid)
 fineindex=reshape(Policy_a,[1,N_a,N_z]);
-Policy=zeros(4,N_a,N_z,'gpuArray');
+Policy=zeros(5,N_a,N_z,'gpuArray'); % +1 channel for PolicyL2flag
 fineindexvec1=rem(fineindex-1,N_a1prime)+1;
 fineindexvec2=ceil(fineindex/N_a1prime);
 
@@ -168,6 +168,20 @@ Policy(4,:,:)=L2;
 %% For refinement, add d back into Policy
 temppolicyindex=fineindex(:)+N_aprime*(0:1:N_a*N_z-1)';
 Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]); % note: dstar is defined on the fine grid
+
+% L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+% Computed once, post-convergence. ReturnMatrixfine is [N_aprime,N_a,N_z] (after d-argmax) with aprime = a1prime_fine + N_a1prime*(a2prime-1).
+L1_flat = reshape(L1,[N_a*N_z,1]);
+L2_flat = reshape(L2,[N_a*N_z,1]);
+fineindexvec2_flat = reshape(fineindexvec2,[N_a*N_z,1]);
+aprime_lower = (L1_flat-1)*(n2short+1) + 1 + N_a1prime*(fineindexvec2_flat-1);
+aprime_upper = L1_flat*(n2short+1)     + 1 + N_a1prime*(fineindexvec2_flat-1);
+linidx_lower = aprime_lower + reshape(addindexforazfine,[N_a*N_z,1]);
+linidx_upper = aprime_upper + reshape(addindexforazfine,[N_a*N_z,1]);
+isInfLower = (ReturnMatrixfine(linidx_lower) == -Inf);
+isInfUpper = (ReturnMatrixfine(linidx_upper) == -Inf);
+inInterior = (L2_flat >= 2) & (L2_flat <= n2short+1);
+Policy(5,:,:) = reshape(2 + (inInterior & isInfLower) - (inInterior & isInfUpper), [1,N_a,N_z]);
 
 if tempcounter>=vfoptions.maxiter
     warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')

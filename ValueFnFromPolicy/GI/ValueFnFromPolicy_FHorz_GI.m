@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % gridinterplayer==1 variant of ValueFnFromPolicy_FHorz.
 % Uses the L2 fine-grid index in Policy to build PolicyProbs over the two
 % adjacent aprime grid points and weights the continuation value accordingly.
@@ -348,5 +348,8 @@ elseif l_a==2
     end
 end
 
+
+
+varargout={V};
 
 end

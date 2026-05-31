@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_ExpAssetz_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_ExpAssetz_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % Compute V from a given Policy with experienceassetz AND grid interpolation layer (vfoptions.gridinterplayer==1).
 % experienceassetz: a2prime = aprimeFn(d_expasset, a2, z) -- depends on Markov shock z.
 % Under GI, Policy carries an L2 fine-grid index for a1prime; lookup is 2x2 (a1 low/up x a2 low/up).
@@ -198,5 +198,8 @@ else
     V=reshape(V, [n_a, n_z, vfoptions.n_e, N_j]);
 end
 
+
+
+varargout={V};
 
 end

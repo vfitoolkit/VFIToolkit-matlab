@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_ExpAssetu_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_ExpAssetu_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % Compute V from a given Policy with experienceassetu AND grid interpolation layer (vfoptions.gridinterplayer==1).
 % experienceassetu: a2prime = aprimeFn(d_expasset, a2, u) -- u is iid between-period shock.
 % Under GI, Policy carries an L2 fine-grid index for a1prime; lookup is 2x2 in (a1,a2), then summed over u with pi_u.
@@ -35,6 +35,7 @@ l_a=length(n_a);
 if isscalar(n_a)
     vfoptions.gridinterplayer=0;
     V=ValueFnFromPolicy_FHorz_ExpAssetu(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
     return
 end
 n_a1=n_a(1:end-1);
@@ -276,5 +277,8 @@ else
     V=reshape(V, [n_a, n_z, vfoptions.n_e, N_j]);
 end
 
+
+
+varargout={V};
 
 end

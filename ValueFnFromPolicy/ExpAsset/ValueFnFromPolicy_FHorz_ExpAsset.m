@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % Compute V from a given Policy when the model has an experience asset (vfoptions.experienceasset==1).
 % a = [a1, a2]: a2 is the experience asset; a2prime is determined by aprimeFn(d_expasset, a2).
 % Policy stores d and a1prime only (a2prime is implicit). For lookup of V at next period, a2prime is
@@ -7,12 +7,14 @@ function V=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid
 %% Dispatch to SemiExo subfn if n_semiz>0
 if prod(vfoptions.n_semiz)>0
     V=ValueFnFromPolicy_FHorz_ExpAsset_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
     return
 end
 
 %% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
     V=ValueFnFromPolicy_FHorz_ExpAsset_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
     return
 end
 
@@ -288,5 +290,8 @@ else
     V=reshape(V, [n_a, n_z, vfoptions.n_e, N_j]);
 end
 
+
+
+varargout={V};
 
 end

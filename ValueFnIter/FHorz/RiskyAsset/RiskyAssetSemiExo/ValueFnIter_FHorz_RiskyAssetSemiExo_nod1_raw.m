@@ -32,7 +32,7 @@ N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
-Policy4=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % d2, d3, d4 and a1prime
+Policy=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % d2, d3, d4 and a1prime
 
 %%
 % d3_grid=gpuArray(d3_grid);
@@ -72,10 +72,10 @@ if ~isfield(vfoptions,'V_Jplus1')
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
         dindex=rem(maxindex-1,N_d3*N_d4)+1;
-        Policy4(1,:,:,N_j)=1; % d2, is meaningless anyway
-        Policy4(2,:,:,N_j)=rem(dindex-1,N_d3)+1; % d3
-        Policy4(3,:,:,N_j)=shiftdim(ceil(dindex/N_d3),-1);% d4
-        Policy4(4,:,:,N_j)=shiftdim(ceil(maxindex/(N_d3*N_d4)),-1); % a1prime
+        Policy(1,:,:,N_j)=1; % d2, is meaningless anyway
+        Policy(2,:,:,N_j)=rem(dindex-1,N_d3)+1; % d3
+        Policy(3,:,:,N_j)=shiftdim(ceil(dindex/N_d3),-1);% d4
+        Policy(4,:,:,N_j)=shiftdim(ceil(maxindex/(N_d3*N_d4)),-1); % a1prime
 
     elseif vfoptions.lowmemory==1
 
@@ -86,10 +86,10 @@ if ~isfield(vfoptions,'V_Jplus1')
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
             dindex=rem(maxindex-1,N_d3*N_d4)+1;
-            Policy4(1,:,z_c,N_j)=1; % d2, is meaningless anyway
-            Policy4(2,:,z_c,N_j)=rem(dindex-1,N_d3)+1; % d3
-            Policy4(3,:,z_c,N_j)=shiftdim(ceil(dindex/N_d3),-1);% d4
-            Policy4(4,:,z_c,N_j)=shiftdim(ceil(maxindex/(N_d3*N_d4)),-1); % a1prime
+            Policy(1,:,z_c,N_j)=1; % d2, is meaningless anyway
+            Policy(2,:,z_c,N_j)=rem(dindex-1,N_d3)+1; % d3
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(dindex/N_d3),-1);% d4
+            Policy(4,:,z_c,N_j)=shiftdim(ceil(maxindex/(N_d3*N_d4)),-1); % a1prime
         end
     end
 else
@@ -164,12 +164,12 @@ else
         % Now we just max over d4, and keep the policy that corresponded to that (including modify the policy to include the d4 decision)
         [V_jj,maxindex]=max(V_ford4_jj,[],3); % max over d4
         V(:,:,N_j)=V_jj;
-        Policy4(3,:,:,N_j)=maxindex; % d4 is just maxindex
+        Policy(3,:,:,N_j)=maxindex; % d4 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_bothz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d3a1prime_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
-        Policy4(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
-        Policy4(2,:,:,N_j)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
-        Policy4(4,:,:,N_j)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
+        Policy(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
+        Policy(2,:,:,N_j)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
+        Policy(4,:,:,N_j)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
 
     elseif vfoptions.lowmemory==1
         for d4_c=1:N_d4
@@ -222,12 +222,12 @@ else
         % Now we just max over d4, and keep the policy that corresponded to that (including modify the policy to include the d4 decision)
         [V_jj,maxindex]=max(V_ford4_jj,[],3); % max over d4
         V(:,:,N_j)=V_jj;
-        Policy4(3,:,:,N_j)=maxindex; % d4 is just maxindex
+        Policy(3,:,:,N_j)=maxindex; % d4 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_bothz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d3a1prime_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
-        Policy4(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
-        Policy4(2,:,:,N_j)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
-        Policy4(4,:,:,N_j)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
+        Policy(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
+        Policy(2,:,:,N_j)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
+        Policy(4,:,:,N_j)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
     end
 end
 
@@ -313,12 +313,12 @@ for reverse_j=1:N_j-1
         % Now we just max over d4, and keep the policy that corresponded to that (including modify the policy to include the d4 decision)
         [V_jj,maxindex]=max(V_ford4_jj,[],3); % max over d4
         V(:,:,jj)=V_jj;
-        Policy4(3,:,:,jj)=maxindex; % d4 is just maxindex
+        Policy(3,:,:,jj)=maxindex; % d4 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_bothz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d3a1prime_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
-        Policy4(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
-        Policy4(2,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
-        Policy4(4,:,:,jj)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
+        Policy(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
+        Policy(2,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
+        Policy(4,:,:,jj)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
 
     elseif vfoptions.lowmemory==1
         for d4_c=1:N_d4
@@ -372,16 +372,15 @@ for reverse_j=1:N_j-1
         % Now we just max over d4, and keep the policy that corresponded to that (including modify the policy to include the d4 decision)
         [V_jj,maxindex]=max(V_ford4_jj,[],3); % max over d4
         V(:,:,jj)=V_jj;
-        Policy4(3,:,:,jj)=maxindex; % d4 is just maxindex
+        Policy(3,:,:,jj)=maxindex; % d4 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_bothz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d3a1prime_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
-        Policy4(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
-        Policy4(2,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
-        Policy4(4,:,:,jj)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
+        Policy(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
+        Policy(2,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
+        Policy(4,:,:,jj)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
     end
 end
 
-Policy=Policy4(1,:,:,:)+N_d2*(Policy4(2,:,:,:)-1)+N_d2*N_d3*(Policy4(3,:,:,:)-1)+N_d2*N_d3*N_d4*(Policy4(4,:,:,:)-1); % d2, d3, d4, a1prime
 
 
 end

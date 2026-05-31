@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % Compute V from a given Policy when the model has semi-exogenous shocks (n_semiz>0).
 % vfoptions has already been set up by ValueFnFromPolicy_FHorz (defaults filled, n_e and n_semiz fields present).
 % semiz transition pi_semiz depends on the policy's d_semiz choice (last l_dsemiz components of d).
@@ -6,6 +6,7 @@ function V=ValueFnFromPolicy_FHorz_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,
 %% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
     V=ValueFnFromPolicy_FHorz_SemiExo_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
     return
 end
 
@@ -243,5 +244,8 @@ else
     V=reshape(V, [n_a, n_semiz, n_z, vfoptions.n_e, N_j]);
 end
 
+
+
+varargout={V};
 
 end

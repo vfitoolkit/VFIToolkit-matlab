@@ -80,7 +80,11 @@ Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]);
 V=reshape(VKron,[n_a,n_z]);
 
 vfoptions.parallel=2;
-Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
+if N_d==0
+    Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
+else
+    Policy=UnKronPolicyIndexes1_z(Policy, [n_d,n_a], n_a, n_z, vfoptions);
+end
 
 % OUTPUTs of ValueFnIter_Case1 are V,Policy
 % V has size (a1,a2,z) and Policy(2,a1,a2,z)

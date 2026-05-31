@@ -108,12 +108,23 @@ end
 
 %% Switch policy to lower grid index and L2 index (is currently index on fine grid)
 fineindex=reshape(Policy,[N_a*N_z,1]);
-Policy=zeros(2,N_a,N_z,'gpuArray');
+Policy=zeros(3,N_a,N_z,'gpuArray'); % +1 channel for PolicyL2flag
 L1a=ceil((fineindex-1)/(n2short+1))-1;
 L1=max(L1a,0)+1; % lower grid point index
 L2=fineindex-(L1-1)*(n2short+1); % L2 index
 Policy(1,:,:)=reshape(L1,[1,N_a,N_z]);
 Policy(2,:,:)=reshape(L2,[1,N_a,N_z]);
+
+% L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+% Computed once, post-convergence
+fineindex_lower = (L1-1)*(n2short+1) + 1;
+fineindex_upper = L1*(n2short+1) + 1;
+linidx_lower = reshape(fineindex_lower,[N_a,N_z]) + addindexforazfine;
+linidx_upper = reshape(fineindex_upper,[N_a,N_z]) + addindexforazfine;
+isInfLower = (ReturnMatrixfine(linidx_lower(:)) == -Inf);
+isInfUpper = (ReturnMatrixfine(linidx_upper(:)) == -Inf);
+inInterior = (L2 >= 2) & (L2 <= n2short+1);
+Policy(3,:,:) = reshape(2 + (inInterior & isInfLower) - (inInterior & isInfUpper), [1,N_a,N_z]);
 
 if tempcounter>=vfoptions.maxiter
     warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')

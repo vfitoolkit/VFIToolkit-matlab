@@ -129,7 +129,7 @@ adjust=(maxindexL2a1<1+n2short+1); % if second layer is choosing below midpoint
 a1prime_lower=a1prime_midpoint-adjust;                                      % lower coarse a1 grid point (1..N_a1)
 a1prime_L2  =adjust.*maxindexL2a1+(1-adjust).*(maxindexL2a1-n2short-1);     % 1 (lower) to n2short+2 (upper)
 
-%% Pack Policy into the 4-channel form expected by UnKronPolicyIndexes_Case1_FHorz (with L2flag pilot)
+%% Pack Policy into the 4-channel form (d, aprime, L2, L2flag) expected by UnKronPolicyIndexes2_FHorz_z with gridinterplayer==1
 Policy(1,:,:,:)=maxindexL2d; % d
 Policy(2,:,:,:)=a1prime_lower+N_a1*(maxindexL2a2-1); % aprime
 Policy(3,:,:,:)=a1prime_L2; % a1primeL2

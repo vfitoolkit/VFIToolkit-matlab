@@ -52,7 +52,7 @@ aind=gpuArray(0:1:N_a-1);
 
 % preallocate
 VKron  = zeros(N_a,N_z,'gpuArray');
-Policy = zeros(3,N_a,N_z,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
+Policy = zeros(4,N_a,N_z,'gpuArray'); % d, midpoint, maxindex_aL2, PolicyL2flag
 Ftemp  = zeros(N_a,N_z,'gpuArray'); % useful for Howard
 
 tempcounter=1;
@@ -150,6 +150,27 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 end
 
 
+%% L2 flag (computed once after convergence, before the midpoint->lower-grid adjust)
+% Rebuild ReturnMatrix_ii_z per z at converged midpoints to check -Inf at L2 extremes for the chosen d.
+PolicyL2flag_3d = 2*ones(1,N_a,N_z,'gpuArray');
+for z_c=1:N_z
+    z_val = z_gridvals(z_c,:);
+    midpoint_z = reshape(Policy(2,:,z_c),[1,N_a]);
+    d_ind_z    = reshape(Policy(1,:,z_c),[1,N_a]);
+    maxindex_aL2_z = reshape(Policy(3,:,z_c),[1,N_a]); % still 1..n2long (pre-adjust)
+    aprimeindexes_z = (midpoint_z+(midpoint_z-1)*n2short)+(-n2short-1:1:1+n2short)';
+    aprime_ii_z = aprime_grid(aprimeindexes_z);
+    ReturnMatrix_ii_z = CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, aprime_ii_z, a_gridvals, z_val, ReturnFnParamsVec,1);
+    % ReturnMatrix_ii_z is [N_d, n2long, N_a]; check L2=1 / L2=n2long at the chosen d
+    linidx_lower = d_ind_z                  + N_d*n2long*aind;
+    linidx_upper = d_ind_z + N_d*(n2long-1) + N_d*n2long*aind;
+    isInfLower_z = (ReturnMatrix_ii_z(linidx_lower) == -Inf);
+    isInfUpper_z = (ReturnMatrix_ii_z(linidx_upper) == -Inf);
+    inLowerStrict = (maxindex_aL2_z >= 2)         & (maxindex_aL2_z <= n2short+1);
+    inUpperStrict = (maxindex_aL2_z >= n2short+3) & (maxindex_aL2_z <= n2long-1);
+    PolicyL2flag_3d(1,:,z_c) = 2 + (inLowerStrict & isInfLower_z) - (inUpperStrict & isInfUpper_z);
+end
+
 %% Currently Policy(2,:) is the midpoint, and Policy(3,:) the second layer
 % (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
 % we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
@@ -157,6 +178,9 @@ end
 adjust=(Policy(3,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(2,:,:)=Policy(2,:,:)-adjust; % lower grid point
 Policy(3,:,:)=adjust.*Policy(3,:,:)+(1-adjust).*(Policy(3,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+
+%% Write the L2 flag into Policy(4,:,:)
+Policy(4,:,:) = PolicyL2flag_3d;
 
 %Policy=Policy(1,:,:)+N_d*(Policy(2,:,:)-1)+N_d*N_a*(Policy(3,:,:)-1);
 

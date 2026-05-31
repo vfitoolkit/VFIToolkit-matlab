@@ -25,7 +25,7 @@ N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
-Policy4=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % d1, d2, d3, d4
+Policy=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % d1, d2, d3, d4
 
 %%
 d23_grid=gpuArray(d23_grid);
@@ -61,10 +61,10 @@ if ~isfield(vfoptions,'V_Jplus1')
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
         d1d3_ind=rem(maxindex-1,N_d1*N_d3)+1;
-        Policy4(1,:,:,N_j)=shiftdim(rem(d1d3_ind-1,N_d1)+1,-1);
-        Policy4(2,:,:,N_j)=1;
-        Policy4(3,:,:,N_j)=shiftdim(ceil(d1d3_ind/N_d1),-1);
-        Policy4(4,:,:,N_j)=shiftdim(ceil(maxindex/(N_d1*N_d3)),-1);
+        Policy(1,:,:,N_j)=shiftdim(rem(d1d3_ind-1,N_d1)+1,-1);
+        Policy(2,:,:,N_j)=1;
+        Policy(3,:,:,N_j)=shiftdim(ceil(d1d3_ind/N_d1),-1);
+        Policy(4,:,:,N_j)=shiftdim(ceil(maxindex/(N_d1*N_d3)),-1);
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_bothz
@@ -73,10 +73,10 @@ if ~isfield(vfoptions,'V_Jplus1')
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
             d1d3_ind=rem(maxindex-1,N_d1*N_d3)+1;
-            Policy4(1,:,z_c,N_j)=shiftdim(rem(d1d3_ind-1,N_d1)+1,-1);
-            Policy4(2,:,z_c,N_j)=1;
-            Policy4(3,:,z_c,N_j)=shiftdim(ceil(d1d3_ind/N_d1),-1);
-            Policy4(4,:,z_c,N_j)=shiftdim(ceil(maxindex/(N_d1*N_d3)),-1);
+            Policy(1,:,z_c,N_j)=shiftdim(rem(d1d3_ind-1,N_d1)+1,-1);
+            Policy(2,:,z_c,N_j)=1;
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(d1d3_ind/N_d1),-1);
+            Policy(4,:,z_c,N_j)=shiftdim(ceil(maxindex/(N_d1*N_d3)),-1);
         end
     end
 else
@@ -128,13 +128,13 @@ else
 
         [V_jj,maxindex]=max(V_ford4_jj,[],3);
         V(:,:,N_j)=V_jj;
-        Policy4(4,:,:,N_j)=maxindex;
+        Policy(4,:,:,N_j)=maxindex;
         maxindex_d4=reshape(maxindex,[N_a*N_bothz,1]);
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex_d4-1)),[1,N_a,N_bothz]);
-        Policy4(3,:,:,N_j)=d3_ind;
-        Policy4(2,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
+        Policy(3,:,:,N_j)=d3_ind;
+        Policy(2,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
         d1_lookup=d3_ind+N_d3*shiftdim(aind,-1)+N_d3*N_a*bothzind+N_d3*N_a*N_bothz*shiftdim(maxindex-1,-1);
-        Policy4(1,:,:,N_j)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
+        Policy(1,:,:,N_j)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
 
     elseif vfoptions.lowmemory==1
         for d4_c=1:N_d4
@@ -169,13 +169,13 @@ else
 
         [V_jj,maxindex]=max(V_ford4_jj,[],3);
         V(:,:,N_j)=V_jj;
-        Policy4(4,:,:,N_j)=maxindex;
+        Policy(4,:,:,N_j)=maxindex;
         maxindex_d4=reshape(maxindex,[N_a*N_bothz,1]);
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex_d4-1)),[1,N_a,N_bothz]);
-        Policy4(3,:,:,N_j)=d3_ind;
-        Policy4(2,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
+        Policy(3,:,:,N_j)=d3_ind;
+        Policy(2,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
         d1_lookup=d3_ind+N_d3*shiftdim(aind,-1)+N_d3*N_a*bothzind+N_d3*N_a*N_bothz*shiftdim(maxindex-1,-1);
-        Policy4(1,:,:,N_j)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
+        Policy(1,:,:,N_j)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
     end
 end
 
@@ -237,13 +237,13 @@ for reverse_j=1:N_j-1
 
         [V_jj,maxindex]=max(V_ford4_jj,[],3);
         V(:,:,jj)=V_jj;
-        Policy4(4,:,:,jj)=maxindex;
+        Policy(4,:,:,jj)=maxindex;
         maxindex_d4=reshape(maxindex,[N_a*N_bothz,1]);
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex_d4-1)),[1,N_a,N_bothz]);
-        Policy4(3,:,:,jj)=d3_ind;
-        Policy4(2,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
+        Policy(3,:,:,jj)=d3_ind;
+        Policy(2,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
         d1_lookup=d3_ind+N_d3*shiftdim(aind,-1)+N_d3*N_a*bothzind+N_d3*N_a*N_bothz*shiftdim(maxindex-1,-1);
-        Policy4(1,:,:,jj)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
+        Policy(1,:,:,jj)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
 
     elseif vfoptions.lowmemory==1
         for d4_c=1:N_d4
@@ -278,17 +278,16 @@ for reverse_j=1:N_j-1
 
         [V_jj,maxindex]=max(V_ford4_jj,[],3);
         V(:,:,jj)=V_jj;
-        Policy4(4,:,:,jj)=maxindex;
+        Policy(4,:,:,jj)=maxindex;
         maxindex_d4=reshape(maxindex,[N_a*N_bothz,1]);
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex_d4-1)),[1,N_a,N_bothz]);
-        Policy4(3,:,:,jj)=d3_ind;
-        Policy4(2,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
+        Policy(3,:,:,jj)=d3_ind;
+        Policy(2,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
         d1_lookup=d3_ind+N_d3*shiftdim(aind,-1)+N_d3*N_a*bothzind+N_d3*N_a*N_bothz*shiftdim(maxindex-1,-1);
-        Policy4(1,:,:,jj)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
+        Policy(1,:,:,jj)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
     end
 end
 
-Policy=Policy4(1,:,:,:)+N_d1*(Policy4(2,:,:,:)-1)+N_d1*N_d2*(Policy4(3,:,:,:)-1)+N_d1*N_d2*N_d3*(Policy4(4,:,:,:)-1);
 
 
 end

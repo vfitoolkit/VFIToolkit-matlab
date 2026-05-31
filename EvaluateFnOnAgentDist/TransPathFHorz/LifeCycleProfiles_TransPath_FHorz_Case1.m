@@ -86,6 +86,7 @@ for ff=1:length(AggVarNames)
 end
 
 %% Set up a few things
+N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(simoptions.n_e);
@@ -97,11 +98,20 @@ if N_z>0
         AgentDistPath=reshape(AgentDistPath, [N_a,N_z,N_j,T]);
     end
 else
-    AgentDistPath=reshape(AgentDistPath, [N_a,N_j,T]);
+    if N_e>0
+        AgentDistPath=reshape(AgentDistPath, [N_a,N_e,N_j,T]); % treat e as z (no z)
+    else
+        AgentDistPath=reshape(AgentDistPath, [N_a,N_j,T]);
+    end
 end
 
 if N_z==0
-    PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T, simoptions);
+    if N_e>0
+        % Treat e as z (no z, e in z-slot)
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, simoptions.n_e, N_j, T, simoptions);
+    else
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T, simoptions);
+    end
 else
     if N_e>0
         PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_e(PolicyPath, n_d, n_a, n_z, simoptions.n_e, N_j, T, simoptions);
@@ -135,7 +145,11 @@ for tt=1:T
             AgentDist=AgentDistPath(:,:,:,tt);
         end
     else
-        AgentDist=AgentDistPath(:,:,tt);
+        if N_e>0
+            AgentDist=AgentDistPath(:,:,:,tt);
+        else
+            AgentDist=AgentDistPath(:,:,tt);
+        end
     end
     if simoptions.parallel==2
         AgentDist=gpuArray(AgentDist);
@@ -148,7 +162,11 @@ for tt=1:T
             Policy=PolicyPath(:,:,:,:,tt); % (d_kron,a_kron),a,z,j
         end
     else
-        Policy=PolicyPath(:,:,:,tt); % (d_kron,a_kron),a,j
+        if N_e>0
+            Policy=PolicyPath(:,:,:,:,tt); % (d_kron,a_kron),a,e_as_z,j
+        else
+            Policy=PolicyPath(:,:,:,tt); % (d_kron,a_kron),a,j
+        end
     end
     % Get current ParamPath and PricePath
     for kk=1:length(PricePathNames)
@@ -195,11 +213,32 @@ for tt=1:T
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use simoptions.ExogShockFn within  ValueFnIter command
 
     if N_z==0
-        PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_noz(Policy, n_d, n_a, N_j,simoptions);
+        if N_e>0
+            % Treat e as z (no z, e in z-slot)
+            if N_d==0
+                PolicyUnKron=UnKronPolicyIndexes1_FHorz_z(Policy, n_a, n_a, simoptions.n_e, N_j, simoptions);
+            else
+                PolicyUnKron=UnKronPolicyIndexes2_FHorz_z(Policy, n_d, n_a, n_a, simoptions.n_e, N_j, simoptions);
+            end
+        else
+            if N_d==0
+                PolicyUnKron=UnKronPolicyIndexes1_FHorz_noz(Policy, n_a, n_a, N_j, simoptions);
+            else
+                PolicyUnKron=UnKronPolicyIndexes2_FHorz_noz(Policy, n_d, n_a, n_a, N_j, simoptions);
+            end
+        end
     elseif N_e>0
-        PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_e(Policy, n_d, n_a, n_z, simoptions.n_e, N_j,simoptions);
+        if N_d==0
+            PolicyUnKron=UnKronPolicyIndexes1_FHorz_z_e(Policy, n_a, n_a, n_z, simoptions.n_e, N_j, simoptions);
+        else
+            PolicyUnKron=UnKronPolicyIndexes2_FHorz_z_e(Policy, n_d, n_a, n_a, n_z, simoptions.n_e, N_j, simoptions);
+        end
     else
-        PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,simoptions);
+        if N_d==0
+            PolicyUnKron=UnKronPolicyIndexes1_FHorz_z(Policy, n_a, n_a, n_z, N_j, simoptions);
+        else
+            PolicyUnKron=UnKronPolicyIndexes2_FHorz_z(Policy, n_d, n_a, n_a, n_z, N_j, simoptions);
+        end
     end
     tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,PolicyUnKron,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
 

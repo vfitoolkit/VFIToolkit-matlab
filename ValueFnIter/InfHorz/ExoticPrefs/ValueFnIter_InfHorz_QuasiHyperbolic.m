@@ -74,6 +74,10 @@ end
 
 %%
 V=reshape(V,[n_a,n_z]);
-Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
+if N_d==0
+    Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
+else
+    Policy=UnKronPolicyIndexes1_z(Policy, [n_d,n_a], n_a, n_z, vfoptions);
+end
 
 end

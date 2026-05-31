@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_ExpAsset_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_ExpAsset_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % Compute V from a given Policy when the model has an experience asset (vfoptions.experienceasset==1)
 % AND uses the grid interpolation layer (vfoptions.gridinterplayer==1).
 %
@@ -31,6 +31,7 @@ l_a=length(n_a);
 if isscalar(n_a)
     vfoptions.gridinterplayer=0;
     V=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
     return
 end
 n_a1=n_a(1:end-1);
@@ -267,5 +268,8 @@ else
     V=reshape(V, [n_a, n_z, vfoptions.n_e, N_j]);
 end
 
+
+
+varargout={V};
 
 end

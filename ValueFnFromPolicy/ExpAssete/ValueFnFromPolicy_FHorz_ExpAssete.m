@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_ExpAssete(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_ExpAssete(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % Compute V from a given Policy when the model has experienceassete (vfoptions.experienceassete==1).
 % experienceassete: a2prime = aprimeFn(d_expasset, a2, e) -- depends on the iid (start-of-period) shock e.
 % Requires N_e>0; may have z too.
@@ -6,11 +6,13 @@ function V=ValueFnFromPolicy_FHorz_ExpAssete(Policy,n_d,n_a,n_z,N_j,d_grid,a_gri
 %% Dispatch to SemiExo subfn if n_semiz>0
 if prod(vfoptions.n_semiz)>0
     V=ValueFnFromPolicy_FHorz_ExpAssete_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
     return
 end
 %% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
     V=ValueFnFromPolicy_FHorz_ExpAssete_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
     return
 end
 
@@ -197,5 +199,8 @@ else
     V=reshape(V, [n_a, n_z, vfoptions.n_e, N_j]);
 end
 
+
+
+varargout={V};
 
 end

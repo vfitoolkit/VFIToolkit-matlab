@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_ExpAssetze_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_ExpAssetze_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % Compute V from a given Policy with experienceassetze AND grid interpolation layer (vfoptions.gridinterplayer==1).
 % experienceassetze: a2prime = aprimeFn(d_expasset, a2, z, e).
 % Under GI, Policy carries an L2 fine-grid index for a1prime; lookup is 2x2.
@@ -149,5 +149,8 @@ end
 %% Reshape V out of Kron form
 V=reshape(V, [n_a, n_z, vfoptions.n_e, N_j]);
 
+
+
+varargout={V};
 
 end

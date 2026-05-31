@@ -256,18 +256,35 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     if N_e==0
         if N_z==0
             V_jp=reshape(VKron,[n_a,N_j]);
-            Policy_jp=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
+            if N_d==0
+                Policy_jp=UnKronPolicyIndexes1_FHorz_noz(PolicyKron, n_a, n_a, N_j, vfoptions);
+            else
+                Policy_jp=UnKronPolicyIndexes1_FHorz_noz(PolicyKron, [n_d,n_a], n_a, N_j, vfoptions);
+            end
         else
             V_jp=reshape(VKron,[n_a,n_z,N_j]);
-            Policy_jp=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+            if N_d==0
+                Policy_jp=UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_a, n_a, n_z, N_j, vfoptions);
+            else
+                Policy_jp=UnKronPolicyIndexes1_FHorz_z(PolicyKron, [n_d,n_a], n_a, n_z, N_j, vfoptions);
+            end
         end
     else
         if N_z==0
             V_jp=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy_jp=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+            % Treat e as z (because no z)
+            if N_d==0
+                Policy_jp=UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_a, n_a, vfoptions.n_e, N_j, vfoptions);
+            else
+                Policy_jp=UnKronPolicyIndexes1_FHorz_z(PolicyKron, [n_d,n_a], n_a, vfoptions.n_e, N_j, vfoptions);
+            end
         else
             V_jp=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy_jp=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            if N_d==0
+                Policy_jp=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_a, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            else
+                Policy_jp=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, [n_d,n_a], n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            end
         end
     end
 

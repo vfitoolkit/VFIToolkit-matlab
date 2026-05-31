@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_SemiExo_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_SemiExo_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % Compute V from a given Policy when the model has semi-exogenous shocks (n_semiz>0) AND uses the grid interpolation layer (vfoptions.gridinterplayer==1).
 %
 % Policy under GI has shape (l_d+l_aprime+1, n_a, n_semiz, [n_z,] [n_e,] N_j),
@@ -270,5 +270,8 @@ else
     V=reshape(V, [n_a, n_semiz, n_z, vfoptions.n_e, N_j]);
 end
 
+
+
+varargout={V};
 
 end

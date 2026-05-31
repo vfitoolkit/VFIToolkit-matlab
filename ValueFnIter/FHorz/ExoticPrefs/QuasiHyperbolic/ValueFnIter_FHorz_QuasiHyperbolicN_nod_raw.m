@@ -1,4 +1,4 @@
-function [Vtilde,Policy,V]=ValueFnIter_FHorz_QuasiHyperbolicN_nod_raw(n_a,n_z,N_j, a_grid, z_gridvals_J,pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vtilde,Policy,V,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_nod_raw(n_a,n_z,N_j, a_grid, z_gridvals_J,pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Naive quasi-hyperbolic discounting
 %
 % DiscountFactorParamNames is the standard discount factor beta
@@ -14,6 +14,7 @@ N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); % indexes the optimal choice for aprime, rest of dimensions a,z
+Policyalt=zeros(N_a,N_z,N_j,'gpuArray'); % exponential discounter optimal choice (V is computed at this)
 
 %%
 if vfoptions.lowmemory>0
@@ -34,6 +35,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
+        Policyalt(:,:,N_j)=maxindex; % terminal period: QH and exponential discounter coincide
 
     elseif vfoptions.lowmemory==1
 
@@ -44,6 +46,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
+            Policyalt(:,z_c,N_j)=maxindex;
         end
     end
 
@@ -75,8 +78,9 @@ else
         % Policy (which is Policytilde) that correspond to the naive quasihyperbolic discounter
         % First V
         entireRHS=ReturnMatrix+beta*EV; %*EV.*ones(1,N_a,1); % Use the two-future-periods discount factor
-        [Vtemp,~]=max(entireRHS,[],1);
+        [Vtemp,maxindexalt]=max(entireRHS,[],1);
         V(:,:,N_j)=Vtemp;
+        Policyalt(:,:,N_j)=maxindexalt;
         % Now Vtilde and Policy
         entireRHS=ReturnMatrix+beta0beta*EV; %*EV.*ones(1,N_a,1); % Use today-to-tomorrow discount factor
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -100,8 +104,9 @@ else
             % naive quasihyperbolic discounter
             % First V
             entireRHS_z=ReturnMatrix_z+beta*EV_z; %*EV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
-            [Vtemp,~]=max(entireRHS_z,[],1);
+            [Vtemp,maxindexalt]=max(entireRHS_z,[],1);
             V(:,z_c,N_j)=Vtemp;
+            Policyalt(:,z_c,N_j)=maxindexalt;
             % Now Vtilde and Policy
             entireRHS_z=ReturnMatrix_z+beta0beta*EV_z; %*EV_z.*ones(1,N_a,1);
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -142,8 +147,9 @@ for reverse_j=1:N_j-1
         % Policy (which is Policytilde) that correspond to the naive quasihyperbolic discounter
         % First V
         entireRHS=ReturnMatrix+beta*EV; %*EV.*ones(1,N_a,1); % Use the two-future-periods discount factor
-        [Vtemp,~]=max(entireRHS,[],1);
+        [Vtemp,maxindexalt]=max(entireRHS,[],1);
         V(:,:,jj)=Vtemp;
+        Policyalt(:,:,jj)=maxindexalt;
         % Now Vtilde and Policy
         entireRHS=ReturnMatrix+beta0beta*EV; %*EV.*ones(1,N_a,1); % Use today-to-tomorrow discount factor
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -167,8 +173,9 @@ for reverse_j=1:N_j-1
             % naive quasihyperbolic discounter
             % First V
             entireRHS_z=ReturnMatrix_z+beta*EV_z; %*EV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
-            [Vtemp,~]=max(entireRHS_z,[],1);
+            [Vtemp,maxindexalt]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;
+            Policyalt(:,z_c,jj)=maxindexalt;
             % Now Vtilde and Policy
             entireRHS_z=ReturnMatrix_z+beta0beta*EV_z; %*EV_z.*ones(1,N_a,1);
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -179,5 +186,6 @@ for reverse_j=1:N_j-1
 end
 
 Policy=shiftdim(Policy,-1);
+Policyalt=shiftdim(Policyalt,-1);
 
 end

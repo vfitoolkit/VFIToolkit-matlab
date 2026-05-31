@@ -19,7 +19,7 @@ N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_semiz,N_j,'gpuArray');
-Policy3=zeros(3,N_a,N_semiz,N_j,'gpuArray'); % d2, d3, d4
+Policy=zeros(3,N_a,N_semiz,N_j,'gpuArray'); % d2, d3, d4
 
 %%
 d23_grid=gpuArray(d23_grid);
@@ -49,9 +49,9 @@ if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_d4], n_a, n_semiz, d3d4_gridvals, a_gridvals, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        Policy3(1,:,:,N_j)=1;
-        Policy3(2,:,:,N_j)=rem(maxindex-1,N_d3)+1;
-        Policy3(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
+        Policy(1,:,:,N_j)=1;
+        Policy(2,:,:,N_j)=rem(maxindex-1,N_d3)+1;
+        Policy(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_semiz
@@ -59,9 +59,9 @@ if ~isfield(vfoptions,'V_Jplus1')
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_d4], n_a, special_n_semiz, d3d4_gridvals, a_gridvals, z_val, ReturnFnParamsVec);
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            Policy3(1,:,z_c,N_j)=1;
-            Policy3(2,:,z_c,N_j)=rem(maxindex-1,N_d3)+1;
-            Policy3(3,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
+            Policy(1,:,z_c,N_j)=1;
+            Policy(2,:,z_c,N_j)=rem(maxindex-1,N_d3)+1;
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
         end
     end
 else
@@ -109,11 +109,11 @@ else
 
         [V_jj,maxindex]=max(V_ford4_jj,[],3);
         V(:,:,N_j)=V_jj;
-        Policy3(3,:,:,N_j)=maxindex;
+        Policy(3,:,:,N_j)=maxindex;
         maxindex_d4=reshape(maxindex,[N_a*N_semiz,1]);
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex_d4-1)),[1,N_a,N_semiz]);
-        Policy3(2,:,:,N_j)=d3_ind;
-        Policy3(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
+        Policy(2,:,:,N_j)=d3_ind;
+        Policy(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
 
     elseif vfoptions.lowmemory==1
         for d4_c=1:N_d4
@@ -145,11 +145,11 @@ else
 
         [V_jj,maxindex]=max(V_ford4_jj,[],3);
         V(:,:,N_j)=V_jj;
-        Policy3(3,:,:,N_j)=maxindex;
+        Policy(3,:,:,N_j)=maxindex;
         maxindex_d4=reshape(maxindex,[N_a*N_semiz,1]);
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex_d4-1)),[1,N_a,N_semiz]);
-        Policy3(2,:,:,N_j)=d3_ind;
-        Policy3(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
+        Policy(2,:,:,N_j)=d3_ind;
+        Policy(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
     end
 end
 
@@ -208,11 +208,11 @@ for reverse_j=1:N_j-1
 
         [V_jj,maxindex]=max(V_ford4_jj,[],3);
         V(:,:,jj)=V_jj;
-        Policy3(3,:,:,jj)=maxindex;
+        Policy(3,:,:,jj)=maxindex;
         maxindex_d4=reshape(maxindex,[N_a*N_semiz,1]);
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex_d4-1)),[1,N_a,N_semiz]);
-        Policy3(2,:,:,jj)=d3_ind;
-        Policy3(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
+        Policy(2,:,:,jj)=d3_ind;
+        Policy(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
 
     elseif vfoptions.lowmemory==1
         for d4_c=1:N_d4
@@ -244,15 +244,14 @@ for reverse_j=1:N_j-1
 
         [V_jj,maxindex]=max(V_ford4_jj,[],3);
         V(:,:,jj)=V_jj;
-        Policy3(3,:,:,jj)=maxindex;
+        Policy(3,:,:,jj)=maxindex;
         maxindex_d4=reshape(maxindex,[N_a*N_semiz,1]);
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex_d4-1)),[1,N_a,N_semiz]);
-        Policy3(2,:,:,jj)=d3_ind;
-        Policy3(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
+        Policy(2,:,:,jj)=d3_ind;
+        Policy(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
     end
 end
 
-Policy=Policy3(1,:,:,:)+N_d2*(Policy3(2,:,:,:)-1)+N_d2*N_d3*(Policy3(3,:,:,:)-1);
 
 
 end

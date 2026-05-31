@@ -47,7 +47,7 @@ aind=gpuArray(0:1:N_a-1);
 % ReturnMatrix on coarse grid is precomputed, but ReturnMatrix_fine is computed at every iteration in the VFI loop.
 
 % preallocate
-Policy   = zeros(2,N_a,N_z,'gpuArray');
+Policy   = zeros(3,N_a,N_z,'gpuArray'); % +1 channel for PolicyL2flag
 VKron = zeros(N_a,N_z,'gpuArray');
 Ftemp = zeros(N_a,N_z,'gpuArray'); % useful for Howard
 
@@ -138,6 +138,27 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 end
 
 
+%% L2 flag (computed once after convergence, before the midpoint->lower-grid adjust)
+% Rebuild ReturnMatrix_fine per z at the converged midpoints to check whether
+% the L2 extremes (lower-coarse, upper-coarse) carry -Inf reward.
+PolicyL2flag_3d = 2*ones(1,N_a,N_z,'gpuArray');
+for z_c=1:N_z
+    z_vals = z_gridvals(z_c,:);
+    midpoint_z = reshape(Policy(1,:,z_c),[1,N_a]); % converged midpoint, 1-by-N_a
+    aprimeindexes_z = (midpoint_z+(midpoint_z-1)*n2short)+(-n2short-1:1:1+n2short)';
+    aprime_fine_small = aprime_fine(aprimeindexes_z);
+    ReturnMatrix_fine = CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_z, aprime_fine_small, a_gridvals, z_vals, ReturnFnParamsVec,1);
+    % ReturnMatrix_fine is [n2long, N_a]; pick L2=1 and L2=n2long extremes at each a
+    maxindexL2_z = reshape(Policy(2,:,z_c),[1,N_a]); % still 1..n2long (pre-adjust)
+    linidx_lower = 1      + n2long*aind;
+    linidx_upper = n2long + n2long*aind;
+    isInfLower_z = (ReturnMatrix_fine(linidx_lower) == -Inf);
+    isInfUpper_z = (ReturnMatrix_fine(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2_z >= 2)         & (maxindexL2_z <= n2short+1);
+    inUpperStrict = (maxindexL2_z >= n2short+3) & (maxindexL2_z <= n2long-1);
+    PolicyL2flag_3d(1,:,z_c) = 2 + (inLowerStrict & isInfLower_z) - (inUpperStrict & isInfUpper_z);
+end
+
 %% Currently Policy(1,:) is the midpoint, and Policy(2,:) the second layer
 % (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
 % we switch Policy(1,:) to 'lower grid point' and then have Policy(2,:)
@@ -145,6 +166,9 @@ end
 adjust=(Policy(2,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(1,:,:)=Policy(1,:,:)-adjust; % lower grid point
 Policy(2,:,:)=adjust.*Policy(2,:,:)+(1-adjust).*(Policy(2,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+
+%% Write the L2 flag into Policy(3,:,:)
+Policy(3,:,:) = PolicyL2flag_3d;
 
 
 if tempcounter>=vfoptions.maxiter

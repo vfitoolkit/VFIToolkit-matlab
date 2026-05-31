@@ -243,7 +243,7 @@ Policy(2,:,:)=ceil(Policyraw/N_d);
 %% Cleaning up the output
 if vfoptions.outputkron==0
     V=reshape(V,[n_a,n_z]);
-    Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
+    Policy=UnKronPolicyIndexes1_z(Policy, [n_d,n_a], n_a, n_z, vfoptions);
 else
     return
 end

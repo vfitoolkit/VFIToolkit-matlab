@@ -99,7 +99,15 @@ if vfoptions.lowmemory==0
 %% Cleaning up the output
 V=reshape(VKron,[n_a,n_z]);
 ExitPolicy=reshape(ExitPolicy,[n_a,n_z]);
-Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
-PolicyWhenExit=UnKronPolicyIndexes_Case1(PolicyWhenExit, n_d, n_a, n_z,vfoptions);
+if N_d==0
+    Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
+else
+    Policy=UnKronPolicyIndexes1_z(Policy, [n_d,n_a], n_a, n_z, vfoptions);
+end
+if N_d==0
+    PolicyWhenExit=UnKronPolicyIndexes1_z(PolicyWhenExit, n_a, n_a, n_z, vfoptions);
+else
+    PolicyWhenExit=UnKronPolicyIndexes1_z(PolicyWhenExit, [n_d,n_a], n_a, n_z, vfoptions);
+end
 
 end

@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_FHorz_ExpAssetze_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function varargout=ValueFnFromPolicy_FHorz_ExpAssetze_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 % Compute V from a given Policy when the model has experienceassetze (vfoptions.experienceassetze==1)
 % AND semi-exogenous shocks (n_semiz>0).
 %
@@ -14,6 +14,7 @@ function V=ValueFnFromPolicy_FHorz_ExpAssetze_SemiExo(Policy,n_d,n_a,n_z,N_j,d_g
 %% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
     V=ValueFnFromPolicy_FHorz_ExpAssetze_SemiExo_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
     return
 end
 
@@ -191,5 +192,8 @@ end
 %% Reshape V out of Kron form
 V=reshape(V, [n_a, n_semiz, n_z, vfoptions.n_e, N_j]);
 
+
+
+varargout={V};
 
 end

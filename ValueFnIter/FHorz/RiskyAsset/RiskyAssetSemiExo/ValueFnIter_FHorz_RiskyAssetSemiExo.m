@@ -157,30 +157,89 @@ end
 
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-if n_a1(1)==0
+if N_a1==0
     n_a=n_a2;
-    n_dForUnKron=n_d; % no a1prime channel; Policy stores only d-components
 else
     n_a=[n_a1,n_a2];
-    n_dForUnKron=[n_d,n_a1]; % a1prime added as final channel
 end
-% Note, Policy has same shape as Case2, so just use that command
+% Raw Policy is multi-channel: (d1,d2,d3,d4,a1prime), or with d1/a1prime dropped.
+% Pick the matching UnKronPolicyIndexes family based on N_d1, N_a1.
 if vfoptions.outputkron==0
-    if N_e==0
-        if N_z==0
-            V=reshape(VKron,[n_a,n_semiz,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dForUnKron, n_a, n_semiz, N_j, vfoptions);
+    if N_d1>0 && N_a1>0
+        % 5 channels: (d1, d2, d3, d4, a1prime)
+        if N_e==0
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], N_j, vfoptions);
+            end
         else
-            V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dForUnKron, n_a, [n_semiz,n_z], N_j, vfoptions);
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            end
         end
-    else
-        if N_z==0
-            V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_dForUnKron, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+    elseif N_d1==0 && N_a1>0
+        % 4 channels: (d2, d3, d4, a1prime)
+        if N_e==0
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], N_j, vfoptions);
+            end
         else
-            V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_dForUnKron, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            end
+        end
+    elseif N_d1>0 && N_a1==0
+        % 4 channels: (d1, d2, d3, d4)
+        if N_e==0
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a, n_semiz, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a, [n_semiz,n_z], N_j, vfoptions);
+            end
+        else
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            end
+        end
+    else % N_d1==0 && N_a1==0
+        % 3 channels: (d2, d3, d4)
+        if N_e==0
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a, n_semiz, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
+                Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a, [n_semiz,n_z], N_j, vfoptions);
+            end
+        else
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            end
         end
     end
 else

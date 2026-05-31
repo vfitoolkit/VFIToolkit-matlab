@@ -70,18 +70,18 @@ if vfoptions.outputkron==0
     if N_e==0
         if N_z==0
             V=reshape(VKron,[n_a,n_semiz,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dForUnKron, n_a, n_semiz, N_j, vfoptions);
+            Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_dForUnKron, n_a, n_semiz, N_j, vfoptions);
         else
             V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dForUnKron, n_a, [n_semiz,n_z], N_j, vfoptions);
+            Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_dForUnKron, n_a, [n_semiz,n_z], N_j, vfoptions);
         end
     else
         if N_z==0
             V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_dForUnKron, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_dForUnKron, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
         else
             V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_dForUnKron, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_dForUnKron, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
         end
     end
 else
