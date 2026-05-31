@@ -11,8 +11,8 @@ N_z=prod(n_z);
 
 l_a=length(n_a);
 
-% --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
-if size(Policy,1) > (n_d(1)~=0)*length(n_d) + l_a + 1
+% Strip trailing PolicyL2flag channel (always present under gridinterplayer==1)
+if simoptions.gridinterplayer==1
     tempsize=size(Policy);
     Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
     Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);

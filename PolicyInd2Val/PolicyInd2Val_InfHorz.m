@@ -88,9 +88,9 @@ else
             % Put the last two parts of Policy together to get the aprime index
             tempsize=size(Policy);
             Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(Policy)
-            Policy(l_d+1,:)=(vfoptions.ngridinterp+1)*(Policy(l_d+1,:)-1)+Policy(end,:); % combine first asset index with the last index (lower grid point and 2nd layer point) to get aprime index
-            tempsize(1)=tempsize(1)-1; % we put two policies together, so this is how many are left
-            Policy=reshape(Policy(1:end-1,:),tempsize); % get rid of last policy entry
+            Policy(l_d+1,:)=(vfoptions.ngridinterp+1)*(Policy(l_d+1,:)-1)+Policy(end-1,:); % combine first asset index with L2 index (end-1 because end is now L2flag) to get aprime index
+            tempsize(1)=tempsize(1)-2; % we put two policies together (L1+L2) and also drop the L2flag, so two channels go
+            Policy=reshape(Policy(1:end-2,:),tempsize); % drop L2 (now redundant after merge) and L2flag
         end
     end
     if ordinary==1 % not using any specific asset type

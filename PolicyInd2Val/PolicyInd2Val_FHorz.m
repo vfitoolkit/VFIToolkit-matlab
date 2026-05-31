@@ -74,15 +74,10 @@ else
 
     if isfield(vfoptions,'gridinterplayer')
         if vfoptions.gridinterplayer==1
-            % --- TEMPORARY (pilot): strip trailing PolicyL2flag if present ---
-            % Pre-fix GI Policy has size(Policy,1) = l_d + l_aprime + 1;
-            % post-fix adds one more channel for the L2 flag.
-            % Since PolicyInd2Val doesn't need the flag (only sim does), drop it.
-            if size(Policy,1) > l_d + l_aprime + 1
-                tempsize=size(Policy);
-                Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
-                Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
-            end
+            % Strip trailing PolicyL2flag channel (PolicyInd2Val doesn't need it; only sim does)
+            tempsize=size(Policy);
+            Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
+            Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
             a1prime_grid=interp1(gpuArray(1:1:n_aprime(1))',aprime_grid(1:n_aprime(1)),linspace(1,n_aprime(1),n_aprime(1)+(n_aprime(1)-1)*vfoptions.ngridinterp))';
             if isscalar(n_aprime)
                 aprime_grid=a1prime_grid;

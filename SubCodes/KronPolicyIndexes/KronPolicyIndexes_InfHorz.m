@@ -21,8 +21,8 @@ if vfoptions.experienceasset==1
     n_a=n_a(1:end-1); % is only used a n_aprime for here one
 end
 
-% --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
-if vfoptions.gridinterplayer==1 && size(Policy,1) > (N_d~=0)*length(n_d) + l_aprime + 1
+% Strip trailing PolicyL2flag channel (always present under gridinterplayer==1)
+if vfoptions.gridinterplayer==1
     tempsize=size(Policy);
     Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
     Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);

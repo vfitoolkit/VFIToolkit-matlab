@@ -11,13 +11,9 @@ if simoptions.experienceasset==1
     N_probs=N_probs*2;
 end
 
-% --- TEMPORARY (pilot): flag-aware GI workers propagate an extra PolicyL2flag channel through
-% UnKron. All four fastOLG GI families (plain GI1, DC1_GI1, ExpAsset GI1, ExpAsset DC1_GI1)
-% are now flag-aware, so the extra slot is always present whenever gridinterplayer==1.
-flag_extra=0;
-if vfoptions.gridinterplayer==1
-    flag_extra=1;
-end
+% Flag-aware GI workers propagate an extra PolicyL2flag channel through UnKron;
+% under gridinterplayer==1 the extra slot is always present.
+flag_extra=(vfoptions.gridinterplayer==1);
 
 %% slowOLG
 if transpathoptions.fastOLG==0

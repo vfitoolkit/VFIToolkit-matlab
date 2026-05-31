@@ -12,8 +12,8 @@ N_e=prod(n_e);
 
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,N_e,N_j,T]);
 
-% --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
-if size(PolicyPath,1) > (n_d(1)~=0)*length(n_d) + length(n_a) + 1
+% Strip trailing PolicyL2flag channel (always present under gridinterplayer==1)
+if simoptions.gridinterplayer==1
     tempsize=size(PolicyPath);
     PolicyPath=reshape(PolicyPath,[tempsize(1),prod(tempsize)/tempsize(1)]);
     PolicyPath=reshape(PolicyPath(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);

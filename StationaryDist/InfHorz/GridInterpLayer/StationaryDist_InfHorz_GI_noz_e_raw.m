@@ -28,7 +28,7 @@ else
 end
 Policy_aprime(:,:,2)=Policy_aprime(:,:,1)+1; % upper index, add one to index for a1
 
-PolicyProbs(:,:,2)=shiftdim((Policy(end,:,:)-1)/(simoptions.ngridinterp+1),1); % probability of upper grid point
+PolicyProbs(:,:,2)=shiftdim((Policy(end-1,:,:)-1)/(simoptions.ngridinterp+1),1); % probability of upper grid point (end-1 because end is now L2flag)
 PolicyProbs(:,:,1)=1-PolicyProbs(:,:,2); % probability of lower grid point
 
 StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_noz_e_raw(StationaryDist,Policy_aprime,PolicyProbs,2,N_a,N_e,pi_e,simoptions);

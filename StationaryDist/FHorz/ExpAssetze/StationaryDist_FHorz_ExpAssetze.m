@@ -103,7 +103,7 @@ elseif simoptions.gridinterplayer==1
     Policy_aprime=gather(Policy_aprime);
 
     PolicyProbs=repmat(PolicyProbs,1,1,2,1);
-    aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper grid point (from L2 index)
+    aprimeProbs_upper=reshape(shiftdim((Policy(end-1,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
     PolicyProbs(:,:,1:2,:)=PolicyProbs(:,:,1:2,:).*(1-aprimeProbs_upper); % lower a1
     PolicyProbs(:,:,3:4,:)=PolicyProbs(:,:,3:4,:).*aprimeProbs_upper; % upper a1
 

@@ -87,13 +87,13 @@ elseif vfoptions.gridinterplayer==1
     if N_d==0
         alowerindex=reshape(Policy(1,:,:),[1,N_a*N_z]);
         aprimeindex=[alowerindex; alowerindex+1]; % [2,N_a*N_z]
-        PolicyProbs=reshape(ceil(Policy(end,:,:)),[1,N_a*N_z]);
+        PolicyProbs=reshape(ceil(Policy(end-1,:,:)),[1,N_a*N_z]); % end-1 because end is now L2flag
         PolicyProbs=(PolicyProbs-1)/(vfoptions.ngridinterp+1); % prob of upper point
         PolicyProbs=[1-PolicyProbs; PolicyProbs]; % [2,N_a*N_z]
     else
         alowerindex=reshape(ceil(Policy(2,:,:)),[1,N_a*N_z]);
         aprimeindex=[alowerindex; alowerindex+1]; % [2,N_a*N_z]
-        PolicyProbs=reshape(ceil(Policy(end,:,:)),[1,N_a*N_z]);
+        PolicyProbs=reshape(ceil(Policy(end-1,:,:)),[1,N_a*N_z]); % end-1 because end is now L2flag
         PolicyProbs=(PolicyProbs-1)/(vfoptions.ngridinterp+1); % prob of upper point
         PolicyProbs=[1-PolicyProbs; PolicyProbs]; % [2,N_a*N_z]
     end

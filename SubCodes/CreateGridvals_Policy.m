@@ -35,10 +35,8 @@ end
 Policy=reshape(Policy,[size(Policy,1),N_a*N_z]); % Note: Policy will be (l_d+l_a,n_a,n_z)
 
 if simoptions.gridinterplayer==1
-    % --- TEMPORARY (pilot): strip trailing PolicyL2flag channel if present ---
-    if size(Policy,1) > l_d + l_aprime + 1
-        Policy=Policy(1:end-1,:);
-    end
+    % Strip trailing PolicyL2flag channel
+    Policy=Policy(1:end-1,:);
     % switch aprime_grid and Policy to be 'fine' index
     Policy(l_d+1,:)=(1+simoptions.ngridinterp)*(Policy(l_d+1,:)-1)+Policy(end,:);
     Policy=Policy(1:end-1,:);
