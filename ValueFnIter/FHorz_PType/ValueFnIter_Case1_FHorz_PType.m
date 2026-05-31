@@ -111,7 +111,7 @@ for ii=1:N_i
     end
 
     % e
-    if isfield(vfoptions_temp,'n_e')
+    if prod(vfoptions_temp.n_e)>0
         % If vfoptions_temp.e_grid is a structure that was already dealt with by PType_Options() command
         if ~isstruct(vfoptions.e_grid)
             % So just need to check if last dimension is of length N_i
@@ -133,7 +133,7 @@ for ii=1:N_i
     end
 
     % semiz
-    if isfield(vfoptions_temp,'n_semiz')
+    if prod(vfoptions_temp.n_semiz)>0
         % If vfoptions_temp.semiz_grid is a structure that was already dealt with by PType_Options() command
         if ~isstruct(vfoptions.semiz_grid)
             % So just need to check if last dimension is of length N_i
