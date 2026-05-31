@@ -121,7 +121,7 @@ for ii=1:N_i
     end
 
     % e
-    if isfield(simoptions_temp,'n_e')
+    if prod(simoptions_temp.n_e)>0
         % If vfoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
         if ~isstruct(simoptions.pi_e)
             % So just need to check if last dimension is of length N_i
@@ -134,7 +134,7 @@ for ii=1:N_i
     end
 
     % semiz
-    if isfield(simoptions_temp,'n_semiz')
+    if prod(simoptions_temp.n_semiz)>0
         % Might use SemiExoShockFn or pi_semiz, if the later we need to deal with it
         if isfield(simoptions_temp,'pi_semiz')
         % If simoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
