@@ -120,7 +120,8 @@ if vfoptions.lowmemory==0
     % Vunderbar = Vhat + (beta - beta0beta)*EV_at_policy
     linidx=double(reshape(maxindexL2,[1,N_a*N_j*N_z*N_e]))+n2long*(0:N_a*N_j*N_z*N_e-1);
     EV_at_policy=reshape(EVfine(linidx),[N_a*N_j,N_z,N_e]);
-    V=reshape(Vhat,[N_a*N_j,N_z,N_e])+EV_at_policy;
+    Vhat=reshape(Vhat,[N_a*N_j,N_z,N_e]);
+    V=Vhat+EV_at_policy;
 
 elseif vfoptions.lowmemory==1
 
@@ -162,7 +163,7 @@ elseif vfoptions.lowmemory==1
         aprimej=aprimeindexes+n2aprime*jind+n2aprime*N_j*zind;
         EVfine_e=reshape(DiffDiscountedEVinterp(aprimej(:)),[n2long,N_a,N_j,N_z]);
         entireRHS_L2=ReturnMatrix_L2+reshape(DiscountedEVinterp(aprimej(:)),[n2long,N_a,N_j,N_z]);
-        [Vhat,maxindexL2]=max(entireRHS_L2,[],1);
+        [Vhat_e,maxindexL2]=max(entireRHS_L2,[],1);
         Policy(1,:,:,:,e_c)=shiftdim(squeeze(midpoints_jj),-1);
         Policy(2,:,:,:,e_c)=shiftdim(maxindexL2,-1);
 
@@ -174,7 +175,8 @@ elseif vfoptions.lowmemory==1
 
         linidx_e=double(reshape(maxindexL2,[1,N_a*N_j*N_z]))+n2long*(0:N_a*N_j*N_z-1);
         EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,N_j,N_z]);
-        V(:,:,:,e_c)=shiftdim(Vhat,1)+EV_at_policy_e;
+        Vhat(:,:,e_c)=reshape(Vhat_e,[N_a*N_j,N_z]);
+        V(:,:,:,e_c)=shiftdim(Vhat_e,1)+EV_at_policy_e;
     end
 
 elseif vfoptions.lowmemory==2
@@ -224,7 +226,7 @@ elseif vfoptions.lowmemory==2
             aprimej=aprimeindexes+n2aprime*jind;
             EVfine_ze=reshape(DiffDiscountedEVinterp_z(aprimej(:)),[n2long,N_a,N_j]);
             entireRHS_L2=ReturnMatrix_L2+reshape(DiscountedEVinterp_z(aprimej(:)),[n2long,N_a,N_j]);
-            [Vhat,maxindexL2]=max(entireRHS_L2,[],1);
+            [Vhat_ze,maxindexL2]=max(entireRHS_L2,[],1);
             Policy(1,:,:,z_c,e_c)=shiftdim(squeeze(midpoints_jj),-1);
             Policy(2,:,:,z_c,e_c)=shiftdim(maxindexL2,-1);
 
@@ -236,7 +238,8 @@ elseif vfoptions.lowmemory==2
 
             linidx_ze=double(reshape(maxindexL2,[1,N_a*N_j]))+n2long*(0:N_a*N_j-1);
             EV_at_policy_ze=reshape(EVfine_ze(linidx_ze),[N_a,N_j]);
-            V(:,:,z_c,e_c)=shiftdim(Vhat,1)+EV_at_policy_ze;
+            Vhat(:,z_c,e_c)=reshape(Vhat_ze,[N_a*N_j,1]);
+            V(:,:,z_c,e_c)=shiftdim(Vhat_ze,1)+EV_at_policy_ze;
         end
     end
 end

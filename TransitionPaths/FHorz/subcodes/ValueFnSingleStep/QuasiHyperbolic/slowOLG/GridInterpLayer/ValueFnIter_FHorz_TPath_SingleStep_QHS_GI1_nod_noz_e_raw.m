@@ -1,13 +1,15 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_GI1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_GI1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Note: have no z variable, do have e variables
 % The V input is next period value fn (across all ages), the V output is this period.
 % Sophisticated QH: V carries Vunderbar. Policy is QH choice; V output is Vunderbar.
+% Vhat is the agent's-perspective value (beta0*beta) at the QH policy.
 
 N_a=prod(n_a);
 N_e=prod(n_e);
 
 Policy=zeros(2,N_a,N_e,N_j,'gpuArray'); % [midpoint; aprimeL2ind]
 PolicyL2flag=2*ones(1,N_a,N_e,N_j,'gpuArray');
+Vhat=zeros(N_a,N_e,N_j,'gpuArray');
 
 %%
 if vfoptions.lowmemory==1
@@ -71,6 +73,8 @@ elseif vfoptions.lowmemory==1
     end
 end
 
+Vhat(:,:,N_j)=V(:,:,N_j);
+
 %% Loop backward over age
 for reverse_j=1:N_j-1
     jj=N_j-reverse_j;
@@ -117,6 +121,7 @@ for reverse_j=1:N_j-1
 
         linidx=double(reshape(maxindexL2,[1,N_a*N_e]))+n2long*(0:N_a*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_e]);
+        Vhat(:,:,jj)=shiftdim(Vtempii,1);
         V(:,:,jj)=shiftdim(Vtempii,1)+(beta-beta0beta)*EV_at_policy;
 
     elseif vfoptions.lowmemory==1
@@ -147,6 +152,7 @@ for reverse_j=1:N_j-1
 
             linidx_e=double(reshape(maxindexL2,[1,N_a]))+n2long*(0:N_a-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,1]);
+            Vhat(:,e_c,jj)=shiftdim(Vtempii,1);
             V(:,e_c,jj)=shiftdim(Vtempii,1)+(beta-beta0beta)*EV_at_policy_e;
         end
     end

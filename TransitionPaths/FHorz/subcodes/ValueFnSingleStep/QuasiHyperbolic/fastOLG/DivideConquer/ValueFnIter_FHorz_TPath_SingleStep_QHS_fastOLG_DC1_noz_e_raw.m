@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,e), rather than standard (a,z,e)
 % V is (a,j)-by-e; for Sophisticated QH carries Vunderbar
@@ -9,6 +9,7 @@ N_e=prod(n_e);
 
 % fastOLG, so a-j-e
 Policy=zeros(N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime
+Vhat=zeros(N_a,N_j,N_e,'gpuArray'); % beta0*beta-step value (snapshot of V before Vunderbar transform)
 
 % e_gridvals_J has shape (j,prod(n_e),l_e) for fastOLG
 e_gridvals_J=reshape(e_gridvals_J,[1,1,1,N_j,N_e,length(n_e)]); % needed shape for ReturnFnMatrix with fastOLG and DC1
@@ -94,6 +95,7 @@ if vfoptions.lowmemory==0
     end
 
     %% Re-evaluate V at Policy with beta (not beta0*beta): V=Vunderbar=Vhat+(beta-beta0*beta)*EV_at_policy
+    Vhat=V; % snapshot Vhat before Vunderbar transform
     aprime_ind=ceil(Policy/N_d); % [N_a,N_j,N_e]
     EV_2d=reshape(EV,[N_a,N_j]); % (aprime,j); e broadcasts
     EV_at_policy=EV_2d(aprime_ind+N_a*jBind); % [N_a,N_j,N_e]
@@ -147,6 +149,7 @@ elseif vfoptions.lowmemory==1
         end
 
         %% Re-evaluate V at Policy with beta (not beta0*beta) for this e
+        Vhat(:,:,e_c)=V(:,:,e_c); % snapshot Vhat before Vunderbar transform (for this e)
         aprime_ind_e=ceil(Policy(:,:,e_c)/N_d);
         EV_2d=reshape(EV,[N_a,N_j]);
         EV_at_policy_e=EV_2d(aprime_ind_e+N_a*jBind);
@@ -156,6 +159,7 @@ end
 
 %% fastOLG with e, so need output to take certain shapes
 V=reshape(V,[N_a*N_j,N_e]);
+Vhat=reshape(Vhat,[N_a*N_j,N_e]);
 
 %% Output shape for policy
 Policy=shiftdim(Policy,-1); % so first dim is just one point

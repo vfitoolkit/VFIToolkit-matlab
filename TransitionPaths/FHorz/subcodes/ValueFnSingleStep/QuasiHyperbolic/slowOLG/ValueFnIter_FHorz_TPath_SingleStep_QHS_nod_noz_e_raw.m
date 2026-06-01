@@ -1,9 +1,10 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_nod_noz_e_raw(V,n_a,n_e, N_j, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_nod_noz_e_raw(V,n_a,n_e, N_j, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_a=prod(n_a);
 N_e=prod(n_e);
 
 Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+Vhat=zeros(N_a,N_e,N_j,'gpuArray'); % agent's-perspective value at QH-optimal policy under beta0beta
 
 Vnext=sum(V.*shiftdim(pi_e_J,-1),2); % Take expectations over e
 
@@ -27,6 +28,7 @@ if vfoptions.lowmemory==0
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,:,N_j)=Vtemp;
     Policy(:,:,N_j)=maxindex;
+    Vhat(:,:,N_j)=V(:,:,N_j); % terminal: no continuation, Vhat=V
 
 elseif vfoptions.lowmemory==1
 
@@ -37,6 +39,7 @@ elseif vfoptions.lowmemory==1
         [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
         V(:,e_c,N_j)=Vtemp;
         Policy(:,e_c,N_j)=maxindex;
+        Vhat(:,e_c,N_j)=V(:,e_c,N_j); % terminal: no continuation, Vhat=V
     end
 
 end
@@ -61,7 +64,8 @@ for reverse_j=1:N_j-1
 
         % First Policy
         entireRHS=ReturnMatrix+beta0beta*EV; % Use the today-to-tomorrow discount factor
-        [~,maxindex]=max(entireRHS,[],1);
+        [Vtilde_tmp,maxindex]=max(entireRHS,[],1);
+        Vhat(:,:,jj)=shiftdim(Vtilde_tmp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
         % Now Vunderbar
         entireRHS=ReturnMatrix+beta*EV; % Use the two-future-periods discount factor
@@ -76,7 +80,8 @@ for reverse_j=1:N_j-1
 
             % First Policy
             entireRHS_e=ReturnMatrix_e+beta0beta*EV; %.*ones(1,N_a,1);
-            [~,maxindex]=max(entireRHS_e,[],1);
+            [Vtilde_tmp,maxindex]=max(entireRHS_e,[],1);
+            Vhat(:,e_c,jj)=shiftdim(Vtilde_tmp,1);
             Policy(:,e_c,jj)=shiftdim(maxindex,1);
             % Now Vunderbar
             entireRHS_e=ReturnMatrix_e+beta*EV; %.*ones(1,N_a,1);

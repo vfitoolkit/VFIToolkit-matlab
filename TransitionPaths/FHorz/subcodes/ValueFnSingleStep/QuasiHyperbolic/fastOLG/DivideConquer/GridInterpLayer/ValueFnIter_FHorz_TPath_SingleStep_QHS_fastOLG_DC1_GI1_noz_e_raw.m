@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_GI1_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_GI1_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,e), rather than standard (a,z,e)
 % V is (a,j)-by-e (carries Vunderbar for Sophisticated QH)
@@ -9,6 +9,7 @@ N_e=prod(n_e);
 
 % fastOLG, so a-j-e
 Policy=zeros(4,N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime (d, midpoint, L2, L2 flag)
+Vhat=zeros(N_a*N_j,N_e,'gpuArray');
 
 % e_gridvals_J has shape (j,prod(n_e),l_e) for fastOLG
 e_gridvals_J=shiftdim(e_gridvals_J,-3); % needed shape for ReturnFnMatrix with fastOLG without z
@@ -121,7 +122,8 @@ if vfoptions.lowmemory==0
     % Vunderbar = Vhat + (beta - beta0beta)*EV_at_policy
     linidx=double(reshape(maxindexL2,[1,N_a*N_j*N_e]))+N_d*n2long*(0:N_a*N_j*N_e-1);
     EV_at_policy=reshape(EVfine(linidx),[N_a*N_j,N_e]);
-    V=reshape(Vhat,[N_a*N_j,N_e])+EV_at_policy;
+    Vhat=reshape(Vhat,[N_a*N_j,N_e]);
+    V=Vhat+EV_at_policy;
 
 elseif vfoptions.lowmemory==1
 
@@ -163,7 +165,7 @@ elseif vfoptions.lowmemory==1
         aprimej=aprimeindexes+n2aprime*jind;
         EVfine_e=reshape(DiffDiscountedEVinterp(aprimej(:)),[N_d*n2long,N_a,N_j]);
         entireRHS_L2=ReturnMatrix_L2+reshape(DiscountedEVinterp(aprimej(:)),[N_d*n2long,N_a,N_j]);
-        [Vhat,maxindexL2]=max(entireRHS_L2,[],1);
+        [Vhat_e,maxindexL2]=max(entireRHS_L2,[],1);
         d_ind=rem(maxindexL2-1,N_d)+1;
         allind=d_ind+N_d*aBind+N_d*N_a*jBind;
         Policy(1,:,:,e_c)=d_ind;
@@ -181,7 +183,8 @@ elseif vfoptions.lowmemory==1
 
         linidx_e=double(reshape(maxindexL2,[1,N_a*N_j]))+N_d*n2long*(0:N_a*N_j-1);
         EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a*N_j,1]);
-        V(:,e_c)=reshape(Vhat,[N_a*N_j,1])+EV_at_policy_e;
+        Vhat(:,e_c)=reshape(Vhat_e,[N_a*N_j,1]);
+        V(:,e_c)=Vhat(:,e_c)+EV_at_policy_e;
     end
 end
 

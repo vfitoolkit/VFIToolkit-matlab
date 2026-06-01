@@ -1,12 +1,13 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The V input is next period value fn (across all ages), the V output is this period.
-% Sophisticated quasi-hyperbolic: V carries Vunderbar (realised value under QH policies).
+% Sophisticated quasi-hyperbolic: V carries Vunderbar (realised value under QH policies); Vhat is the agent's-perspective (beta0*beta) value.
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_e=prod(n_e);
 
 Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,e
+Vhat=zeros(N_a,N_e,N_j,'gpuArray'); % agent's-perspective value (beta0*beta-discounted), before the Vunderbar transform
 
 Vnext=sum(V.*shiftdim(pi_e_J,-1),2); % Take expectations over e
 
@@ -95,6 +96,7 @@ elseif vfoptions.lowmemory==1
         end
     end
 end
+Vhat(:,:,N_j)=V(:,:,N_j); % terminal: Vhat coincides with V (no Vunderbar transform at terminal)
 
 
 %% Iterate backwards through j.
@@ -143,6 +145,7 @@ for reverse_j=1:N_j-1
             end
         end
         % Vunderbar = Vhat + (beta - beta0*beta)*EV_at_optimal_aprime
+        Vhat(:,:,jj)=V(:,:,jj); % Save Vhat before applying the Vunderbar transform
         aprime_ind=ceil(Policy(:,:,jj)/N_d);
         EV_at_policy=EV(aprime_ind);
         V(:,:,jj)=V(:,:,jj)+(beta-beta0beta)*EV_at_policy;
@@ -180,6 +183,7 @@ for reverse_j=1:N_j-1
                     Policy(curraindex,e_c,jj)=maxindex'+N_d*(loweredge(dind)-1);
                 end
             end
+            Vhat(:,e_c,jj)=V(:,e_c,jj); % Save Vhat before applying the Vunderbar transform
             aprime_ind_e=ceil(Policy(:,e_c,jj)/N_d);
             EV_at_policy_e=EV(aprime_ind_e);
             V(:,e_c,jj)=V(:,e_c,jj)+(beta-beta0beta)*EV_at_policy_e;

@@ -100,10 +100,11 @@ if vfoptions.lowmemory==0
     entireRHS_ii=ReturnMatrix_ii+Beta0DiscountedEV;
 
     [~,maxindex1]=max(entireRHS_ii,[],2);
-    [~,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_j,N_e]),[],1);
+    [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_j,N_e]),[],1);
     maxindex2=shiftdim(maxindex2,1);
 
     Policy(level1ii,:,:)=maxindex2;
+    Vtilde(level1ii,:,:)=shiftdim(Vtempii,1);
 
     maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
     for ii=1:(vfoptions.level1n-1)
@@ -113,19 +114,21 @@ if vfoptions.lowmemory==0
             ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn, n_d, n_e, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_gridvals_J, ReturnFnParamsAgeMatrix,2);
             aprime=aprimeindexes+N_a*jind;
             entireRHS_ii=ReturnMatrix_ii_dc+reshape(Beta0DiscountedEV(aprime(:)),[N_d*(maxgap(ii)+1),1,N_j,N_e]);
-            [~,maxindex]=max(entireRHS_ii,[],1);
+            [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             d_ind=rem(maxindex-1,N_d)+1;
             allind=d_ind+N_d*jBind+N_d*N_j*eBind;
             Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+            Vtilde(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(Vtempii,1);
         else
             loweredge=maxindex1(:,1,ii,:,:);
             ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn, n_d, n_e, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_gridvals_J, ReturnFnParamsAgeMatrix,2);
             aprime=loweredge+N_a*jind;
             entireRHS_ii=ReturnMatrix_ii_dc+reshape(Beta0DiscountedEV(aprime(:)),[N_d,1,N_j,N_e]);
-            [~,maxindex]=max(entireRHS_ii,[],1);
+            [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             d_ind=rem(maxindex-1,N_d)+1;
             allind=d_ind+N_d*jBind+N_d*N_j*eBind;
             Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+            Vtilde(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(Vtempii,1);
         end
     end
 
@@ -181,10 +184,11 @@ elseif vfoptions.lowmemory==1
         entireRHS_ii=ReturnMatrix_ii_e+Beta0DiscountedEV;
 
         [~,maxindex1]=max(entireRHS_ii,[],2);
-        [~,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_j]),[],1);
+        [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_j]),[],1);
         maxindex2=shiftdim(maxindex2,1);
 
         Policy(level1ii,:,e_c)=maxindex2;
+        Vtilde(level1ii,:,e_c)=shiftdim(Vtempii,1);
 
         maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
@@ -194,19 +198,21 @@ elseif vfoptions.lowmemory==1
                 ReturnMatrix_ii_e_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn, n_d, special_n_e, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_vals, ReturnFnParamsAgeMatrix,2);
                 aprime=aprimeindexes+N_a*jind;
                 entireRHS_ii=ReturnMatrix_ii_e_dc+reshape(Beta0DiscountedEV(aprime(:)),[N_d*(maxgap(ii)+1),1,N_j]);
-                [~,maxindex]=max(entireRHS_ii,[],1);
+                [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 d_ind=rem(maxindex-1,N_d)+1;
                 allind=d_ind+N_d*jBind;
                 Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Vtilde(level1ii(ii)+1:level1ii(ii+1)-1,:,e_c)=shiftdim(Vtempii,1);
             else
                 loweredge=maxindex1(:,1,ii,:);
                 ReturnMatrix_ii_e_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1(ReturnFn, n_d, special_n_e, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_vals, ReturnFnParamsAgeMatrix,2);
                 aprime=loweredge+N_a*jind;
                 entireRHS_ii=ReturnMatrix_ii_e_dc+reshape(Beta0DiscountedEV(aprime(:)),[N_d,1,N_j]);
-                [~,maxindex]=max(entireRHS_ii,[],1);
+                [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 d_ind=rem(maxindex-1,N_d)+1;
                 allind=d_ind+N_d*jBind;
                 Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Vtilde(level1ii(ii)+1:level1ii(ii+1)-1,:,e_c)=shiftdim(Vtempii,1);
             end
         end
     end
@@ -214,6 +220,7 @@ end
 
 %% fastOLG with e, so need output to take certain shapes
 V=reshape(V,[N_a*N_j,N_e]);
+Vtilde=reshape(Vtilde,[N_a*N_j,N_e]);
 
 %% Output shape for policy
 Policy=shiftdim(Policy,-1); % so first dim is just one point

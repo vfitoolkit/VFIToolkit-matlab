@@ -185,7 +185,8 @@ for reverse_j=1:N_j-1
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)';
         ReturnMatrix_L2=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,jj),ReturnFnParamsVec,2);
         entireRHS_L2=ReturnMatrix_L2+beta0beta*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a,N_e]);
-        [~,maxindexL2]=max(entireRHS_L2,[],1);
+        [Vtildeii,maxindexL2]=max(entireRHS_L2,[],1);
+        Vtilde(:,:,jj)=shiftdim(Vtildeii,1);
         Policy(1,:,:,jj)=shiftdim(squeeze(midpoints_jj),-1);
         Policy(2,:,:,jj)=shiftdim(maxindexL2,-1);
         isInfLower    = (ReturnMatrix_L2(1,     :,:) == -Inf);
@@ -254,7 +255,8 @@ for reverse_j=1:N_j-1
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)';
             ReturnMatrix_L2=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
             entireRHS_L2=ReturnMatrix_L2+beta0beta*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
-            [~,maxindexL2]=max(entireRHS_L2,[],1);
+            [Vtildeii,maxindexL2]=max(entireRHS_L2,[],1);
+            Vtilde(:,e_c,jj)=shiftdim(Vtildeii,1);
             Policy(1,:,e_c,jj)=shiftdim(squeeze(midpoints_jj),-1);
             Policy(2,:,e_c,jj)=shiftdim(maxindexL2,-1);
             isInfLower    = (ReturnMatrix_L2(1,     :) == -Inf);

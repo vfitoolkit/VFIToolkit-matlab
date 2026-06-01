@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_GI1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid,e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy, Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_GI1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid,e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,e), rather than standard (a,e,j)
 % V is (a,j)-by-e (carries Vunderbar for Sophisticated QH)
@@ -10,6 +10,7 @@ N_e=prod(n_e);
 
 % fastOLG, so a-j-e
 Policy=zeros(3,N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for aprime (midpoint, L2, L2 flag)
+Vhat=zeros(N_a*N_j,N_e,'gpuArray');
 
 e_gridvals_J=shiftdim(e_gridvals_J,-2); % needed shape for ReturnFnMatrix with fastOLG without z
 

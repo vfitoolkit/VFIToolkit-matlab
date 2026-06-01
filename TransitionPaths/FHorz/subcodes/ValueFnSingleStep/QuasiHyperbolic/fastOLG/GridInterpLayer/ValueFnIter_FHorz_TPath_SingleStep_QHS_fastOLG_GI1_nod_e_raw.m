@@ -111,8 +111,9 @@ elseif vfoptions.lowmemory==1
         %% Vunderbar
         linidx_e=double(reshape(maxindexL2,[1,N_a*N_j*N_z]))+n2long*(0:N_a*N_j*N_z-1);
         EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,N_j,N_z]);
-        Vtemp=shiftdim(Vhat,1)+reshape(beta_J-beta0beta_J,[1,N_j,1]).*EV_at_policy_e;
+        Vtemp=shiftdim(Vhatii,1)+reshape(beta_J-beta0beta_J,[1,N_j,1]).*EV_at_policy_e;
         V(:,:,e_c)=reshape(Vtemp,[N_a*N_j,N_z]);
+        Vhat(:,:,e_c)=reshape(Vhatii,[N_a*N_j,N_z]); % snapshot pre-Vunderbar
     end
 
 elseif vfoptions.lowmemory==2
@@ -143,7 +144,7 @@ elseif vfoptions.lowmemory==2
             aprimej=aprimeindexes+n2aprime*jind;
             EVfine_ze=reshape(EVinterp_z(aprimej(:)),[n2long,N_a,N_j]);
             entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp_z(aprimej(:)),[n2long,N_a,N_j]);
-            [Vhat,maxindexL2]=max(entireRHS_ii,[],1);
+            [Vhatii,maxindexL2]=max(entireRHS_ii,[],1);
             Policy(1,:,:,z_c,e_c)=shiftdim(squeeze(midpoint),-1);
             Policy(2,:,:,z_c,e_c)=shiftdim(maxindexL2,-1);
             isInfLower    = (ReturnMatrix_ii(1,     :,:) == -Inf);
@@ -155,8 +156,9 @@ elseif vfoptions.lowmemory==2
             %% Vunderbar
             linidx_ze=double(reshape(maxindexL2,[1,N_a*N_j]))+n2long*(0:N_a*N_j-1);
             EV_at_policy_ze=reshape(EVfine_ze(linidx_ze),[N_a,N_j]);
-            Vtemp=shiftdim(Vhat,1)+reshape(beta_J-beta0beta_J,[1,N_j]).*EV_at_policy_ze;
+            Vtemp=shiftdim(Vhatii,1)+reshape(beta_J-beta0beta_J,[1,N_j]).*EV_at_policy_ze;
             V(:,z_c,e_c)=reshape(Vtemp,[N_a*N_j,1]);
+            Vhat(:,z_c,e_c)=reshape(Vhatii,[N_a*N_j,1]); % snapshot pre-Vunderbar
         end
     end
 end

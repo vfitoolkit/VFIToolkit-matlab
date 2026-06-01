@@ -1,11 +1,12 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_GI1_nod_raw(V,n_a,n_z,N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_GI1_nod_raw(V,n_a,n_z,N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The V input is next period value fn (across all ages), the V output is this period.
-% Sophisticated QH: V carries Vunderbar; Policy = QH choice.
+% Sophisticated QH: V carries Vunderbar; Policy = QH choice; Vhat is the agent's-perspective (beta0*beta) value.
 
 N_a=prod(n_a);
 N_z=prod(n_z);
 
 Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % [midpoint; aprimeL2ind; L2flag]
+Vhat=zeros(N_a,N_z,N_j,'gpuArray');
 
 %%
 if N_z==1
@@ -107,6 +108,7 @@ elseif vfoptions.lowmemory==1
         Policy(3,:,z_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
     end
 end
+Vhat(:,:,N_j)=V(:,:,N_j); % terminal: Vhat coincides with V (Vunderbar)
 
 
 %% Iterate backwards through j.
@@ -159,6 +161,7 @@ for reverse_j=1:N_j-1
         entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine;
         [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
         Vhat_jj=shiftdim(Vtempii,1);
+        Vhat(:,:,jj)=Vhat_jj;
         Policy(1,:,:,jj)=shiftdim(squeeze(midpoints_jj),-1);
         Policy(2,:,:,jj)=shiftdim(maxindexL2,-1);
         isInfLower    = (ReturnMatrix_L2(1,     :,:) == -Inf);
@@ -205,6 +208,7 @@ for reverse_j=1:N_j-1
             entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine_z;
             [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
             Vhat_jj_z=shiftdim(Vtempii,1);
+            Vhat(:,z_c,jj)=Vhat_jj_z;
             Policy(1,:,z_c,jj)=shiftdim(squeeze(midpoints_jj),-1);
             Policy(2,:,z_c,jj)=shiftdim(maxindexL2,-1);
             isInfLower    = (ReturnMatrix_L2(1,     :) == -Inf);

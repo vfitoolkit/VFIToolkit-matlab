@@ -1,10 +1,12 @@
-function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_GI1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid,e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy, Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_GI1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid,e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,e), rather than standard (a,e,j)
 % V is (a,j)-by-e (V carries Vunderbar for Sophisticated)
 
 N_a=prod(n_a);
 N_e=prod(n_e);
+
+Vhat=zeros(N_a*N_j,N_e,'gpuArray'); % pre-Vunderbar value (snapshot of V before the beta*EV-at-policy correction)
 
 e_gridvals_J=shiftdim(e_gridvals_J,-2);
 
@@ -55,7 +57,7 @@ if vfoptions.lowmemory==0
     aprimej=aprimeindexes+n2aprime*jind;
     EVfine=reshape(EVinterp(aprimej(:)),[n2long,N_a,N_j,N_e]);
     entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprimej(:)),[n2long,N_a,N_j,N_e]);
-    [Vhat,maxindexL2]=max(entireRHS_ii,[],1);
+    [Vhatii,maxindexL2]=max(entireRHS_ii,[],1);
     Policy(1,:,:,:)=shiftdim(squeeze(midpoint),-1);
     Policy(2,:,:,:)=shiftdim(maxindexL2,-1);
     isInfLower    = (ReturnMatrix_ii(1,     :,:,:) == -Inf);
@@ -67,8 +69,9 @@ if vfoptions.lowmemory==0
     %% Vunderbar: re-evaluate at Policy's aprime with beta
     linidx=double(reshape(maxindexL2,[1,N_a*N_j*N_e]))+n2long*(0:N_a*N_j*N_e-1);
     EV_at_policy=reshape(EVfine(linidx),[N_a,N_j,N_e]);
-    V=shiftdim(Vhat,1)+reshape(beta_J-beta0beta_J,[1,N_j,1]).*EV_at_policy;
+    V=shiftdim(Vhatii,1)+reshape(beta_J-beta0beta_J,[1,N_j,1]).*EV_at_policy;
     V=reshape(V,[N_a*N_j,N_e]);
+    Vhat=reshape(Vhatii,[N_a*N_j,N_e]); % snapshot pre-Vunderbar
 
 elseif vfoptions.lowmemory==1
 
@@ -91,7 +94,7 @@ elseif vfoptions.lowmemory==1
         aprimej=aprimeindexes+n2aprime*jind;
         EVfine_e=reshape(EVinterp(aprimej(:)),[n2long,N_a,N_j]);
         entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprimej(:)),[n2long,N_a,N_j]);
-        [Vhat,maxindexL2]=max(entireRHS_ii,[],1);
+        [Vhatii,maxindexL2]=max(entireRHS_ii,[],1);
         Policy(1,:,:,e_c)=shiftdim(squeeze(midpoint),-1);
         Policy(2,:,:,e_c)=shiftdim(maxindexL2,-1);
         isInfLower    = (ReturnMatrix_ii(1,     :,:) == -Inf);
