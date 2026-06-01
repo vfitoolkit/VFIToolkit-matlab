@@ -1,4 +1,4 @@
-function [Vhat,Policy3,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_DC1_nod1_raw(n_d2,n_a,n_z,n_semiz,N_j, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_DC1_nod1_raw(n_d2,n_a,n_z,n_semiz,N_j, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Sophisticated QH + SemiExo + DC, no d1, with z, no e.
 
 n_bothz=[n_semiz,n_z];
@@ -11,7 +11,7 @@ N_bothz=prod(n_bothz);
 
 Vhat=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
-Policy3=zeros(2,N_a,N_semiz*N_z,N_j,'gpuArray');
+Policy=zeros(2,N_a,N_semiz*N_z,N_j,'gpuArray');
 
 %%
 special_n_d2=ones(1,length(n_d2));
@@ -65,10 +65,10 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
     [V1_jj,maxindex]=max(Vhat_ford2_jj,[],3);
     Vhat(:,:,N_j)=V1_jj;
-    Policy3(1,:,:,N_j)=shiftdim(maxindex,-1);
+    Policy(1,:,:,N_j)=shiftdim(maxindex,-1);
     maxindex_lin=reshape(maxindex,[N_a*N_semiz*N_z,1]);
     Vunderbar(:,:,N_j)=reshape(Vunderbar_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[N_a,N_semiz*N_z]);
-    Policy3(2,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
+    Policy(2,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -120,10 +120,10 @@ else
     end
     [V1_jj,maxindex]=max(Vhat_ford2_jj,[],3);
     Vhat(:,:,N_j)=V1_jj;
-    Policy3(1,:,:,N_j)=shiftdim(maxindex,-1);
+    Policy(1,:,:,N_j)=shiftdim(maxindex,-1);
     maxindex_lin=reshape(maxindex,[N_a*N_semiz*N_z,1]);
     Vunderbar(:,:,N_j)=reshape(Vunderbar_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[N_a,N_semiz*N_z]);
-    Policy3(2,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
+    Policy(2,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
 end
 
 %% Iterate backwards
@@ -184,10 +184,10 @@ for reverse_j=1:N_j-1
     end
     [V1_jj,maxindex]=max(Vhat_ford2_jj,[],3);
     Vhat(:,:,jj)=V1_jj;
-    Policy3(1,:,:,jj)=shiftdim(maxindex,-1);
+    Policy(1,:,:,jj)=shiftdim(maxindex,-1);
     maxindex_lin=reshape(maxindex,[N_a*N_semiz*N_z,1]);
     Vunderbar(:,:,jj)=reshape(Vunderbar_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[N_a,N_semiz*N_z]);
-    Policy3(2,:,:,jj)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
+    Policy(2,:,:,jj)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
 
 end
 

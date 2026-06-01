@@ -38,6 +38,8 @@ a12ind=repmat(gpuArray(0:1:N_a1-1),1,N_a2)+N_a1*repelem(gpuArray(0:1:N_a2-1),1,N
 
 
 %% j=N_j: terminal age has no continuation in TPath
+% Temporarily save the time period of V that is being replaced
+Vtemp_j=V(:,:,N_j);
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
@@ -86,7 +88,8 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=V(:,:,jj+1);
+    EV=Vtemp_j; % Has been presaved before it was replaced
+    Vtemp_j=V(:,:,jj); % Grab this before it is replaced/updated
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)

@@ -7,6 +7,11 @@ if vfoptions.experienceasset==1
     return
 end
 
+if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    [VPath,PolicyIndexesPath]=TransitionPath_FHorz_substeps_Step1_ValueFnIter_QuasiHyperbolic(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_j,N_z,N_e,d_gridvals, a_grid, z_gridvals_J,e_gridvals_J,pi_z_J,pi_e_J,ReturnFn,DiscountFactorParamNames,ReturnFnParamNames,transpathoptions,vfoptions);
+    return
+end
+
 if transpathoptions.fastOLG==0
     if N_z==0 && N_e==0
         % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step.

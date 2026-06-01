@@ -2,7 +2,7 @@ function [Vhat, Policy, Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_DC1
 % Sophisticated quasi-hyperbolic + SemiExo + DC + GI raw, with d1, z, no e.
 % Vhat (agent's choice; beta0beta) wrapped around d2 outer loop, with DC level1n + GI midpoint+L2 + L2flag.
 % Vunderbar reconstructed via the SDP identity: Vunderbar_j = Vhat_j + (beta-beta0beta)*EVinterp_at_optimal.
-% Output: (Vunderbar, Policy3, Vhat) -- matches plain QH SemiExo S raw convention.
+% Output: (Vunderbar, Policy, Vhat) -- matches plain QH SemiExo S raw convention.
 
 n_d=[n_d1,n_d2];
 n_bothz=[n_semiz,n_z]; % These are the return function arguments

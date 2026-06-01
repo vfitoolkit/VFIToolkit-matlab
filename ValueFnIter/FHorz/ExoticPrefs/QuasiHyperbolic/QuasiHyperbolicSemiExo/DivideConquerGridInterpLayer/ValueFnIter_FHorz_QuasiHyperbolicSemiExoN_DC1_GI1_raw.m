@@ -1,7 +1,7 @@
 function [Vtilde, Policy, Valt, Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoN_DC1_GI1_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Naive quasi-hyperbolic + SemiExo + DC + GI raw, with d1, z, no e.
-% Dual-V (V for beta and Vtilde for beta0beta) wrapped around d2 outer loop, with DC level1n + GI midpoint+L2 + L2flag.
-% Output: (Vtilde=Vtilde, Policy3, Valt=V).
+% Dual-Valt (Valt for beta and Vtilde for beta0beta) wrapped around d2 outer loop, with DC level1n + GI midpoint+L2 + L2flag.
+% Output: (Vtilde=Vtilde, Policy, Valt=Valt).
 
 n_d=[n_d1,n_d2];
 n_bothz=[n_semiz,n_z]; % These are the return function arguments
@@ -14,7 +14,7 @@ N_semiz=prod(n_semiz);
 N_z=prod(n_z);
 N_bothz=prod(n_bothz);
 
-V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
+Valt=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 Policy=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % first dim: d1,d2,aprime midpoint, aprimeL2ind
 PolicyL2flag=2*ones(1,N_a,N_semiz*N_z,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
@@ -34,7 +34,7 @@ bothzind2=shiftdim(gpuArray(0:1:N_bothz-1),-2);
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
 % Preallocate per-d2 slabs (for Vtilde -- the agent's choice and the Policy)
-Valt_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray'); % the V-slab corresponding to the maxindex selected by Vtilde
+Valt_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray'); % the Valt-slab corresponding to the maxindex selected by Vtilde
 V_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray'); % Vtilde slab
 Policy_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray'); % d1*aprimeL2ind combined
 midpoint_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
@@ -59,7 +59,7 @@ n2aprime=length(aprime_grid);
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    % No discounting at terminal period: V=Vtilde and Policy comes from undiscounted return.
+    % No discounting at terminal period: Valt=Vtilde and Policy comes from undiscounted return.
     midpoints_Nj=zeros(N_d,1,N_a,N_semiz*N_z,'gpuArray');
 
     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_bothz, d_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
@@ -83,7 +83,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     aprimeindexes=(midpoints_Nj+(midpoints_Nj-1)*n2short)+(-n2short-1:1:1+n2short);
     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,n_bothz,d_gridvals,aprime_grid(aprimeindexes),a_grid,bothz_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
     [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
-    V(:,:,N_j)=shiftdim(Vtempii,1);
+    Valt(:,:,N_j)=shiftdim(Vtempii,1);
     d_ind=rem(maxindexL2-1,N_d)+1;
     allind=d_ind+N_d*aind+N_d*N_a*bothzind;
     Policy(1,:,:,N_j)=shiftdim(rem(d_ind-1,N_d1)+1,-1); % d1
@@ -101,13 +101,13 @@ if ~isfield(vfoptions,'V_Jplus1')
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
     PolicyL2flag(1,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
-    Vtilde(:,:,N_j)=V(:,:,N_j);
+    Vtilde(:,:,N_j)=Valt(:,:,N_j);
     % terminal: QH and exponential discounter coincide
     Policyalt(:,:,:,N_j)=Policy(:,:,:,N_j);
     PolicyL2flagalt(1,:,:,N_j)=PolicyL2flag(1,:,:,N_j);
 
 else
-    % Using V_Jplus1 (V for naive)
+    % Using V_Jplus1 (Valt for naive)
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
@@ -125,10 +125,10 @@ else
 
         EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
 
-        % n-Monotonicity (shared Return matrix between V and Vtilde branches)
+        % n-Monotonicity (shared Return matrix between Valt and Vtilde branches)
         ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d, n_bothz, d12c_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
-        %% V (beta) -- time-consistent
+        %% Valt (beta) -- time-consistent
         entireRHS_ii=ReturnMatrix_d2ii+beta*shiftdim(EV_d2,-1);
         [~,maxindex1]=max(entireRHS_ii,[],2);
         midpoints_jj(:,1,level1ii,:)=maxindex1;
@@ -166,7 +166,7 @@ else
         isInfUpperalt    = (ReturnMatrix_L2(linidx_upperalt) == -Inf);
         inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
         inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-        PolicyL2flagV_ford2_jj(:,:,d2_c) = squeeze(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt)); % V-slab for this d2
+        PolicyL2flagV_ford2_jj(:,:,d2_c) = squeeze(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt)); % Valt-slab for this d2
 
         %% Vtilde (beta0*beta) -- agent's choice
         entireRHS_ii=ReturnMatrix_d2ii+beta0beta*shiftdim(EV_d2,-1);
@@ -213,14 +213,14 @@ else
         PolicyL2flag_ford2_jj(:,:,d2_c) = squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper));
     end
 
-    % Max over d2 using Vtilde (agent's choice), then gather V slab from same d2
+    % Max over d2 using Vtilde (agent's choice), then gather Valt slab from same d2
     [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2 of Vtilde
     Vtilde(:,:,N_j)=V_jj;
     Policy(2,:,:,N_j)=shiftdim(maxindex,-1); % d2
     maxindex=reshape(maxindex,[N_a*N_semiz*N_z,1]);
-    % V at exponential discounter optimum (full max over d2, d1, aprime)
+    % Valt at exponential discounter optimum (full max over d2, d1, aprime)
     [V_jjalt,maxindexalt_d2]=max(Valt_ford2_jj,[],3);
-    V(:,:,N_j)=V_jjalt;
+    Valt(:,:,N_j)=V_jjalt;
     d1aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
     Policy(1,:,:,N_j)=shiftdim(rem(d1aprimeL2_ind-1,N_d1)+1,-1); % d1
     Policy(4,:,:,N_j)=shiftdim(ceil(d1aprimeL2_ind/N_d1),-1); % aprimeL2ind
@@ -249,7 +249,7 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta;
 
-    EV=reshape(V(:,:,jj+1),[N_a,N_semiz,N_z]); % Naive uses V (time-consistent) for continuation
+    EV=reshape(Valt(:,:,jj+1),[N_a,N_semiz,N_z]); % Naive uses Valt (time-consistent) for continuation
 
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
@@ -263,7 +263,7 @@ for reverse_j=1:N_j-1
 
         ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d, n_bothz, d12c_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
-        %% V (beta)
+        %% Valt (beta)
         entireRHS_ii=ReturnMatrix_d2ii+beta*shiftdim(EV_d2,-1);
         [~,maxindex1]=max(entireRHS_ii,[],2);
         midpoints_jj(:,1,level1ii,:)=maxindex1;
@@ -351,9 +351,9 @@ for reverse_j=1:N_j-1
     Vtilde(:,:,jj)=V_jj;
     Policy(2,:,:,jj)=shiftdim(maxindex,-1); % d2
     maxindex=reshape(maxindex,[N_a*N_semiz*N_z,1]);
-    % V at exponential discounter optimum (full max over d2, d1, aprime)
+    % Valt at exponential discounter optimum (full max over d2, d1, aprime)
     [V_jjalt,maxindexalt_d2]=max(Valt_ford2_jj,[],3);
-    V(:,:,jj)=V_jjalt;
+    Valt(:,:,jj)=V_jjalt;
     d1aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
     Policy(1,:,:,jj)=shiftdim(rem(d1aprimeL2_ind-1,N_d1)+1,-1);
     Policy(4,:,:,jj)=shiftdim(ceil(d1aprimeL2_ind/N_d1),-1);
@@ -380,8 +380,5 @@ Policyalt(3,:,:,:)=Policyalt(3,:,:,:)-adjustalt;
 Policyalt(4,:,:,:)=adjustalt.*Policyalt(4,:,:,:)+(1-adjustalt).*(Policyalt(4,:,:,:)-n2short-1);
 
 Policyalt=[Policyalt;PolicyL2flagalt];
-
-%% Outputs
-Valt=V;
 
 end

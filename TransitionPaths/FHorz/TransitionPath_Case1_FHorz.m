@@ -137,6 +137,20 @@ else
     if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='None';
     end
+    if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+        % For QH on a transition path, V_final is the carry-state from the final ss:
+        % Naive => Valt; Sophisticated => Vunderbar (which the FHorz QH wrapper aliases
+        % as Valt). In both cases pass the 3rd output of ValueFnIter_Case1_FHorz with
+        % vfoptions.exoticpreferences='QuasiHyperbolic' as V_final.
+        if ~isfield(vfoptions,'quasi_hyperbolic')
+            vfoptions.quasi_hyperbolic='Naive';
+        elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+            error('When using Quasi-Hyperbolic discounting vfoptions.quasi_hyperbolic must be either Naive or Sophisticated \n')
+        end
+        if ~isfield(vfoptions,'QHadditionaldiscount')
+            error('You must declare vfoptions.QHadditionaldiscount when using quasi-hyperbolic discounting (vfoptions.exoticpreferences=QuasiHyperbolic)')
+        end
+    end
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
     end

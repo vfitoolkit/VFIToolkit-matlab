@@ -1,8 +1,8 @@
-function [Vhat,Policy3,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_DC1_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_DC1_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Sophisticated QH + SemiExo + DC (with d1, z, no e).
 % Agent maximises Vhat = u + beta0*beta*E[Vunderbar_{j+1}].
 % Vunderbar = Vhat + (beta - beta0beta)*EV_at_policy   (long-run value)
-% Output: [Vhat, Policy3, Vunderbar]  (Vhat is V1; cross-d2 max on Vhat per the agent's choice)
+% Output: [Vhat, Policy, Vunderbar]  (Vhat is V1; cross-d2 max on Vhat per the agent's choice)
 
 n_d=[n_d1,n_d2];
 n_bothz=[n_semiz,n_z];
@@ -17,7 +17,7 @@ N_bothz=prod(n_bothz);
 
 Vhat=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
-Policy3=zeros(3,N_a,N_semiz*N_z,N_j,'gpuArray');
+Policy=zeros(3,N_a,N_semiz*N_z,N_j,'gpuArray');
 
 %%
 special_n_d=[n_d1,ones(1,length(n_d2))];
@@ -80,12 +80,12 @@ if ~isfield(vfoptions,'V_Jplus1')
     % Cross-d2 max on Vhat
     [V1_jj,maxindex]=max(Vhat_ford2_jj,[],3);
     Vhat(:,:,N_j)=V1_jj;
-    Policy3(2,:,:,N_j)=shiftdim(maxindex,-1);
+    Policy(2,:,:,N_j)=shiftdim(maxindex,-1);
     maxindex_lin=reshape(maxindex,[N_a*N_semiz*N_z,1]);
     Vunderbar(:,:,N_j)=reshape(Vunderbar_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[N_a,N_semiz*N_z]);
     d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
-    Policy3(1,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-    Policy3(3,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+    Policy(1,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
+    Policy(3,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
 
 else
     % Using V_Jplus1 (= Vunderbar for sophisticated)
@@ -148,12 +148,12 @@ else
     % Cross-d2 max on Vhat (V1)
     [V1_jj,maxindex]=max(Vhat_ford2_jj,[],3);
     Vhat(:,:,N_j)=V1_jj;
-    Policy3(2,:,:,N_j)=shiftdim(maxindex,-1);
+    Policy(2,:,:,N_j)=shiftdim(maxindex,-1);
     maxindex_lin=reshape(maxindex,[N_a*N_semiz*N_z,1]);
     Vunderbar(:,:,N_j)=reshape(Vunderbar_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[N_a,N_semiz*N_z]);
     d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
-    Policy3(1,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-    Policy3(3,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+    Policy(1,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
+    Policy(3,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
 end
 
 %% Iterate backwards
@@ -220,12 +220,12 @@ for reverse_j=1:N_j-1
     end
     [V1_jj,maxindex]=max(Vhat_ford2_jj,[],3);
     Vhat(:,:,jj)=V1_jj;
-    Policy3(2,:,:,jj)=shiftdim(maxindex,-1);
+    Policy(2,:,:,jj)=shiftdim(maxindex,-1);
     maxindex_lin=reshape(maxindex,[N_a*N_semiz*N_z,1]);
     Vunderbar(:,:,jj)=reshape(Vunderbar_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[N_a,N_semiz*N_z]);
     d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
-    Policy3(1,:,:,jj)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-    Policy3(3,:,:,jj)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+    Policy(1,:,:,jj)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
+    Policy(3,:,:,jj)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
 
 end
 

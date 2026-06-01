@@ -1,12 +1,12 @@
 function [Vtilde, Policy, Valt, Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoN_DC1_GI1_nod1_noz_e_raw(n_d2,n_a,n_semiz, n_e,N_j, d2_gridvals, a_grid, semiz_gridvals_J, e_gridvals_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-% Naive QH + SemiExo + DC + GI raw, no d1, no z, with e. Output: (Vtilde=Vtilde, Policy3, Valt=V).
+% Naive QH + SemiExo + DC + GI raw, no d1, no z, with e. Output: (Vtilde=Vtilde, Policy, Valt=Valt).
 
 N_d2=prod(n_d2);
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);
 N_e=prod(n_e);
 
-V=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
+Valt=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_semiz,N_e,N_j,'gpuArray');
 PolicyL2flag=2*ones(1,N_a,N_semiz,N_e,N_j,'gpuArray');
@@ -73,7 +73,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         aprimeindexes=(midpoints_Nj+(midpoints_Nj-1)*n2short)+(-n2short-1:1:1+n2short);
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d2, n_semiz, n_e, d2_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
         [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
-        V(:,:,:,N_j)=shiftdim(Vtempii,1);
+        Valt(:,:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d2)+1;
         allind=d_ind+N_d2*aind+N_d2*N_a*semizind+N_d2*N_a*N_semiz*eind;
         Policy(1,:,:,:,N_j)=d_ind;
@@ -113,7 +113,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             aprimeindexes=(midpoints_Nj+(midpoints_Nj-1)*n2short)+(-n2short-1:1:1+n2short);
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d2, n_semiz, special_n_e, d2_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
-            V(:,:,e_c,N_j)=shiftdim(Vtempii,1);
+            Valt(:,:,e_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d2)+1;
             allind=d_ind+N_d2*aind+N_d2*N_a*semizind;
             Policy(1,:,:,e_c,N_j)=d_ind;
@@ -131,7 +131,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
     end
 
-    Vtilde(:,:,:,N_j)=V(:,:,:,N_j);
+    Vtilde(:,:,:,N_j)=Valt(:,:,:,N_j);
     % terminal: QH and exponential discounter coincide
     Policyalt(:,:,:,:,N_j)=Policy(:,:,:,:,N_j);
     PolicyL2flagalt(1,:,:,:,N_j)=PolicyL2flag(1,:,:,:,N_j);
@@ -157,7 +157,7 @@ else
 
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,4);
 
-            %% V (beta)
+            %% Valt (beta)
             entireRHS_d2ii_V=ReturnMatrix_d2ii+beta*EV_d2;
             [~,maxindex1]=max(entireRHS_d2ii_V,[],1);
             midpoints_jj(1,level1ii,:,:)=maxindex1;
@@ -246,7 +246,7 @@ else
                 e_val=e_gridvals_J(e_c,:,N_j);
                 ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d2, n_semiz, special_n_e, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,4);
 
-                %% V (beta)
+                %% Valt (beta)
                 entireRHS_d2ii_V=ReturnMatrix_d2ii+beta*EV_d2;
                 [~,maxindex1]=max(entireRHS_d2ii_V,[],1);
                 midpoints_jj_e(1,level1ii,:)=maxindex1;
@@ -326,9 +326,9 @@ else
     Vtilde(:,:,:,N_j)=V_jj;
     Policy(1,:,:,:,N_j)=shiftdim(maxindex,-1);
     maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]);
-    % V at exponential discounter optimum (full max over d2 and aprime)
+    % Valt at exponential discounter optimum (full max over d2 and aprime)
     [V_jjalt,maxindexalt_d2]=max(Valt_ford2_jj,[],4);
-    V(:,:,:,N_j)=V_jjalt;
+    Valt(:,:,:,N_j)=V_jjalt;
     aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
     Policy(2,:,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
     Policy(3,:,:,:,N_j)=aprimeL2_ind;
@@ -354,7 +354,7 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta;
 
-    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
+    EV=sum(Valt(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
@@ -369,7 +369,7 @@ for reverse_j=1:N_j-1
 
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,4);
 
-            %% V (beta)
+            %% Valt (beta)
             entireRHS_d2ii_V=ReturnMatrix_d2ii+beta*EV_d2;
             [~,maxindex1]=max(entireRHS_d2ii_V,[],1);
             midpoints_jj(1,level1ii,:,:)=maxindex1;
@@ -458,7 +458,7 @@ for reverse_j=1:N_j-1
                 e_val=e_gridvals_J(e_c,:,jj);
                 ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d2, n_semiz, special_n_e, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,4);
 
-                %% V (beta)
+                %% Valt (beta)
                 entireRHS_d2ii_V=ReturnMatrix_d2ii+beta*EV_d2;
                 [~,maxindex1]=max(entireRHS_d2ii_V,[],1);
                 midpoints_jj_e(1,level1ii,:)=maxindex1;
@@ -538,9 +538,9 @@ for reverse_j=1:N_j-1
     Vtilde(:,:,:,jj)=V_jj;
     Policy(1,:,:,:,jj)=shiftdim(maxindex,-1);
     maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]);
-    % V at exponential discounter optimum (full max over d2 and aprime)
+    % Valt at exponential discounter optimum (full max over d2 and aprime)
     [V_jjalt,maxindexalt_d2]=max(Valt_ford2_jj,[],4);
-    V(:,:,:,jj)=V_jjalt;
+    Valt(:,:,:,jj)=V_jjalt;
     aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
     Policy(2,:,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
     Policy(3,:,:,:,jj)=aprimeL2_ind;
@@ -565,6 +565,5 @@ Policyalt(3,:,:,:,:)=adjustalt.*Policyalt(3,:,:,:,:)+(1-adjustalt).*(Policyalt(3
 
 Policyalt=[Policyalt;PolicyL2flagalt];
 
-Valt=V;
 
 end

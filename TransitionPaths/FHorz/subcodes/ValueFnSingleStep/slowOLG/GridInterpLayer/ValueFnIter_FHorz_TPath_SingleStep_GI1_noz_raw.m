@@ -29,6 +29,8 @@ aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
 % aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
 
 %% j=N_j: terminal age has no continuation in TPath
+% Temporarily save the time period of V that is being replaced
+Vtemp_j=V(:,N_j);
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
@@ -75,7 +77,8 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=V(:,jj+1);
+    EV=Vtemp_j; % Has been presaved before it was replaced
+    Vtemp_j=V(:,jj); % Grab this before it is replaced/updated
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);

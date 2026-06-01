@@ -1,5 +1,5 @@
 function [Vhat, Policy, Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_DC1_GI1_nod1_raw(n_d2,n_a,n_z,n_semiz,N_j, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-% Sophisticated QH + SemiExo + DC + GI raw, no d1, with z, no e. Output: (Vunderbar, Policy3, Vhat) -- matches plain QH SemiExo S raw convention.
+% Sophisticated QH + SemiExo + DC + GI raw, no d1, with z, no e. Output: (Vunderbar, Policy, Vhat) -- matches plain QH SemiExo S raw convention.
 
 n_bothz=[n_semiz,n_z];
 

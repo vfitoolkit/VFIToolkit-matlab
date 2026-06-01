@@ -29,6 +29,9 @@ n2aprime=length(aprime_grid);
 % aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
 
 %% j=N_j: terminal age has no continuation in TPath
+% Temporarily save the time period of V that is being replaced
+Vtemp_j=V(:,:,N_j);
+
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
@@ -101,9 +104,10 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EVpre=V(:,:,jj+1);
+    VKronNext_j=Vtemp_j; % Has been presaved before it was replaced
+    Vtemp_j=V(:,:,jj); % Grab this before it is replaced/updated
 
-    EV=EVpre.*shiftdim(pi_z_J(:,:,jj)',-1);
+    EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 

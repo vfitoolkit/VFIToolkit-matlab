@@ -1,4 +1,4 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+function varargout=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 % transpathoptions, vfoptions are optional inputs
 
 %%
@@ -65,6 +65,21 @@ else
     if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='None';
     end
+    if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+        % For QH on a transition path, V_final is the carry-state from the final ss:
+        % Naive => Valt; Sophisticated => Vunderbar (which the FHorz QH wrapper aliases
+        % as Valt). In both cases pass the 3rd output of ValueFnIter_Case1_FHorz with
+        % vfoptions.exoticpreferences='QuasiHyperbolic' as V_final. Caller may also
+        % request ValtPath (and Policyalt-Path for Naive) via additional outputs.
+        if ~isfield(vfoptions,'quasi_hyperbolic')
+            vfoptions.quasi_hyperbolic='Naive';
+        elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+            error('When using Quasi-Hyperbolic discounting vfoptions.quasi_hyperbolic must be either Naive or Sophisticated \n')
+        end
+        if ~isfield(vfoptions,'QHadditionaldiscount')
+            error('You must declare vfoptions.QHadditionaldiscount when using quasi-hyperbolic discounting (vfoptions.exoticpreferences=QuasiHyperbolic)')
+        end
+    end
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
     elseif vfoptions.experienceasset==1
@@ -79,6 +94,12 @@ else
 end
 vfoptions.parallel=2; % transition path requires GPU
 vfoptions.EVpre=0; % =1 is used by 'Matched Expecations Path', for TPath we want =0 (this relates to details of fastOLG=1 value fn code)
+
+%% Dispatch to QuasiHyperbolic subfn (returns via varargout)
+if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    [varargout{1:nargout}]=ValueFnOnTransPath_FHorz_QuasiHyperbolic(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
+    return
+end
 
 % Note: vfoptions.lowmemory is now supported with transpathoptions.fastOLG=0 too
 % (raws error individually if an unsupported lowmemory value is passed).
@@ -506,6 +527,6 @@ else
     end
 end
 
-
+varargout={VPath,PolicyPath};
 
 end

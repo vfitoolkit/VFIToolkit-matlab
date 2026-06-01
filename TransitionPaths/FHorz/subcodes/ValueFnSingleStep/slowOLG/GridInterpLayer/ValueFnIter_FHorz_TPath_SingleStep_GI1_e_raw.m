@@ -45,6 +45,8 @@ n2aprime=length(aprime_grid);
 pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 
 %% j=N_j: terminal age has no continuation in TPath
+% Temporarily save the time period of V that is being replaced
+Vtemp_j=V(:,:,:,N_j);
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
@@ -166,7 +168,10 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
+    VKronNext_j=Vtemp_j; % Has been presaved before it was replaced
+    Vtemp_j=V(:,:,:,jj); % Grab this before it is replaced/updated
+
+    EV=sum(VKronNext_j.*pi_e_J(1,1,:,jj),3);
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
