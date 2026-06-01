@@ -43,7 +43,7 @@ zbar=sqrt((znum-1))*(sigma/sqrt((1-rho^2)));
 z_grid=mew+linspace(-zbar,zbar,znum)';
 p=(1+rho)/2; q=p;
 
-pi_z=rouwenhorst(znum,p,q);
+pi_z=rouwenhorst_subfn(znum,p,q);
 
 % Following is an faster-than-usual shortcut to calculate the stationary
 % distribution for Rouwenhorst quadrature.
