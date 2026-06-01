@@ -50,7 +50,7 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
-PolicyIndexesKron=gather(KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,simoptions));
+PolicyIndexesKron=gather(KronPolicyIndexes_forSimPanelIndexes(Policy, n_d, n_a, N_z, 1, simoptions, 1));
 
 if simoptions.parallel==2
     % Get seedpoints from InitialDist while on gpu

@@ -105,20 +105,6 @@ else
     end
 end
 
-if N_z==0
-    if N_e>0
-        % Treat e as z (no z, e in z-slot)
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, simoptions.n_e, N_j, T, simoptions);
-    else
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T, simoptions);
-    end
-else
-    if N_e>0
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_e(PolicyPath, n_d, n_a, n_z, simoptions.n_e, N_j, T, simoptions);
-    else
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T, simoptions);
-    end
-end
 %% Internally PricePath is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
@@ -157,15 +143,15 @@ for tt=1:T
     % Get current Policy
     if N_z>0
         if N_e>0
-            Policy=PolicyPath(:,:,:,:,:,tt); % (d_kron,a_kron),a,z,e,j
+            Policy=PolicyPath(:,:,:,:,:,tt); % Policy for period tt
         else
-            Policy=PolicyPath(:,:,:,:,tt); % (d_kron,a_kron),a,z,j
+            Policy=PolicyPath(:,:,:,:,tt); % Policy for period tt
         end
     else
         if N_e>0
-            Policy=PolicyPath(:,:,:,:,tt); % (d_kron,a_kron),a,e_as_z,j
+            Policy=PolicyPath(:,:,:,:,tt); % Policy for period tt
         else
-            Policy=PolicyPath(:,:,:,tt); % (d_kron,a_kron),a,j
+            Policy=PolicyPath(:,:,:,tt); % Policy for period tt
         end
     end
     % Get current ParamPath and PricePath
@@ -212,35 +198,7 @@ for tt=1:T
     end
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use simoptions.ExogShockFn within  ValueFnIter command
 
-    if N_z==0
-        if N_e>0
-            % Treat e as z (no z, e in z-slot)
-            if N_d==0
-                PolicyUnKron=UnKronPolicyIndexes1_FHorz_z(Policy, n_a, n_a, simoptions.n_e, N_j, simoptions);
-            else
-                PolicyUnKron=UnKronPolicyIndexes2_FHorz_z(Policy, n_d, n_a, n_a, simoptions.n_e, N_j, simoptions);
-            end
-        else
-            if N_d==0
-                PolicyUnKron=UnKronPolicyIndexes1_FHorz_noz(Policy, n_a, n_a, N_j, simoptions);
-            else
-                PolicyUnKron=UnKronPolicyIndexes2_FHorz_noz(Policy, n_d, n_a, n_a, N_j, simoptions);
-            end
-        end
-    elseif N_e>0
-        if N_d==0
-            PolicyUnKron=UnKronPolicyIndexes1_FHorz_z_e(Policy, n_a, n_a, n_z, simoptions.n_e, N_j, simoptions);
-        else
-            PolicyUnKron=UnKronPolicyIndexes2_FHorz_z_e(Policy, n_d, n_a, n_a, n_z, simoptions.n_e, N_j, simoptions);
-        end
-    else
-        if N_d==0
-            PolicyUnKron=UnKronPolicyIndexes1_FHorz_z(Policy, n_a, n_a, n_z, N_j, simoptions);
-        else
-            PolicyUnKron=UnKronPolicyIndexes2_FHorz_z(Policy, n_d, n_a, n_a, n_z, N_j, simoptions);
-        end
-    end
-    tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,PolicyUnKron,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,Policy,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
 
 
     for ff=1:length(AggVarNames)

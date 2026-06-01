@@ -3,13 +3,6 @@ function SimPanel=SimPanelIndexes_FHorz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_
 %
 % Intended to be called from SimPanelValues_FHorz_Case1()
 
-N_d=prod(n_d);
-if N_d>0
-    l_d=length(n_d);
-else
-    l_d=0;
-end
-
 N_a=prod(n_a);
 l_a=length(n_a);
 
@@ -45,31 +38,25 @@ else
     end
 end
 
-if N_bothze==0
-    Policy=reshape(Policy,[size(Policy,1),N_a,N_j]);
-    Policy_aprime=Policy(l_d+1:end,:,:);
-else
-    Policy=reshape(Policy,[size(Policy,1),N_a,N_bothze,N_j]);
-    Policy_aprime=Policy(l_d+1:end,:,:,:);
-end
+Policy_aprime=KronPolicyIndexes_forSimPanelIndexes(Policy,n_d,n_a,N_bothze,N_j,simoptions);
 
 if N_bothze==0
-    Policy_aprime=KronPolicyIndexes_FHorz_Case1_noz(Policy_aprime,0,n_a,N_j,simoptions);
     if simoptions.gridinterplayer==1
         CumPolicyProbs=ones([N_a,2,N_j]);
         CumPolicyProbs(:,1,:)=reshape(Policy_aprime(2,:,:),[N_a,1,N_j]); % L2 index
         CumPolicyProbs(:,1,:)=1-(CumPolicyProbs(:,1,:)-1)/(simoptions.ngridinterp+1); % prob of lower index
         % CumPolicyProbs(:,2,:) just leave this as ones
+        % Policy_aprime(3,:,:) is L2flag — preserved by the new Kron but not yet applied here
         Policy_aprime=repmat(reshape(Policy_aprime(1,:,:),[N_a,1,N_j]),1,2,1); % lower grid index
         Policy_aprime(:,2,:)=Policy_aprime(:,2,:)+1; % upper grid index
     end
 else
-    Policy_aprime=KronPolicyIndexes_FHorz_Case1(Policy_aprime,0,n_a,N_bothze,N_j,simoptions);
     if simoptions.gridinterplayer==1
         CumPolicyProbs=ones([N_a,N_bothze,2,N_j]);
         CumPolicyProbs(:,:,1,:)=reshape(Policy_aprime(2,:,:,:),[N_a,N_bothze,1,N_j]); % L2 index
         CumPolicyProbs(:,:,1,:)=1-(CumPolicyProbs(:,:,1,:)-1)/(simoptions.ngridinterp+1); % prob of lower index
         % CumPolicyProbs(:,:,2,:) just leave this as ones
+        % Policy_aprime(3,:,:,:) is L2flag — preserved by the new Kron but not yet applied here
         Policy_aprime=repmat(reshape(Policy_aprime(1,:,:,:),[N_a,N_bothze,1,N_j]),1,1,2,1); % lower grid index
         Policy_aprime(:,:,2,:)=Policy_aprime(:,:,2,:)+1; % upper grid index
     end

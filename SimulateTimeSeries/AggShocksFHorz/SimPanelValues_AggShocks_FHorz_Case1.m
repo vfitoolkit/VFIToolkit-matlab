@@ -113,22 +113,25 @@ if N_semiz>0
     simoptions.Parameters=Parameters; % Need to be able to pass a copy of this to SimPanelIndexes
     if N_z>0
         if N_e>0
-            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, [simoptions.n_semiz,n_z], simoptions.n_e, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+            PolicyIndexesKron=KronPolicyIndexes_forSimPanelIndexes(Policy, n_d, n_a, N_semiz*N_z*N_e, N_j, simoptions, 1);
+            PolicyIndexesKron=reshape(PolicyIndexesKron, [size(PolicyIndexesKron,1), N_a, N_semiz*N_z, N_e, N_j]); % split e back into a separate trailing dim
         else
-            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z], N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+            PolicyIndexesKron=KronPolicyIndexes_forSimPanelIndexes(Policy, n_d, n_a, N_semiz*N_z, N_j, simoptions, 1);
         end
     else
         if N_e>0
-            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, simoptions.n_semiz, simoptions.n_e, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+            PolicyIndexesKron=KronPolicyIndexes_forSimPanelIndexes(Policy, n_d, n_a, N_semiz*N_e, N_j, simoptions, 1);
+            PolicyIndexesKron=reshape(PolicyIndexesKron, [size(PolicyIndexesKron,1), N_a, N_semiz, N_e, N_j]); % split e back into a separate trailing dim
         else
-            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, simoptions.n_semiz, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+            PolicyIndexesKron=KronPolicyIndexes_forSimPanelIndexes(Policy, n_d, n_a, N_semiz, N_j, simoptions, 1);
         end
     end
 else
     if N_e>0
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z, simoptions.n_e, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+        PolicyIndexesKron=KronPolicyIndexes_forSimPanelIndexes(Policy, n_d, n_a, N_z*N_e, N_j, simoptions, 1);
+        PolicyIndexesKron=reshape(PolicyIndexesKron, [size(PolicyIndexesKron,1), N_a, N_z, N_e, N_j]); % split e back into a separate trailing dim
     else
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j, simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+        PolicyIndexesKron=KronPolicyIndexes_forSimPanelIndexes(Policy, n_d, n_a, N_z, N_j, simoptions, 1);
     end
 end
 PolicyIndexesKron=gather(PolicyIndexesKron);

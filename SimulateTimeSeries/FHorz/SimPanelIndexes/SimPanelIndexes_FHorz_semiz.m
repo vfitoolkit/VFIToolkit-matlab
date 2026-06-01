@@ -93,13 +93,11 @@ end
 
 if N_semizze==0
     Policy=reshape(Policy,[size(Policy,1),N_a,N_j]);
-    Policy_aprime=Policy(l_d+1:end,:,:);
 else
     Policy=reshape(Policy,[size(Policy,1),N_a,N_semizze,N_j]);
-    Policy_aprime=Policy(l_d+1:end,:,:,:);
 end
 
-Policy_aprime=KronPolicyIndexes_FHorz_Case1(Policy_aprime,0,n_a,N_semizze,N_j,simoptions);
+Policy_aprime=KronPolicyIndexes_forSimPanelIndexes(Policy,n_d,n_a,N_semizze,N_j,simoptions);
 if simoptions.gridinterplayer==1
     CumPolicyProbs=ones([N_a,N_semizze,2,N_j]);
     CumPolicyProbs(:,:,1,:)=reshape(Policy_aprime(2,:,:,:),[N_a,N_semizze,1,N_j]); % L2 index
