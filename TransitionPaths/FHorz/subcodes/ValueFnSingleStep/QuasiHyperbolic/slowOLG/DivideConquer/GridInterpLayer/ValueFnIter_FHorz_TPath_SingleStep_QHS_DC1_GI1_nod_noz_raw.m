@@ -1,10 +1,11 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_GI1_nod_noz_raw(V,n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_GI1_nod_noz_raw(V,n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The V input is next period value fn (across all ages), the V output is this period.
-% Sophisticated QH: V carries Vunderbar; Policy = QH choice.
+% Sophisticated QH: V carries Vunderbar; Policy = QH choice; Vhat is the agent's-perspective (beta0*beta) value.
 
 N_a=prod(n_a);
 
 Policy=zeros(3,N_a,N_j,'gpuArray'); % [midpoint; aprimeL2ind; L2flag]
+Vhat=zeros(N_a,N_j,'gpuArray');
 
 if vfoptions.lowmemory>0
     error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_GI1_nod_noz_raw')
@@ -49,6 +50,7 @@ isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
 inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
 inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
 Policy(3,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
+Vhat(:,N_j)=V(:,N_j); % terminal: Vhat coincides with V (Vunderbar)
 
 
 %% Iterate backwards through j.
@@ -87,6 +89,7 @@ for reverse_j=1:N_j-1
     entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine;
     [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
     Vhat_jj=shiftdim(Vtempii,1);
+    Vhat(:,jj)=Vhat_jj;
     Policy(1,:,jj)=shiftdim(squeeze(midpoints_jj),-1);
     Policy(2,:,jj)=shiftdim(maxindexL2,-1);
     isInfLower    = (ReturnMatrix_L2(1,     :) == -Inf);

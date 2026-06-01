@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_DC1_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_DC1_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The V input is next period value fn (across all ages), the V output is this period.
 
 N_d=prod(n_d);

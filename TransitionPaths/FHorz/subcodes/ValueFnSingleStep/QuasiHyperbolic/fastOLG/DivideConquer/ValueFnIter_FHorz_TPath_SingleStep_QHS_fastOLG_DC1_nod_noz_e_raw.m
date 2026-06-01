@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid,e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy, Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid,e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,e), rather than standard (a,e,j)
 % V is (a,j)-by-e; for Sophisticated QH carries Vunderbar
@@ -9,6 +9,7 @@ N_e=prod(n_e);
 
 % fastOLG, so a-j-e
 Policy=zeros(N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for aprime
+Vhat=zeros(N_a,N_j,N_e,'gpuArray'); % beta0*beta-step value (snapshot of V before Vunderbar transform)
 
 e_gridvals_J=shiftdim(e_gridvals_J,-2); % needed shape for ReturnFnMatrix with fastOLG and DC1
 
@@ -78,6 +79,7 @@ if vfoptions.lowmemory==0
     end
 
     %% Re-evaluate V at Policy with beta (not beta0*beta): V=Vunderbar=Vhat+(beta-beta0*beta)*EV_at_policy
+    Vhat=V; % snapshot Vhat before Vunderbar transform
     EV_2d=reshape(EV,[N_a,N_j]); % (aprime,j); e broadcasts
     EV_at_policy=EV_2d(Policy+N_a*shiftdim((0:1:N_j-1),-1)); % [N_a,N_j,N_e]
     V=V+reshape(BetaMinusBeta0Beta_J,[1,N_j,1]).*EV_at_policy;
@@ -122,6 +124,7 @@ elseif vfoptions.lowmemory==1
         end
 
         %% Re-evaluate V at Policy with beta (not beta0*beta) for this e
+        Vhat(:,:,e_c)=V(:,:,e_c); % snapshot Vhat before Vunderbar transform (for this e)
         EV_2d=reshape(EV,[N_a,N_j]);
         EV_at_policy_e=EV_2d(Policy(:,:,e_c)+N_a*shiftdim((0:1:N_j-1),-1));
         V(:,:,e_c)=V(:,:,e_c)+reshape(BetaMinusBeta0Beta_J,[1,N_j]).*EV_at_policy_e;
@@ -130,6 +133,7 @@ end
 
 %% fastOLG with e, so need output to take certain shapes
 V=reshape(V,[N_a*N_j,N_e]);
+Vhat=reshape(Vhat,[N_a*N_j,N_e]);
 
 %% Output shape for policy
 Policy=shiftdim(Policy,-1); % so first dim is just one point

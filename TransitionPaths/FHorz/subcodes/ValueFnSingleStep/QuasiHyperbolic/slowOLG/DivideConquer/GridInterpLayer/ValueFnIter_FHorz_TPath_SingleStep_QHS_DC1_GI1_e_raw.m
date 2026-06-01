@@ -1,6 +1,6 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_GI1_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_gridvals, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_GI1_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_gridvals, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The V input is next period value fn (across all ages), the V output is this period.
-% Sophisticated QH: V carries Vunderbar; Policy = QH choice.
+% Sophisticated QH: V carries Vunderbar; Policy = QH choice; Vhat is the agent's-perspective (beta0*beta) value.
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -8,6 +8,7 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 Policy=zeros(4,N_a,N_z,N_e,N_j,'gpuArray'); % [d_ind; midpoint; aprimeL2ind; L2flag]
+Vhat=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 
 % e is start-of-period: precompute the expectation of V over e for use as continuation
 Vnext=sum(V.*shiftdim(pi_e_J,-2),3);
@@ -175,6 +176,7 @@ elseif vfoptions.lowmemory==2
         end
     end
 end
+Vhat(:,:,:,N_j)=V(:,:,:,N_j); % terminal: Vhat coincides with V (Vunderbar)
 
 
 %% Iterate backwards through j.
@@ -226,6 +228,7 @@ for reverse_j=1:N_j-1
         entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine;
         [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
         Vhat_jj=shiftdim(Vtempii,1);
+        Vhat(:,:,:,jj)=Vhat_jj;
         d_ind=rem(maxindexL2-1,N_d)+1;
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind;
         Policy(1,:,:,:,jj)=d_ind;
@@ -277,6 +280,7 @@ for reverse_j=1:N_j-1
             entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine;
             [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
             Vhat_jj_e=shiftdim(Vtempii,1);
+            Vhat(:,:,e_c,jj)=Vhat_jj_e;
             d_ind=rem(maxindexL2-1,N_d)+1;
             allind=d_ind+N_d*aind+N_d*N_a*zind;
             Policy(1,:,:,e_c,jj)=d_ind;
@@ -330,6 +334,7 @@ for reverse_j=1:N_j-1
                 entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine_ze;
                 [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
                 Vhat_jj_ze=shiftdim(Vtempii,1);
+                Vhat(:,z_c,e_c,jj)=Vhat_jj_ze;
                 d_ind=rem(maxindexL2-1,N_d)+1;
                 allind=d_ind+N_d*aind;
                 Policy(1,:,z_c,e_c,jj)=d_ind;

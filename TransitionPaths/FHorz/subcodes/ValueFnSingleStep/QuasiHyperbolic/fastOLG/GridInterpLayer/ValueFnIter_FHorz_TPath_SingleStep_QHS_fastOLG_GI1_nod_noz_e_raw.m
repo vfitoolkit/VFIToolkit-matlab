@@ -106,8 +106,9 @@ elseif vfoptions.lowmemory==1
         %% Vunderbar
         linidx_e=double(reshape(maxindexL2,[1,N_a*N_j]))+n2long*(0:N_a*N_j-1);
         EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,N_j]);
-        Vtemp=shiftdim(Vhat,1)+reshape(beta_J-beta0beta_J,[1,N_j]).*EV_at_policy_e;
+        Vtemp=shiftdim(Vhatii,1)+reshape(beta_J-beta0beta_J,[1,N_j]).*EV_at_policy_e;
         V(:,e_c)=reshape(Vtemp,[N_a*N_j,1]);
+        Vhat(:,e_c)=reshape(Vhatii,[N_a*N_j,1]); % snapshot pre-Vunderbar
     end
 
 end

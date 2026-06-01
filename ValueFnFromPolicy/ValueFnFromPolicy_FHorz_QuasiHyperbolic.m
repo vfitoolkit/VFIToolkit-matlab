@@ -22,10 +22,13 @@ if isNaive
     Policyalt=gpuArray(vfoptions.Policyalt);
 end
 
-%% Scope limits -- plain case only for now (no semiz, no ExpAsset family, no GI)
+%% Dispatch to SemiExo subfn if n_semiz>0
 if prod(vfoptions.n_semiz)>0
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for semiz')
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
+
+%% Scope limits -- plain case only for now (no ExpAsset family)
 if vfoptions.experienceasset==1
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceasset')
 end

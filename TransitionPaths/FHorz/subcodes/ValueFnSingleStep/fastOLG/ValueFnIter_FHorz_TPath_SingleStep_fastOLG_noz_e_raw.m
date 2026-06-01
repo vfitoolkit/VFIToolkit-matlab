@@ -58,10 +58,10 @@ end
 
 %% fastOLG with e, so need output to take certain shapes
 % V=reshape(V,[N_a*N_j,N_e]);
-Policy=reshape(Policy,[size(Policy,1),N_a,N_j,N_e]);
+% Policy=reshape(Policy,[1,N_a,N_j,N_e]);
 
-% % Output shape for policy
-% Policy=shiftdim(Policy,-1); % so first dim is just one point
+% Output shape for policy
+Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 
 end

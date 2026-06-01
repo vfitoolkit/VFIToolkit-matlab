@@ -18,57 +18,57 @@ end
 if vfoptions.divideandconquer==0 && vfoptions.gridinterplayer==0
     if isNaive
         if N_d==0
-            [VKron,PolicyKron,PolicyaltKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,PolicyaltKron,VtildeKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron,PolicyaltKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,PolicyaltKron,VtildeKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     else
         if N_d==0
-            [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,VhatKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,VhatKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 elseif vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==0
     if isNaive
         if N_d==0
-            [VKron,PolicyKron,PolicyaltKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_DC1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,PolicyaltKron,VtildeKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_DC1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron,PolicyaltKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_DC1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,PolicyaltKron,VtildeKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_DC1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     else
         if N_d==0
-            [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,VhatKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,VhatKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 elseif vfoptions.divideandconquer==0 && vfoptions.gridinterplayer==1
     if isNaive
         if N_d==0
-            [VKron,PolicyKron,PolicyaltKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,PolicyaltKron,VtildeKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron,PolicyaltKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,PolicyaltKron,VtildeKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     else
         if N_d==0
-            [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,VhatKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,VhatKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 else % DC1 + GI1
     if isNaive
         if N_d==0
-            [VKron,PolicyKron,PolicyaltKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_DC1_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,PolicyaltKron,VtildeKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_DC1_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron,PolicyaltKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_DC1_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,PolicyaltKron,VtildeKron]=ValueFnIter_FHorz_TPath_SingleStep_QHN_fastOLG_DC1_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     else
         if N_d==0
-            [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,VhatKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron,VhatKron]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_DC1_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 end
@@ -94,9 +94,9 @@ else
 end
 
 if isNaive
-    varargout={VKron,PolicyKron,PolicyaltKron};
+    varargout={VKron,PolicyKron,PolicyaltKron,VtildeKron};
 else
-    varargout={VKron,PolicyKron};
+    varargout={VKron,PolicyKron,VhatKron};
 end
 
 end

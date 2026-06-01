@@ -114,6 +114,7 @@ for reverse_j=1:N_j-1
     entireRHS_L2=ReturnMatrix_L2+beta0beta*EVfine;
     [Vtempii,maxindexL2]=max(entireRHS_L2,[],1);
     Vhat_jj=shiftdim(Vtempii,1);
+    Vhat(:,jj)=Vhat_jj;
     d_ind=rem(maxindexL2-1,N_d)+1;
     allind=d_ind+N_d*aind;
     Policy(1,:,jj)=d_ind;
