@@ -1,4 +1,4 @@
-function [Vtilde,Policy,V,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_GI1_nod_noz_raw(n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vtilde,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_GI1_nod_noz_raw(n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Naive quasi-hyperbolic discounting variant of ValueFnIter_FHorz_GI1_nod_noz_raw.
 % No d variables. No z variable. GPU (parallel==2 only).
 %
@@ -7,7 +7,7 @@ function [Vtilde,Policy,V,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_GI1_nod_
 
 N_a=prod(n_a);
 
-V=zeros(N_a,N_j,'gpuArray');
+Valt=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(2,N_a,N_j,'gpuArray'); % [midpoint; aprimeL2ind]
 PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 Policyalt=zeros(2,N_a,N_j,'gpuArray'); % exponential discounter optimal (midpoint, L2ind)
@@ -35,17 +35,17 @@ if ~isfield(vfoptions,'V_Jplus1')
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
     PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
-    V(:,N_j)=shiftdim(Vtempii,1);
+    Valt(:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,N_j)=shiftdim(squeeze(midpoint),-1);
     Policy(2,:,N_j)=shiftdim(maxindexL2,-1);
     % terminal: QH and exp discounter coincide
     Policyalt(:,:,N_j)=Policy(:,:,N_j);
     PolicyL2flagalt(1,:,N_j)=PolicyL2flag(1,:,N_j);
 
-    Vtilde=V;
+    Vtilde=Valt;
 
 else
-    % Using V_Jplus1 (V for naive)
+    % Using V_Jplus1 (Valt for naive)
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
@@ -58,7 +58,7 @@ else
 
     ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
-    %% V (beta) -- capture Policyalt (exponential discounter's choice)
+    %% Valt (beta) -- capture Policyalt (exponential discounter's choice)
     entireRHS=ReturnMatrix+beta*EV;
     [~,maxindexalt]=max(entireRHS,[],1);
     midpointalt=max(min(maxindexalt,n_a-1),2);
@@ -66,7 +66,7 @@ else
     ReturnMatrix_L2alt=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn,aprime_grid(aprimeindexesalt),a_grid,ReturnFnParamsVec);
     entireRHS_L2alt=ReturnMatrix_L2alt+beta*reshape(EVinterp(aprimeindexesalt(:)),[n2long,N_a]);
     [Vtempii,maxindexL2alt]=max(entireRHS_L2alt,[],1);
-    V(:,N_j)=shiftdim(Vtempii,1);
+    Valt(:,N_j)=shiftdim(Vtempii,1);
 
     isInfLoweralt    = (ReturnMatrix_L2alt(1,    :) == -Inf);
     isInfUpperalt    = (ReturnMatrix_L2alt(n2long,:) == -Inf);
@@ -110,14 +110,14 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta;
 
-    EVsource=V(:,jj+1);
+    EVsource=Valt(:,jj+1);
     EV=EVsource;
 
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
     ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 
-    %% V (beta) -- capture Policyalt (exponential discounter's choice)
+    %% Valt (beta) -- capture Policyalt (exponential discounter's choice)
     entireRHS=ReturnMatrix+beta*EV;
     [~,maxindexalt]=max(entireRHS,[],1);
     midpointalt=max(min(maxindexalt,n_a-1),2);
@@ -125,7 +125,7 @@ for reverse_j=1:N_j-1
     ReturnMatrix_L2alt=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn,aprime_grid(aprimeindexesalt),a_grid,ReturnFnParamsVec);
     entireRHS_L2alt=ReturnMatrix_L2alt+beta*reshape(EVinterp(aprimeindexesalt(:)),[n2long,N_a]);
     [Vtempii,maxindexL2alt]=max(entireRHS_L2alt,[],1);
-    V(:,jj)=shiftdim(Vtempii,1);
+    Valt(:,jj)=shiftdim(Vtempii,1);
 
     isInfLoweralt    = (ReturnMatrix_L2alt(1,    :) == -Inf);
     isInfUpperalt    = (ReturnMatrix_L2alt(n2long,:) == -Inf);

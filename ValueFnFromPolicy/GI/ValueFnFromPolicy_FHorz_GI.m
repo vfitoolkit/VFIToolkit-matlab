@@ -6,10 +6,6 @@ function varargout=ValueFnFromPolicy_FHorz_GI(Policy,n_d,n_a,n_z,N_j,d_grid,a_gr
 %% Exogenous shock grids
 [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
 
-if prod(vfoptions.n_semiz)>0
-    error('cannot yet handle semiz, ask on forum if you need/want')
-end
-
 %%
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -180,7 +176,7 @@ if l_a==1
         V=reshape(V,[n_a,n_z,vfoptions.n_e,N_j]);
     end
 
-elseif l_a==2
+elseif l_a>=2
     %% GI2A
     n_a1=n_a(1);
     % n_a2=n_a(2);

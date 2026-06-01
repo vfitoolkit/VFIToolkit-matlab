@@ -1,4 +1,4 @@
-function [Vunderbar,Policy,Vhat]=ValueFnIter_FHorz_QuasiHyperbolicS_nod_noz_e_raw(n_a,n_e,N_j, a_grid,e_gridvals_J,pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicS_nod_noz_e_raw(n_a,n_e,N_j, a_grid,e_gridvals_J,pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Sophisticated quasi-hyperbolic discounting
 %
 % DiscountFactorParamNames is the standard discount factor beta

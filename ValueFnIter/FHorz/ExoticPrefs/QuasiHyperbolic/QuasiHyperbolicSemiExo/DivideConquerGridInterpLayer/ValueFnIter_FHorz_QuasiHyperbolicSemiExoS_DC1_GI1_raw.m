@@ -1,4 +1,4 @@
-function [Vunderbar, Policy, Vhat]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_DC1_GI1_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vhat, Policy, Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_DC1_GI1_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Sophisticated quasi-hyperbolic + SemiExo + DC + GI raw, with d1, z, no e.
 % Vhat (agent's choice; beta0beta) wrapped around d2 outer loop, with DC level1n + GI midpoint+L2 + L2flag.
 % Vunderbar reconstructed via the SDP identity: Vunderbar_j = Vhat_j + (beta-beta0beta)*EVinterp_at_optimal.

@@ -1,4 +1,4 @@
-function [Vtilde,Policy,V,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_nod_raw(n_a,n_z,N_j, a_grid, z_gridvals_J,pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vtilde,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_nod_raw(n_a,n_z,N_j, a_grid, z_gridvals_J,pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Naive quasi-hyperbolic discounting
 %
 % DiscountFactorParamNames is the standard discount factor beta
@@ -12,9 +12,9 @@ function [Vtilde,Policy,V,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_nod_raw(
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-V=zeros(N_a,N_z,N_j,'gpuArray');
+Valt=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); % indexes the optimal choice for aprime, rest of dimensions a,z
-Policyalt=zeros(N_a,N_z,N_j,'gpuArray'); % exponential discounter optimal choice (V is computed at this)
+Policyalt=zeros(N_a,N_z,N_j,'gpuArray'); % exponential discounter optimal choice (Valt is computed at this)
 
 %%
 if vfoptions.lowmemory>0
@@ -33,7 +33,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-        V(:,:,N_j)=Vtemp;
+        Valt(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
         Policyalt(:,:,N_j)=maxindex; % terminal period: QH and exponential discounter coincide
 
@@ -44,26 +44,26 @@ if ~isfield(vfoptions,'V_Jplus1')
             ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, ReturnFnParamsVec,0);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
-            V(:,z_c,N_j)=Vtemp;
+            Valt(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
             Policyalt(:,z_c,N_j)=maxindex;
         end
     end
 
-    Vtilde=V;
+    Vtilde=Valt;
 else
     % Using V_Jplus1
-    % Note: The V_Jplus1 input should be V for naive
+    % Note: The V_Jplus1 input should be Valt for naive
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
 
-    Vtilde=V;
+    Vtilde=Valt;
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec); % Discount factor between any two future periods
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    EV=V_Jplus1; % Note: The V_Jplus1 input should be V for naive
+    EV=V_Jplus1; % Note: The V_Jplus1 input should be Valt for naive
 
     if vfoptions.lowmemory==0
 
@@ -74,12 +74,12 @@ else
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-        % For naive, we compute V which is the exponential discounter case, and then from this we get Vtilde and
+        % For naive, we compute Valt which is the exponential discounter case, and then from this we get Vtilde and
         % Policy (which is Policytilde) that correspond to the naive quasihyperbolic discounter
-        % First V
+        % First Valt
         entireRHS=ReturnMatrix+beta*EV; %*EV.*ones(1,N_a,1); % Use the two-future-periods discount factor
         [Vtemp,maxindexalt]=max(entireRHS,[],1);
-        V(:,:,N_j)=Vtemp;
+        Valt(:,:,N_j)=Vtemp;
         Policyalt(:,:,N_j)=maxindexalt;
         % Now Vtilde and Policy
         entireRHS=ReturnMatrix+beta0beta*EV; %*EV.*ones(1,N_a,1); % Use today-to-tomorrow discount factor
@@ -98,14 +98,14 @@ else
             EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2);
 
-            % For naive, we compute V which is the exponential
+            % For naive, we compute Valt which is the exponential
             % discounter case, and then from this we get Vtilde and
             % Policy (which is Policytilde) that correspond to the
             % naive quasihyperbolic discounter
-            % First V
+            % First Valt
             entireRHS_z=ReturnMatrix_z+beta*EV_z; %*EV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
             [Vtemp,maxindexalt]=max(entireRHS_z,[],1);
-            V(:,z_c,N_j)=Vtemp;
+            Valt(:,z_c,N_j)=Vtemp;
             Policyalt(:,z_c,N_j)=maxindexalt;
             % Now Vtilde and Policy
             entireRHS_z=ReturnMatrix_z+beta0beta*EV_z; %*EV_z.*ones(1,N_a,1);
@@ -132,7 +132,7 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    EV=V(:,:,jj+1); % Use V (goes into the equation to determine V)
+    EV=Valt(:,:,jj+1); % Use Valt (goes into the equation to determine Valt)
 
     if vfoptions.lowmemory==0
 
@@ -143,12 +143,12 @@ for reverse_j=1:N_j-1
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-        % For naive, we compute V which is the exponential discounter case, and then from this we get Vtilde and
+        % For naive, we compute Valt which is the exponential discounter case, and then from this we get Vtilde and
         % Policy (which is Policytilde) that correspond to the naive quasihyperbolic discounter
-        % First V
+        % First Valt
         entireRHS=ReturnMatrix+beta*EV; %*EV.*ones(1,N_a,1); % Use the two-future-periods discount factor
         [Vtemp,maxindexalt]=max(entireRHS,[],1);
-        V(:,:,jj)=Vtemp;
+        Valt(:,:,jj)=Vtemp;
         Policyalt(:,:,jj)=maxindexalt;
         % Now Vtilde and Policy
         entireRHS=ReturnMatrix+beta0beta*EV; %*EV.*ones(1,N_a,1); % Use today-to-tomorrow discount factor
@@ -167,14 +167,14 @@ for reverse_j=1:N_j-1
             EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV_z=sum(EV_z,2);
 
-            % For naive, we compute V which is the exponential
+            % For naive, we compute Valt which is the exponential
             % discounter case, and then from this we get Vtilde and
             % Policy (which is Policytilde) that correspond to the
             % naive quasihyperbolic discounter
-            % First V
+            % First Valt
             entireRHS_z=ReturnMatrix_z+beta*EV_z; %*EV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
             [Vtemp,maxindexalt]=max(entireRHS_z,[],1);
-            V(:,z_c,jj)=Vtemp;
+            Valt(:,z_c,jj)=Vtemp;
             Policyalt(:,z_c,jj)=maxindexalt;
             % Now Vtilde and Policy
             entireRHS_z=ReturnMatrix_z+beta0beta*EV_z; %*EV_z.*ones(1,N_a,1);

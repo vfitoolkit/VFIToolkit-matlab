@@ -1,4 +1,4 @@
-function [Vunderbar, Policy3, Vhat]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_raw(n_d1, n_d2, n_a, n_z, n_semiz, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vhat, Policy3, Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_raw(n_d1, n_d2, n_a, n_z, n_semiz, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Sophisticated quasi-hyperbolic discounting with semi-exogenous shock.
 % Vhat = u + beta_0*beta*E[Vunderbar'] is the value under today-to-tomorrow discount evaluated at the sophisticated policy.
 % Vunderbar = u(policy_soph) + beta*E[Vunderbar'] is the welfare valuation of the time-inconsistent policy at standard discount.

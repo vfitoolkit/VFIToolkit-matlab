@@ -1,4 +1,4 @@
-function [Vtilde,Policy,V,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_noz_raw(n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vtilde,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_noz_raw(n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Naive quasi-hyperbolic discounting
 %
 % DiscountFactorParamNames is the standard discount factor beta
@@ -12,9 +12,9 @@ function [Vtilde,Policy,V,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_noz_raw(
 N_d=prod(n_d);
 N_a=prod(n_a);
 
-V=zeros(N_a,N_j,'gpuArray');
+Valt=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray'); % indexes the optimal choice for d and aprime, rest of dimensions a,z
-Policyalt=zeros(N_a,N_j,'gpuArray'); % exponential discounter optimal choice (V is computed at this)
+Policyalt=zeros(N_a,N_j,'gpuArray'); % exponential discounter optimal choice (Valt is computed at this)
 
 
 %% j=N_j
@@ -28,37 +28,37 @@ if ~isfield(vfoptions,'V_Jplus1')
     ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,N_j)=Vtemp;
+    Valt(:,N_j)=Vtemp;
     Policy(:,N_j)=maxindex;
     Policyalt(:,N_j)=maxindex; % terminal period: QH and exponential discounter coincide (no future)
 
-    Vtilde=V;
+    Vtilde=Valt;
 else
     % Using V_Jplus1
-    % Note: The V_Jplus1 input should be V for naive
+    % Note: The V_Jplus1 input should be Valt for naive
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
 
-    Vtilde=V;
+    Vtilde=Valt;
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec); % Discount factor between any two future periods
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    EV=V_Jplus1; % Note: The V_Jplus1 input should be V for naive
+    EV=V_Jplus1; % Note: The V_Jplus1 input should be Valt for naive
 
     ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
 
     entireEV=kron(EV,ones(N_d,1));
 
-    % For naive, we compute V which is the exponential
+    % For naive, we compute Valt which is the exponential
     % discounter case, and then from this we get Vtilde and
     % Policy (which is Policytilde) that correspond to the
     % naive quasihyperbolic discounter
-    % First V
+    % First Valt
     entireRHS=ReturnMatrix+beta*entireEV; %*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
     [Vtemp,maxindexalt]=max(entireRHS,[],1);
-    V(:,N_j)=Vtemp;
+    Valt(:,N_j)=Vtemp;
     Policyalt(:,N_j)=maxindexalt;
     % Now Vtilde and Policy
     entireRHS=ReturnMatrix+beta0beta*entireEV; %*entireEV.*ones(1,N_a,1);
@@ -83,20 +83,20 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    EV=V(:,jj+1); % Use V (goes into the equation to determine V)
+    EV=Valt(:,jj+1); % Use Valt (goes into the equation to determine Valt)
 
     ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
 
     entireEV=kron(EV,ones(N_d,1));
 
-    % For naive, we compute V which is the exponential
+    % For naive, we compute Valt which is the exponential
     % discounter case, and then from this we get Vtilde and
     % Policy (which is Policytilde) that correspond to the
     % naive quasihyperbolic discounter
-    % First V
+    % First Valt
     entireRHS=ReturnMatrix+beta*entireEV; %*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
     [Vtemp,maxindexalt]=max(entireRHS,[],1);
-    V(:,jj)=Vtemp;
+    Valt(:,jj)=Vtemp;
     Policyalt(:,jj)=maxindexalt;
     % Now Vtilde and Policy
     entireRHS=ReturnMatrix+beta0beta*entireEV; %*entireEV.*ones(1,N_a,1);

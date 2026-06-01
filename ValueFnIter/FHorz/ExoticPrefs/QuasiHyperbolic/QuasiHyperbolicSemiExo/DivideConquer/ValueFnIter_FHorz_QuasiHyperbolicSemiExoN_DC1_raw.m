@@ -1,7 +1,7 @@
-function [Vtilde,Policy3,V,Policy3alt]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoN_DC1_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vtilde,Policy3,Valt,Policy3alt]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoN_DC1_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Naive quasi-hyperbolic + SemiExo + DivideConquer (with d1, z, no e).
-% Dual-V update: V (beta, continuation) and Vtilde (beta0*beta, agent's value).
-% Output: [Vtilde, Policy3, V]
+% Dual-Valt update: Valt (beta, continuation) and Vtilde (beta0*beta, agent's value).
+% Output: [Vtilde, Policy3, Valt]
 %
 % DiscountFactorParamNames is the standard discount factor beta
 % vfoptions.QHadditionaldiscount gives beta_0
@@ -17,7 +17,7 @@ N_semiz=prod(n_semiz);
 N_z=prod(n_z);
 N_bothz=prod(n_bothz);
 
-V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
+Valt=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 % Policy3 stores (d1,d2,aprime)
 Policy3=zeros(3,N_a,N_semiz*N_z,N_j,'gpuArray');
@@ -34,7 +34,7 @@ bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,
 bothzind=shiftdim(gpuArray(0:1:N_bothz-1),-1);
 bothzBind=shiftdim(gpuArray(0:1:N_bothz-1),-2);
 
-% Per-d2 slabs (V holds beta-continuation; Vtilde holds beta0beta-agent value; Policy from Vtilde max)
+% Per-d2 slabs (Valt holds beta-continuation; Vtilde holds beta0beta-agent value; Policy from Vtilde max)
 V_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
 Vtilde_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
 Policy_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
@@ -47,7 +47,7 @@ level1ii=round(linspace(1,n_a,vfoptions.level1n));
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    % No discounting at terminal period; Vtilde=V at terminal.
+    % No discounting at terminal period; Vtilde=Valt at terminal.
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
 
@@ -89,9 +89,9 @@ if ~isfield(vfoptions,'V_Jplus1')
     [V1_jj,maxindex]=max(Vtilde_ford2_jj,[],3);
     Vtilde(:,:,N_j)=V1_jj;
     Policy3(2,:,:,N_j)=shiftdim(maxindex,-1);
-    % Gather V at winning d2 and gather policy
+    % Gather Valt at winning d2 and gather policy
     maxindex_lin=reshape(maxindex,[N_a*N_semiz*N_z,1]);
-    V(:,:,N_j)=reshape(V_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[N_a,N_semiz*N_z]);
+    Valt(:,:,N_j)=reshape(V_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[N_a,N_semiz*N_z]);
     d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
     Policy3(1,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
     Policy3(3,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
@@ -99,7 +99,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy3alt(:,:,:,N_j)=Policy3(:,:,:,N_j);
 
 else
-    % Using V_Jplus1 (this is V long-run for Naive)
+    % Using V_Jplus1 (this is Valt long-run for Naive)
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
@@ -117,7 +117,7 @@ else
 
         ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d, n_bothz, d12c_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
-        %% V slab (beta, continuation)
+        %% Valt slab (beta, continuation)
         entireRHS_V=ReturnMatrix_d2ii+beta*shiftdim(EV_d2,-1);
         [~,maxindex1_V]=max(entireRHS_V,[],2);
         [Vtempii_V,maxindex2_V]=max(reshape(entireRHS_V,[N_d1*N_a,vfoptions.level1n,N_bothz]),[],1);
@@ -191,9 +191,9 @@ else
     d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
     Policy3(1,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
     Policy3(3,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
-    % V at exponential discounter optimum (full max over d2, d1, aprime)
+    % Valt at exponential discounter optimum (full max over d2, d1, aprime)
     [V_jj,maxindexalt_d2]=max(V_ford2_jj,[],3);
-    V(:,:,N_j)=V_jj;
+    Valt(:,:,N_j)=V_jj;
     Policy3alt(2,:,:,N_j)=shiftdim(maxindexalt_d2,-1);
     maxindexalt_lin=reshape(maxindexalt_d2,[N_a*N_semiz*N_z,1]);
     d1aprime_ind_alt=reshape(Policy_V_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);
@@ -215,7 +215,7 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta;
 
-    EV=V(:,:,jj+1); % Naive: continuation uses V (beta)
+    EV=Valt(:,:,jj+1); % Naive: continuation uses Valt (beta)
 
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
@@ -227,7 +227,7 @@ for reverse_j=1:N_j-1
 
         ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d, n_bothz, d12c_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
-        %% V slab (beta)
+        %% Valt slab (beta)
         entireRHS_V=ReturnMatrix_d2ii+beta*shiftdim(EV_d2,-1);
         [~,maxindex1_V]=max(entireRHS_V,[],2);
         [Vtempii_V,maxindex2_V]=max(reshape(entireRHS_V,[N_d1*N_a,vfoptions.level1n,N_bothz]),[],1);
@@ -301,9 +301,9 @@ for reverse_j=1:N_j-1
     d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex_lin-1)),[1,N_a,N_semiz*N_z]);
     Policy3(1,:,:,jj)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
     Policy3(3,:,:,jj)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
-    % V at exponential discounter optimum (full max over d2, d1, aprime)
+    % Valt at exponential discounter optimum (full max over d2, d1, aprime)
     [V_jj,maxindexalt_d2]=max(V_ford2_jj,[],3);
-    V(:,:,jj)=V_jj;
+    Valt(:,:,jj)=V_jj;
     Policy3alt(2,:,:,jj)=shiftdim(maxindexalt_d2,-1);
     maxindexalt_lin=reshape(maxindexalt_d2,[N_a*N_semiz*N_z,1]);
     d1aprime_ind_alt=reshape(Policy_V_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);

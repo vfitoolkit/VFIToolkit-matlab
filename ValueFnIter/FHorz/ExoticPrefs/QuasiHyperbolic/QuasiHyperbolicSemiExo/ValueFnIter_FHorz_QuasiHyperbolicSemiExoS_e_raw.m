@@ -1,4 +1,4 @@
-function [Vunderbar, Policy3, Vhat]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_e_raw(n_d1, n_d2, n_a, n_z, n_semiz, n_e, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J, pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [Vhat, Policy3, Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoS_e_raw(n_d1, n_d2, n_a, n_z, n_semiz, n_e, N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J, pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Sophisticated quasi-hyperbolic with semi-exogenous shock and iid e shock.
 
 n_d=[n_d1,n_d2];

@@ -1,5 +1,5 @@
-function [V1, Policy, Valt, Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoN_DC1_GI1_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-% Naive QH + SemiExo + DC + GI raw, no d1, no z, no e. Output: (V1=Vtilde, Policy3, Valt=V).
+function [Vtilde, Policy, Valt, Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicSemiExoN_DC1_GI1_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+% Naive QH + SemiExo + DC + GI raw, no d1, no z, no e. Output: (Vtilde=Vtilde, Policy3, Valt=V).
 
 N_d2=prod(n_d2);
 N_a=prod(n_a);
@@ -329,7 +329,6 @@ Policyalt(3,:,:,:)=adjustalt.*Policyalt(3,:,:,:)+(1-adjustalt).*(Policyalt(3,:,:
 
 Policyalt=[Policyalt;PolicyL2flagalt];
 
-V1=Vtilde;
 Valt=V;
 
 end
