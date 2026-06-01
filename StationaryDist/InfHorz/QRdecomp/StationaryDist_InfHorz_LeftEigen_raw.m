@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_InfHorz_LeftEigen_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_LeftEigen_raw(Policy_aprime,N_a,N_z,pi_z,simoptions)
 %Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
@@ -7,11 +7,7 @@ function StationaryDistKron=StationaryDist_InfHorz_LeftEigen_raw(PolicyIndexesKr
 %  simoptions.parallel
 
 % eigs() only works well for full cpu matrices
-if N_d==0 %length(n_d)==1 && n_d(1)==0
-    optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
-else
-    optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
-end
+optaprime=reshape(Policy_aprime,[1,N_a*N_z]);
 Ptranspose=zeros(N_a,N_a*N_z);
 Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
 Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));

@@ -10,6 +10,7 @@ if ~exist('vfoptions','var')
     vfoptions.experienceassetz=0;
     vfoptions.experienceassete=0;
     vfoptions.experienceassetze=0;
+    vfoptions.riskyasset=0;
     vfoptions.gridinterplayer=0;
     % divide-and-conquer is not relevant for ValueFnFromPolicy
 else
@@ -36,6 +37,9 @@ else
     end
     if ~isfield(vfoptions,'experienceassetze')
         vfoptions.experienceassetze=0;
+    end
+    if ~isfield(vfoptions,'riskyasset')
+        vfoptions.riskyasset=0;
     end
     if ~isfield(vfoptions,'gridinterplayer')
         vfoptions.gridinterplayer=0;
@@ -141,7 +145,7 @@ if N_z==0 && N_e==0
     l_daprime=size(PolicyValues,1);
     PolicyValuesPermute=permute(PolicyValues,[2,1,3]); %[N_a,l_d+l_a,N_j]
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_noz(Policy, n_d, n_a,N_j,vfoptions);
+    PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, 1, N_j, vfoptions);
 
     %% Calculate the Value Fn by backward iteration
     V=zeros(N_a,N_j,'gpuArray');
@@ -160,9 +164,9 @@ if N_z==0 && N_e==0
             EVnext=V(:,jj+1);
 
             if N_d==0
-                optaprime=PolicyIndexesKron(1,:,jj);
+                optaprime=PolicyIndexesKron(1,:,:,jj);
             else
-                optaprime=shiftdim(PolicyIndexesKron(2,:,jj),1);
+                optaprime=shiftdim(PolicyIndexesKron(2,:,:,jj),1);
             end
 
             aprimez_index=reshape(optaprime,[N_a,1]); % N_a*(z_index-1), but just with lots of kron
@@ -182,7 +186,7 @@ elseif N_z==0 && N_e>0
     l_daprime=size(PolicyValues,1);
     PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_e,l_d+l_a,N_j]
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, vfoptions.n_e,N_j,vfoptions);
+    PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, vfoptions.n_e, N_j, vfoptions);
 
     %% Calculate the Value Fn by backward iteration
     V=zeros(N_a,N_e,N_j,'gpuArray');
@@ -222,7 +226,7 @@ elseif N_z>0 && N_e==0
     l_daprime=size(PolicyValues,1);
     PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_z,l_d+l_a,N_j]
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j,vfoptions);
+    PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, n_z, N_j, vfoptions);
 
     %% Calculate the Value Fn by backward iteration
     V=zeros(N_a,N_z,N_j,'gpuArray');
@@ -265,7 +269,7 @@ elseif N_z>0 && N_e>0
     l_daprime=size(PolicyValues,1);
     PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); % [N_a,N_z*N_e,l_d+l_a,N_j] — keep shock dim combined for EvalFnOnAgentDist_Grid
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+    PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, [n_z,vfoptions.n_e], N_j, vfoptions);
 
 
     %% Calculate the Value Fn by backward iteration
@@ -289,9 +293,9 @@ elseif N_z>0 && N_e>0
 %             EVnext=reshape(EVnext,[N_a,N_z]); % Not necessary as just index into it
 
             if N_d==0
-                optaprime=PolicyIndexesKron(1,:,:,:,jj);
+                optaprime=PolicyIndexesKron(1,:,:,jj);
             else
-                optaprime=shiftdim(PolicyIndexesKron(2,:,:,:,jj),1);
+                optaprime=shiftdim(PolicyIndexesKron(2,:,:,jj),1);
             end
 
             aprimez_index=reshape(optaprime,[N_a*N_z*N_e,1])+N_a*(kron(kron(ones(N_e,1,'gpuArray'),(1:1:N_z)'),ones(N_a,1,'gpuArray'))-1); % N_a*(z_index-1), but just with lots of kron

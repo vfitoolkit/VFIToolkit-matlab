@@ -81,21 +81,37 @@ end
 if N_ze>0
     StationaryDist_Control=reshape(StationaryDist_Control,[N_a,N_ze,N_j]);
     StationaryDist_treatment=zeros(N_a,N_ze,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1); % Note: temp(1:end-1) is going to be all the dimensions of that agent dist except age
-    if N_e==0
-        PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j, simoptions);
-    elseif N_z==0
-        PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, simoptions.n_e, N_j, simoptions); % Treat e as z (because no z)
-    else
-        PolicyKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z, simoptions.n_e, N_j, simoptions);
-    end
 else
     StationaryDist_Control=reshape(StationaryDist_Control,[N_a,N_j]);
     StationaryDist_treatment=zeros(N_a,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1); % Note: temp(1:end-1) is going to be all the dimensions of that agent dist except age
-    PolicyKron=KronPolicyIndexes_FHorz_Case1_noz(Policy, n_d, n_a, N_j, simoptions);
+end
+
+% Inline aprime-combine: produce Policy_aprime directly in the shape the iteration raws expect
+if N_d==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+Policy=reshape(Policy,[l_d+l_a,N_a,max(N_ze,1),N_j]);
+if l_a==1
+    Policy_aprime=reshape(Policy(l_d+1,:,:,:),[N_a,max(N_ze,1),N_j]);
+elseif l_a==2
+    Policy_aprime=reshape(Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1),[N_a,max(N_ze,1),N_j]);
+elseif l_a==3
+    Policy_aprime=reshape(Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:,:)-1),[N_a,max(N_ze,1),N_j]);
+elseif l_a==4
+    Policy_aprime=reshape(Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:,:)-1),[N_a,max(N_ze,1),N_j]);
+end
+if N_z>0 && N_e>0
+    Policy_aprime=reshape(Policy_aprime,[N_a,N_z,N_e,N_j]); % split combined N_ze back into (N_z, N_e)
+end
+if N_ze==0
+    Policy_aprime=reshape(Policy_aprime,[N_a,N_j]); % drop singleton middle dim
 end
 
 if simoptions.parallel~=2 && simoptions.parallel~=4
-    PolicyKron=gather(PolicyKron);
+    Policy_aprime=gather(Policy_aprime);
     StationaryDist_Control=gather(StationaryDist_Control);
     pi_z=gather(pi_z);
 end
@@ -168,21 +184,17 @@ agedepparamnames=fieldnames(AgeDepParams);
 
 %%
 
-optaprime=1+(N_d>0); % 1 if no d, 2 if d
-
 for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     % Pull the appropriate initial distribution of agents
     if N_ze==0
         jequaloneDistKron=reshape(StationaryDist_Control(:,j_p),[N_a,1]);
-        Policy_aprime_treat=shiftdim(PolicyKron(optaprime,:,j_p:j_p+TreatmentDuration-1),1); % (N_a, TreatmentDuration)
+        Policy_aprime_treat=Policy_aprime(:,j_p:j_p+TreatmentDuration-1); % (N_a, TreatmentDuration)
     else
         jequaloneDistKron=reshape(StationaryDist_Control(:,:,j_p),[N_a*N_ze,1]);
-        if N_z==0 % just e
-            Policy_aprime_treat=shiftdim(PolicyKron(optaprime,:,:,j_p:j_p+TreatmentDuration-1),1); % (N_a, N_e, TreatmentDuration)
-        elseif N_e==0 % Just z
-            Policy_aprime_treat=shiftdim(PolicyKron(optaprime,:,:,j_p:j_p+TreatmentDuration-1),1); % (N_a, N_z, TreatmentDuration)
-        else % z and e
-            Policy_aprime_treat=shiftdim(PolicyKron(optaprime,:,:,:,j_p:j_p+TreatmentDuration-1),1); % (N_a, N_z, N_e, TreatmentDuration)
+        if N_z>0 && N_e>0 % z and e
+            Policy_aprime_treat=Policy_aprime(:,:,:,j_p:j_p+TreatmentDuration-1); % (N_a, N_z, N_e, TreatmentDuration)
+        else % just z, or just e
+            Policy_aprime_treat=Policy_aprime(:,:,j_p:j_p+TreatmentDuration-1); % (N_a, N_z/N_e, TreatmentDuration)
         end
     end
     % Normalize the mass of this initial distribution to one

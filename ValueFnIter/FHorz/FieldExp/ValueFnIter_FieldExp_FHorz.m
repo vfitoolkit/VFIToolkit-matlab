@@ -88,22 +88,58 @@ end
 [V.control, Policy.control]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
 % I want the Kron versions of V.control as it makes combining the treatment and control easier (which is done below)
+% V control in Kron form, plus N_ze (combined z*e dim, =1 if neither)
 if N_e==0
     if N_z==0
+        N_ze=1;
         VcontrolKron=reshape(V.control,[N_a,N_j]);
-        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1_noz(Policy.control, n_d, n_a, N_j, vfoptions);
     else
+        N_ze=N_z;
         VcontrolKron=reshape(V.control,[N_a,N_z,N_j]);
-        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1(Policy.control, n_d, n_a, n_z, N_j, vfoptions);
     end
 else
     if N_z==0
+        N_ze=N_e;
         VcontrolKron=reshape(V.control,[N_a,N_e,N_j]);
-        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1(Policy.control, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
     else
+        N_ze=N_z*N_e;
         VcontrolKron=reshape(V.control,[N_a,N_z,N_e,N_j]);
-        PolicycontrolKron=KronPolicyIndexes_FHorz_Case1_e(Policy.control, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
     end
+end
+
+% Combine Policy.control into uniform 4D [1, N_a, N_ze, N_j] with combined (d + N_d*(aprime-1)) index,
+% matching raw VFI output and what UnKronPolicyIndexes1_FHorz_* expects.
+if N_d==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+PolicyTemp=reshape(Policy.control,[l_d+l_a,N_a,N_ze,N_j]);
+% combined aprime in [1, prod(n_a)]
+if l_a==1
+    combined_a=PolicyTemp(l_d+1,:,:,:);
+elseif l_a==2
+    combined_a=PolicyTemp(l_d+1,:,:,:)+n_a(1)*(PolicyTemp(l_d+2,:,:,:)-1);
+elseif l_a==3
+    combined_a=PolicyTemp(l_d+1,:,:,:)+n_a(1)*(PolicyTemp(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyTemp(l_d+3,:,:,:)-1);
+elseif l_a==4
+    combined_a=PolicyTemp(l_d+1,:,:,:)+n_a(1)*(PolicyTemp(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyTemp(l_d+3,:,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyTemp(l_d+4,:,:,:)-1);
+end
+if N_d==0
+    PolicycontrolKron=reshape(combined_a,[1,N_a,N_ze,N_j]);
+else
+    % combined d in [1, prod(n_d)]
+    if l_d==1
+        combined_d=PolicyTemp(1,:,:,:);
+    elseif l_d==2
+        combined_d=PolicyTemp(1,:,:,:)+n_d(1)*(PolicyTemp(2,:,:,:)-1);
+    elseif l_d==3
+        combined_d=PolicyTemp(1,:,:,:)+n_d(1)*(PolicyTemp(2,:,:,:)-1)+n_d(1)*n_d(2)*(PolicyTemp(3,:,:,:)-1);
+    elseif l_d==4
+        combined_d=PolicyTemp(1,:,:,:)+n_d(1)*(PolicyTemp(2,:,:,:)-1)+n_d(1)*n_d(2)*(PolicyTemp(3,:,:,:)-1)+n_d(1)*n_d(2)*n_d(3)*(PolicyTemp(4,:,:,:)-1);
+    end
+    PolicycontrolKron=reshape(combined_d+N_d*(combined_a-1),[1,N_a,N_ze,N_j]);
 end
 
 
@@ -226,33 +262,38 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
         end
     end
 
-    % Align PolicyKron_jp with PolicycontrolKron shape in the no-d case
+    % Align PolicyKron_jp with PolicycontrolKron 4D shape [1, N_a, N_ze, TreatmentDuration]
     if N_d==0
         PolicyKron_jp=reshape(PolicyKron_jp,[1,size(PolicyKron_jp)]);
     end
+    PolicyKron_jp=reshape(PolicyKron_jp,[1,N_a,N_ze,TreatmentDuration]);
 
     % Combine VKron_jp and PolicyKron_jp with the control versions
     VKron=VcontrolKron;
     PolicyKron=PolicycontrolKron;
+    % VKron rank varies per case; PolicyKron is uniformly 4D
     if N_e==0
         if N_z==0
             VKron(:,j_p:j_p+TreatmentDuration-1)=VKron_jp;
-            PolicyKron(:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
         else
             VKron(:,:,j_p:j_p+TreatmentDuration-1)=VKron_jp;
-            PolicyKron(:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
         end
     else
         if N_z==0
             VKron(:,:,j_p:j_p+TreatmentDuration-1)=VKron_jp;
-            PolicyKron(:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
         else
             VKron(:,:,:,j_p:j_p+TreatmentDuration-1)=VKron_jp;
-            PolicyKron(:,:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
         end
     end
+    PolicyKron(:,:,:,j_p:j_p+TreatmentDuration-1)=PolicyKron_jp;
 
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+    % Reshape PolicyKron from uniform 4D back to per-case shape UnKron expects
+    if N_z==0 && N_e==0
+        PolicyKron=reshape(PolicyKron,[1,N_a,N_j]);
+    elseif N_z>0 && N_e>0
+        PolicyKron=reshape(PolicyKron,[1,N_a,N_z,N_e,N_j]);
+    end
     if N_e==0
         if N_z==0
             V_jp=reshape(VKron,[n_a,N_j]);

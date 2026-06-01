@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_InfHorz_Simulation_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z, simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_Simulation_raw(Policy_aprime,N_a,N_z,pi_z, simoptions)
 %Simulates path based on PolicyIndexes of length 'periods' after a burn
 %in of length 'burnin' (burn-in are the initial run of points that are then
 %dropped)
@@ -19,7 +19,7 @@ if simoptions.parallel==2
     % So instead, switch to CPU. If going to iterate then use all available cores for speed, but doing this is not
     % in line with the mathematical theories on convergence, so if not iterating just use one core.
     % For anything but ridiculously short simulations it is more than worth the overhead to switch to CPU and back.
-    PolicyIndexesKron=gather(PolicyIndexesKron);
+    Policy_aprime=gather(Policy_aprime);
     pi_z=gather(pi_z);
     if simoptions.iterate==1
         simoptions.parallel=1; % multiple short time series, this is just creating an intial guess of the agent distribution for the iteration so perfectly good way to do things
@@ -28,8 +28,6 @@ if simoptions.parallel==2
     end
     MoveSSDKtoGPU=1;
 end
-
-optaprime=1+(N_d>0); % 1 if no d, 2 if d
 
 if simoptions.parallel==1
     eachsimperiods=ceil(simoptions.simperiods/simoptions.ncores);
@@ -41,13 +39,13 @@ if simoptions.parallel==1
         SteadyStateDistKron_seed_c=zeros(N_a*N_z,1);
         currstate=simoptions.seedpoint; %Pick a random start point on the (vectorized) (a,z) grid
         for i=1:simoptions.burnin
-            currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
+            currstate(1)=Policy_aprime(currstate(1),currstate(2));
             [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
         end
         for i=1:eachsimperiods
             SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)=SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)+1;
 
-            currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
+            currstate(1)=Policy_aprime(currstate(1),currstate(2));
             [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
         end
         StationaryDistKron(:,seed_c)=SteadyStateDistKron_seed_c;
@@ -59,13 +57,13 @@ elseif simoptions.parallel==0
     StationaryDistKron=zeros(N_a*N_z,1);
     currstate=simoptions.seedpoint; %Pick a random start point on the (vectorized) (a,z) grid
     for i=1:simoptions.burnin
-        currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
+        currstate(1)=Policy_aprime(currstate(1),currstate(2));
         [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
     end
     for i=1:simoptions.simperiods
         StationaryDistKron(currstate(1)+(currstate(2)-1)*N_a)=StationaryDistKron(currstate(1)+(currstate(2)-1)*N_a)+1;
 
-        currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
+        currstate(1)=Policy_aprime(currstate(1),currstate(2));
         [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
 
     end

@@ -98,7 +98,7 @@ for ttr=1:T-1
     %% Now that we have FofPolicy, calculate V.
     DiscountFactorParamsVec=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames));
 
-    Policy=KronPolicyIndexes_Case1(PolicyPath(:,:,:,tt), n_d, n_a, n_z, vfoptions);
+    Policy=KronPolicyIndexes_forValueFnFromPolicy(PolicyPath(:,:,:,tt), n_d, n_a, n_z, 0, vfoptions);
     if N_d==0
         Policy_a=shiftdim(Policy(1,:,:),1);
     else

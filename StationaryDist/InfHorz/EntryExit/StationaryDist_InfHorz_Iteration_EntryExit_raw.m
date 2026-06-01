@@ -1,4 +1,4 @@
-function [StationaryDistKron]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
+function [StationaryDistKron]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,Policy_aprime,N_a,N_z,pi_z,simoptions)
 % Will treat the agents as being on a continuum of mass 1, and then keep
 % track of actual mass using StationaryDistKron.mass.
 
@@ -35,11 +35,7 @@ DistOfNewAgentsKron=sparse(gather(reshape(DistOfNewAgents,[N_a*N_z,1])));
 
 %% First, set up for Tan improvement (create Gammatranspose, and make pi_z sparse)
 
-if N_d==0
-    optaprime=gather(reshape(PolicyIndexesKron,[1,N_a*N_z]));
-else
-    optaprime=gather(reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]));
-end
+optaprime=gather(reshape(Policy_aprime,[1,N_a*N_z]));
 
 if simoptions.endogenousexit==0
     Gammatranspose=sparse(optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a)),1:1:N_a*N_z,CondlProbOfSurvival.*ones(N_a*N_z,1),N_a*N_z,N_a*N_z);

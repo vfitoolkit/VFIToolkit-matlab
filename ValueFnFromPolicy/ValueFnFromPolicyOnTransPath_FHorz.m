@@ -101,7 +101,7 @@ for ttr=1:T-1
     % PolicyPath at this tt (across all ages)
     PolicyPath_tt=PolicyPath(:,:,:,:,tt);
     PolicyValues_tt=PolicyInd2Val_FHorz(PolicyPath_tt,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
-    PolicyIndexesKron_tt=KronPolicyIndexes_FHorz_Case1(PolicyPath_tt, n_d, n_a, n_z, N_j, vfoptions);
+    PolicyIndexesKron_tt=KronPolicyIndexes_forValueFnFromPolicy(PolicyPath_tt, n_d, n_a, n_z, N_j, vfoptions);
 
     for reverse_j=0:N_j-1
         jj=N_j-reverse_j; % current age, counts backwards from N_j

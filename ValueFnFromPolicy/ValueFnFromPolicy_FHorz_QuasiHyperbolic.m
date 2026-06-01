@@ -67,12 +67,12 @@ if N_z==0 && N_e==0
     PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,vfoptions,1);
     l_daprime=size(PolicyValues,1);
     PolicyValuesPermute=permute(PolicyValues,[2,1,3]); %[N_a,l_d+l_a,N_j]
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_noz(Policy, n_d, n_a,N_j,vfoptions);
+    PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, 1, N_j, vfoptions);
 
     if isNaive
         PolicyaltValues=PolicyInd2Val_FHorz(Policyalt,n_d,n_a,0,N_j,d_grid,a_grid,vfoptions,1);
         PolicyaltValuesPermute=permute(PolicyaltValues,[2,1,3]);
-        PolicyIndexesKronAlt=KronPolicyIndexes_FHorz_Case1_noz(Policyalt, n_d, n_a,N_j,vfoptions);
+        PolicyIndexesKronAlt=KronPolicyIndexes_forValueFnFromPolicy(Policyalt, n_d, n_a, 1, N_j, vfoptions);
         Valt=zeros(N_a,N_j,'gpuArray');
         Vtilde=zeros(N_a,N_j,'gpuArray');
     else
@@ -105,11 +105,11 @@ if N_z==0 && N_e==0
             if isNaive
                 EVnext=Valt(:,jj+1);
                 if N_d==0
-                    optaprime=PolicyIndexesKron(1,:,jj);
-                    optaprime_alt=PolicyIndexesKronAlt(1,:,jj);
+                    optaprime=PolicyIndexesKron(1,:,:,jj);
+                    optaprime_alt=PolicyIndexesKronAlt(1,:,:,jj);
                 else
-                    optaprime=shiftdim(PolicyIndexesKron(2,:,jj),1);
-                    optaprime_alt=shiftdim(PolicyIndexesKronAlt(2,:,jj),1);
+                    optaprime=shiftdim(PolicyIndexesKron(2,:,:,jj),1);
+                    optaprime_alt=shiftdim(PolicyIndexesKronAlt(2,:,:,jj),1);
                 end
                 EVnextOfPolicy   =reshape(EVnext(reshape(optaprime,    [N_a,1])),[N_a,1]);
                 EVnextOfPolicyalt=reshape(EVnext(reshape(optaprime_alt,[N_a,1])),[N_a,1]);
@@ -120,9 +120,9 @@ if N_z==0 && N_e==0
                 EVnext=Vunderbar(:,jj+1);
 
                 if N_d==0
-                    optaprime=PolicyIndexesKron(1,:,jj);
+                    optaprime=PolicyIndexesKron(1,:,:,jj);
                 else
-                    optaprime=shiftdim(PolicyIndexesKron(2,:,jj),1);
+                    optaprime=shiftdim(PolicyIndexesKron(2,:,:,jj),1);
                 end
 
                 aprimez_index=reshape(optaprime,[N_a,1]);
@@ -147,12 +147,12 @@ elseif N_z==0 && N_e>0
     PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
     l_daprime=size(PolicyValues,1);
     PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_e,l_d+l_a,N_j]
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, vfoptions.n_e,N_j,vfoptions);
+    PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, vfoptions.n_e, N_j, vfoptions);
 
     if isNaive
         PolicyaltValues=PolicyInd2Val_FHorz(Policyalt,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
         PolicyaltValuesPermute=permute(PolicyaltValues,[2,3,1,4]);
-        PolicyIndexesKronAlt=KronPolicyIndexes_FHorz_Case1(Policyalt, n_d, n_a, vfoptions.n_e,N_j,vfoptions);
+        PolicyIndexesKronAlt=KronPolicyIndexes_forValueFnFromPolicy(Policyalt, n_d, n_a, vfoptions.n_e, N_j, vfoptions);
         Valt=zeros(N_a,N_e,N_j,'gpuArray');
         Vtilde=zeros(N_a,N_e,N_j,'gpuArray');
     else
@@ -226,12 +226,12 @@ elseif N_z>0 && N_e==0
     PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
     l_daprime=size(PolicyValues,1);
     PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_z,l_d+l_a,N_j]
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j,vfoptions);
+    PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, n_z, N_j, vfoptions);
 
     if isNaive
         PolicyaltValues=PolicyInd2Val_FHorz(Policyalt,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
         PolicyaltValuesPermute=permute(PolicyaltValues,[2,3,1,4]);
-        PolicyIndexesKronAlt=KronPolicyIndexes_FHorz_Case1(Policyalt, n_d, n_a, n_z,N_j,vfoptions);
+        PolicyIndexesKronAlt=KronPolicyIndexes_forValueFnFromPolicy(Policyalt, n_d, n_a, n_z, N_j, vfoptions);
         Valt=zeros(N_a,N_z,N_j,'gpuArray');
         Vtilde=zeros(N_a,N_z,N_j,'gpuArray');
     else
@@ -311,12 +311,12 @@ elseif N_z>0 && N_e>0
     PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
     l_daprime=size(PolicyValues,1);
     PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); % [N_a,N_z*N_e,l_d+l_a,N_j]
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+    PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, [n_z,vfoptions.n_e], N_j, vfoptions);
 
     if isNaive
         PolicyaltValues=PolicyInd2Val_FHorz(Policyalt,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
         PolicyaltValuesPermute=permute(PolicyaltValues,[2,3,1,4]);
-        PolicyIndexesKronAlt=KronPolicyIndexes_FHorz_Case1_e(Policyalt, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+        PolicyIndexesKronAlt=KronPolicyIndexes_forValueFnFromPolicy(Policyalt, n_d, n_a, [n_z,vfoptions.n_e], N_j, vfoptions);
         Valt=zeros(N_a,N_z,N_e,N_j,'gpuArray');
         Vtilde=zeros(N_a,N_z,N_e,N_j,'gpuArray');
     else
@@ -354,11 +354,11 @@ elseif N_z>0 && N_e>0
                 EVnext=sum(EVnext,2);
 
                 if N_d==0
-                    optaprime=PolicyIndexesKron(1,:,:,:,jj);
-                    optaprime_alt=PolicyIndexesKronAlt(1,:,:,:,jj);
+                    optaprime=PolicyIndexesKron(1,:,:,jj);
+                    optaprime_alt=PolicyIndexesKronAlt(1,:,:,jj);
                 else
-                    optaprime=shiftdim(PolicyIndexesKron(2,:,:,:,jj),1);
-                    optaprime_alt=shiftdim(PolicyIndexesKronAlt(2,:,:,:,jj),1);
+                    optaprime=shiftdim(PolicyIndexesKron(2,:,:,jj),1);
+                    optaprime_alt=shiftdim(PolicyIndexesKronAlt(2,:,:,jj),1);
                 end
                 aprimez_index   =reshape(optaprime,    [N_a*N_z*N_e,1])+N_a*(zN_e_kron-1);
                 aprimez_index_alt=reshape(optaprime_alt,[N_a*N_z*N_e,1])+N_a*(zN_e_kron-1);
@@ -374,9 +374,9 @@ elseif N_z>0 && N_e>0
                 EVnext=sum(EVnext,2);
 
                 if N_d==0
-                    optaprime=PolicyIndexesKron(1,:,:,:,jj);
+                    optaprime=PolicyIndexesKron(1,:,:,jj);
                 else
-                    optaprime=shiftdim(PolicyIndexesKron(2,:,:,:,jj),1);
+                    optaprime=shiftdim(PolicyIndexesKron(2,:,:,jj),1);
                 end
 
                 aprimez_index=reshape(optaprime,[N_a*N_z*N_e,1])+N_a*(zN_e_kron-1);

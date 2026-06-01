@@ -91,11 +91,6 @@ elseif simoptions.experienceasset==1
 
     % Split decision variables into the standard ones and the one relevant to the experience asset
     n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
-    if isscalar(n_d)
-        ndvars=1; % just d2
-    else
-        ndvars=2; % includes d1
-    end
 
     % Split endogenous assets into the standard ones and the experience asset
     if isscalar(n_a)
@@ -134,7 +129,7 @@ elseif simoptions.experienceasset==1
         aprimeFnParamNames={};
     end
 
-    PolicyPath=KronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyPath, n_d, n_a, n_z,T,simoptions);
+    PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
 
     % Precompute
     Policy_a2prime=zeros(N_a,N_z,2,'gpuArray'); % the lower grid point
@@ -169,8 +164,8 @@ elseif simoptions.experienceasset==1
             if l_a1==0 % just experienceasset
                 Policy_aprime=Policy_a2prime;
             elseif l_a1==1 % one other asset, then experience asset
-                Policy_aprime(:,:,1)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*(Policy_a2prime(:,:,1)-1);
-                Policy_aprime(:,:,2)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*Policy_a2prime(:,:,1); % Note: upper grid point minus 1 is anyway just lower grid point
+                Policy_aprime(:,:,1)=reshape(Policy(l_d+1,:,:),[N_a,N_z,1])+n_a1*(Policy_a2prime(:,:,1)-1);
+                Policy_aprime(:,:,2)=reshape(Policy(l_d+1,:,:),[N_a,N_z,1])+n_a1*Policy_a2prime(:,:,1); % Note: upper grid point minus 1 is anyway just lower grid point
             end
             PolicyaprimezPath=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
 

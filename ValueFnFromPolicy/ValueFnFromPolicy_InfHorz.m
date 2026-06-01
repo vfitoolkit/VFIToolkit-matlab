@@ -55,7 +55,7 @@ FofPolicy=EvalFnOnAgentDist_Grid(ReturnFn, ReturnFnParamsCell,PolicyValuesPermut
 
 %% Now that we have FofPolicy, calculate V.
 DiscountFactorParamsVec=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames));
-Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, vfoptions);
+Policy=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, n_z, 0, vfoptions);
 
 pi_z_howards=repelem(pi_z,N_a,1);
 
@@ -87,13 +87,13 @@ elseif vfoptions.gridinterplayer==1
     if N_d==0
         alowerindex=reshape(Policy(1,:,:),[1,N_a*N_z]);
         aprimeindex=[alowerindex; alowerindex+1]; % [2,N_a*N_z]
-        PolicyProbs=reshape(ceil(Policy(end-1,:,:)),[1,N_a*N_z]); % end-1 because end is now L2flag
+        PolicyProbs=reshape(ceil(Policy(end,:,:)),[1,N_a*N_z]); % L2 (Kron drops L2flag)
         PolicyProbs=(PolicyProbs-1)/(vfoptions.ngridinterp+1); % prob of upper point
         PolicyProbs=[1-PolicyProbs; PolicyProbs]; % [2,N_a*N_z]
     else
         alowerindex=reshape(ceil(Policy(2,:,:)),[1,N_a*N_z]);
         aprimeindex=[alowerindex; alowerindex+1]; % [2,N_a*N_z]
-        PolicyProbs=reshape(ceil(Policy(end-1,:,:)),[1,N_a*N_z]); % end-1 because end is now L2flag
+        PolicyProbs=reshape(ceil(Policy(end,:,:)),[1,N_a*N_z]); % L2 (Kron drops L2flag)
         PolicyProbs=(PolicyProbs-1)/(vfoptions.ngridinterp+1); % prob of upper point
         PolicyProbs=[1-PolicyProbs; PolicyProbs]; % [2,N_a*N_z]
     end

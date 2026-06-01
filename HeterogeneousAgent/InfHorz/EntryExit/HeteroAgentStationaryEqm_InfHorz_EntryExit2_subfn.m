@@ -24,12 +24,27 @@ end
 [V,Policy]=ValueFnIter_InfHorz(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-PolicyKron=KronPolicyIndexes_InfHorz(Policy, n_d, n_a, n_z, vfoptions);
-if simoptions.parallel~=2 % To cover the case when using gpu to solve value fn, but cpu to solve agent dist
-    PolicyKron=gather(PolicyKron);
+if N_d==0
+    l_d=0;
+else
+    l_d=length(n_d);
 end
-StationaryDistKron=StationaryDist_InfHorz_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
-StationaryDistKron=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
+l_a=length(n_a);
+PolicyTemp=reshape(Policy,[l_d+l_a,N_a,N_z]);
+if l_a==1
+    Policy_aprime=reshape(PolicyTemp(l_d+1,:,:),[N_a,N_z]);
+elseif l_a==2
+    Policy_aprime=reshape(PolicyTemp(l_d+1,:,:)+n_a(1)*(PolicyTemp(l_d+2,:,:)-1),[N_a,N_z]);
+elseif l_a==3
+    Policy_aprime=reshape(PolicyTemp(l_d+1,:,:)+n_a(1)*(PolicyTemp(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyTemp(l_d+3,:,:)-1),[N_a,N_z]);
+elseif l_a==4
+    Policy_aprime=reshape(PolicyTemp(l_d+1,:,:)+n_a(1)*(PolicyTemp(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyTemp(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyTemp(l_d+4,:,:)-1),[N_a,N_z]);
+end
+if simoptions.parallel~=2 % To cover the case when using gpu to solve value fn, but cpu to solve agent dist
+    Policy_aprime=gather(Policy_aprime);
+end
+StationaryDistKron=StationaryDist_InfHorz_Simulation_raw(Policy_aprime,N_a,N_z,pi_z, simoptions);
+StationaryDistKron=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDistKron,Policy_aprime,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
 
 AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel,simoptions,EntryExitParamNames);
 

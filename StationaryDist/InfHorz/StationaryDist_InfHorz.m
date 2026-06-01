@@ -156,7 +156,22 @@ end
 
 %% Deal with entry and exit if that is being used
 if simoptions.agententryandexit==1 % If there is entry and exit use the command for that, otherwise just continue as usual.
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
+    if N_d==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    l_a=length(n_a);
+    Policy=reshape(Policy,[l_d+l_a,N_a,N_z]);
+    if l_a==1
+        Policy_aprime=reshape(Policy(l_d+1,:,:),[N_a,N_z]);
+    elseif l_a==2
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1),[N_a,N_z]);
+    elseif l_a==3
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1),[N_a,N_z]);
+    elseif l_a==4
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1),[N_a,N_z]);
+    end
     % It is assumed that the 'entry' distribution is suitable initial guess
     % for stationary distribution (rather than usual approach of simulating a few agents)
     if isfield(EntryExitParamNames,'CondlEntryDecisions')==1
@@ -167,11 +182,26 @@ if simoptions.agententryandexit==1 % If there is entry and exit use the command 
 
     StationaryDist.pdf=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
     StationaryDist.mass=Parameters.(EntryExitParamNames.MassOfNewAgents{1});
-    [StationaryDist]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDist,Parameters,EntryExitParamNames,Policy,N_d,N_a,N_z,pi_z,simoptions);
+    [StationaryDist]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDist,Parameters,EntryExitParamNames,Policy_aprime,N_a,N_z,pi_z,simoptions);
     StationaryDist.pdf=reshape(StationaryDist.pdf,[n_a,n_z]);
     return
 elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, but of trivial nature so mass of agent distribution is unaffected.
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
+    if N_d==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    l_a=length(n_a);
+    Policy=reshape(Policy,[l_d+l_a,N_a,N_z]);
+    if l_a==1
+        Policy_aprime=reshape(Policy(l_d+1,:,:),[N_a,N_z]);
+    elseif l_a==2
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1),[N_a,N_z]);
+    elseif l_a==3
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1),[N_a,N_z]);
+    elseif l_a==4
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1),[N_a,N_z]);
+    end
     % (This is used in some infinite horizon models to control the distribution; avoid, e.g., some people/firms saving 'too much')
     % To create initial guess use ('middle' of) the newborns distribution for seed point and do no burnin and short simulations (ignoring exit).
     EntryDist=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
@@ -180,15 +210,15 @@ elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, b
     simoptions.simperiods=10^3;
     simoptions.burnin=0;
     if simoptions.parallel<=2
-        StationaryDist=StationaryDist_InfHorz_Simulation_raw(Policy,N_d,N_a,N_z,pi_z, simoptions);
+        StationaryDist=StationaryDist_InfHorz_Simulation_raw(Policy_aprime,N_a,N_z,pi_z, simoptions);
     elseif simoptions.parallel>2
-        StationaryDist=sparse(StationaryDist_InfHorz_Simulation_raw(Policy,N_d,N_a,N_z,pi_z, simoptions));
+        StationaryDist=sparse(StationaryDist_InfHorz_Simulation_raw(Policy_aprime,N_a,N_z,pi_z, simoptions));
     end
     if simoptions.verbose==1
         fprintf('Note: simoptions.iterate=1 is imposed/required when using simoptions.agententryandexit=2 \n')
     end
     ExitProb=Parameters.(EntryExitParamNames.ProbOfDeath{1});
-    StationaryDist=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDist,Policy,N_d,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
+    StationaryDist=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDist,Policy_aprime,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
     StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return
 end
@@ -196,7 +226,22 @@ end
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
 if isfield(simoptions,'SemiEndogShockFn')
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
+    if N_d==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    l_a=length(n_a);
+    Policy=reshape(Policy,[l_d+l_a,N_a,N_z]);
+    if l_a==1
+        Policy_aprime=reshape(Policy(l_d+1,:,:),[N_a,N_z]);
+    elseif l_a==2
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1),[N_a,N_z]);
+    elseif l_a==3
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1),[N_a,N_z]);
+    elseif l_a==4
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1),[N_a,N_z]);
+    end
     if isa(simoptions.SemiEndogShockFn,'function_handle')==0
         pi_z_semiendog=simoptions.SemiEndogShockFn;
     else
@@ -222,7 +267,7 @@ if isfield(simoptions,'SemiEndogShockFn')
         end
     end
     if simoptions.eigenvector==1
-        StationaryDist=StationaryDist_InfHorz_LeftEigen_SemiEndog_raw(Policy,N_d,N_a,N_z,pi_z_semiendog,simoptions);
+        StationaryDist=StationaryDist_InfHorz_LeftEigen_SemiEndog_raw(Policy_aprime,N_a,N_z,pi_z_semiendog,simoptions);
         StationaryDist=reshape(StationaryDist,[n_a,n_z]);
         return
     else
@@ -303,32 +348,36 @@ end
 
 %% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
 if simoptions.iterate==1
+    if N_d==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    l_a=length(n_a);
+
     if N_z==0
         if N_e==0
-            Policy=KronPolicyIndexes_Case1_noz(Policy, n_d, n_a, simoptions);
+            N_ze=1;
         else
-            Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, simoptions.n_e, simoptions);
+            N_ze=N_e;
         end
     else
         if N_e==0
-            Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
+            N_ze=N_z;
         else
-            Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, [n_z,simoptions.n_e], simoptions);
+            N_ze=N_z*N_e;
         end
     end
+    Policy=reshape(Policy,[l_d+l_a,N_a,N_ze]);
 
-    if N_d==0
-        if N_z==0 && N_e==0
-            Policy_aprime=shiftdim(Policy(1,:),1);
-        else
-            Policy_aprime=shiftdim(Policy(1,:,:),1);
-        end
-    else
-        if N_z==0 && N_e==0
-            Policy_aprime=shiftdim(Policy(2,:),1);
-        else
-            Policy_aprime=shiftdim(Policy(2,:,:),1);
-        end
+    if l_a==1
+        Policy_aprime=reshape(Policy(l_d+1,:,:),[N_a,N_ze]);
+    elseif l_a==2
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1),[N_a,N_ze]);
+    elseif l_a==3
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1),[N_a,N_ze]);
+    elseif l_a==4
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1),[N_a,N_ze]);
     end
 
     if N_z==0
@@ -379,8 +428,23 @@ end
 
 %% The eigenvector method is never used as it seems to be both slower and often has problems (gives incorrect solutions, it struggles with markov chains in which chunks of the asymptotic distribution are zeros)
 if simoptions.eigenvector==1
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
-    StationaryDist=StationaryDist_InfHorz_LeftEigen_raw(gather(Policy),N_d,N_a,N_z,gather(pi_z),simoptions);
+    if N_d==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    l_a=length(n_a);
+    Policy=reshape(Policy,[l_d+l_a,N_a,N_z]);
+    if l_a==1
+        Policy_aprime=reshape(Policy(l_d+1,:,:),[N_a,N_z]);
+    elseif l_a==2
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1),[N_a,N_z]);
+    elseif l_a==3
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1),[N_a,N_z]);
+    elseif l_a==4
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1),[N_a,N_z]);
+    end
+    StationaryDist=StationaryDist_InfHorz_LeftEigen_raw(gather(Policy_aprime),N_a,N_z,gather(pi_z),simoptions);
     if isscalar(StationaryDist)
         % Has failed, so continue on below to simulation and iteration commands
         warning('Eigenvector method for simulating agent dist failed, going to use simulate/iterate instead')
@@ -396,8 +460,23 @@ end
 %% Simulate agent distribution, unless there is an initaldist guess for the agent distribution in which case use that
 if simoptions.iterate==0
     % Not something you want to do, just a demo of alternative way to compute
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
-    StationaryDist=StationaryDist_InfHorz_Simulation_raw(Policy,N_d,N_a,N_z,pi_z, simoptions);
+    if N_d==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    l_a=length(n_a);
+    Policy=reshape(Policy,[l_d+l_a,N_a,N_z]);
+    if l_a==1
+        Policy_aprime=reshape(Policy(l_d+1,:,:),[N_a,N_z]);
+    elseif l_a==2
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1),[N_a,N_z]);
+    elseif l_a==3
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1),[N_a,N_z]);
+    elseif l_a==4
+        Policy_aprime=reshape(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1),[N_a,N_z]);
+    end
+    StationaryDist=StationaryDist_InfHorz_Simulation_raw(Policy_aprime,N_a,N_z,pi_z, simoptions);
     StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return
 end

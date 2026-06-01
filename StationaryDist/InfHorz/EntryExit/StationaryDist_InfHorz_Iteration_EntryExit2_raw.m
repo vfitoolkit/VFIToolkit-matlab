@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDistKron,PolicyIndexesKron,N_d,N_a,N_z,pi_z, ExitProb, EntryDist, simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDistKron,Policy_aprime,N_a,N_z,pi_z, ExitProb, EntryDist, simoptions)
 %Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
@@ -9,11 +9,7 @@ function StationaryDistKron=StationaryDist_InfHorz_Iteration_EntryExit2_raw(Stat
 % Note that EntryDist is of size N_a*N_z-by-1.
 
 % First, get Gamma
-if N_d==0
-    optaprime=gather(reshape(PolicyIndexesKron,[1,N_a*N_z]));
-else
-    optaprime=gather(reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]));
-end
+optaprime=gather(reshape(Policy_aprime,[1,N_a*N_z]));
 ExitProb=gather(ExitProb);
 pi_z=sparse(gather(pi_z));
 

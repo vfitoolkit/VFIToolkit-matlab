@@ -34,7 +34,7 @@ if l_a==1
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,vfoptions,1);
         l_daprime=size(PolicyValues,1);
         PolicyValuesPermute=permute(PolicyValues,[2,1,3]); %[N_a,l_d+l_a,N_j]
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_noz(Policy, n_d, n_a, N_j, vfoptions); % shape (index_a1+1, N_a, N_j): index_a1 row is alower, end row is L2
+        PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, 1, N_j, vfoptions); % rows: alower (=index_a1), L2 (=end). L2flag dropped by Kron.
 
         alower=reshape(PolicyIndexesKron(index_a1,:,:),[N_a,N_j]);
         L2=reshape(PolicyIndexesKron(end,:,:),[N_a,N_j]);
@@ -68,7 +68,7 @@ if l_a==1
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1); % PolicyInd2Val auto-adds vfoptions.n_e
         l_daprime=size(PolicyValues,1);
         PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_e,l_d+l_a,N_j]
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % shape (index_a1+1, N_a, N_e, N_j)
+        PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % rows: alower (=index_a1), L2 (=end). L2flag dropped by Kron.
 
         alower=reshape(PolicyIndexesKron(index_a1,:,:,:),[N_a,N_e,N_j]);
         L2=reshape(PolicyIndexesKron(end,:,:,:),[N_a,N_e,N_j]);
@@ -105,7 +105,7 @@ if l_a==1
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
         l_daprime=size(PolicyValues,1);
         PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_z,l_d+l_a,N_j]
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j, vfoptions); % shape (index_a1+1, N_a, N_z, N_j)
+        PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, n_z, N_j, vfoptions); % rows: alower (=index_a1), L2 (=end). L2flag dropped by Kron.
 
         alower=reshape(PolicyIndexesKron(index_a1,:,:,:),[N_a,N_z,N_j]);
         L2=reshape(PolicyIndexesKron(end,:,:,:),[N_a,N_z,N_j]);
@@ -144,10 +144,10 @@ if l_a==1
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1); % PolicyInd2Val auto-adds vfoptions.n_e
         l_daprime=size(PolicyValues,1);
         PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); % [N_a,N_z*N_e,l_daprime,N_j] — keep shock dim combined for EvalFnOnAgentDist_Grid
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions); % shape (index_a1+1, N_a, N_z, N_e, N_j)
+        PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, [n_z,vfoptions.n_e], N_j, vfoptions); % rows: alower (=index_a1), L2 (=end). L2flag dropped by Kron.
 
-        alower=reshape(PolicyIndexesKron(index_a1,:,:,:,:),[N_a,N_z,N_e,N_j]);
-        L2=reshape(PolicyIndexesKron(end,:,:,:,:),[N_a,N_z,N_e,N_j]);
+        alower=reshape(PolicyIndexesKron(index_a1,:,:,:),[N_a,N_z,N_e,N_j]);
+        L2=reshape(PolicyIndexesKron(end,:,:,:),[N_a,N_z,N_e,N_j]);
         PolicyProbs=zeros(N_a,N_z,N_e,N_j,2,'gpuArray');
         PolicyProbs(:,:,:,:,2)=(L2-1)/(vfoptions.ngridinterp+1);
         PolicyProbs(:,:,:,:,1)=1-PolicyProbs(:,:,:,:,2);
@@ -191,7 +191,7 @@ elseif l_a==2
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,vfoptions,1);
         l_daprime=size(PolicyValues,1);
         PolicyValuesPermute=permute(PolicyValues,[2,1,3]); % [N_a,l_d+l_a,N_j]
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_noz(Policy, n_d, n_a, N_j, vfoptions); % GI2A: rows index_a1=a1mid, index_a1+1=a2prime, end=L2
+        PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, 1, N_j, vfoptions); % GI2A: rows index_a1=a1mid, index_a1+1=a2prime, end=L2. L2flag dropped by Kron.
 
         alower =reshape(PolicyIndexesKron(index_a1,  :,:),[N_a,N_j]); % a1 lower index, 1..N_a1
         a2prime=reshape(PolicyIndexesKron(index_a1+1,:,:),[N_a,N_j]); % a2prime index, 1..N_a2
@@ -229,7 +229,7 @@ elseif l_a==2
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1); % PolicyInd2Val auto-adds vfoptions.n_e
         l_daprime=size(PolicyValues,1);
         PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_e,l_d+l_a,N_j]
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % GI2A: rows index_a1=a1mid, index_a1+1=a2prime, end=L2
+        PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % GI2A: rows index_a1=a1mid, index_a1+1=a2prime, end=L2. L2flag dropped by Kron.
 
         alower =reshape(PolicyIndexesKron(index_a1,  :,:,:),[N_a,N_e,N_j]);
         a2prime=reshape(PolicyIndexesKron(index_a1+1,:,:,:),[N_a,N_e,N_j]);
@@ -268,7 +268,7 @@ elseif l_a==2
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
         l_daprime=size(PolicyValues,1);
         PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); %[N_a,N_z,l_d+l_a,N_j]
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j, vfoptions); % GI2A: rows index_a1=a1mid, index_a1+1=a2prime, end=L2
+        PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, n_z, N_j, vfoptions); % GI2A: rows index_a1=a1mid, index_a1+1=a2prime, end=L2. L2flag dropped by Kron.
 
         alower =reshape(PolicyIndexesKron(index_a1,  :,:,:),[N_a,N_z,N_j]);
         a2prime=reshape(PolicyIndexesKron(index_a1+1,:,:,:),[N_a,N_z,N_j]);
@@ -310,11 +310,11 @@ elseif l_a==2
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1); % PolicyInd2Val auto-adds vfoptions.n_e
         l_daprime=size(PolicyValues,1);
         PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); % [N_a,N_z*N_e,l_daprime,N_j]
-        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions); % GI2A: rows index_a1=a1mid, index_a1+1=a2prime, end=L2
+        PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, [n_z,vfoptions.n_e], N_j, vfoptions); % GI2A: rows index_a1=a1mid, index_a1+1=a2prime, end=L2. L2flag dropped by Kron.
 
-        alower =reshape(PolicyIndexesKron(index_a1,  :,:,:,:),[N_a,N_z,N_e,N_j]);
-        a2prime=reshape(PolicyIndexesKron(index_a1+1,:,:,:,:),[N_a,N_z,N_e,N_j]);
-        L2     =reshape(PolicyIndexesKron(end,       :,:,:,:),[N_a,N_z,N_e,N_j]);
+        alower =reshape(PolicyIndexesKron(index_a1,  :,:,:),[N_a,N_z,N_e,N_j]);
+        a2prime=reshape(PolicyIndexesKron(index_a1+1,:,:,:),[N_a,N_z,N_e,N_j]);
+        L2     =reshape(PolicyIndexesKron(end,       :,:,:),[N_a,N_z,N_e,N_j]);
         PolicyProbs=zeros(N_a,N_z,N_e,N_j,2,'gpuArray');
         PolicyProbs(:,:,:,:,2)=(L2-1)/(n2short+1);
         PolicyProbs(:,:,:,:,1)=1-PolicyProbs(:,:,:,:,2);
