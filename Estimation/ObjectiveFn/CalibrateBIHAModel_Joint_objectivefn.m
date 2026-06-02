@@ -230,6 +230,11 @@ elseif caliboptions.vectoroutput==2
     Obj=[Obj1; caliboptions.relativeGEweight*Obj2'];
 
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
+    if penalty>0
+        Obj=[Obj; sqrt(penalty)]; % append penalty residual: contributes 'penalty' to lsqnonlin's sum(Obj.^2)
+    else
+        Obj=[Obj; 0]; % penalty=0 (params inside cutoffs); append 0 to keep residual length constant
+    end
 end
 
 
