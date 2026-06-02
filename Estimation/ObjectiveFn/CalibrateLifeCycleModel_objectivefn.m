@@ -37,7 +37,7 @@ end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
@@ -67,9 +67,9 @@ if caliboptions.simulatemoments==0
 elseif caliboptions.simulatemoments==1
     % Do a panel data simulation.
     % Not used in calibration, but needed for estimation when bootstrapping standard errors
-    % Set random number generator seed to estimoptions.rngindex
-    rng(estimoptions.rngindex) % Often, each time the objectivefn is evaluated we want to be able to use same random number sequence
-    simPanelValues=SimPanelValues_FHorz_Case1(jequaloneDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid_J,pi_z_J,simoptions);
+    % Set random number generator seed to caliboptions.rngindex
+    rng(caliboptions.rngindex) % Often, each time the objectivefn is evaluated we want to be able to use same random number sequence
+    simPanelValues=SimPanelValues_FHorz_Case1(jequaloneDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions);
     % Compute the moments (same as CalibrateLifeCycleModel_objectivefn(), except the panel data versions)
     if usingallstats==1
         simoptions.whichstats=AllStats_whichstats;
