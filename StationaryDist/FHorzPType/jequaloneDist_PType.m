@@ -154,12 +154,10 @@ if ~isstruct(jequaloneDist)
             end
         else
             if prod(n_z)==0
-                if ndims(jequaloneDist)==length(n_a)
-                    if all(size(jequaloneDist)==n_a)
-                        jequaloneDist=reshape(jequaloneDist,[prod(n_a),1]);
-                        idiminj1dist=0;
-                    end
-                elseif all(size(jequaloneDist)==[n_a,N_i])
+                if numel(jequaloneDist)==prod(n_a)
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),1]);
+                    idiminj1dist=0;
+                elseif numel(jequaloneDist)==prod(n_a)*N_i
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),N_i]);
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
                     if outputstruct==1
@@ -199,7 +197,23 @@ end
 % If the initial agent distribution has ptype as a dimension, then use this to overwrite what the ptype masses are
 if idiminj1dist==1
     if simoptions.warnjequaloneptypeasdim==1
-        warning('jequaloneDist has ptype as a dimension, so using implicit masses for ptypes and ignoring value of Parameter PTypeDistParamNames')
+        % Only warn if the implicit slice masses actually disagree with the explicit PTypeDistParamNames.
+        if outputstruct==1
+            implicit_masses=zeros(N_i,1);
+            for ii=1:N_i
+                implicit_masses(ii)=sum(sum(sum(jequaloneDist.(Names_i{ii}))));
+            end
+        else
+            if ndims(jequaloneDist)==2
+                implicit_masses=sum(jequaloneDist,1)';
+            elseif ndims(jequaloneDist)==3
+                implicit_masses=shiftdim(sum(sum(jequaloneDist,1),2),2);
+            end
+        end
+        explicit_masses=Parameters.(PTypeDistParamNames{1});
+        if numel(explicit_masses)~=numel(implicit_masses) || max(abs(explicit_masses(:)-implicit_masses(:)))>10^(-12)
+            warning('jequaloneDist has ptype as a dimension, so using implicit masses for ptypes and ignoring value of Parameter PTypeDistParamNames')
+        end
     end
     if outputstruct==1
         ptypemass=zeros(N_i,1);
