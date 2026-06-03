@@ -5,10 +5,6 @@ N_a=prod(n_a);
 
 Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for midpoint, L2, L2flag
 
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_DC1_GI1_nod_noz_raw')
-end
-
 %%
 % Preallocate
 midpoints_jj=zeros(1,N_a,'gpuArray');

@@ -253,7 +253,9 @@ end
 %% Deal with Exotic preferences if need to do that.
 if strcmp(vfoptions.exoticpreferences,'None')
     % Just ignore and will then continue on.
-elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic') && vfoptions.experienceasset==0 && vfoptions.experienceassetu==0 && vfoptions.experienceassetz==0 && vfoptions.experienceassete==0 && vfoptions.experienceassetze==0
+    % QH composed with experienceasset variants is handled in the experience-asset
+    % block below, so it can reuse the n_d / n_a splitting there.
     [V,Policy, Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     if strcmp(vfoptions.quasi_hyperbolic,'Naive')
         varargout={V, Policy,Valt,Policyalt}; % Vtilde, Policytilde, V, Policy (the last two are the exponential discounter)
@@ -390,6 +392,14 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1 || vfoptions.ex
     elseif vfoptions.experienceassetz==1
         if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetzSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+            [V,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetz(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+                varargout={V, Policy, Valt, Policyalt};
+            else
+                varargout={V, Policy, Valt};
+            end
+            return
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAssetz(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end

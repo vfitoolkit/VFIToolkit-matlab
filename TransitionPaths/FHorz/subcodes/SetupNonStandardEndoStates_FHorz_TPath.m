@@ -58,6 +58,11 @@ if vfoptions.experienceasset==1
                     fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
                 end
             end
+            % ExpAsset only divide-and-conquers a1, so drop any trailing level1n entries
+            % the parent set for a2 (e.g., DC2A default level1n=[sqrt(n_a(1)), n_a(2)]).
+            if length(vfoptions.level1n)>length(n_a1)
+                vfoptions.level1n=vfoptions.level1n(1:length(n_a1));
+            end
             vfoptions.level1n=min(vfoptions.level1n,n_a1); % Otherwise causes errors
         end
     end

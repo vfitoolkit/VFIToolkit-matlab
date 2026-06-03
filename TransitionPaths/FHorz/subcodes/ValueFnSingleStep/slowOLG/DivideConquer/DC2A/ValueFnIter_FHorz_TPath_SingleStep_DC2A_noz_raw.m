@@ -7,10 +7,6 @@ N_a=prod(n_a);
 
 Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a
 
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_DC2A_noz_raw')
-end
-
 %%
 n_a1=n_a(1);
 n_a2=n_a(2:end);

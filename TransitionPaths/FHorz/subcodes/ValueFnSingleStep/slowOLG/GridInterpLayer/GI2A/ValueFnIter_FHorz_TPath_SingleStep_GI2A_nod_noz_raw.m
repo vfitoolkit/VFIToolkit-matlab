@@ -8,10 +8,6 @@ PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=
 % When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
 
 %%
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_GI2A_nod_noz_raw')
-end
-
 %%
 n_a1=n_a(1);
 n_a2=n_a(2:end);

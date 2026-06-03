@@ -42,11 +42,9 @@ if strcmp(vfoptions.exoticpreferences,'None')
                 error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')
             end
         end
-                    disp('HERE0')
         if vfoptions.gridinterplayer==0
             if isscalar(n_a)
                 if N_d==0
-                    disp('HERE1')
                     [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_nod_noz_raw(VKron, n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions);
                 else
                     [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_noz_raw(VKron, n_d, n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions);
@@ -61,7 +59,6 @@ if strcmp(vfoptions.exoticpreferences,'None')
         else % vfoptions.gridinterplayer==1
             if isscalar(n_a)
                 if N_d==0
-                    disp('HERE2')
                     [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_GI1_nod_noz_raw(VKron, n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions);
                 else
                     [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_GI1_noz_raw(VKron, n_d, n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions);
@@ -96,11 +93,14 @@ else
         if vfoptions.gridinterplayer==0
             PolicyKron=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_a,N_a,N_j,vfoptions);
         else
-            size(PolicyKron)
             PolicyKron=UnKronPolicyIndexes2_FHorz_noz(PolicyKron,n_a1,n_a2,N_a,N_j,vfoptions);
         end
     else
-        PolicyKron=UnKronPolicyIndexes3_FHorz_noz(PolicyKron,n_d,n_a1,n_a2,N_a,N_j,vfoptions);
+        if vfoptions.gridinterplayer==0
+            PolicyKron=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,[n_d,n_a],N_a,N_j,vfoptions);
+        else
+            PolicyKron=UnKronPolicyIndexes3_FHorz_noz(PolicyKron,n_d,n_a1,n_a2,N_a,N_j,vfoptions);
+        end
     end
 end
 

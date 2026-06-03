@@ -7,10 +7,6 @@ N_a=prod(n_a);
 Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim is (a1prime midpoint,a2prime,a1prime L2)
 PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_DC2A_GI2A_nod_noz_raw')
-end
-
 %%
 n_a1=n_a(1);
 n_a2=n_a(2:end);

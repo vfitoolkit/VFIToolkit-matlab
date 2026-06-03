@@ -6,8 +6,9 @@ function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_GI2A_noz_raw(V,n_
 N_d=prod(n_d);
 N_a=prod(n_a);
 
-% Policy: 4 channels (d, aprime_kron_lower, L2ind, L2flag), matching fastOLG_GI1_noz convention.
-Policy=zeros(4,N_a,N_j,'gpuArray');
+% Policy: 5 channels (d, a1prime_lower, a2prime, L2ind, L2flag) — separate a1/a2
+% channels so UnKronPolicyIndexes3_FHorz_noz can unpack via n_d/n_a1/n_a2 divisors.
+Policy=zeros(5,N_a,N_j,'gpuArray');
 
 %% a-split
 n_a1=n_a(1);
@@ -101,11 +102,12 @@ adjust=(maxindexL2a1<1+n2short+1);
 a1prime_lower=a1prime_midpoint-adjust;
 a1prime_L2  =adjust.*maxindexL2a1+(1-adjust).*(maxindexL2a1-n2short-1);
 
-%% Pack Policy (4 channels: d, aprime_kron_lower, L2ind, L2flag)
+%% Pack Policy (5 channels: d, a1prime_lower, a2prime, L2ind, L2flag)
 Policy(1,:,:)=maxindexL2d;
-Policy(2,:,:)=a1prime_lower+N_a1*(maxindexL2a2-1);
-Policy(3,:,:)=a1prime_L2;
-Policy(4,:,:)=PolicyL2flag;
+Policy(2,:,:)=a1prime_lower;
+Policy(3,:,:)=maxindexL2a2;
+Policy(4,:,:)=a1prime_L2;
+Policy(5,:,:)=PolicyL2flag;
 
 
 end

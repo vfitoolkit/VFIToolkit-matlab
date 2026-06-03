@@ -176,15 +176,24 @@ if transpathoptions.fastOLG==0
                     PolicyProbsPath=a2primeProbsPath;
                 end
             elseif simoptions.fastOLG==1
-                if simoptions.setup_experienceasset.N_a1==0
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
-                else
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
-                end
-                if exist('PolicyProbsPath','var')
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-                else
-                    PolicyProbsPath=a2primeProbsPath;
+                if simoptions.gridinterplayer==1
+                    if simoptions.setup_experienceasset.N_a1==0
+                        PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                    else
+                        PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    end
+                    if exist('PolicyProbsPath','var')
+                        PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                    else
+                        PolicyProbsPath=a2primeProbsPath;
+                    end
+                else % gridinterp==0: broadcast PolicyaprimejPath [X,(1,)T-1] against a2primeIndexesPath [X,2,T-1]
+                    PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1),1,T-1])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
+                    if exist('PolicyProbsPath','var')
+                        PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                    else
+                        PolicyProbsPath=a2primeProbsPath;
+                    end
                 end
             end
         end
@@ -245,15 +254,24 @@ if transpathoptions.fastOLG==0
                     PolicyProbsPath=a2primeProbsPath;
                 end
             elseif simoptions.fastOLG==1
-                if simoptions.setup_experienceasset.N_a1==0
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
-                else
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
-                end
-                if exist('PolicyProbsPath','var')
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-                else
-                    PolicyProbsPath=a2primeProbsPath;
+                if simoptions.gridinterplayer==1
+                    if simoptions.setup_experienceasset.N_a1==0
+                        PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                    else
+                        PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    end
+                    if exist('PolicyProbsPath','var')
+                        PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                    else
+                        PolicyProbsPath=a2primeProbsPath;
+                    end
+                else % gridinterp==0: broadcast PolicyaprimejzPath [X,(1,)T-1] against a2primeIndexesPath [X,2,T-1]
+                    PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z,1,T-1])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
+                    if exist('PolicyProbsPath','var')
+                        PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                    else
+                        PolicyProbsPath=a2primeProbsPath;
+                    end
                 end
             end
         end
@@ -314,15 +332,24 @@ if transpathoptions.fastOLG==0
                     PolicyProbsPath=a2primeProbsPath;
                 end
             elseif simoptions.fastOLG==1
-                if simoptions.setup_experienceasset.N_a1==0
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
-                else
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
-                end
-                if exist('PolicyProbsPath','var')
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-                else
-                    PolicyProbsPath=a2primeProbsPath;
+                if simoptions.gridinterplayer==1
+                    if simoptions.setup_experienceasset.N_a1==0
+                        PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                    else
+                        PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    end
+                    if exist('PolicyProbsPath','var')
+                        PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                    else
+                        PolicyProbsPath=a2primeProbsPath;
+                    end
+                else % gridinterp==0: broadcast PolicyaprimejPath [X,(1,)T-1] against a2primeIndexesPath [X,2,T-1]
+                    PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1)*N_e,1,T-1])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
+                    if exist('PolicyProbsPath','var')
+                        PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                    else
+                        PolicyProbsPath=a2primeProbsPath;
+                    end
                 end
             end
         end
@@ -383,15 +410,24 @@ if transpathoptions.fastOLG==0
                     PolicyProbsPath=a2primeProbsPath;
                 end
             elseif simoptions.fastOLG==1
-                if simoptions.setup_experienceasset.N_a1==0
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
-                else
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
-                end
-                if exist('PolicyProbsPath','var')
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-                else
-                    PolicyProbsPath=a2primeProbsPath;
+                if simoptions.gridinterplayer==1
+                    if simoptions.setup_experienceasset.N_a1==0
+                        PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                    else
+                        PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    end
+                    if exist('PolicyProbsPath','var')
+                        PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                    else
+                        PolicyProbsPath=a2primeProbsPath;
+                    end
+                else % gridinterp==0: broadcast PolicyaprimejzPath [X,(1,)T-1] against a2primeIndexesPath [X,2,T-1]
+                    PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z*N_e,1,T-1])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
+                    if exist('PolicyProbsPath','var')
+                        PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                    else
+                        PolicyProbsPath=a2primeProbsPath;
+                    end
                 end
             end
         end
@@ -438,15 +474,24 @@ elseif transpathoptions.fastOLG==1
         PolicyaprimejPath=gather(PolicyaprimejPath);
         clear PolicyIndexesPath L2index
         if simoptions.experienceasset==1
-            if simoptions.setup_experienceasset.N_a1==0
-                PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
-            else
-                PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
-            end
-            if exist('PolicyProbsPath','var')
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-            else
-                PolicyProbsPath=a2primeProbsPath;
+            if simoptions.gridinterplayer==1
+                if simoptions.setup_experienceasset.N_a1==0
+                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                else
+                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                end
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
+            else % gridinterp==0: broadcast PolicyaprimejPath [X,(1,)T-1] against a2primeIndexesPath [X,2,T-1]
+                PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1),1,T-1])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     elseif N_z>0 && N_e==0
@@ -487,15 +532,24 @@ elseif transpathoptions.fastOLG==1
         PolicyaprimejzPath=gather(PolicyaprimejzPath);
         clear PolicyIndexesPath L2index
         if simoptions.experienceasset==1
-            if simoptions.setup_experienceasset.N_a1==0
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
-            else
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
-            end
-            if exist('PolicyProbsPath','var')
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-            else
-                PolicyProbsPath=a2primeProbsPath;
+            if simoptions.gridinterplayer==1
+                if simoptions.setup_experienceasset.N_a1==0
+                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                else
+                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                end
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
+            else % gridinterp==0: broadcast PolicyaprimejzPath [X,(1,)T-1] against a2primeIndexesPath [X,2,T-1]
+                PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z,1,T-1])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     elseif N_z==0 && N_e>0
@@ -536,15 +590,24 @@ elseif transpathoptions.fastOLG==1
         PolicyaprimejPath=gather(PolicyaprimejPath);
         clear PolicyIndexesPath L2index
         if simoptions.experienceasset==1
-            if simoptions.setup_experienceasset.N_a1==0
-                PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
-            else
-                PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
-            end
-            if exist('PolicyProbsPath','var')
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-            else
-                PolicyProbsPath=a2primeProbsPath;
+            if simoptions.gridinterplayer==1
+                if simoptions.setup_experienceasset.N_a1==0
+                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                else
+                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                end
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
+            else % gridinterp==0: broadcast PolicyaprimejPath [X,(1,)T-1] against a2primeIndexesPath [X,2,T-1]
+                PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1)*N_e,1,T-1])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     elseif N_z>0 && N_e>0
@@ -585,15 +648,24 @@ elseif transpathoptions.fastOLG==1
         PolicyaprimejzPath=gather(PolicyaprimejzPath);
         clear PolicyIndexesPath L2index
         if simoptions.experienceasset==1
-            if simoptions.setup_experienceasset.N_a1==0
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
-            else
-                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
-            end
-            if exist('PolicyProbsPath','var')
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-            else
-                PolicyProbsPath=a2primeProbsPath;
+            if simoptions.gridinterplayer==1
+                if simoptions.setup_experienceasset.N_a1==0
+                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                else
+                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                end
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
+            else % gridinterp==0: broadcast PolicyaprimejzPath [X,(1,)T-1] against a2primeIndexesPath [X,2,T-1]
+                PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z*N_e,1,T-1])+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     end

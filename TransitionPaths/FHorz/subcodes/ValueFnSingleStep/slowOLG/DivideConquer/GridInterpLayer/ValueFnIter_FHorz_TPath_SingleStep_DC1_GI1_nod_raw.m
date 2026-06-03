@@ -7,10 +7,6 @@ N_z=prod(n_z);
 Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % first dim indexes the optimal choice for midpoint, L2, L2flag
 
 %%
-if N_z==1
-    vfoptions.lowmemory=1;
-end
-
 % Preallocate
 if vfoptions.lowmemory==0
     midpoints_jj=zeros(1,N_a,N_z,'gpuArray');

@@ -6,17 +6,19 @@ function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_GI2A_raw(V,n_d,n_
 % pi_z_J is (j,z',z) for fastOLG
 % z_gridvals_J is (j,N_z,l_z) for fastOLG
 
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_fastOLG_GI2A_raw')
-end
-
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-% Policy: 4 channels (d, aprime_kron_lower, L2ind, L2flag), matching the
-% fastOLG_GI1 convention so the downstream UnKron sees a uniform shape.
-Policy=zeros(4,N_a,N_j,N_z,'gpuArray');
+if vfoptions.lowmemory==1
+    special_n_z=ones(1,length(n_z));
+elseif vfoptions.lowmemory>=2
+    error('vfoptions.lowmemory>=2 not supported')
+end
+
+% Policy: 5 channels (d, a1prime_lower, a2prime, L2ind, L2flag) — separate a1/a2
+% channels so UnKronPolicyIndexes3_FHorz_z can unpack via n_d/n_a1/n_a2 divisors.
+Policy=zeros(5,N_a,N_j,N_z,'gpuArray');
 
 %% a-split
 n_a1=n_a(1);
@@ -76,64 +78,115 @@ EVinterp=interp1(a1_grid,EV,a1prime_grid); % (N_a1fine, N_a2, 1, 1, N_j, N_z)
 DiscountedEV=reshape(DiscountFactor_J,[1,1,1,1,N_j]).*EV;             % (N_a1, N_a2, 1, 1, N_j, N_z)
 DiscountedEVinterp=reshape(DiscountFactor_J,[1,1,1,1,N_j]).*EVinterp; % (N_a1fine, N_a2, 1, 1, N_j, N_z)
 
-%% Level 1: coarse search to get a1prime midpoint
-ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC2A(ReturnFn, n_d, n_z, N_j, d_gridvals, a1_grid, a2_grid, a1_grid, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix, 1);
-% Shape: (d, a1prime, a2prime, a1, a2, j, z)
+if vfoptions.lowmemory==0
+    %% Level 1: coarse search to get a1prime midpoint
+    ReturnMatrix=CreateReturnFnMatrix_fastOLG_Disc_DC2A(ReturnFn, n_d, n_z, N_j, d_gridvals, a1_grid, a2_grid, a1_grid, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix, 1);
+    % Shape: (d, a1prime, a2prime, a1, a2, j, z)
 
-entireRHS=ReturnMatrix+shiftdim(DiscountedEV,-1); % shiftdim(-1) puts a leading singleton-d; (1, N_a1, N_a2, 1, 1, N_j, N_z) broadcasts against ReturnMatrix
+    entireRHS=ReturnMatrix+shiftdim(DiscountedEV,-1); % shiftdim(-1) puts a leading singleton-d; (1, N_a1, N_a2, 1, 1, N_j, N_z) broadcasts against ReturnMatrix
 
-% argmax over a1prime: result shape (d, 1, a2prime, a1, a2, j, z)
-[~,maxindex]=max(entireRHS,[],2);
+    % argmax over a1prime: result shape (d, 1, a2prime, a1, a2, j, z)
+    [~,maxindex]=max(entireRHS,[],2);
 
-% Turn this into the 'midpoint'
-midpoint=max(min(maxindex,n_a1-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
-% midpoint is (n_d, 1, n_a2, n_a1, n_a2, N_j, n_z)
-a1primeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % a1prime points either side of midpoint
-% a1primeindexes shape: (n_d, n2long, n_a2, n_a1, n_a2, N_j, n_z)
+    % Turn this into the 'midpoint'
+    midpoint=max(min(maxindex,n_a1-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+    % midpoint is (n_d, 1, n_a2, n_a1, n_a2, N_j, n_z)
+    a1primeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % a1prime points either side of midpoint
+    % a1primeindexes shape: (n_d, n2long, n_a2, n_a1, n_a2, N_j, n_z)
 
-%% Level 2: fine search across the n2long neighbourhood
-ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC2A(ReturnFn, n_d, n_z, N_j, d_gridvals, a1prime_grid(a1primeindexes), a2_grid, a1_grid, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix, 2);
-% Shape: (N_d*n2long*N_a2, N_a, N_j, N_z)
+    %% Level 2: fine search across the n2long neighbourhood
+    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC2A(ReturnFn, n_d, n_z, N_j, d_gridvals, a1prime_grid(a1primeindexes), a2_grid, a1_grid, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix, 2);
+    % Shape: (N_d*n2long*N_a2, N_a, N_j, N_z)
 
-% Indices into EVinterp: EVinterp is (N_a1fine, N_a2, 1, 1, N_j, N_z) but the d-broadcast is implicit.
-aprime=a1primeindexes+N_a1fine*a2ind+N_a1fine*N_a2*jind+N_a1fine*N_a2*N_j*zBind;
-entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprime),[N_d*n2long*N_a2,N_a,N_j,N_z]);
+    % Indices into EVinterp: EVinterp is (N_a1fine, N_a2, 1, 1, N_j, N_z) but the d-broadcast is implicit.
+    aprime=a1primeindexes+N_a1fine*a2ind+N_a1fine*N_a2*jind+N_a1fine*N_a2*N_j*zBind;
+    entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprime),[N_d*n2long*N_a2,N_a,N_j,N_z]);
 
-[Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
-% maxindexL2 indexes into (d, a1prime fine, a2prime) within the n2long window
-maxindexL2d=rem(maxindexL2-1,N_d)+1;
-maxindexL2a=ceil(maxindexL2/N_d);
-maxindexL2a1=rem(maxindexL2a-1,n2long)+1;
-maxindexL2a2=ceil(maxindexL2a/n2long);
+    [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+    % maxindexL2 indexes into (d, a1prime fine, a2prime) within the n2long window
+    maxindexL2d=rem(maxindexL2-1,N_d)+1;
+    maxindexL2a=ceil(maxindexL2/N_d);
+    maxindexL2a1=rem(maxindexL2a-1,n2long)+1;
+    maxindexL2a2=ceil(maxindexL2a/n2long);
 
-V=reshape(Vtempii,[N_a*N_j,N_z]);
+    V=reshape(Vtempii,[N_a*N_j,N_z]);
 
-% Map back to midpoint per (a,j,z): linear index into midpoint(d,1,a2prime,a1,a2,j,z) treated as (d,a2prime,a,j,z)
-midpoint_pick=maxindexL2d+N_d*(maxindexL2a2-1)+N_d*N_a2*a12ind+N_d*N_a2*N_a*jBind+N_d*N_a2*N_a*N_j*zind;
-% midpoint_pick shape: (1, N_a, N_j, N_z)
-a1prime_midpoint=midpoint(midpoint_pick); % (1, N_a, N_j, N_z)
+    % Map back to midpoint per (a,j,z): linear index into midpoint(d,1,a2prime,a1,a2,j,z) treated as (d,a2prime,a,j,z)
+    midpoint_pick=maxindexL2d+N_d*(maxindexL2a2-1)+N_d*N_a2*a12ind+N_d*N_a2*N_a*jBind+N_d*N_a2*N_a*N_j*zind;
+    % midpoint_pick shape: (1, N_a, N_j, N_z)
+    a1prime_midpoint=midpoint(midpoint_pick); % (1, N_a, N_j, N_z)
 
-% L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d, a2prime)
-linidx_lower = maxindexL2d                  + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aBind + N_d*n2long*N_a2*N_a*jBind + N_d*n2long*N_a2*N_a*N_j*zind;
-linidx_upper = maxindexL2d + N_d*(n2long-1) + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aBind + N_d*n2long*N_a2*N_a*jBind + N_d*n2long*N_a2*N_a*N_j*zind;
-isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
-isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
-inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
-inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
-PolicyL2flag  = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper); % shape (1, N_a, N_j, N_z)
+    % L2 flag: detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d, a2prime)
+    linidx_lower = maxindexL2d                  + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aBind + N_d*n2long*N_a2*N_a*jBind + N_d*n2long*N_a2*N_a*N_j*zind;
+    linidx_upper = maxindexL2d + N_d*(n2long-1) + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aBind + N_d*n2long*N_a2*N_a*jBind + N_d*n2long*N_a2*N_a*N_j*zind;
+    isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+    inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+    PolicyL2flag  = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper); % shape (1, N_a, N_j, N_z)
 
-%% Fold a1prime midpoint and L2ind into the same 'lower grid point + offset' convention as fastOLG_GI1
-% Currently the midpoint is the inner-point label and maxindexL2a1 indexes the n2long fine window.
-% Switch a1prime midpoint to 'lower coarse a1 grid point' and remap maxindexL2a1 to 1..(n2short+2) counting up from the lower point.
-adjust=(maxindexL2a1<1+n2short+1); % if second layer is choosing below midpoint
-a1prime_lower=a1prime_midpoint-adjust;                                      % lower coarse a1 grid point (1..N_a1)
-a1prime_L2  =adjust.*maxindexL2a1+(1-adjust).*(maxindexL2a1-n2short-1);     % 1 (lower) to n2short+2 (upper)
+    %% Fold a1prime midpoint and L2ind into the same 'lower grid point + offset' convention as fastOLG_GI1
+    % Currently the midpoint is the inner-point label and maxindexL2a1 indexes the n2long fine window.
+    % Switch a1prime midpoint to 'lower coarse a1 grid point' and remap maxindexL2a1 to 1..(n2short+2) counting up from the lower point.
+    adjust=(maxindexL2a1<1+n2short+1); % if second layer is choosing below midpoint
+    a1prime_lower=a1prime_midpoint-adjust;                                      % lower coarse a1 grid point (1..N_a1)
+    a1prime_L2  =adjust.*maxindexL2a1+(1-adjust).*(maxindexL2a1-n2short-1);     % 1 (lower) to n2short+2 (upper)
 
-%% Pack Policy into the 4-channel form (d, aprime, L2, L2flag) expected by UnKronPolicyIndexes2_FHorz_z with gridinterplayer==1
-Policy(1,:,:,:)=maxindexL2d; % d
-Policy(2,:,:,:)=a1prime_lower+N_a1*(maxindexL2a2-1); % aprime
-Policy(3,:,:,:)=a1prime_L2; % a1primeL2
-Policy(4,:,:,:)=PolicyL2flag; % L2flag
+    %% Pack Policy into the 5-channel form (d, a1prime_lower, a2prime, L2, L2flag) expected by UnKronPolicyIndexes3_FHorz_z with gridinterplayer==1
+    Policy(1,:,:,:)=maxindexL2d; % d
+    Policy(2,:,:,:)=a1prime_lower; % a1prime (lower coarse grid point)
+    Policy(3,:,:,:)=maxindexL2a2; % a2prime
+    Policy(4,:,:,:)=a1prime_L2; % a1primeL2
+    Policy(5,:,:,:)=PolicyL2flag; % L2flag
+elseif vfoptions.lowmemory==1
+    V=zeros(N_a*N_j,N_z,'gpuArray');
+    for z_c=1:N_z
+        z_vals=z_gridvals_J(1,1,1,1,1,:,z_c,:); % [1,1,1,1,1,N_j,1,l_z]
+        DiscountedEV_z=DiscountedEV(:,:,:,:,:,z_c);
+        DiscountedEVinterp_z=DiscountedEVinterp(:,:,:,:,:,z_c);
+
+        ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_Disc_DC2A(ReturnFn, n_d, special_n_z, N_j, d_gridvals, a1_grid, a2_grid, a1_grid, a2_grid, z_vals, ReturnFnParamsAgeMatrix, 1);
+        entireRHS_z=ReturnMatrix_z+shiftdim(DiscountedEV_z,-1);
+        [~,maxindex]=max(entireRHS_z,[],2);
+        midpoint=max(min(maxindex,n_a1-1),2);
+        % midpoint is (n_d, 1, n_a2, n_a1, n_a2, N_j)
+        a1primeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short);
+        % a1primeindexes shape: (n_d, n2long, n_a2, n_a1, n_a2, N_j)
+
+        ReturnMatrix_ii_z=CreateReturnFnMatrix_fastOLG_Disc_DC2A(ReturnFn, n_d, special_n_z, N_j, d_gridvals, a1prime_grid(a1primeindexes), a2_grid, a1_grid, a2_grid, z_vals, ReturnFnParamsAgeMatrix, 2);
+        aprime=a1primeindexes+N_a1fine*a2ind+N_a1fine*N_a2*jind;
+        entireRHS_ii_z=ReturnMatrix_ii_z+reshape(DiscountedEVinterp_z(aprime),[N_d*n2long*N_a2,N_a,N_j]);
+
+        [Vtempii_z,maxindexL2]=max(entireRHS_ii_z,[],1);
+        maxindexL2d=rem(maxindexL2-1,N_d)+1;
+        maxindexL2a=ceil(maxindexL2/N_d);
+        maxindexL2a1=rem(maxindexL2a-1,n2long)+1;
+        maxindexL2a2=ceil(maxindexL2a/n2long);
+
+        V(:,z_c)=reshape(Vtempii_z,[N_a*N_j,1]);
+
+        midpoint_pick=maxindexL2d+N_d*(maxindexL2a2-1)+N_d*N_a2*a12ind+N_d*N_a2*N_a*jBind;
+        a1prime_midpoint=midpoint(midpoint_pick); % (1, N_a, N_j)
+
+        linidx_lower = maxindexL2d                  + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aBind + N_d*n2long*N_a2*N_a*jBind;
+        linidx_upper = maxindexL2d + N_d*(n2long-1) + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aBind + N_d*n2long*N_a2*N_a*jBind;
+        isInfLower    = (ReturnMatrix_ii_z(linidx_lower) == -Inf);
+        isInfUpper    = (ReturnMatrix_ii_z(linidx_upper) == -Inf);
+        inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
+        inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
+        PolicyL2flag  = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
+        adjust=(maxindexL2a1<1+n2short+1);
+        a1prime_lower=a1prime_midpoint-adjust;
+        a1prime_L2  =adjust.*maxindexL2a1+(1-adjust).*(maxindexL2a1-n2short-1);
+
+        Policy(1,:,:,z_c)=maxindexL2d;
+        Policy(2,:,:,z_c)=a1prime_lower;
+        Policy(3,:,:,z_c)=maxindexL2a2;
+        Policy(4,:,:,z_c)=a1prime_L2;
+        Policy(5,:,:,z_c)=PolicyL2flag;
+    end
+end
 
 
 end

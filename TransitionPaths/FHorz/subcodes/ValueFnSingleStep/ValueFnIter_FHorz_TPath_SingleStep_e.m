@@ -90,7 +90,11 @@ else
             PolicyKron=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron,n_a1,n_a2,N_a,N_z,N_e,N_j,vfoptions);
         end
     else
-        PolicyKron=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron,n_d,n_a1,n_a2,N_a,N_z,N_e,N_j,vfoptions);
+        if vfoptions.gridinterplayer==0
+            PolicyKron=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron,[n_d,n_a],N_a,N_z,N_e,N_j,vfoptions);
+        else
+            PolicyKron=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron,n_d,n_a1,n_a2,N_a,N_z,N_e,N_j,vfoptions);
+        end
     end
 end
 

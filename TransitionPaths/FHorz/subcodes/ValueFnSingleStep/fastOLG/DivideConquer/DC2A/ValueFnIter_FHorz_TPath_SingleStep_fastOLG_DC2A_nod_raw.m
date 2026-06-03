@@ -58,7 +58,7 @@ elseif vfoptions.EVpre==1
 end
 V=zeros(N_a,N_j,N_z,'gpuArray'); % preallocate: V is over (a,j,z)
 
-DiscountedEV=reshape(DiscountFactor_J,[1,1,1,N_j]).*EV; % [N_a1,N_a2,1,1,N_j,N_z]
+DiscountedEV=reshape(DiscountFactor_J,[1,1,1,1,N_j]).*EV; % [N_a1,N_a2,1,1,N_j,N_z]
 
 
 if vfoptions.lowmemory==0
