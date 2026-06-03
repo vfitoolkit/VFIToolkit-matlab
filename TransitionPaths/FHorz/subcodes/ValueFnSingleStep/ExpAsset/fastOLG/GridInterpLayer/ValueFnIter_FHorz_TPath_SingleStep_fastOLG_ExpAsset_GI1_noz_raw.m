@@ -42,7 +42,8 @@ if vfoptions.EVpre==0
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2,N_j]
 
-    EVpre=[V(N_a+1:end); zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EVpre=[V(:,2:N_j), zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    % EVpre is (aprime,j)
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-1
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1)),[N_d2*N_a1,N_a2,N_j]);
@@ -81,14 +82,14 @@ elseif vfoptions.EVpre==1
 end
 
 
-DiscountedEV=DiscountFactorParamsVec.*reshape(EV,[N_d2,N_a1,1,N_a2,N_j]);
+DiscountedEV=reshape(DiscountFactorParamsVec,[1,1,1,1,N_j]).*reshape(EV,[N_d2,N_a1,1,N_a2,N_j]);
 % Interpolate EV over a1prime_grid
 DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);   % [N_d2,N_a1prime,1,N_a2,N_j]
 
 ReturnMatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_noz(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
 % fastOLG: ReturnMatrix is [N_d,N_a1prime,N_a1,N_a2,N_j]
 
-entireRHS=ReturnMatrix+DiscountedEV;
+entireRHS=ReturnMatrix+repelem(DiscountedEV,N_d1,1,1,1,1);
 
 % First, we want a1prime conditional on (d,1,a1,a2,j)
 [~,maxindex1]=max(entireRHS,[],2);
@@ -111,8 +112,8 @@ Policy3(2,:,:)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
 Policy3(3,:,:)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
 % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
 L2offset=ceil(maxindexL2/N_d);
-linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j])                  +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2);
-linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j])+N_d*(n2long-1)   +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2);
+linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j])                  +N_d*n2long*gpuArray(0:1:N_a-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-1);
+linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j])+N_d*(n2long-1)   +N_d*n2long*gpuArray(0:1:N_a-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-1);
 isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
 isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
 inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);

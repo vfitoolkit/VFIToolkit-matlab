@@ -112,7 +112,7 @@ if fastOLG==0 % (a,z,j)
     % Note: the relevant d for experience asset is just the 'whichisdforexpasset' d (this is typically just the last if using just experience asset, but
     % needs to be something else, e.g., when combining experience asset with semi-exogenous state)
     %% expasset: aprime(d,a2)
-    % Removed: a2vals=a2vals.*ones(1,1,1,'gpuArray'); % was here to fool matlab which otherwise threw an error; restore this line if functionality breaks
+    a2vals=a2vals.*ones(1,1,1,'gpuArray'); % force gpuArray dispatch + pad to 3D so [N_a,1,1] broadcasts against d1vals [N_a,N_j] and ParamCell{ii} [1,N_j,1]
     if l_dexp==1
         a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, ParamCell{:});
     elseif l_dexp==2
@@ -220,7 +220,7 @@ elseif fastOLG==1 % (a,j,z)
     % Note: the relevant d for experience asset is just the 'whichisdforexpasset' d (this is typically just the last if using just experience asset, but
     % needs to be something else, e.g., when combining experience asset with semi-exogenous state)
     %% expasset: aprime(d,a2)
-    % Removed: a2vals=a2vals.*ones(1,1,1,'gpuArray'); % was here to fool matlab which otherwise threw an error; restore this line if functionality breaks
+    a2vals=a2vals.*ones(1,1,1,'gpuArray'); % force gpuArray dispatch + pad to 3D so [N_a,1,1] broadcasts against d1vals [N_a,N_j] and ParamCell{ii} [1,N_j,1]
     if l_dexp==1
         a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, ParamCell{:});
     elseif l_dexp==2

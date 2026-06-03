@@ -145,7 +145,7 @@ if vfoptions.lowmemory==0
             dind=(rem(maxindex-1,N_d)+1);
             allind=reshape(dind,[1,1,level1iidiff(ii),N_a2,N_j,N_z])+N_d*a2ind+N_d*N_a2*jind+N_d*N_a2*N_j*zind; % loweredge is n_d-by-1-by-1-by-n_a2-by-N_j-by-n_z
             allind=reshape(allind,[1,level1iidiff(ii)*N_a2,N_j,N_z]);
-            Policy(curraindex,:,:)=shiftdim(maxindex+N_d*loweredge(allind)-1,1); % loweredge
+            Policy(curraindex,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge
         end
     end
 
@@ -205,7 +205,7 @@ elseif vfoptions.lowmemory==1
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=reshape(dind,[1,1,level1iidiff(ii),N_a2,N_j])+N_d*a2ind+N_d*N_a2*jind; % loweredge is n_d-by-1-by-1-by-n_a2-by-N_j
                 allind=reshape(allind,[1,level1iidiff(ii)*N_a2,N_j]);
-                Policy(curraindex,:,z_c)=shiftdim(maxindex+N_d*loweredge(allind)-1,1); % loweredge
+                Policy(curraindex,:,z_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge
             end
         end
     end

@@ -3,6 +3,7 @@ function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_noz_
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
+N_d=N_d1*N_d2;
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 N_a=N_a1*N_a2;
@@ -12,7 +13,7 @@ N_a=N_a1*N_a2;
 level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
-d2ind=repmat(gpuArray(1:1:N_d2)',N_d1,1);
+d2ind=repelem(gpuArray(1:1:N_d2)',N_d1,1); % [N_d,1]; maps full d-index to d2-component (d_gridvals has d1 fastest)
 a2ind=shiftdim(gpuArray(0:1:N_a2-1),-2);
 jind=shiftdim(gpuArray(0:1:N_j-1),-3);
 
@@ -36,7 +37,8 @@ if vfoptions.EVpre==0
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2,N_j]
 
-    EVpre=[V(N_a+1:end); zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EVpre=[V(:,2:N_j), zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    % EVpre is (aprime,j)
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-1
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1)),[N_d2*N_a1,N_a2,N_j]);
@@ -74,7 +76,7 @@ elseif vfoptions.EVpre==1
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j]); % (aprime,1,j), 2nd dim will be autofilled with a
 end
 
-DiscountedEV=DiscountFactorParamsVec.*reshape(EV,[N_d2,N_a1,1,N_a2,N_j]); % (d2,a1prime,1,a2,j,z)
+DiscountedEV=reshape(DiscountFactorParamsVec,[1,1,1,1,N_j]).*reshape(EV,[N_d2,N_a1,1,N_a2,N_j]); % (d2,a1prime,1,a2,j)
 % Note: does not contain d1
 
 V=zeros(N_a,N_j,'gpuArray');
@@ -82,8 +84,10 @@ Policy=zeros(N_a,N_j,'gpuArray');
 
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_noz(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
+% Refine=0 → ReturnMatrix_ii is already [N_d,N_a1prime,N_a1,N_a2,N_j] (the shape we want entireRHS_ii in).
+% DiscountedEV is [N_d2,N_a1prime,1,N_a2,N_j] (no d1); use repelem to broadcast d2 across d1 so dim 1 reaches N_d.
 
-entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
+entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV,N_d1,1,1,1,1);
 
 % First, we want a1prime conditional on (d,1,a)
 [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -128,7 +132,7 @@ for ii=1:(vfoptions.level1n-1)
         dind=(rem(maxindex-1,N_d)+1);
         allind=reshape(dind,[1,1,level1iidiff(ii),N_a2,N_j])+N_d*a2ind+N_d*N_a2*jind; % loweredge is n_d-by-1-by-1-by-n_a2-by-N_j
         allind=reshape(allind,[1,level1iidiff(ii)*N_a2,N_j]);
-        Policy(curraindex,:,:)=shiftdim(maxindex+N_d*loweredge(allind)-1,1); % loweredge
+        Policy(curraindex,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge
     end
 end
 
