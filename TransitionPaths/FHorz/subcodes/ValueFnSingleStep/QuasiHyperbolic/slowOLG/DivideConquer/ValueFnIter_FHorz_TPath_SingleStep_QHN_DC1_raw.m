@@ -11,10 +11,6 @@ Policyalt=zeros(N_a,N_z,N_j,'gpuArray'); % exponential discounter optimal choice
 Vtilde=zeros(N_a,N_z,N_j,'gpuArray'); % agent's-perspective value (beta0*beta-discounted)
 
 %%
-if N_z==1
-    vfoptions.lowmemory=1;
-end
-
 % n-Monotonicity
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;

@@ -9,10 +9,6 @@ Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % [midpoint; aprimeL2ind; L2flag]
 Vhat=zeros(N_a,N_z,N_j,'gpuArray');
 
 %%
-if N_z==1
-    vfoptions.lowmemory=1;
-end
-
 if vfoptions.lowmemory==0
     midpoints_jj=zeros(1,N_a,N_z,'gpuArray');
 elseif vfoptions.lowmemory==1

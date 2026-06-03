@@ -170,19 +170,15 @@ end
 
 %%
 if N_d==0
-    l_daprime=length(n_a)+(vfoptions.gridinterplayer>0);
+    l_daprime=length(n_a);
 else
-    l_daprime=length(n_d)+length(n_a)+(vfoptions.gridinterplayer>0);
+    l_daprime=length(n_d)+length(n_a);
 end
 if vfoptions.experienceasset==1
     l_daprime=l_daprime-1;
 end
 
-if vfoptions.gridinterplayer==0
-    PolicyIndexesPath=zeros(l_daprime,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
-elseif vfoptions.gridinterplayer==1
-    PolicyIndexesPath=zeros(l_daprime,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
-end
+PolicyIndexesPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
 PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_z]);
 
 

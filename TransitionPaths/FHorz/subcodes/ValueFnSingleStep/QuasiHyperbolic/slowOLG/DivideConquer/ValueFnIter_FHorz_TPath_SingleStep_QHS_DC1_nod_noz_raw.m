@@ -7,10 +7,6 @@ N_a=prod(n_a);
 Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a
 Vhat=zeros(N_a,N_j,'gpuArray'); % agent's-perspective value (beta0*beta-discounted), before the Vunderbar transform
 
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_QHS_DC1_nod_noz_raw')
-end
-
 % n-Monotonicity
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 % level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;

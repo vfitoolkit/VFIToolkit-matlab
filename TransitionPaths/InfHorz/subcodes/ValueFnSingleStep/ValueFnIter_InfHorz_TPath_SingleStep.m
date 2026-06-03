@@ -51,11 +51,9 @@ if vfoptions.gridinterplayer==0
 else % vfoptions.gridinterplayer==1
     if vfoptions.divideandconquer==0
         if N_d==0
-            error('Have not yet implemented combo of vfoptions.gridinterplayer=1 with vfoptions.divideandconquer=0')
-            % [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            error('Have not yet implemented combo of vfoptions.gridinterplayer=1 with vfoptions.divideandconquer=0')
-            % [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     elseif vfoptions.divideandconquer==1
         if isscalar(n_a)

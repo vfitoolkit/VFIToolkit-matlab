@@ -315,8 +315,14 @@ if isfield(vfoptions,'exoticpreferences')
     if strcmp(vfoptions.exoticpreferences,'None')
         % Just ignore and will then continue on.
     elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-        [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-        varargout={V,Policy};
+        isNaiveQH=~isfield(vfoptions,'quasi_hyperbolic') || strcmp(vfoptions.quasi_hyperbolic,'Naive');
+        if isNaiveQH
+            [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+            varargout={V,Policy,Valt,Policyalt};
+        else
+            [V, Policy, Valt]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+            varargout={V,Policy,Valt};
+        end
         return
     elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
         [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
@@ -547,7 +553,7 @@ if vfoptions.outputkron==0
     if N_d==0
         Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
     else
-        Policy=UnKronPolicyIndexes1_z(Policy, [n_d,n_a], n_a, n_z, vfoptions);
+        Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
     end
 else
     Policy=reshape(Policy,[1,N_a,N_z]);

@@ -11,10 +11,6 @@ PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray');
 Vhat=zeros(N_a,N_j,'gpuArray');
 
 %%
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_QHS_GI1_noz_raw')
-end
-
 aind=gpuArray(0:1:N_a-1);
 
 % Grid interpolation

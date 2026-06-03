@@ -9,10 +9,6 @@ Policy=zeros(3,N_a,N_j,'gpuArray'); % [midpoint; aprimeL2ind; L2flag]
 Policyalt=zeros(3,N_a,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_j,'gpuArray');
 
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory>0 not supported for ValueFnIter_FHorz_TPath_SingleStep_QHN_DC1_GI1_nod_noz_raw')
-end
-
 %%
 midpoints_jj=zeros(1,N_a,'gpuArray');
 

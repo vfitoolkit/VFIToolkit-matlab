@@ -12,10 +12,6 @@ Policyalt=zeros(4,N_a,N_z,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_z,N_j,'gpuArray');
 
 %%
-if N_z==1
-    vfoptions.lowmemory=1;
-end
-
 % Preallocate
 if vfoptions.lowmemory==0
     midpoints_jj=zeros(N_d,1,N_a,N_z,'gpuArray');

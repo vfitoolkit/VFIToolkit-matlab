@@ -103,7 +103,7 @@ else
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta;
 
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_z]);
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z]);
 
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
@@ -193,7 +193,7 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta;
 
-    EV=reshape(Vunderbar(:,:,jj+1),[N_a,N_semiz,N_z]); % Sophisticated uses Vunderbar for continuation
+    EV=Vunderbar(:,:,jj+1); % Sophisticated uses Vunderbar for continuation
 
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
