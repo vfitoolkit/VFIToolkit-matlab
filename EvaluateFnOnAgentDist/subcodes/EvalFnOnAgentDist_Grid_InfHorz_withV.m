@@ -1,4 +1,4 @@
-function Values=EvalFnOnAgentDist_Grid_Case1_withV(V,FnToEvaluate,FnToEvaluateParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel)
+function Values=EvalFnOnAgentDist_Grid_InfHorz_withV(V,FnToEvaluate,FnToEvaluateParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel)
 
 if Parallel~=2
     fprintf('Need to use EvalFnOnAgentDist_Grid_Case1_cpu instead of EvalFnOnAgentDist_Grid_Case1 \n')
@@ -287,7 +287,7 @@ if all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
     end
 end
 
-V=shiftdim(V,l_d+l_a); % Shift be d and aprime
+% V is already (n_a,n_z) for InfHorz Case1 — no d/aprime leading dims to shift past.
 
 if l_d==0
     if l_a==1

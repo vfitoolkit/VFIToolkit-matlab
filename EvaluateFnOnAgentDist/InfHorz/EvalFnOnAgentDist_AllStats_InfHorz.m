@@ -61,15 +61,22 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-l_daprime=size(Policy,1);
-if simoptions.gridinterplayer==1
-    l_daprime=l_daprime-1;
-end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals (folding e and semiz into z if appropriate)
 [n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 
 AllStats=struct();
+
+%% I want to do some things now, so that they can be used in setting up conditional restrictions
+StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
+
+% Make sure things are on the gpu (they should already be)
+StationaryDistVec=gpuArray(StationaryDistVec);
+Policy=gpuArray(Policy);
+% Switch to PolicyValues, and permute
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -90,16 +97,6 @@ if isstruct(FnsToEvaluate)
 else
     FnsToEvaluateStruct=0;
 end
-
-%% I want to do some things now, so that they can be used in setting up conditional restrictions
-StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
-
-% Make sure things are on the gpu (they should already be)
-StationaryDistVec=gpuArray(StationaryDistVec);
-Policy=gpuArray(Policy);
-% Switch to PolicyValues, and permute
-PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
 
 %% If there are any conditional restrictions, set up for these

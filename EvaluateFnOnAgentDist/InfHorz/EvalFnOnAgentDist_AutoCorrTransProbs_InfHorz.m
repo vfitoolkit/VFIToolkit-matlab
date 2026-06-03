@@ -95,10 +95,6 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
-l_daprime=size(Policy,1);
-if simoptions.gridinterplayer==1
-    l_daprime=l_daprime-1;
-end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 if prod(simoptions.n_semiz)>0
     error('Have not yet implemented semiz variables for InfHorz AutoCorrTransProbs, ask on forum if you need this')
@@ -107,6 +103,18 @@ end
 [n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 
 CorrTransProbs=struct();
+
+%% I want to do some things now, so that they can be used in setting up conditional restrictions
+StationaryDist=reshape(StationaryDist,[N_a*N_z,1]);
+
+% Make sure things are on the gpu (they should already be)
+StationaryDist=gpuArray(StationaryDist);
+Policy=gpuArray(Policy);
+
+% Switch to PolicyValues, and permute
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -138,17 +146,6 @@ if iscell(simoptions.transprobs)
         end
     end
 end
-
-%% I want to do some things now, so that they can be used in setting up conditional restrictions
-StationaryDist=reshape(StationaryDist,[N_a*N_z,1]);
-
-% Make sure things are on the gpu (they should already be)
-StationaryDist=gpuArray(StationaryDist);
-Policy=gpuArray(Policy);
-
-% Switch to PolicyValues, and permute
-PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
 %% Create big transition matrix P
 N_semiz=0; % NOT YET IMPLEMENTED

@@ -59,17 +59,21 @@ l_a=length(n_a);
 l_z=length(n_z);
 
 
-if N_d==0 && isscalar(n_a) && simoptions.gridinterplayer==0
-    l_daprime=1;
-else
-    l_daprime=size(Policy,1);
-    if simoptions.gridinterplayer==1
-        l_daprime=l_daprime-1;
-    end
-end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals (folding e and semiz into z if appropriate)
 [n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
+
+%% GPU (everything except StationaryDist; it is gpuArray'd after the Entry/Exit check below)
+Policy=gpuArray(Policy);
+n_d=gpuArray(n_d);
+n_a=gpuArray(n_a);
+n_z=gpuArray(n_z);
+d_grid=gpuArray(d_grid);
+a_gridvals=gpuArray(a_gridvals);
+
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -164,21 +168,11 @@ if isstruct(StationaryDist)
 end
 
 
-%% GPU
+%% Main loop
 StationaryDist=gpuArray(StationaryDist);
-Policy=gpuArray(Policy);
-n_d=gpuArray(n_d);
-n_a=gpuArray(n_a);
-n_z=gpuArray(n_z);
-d_grid=gpuArray(d_grid);
-a_gridvals=gpuArray(a_gridvals);
-
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
 AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
-
-PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
 for ff=1:length(FnsToEvaluate)
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);

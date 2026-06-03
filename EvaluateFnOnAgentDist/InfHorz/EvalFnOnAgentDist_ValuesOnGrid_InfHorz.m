@@ -40,10 +40,6 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-l_daprime=size(Policy,1);
-if simoptions.gridinterplayer==1
-    l_daprime=l_daprime-1;
-end
 if Parallel==2
     a_gridvals=CreateGridvals(n_a,a_grid,1);
     % Switch to z_gridvals (folding e and semiz into z if appropriate)
@@ -52,6 +48,14 @@ elseif Parallel==1
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2); % CPU, so must just be simple stacked column for z
 end
+
+if Parallel==2
+    Policy=gpuArray(Policy);
+    d_grid=gpuArray(d_grid);
+    a_grid=gpuArray(a_grid);
+end
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions,1);
+l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -84,14 +88,11 @@ end
 ValuesOnGrid=struct();
 
 if Parallel==2
-    Policy=gpuArray(Policy);
-    PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,gpuArray(d_grid),gpuArray(a_grid),simoptions,1);
     if l_z==0
         PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
     else
         PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
     end
-    l_daprime=size(PolicyValues,1);
 
     for ff=1:length(FnsToEvaluate)
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);

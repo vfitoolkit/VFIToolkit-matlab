@@ -1,4 +1,4 @@
-function Values=EvalFnOnAgentDist_Grid_Case1(FnToEvaluate,FnToEvaluateParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_gridvals)
+function Values=EvalFnOnAgentDist_Grid_InfHorz(FnToEvaluate,FnToEvaluateParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_gridvals)
 error('Should use EvalFnOnAgentDist_Grid() instead (please tell me if you see this error, user should not reach here')
 
 if n_d(1)==0

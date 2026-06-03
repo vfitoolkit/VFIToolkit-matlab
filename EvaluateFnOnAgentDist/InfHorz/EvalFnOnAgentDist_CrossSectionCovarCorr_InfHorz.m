@@ -67,12 +67,18 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-l_daprime=size(Policy,1);
-if simoptions.gridinterplayer==1
-    l_daprime=l_daprime-1;
-end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 z_gridvals=CreateGridvals(n_z,z_grid,1);
+
+%%
+StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
+
+CrossSectionCorr=struct();
+
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+permuteindexes=[1+(1:1:(l_a+l_z)),1];
+PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
+l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -92,16 +98,6 @@ if isstruct(FnsToEvaluate)
 else
     FnsToEvaluateStruct=0;
 end
-
-
-%%
-StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
-
-CrossSectionCorr=struct();
-
-PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-permuteindexes=[1+(1:1:(l_a+l_z)),1];
-PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
 
 % Report output by name, but also create the covariance matrix and the correlation matrix

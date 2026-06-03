@@ -271,7 +271,7 @@ if N_e>0 && simoptions.lowmemory==1
                     else
                         FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
                     end
-                    Values(:,j_p,tt)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, [FnToEvaluateParamsVec,e_val],PolicyValuesPermuteVec_temp,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+                    Values(:,j_p,tt)=reshape(EvalFnOnAgentDist_Grid_InfHorz(FnsToEvaluate{ii}, [FnToEvaluateParamsVec,e_val],PolicyValuesPermuteVec_temp,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
                 end
             end
 
@@ -324,7 +324,7 @@ else % either no e vars, or just lowmemory=0
                 else
                     FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
                 end
-                Values(:,j_p,tt)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValuesPermuteVec_temp,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+                Values(:,j_p,tt)=reshape(EvalFnOnAgentDist_Grid_InfHorz(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValuesPermuteVec_temp,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
             end
         end
 

@@ -15,16 +15,10 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
-if N_d==0 && isscalar(n_a) && simoptions.gridinterplayer==0
-    l_daprime=1;
-else
-    l_daprime=size(Policy,1);
-    if simoptions.gridinterplayer==1
-        l_daprime=l_daprime-1;
-    end
-end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 z_gridvals=z_grid; % On cpu, only basics are allowed. No e.
+
+l_daprime=size(Policy,1)-2*simoptions.gridinterplayer; % gridinterplayer=1 carries an extra L2 index and L2flag (matches FHorz convention)
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
