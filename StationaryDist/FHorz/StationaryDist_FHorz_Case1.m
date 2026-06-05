@@ -187,8 +187,14 @@ if isa(jequaloneDist, 'function_handle')
 end
 
 % Check that the age one distribution is of mass one
-if abs(sum(jequaloneDist(:))-1)>10^(-9)
-    error('The jequaloneDist must be of mass one')
+if isUnderlyingType(jequaloneDist,'single')
+    if abs(sum(jequaloneDist(:))-1)>10^(-7)
+        error('The jequaloneDist must be of mass one')
+    end
+else
+    if abs(sum(jequaloneDist(:))-1)>10^(-9)
+        error('The jequaloneDist must be of mass one')
+    end
 end
 
 %%

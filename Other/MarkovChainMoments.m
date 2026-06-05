@@ -24,6 +24,8 @@ if exist('mcmomentsoptions','var')==0
     mcmomentsoptions.T=10^6;
     mcmomentsoptions.Tolerance=10^(-8);
     mcmomentsoptions.calcautocorrelation=1; % Have made it easy to skip calculating autocorrelation as this takes time
+    precision='double';
+    precision_cast=@(x) x;
 else
     if ~isfield(mcmomentsoptions,'parallel')
         mcmomentsoptions.parallel=1+(gpuDeviceCount>0);
@@ -40,6 +42,19 @@ else
     if ~isfield(mcmomentsoptions,'calcautocorrelation')
         mcmomentsoptions.calcautocorrelation=1;
     end
+    if isfield(mcmomentsoptions,'precision')
+        precision=mcmomentsoptions.precision;
+        if strcmp(precision,'single')
+            precision_cast=@(x) single(x);
+        elseif strcmp(precision,'double')
+            precision_cast=@(x) double(x);
+        else
+            error("Unknown precision option")
+        end
+    else
+        precision='double';
+        precision_cast=@(x) x;
+    end
 end
 
 
@@ -55,12 +70,21 @@ if mcmomentsoptions.eigenvector==1
     % [V,~] = eigs(Ptranspose,1); % We are only interested in the largest eigenvector
     % Following lines are alternative I found in MNS2016. It includes a bunch
     % of checks of input and output
-    assert(all(abs(sum(pi_z_transpose)-1)<1e-10));
-    opts.disp=0;
-    [x,eval] = eigs(pi_z_transpose,[],1,1+1e-10,opts);
-    assert(abs(eval-1)<1e-10);
-    V = x/sum(x);
-    assert(min(V)>-1e-12);
+    if strcmp(precision,'single')
+        assert(all(abs(sum(pi_z_transpose)-1)<1e-5));
+        opts.disp=0;
+        [x,eval] = eigs(pi_z_transpose,[],1,1+1e-5,opts);
+        assert(abs(eval-1)<1e-5);
+        V = x/sum(x);
+        assert(min(V)>-1e-6);
+    else
+        assert(all(abs(sum(pi_z_transpose)-1)<1e-10));
+        opts.disp=0;
+        [x,eval] = eigs(pi_z_transpose,[],1,1+1e-10,opts);
+        assert(abs(eval-1)<1e-10);
+        V = x/sum(x);
+        assert(min(V)>-1e-12);
+    end
     V = max(V,0);
 
     statdist=V/sum(V);
@@ -78,7 +102,7 @@ if mcmomentsoptions.eigenvector==1
     % making pi_z a sparse matrix (i.e., sparse(pi_z)) just makes eigs() run slower
 else
     pi_z_transpose=pi_z';
-    statdist=ones(length(z_grid),1)/length(z_grid);
+    statdist=ones(length(z_grid),1,precision)/length(z_grid);
     currdist=1;
     while currdist>mcmomentsoptions.Tolerance
         statdistold=statdist;
@@ -125,9 +149,9 @@ autocorrelation=covar_withlag/variance; % Note: denominator is stdev*stddev, but
 %
 %     % Simulate Markov chain with transition state pi_z
 %     % Maybe I should be doing burnin here??
-%     A=zeros(T,1); % A contains the time series of states
+%     A=zeros(T,1,precision); % A contains the time series of states
 %     A(1)=floor(length(z_grid)/2); % Start the simulation in the midpoint
-%     shocks_raw=rand(T,1);
+%     shocks_raw=rand(T,1,precision);
 %     cumsum_pi_z=cumsum(gather(pi_z),2);
 %     for t=2:T
 %         temp_cumsum_pi_z=cumsum_pi_z(A(t-1),:);
@@ -138,7 +162,7 @@ autocorrelation=covar_withlag/variance; % Note: denominator is stdev*stddev, but
 %     correlation=corr_temp(2,1);
 %
 % else
-%     correlation=NaN;
+%     correlation=precision_cast(NaN);
 % end
 %
 % [autocorrelation,correlation]
