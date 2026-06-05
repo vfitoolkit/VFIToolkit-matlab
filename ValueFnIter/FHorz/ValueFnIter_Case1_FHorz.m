@@ -1,8 +1,13 @@
 function varargout=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Typically, varargout=[V, Policy]
 
-V=nan;
-Policy=nan;
+if isa(a_grid,'single')
+    V=single(nan);
+    Policy=single(nan);
+else
+    V=nan;
+    Policy=nan;
+end
 
 
 %% Check which vfoptions have been used, set all others to defaults

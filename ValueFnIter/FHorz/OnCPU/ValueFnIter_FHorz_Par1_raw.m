@@ -4,13 +4,19 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-V=zeros(N_a,N_z,N_j);
-Policy=zeros(N_a,N_z,N_j); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
+if isUnderlyingType(a_grid,'single')
+    ReturnFnParamsVec=single(ReturnFnParamsVec);
+    precision='single';
+else
+    precision='double';
+end
+
+V=zeros(N_a,N_z,N_j,precision);
+Policy=zeros(N_a,N_z,N_j,precision); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 if ~isfield(vfoptions,'V_Jplus1')
 
@@ -23,6 +29,9 @@ if ~isfield(vfoptions,'V_Jplus1')
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    if isUnderlyingType(a_grid,'single')
+        DiscountFactorParamsVec=single(DiscountFactorParamsVec);
+    end
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % Using V_Jplus1
 
@@ -59,6 +68,10 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    if isUnderlyingType(a_grid,'single')
+        ReturnFnParamsVec=single(ReturnFnParamsVec);
+        DiscountFactorParamsVec=single(DiscountFactorParamsVec);
+    end
 
     EV=V(:,:,jj+1);
 
@@ -83,7 +96,7 @@ for reverse_j=1:N_j-1
 end
 
 %%
-Policy2=zeros(2,N_a,N_z,N_j); %NOTE: this is not actually in Kron form
+Policy2=zeros(2,N_a,N_z,N_j,precision); %NOTE: this is not actually in Kron form
 Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
 Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
 

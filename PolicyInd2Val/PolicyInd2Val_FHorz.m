@@ -3,6 +3,12 @@ function PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,v
 % vfoptions. But internally it gets used with simoptions. The options that
 % it checks are all things that will be common to both.
 
+if isUnderlyingType(a_grid,'single')
+    precision='single';
+else
+    precision='double';
+end
+
 if ~exist('outputkron','var')
     outputkron=0; % outputkron=1 is just for internal use
 end
@@ -154,7 +160,7 @@ if N_z==0
         end
     else
         Policy=reshape(Policy,[l_d+l_aprime,N_a*N_j]);
-        PolicyValues=zeros(l_d+l_aprime,N_a*N_j,'gpuArray');
+        PolicyValues=zeros(l_d+l_aprime,N_a*N_j,precision,'gpuArray');
         
         temp_d_grid=d_grid(1:cumsum_n_d(1));
         PolicyValues(1,:)=temp_d_grid(Policy(1,:));
