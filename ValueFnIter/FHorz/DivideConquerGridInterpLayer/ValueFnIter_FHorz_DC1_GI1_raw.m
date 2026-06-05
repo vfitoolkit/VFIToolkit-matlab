@@ -4,19 +4,24 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-V=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
-PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+if isUnderlyingType(a_grid,'single')
+    precision='single';
+else
+    precision='double';
+end
+V=zeros(N_a,N_z,N_j,precision,'gpuArray');
+Policy=zeros(3,N_a,N_z,N_j,precision,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
+PolicyL2flag=2*ones(1,N_a,N_z,N_j,precision,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 % When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
 
 %%
 
 % Preallocate
 if vfoptions.lowmemory==0
-    midpoints_jj=zeros(N_d,1,N_a,N_z,'gpuArray');
+    midpoints_jj=zeros(N_d,1,N_a,N_z,precision,'gpuArray');
 elseif vfoptions.lowmemory==1 % loops over z
-    midpoints_jj=zeros(N_d,1,N_a,'gpuArray');
-    special_n_z=ones(1,length(n_z));
+    midpoints_jj=zeros(N_d,1,N_a,precision,'gpuArray');
+    special_n_z=ones(1,length(n_z),precision);
 end
 
 aind=gpuArray(0:1:N_a-1); % already includes -1
@@ -46,6 +51,9 @@ n2aprime=length(aprime_grid);
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
+if isUnderlyingType(a_grid,'single')
+    ReturnFnParamsVec=single(ReturnFnParamsVec);
+end
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
@@ -158,6 +166,9 @@ else
     % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    if isUnderlyingType(a_grid,'single')
+        DiscountFactorParamsVec=single(DiscountFactorParamsVec);
+    end
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % First, switch V_Jplus1 into Kron form
 
@@ -167,6 +178,9 @@ else
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
+    if isUnderlyingType(a_grid,'single')
+        EVinterp=single(EVinterp);
+    end
 
     if vfoptions.lowmemory==0
         % n-Monotonicity
@@ -312,6 +326,11 @@ for reverse_j=1:N_j-1
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
+    if isUnderlyingType(a_grid,'single')
+        ReturnFnParamsVec=single(ReturnFnParamsVec);
+        DiscountFactorParamsVec=single(DiscountFactorParamsVec);
+        EVinterp=single(EVinterp);
+    end
 
     if vfoptions.lowmemory==0
         % n-Monotonicity

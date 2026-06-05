@@ -5,8 +5,10 @@ function PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,v
 
 if isUnderlyingType(a_grid,'single')
     precision='single';
+    precision_cast=@(x) single(x);
 else
     precision='double';
+    precision_cast=@(x) double(x);
 end
 
 if ~exist('outputkron','var')
@@ -84,7 +86,7 @@ else
             tempsize=size(Policy);
             Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
             Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
-            a1prime_grid=interp1(gpuArray(1:1:n_aprime(1))',aprime_grid(1:n_aprime(1)),linspace(1,n_aprime(1),n_aprime(1)+(n_aprime(1)-1)*vfoptions.ngridinterp))';
+            a1prime_grid=interp1(gpuArray(precision_cast(1):n_aprime(1))',aprime_grid(1:n_aprime(1)),linspace(precision_cast(1),n_aprime(1),n_aprime(1)+(n_aprime(1)-1)*vfoptions.ngridinterp))';
             if isscalar(n_aprime)
                 aprime_grid=a1prime_grid;
             else
@@ -138,7 +140,7 @@ end
 if N_z==0
     if l_d==0
         Policy=reshape(Policy,[l_aprime,N_a*N_j]);
-        PolicyValues=zeros(l_aprime,N_a*N_j,'gpuArray');
+        PolicyValues=zeros(l_aprime,N_a*N_j,precision,'gpuArray');
 
         temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
         PolicyValues(1,:)=temp_aprime_grid(Policy(1,:));
@@ -201,7 +203,7 @@ else % N_z
     if l_d==0
 
         Policy=reshape(Policy,[l_aprime,N_a*N_z*N_j]);
-        PolicyValues=zeros(l_aprime,N_a*N_z*N_j,'gpuArray');
+        PolicyValues=zeros(l_aprime,N_a*N_z*N_j,precision,'gpuArray');
 
         temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
         PolicyValues(1,:)=temp_aprime_grid(Policy(1,:));
@@ -223,7 +225,7 @@ else % N_z
         end
     else
         Policy=reshape(Policy,[l_d+l_aprime,N_a*N_z*N_j]);
-        PolicyValues=zeros(l_d+l_aprime,N_a*N_z*N_j,'gpuArray');
+        PolicyValues=zeros(l_d+l_aprime,N_a*N_z*N_j,precision,'gpuArray');
 
         temp_d_grid=d_grid(1:cumsum_n_d(1));
         PolicyValues(1,:)=temp_d_grid(Policy(1,:));

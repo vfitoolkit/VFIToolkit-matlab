@@ -2,6 +2,12 @@ function StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamN
 %% Finite Horizon agent distribution. Solves using iteration (implemented with the Tan improvement).
 % jequaloneDist is the distribution of agents in period j=1.
 
+if isUnderlyingType(jequaloneDist,'single')
+    precision='single';
+else
+    precision='double';
+end
+
 if exist('simoptions','var')==0
     simoptions.gridinterplayer=0; % =1 Policy interpolates between grid points (must match vfoptions.interpgridlayer)
     % Alternative endo states
@@ -327,7 +333,7 @@ if N_z==0 && N_e==0
         % (a,1,j)
         Policy_aprime=reshape(Policy_aprime,[N_a,1,N_j]);
         Policy_aprime=repmat(Policy_aprime,1,2,1);
-        PolicyProbs=ones([N_a,2,N_j],'gpuArray');
+        PolicyProbs=ones([N_a,2,N_j],precision,'gpuArray');
         % Policy_aprime(:,1,:) lower grid point for a1 is unchanged
         Policy_aprime(:,2,:)=Policy_aprime(:,2,:)+1; % add one to a1, to get upper grid point
 
@@ -383,7 +389,7 @@ else
         % (a,z,1,j)
         Policy_aprime=reshape(Policy_aprime,[N_a,N_ze,1,N_j]);
         Policy_aprime=repmat(Policy_aprime,1,1,2,1);
-        PolicyProbs=ones([N_a,N_ze,2,N_j],'gpuArray');
+        PolicyProbs=ones([N_a,N_ze,2,N_j],precision,'gpuArray');
         % Policy_aprime(:,:,1,:) lower grid point for a1 is unchanged
         Policy_aprime(:,:,2,:)=Policy_aprime(:,:,2,:)+1; % add one to a1, to get upper grid point
 
