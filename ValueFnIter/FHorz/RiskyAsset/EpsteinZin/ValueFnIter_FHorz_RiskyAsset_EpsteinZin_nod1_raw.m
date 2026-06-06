@@ -4,8 +4,10 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_raw(n_d2,n_d3,n
 
 if isUnderlyingType(a1_grid,'single')
     precision='single';
+    precision_index='int32';
 else
     precision='double';
+    precision_index='int32';
 end
 
 N_d2=prod(n_d2);
@@ -28,7 +30,7 @@ N_a=N_a1*N_a2;
 % N_d=N_d1*N_d2*N_d3;
 
 V=zeros(N_a,N_z,N_j,precision,'gpuArray');
-Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % d2, d3, a1prime
+Policy=zeros(3,N_a,N_z,N_j,precision_index,'gpuArray'); % d2, d3, a1prime
 
 %%
 d3_grid=gpuArray(d3_grid);
@@ -130,6 +132,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % no d1 here
             % Second: EV, we can refine out d2
             [WGmatrix_onlyd3,d2index]=max(ezc9*reshape((~isinf(WGmatrix)).*WGmatrix,[N_d2,N_d3*N_a1]),[],1);
+            d2index=int32(d2index);
             % Now put together entireRHS, which just depends on d3
             entireRHS=ReturnMatrix+ezc9*shiftdim(WGmatrix_onlyd3,1);
 
@@ -166,6 +169,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % no d1 here
                 % Second: EV, we can refine out d2
                 [WGmatrix_onlyd3,d2index]=max(ezc9*reshape((~isinf(WGmatrix)).*WGmatrix,[N_d2,N_d3*N_a1]),[],1);
+                d2index=int32(d2index);
                 % Now put together entireRHS, which just depends on d3
                 entireRHS=shiftdim(ReturnMatrix_z+ezc9*WGmatrix_onlyd3,1);
 
@@ -255,6 +259,7 @@ else
         % no d1 here
         % Second: EV, we can refine out d2
         [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
+        d2index=int32(d2index);
         % Now put together entireRHS, which just depends on d3
         entireRHS=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -318,6 +323,7 @@ else
             % no d1 here
             % Second: EV, we can refine out d2
             [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1]),[],1);
+            d2index=int32(d2index);
             % Now put together entireRHS, which just depends on d3
             entireRHS_z=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
             % entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -456,6 +462,7 @@ for reverse_j=1:N_j-1
         % no d1 here
         % Second: EV, we can refine out d2
         [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
+        d2index=int32(d2index);
         % Now put together entireRHS, which just depends on d3
         entireRHS=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -518,6 +525,7 @@ for reverse_j=1:N_j-1
             % no d1 here
             % Second: EV, we can refine out d2
             [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1]),[],1);
+            d2index=int32(d2index);
             % Now put together entireRHS, which just depends on d3
             entireRHS_z=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
             % entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;

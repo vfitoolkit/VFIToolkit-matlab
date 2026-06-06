@@ -2,15 +2,17 @@ function [V,Policy]=ValueFnIter_FHorz_noz_raw(n_d,n_a,N_j, d_gridvals, a_grid, R
 
 if isUnderlyingType(a_grid,'single')
     precision='single';
+    precision_index='int32';
 else
     precision='double';
+    precision_index='int32';
 end
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,precision,'gpuArray');
-Policy=zeros(1,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(1,N_a,N_j,precision_index,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %% j=N_j
 
@@ -22,6 +24,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+    maxindex=int32(maxindex);
     V(:,N_j)=Vtemp;
     Policy(1,:,N_j)=maxindex;
 else
@@ -38,6 +41,7 @@ else
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
+    maxindex=int32(maxindex);
     V(:,N_j)=Vtemp;
     Policy(1,:,N_j)=maxindex;
 end
@@ -64,6 +68,7 @@ for reverse_j=1:N_j-1
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
+    maxindex=int32(maxindex);
     V(:,jj)=Vtemp;
     Policy(1,:,jj)=maxindex;
 end

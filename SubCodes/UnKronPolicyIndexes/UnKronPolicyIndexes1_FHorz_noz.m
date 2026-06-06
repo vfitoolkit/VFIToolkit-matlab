@@ -18,7 +18,8 @@ if vfoptions.gridinterplayer==1
             PolicyKron(3,:)];
     Policy=reshape(Policy,[l_daprime1+2,n_a,N_j]);
 else
-    Policy=mod(floor((PolicyKron-1)./divisors),n_daprime1(:))+1;
+    % if PolicyKron is `int32` convert it to double so indexes are preserved
+    Policy=mod(floor(double(PolicyKron-1)./divisors),n_daprime1(:))+1;
     Policy=reshape(Policy,[l_daprime1,n_a,N_j]);
 end
 

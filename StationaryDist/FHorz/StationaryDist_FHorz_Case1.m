@@ -4,8 +4,10 @@ function StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamN
 
 if isUnderlyingType(jequaloneDist,'single')
     precision='single';
+    precision_cast=@(x) single(x);
 else
     precision='double';
+    precision_cast=@(x) double(x);
 end
 
 if exist('simoptions','var')==0
@@ -405,7 +407,7 @@ else
         % Policy_aprime(:,:,1,:) lower grid point for a1 is unchanged
         Policy_aprime(:,:,2,:)=Policy_aprime(:,:,2,:)+1; % add one to a1, to get upper grid point
 
-        aprimeProbs_upper=reshape(shiftdim(double(Policy(end-1,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
+        aprimeProbs_upper=reshape(shiftdim(precision_cast(Policy(end-1,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
         PolicyProbs(:,:,1,:)=PolicyProbs(:,:,1,:).*(1-aprimeProbs_upper); % lower a1
         PolicyProbs(:,:,2,:)=PolicyProbs(:,:,2,:).*aprimeProbs_upper; % upper a1
 
