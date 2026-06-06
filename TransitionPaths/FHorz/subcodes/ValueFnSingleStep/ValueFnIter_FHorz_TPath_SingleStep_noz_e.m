@@ -5,6 +5,12 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_e=prod(n_e);
 
+if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    % V slot = Valt (Naive) / Vunderbar (Sophisticated); Policy = QH choice; drop QH-only extras
+    [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QH_noz_e(VKron,n_d,n_a,n_e,N_j,d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return % QH variant already un-Krons Policy
+end
+
 %% If get to here then not using exoticpreferences nor StateDependentVariables_z
 % N_z==0 is handled by a different command
 if vfoptions.divideandconquer==0

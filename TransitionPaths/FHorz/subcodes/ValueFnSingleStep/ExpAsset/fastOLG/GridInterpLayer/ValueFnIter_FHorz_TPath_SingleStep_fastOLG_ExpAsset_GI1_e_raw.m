@@ -130,8 +130,8 @@ if vfoptions.lowmemory==0
     Policy3(3,:,:,:,:)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
     % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
     L2offset=ceil(maxindexL2/N_d);
-    linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j,N_z,N_e])                  +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-3)+N_d*n2long*N_a*N_j*N_z*shiftdim(gpuArray(0:1:N_e-1),-4);
-    linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j,N_z,N_e])+N_d*(n2long-1)   +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-3)+N_d*n2long*N_a*N_j*N_z*shiftdim(gpuArray(0:1:N_e-1),-4);
+    linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j,N_z,N_e])                  +N_d*n2long*gpuArray(0:1:N_a-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-1)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-2)+N_d*n2long*N_a*N_j*N_z*shiftdim(gpuArray(0:1:N_e-1),-3);
+    linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j,N_z,N_e])+N_d*(n2long-1)   +N_d*n2long*gpuArray(0:1:N_a-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-1)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-2)+N_d*n2long*N_a*N_j*N_z*shiftdim(gpuArray(0:1:N_e-1),-3);
     isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
     isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
@@ -169,8 +169,8 @@ elseif vfoptions.lowmemory==1
         Policy3(3,:,:,:,e_c)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
         % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
         L2offset=ceil(maxindexL2/N_d);
-        linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j,N_z])                  +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-3);
-        linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j,N_z])+N_d*(n2long-1)   +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-3);
+        linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j,N_z])                  +N_d*n2long*gpuArray(0:1:N_a-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-1)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-2);
+        linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j,N_z])+N_d*(n2long-1)   +N_d*n2long*gpuArray(0:1:N_a-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-1)+N_d*n2long*N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-2);
         isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
         isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);
@@ -214,8 +214,8 @@ elseif vfoptions.lowmemory==2
             Policy3(3,:,:,z_c,e_c)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
             % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
             L2offset=ceil(maxindexL2/N_d);
-            linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j])                  +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2);
-            linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j])+N_d*(n2long-1)   +N_d*n2long*shiftdim(gpuArray(0:1:N_a-1),-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-2);
+            linidx_lower=reshape(dind,[1,N_a1*N_a2,N_j])                  +N_d*n2long*gpuArray(0:1:N_a-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-1);
+            linidx_upper=reshape(dind,[1,N_a1*N_a2,N_j])+N_d*(n2long-1)   +N_d*n2long*gpuArray(0:1:N_a-1)+N_d*n2long*N_a*shiftdim(gpuArray(0:1:N_j-1),-1);
             isInfLower=(ReturnMatrix_ii(linidx_lower)==-Inf);
             isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
             inLowerStrict=(L2offset>=2)         & (L2offset<=n2short+1);

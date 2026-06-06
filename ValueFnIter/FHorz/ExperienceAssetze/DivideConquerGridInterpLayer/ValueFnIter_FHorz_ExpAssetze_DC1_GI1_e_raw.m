@@ -381,7 +381,9 @@ else
             z_val=z_gridvals_J(z_c,:,N_j);
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
-                DiscountedEV_ze=DiscountedEV(:,:,:,:,z_c,e_c);
+                DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);
+                DiscountedEVinterp_ze=DiscountedEVinterp(:,:,:,:,:,:,z_c,e_c);
+                DiscountedEV_z=DiscountedEV(:,:,:,:,z_c,e_c);
                 DiscountedEVinterp_ze=DiscountedEVinterp(:,:,:,:,z_c,e_c);
 
                 % n-Monotonicity
@@ -615,7 +617,9 @@ for reverse_j=1:N_j-1
             z_val=z_gridvals_J(z_c,:,jj);
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
-                DiscountedEV_ze=DiscountedEV(:,:,:,:,z_c,e_c);
+                DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);
+                DiscountedEVinterp_ze=DiscountedEVinterp(:,:,:,:,:,:,z_c,e_c);
+                DiscountedEV_z=DiscountedEV(:,:,:,:,z_c,e_c);
                 DiscountedEVinterp_ze=DiscountedEVinterp(:,:,:,:,z_c,e_c);
 
                 % n-Monotonicity

@@ -72,6 +72,12 @@ if strcmp(vfoptions.exoticpreferences,'None')
             end
         end
     end
+elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    % V slot = Valt (Naive) / Vunderbar (Sophisticated); Policy = QH choice; drop QH-only extras
+    [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QH_fastOLG_noz(VKron,n_d,n_a,N_j,d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return % QH variant already un-Krons Policy
+else
+    error('Not yet implemented exoticpreferences for transtion paths (email me :)')
 end
 
 

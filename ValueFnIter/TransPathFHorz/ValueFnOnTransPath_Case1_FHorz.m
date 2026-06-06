@@ -42,9 +42,9 @@ else
     elseif vfoptions.divideandconquer==1
         if ~isfield(vfoptions,'level1n')
             if isscalar(n_a)
-                vfoptions.level1n=round(sqrt(n_a(1)));
+                vfoptions.level1n=floor(sqrt(n_a(1)));
             elseif length(n_a)==2
-                vfoptions.level1n=[round(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
+                vfoptions.level1n=[floor(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
             end
         end
     end
@@ -82,7 +82,7 @@ else
     end
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
-    elseif vfoptions.experienceasset==1
+    elseif vfoptions.experienceasset>=1
         if isfield(vfoptions,'level1n')
             vfoptions.level1n=vfoptions.level1n(1);
         end
@@ -130,7 +130,7 @@ else
 end
 l_a=length(n_a);
 l_aprime=l_a;
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     l_aprime=l_aprime-1;
 end
 
@@ -202,7 +202,7 @@ end
 
 
 %%
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_ExpAsset(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
 else
     %%

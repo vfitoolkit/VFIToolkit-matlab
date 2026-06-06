@@ -155,7 +155,7 @@ elseif vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e),'gpuArray');
 
     for e_c=1:N_e
-        e_val=e_gridvals_J(:,e_c,:);
+        e_val=e_gridvals_J(1,1,1,1,1,:,e_c,:);
 
         % n-Monotonicity
         ReturnMatrix_ii_e=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, vfoptions.level1n,n_a2, n_z,special_n_e,N_j, d2_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, z_gridvals_J,e_val, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
@@ -178,7 +178,7 @@ elseif vfoptions.lowmemory==1
         for ii=1:(vfoptions.level1n-1)
             curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
             if maxgap(ii)>0
-                loweredge=min(maxindex1(:,1,ii,:,:,:),n_a-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
+                loweredge=min(maxindex1(:,1,ii,:,:,:),n_a1-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are N_d2-by-maxgap(ii)+1-by-1-by-N_j-by-N_z
                 ReturnMatrix_ii_e=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii),n_a2, n_z,special_n_e,N_j, d2_gridvals, a1_gridvals(aprimeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals_J,e_val, ReturnFnParamsAgeMatrix,2,0); % Level=2, Refine=0
@@ -215,11 +215,11 @@ elseif vfoptions.lowmemory==2
     special_n_e=ones(1,length(n_e),'gpuArray');
 
     for z_c=1:N_z
-        z_val=z_gridvals_J(:,z_c,:);
-        DiscountedEV_z=DiscountedEV(:,:,:,z_c);
+        z_val=z_gridvals_J(1,1,1,1,:,z_c,:);
+        DiscountedEV_z=DiscountedEV(:,:,:,:,:,z_c);
 
         for e_c=1:N_e
-            e_val=e_gridvals_J(:,e_c,:);
+            e_val=e_gridvals_J(1,1,1,1,1,:,e_c,:);
 
 
             % n-Monotonicity
@@ -243,7 +243,7 @@ elseif vfoptions.lowmemory==2
             for ii=1:(vfoptions.level1n-1)
                 curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
                 if maxgap(ii)>0
-                    loweredge=min(maxindex1(:,1,ii,:,:),n_a-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
+                    loweredge=min(maxindex1(:,1,ii,:,:),n_a1-maxgap(ii)); % maxindex1(:,ii), but avoid going off top of grid when we add maxgap(ii) points
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are N_d2-by-maxgap(ii)+1-by-1-by-N_j
                     ReturnMatrix_ii_ze=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii),n_a2, special_n_z,special_n_e,N_j, d2_gridvals, a1_gridvals(aprimeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val,e_val, ReturnFnParamsAgeMatrix,2,0); % Level=2, Refine=0

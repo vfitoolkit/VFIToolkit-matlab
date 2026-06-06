@@ -17,6 +17,7 @@ level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 jind=shiftdim(gpuArray(0:1:N_j-1),-2);
 jBind=shiftdim(gpuArray(0:1:N_j-1),-1);
+jCind=gpuArray(0:1:N_j-1); % 2D [1,N_j]; for EV_at_policy lookup where aprime_ind is 2D [N_a,N_j]
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j (note: N_aprime is just equal to N_a)
@@ -88,7 +89,7 @@ end
 Vhat=V; % snapshot Vhat before Vunderbar transform
 aprime_ind=ceil(Policy/N_d);
 EV_2d=reshape(EV,[N_a,N_j]); % (aprime,j)
-EV_at_policy=EV_2d(aprime_ind+N_a*jBind);
+EV_at_policy=EV_2d(aprime_ind+N_a*jCind);
 V=V+reshape(BetaMinusBeta0Beta_J,[1,N_j]).*EV_at_policy;
 
 %% Output shape for policy

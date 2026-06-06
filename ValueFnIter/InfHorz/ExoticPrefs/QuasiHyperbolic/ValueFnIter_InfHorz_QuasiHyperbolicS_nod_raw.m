@@ -83,31 +83,6 @@ while currdist>Tolerance && tempcounter<maxiter
 %         end
 %     end
 
-%     if Verbose==1
-        if rem(tempcounter,50)==0
-            figure(1)
-            if tempcounter==50 % First graph
-                PolicyhatLastGraph=Policyhat;
-                PolicyhatFirst=Policyhat;
-            end
-            plot(Policyhat(:,1))
-            hold on
-            plot(PolicyhatLastGraph(:,1))
-            plot(PolicyhatFirst(:,1))
-            hold off
-            PolicyhatLastGraph=Policyhat;
-
-%             Vunderbar(1:10)
-%             Vhat(1:10)
-            [Policyhat(1:10,1),Policyhat(1:10,151),Policyhat(1:10,351),zeros(10,1),Policyhat(end-9:end,1),Policyhat(end-9:end,151),Policyhat(end-9:end,351)]
-
-
-            max(max(abs(Policyhat-PolicyhatOld)))
-
-            disp(tempcounter)
-            disp(currdist)
-        end
-%     end
     tempcounter=tempcounter+1;
 
 end

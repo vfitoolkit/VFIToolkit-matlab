@@ -119,9 +119,6 @@ if N_e==0
             V=V_final;
             for ttr=1:T-1 %so t=T-i
 
-
-                ttr
-
                 for kk=1:length(PricePathNames)
                     Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
                 end

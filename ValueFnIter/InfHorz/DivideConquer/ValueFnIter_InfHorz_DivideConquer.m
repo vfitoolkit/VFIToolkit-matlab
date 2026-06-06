@@ -2,9 +2,9 @@ function [V,Policy]=ValueFnIter_InfHorz_DivideConquer(V0, n_d, n_a, n_z, d_gridv
 
 if ~isfield(vfoptions,'level1n')
     if isscalar(n_a)
-        vfoptions.level1n=round(sqrt(n_a(1)));
+        vfoptions.level1n=floor(sqrt(n_a(1)));
     elseif length(n_a)==2
-        vfoptions.level1n=[round(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
+        vfoptions.level1n=[floor(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
     else
         error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
     end

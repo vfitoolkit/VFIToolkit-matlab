@@ -188,9 +188,10 @@ else
 
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,N_j);
+                DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);
                     ReturnMatrix_d3ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz,special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
 
-                    entireRHS_d3ze=ReturnMatrix_d3ze+DiscountedEV_z(:,:,e_c);
+                    entireRHS_d3ze=ReturnMatrix_d3ze+DiscountedEV_ze(:,:,e_c);
 
                     [Vtemp,maxindex]=max(entireRHS_d3ze,[],1);
                     V_ford3_jj(:,z_c,e_c,d3_c)=Vtemp;
@@ -324,9 +325,10 @@ for reverse_j=1:N_j-1
 
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,jj);
+                DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);
                     ReturnMatrix_d3ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz,special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
 
-                    entireRHS_d3ze=ReturnMatrix_d3ze+DiscountedEV_z(:,:,e_c);
+                    entireRHS_d3ze=ReturnMatrix_d3ze+DiscountedEV_ze(:,:,e_c);
 
                     [Vtemp,maxindex]=max(entireRHS_d3ze,[],1);
                     V_ford3_jj(:,z_c,e_c,d3_c)=Vtemp;

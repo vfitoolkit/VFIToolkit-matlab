@@ -94,7 +94,7 @@ elseif vfoptions.lowmemory==1
     Policy=zeros(N_a*N_j,N_z,'gpuArray');
 
     for z_c=1:N_z
-        z_val=z_gridvals_J(:,z_c,:);
+        z_val=z_gridvals_J(:,:,:,:,:,z_c,:); % z_gridvals_J is [1,1,1,1,N_j,N_z,l_z] — z on dim 6
         DiscountedEV_z=DiscountedEV(:,:,:,z_c);
 
         ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z,N_j, d2_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
@@ -103,8 +103,8 @@ elseif vfoptions.lowmemory==1
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
-        V(:,z_c)=Vtemp;
-        Policy(:,z_c)=maxindex;
+        V(:,z_c)=reshape(Vtemp,[N_a*N_j,1]);
+        Policy(:,z_c)=reshape(maxindex,[N_a*N_j,1]);
     end
 end
 

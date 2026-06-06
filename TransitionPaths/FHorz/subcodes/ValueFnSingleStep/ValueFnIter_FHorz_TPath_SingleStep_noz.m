@@ -4,6 +4,12 @@ function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_noz(VKron,n_d,n_
 N_d=prod(n_d);
 N_a=prod(n_a);
 
+if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    % V slot = Valt (Naive) / Vunderbar (Sophisticated); Policy = QH choice; drop QH-only extras
+    [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_QH_noz(VKron,n_d,n_a,N_j,d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return % QH variant already un-Krons Policy
+end
+
 %% If get to here then not using exoticpreferences
 if vfoptions.divideandconquer==0
     if vfoptions.gridinterplayer==0

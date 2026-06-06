@@ -85,7 +85,7 @@ if vfoptions.lowmemory==0
     %% Re-evaluate V at Policy with beta (not beta0*beta): V=Vunderbar=Vhat+(beta-beta0*beta)*EV_at_policy
     Vhat=V; % snapshot Vhat before Vunderbar transform
     EV_3d=reshape(EV,[N_a,N_j,N_z]); % (aprime,j,z); e broadcasts
-    EV_at_policy=EV_3d(Policy+N_a*shiftdim((0:1:N_j-1),-1)+N_a*N_j*shiftdim((0:1:N_z-1),-2)); % [N_a,N_j,N_z,N_e]
+    EV_at_policy=EV_3d(Policy+N_a*gpuArray(0:1:N_j-1)+N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-1)); % [N_a,N_j,N_z,N_e]
     V=V+reshape(BetaMinusBeta0Beta_J,[1,N_j,1,1]).*EV_at_policy;
 
 elseif vfoptions.lowmemory==1
@@ -130,7 +130,7 @@ elseif vfoptions.lowmemory==1
         %% Re-evaluate V at Policy with beta (not beta0*beta) for this e
         Vhat(:,:,:,e_c)=V(:,:,:,e_c); % snapshot Vhat before Vunderbar transform (for this e)
         EV_3d=reshape(EV,[N_a,N_j,N_z]);
-        EV_at_policy_e=EV_3d(Policy(:,:,:,e_c)+N_a*shiftdim((0:1:N_j-1),-1)+N_a*N_j*shiftdim((0:1:N_z-1),-2));
+        EV_at_policy_e=EV_3d(Policy(:,:,:,e_c)+N_a*gpuArray(0:1:N_j-1)+N_a*N_j*shiftdim(gpuArray(0:1:N_z-1),-1));
         V(:,:,:,e_c)=V(:,:,:,e_c)+reshape(BetaMinusBeta0Beta_J,[1,N_j,1]).*EV_at_policy_e;
     end
 elseif vfoptions.lowmemory==2
@@ -179,7 +179,7 @@ elseif vfoptions.lowmemory==2
 
             %% Re-evaluate V at Policy with beta (not beta0*beta) for this (z,e)
             Vhat(:,:,z_c,e_c)=V(:,:,z_c,e_c); % snapshot Vhat before Vunderbar transform (for this z,e)
-            EV_at_policy_ze=EV_z(Policy(:,:,z_c,e_c)+N_a*shiftdim((0:1:N_j-1),-1));
+            EV_at_policy_ze=EV_z(Policy(:,:,z_c,e_c)+N_a*gpuArray(0:1:N_j-1));
             V(:,:,z_c,e_c)=V(:,:,z_c,e_c)+reshape(BetaMinusBeta0Beta_J,[1,N_j]).*EV_at_policy_ze;
         end
      end

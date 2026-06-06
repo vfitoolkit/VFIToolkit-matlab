@@ -21,7 +21,6 @@ if strcmp(vfoptions.exoticpreferences,'None')
                 [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_noz_e_raw(VKron,n_d1,n_d2,n_a1,n_a2, n_e, N_j, d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else % vfoptions.gridinterplayer==1
-            error('None of these are implemented yet')
             if N_d1==0
                 [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_GI1_nod1_noz_e_raw(VKron,n_d2,n_a1,n_a2, n_e, N_j, d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
@@ -51,15 +50,15 @@ end
 % Treat the e-dim as the z-dim (no z) and use the _FHorz_z UnKron family
 if vfoptions.gridinterplayer==0
     if N_d1==0
-        PolicyKron=UnKronPolicyIndexes1_FHorz_z(PolicyKron,[n_d2,n_a1],N_a,N_e,N_j,vfoptions);
+        PolicyKron=UnKronPolicyIndexes1_FHorz_z(PolicyKron,[n_d2,n_a1],N_a,N_j,N_e,vfoptions); % fastOLG: pass N_j,N_e (not N_e,N_j) so UnKron reshape is (a,j,e)
     else
-        PolicyKron=UnKronPolicyIndexes1_FHorz_z(PolicyKron,[n_d1,n_d2,n_a1],N_a,N_e,N_j,vfoptions);
+        PolicyKron=UnKronPolicyIndexes1_FHorz_z(PolicyKron,[n_d1,n_d2,n_a1],N_a,N_j,N_e,vfoptions); % fastOLG: pass N_j,N_e (not N_e,N_j) so UnKron reshape is (a,j,e)
     end
 else % vfoptions.gridinterplayer==1
     if N_d1==0
-        PolicyKron=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d2,n_a1,N_a,N_e,N_j,vfoptions);
+        PolicyKron=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d2,n_a1,N_a,N_j,N_e,vfoptions); % fastOLG: pass N_j,N_e (not N_e,N_j) so UnKron reshape is (a,j,e)
     else
-        PolicyKron=UnKronPolicyIndexes2_FHorz_z(PolicyKron,[n_d1,n_d2],n_a1,N_a,N_e,N_j,vfoptions);
+        PolicyKron=UnKronPolicyIndexes2_FHorz_z(PolicyKron,[n_d1,n_d2],n_a1,N_a,N_j,N_e,vfoptions); % fastOLG: pass N_j,N_e (not N_e,N_j) so UnKron reshape is (a,j,e)
     end
 end
 

@@ -25,6 +25,8 @@ jind=shiftdim(gpuArray(0:1:N_j-1),-2);
 zind=shiftdim(gpuArray(0:1:N_z-1),-3);
 jBind=shiftdim(gpuArray(0:1:N_j-1),-1);
 zBind=shiftdim(gpuArray(0:1:N_z-1),-2);
+jCind=gpuArray(0:1:N_j-1); % 2D [1,N_j]; for EV_at_policy lookup where aprime_ind is 2D/3D [N_a,N_j(,N_z)]
+zCind=shiftdim(gpuArray(0:1:N_z-1),-1); % 3D [1,1,N_z]; pairs with jCind for the same lookup
 
 
 %% First, create the big 'next period (of transition path) expected value fn.
@@ -102,7 +104,7 @@ if vfoptions.lowmemory==0
     Vhat=V; % snapshot Vhat before Vunderbar transform
     aprime_ind=ceil(Policy/N_d);
     EV_at_policy=reshape(EV,[N_a,N_j,N_z]); % (aprime,j,z)
-    EV_at_policy=EV_at_policy(aprime_ind+N_a*jBind+N_a*N_j*zBind);
+    EV_at_policy=EV_at_policy(aprime_ind+N_a*jCind+N_a*N_j*zCind);
     V=V+reshape(BetaMinusBeta0Beta_J,[1,N_j,1]).*EV_at_policy;
 
 elseif vfoptions.lowmemory==1
@@ -157,7 +159,7 @@ elseif vfoptions.lowmemory==1
         %% Re-evaluate V at Policy with beta (not beta0*beta) for this z
         Vhat(:,:,z_c)=V(:,:,z_c); % snapshot Vhat before Vunderbar transform (for this z)
         aprime_ind_z=ceil(Policy(:,:,z_c)/N_d);
-        EV_at_policy_z=EV_z(aprime_ind_z+N_a*jBind);
+        EV_at_policy_z=EV_z(aprime_ind_z+N_a*jCind);
         V(:,:,z_c)=V(:,:,z_c)+reshape(BetaMinusBeta0Beta_J,[1,N_j]).*EV_at_policy_z;
     end
 end

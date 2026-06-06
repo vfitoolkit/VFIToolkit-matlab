@@ -314,6 +314,8 @@ else
                 z_val=bothz_gridvals_J(z_c,:,N_j);
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,N_j);
+                DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);
+                DiscountedEVinterp_ze=DiscountedEVinterp(:,:,:,:,:,:,z_c,e_c);
                     DiscountedEV_ze=repelem(DiscountedEV(:,:,:,:,z_c,e_c),N_d1,1);
                     DiscountedEVinterp_ze=repelem(DiscountedEVinterp(:,:,:,:,z_c,e_c),N_d1,1);
                     ReturnMatrix_d3ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,1,0);
@@ -524,6 +526,8 @@ for reverse_j=1:N_j-1
                 z_val=bothz_gridvals_J(z_c,:,jj);
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,jj);
+                DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);
+                DiscountedEVinterp_ze=DiscountedEVinterp(:,:,:,:,:,:,z_c,e_c);
                     DiscountedEV_ze=repelem(DiscountedEV(:,:,:,:,z_c,e_c),N_d1,1);
                     DiscountedEVinterp_ze=repelem(DiscountedEVinterp(:,:,:,:,z_c,e_c),N_d1,1);
                     ReturnMatrix_d3ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz,special_n_e, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,1,0);

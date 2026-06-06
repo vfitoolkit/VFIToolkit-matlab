@@ -112,7 +112,8 @@ else
             z_val=z_gridvals_J(z_c,:,N_j);
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
-                DiscountedEV_ze=DiscountedEV(:,:,z_c,e_c);
+                DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);
+                DiscountedEV_z=DiscountedEV(:,:,z_c,e_c);
 
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn,[n_d1,n_d2], n_a2, special_n_z, special_n_e, d_gridvals, a2_grid, z_val, e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
@@ -194,7 +195,8 @@ for reverse_j=1:N_j-1
             z_val=z_gridvals_J(z_c,:,jj);
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
-                DiscountedEV_ze=DiscountedEV(:,:,z_c,e_c);
+                DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);
+                DiscountedEV_z=DiscountedEV(:,:,z_c,e_c);
 
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn,[n_d1,n_d2], n_a2, special_n_z, special_n_e, d_gridvals, a2_grid, z_val, e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 

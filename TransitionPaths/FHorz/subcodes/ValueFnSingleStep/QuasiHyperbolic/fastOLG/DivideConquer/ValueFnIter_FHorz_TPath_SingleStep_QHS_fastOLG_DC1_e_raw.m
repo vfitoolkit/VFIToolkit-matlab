@@ -27,6 +27,8 @@ zind=shiftdim(gpuArray(0:1:N_z-1),-3);
 jBind=shiftdim(gpuArray(0:1:N_j-1),-1);
 zBind=shiftdim(gpuArray(0:1:N_z-1),-2);
 eBind=shiftdim(gpuArray(0:1:N_e-1),-3);
+jCind=gpuArray(0:1:N_j-1); % 2D [1,N_j]; for EV_at_policy lookup
+zCind=shiftdim(gpuArray(0:1:N_z-1),-1); % 3D [1,1,N_z]; for EV_at_policy lookup
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z*N_e (note: N_aprime is just equal to N_a)
@@ -108,7 +110,7 @@ if vfoptions.lowmemory==0
     Vhat=V; % snapshot Vhat before Vunderbar transform
     aprime_ind=ceil(Policy/N_d); % [N_a,N_j,N_z,N_e]
     EV_3d=reshape(EV,[N_a,N_j,N_z]); % (aprime,j,z); e broadcasts
-    EV_at_policy=EV_3d(aprime_ind+N_a*jBind+N_a*N_j*zBind); % [N_a,N_j,N_z,N_e]
+    EV_at_policy=EV_3d(aprime_ind+N_a*jCind+N_a*N_j*zCind); % [N_a,N_j,N_z,N_e]
     V=V+reshape(BetaMinusBeta0Beta_J,[1,N_j,1,1]).*EV_at_policy;
 
 elseif vfoptions.lowmemory==1
@@ -162,7 +164,7 @@ elseif vfoptions.lowmemory==1
         Vhat(:,:,:,e_c)=V(:,:,:,e_c); % snapshot Vhat before Vunderbar transform (for this e)
         aprime_ind_e=ceil(Policy(:,:,:,e_c)/N_d); % [N_a,N_j,N_z]
         EV_3d=reshape(EV,[N_a,N_j,N_z]);
-        EV_at_policy_e=EV_3d(aprime_ind_e+N_a*jBind+N_a*N_j*zBind);
+        EV_at_policy_e=EV_3d(aprime_ind_e+N_a*jCind+N_a*N_j*zCind);
         V(:,:,:,e_c)=V(:,:,:,e_c)+reshape(BetaMinusBeta0Beta_J,[1,N_j,1]).*EV_at_policy_e;
     end
 elseif vfoptions.lowmemory==2
@@ -220,7 +222,7 @@ elseif vfoptions.lowmemory==2
             %% Re-evaluate V at Policy with beta (not beta0*beta) for this (z,e)
             Vhat(:,:,z_c,e_c)=V(:,:,z_c,e_c); % snapshot Vhat before Vunderbar transform (for this z,e)
             aprime_ind_ze=ceil(Policy(:,:,z_c,e_c)/N_d); % [N_a,N_j]
-            EV_at_policy_ze=EV_z(aprime_ind_ze+N_a*jBind);
+            EV_at_policy_ze=EV_z(aprime_ind_ze+N_a*jCind);
             V(:,:,z_c,e_c)=V(:,:,z_c,e_c)+reshape(BetaMinusBeta0Beta_J,[1,N_j]).*EV_at_policy_ze;
         end
      end

@@ -102,7 +102,7 @@ elseif vfoptions.lowmemory==1
     Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray');
 
     for e_c=1:N_e
-        e_val=e_gridvals_J(:,e_c,:);
+        e_val=e_gridvals_J(:,:,:,:,:,:,e_c,:); % e_gridvals_J is [1,1,1,1,1,N_j,N_e,l_e] — e on dim 7
 
         ReturnMatrix_e=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_z,special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, e_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
@@ -110,8 +110,8 @@ elseif vfoptions.lowmemory==1
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_e,[],1);
-        V(:,:,e_c)=Vtemp;
-        Policy(:,:,e_c)=maxindex;
+        V(:,:,e_c)=reshape(Vtemp,[N_a*N_j,N_z]);
+        Policy(:,:,e_c)=reshape(maxindex,[N_a*N_j,N_z]);
     end
 elseif vfoptions.lowmemory==2
     special_n_z=ones(1,length(n_z),'gpuArray');
@@ -120,11 +120,11 @@ elseif vfoptions.lowmemory==2
     Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray');
 
     for z_c=1:N_z
-        z_val=z_gridvals_J(:,z_c,:);
+        z_val=z_gridvals_J(:,:,:,:,:,z_c,:); % z_gridvals_J is [1,1,1,1,N_j,N_z,l_z] — z on dim 6
         DiscountedEV_z=DiscountedEV(:,:,:,z_c);
 
         for e_c=1:N_e
-            e_val=e_gridvals_J(:,e_c,:);
+            e_val=e_gridvals_J(:,:,:,:,:,:,e_c,:); % e_gridvals_J is [1,1,1,1,1,N_j,N_e,l_e] — e on dim 7
 
             ReturnMatrix_ze=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, e_val, ReturnFnParamsAgeMatrix,0,0); % Level=0, Refine=0
 
@@ -132,8 +132,8 @@ elseif vfoptions.lowmemory==2
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_ze,[],1);
-            V(:,z_c,e_c)=Vtemp;
-            Policy(:,z_c,e_c)=maxindex;
+            V(:,z_c,e_c)=reshape(Vtemp,[N_a*N_j,1]);
+            Policy(:,z_c,e_c)=reshape(maxindex,[N_a*N_j,1]);
         end
     end
 end

@@ -132,6 +132,7 @@ if vfoptions.lowmemory==0
     Policyalt(4,:,:,:,:)=shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt),-1);
 
     %% Policy (beta0*beta)
+    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z,n_e,N_j, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J,e_gridvals_J, ReturnFnParamsAgeMatrix,1); % recompute at level-1 anchors
     entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -233,6 +234,7 @@ elseif vfoptions.lowmemory==1
         Policyalt(4,:,:,:,e_c)=shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt),-1);
 
         %% Policy (beta0*beta)
+        ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z,special_n_e,N_j, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J,e_vals, ReturnFnParamsAgeMatrix,1); % recompute at level-1 anchors
         entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -343,6 +345,7 @@ elseif vfoptions.lowmemory==2
             Policyalt(4,:,:,z_c,e_c)=shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt),-1);
 
             %% Policy (beta0*beta)
+            ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z,special_n_e,N_j, d_gridvals, a_grid, a_grid(level1ii), z_vals,e_vals, ReturnFnParamsAgeMatrix,1); % recompute at level-1 anchors
             entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z;
 
             [~,maxindex1]=max(entireRHS_ii,[],2);

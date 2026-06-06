@@ -28,7 +28,7 @@ a1_gridvals=CreateGridvals(n_a1,a1_grid,1);
 if N_a1>0 % set up for divide-and-conquer
     if vfoptions.divideandconquer==1
         if ~isfield(vfoptions,'level1n')
-            vfoptions.level1n=round(sqrt(n_a1(1)));
+            vfoptions.level1n=floor(sqrt(n_a1(1)));
             if n_a1(1)<5
                 error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
             end

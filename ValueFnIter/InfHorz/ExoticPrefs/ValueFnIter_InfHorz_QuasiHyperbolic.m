@@ -64,6 +64,29 @@ if vfoptions.gridinterplayer==1
     if ~isscalar(n_a)
         error('QuasiHyperbolic with vfoptions.gridinterplayer=1 is only implemented for scalar n_a (single endogenous state). Multi-dim n_a (2A) variants are not yet supported.')
     end
+    % QH GI is always postGI — mirror the postGI defaults from ValueFnIter_InfHorz_GridInterpLayer.
+    % This dispatcher bypasses that helper, so the defaults must be set here.
+    if ~isfield(vfoptions,'multigridswitch')
+        vfoptions.multigridswitch=10;
+    end
+    if ~isfield(vfoptions,'postGIrepeat')
+        vfoptions.postGIrepeat=1;
+    end
+    if ~isfield(vfoptions,'maxaprimediff')
+        if N_d==0
+            if vfoptions.postGIrepeat==0
+                vfoptions.maxaprimediff=5;
+            else
+                vfoptions.maxaprimediff=3;
+            end
+        else
+            if vfoptions.postGIrepeat==0
+                vfoptions.maxaprimediff=10;
+            else
+                vfoptions.maxaprimediff=5;
+            end
+        end
+    end
     if N_d==0
         if isNaive
             [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolicN_postGI_nod_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParamsVec, vfoptions);

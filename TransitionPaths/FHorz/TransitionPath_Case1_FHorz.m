@@ -113,9 +113,9 @@ else
     elseif vfoptions.divideandconquer==1
         if ~isfield(vfoptions,'level1n')
             if isscalar(n_a)
-                vfoptions.level1n=round(sqrt(n_a(1)));
+                vfoptions.level1n=floor(sqrt(n_a(1)));
             elseif length(n_a)==2
-                vfoptions.level1n=[round(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
+                vfoptions.level1n=[floor(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
             end
         end
     end
@@ -245,7 +245,7 @@ else
 end
 l_a=length(n_a);
 l_aprime=l_a;
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     l_aprime=l_aprime-1;
 end
 if N_z==0
@@ -493,7 +493,7 @@ end
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 l_daprime=l_d+l_a;
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     l_daprime=l_daprime-1;
 end
 
