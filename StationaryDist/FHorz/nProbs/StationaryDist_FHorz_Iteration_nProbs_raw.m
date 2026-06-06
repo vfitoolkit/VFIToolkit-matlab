@@ -12,7 +12,7 @@ else
 end
 
 % Policy_aprime and PolicyProbs are currently [N_a,N_z,N_probs,N_j]
-Policy_aprimez=Policy_aprime+N_a*gpuArray(precision_cast(0:1:N_z-1));  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
+Policy_aprimez=Policy_aprime+N_a*gpuArray(precision_cast(0):1:N_z-1);  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
 Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z,N_probs,N_j])); % sparse() requires inputs to be 2-D
 PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,N_probs,N_j])); % sparse() requires inputs to be 2-D
 
@@ -23,7 +23,7 @@ StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse matrix
 
 % Precompute
-II2=repmat(precision_cast(1:1:N_a*N_z)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
+II2=repmat((precision_cast(1):1:N_a*N_z)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
 
 for jj=1:(N_j-1)
 
