@@ -74,21 +74,21 @@ else
     % Some options require certain other inputs, and these have to be on the GPU
     if isfield(simoptions,'d_grid')
         simoptions.d_grid=gpuArray(simoptions.d_grid);
-    elseif simoptions.experienceasset==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1 || simoptions.experienceassetu==1
+    elseif simoptions.experienceasset>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassetu>=1
         error('When using any kind of experience asset you must set simoptions.d_grid')
     elseif simoptions.riskyasset==1
         error('When using a risky asset you must set simoptions.d_grid')
     end
     if isfield(simoptions,'a_grid')
         simoptions.a_grid=gpuArray(simoptions.a_grid);
-    elseif simoptions.experienceasset==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1 || simoptions.experienceassetu==1
+    elseif simoptions.experienceasset>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassetu>=1
         error('When using any kind of experience asset you must set simoptions.a_grid')
     end
     if isfield(simoptions,'z_grid')
         simoptions.z_grid=gpuArray(simoptions.z_grid);
-    elseif simoptions.experienceassetz==1
+    elseif simoptions.experienceassetz>=1
         error('When using experienceassetz you must set simoptions.z_grid')
-    elseif simoptions.experienceassetze==1
+    elseif simoptions.experienceassetze>=1
         error('When using experienceassetze you must set simoptions.z_grid')
     end
 end
@@ -116,7 +116,7 @@ if simoptions.alreadygridvals==0
         % things like experienceassetz and experienceassetze require z_gridvals_J
         % simoptions.experienceassete does not require z_gridvals_J, but we do need to build simoptions.e_gridvals_J
         [z_gridvals_J, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,simoptions.z_grid,pi_z,N_j,Parameters,simoptions,3);
-    elseif simoptions.experienceassete==1
+    elseif simoptions.experienceassete>=1
         % Only pi_z_J for any z in the model [and we don't have simoptions.z_grid, so cannot just create even though we don't need)
         [~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions,2);
         % But need both for e
@@ -194,7 +194,7 @@ end
 
 
 %% Non-standard endogenous states
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     if ~isfield(simoptions,'l_dexperienceasset')
         simoptions.l_dexperienceasset=1; % by default, only one decision variable influences the experienceasset
     end
@@ -206,7 +206,7 @@ if simoptions.experienceasset==1
         return
     end
 end
-if simoptions.experienceassetu==1
+if simoptions.experienceassetu>=1
     if ~isfield(simoptions,'l_dexperienceassetu')
         simoptions.l_dexperienceassetu=1; % by default, only one decision variable influences the experienceasset
     end
@@ -219,7 +219,7 @@ if simoptions.experienceassetu==1
         return
     end
 end
-if simoptions.experienceassete==1
+if simoptions.experienceassete>=1
     if ~isfield(simoptions,'l_dexperienceassete')
         simoptions.l_dexperienceassete=1; % by default, only one decision variable influences the experienceassete
     end
@@ -231,7 +231,7 @@ if simoptions.experienceassete==1
         return
     end
 end
-if simoptions.experienceassetz==1
+if simoptions.experienceassetz>=1
     if ~isfield(simoptions,'l_dexperienceassetz')
         simoptions.l_dexperienceassetz=1; % by default, only one decision variable influences the experienceassetz
     end
@@ -243,7 +243,7 @@ if simoptions.experienceassetz==1
         return
     end
 end
-if simoptions.experienceassetze==1
+if simoptions.experienceassetze>=1
     if ~isfield(simoptions,'l_dexperienceassetze')
         simoptions.l_dexperienceassetze=1; % by default, only one decision variable influences the experienceassetze
     end

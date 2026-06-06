@@ -1,5 +1,5 @@
 function varargout=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
-% Compute V from a given Policy when the model has an experience asset (vfoptions.experienceasset==1).
+% Compute V from a given Policy when the model has an experience asset (vfoptions.experienceasset>=1).
 % a = [a1, a2]: a2 is the experience asset; a2prime is determined by aprimeFn(d_expasset, a2).
 % Policy stores d and a1prime only (a2prime is implicit). For lookup of V at next period, a2prime is
 % (in general) fractional and is linearly interpolated onto the a2_grid via a2primeIndex/a2primeProbs.
@@ -37,23 +37,23 @@ l_d=length(n_d);
 l_a=length(n_a);
 
 % Split a into a1 (standard) and a2 (experience asset).
-% noa1 case (n_a is scalar -- experience asset is the only endogenous state): use n_a1=0, N_a1=0
+% noa1 case: when length(n_a)<=l_a2 (experience asset is the only endogenous state) use n_a1=0, N_a1=0
 % (toolkit convention; matches StationaryDist_FHorz_ExpAsset). Note we have to override l_a1=0
 % because length(0)=1, not 0. Downstream, the lookup section has explicit `if N_a1==0` branches.
-if isscalar(n_a)
+l_a2=vfoptions.experienceasset; % l_a2 = number of a2 (experience-asset) dims
+if length(n_a)<=l_a2
     n_a1=0;
     N_a1=0;
     l_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-l_a2);
     N_a1=prod(n_a1);
     l_a1=length(n_a1);
 end
-n_a2=n_a(end);
+n_a2=n_a(end-l_a2+1:end);
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a2=length(n_a2);
 l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit); 0 in the noa1 case
 
 % Which d affects the experience asset (default: last d only)
@@ -67,8 +67,8 @@ n_d2=n_d(end-l_d2+1:end);
 
 % aprimeFnParamNames
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2)
-    aprimeFnParamNames={temp{l_d2+l_a2+1:end}};
+if length(temp)>(l_d2+l_a2+(l_a2>=2))
+    aprimeFnParamNames={temp{l_d2+l_a2+(l_a2>=2)+1:end}};
 else
     aprimeFnParamNames={};
 end
@@ -212,17 +212,54 @@ for reverse_j=0:N_j-1
         % In the noa1 case (N_a1==0), aprime_low/up reduce to a2primeIndex/a2primeIndex+1
         % (no a1prime to combine with; a1prime_idx is unused).
         if N_z==0 && N_e==0
-            if N_a1==0
-                aprime_low=a2primeIndex;     % [N_a, 1]
-                aprime_up =a2primeIndex+1;
+            if l_a2==1
+                if N_a1==0
+                    aprime_low=a2primeIndex;     % [N_a, 1]
+                    aprime_up =a2primeIndex+1;
+                else
+                    a1p=a1prime_idx(:,jj); % [N_a, 1]
+                    aprime_low=a1p+N_a1*(a2primeIndex-1);
+                    aprime_up =a1p+N_a1*(a2primeIndex);
+                end
+                EV_low=EVnext(aprime_low);
+                EV_up =EVnext(aprime_up);
+                EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up; % [N_a, 1]
             else
-                a1p=a1prime_idx(:,jj); % [N_a]
-                aprime_low=a1p+N_a1*(a2primeIndex-1); % [N_a, 1]
-                aprime_up =a1p+N_a1*(a2primeIndex);
+                % l_a2==2: a2primeIndex/a2primeProbs are [N_a, l_a2] per-dim factored.
+                % Nested 2-corner with skipinterp at each level for bit-exactness when V flat.
+                n_a2_1=n_a2(1);
+                loIdx_1=a2primeIndex(:,1); % [N_a, 1]
+                loIdx_2=a2primeIndex(:,2);
+                prob_1=a2primeProbs(:,1);
+                prob_2=a2primeProbs(:,2);
+
+                if N_a1==0
+                    a1p=zeros(N_a,1,'gpuArray'); N_a1_eff=1;
+                else
+                    a1p=a1prime_idx(:,jj); N_a1_eff=N_a1;
+                end
+                aprime_ll=a1p+N_a1_eff*(loIdx_1+n_a2_1*(loIdx_2-1)-1);
+                aprime_hl=a1p+N_a1_eff*((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1);
+                aprime_lh=a1p+N_a1_eff*(loIdx_1+n_a2_1*loIdx_2-1);
+                aprime_hh=a1p+N_a1_eff*((loIdx_1+1)+n_a2_1*loIdx_2-1);
+                V_ll=EVnext(aprime_ll);
+                V_hl=EVnext(aprime_hl);
+                V_lh=EVnext(aprime_lh);
+                V_hh=EVnext(aprime_hh);
+
+                p1_loy=prob_1; p1_loy(V_ll==V_hl)=0;
+                c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+                EV_loy=c_ll+c_hl;
+                p1_hiy=prob_1; p1_hiy(V_lh==V_hh)=0;
+                c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+                EV_hiy=c_lh+c_hh;
+                p2=prob_2; p2(EV_loy==EV_hiy)=0;
+                c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                EVnext_atpolicy=c_loy+c_hiy; % [N_a, 1]
             end
-            EV_low=EVnext(aprime_low);
-            EV_up =EVnext(aprime_up);
-            EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up; % [N_a, 1]
             V(:,jj)=F_jj+beta*EVnext_atpolicy;
         elseif N_z==0 && N_e>0
             % a1prime_idx, a2primeIndex shape: [N_a, N_e]; EVnext shape: [N_a, 1]

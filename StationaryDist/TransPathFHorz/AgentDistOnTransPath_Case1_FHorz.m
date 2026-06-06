@@ -185,7 +185,7 @@ N_probs=1; % Not using N_probs
 if simoptions.gridinterplayer==1
     N_probs=N_probs*2;
 end
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     N_probs=N_probs*2;
 end
 
@@ -196,7 +196,7 @@ else
     l_d=length(n_d);
 end
 l_aprime=l_a;
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     l_aprime=l_aprime-1;
 end
 
@@ -216,7 +216,7 @@ else
 end
 
 n_aprime=n_a;
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     if ~isfield(simoptions,'l_dexperienceasset')
         simoptions.l_dexperienceasset=1;
     end
@@ -330,7 +330,7 @@ if N_e==0
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.fastOLG==0
                 PolicyaprimePath=reshape(PolicyaprimePath,[N_a,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
@@ -373,7 +373,7 @@ if N_e==0
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.fastOLG==0
                 PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
@@ -418,7 +418,7 @@ else
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.fastOLG==0
                 PolicyaprimePath=reshape(PolicyaprimePath,[N_a*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
@@ -461,7 +461,7 @@ else
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.fastOLG==0
                 PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;

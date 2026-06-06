@@ -3,12 +3,12 @@ function StationaryDist=StationaryDist_FHorz_ExpAsset(jequaloneDist,AgeWeightPar
 %% Setup related to experience asset
 n_d2=n_d(end-simoptions.l_dexperienceasset+1:end);
 % Split endogenous assets into the standard ones and the experience asset
-if isscalar(n_a)
+if length(n_a)<=simoptions.experienceasset
     n_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-simoptions.experienceasset);
 end
-n_a2=n_a(end); % n_a2 is the experience asset
+n_a2=n_a(end-simoptions.experienceasset+1:end); % last simoptions.experienceasset dims are the experience asset
 
 if ~isfield(simoptions,'aprimeFn')
     error('To use an experience asset you must define simoptions.aprimeFn')
@@ -30,8 +30,8 @@ end
 l_d2=length(n_d2);
 l_a2=length(n_a2);
 temp=getAnonymousFnInputNames(simoptions.aprimeFn);
-if length(temp)>(l_d2+l_a2)
-    aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+if length(temp)>(l_d2+l_a2+(l_a2>=2))
+    aprimeFnParamNames={temp{l_d2+l_a2+(l_a2>=2)+1:end}}; % the first inputs will always be (d2,a2)
 else
     aprimeFnParamNames={};
 end

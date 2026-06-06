@@ -1,5 +1,5 @@
 function varargout=ValueFnFromPolicy_FHorz_ExpAssetu(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
-% Compute V from a given Policy when the model has experienceassetu (vfoptions.experienceassetu==1).
+% Compute V from a given Policy when the model has experienceassetu (vfoptions.experienceassetu>=1).
 % experienceassetu: a2prime = aprimeFn(d_expasset, a2, u) -- depends on iid (between-period) shock u.
 % u does NOT enter Policy; pi_u integrates u out when computing E[V'|policy].
 

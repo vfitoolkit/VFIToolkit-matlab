@@ -21,7 +21,7 @@ else
     l_d=length(n_d);
 end
 l_aprime=length(n_aprime);
-if simoptions.experienceasset==1 || simoptions.experienceassetu==1 || simoptions.experienceassetz==1 || simoptions.experienceassetze==1 || simoptions.experienceassete==1 || simoptions.riskyasset==1
+if simoptions.experienceasset>=1 || simoptions.experienceassetu>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassete>=1 || simoptions.riskyasset==1
     l_aprime=l_aprime-1;
 end
 

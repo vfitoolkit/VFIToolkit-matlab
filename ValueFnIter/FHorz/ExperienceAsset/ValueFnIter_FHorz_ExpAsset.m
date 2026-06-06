@@ -11,8 +11,8 @@ end
 l_d2=length(n_d2);
 l_a2=length(n_a2);
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2)
-    aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+if length(temp)>(l_d2+l_a2+(l_a2>=2))
+    aprimeFnParamNames={temp{l_d2+l_a2+(l_a2>=2)+1:end}}; % the first inputs will always be (d2,a2)
 else
     aprimeFnParamNames={};
 end

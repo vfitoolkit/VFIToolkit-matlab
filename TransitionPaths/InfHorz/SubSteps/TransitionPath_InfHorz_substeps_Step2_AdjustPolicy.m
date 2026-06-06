@@ -2,7 +2,7 @@ function [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=Transiti
 
 
 %%
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     % Note: Have not yet implemented to permite the aprimeFn parameters to vary over time path tt
 
     whichisdforexpasset=length(n_d)-simoptions.setup_experienceasset.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
@@ -69,7 +69,7 @@ if simoptions.experienceasset==1
 end
 
 
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     n_a1=simoptions.setup_experienceasset.n_a1;
 else
     n_a1=n_a;
@@ -110,7 +110,7 @@ if N_z==0 && N_e==0
         PolicyaprimePath=reshape(PolicyaprimePath,[N_a,1,T-1]); % so can assume this size later
     end
     clear PolicyIndexesPath L2index
-    if simoptions.experienceasset==1
+    if simoptions.experienceasset>=1
         if simoptions.setup_experienceasset.N_a1==0
             PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
         else
@@ -164,7 +164,7 @@ elseif N_z>0 && N_e==0
     end
 
     clear PolicyIndexesPath PolicyaprimePath L2index
-    if simoptions.experienceasset==1
+    if simoptions.experienceasset>=1
         if simoptions.setup_experienceasset.N_a1==0
             PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
         else
@@ -216,7 +216,7 @@ elseif N_z==0 && N_e>0
         PolicyaprimePath=reshape(PolicyaprimePath,[N_a*N_e,1,T-1]); % so can assume this size later
     end
     clear PolicyIndexesPath L2index
-    if simoptions.experienceasset==1
+    if simoptions.experienceasset>=1
         if simoptions.setup_experienceasset.N_a1==0
             PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
         else
@@ -270,7 +270,7 @@ elseif N_z>0 && N_e>0
     end
 
     clear PolicyIndexesPath PolicyaprimePath L2index
-    if simoptions.experienceasset==1
+    if simoptions.experienceasset>=1
         if simoptions.setup_experienceasset.N_a1==0
             PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
         else

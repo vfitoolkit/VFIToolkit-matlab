@@ -29,19 +29,19 @@ if prod(vfoptions.n_semiz)>0
 end
 
 %% Scope limits -- plain case only for now (no ExpAsset family)
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceasset')
 end
-if vfoptions.experienceassetu==1
+if vfoptions.experienceassetu>=1
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassetu')
 end
-if vfoptions.experienceassetz==1
+if vfoptions.experienceassetz>=1
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassetz')
 end
-if vfoptions.experienceassete==1
+if vfoptions.experienceassete>=1
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassete')
 end
-if vfoptions.experienceassetze==1
+if vfoptions.experienceassetze>=1
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassetze')
 end
 if vfoptions.gridinterplayer==1 && length(n_a)>=2

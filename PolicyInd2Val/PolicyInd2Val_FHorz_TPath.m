@@ -26,7 +26,7 @@ end
 
 if fastOLG==0
     l_aprime=length(n_a);
-    if vfoptions.experienceasset==1
+    if vfoptions.experienceasset>=1
         l_aprime=l_aprime-1;
     end
 
@@ -89,7 +89,7 @@ else
     % If using vfoptions.gridinterplayer=1, it should be aprime_gridvals for the fine grid, not the rough grid
 
     l_aprime=size(a_grid,2);% it is aprime_gridvals, not actually a_grid
-    if vfoptions.experienceasset==1
+    if vfoptions.experienceasset>=1
         l_aprime=l_aprime-1; % experience asset (last aprime) is computed via aprimeFn, not stored in Policy
     end
 

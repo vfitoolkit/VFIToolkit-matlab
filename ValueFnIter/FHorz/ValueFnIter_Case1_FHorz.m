@@ -285,42 +285,47 @@ end
 % experienceassete: aprime(d,a,e)
 % experienceassetze: aprime(d,a,z,e)
 
-if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1 || vfoptions.experienceassetz==1 || vfoptions.experienceassete==1 || vfoptions.experienceassetze==1
+if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     % When using both semiexo and experience asset, the last decision variable influences semi-exo and the second last decision variable influences the experience asset
 
-    if vfoptions.experienceasset==1
+    if vfoptions.experienceasset>=1
         if ~isfield(vfoptions,'l_dexperienceasset')
             vfoptions.l_dexperienceasset=1; % by default, only one decision variable influences the experienceasset
         end
-    elseif vfoptions.experienceassetu==1
+    elseif vfoptions.experienceassetu>=1
         if ~isfield(vfoptions,'l_dexperienceassetu')
             vfoptions.l_dexperienceassetu=1; % by default, only one decision variable influences the experienceassetu
         end
-    elseif vfoptions.experienceassete==1
+    elseif vfoptions.experienceassete>=1
         if ~isfield(vfoptions,'l_dexperienceassete')
             vfoptions.l_dexperienceassete=1; % by default, only one decision variable influences the experienceassete
         end
-    elseif vfoptions.experienceassetz==1
+    elseif vfoptions.experienceassetz>=1
         if ~isfield(vfoptions,'l_dexperienceassetz')
             vfoptions.l_dexperienceassetz=1; % by default, only one decision variable influences the experienceassetz
         end
-    elseif vfoptions.experienceassetze==1
+    elseif vfoptions.experienceassetze>=1
         if ~isfield(vfoptions,'l_dexperienceassetze')
             vfoptions.l_dexperienceassetze=1; % by default, only one decision variable influences the experienceassetze
         end
     end
-
-    if vfoptions.experienceasset==1
+    
+    if vfoptions.experienceasset>=1
         vfoptions.l_d2=vfoptions.l_dexperienceasset;
-    elseif vfoptions.experienceassetu==1
+        vfoptions.l_a2=vfoptions.experienceasset;
+    elseif vfoptions.experienceassetu>=1
         vfoptions.l_d2=vfoptions.l_dexperienceassetu;
-    elseif vfoptions.experienceassete==1
+        vfoptions.l_a2=vfoptions.experienceassetu;
+    elseif vfoptions.experienceassete>=1
         vfoptions.l_d2=vfoptions.l_dexperienceassete;
-    elseif vfoptions.experienceassetz==1
+        vfoptions.l_a2=vfoptions.experienceassete;
+    elseif vfoptions.experienceassetz>=1
         vfoptions.l_d2=vfoptions.l_dexperienceassetz;
-    elseif vfoptions.experienceassetze==1
+        vfoptions.l_a2=vfoptions.experienceassetz;
+    elseif vfoptions.experienceassetze>=1
         vfoptions.l_d2=vfoptions.l_dexperienceassetze;
+        vfoptions.l_a2=vfoptions.experienceassetze;
     end
 
     if prod(vfoptions.n_semiz)>0
@@ -340,12 +345,12 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1 || vfoptions.ex
         d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
         d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
         % Split endogenous assets into the standard ones and the experience asset
-        if isscalar(n_a)
+        if length(n_a)<=vfoptions.l_a2
             n_a1=0;
         else
-            n_a1=n_a(1:end-1);
+            n_a1=n_a(1:end-vfoptions.l_a2);
         end
-        n_a2=n_a(end); % n_a2 is the experience asset
+        n_a2=n_a(end-vfoptions.l_a2+1:end); % last l_a2 (=vfoptions.experienceasset) dims are the experience asset
         a1_grid=a_grid(1:sum(n_a1));
         a2_grid=a_grid(sum(n_a1)+1:end);
 
@@ -360,36 +365,36 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1 || vfoptions.ex
         d1_grid=d_grid(1:sum(n_d1));
         d2_grid=d_grid(sum(n_d1)+1:end);
         % Split endogenous assets into the standard ones and the experience asset
-        if isscalar(n_a)
+        if length(n_a)<=vfoptions.l_a2
             n_a1=0;
         else
-            n_a1=n_a(1:end-1);
+            n_a1=n_a(1:end-vfoptions.l_a2);
         end
-        n_a2=n_a(end); % n_a2 is the experience asset
+        n_a2=n_a(end-vfoptions.l_a2+1:end); % last l_a2 (=vfoptions.experienceasset) dims are the experience asset
         a1_grid=a_grid(1:sum(n_a1));
         a2_grid=a_grid(sum(n_a1)+1:end);
     end
 
     % Now just send all this to the right value fn iteration command
-    if vfoptions.experienceasset==1
+    if vfoptions.experienceasset>=1
         if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
-    elseif vfoptions.experienceassetu==1
+    elseif vfoptions.experienceassetu>=1
         if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetuSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
-    elseif vfoptions.experienceassete==1
+    elseif vfoptions.experienceassete>=1
         if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAsseteSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAssete(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
-    elseif vfoptions.experienceassetz==1
+    elseif vfoptions.experienceassetz>=1
         if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetzSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
@@ -403,9 +408,17 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1 || vfoptions.ex
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAssetz(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
-    elseif vfoptions.experienceassetze==1
+    elseif vfoptions.experienceassetze>=1
         if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetzeSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+            [V,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetze(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+                varargout={V, Policy, Valt, Policyalt};
+            else
+                varargout={V, Policy, Valt};
+            end
+            return
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAssetze(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end

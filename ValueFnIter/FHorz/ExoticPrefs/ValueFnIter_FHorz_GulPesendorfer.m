@@ -36,7 +36,7 @@ if N_e==0
 else
     l_e=length(vfoptions.n_e);
 end
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     % One of the endogenous states should only be counted once. I fake this by pretending it is a z rather than a variable
     l_z=l_z+1;
     l_a=l_a-1;

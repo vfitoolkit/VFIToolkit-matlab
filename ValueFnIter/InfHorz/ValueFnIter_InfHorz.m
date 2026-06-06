@@ -354,7 +354,7 @@ end
 
 
 %% Experience asset
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
 
     % Split decision variables into the standard ones and the one relevant to the experience asset

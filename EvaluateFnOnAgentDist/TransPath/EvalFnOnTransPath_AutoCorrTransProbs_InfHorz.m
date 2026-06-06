@@ -141,7 +141,7 @@ if simoptions.experienceasset==0
         aprime_grid=a_grid;
         % aprime_gridvals=a_gridvals;
     end
-elseif simoptions.experienceasset==1
+elseif simoptions.experienceasset>=1
     % omit a2 from aprime_gridvals
     if simoptions.gridinterplayer==1
         N_a1prime=n_a(1)+(n_a(1)-1)*simoptions.ngridinterp;

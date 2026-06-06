@@ -95,21 +95,21 @@ else
     % Some options require certain other inputs, and these have to be on the GPU
     if isfield(simoptions,'d_grid')
         simoptions.d_grid=gpuArray(simoptions.d_grid);
-    elseif simoptions.experienceasset==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1 || simoptions.experienceassetu==1
+    elseif simoptions.experienceasset>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassetu>=1
         error('When using any kind of experience asset you must set simoptions.d_grid')
     elseif simoptions.riskyasset==1
         error('When using a risky asset you must set simoptions.d_grid')
     end
     if isfield(simoptions,'a_grid')
         simoptions.a_grid=gpuArray(simoptions.a_grid);
-    elseif simoptions.experienceasset==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1 || simoptions.experienceassetu==1
+    elseif simoptions.experienceasset>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassetu>=1
         error('When using any kind of experience asset you must set simoptions.a_grid')
     end
     if isfield(simoptions,'z_grid')
         simoptions.z_grid=gpuArray(simoptions.z_grid);
-    elseif simoptions.experienceassetz==1
+    elseif simoptions.experienceassetz>=1
         error('When using experienceassetz you must set simoptions.z_grid')
-    elseif simoptions.experienceassetze==1
+    elseif simoptions.experienceassetze>=1
         error('When using experienceassetze you must set simoptions.z_grid')
     end
 end
@@ -193,31 +193,31 @@ end
 
 %% Send off to different simulation commands based on the setup (with/without z and e is handled within the commands)
 simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     if N_semiz==0
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     else
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     end
-elseif simoptions.experienceassetu==1
+elseif simoptions.experienceassetu>=1
     if N_semiz==0
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     else
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     end
-elseif simoptions.experienceassetz==1
+elseif simoptions.experienceassetz>=1
     if N_semiz==0
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,z_gridvals_J,gather(pi_z_J), Parameters, simoptions);
     else
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetz_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,z_gridvals_J,gather(pi_z_J), Parameters, simoptions);
     end
-elseif simoptions.experienceassete==1
+elseif simoptions.experienceassete>=1
     if N_semiz==0
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssete(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     else
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssete_semiz(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     end
-elseif simoptions.experienceassetze==1
+elseif simoptions.experienceassetze>=1
     if N_semiz==0
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetze(gather(InitialDist),Policy,n_d,n_a,n_z,N_j,z_gridvals_J,gather(pi_z_J), Parameters, simoptions);
     else
@@ -252,7 +252,7 @@ end
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_aprime and l_daprime
 l_aprime=l_a;
-if simoptions.experienceasset==1 || simoptions.experienceassetu==1 || simoptions.experienceassetz==1 || simoptions.experienceassete==1 || simoptions.experienceassetze==1
+if simoptions.experienceasset>=1 || simoptions.experienceassetu>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1
     l_aprime=l_aprime-1;
 end
 l_daprime=l_d+l_aprime;

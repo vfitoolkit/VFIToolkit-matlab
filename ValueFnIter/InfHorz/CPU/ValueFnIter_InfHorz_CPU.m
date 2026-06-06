@@ -56,7 +56,7 @@ end
 
 
 %% Anything but the basics is only for GPU
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     error('Cannot use vfoptions.experienceasset=1 without a GPU')
 end
 

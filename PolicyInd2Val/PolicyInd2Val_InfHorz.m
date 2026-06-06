@@ -32,17 +32,17 @@ else
     % If using a specific asset type, then remove from aprime
     if isfield(vfoptions,'experienceasset')
         if vfoptions.experienceasset>0
-            l_aprime=l_a-1;
-            aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-            n_aprime=n_a(1:end-1);
+            l_aprime=l_a-vfoptions.experienceasset;
+            aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceasset)));
+            n_aprime=n_a(1:end-vfoptions.experienceasset);
             ordinary=0;
         end
     end
     if isfield(vfoptions,'experienceassetu')
         if vfoptions.experienceassetu>0
-            l_aprime=l_a-1;
-            aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-            n_aprime=n_a(1:end-1);
+            l_aprime=l_a-vfoptions.experienceassetu;
+            aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetu)));
+            n_aprime=n_a(1:end-vfoptions.experienceassetu);
             ordinary=0;
         end
     end

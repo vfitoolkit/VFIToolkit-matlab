@@ -188,7 +188,7 @@ elseif isfield(simoptions,'SemiEndogShockFn')
 else % simoptions.agententryandexit==0
     if simoptions.inheritanceasset==1
         SimPanelIndexes=SimPanelIndexes_InfHorz_InheritAsset(InitialDist,gather(Policy),n_d,n_a,n_z,pi_z, Parameters, simoptions);
-    elseif simoptions.experienceasset==1
+    elseif simoptions.experienceasset>=1
         error('Have not yet implemented simulation for InfHorz with experienceasset')
     else
         SimPanelIndexes=SimPanelIndexes_InfHorz(InitialDist,gather(Policy),n_d,n_a,n_z,pi_z, simoptions);
@@ -209,7 +209,7 @@ end
 
 % Following commented out lines explain what size daprimePolicy_gridvals will be
 % l_aprime=l_a;
-% if simoptions.experienceasset==1 || simoptions.experienceassetu==1 || simoptions.inheritanceasset==1
+% if simoptions.experienceasset>=1 || simoptions.experienceassetu>=1 || simoptions.inheritanceasset==1
 %     l_aprime=l_aprime-1;
 % end
 % if N_d==0

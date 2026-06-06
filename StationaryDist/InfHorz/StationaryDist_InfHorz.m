@@ -302,7 +302,7 @@ if simoptions.iterate==1
 end
 
 %% Experience asset
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     if ~exist('Parameters','var')
         error('When using simoptions.experienceasset=1 you must include Parameter structure as input to StationaryDist_InfHorz (input just after simoptions)')
     end

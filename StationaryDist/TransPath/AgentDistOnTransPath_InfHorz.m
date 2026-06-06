@@ -31,7 +31,7 @@ else
 end
 
 %% Some setups need Parameters, PricePath and ParamPath to be input
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     if ~exist('Parameters','var') || ~exist('PricePath','var') || ~exist('ParamPath','var')
         error('When using AgentDistOnTransPath_Case1() with experienceasset you must include Parameters, PricePath, ParamPath as inputs after simoptions')
     end
@@ -87,7 +87,7 @@ if simoptions.experienceasset==0
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
     end
-elseif simoptions.experienceasset==1
+elseif simoptions.experienceasset>=1
 
     % Split decision variables into the standard ones and the one relevant to the experience asset
     n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset

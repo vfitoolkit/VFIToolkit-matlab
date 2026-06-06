@@ -2,7 +2,7 @@ function [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=Transiti
 
 
 %%
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     % Note: Have not yet implemented to permite the aprimeFn parameters to vary over time path tt
 
     whichisdforexpasset=length(n_d)-simoptions.setup_experienceasset.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
@@ -111,7 +111,7 @@ if simoptions.experienceasset==1
 end
 
 
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     n_a1=simoptions.setup_experienceasset.n_a1;
 else
     n_a1=n_a;
@@ -163,7 +163,7 @@ if transpathoptions.fastOLG==0
             PolicyaprimejPath=gather(PolicyaprimejPath);
         end
         clear PolicyIndexesPath PolicyaprimePath L2index
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.fastOLG==0
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimePath_slowOLG=reshape(PolicyaprimePath_slowOLG,[N_a,(N_j-1),1,T])+a2primeIndexesPath;
@@ -241,7 +241,7 @@ if transpathoptions.fastOLG==0
             PolicyaprimejzPath=gather(PolicyaprimejzPath);
         end
         clear PolicyIndexesPath PolicyaprimePath L2index
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.fastOLG==0
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimezPath_slowOLG=reshape(PolicyaprimezPath_slowOLG,[N_a*N_z,(N_j-1),1,T])+a2primeIndexesPath;
@@ -319,7 +319,7 @@ if transpathoptions.fastOLG==0
             PolicyaprimejPath=gather(PolicyaprimejPath);
         end
         clear PolicyIndexesPath PolicyaprimePath L2index
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.fastOLG==0
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimePath_slowOLG=reshape(PolicyaprimePath_slowOLG,[N_a*N_e,(N_j-1),1,T])+a2primeIndexesPath;
@@ -397,7 +397,7 @@ if transpathoptions.fastOLG==0
             PolicyaprimejzPath=gather(PolicyaprimejzPath);
         end
         clear PolicyIndexesPath PolicyaprimePath L2index
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.fastOLG==0
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimezPath_slowOLG=reshape(PolicyaprimezPath_slowOLG,[N_a*N_z*N_e,(N_j-1),1,T])+a2primeIndexesPath;
@@ -473,7 +473,7 @@ elseif transpathoptions.fastOLG==1
         end
         PolicyaprimejPath=gather(PolicyaprimejPath);
         clear PolicyIndexesPath L2index
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.gridinterplayer==1
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
@@ -531,7 +531,7 @@ elseif transpathoptions.fastOLG==1
         end
         PolicyaprimejzPath=gather(PolicyaprimejzPath);
         clear PolicyIndexesPath L2index
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.gridinterplayer==1
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
@@ -589,7 +589,7 @@ elseif transpathoptions.fastOLG==1
         end
         PolicyaprimejPath=gather(PolicyaprimejPath);
         clear PolicyIndexesPath L2index
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.gridinterplayer==1
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
@@ -647,7 +647,7 @@ elseif transpathoptions.fastOLG==1
         end
         PolicyaprimejzPath=gather(PolicyaprimejzPath);
         clear PolicyIndexesPath L2index
-        if simoptions.experienceasset==1
+        if simoptions.experienceasset>=1
             if simoptions.gridinterplayer==1
                 if simoptions.setup_experienceasset.N_a1==0
                     PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);

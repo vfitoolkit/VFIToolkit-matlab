@@ -17,7 +17,7 @@ function varargout=ValueFnOnTransPath_FHorz_QuasiHyperbolic(PricePath, ParamPath
 
 isNaive=strcmp(vfoptions.quasi_hyperbolic,'Naive');
 
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     error('ValueFnOnTransPath_FHorz_QuasiHyperbolic: experienceasset not yet supported')
 end
 

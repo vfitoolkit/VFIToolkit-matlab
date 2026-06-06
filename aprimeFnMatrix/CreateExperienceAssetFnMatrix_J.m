@@ -1,28 +1,17 @@
-function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix_J(aprimeFn, n_d, n_a2, N_j, d_gridvals, a2_grid, aprimeFnParams, aprimeIndexAsColumn) % since a2 is one-dimensional, can be a2_grid or a2_gridvals
-% Age-dependent (_J) version of CreateExperienceAssetFnMatrix: enumerate
-% a2prime=aprimeFn(d, a2) over ALL d (used during value-function iteration).
-% Continuous a2prime is linearly interpolated back on to a2_grid; output
-% (lower-grid-index, prob-of-lower-grid).
-%
-% Companion file CreateaprimePolicyExperienceAsset_J.m does the same but
-% only for the Policy-chosen d, used in simulation / agent-distribution.
-%
-% Dimension layout: d in dim 1, a2 in dim 2, j in dim 3.
-% aprimeFnParams is passed as a [N_j, n_params] matrix; each column is
-% shifted via shiftdim(...,-2) so j lives in dim 3 during arrayfun.
+function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix_J(aprimeFn, n_d, n_a2, N_j, d_gridvals, a2_grid, aprimeFnParams, aprimeIndexAsColumn)
+% Age-dependent (_J) version of CreateExperienceAssetFnMatrix.
 %
 % Output sizes:
-%   a2primeIndexes - shape depends on aprimeIndexAsColumn:
-%                      1 => matrix [N_d*N_a2, N_j]
-%                      2 => matrix [N_d, N_a2, N_j]
-%   a2primeProbs   - [N_d, N_a2, N_j]
+%   l_a2==1 (legacy):
+%     a2primeIndexes - col=1 => [N_d*N_a2, N_j]; col=2 => [N_d, N_a2, N_j]
+%     a2primeProbs   - [N_d, N_a2, N_j]
+%   l_a2==2 (multi-dim, Kaprimepts=4 corners):
+%     a2primeIndexes - col=1 => [Kaprimepts, N_d*N_a2, N_j]; col=2 => [Kaprimepts, N_d, N_a2, N_j]
+%     a2primeProbs   - same shape; per-corner prob (sum_c = 1 across c)
 
 ParamCell=cell(size(aprimeFnParams,2),1);
 for ii=1:size(aprimeFnParams,2)
-    % if ~logical((size(aprimeFnParams(ii))==N_j) + (size(aprimeFnParams(ii))==1))
-    %     error('Using experienceasset does not allow for any of aprimeFn parameters to be anything but a scalar (after conditioning on age)')
-    % end
-    ParamCell(ii,1)={shiftdim(aprimeFnParams(:,ii),-2)}; % j is second dimension
+    ParamCell(ii,1)={shiftdim(aprimeFnParams(:,ii),-2)}; % j is third dimension
 end
 
 N_d=prod(n_d);
@@ -36,8 +25,12 @@ l_a2=length(n_a2);
 if l_d>4
     error('experienceasset does not allow for more than four of d variable (you have length(n_d)>4)')
 end
+if l_a2>2
+    error('experienceasset currently supports length(n_a2) in {1,2}')
+end
 
-if nargin(aprimeFn)~=l_d+l_a2+size(aprimeFnParams,2)
+if nargin(aprimeFn)~=l_d+l_a2+(l_a2>=2)+size(aprimeFnParams,2)
+    % When l_a2>=2, aprimeFn takes an extra 'whicha' integer selector slot after the a2 inputs.
     error('Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
 end
 
@@ -54,79 +47,147 @@ if l_d>=1
     end
 end
 
-a2vals=shiftdim(a2_grid,-1);
-
-if l_d==1
-    % d1vals(1,1,1,1)=d_gridvals(1); % Requires special treatment
-    a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, ParamCell{:});
-elseif l_d==2
-    a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, ParamCell{:});
-elseif l_d==3
-    a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, ParamCell{:});
-elseif l_d==4
-    a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, ParamCell{:});
-end
-
-
-%% Calcuate grid indexes and probs from the values
 if l_a2==1
+    a2vals=shiftdim(a2_grid,-1);
+
+    if l_d==1
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, ParamCell{:});
+    elseif l_d==2
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, ParamCell{:});
+    elseif l_d==3
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, ParamCell{:});
+    elseif l_d==4
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, ParamCell{:});
+    end
+
+
+    %% Calcuate grid indexes and probs from the values
     a2primeVals=reshape(a2primeVals,[1,N_d*N_a2,N_j]);
 
-    a2_griddiff=a2_grid(2:end)-a2_grid(1:end-1); % Distance between point and the next point
+    a2_griddiff=a2_grid(2:end)-a2_grid(1:end-1);
 
-    % For small aprimeVals and a_grid, max() is faster than discretize()
-    % http://discourse.vfitoolkit.com/t/example-attanasio-low-sanchez-marcos-2008/257/25
     if N_d*N_a2*N_j*N_a2<1000000
-        [~,a2primeIndexes]=max((a2_grid>a2primeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
-        % Note, this is going to find the 'first' grid point which is bigger than a2primeVals
-        % This is the 'upper' grid point
-        % Have to have special treatment for trying to leave the ends of the grid (I fix these below)
-
-        % Switch to lower grid point index
+        [~,a2primeIndexes]=max((a2_grid>a2primeVals),[],1);
         a2primeIndexes=a2primeIndexes-1;
         a2primeIndexes(a2primeIndexes==0)=1;
         a2primeIndexes=reshape(a2primeIndexes,[N_d*N_a2,N_j]);
 
-        % Now, find the probabilities
         aprime_residual=reshape(a2primeVals,[N_d*N_a2,N_j])-a2_grid(a2primeIndexes);
-        % Probability of the 'lower' points
         a2primeProbs=1-aprime_residual./a2_griddiff(a2primeIndexes);
 
-        % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
         offTopOfGrid=(a2primeVals>=a2_grid(end));
-        a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
+        a2primeIndexes(offTopOfGrid)=n_a2-1;
         a2primeProbs(offTopOfGrid)=0;
-        % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
         offBottomOfGrid=(a2primeVals<=a2_grid(1));
-        % aprimeIndexes(offBottomOfGrid)=1; % Has already been handled
         a2primeProbs(offBottomOfGrid)=1;
     else
-        a2primeIndexes=discretize(a2primeVals,a2_grid); % Finds the lower grid point
-        a2primeIndexes=reshape(a2primeIndexes,[N_d*N_a2,N_j]); % match the [N_d*N_a2,N_j] shape used in the max branch above
-        % Have to have special treatment for trying to leave the ends of the grid
-
-        % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
+        a2primeIndexes=discretize(a2primeVals,a2_grid);
+        a2primeIndexes=reshape(a2primeIndexes,[N_d*N_a2,N_j]);
         offBottomOfGrid=(a2primeVals<=a2_grid(1));
-        a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
-        % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
+        a2primeIndexes(offBottomOfGrid)=1;
         offTopOfGrid=(a2primeVals>=a2_grid(end));
-        a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
-
-        % Now, find the probabilities
+        a2primeIndexes(offTopOfGrid)=n_a2-1;
         aprime_residual=reshape(a2primeVals,[N_d*N_a2,N_j])-a2_grid(a2primeIndexes);
-        % Probability of the 'lower' points
         a2primeProbs=1-aprime_residual./a2_griddiff(a2primeIndexes);
-        % And clean up the ends of the grid
         a2primeProbs(offBottomOfGrid)=1;
         a2primeProbs(offTopOfGrid)=0;
     end
 
-    if aprimeIndexAsColumn==1 % value fn codes want column when no z
+    if aprimeIndexAsColumn==1
         a2primeIndexes=reshape(a2primeIndexes,[N_d*N_a2,N_j]);
-    else % aprimeIndexAsColumn==2 % value fn with z, or simulation, want matrix
+    else
         a2primeIndexes=reshape(a2primeIndexes,[N_d,N_a2,N_j]);
     end
     a2primeProbs=reshape(a2primeProbs,[N_d,N_a2,N_j]);
+
+elseif l_a2==2
+    %% Multi-dim a2 (l_a2=2): bilinear interp, Kaprimepts=4 corners
+    n_a2_1=n_a2(1); n_a2_2=n_a2(2);
+    a2_grid_1=a2_grid(1:n_a2_1);
+    a2_grid_2=a2_grid(n_a2_1+1:n_a2_1+n_a2_2);
+    % Lay out: d in dim 1, j in dim 2 (set by shiftdim(...,-2) below), a2_1 in dim 3, a2_2 in dim 4
+    a2_1_vals=shiftdim(a2_grid_1,-2); % dim 3
+    a2_2_vals=shiftdim(a2_grid_2,-3); % dim 4
+    % Note: ParamCell entries are already shiftdim(...,-2) so j sits in dim 3; that's fine because
+    % the a2_1 dim 3 is broadcast against j separately by arrayfun position semantics.
+    % To avoid a dim collision we instead put j in dim 5 here:
+    for ii=1:numel(ParamCell)
+        ParamCell{ii}=shiftdim(ParamCell{ii},2); % move j from dim 3 to dim 5
+    end
+
+    % GPU arrayfun requires scalar output; call once per a2 dim with whicha selector
+    if l_d==1
+        a2primeVals_1=arrayfun(aprimeFn, d1vals, a2_1_vals, a2_2_vals, 1, ParamCell{:});
+        a2primeVals_2=arrayfun(aprimeFn, d1vals, a2_1_vals, a2_2_vals, 2, ParamCell{:});
+    elseif l_d==2
+        a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals, a2_2_vals, 1, ParamCell{:});
+        a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals, a2_2_vals, 2, ParamCell{:});
+    elseif l_d==3
+        a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals, a2_2_vals, 1, ParamCell{:});
+        a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals, a2_2_vals, 2, ParamCell{:});
+    elseif l_d==4
+        a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals, a2_2_vals, 1, ParamCell{:});
+        a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals, a2_2_vals, 2, ParamCell{:});
+    end
+    % a2primeVals_*: shape [N_d, 1, n_a2_1, n_a2_2, N_j]; reshape to [N_d*n_a2_1*n_a2_2, N_j] = [N_d*N_a2, N_j]
+    a2primeVals_1=reshape(a2primeVals_1,[N_d*N_a2,N_j]);
+    a2primeVals_2=reshape(a2primeVals_2,[N_d*N_a2,N_j]);
+
+    [loIdx_1, prob_1]=local_interp1d(a2primeVals_1, a2_grid_1, n_a2_1); % loIdx, prob: [N_d*N_a2*N_j, 1]
+    [loIdx_2, prob_2]=local_interp1d(a2primeVals_2, a2_grid_2, n_a2_2);
+
+    Kaprimepts=4;
+    N=N_d*N_a2*N_j;
+    a2primeIndexes=zeros(Kaprimepts,N,'gpuArray');
+    a2primeProbs=zeros(Kaprimepts,N,'gpuArray');
+    bits=[0 0; 1 0; 0 1; 1 1];
+    for c=1:Kaprimepts
+        b1=bits(c,1); b2=bits(c,2);
+        a2primeIndexes(c,:)=(loIdx_1(:)+b1) + n_a2_1*((loIdx_2(:)+b2)-1);
+        p1=prob_1(:); if b1==1, p1=1-p1; end
+        p2=prob_2(:); if b2==1, p2=1-p2; end
+        a2primeProbs(c,:)=p1.*p2;
+    end
+
+    if aprimeIndexAsColumn==1
+        a2primeIndexes=reshape(a2primeIndexes,[Kaprimepts,N_d*N_a2,N_j]);
+    else
+        a2primeIndexes=reshape(a2primeIndexes,[Kaprimepts,N_d,N_a2,N_j]);
+    end
+    a2primeProbs=reshape(a2primeProbs,[Kaprimepts,N_d,N_a2,N_j]);
 end
 
 
+end
+
+
+function [loIdx, prob]=local_interp1d(aprimeVals, grid, n_grid)
+apvals=aprimeVals(:);
+N=numel(apvals);
+griddiff=grid(2:end)-grid(1:end-1);
+
+if N*n_grid<1000000
+    [~,upIdx]=max((grid>apvals'),[],1);
+    loIdx=upIdx-1;
+    loIdx(loIdx==0)=1;
+    loIdx=loIdx(:);
+    residual=apvals-grid(loIdx);
+    prob=1-residual./griddiff(loIdx);
+    offTop=(apvals>=grid(end));
+    loIdx(offTop)=n_grid-1;
+    prob(offTop)=0;
+    offBottom=(apvals<=grid(1));
+    prob(offBottom)=1;
+else
+    loIdx=discretize(apvals,grid);
+    loIdx=loIdx(:);
+    offBottom=(apvals<=grid(1));
+    loIdx(offBottom)=1;
+    offTop=(apvals>=grid(end));
+    loIdx(offTop)=n_grid-1;
+    residual=apvals-grid(loIdx);
+    prob=1-residual./griddiff(loIdx);
+    prob(offBottom)=1;
+    prob(offTop)=0;
+end
+end

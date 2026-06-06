@@ -68,35 +68,35 @@ if isfield(vfoptions,'exoticpreferences') && strcmp(vfoptions.exoticpreferences,
 end
 
 %% Dispatch to ExpAsset subfn if experienceasset==1
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     V=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     varargout={V};
     return
 end
 
 %% Dispatch to ExpAssetu subfn if experienceassetu==1
-if vfoptions.experienceassetu==1
+if vfoptions.experienceassetu>=1
     V=ValueFnFromPolicy_FHorz_ExpAssetu(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     varargout={V};
     return
 end
 
 %% Dispatch to ExpAssetz subfn if experienceassetz==1
-if vfoptions.experienceassetz==1
+if vfoptions.experienceassetz>=1
     V=ValueFnFromPolicy_FHorz_ExpAssetz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     varargout={V};
     return
 end
 
 %% Dispatch to ExpAssete subfn if experienceassete==1
-if vfoptions.experienceassete==1
+if vfoptions.experienceassete>=1
     V=ValueFnFromPolicy_FHorz_ExpAssete(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     varargout={V};
     return
 end
 
 %% Dispatch to ExpAssetze subfn if experienceassetze==1
-if vfoptions.experienceassetze==1
+if vfoptions.experienceassetze>=1
     V=ValueFnFromPolicy_FHorz_ExpAssetze(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     varargout={V};
     return

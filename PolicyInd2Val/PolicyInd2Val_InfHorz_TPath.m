@@ -13,7 +13,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 l_aprime=length(n_a);
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>=1
     l_aprime=l_aprime-1;
 end
 

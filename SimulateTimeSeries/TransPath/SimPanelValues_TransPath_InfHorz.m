@@ -220,7 +220,7 @@ end
 
 % Note that dPolicy and aprimePolicy will depend on age
 l_aprime=l_a;
-if simoptions.experienceasset==1 || simoptions.experienceassetu==1
+if simoptions.experienceasset>=1 || simoptions.experienceassetu>=1
     l_aprime=l_aprime-1;
 end
 if N_d==0

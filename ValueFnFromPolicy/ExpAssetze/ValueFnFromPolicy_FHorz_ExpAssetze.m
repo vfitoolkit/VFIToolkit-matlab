@@ -1,5 +1,5 @@
 function varargout=ValueFnFromPolicy_FHorz_ExpAssetze(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
-% Compute V from a given Policy when the model has experienceassetze (vfoptions.experienceassetze==1).
+% Compute V from a given Policy when the model has experienceassetze (vfoptions.experienceassetze>=1).
 % experienceassetze: a2prime = aprimeFn(d_expasset, a2, z, e) -- depends on Markov z and iid e.
 % Requires both N_z>0 and N_e>0.
 

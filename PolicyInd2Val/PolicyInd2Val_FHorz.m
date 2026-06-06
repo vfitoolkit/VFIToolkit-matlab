@@ -37,29 +37,29 @@ else
     n_aprime=n_a;
     % If using a specific asset type, then remove from aprime
     if isfield(vfoptions,'experienceasset') && vfoptions.experienceasset>0
-        l_aprime=l_a-1;
-        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-        n_aprime=n_a(1:end-1);
+        l_aprime=l_a-vfoptions.experienceasset;
+        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceasset)));
+        n_aprime=n_a(1:end-vfoptions.experienceasset);
     end
     if isfield(vfoptions,'experienceassetu') && vfoptions.experienceassetu>0
-        l_aprime=l_a-1;
-        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-        n_aprime=n_a(1:end-1);
+        l_aprime=l_a-vfoptions.experienceassetu;
+        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetu)));
+        n_aprime=n_a(1:end-vfoptions.experienceassetu);
     end
     if isfield(vfoptions,'experienceassetz') && vfoptions.experienceassetz>0
-        l_aprime=l_a-1;
-        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-        n_aprime=n_a(1:end-1);
+        l_aprime=l_a-vfoptions.experienceassetz;
+        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetz)));
+        n_aprime=n_a(1:end-vfoptions.experienceassetz);
     end
     if isfield(vfoptions,'experienceassete') && vfoptions.experienceassete>0
-        l_aprime=l_a-1;
-        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-        n_aprime=n_a(1:end-1);
+        l_aprime=l_a-vfoptions.experienceassete;
+        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassete)));
+        n_aprime=n_a(1:end-vfoptions.experienceassete);
     end
     if isfield(vfoptions,'experienceassetze') && vfoptions.experienceassetze>0
-        l_aprime=l_a-1;
-        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-        n_aprime=n_a(1:end-1);
+        l_aprime=l_a-vfoptions.experienceassetze;
+        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetze)));
+        n_aprime=n_a(1:end-vfoptions.experienceassetze);
     end
     if isfield(vfoptions,'riskyasset') && vfoptions.riskyasset>0
         l_aprime=l_a-1;

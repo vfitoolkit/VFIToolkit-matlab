@@ -20,7 +20,7 @@ else
         error('ValueFnFromPolicyOnTransPath_FHorz() does not yet work with exotic preferences. Please ask on forum if you want/need this feature. \n');
     end
     if isfield(vfoptions,'experienceasset')
-        if vfoptions.experienceasset==1
+        if vfoptions.experienceasset>=1
             error('ValueFnFromPolicyOnTransPath_FHorz() does not yet work with experienceasset. Please ask on forum if you want/need this feature. \n');
         end
     end

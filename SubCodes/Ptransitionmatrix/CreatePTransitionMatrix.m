@@ -1,6 +1,6 @@
 function P=CreatePTransitionMatrix(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,pi_semiz,pi_z,pi_e,Parameters,simoptions)
 
-if simoptions.experienceasset==1
+if simoptions.experienceasset>=1
     %% Experience asset
     error('Not yet implemented')
 elseif simoptions.inheritanceasset==1
