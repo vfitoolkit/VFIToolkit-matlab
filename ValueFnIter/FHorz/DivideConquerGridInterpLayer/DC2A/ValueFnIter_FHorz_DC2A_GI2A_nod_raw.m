@@ -469,7 +469,10 @@ Policy(1,:,:,:)=Policy(1,:,:,:)-adjust; % lower grid point
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 % Convert our lovely `int32` Policies into `double` for further grid interpolation
-Policy=double([Policy; PolicyL2flag]);
+% Policy=double([Policy; PolicyL2flag]);
+
+% Proudly return `int32` as a nicely-shaped Policy
+Policy=[Policy; PolicyL2flag];
 
 % Policy=Policy(1,:,:,:)+N_a1*(Policy(2,:,:,:)-1)+N_a1*N_a2*(Policy(3,:,:,:)-1)+N_a1*N_a2*(n2short+2)*(PolicyL2flag-1);
 
