@@ -40,9 +40,9 @@ end
 if vfoptions.divideandconquer==1
     if ~isfield(vfoptions,'level1n')
         if isscalar(n_a)
-            vfoptions.level1n=round(sqrt(n_a(1)));
+            vfoptions.level1n=floor(sqrt(n_a(1)));
         elseif length(n_a)==2
-            vfoptions.level1n=[round(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
+            vfoptions.level1n=[floor(sqrt(n_a(1))),n_a(2)]; % default DC2A: level1n(2)==n_a(2) triggers DC2A branch
         end
     end
 end
@@ -72,11 +72,6 @@ T=recursiveeqmoptions.burnin+T;
 l_S=length(n_S);
 
 %%
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
-N_S=prod(n_S);
-
 % Move things to GPU
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
@@ -85,6 +80,27 @@ S_grid=gpuArray(S_grid);
 pi_z=gpuArray(pi_z);
 pi_S=gpuArray(pi_S);
 
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+N_S=prod(n_S);
+
+if N_d==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+if N_z==0
+    l_z=0;
+else
+    l_z=length(n_z);
+end
+l_e=0; % Not yet implemented for InfHorz
+
+l_aprime=length(n_a);
+l_daprime=l_d+l_aprime;
+
 % Switch S_grid to joint-grid (if it not already)
 if size(S_grid,2)==1
     S_gridvals=CreateGridvals(n_S,S_grid,1);
@@ -92,6 +108,7 @@ else
     S_gridvals=S_grid;
 end
 clear S_grid % make sure I don't accidently use it later
+
 
 %% Implement new way of handling ReturnFn inputs
 if length(AggShockNames)~=l_S
@@ -106,22 +123,48 @@ for SS_c=1:l_S
     Parameters=rmfield(Parameters,AggShockNames{SS_c});% To make sure I don't accidently use them
 end
 
+
+%% Setup for how to implement the Matching Expectations
+recursiveeqmoptions.matchE_nnearest=1; % How many 'nearest' agent distributions to use when constructing expectations
+ % =1 Match Sprime based on Distances
+ % =2 Match (S,Sprime) based on Distances
+ % Note: =1 is standard, but when pi(z,zprime) is conditional on both S and Sprime it will instead use =2
+recursiveeqmoptions.matchE_distmeasure=2; % How to measure the distance between agent distributions
+ % =1 is Kolmogorov-Smirnoff distance, not yet implemented
+ % =2 is Mean of (next period) Endogenous and (this period) Exogenous States
+
+if recursiveeqmoptions.matchE_distmeasure==2
+    % Create FnsToEvaluate the are the endogenous state and exogenous state
+    nfinput = l_aprime+l_a+l_z; % Variable number of inputs (this is the nod code)
+    inputNames = compose('x%d', 1:nfinput); % Create {'x1', 'x2', ..., 'x5'}
+    argStr = strjoin(inputNames, ','); % Create 'x1,x2,x3,x4,x5'
+    % Endogenous states
+    if l_a==1
+        FnsToEvaluate.EndoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+1)]);
+    elseif l_a==2
+        FnsToEvaluate.EndoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+2)]);
+    elseif l_a==3
+        FnsToEvaluate.EndoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+3)]);
+    else
+        error('Have not implemented expectations matching for lenght(n_a)>3')
+    end
+    % Exogenous states
+    if l_z==1
+        FnsToEvaluate.ExoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+1)]);
+    elseif l_z==2
+        FnsToEvaluate.ExoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+2)]);
+    elseif l_z==3
+        FnsToEvaluate.ExoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+3)]);
+    elseif l_z==4
+        FnsToEvaluate.ExoState4=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+4)]);
+    elseif l_z==5
+        FnsToEvaluate.ExoState5=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+5)]);
+    else
+        error('Have not implemented expectations matching for lenght(n_z)>5')
+    end
+end
+
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
-if N_d==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
-l_a=length(n_a);
-if N_z==0
-    l_z=0;
-else
-    l_z=length(n_z);
-end
-l_e=0; % Not yet implemented for InfHorz
-
-l_daprime=l_d+l_a;
-
 AggVarNames=fieldnames(FnsToEvaluate);
 FnsToEvaluateCell=cell(1,length(AggVarNames));
 for ff=1:length(AggVarNames)
@@ -356,6 +399,7 @@ elseif initialguessobjects.methodforguess==2 % treat S as idiosyncratic shock
     initialguessobjects.zS_gridvals=[repmat(CreateGridvals(n_z,z_grid,1),N_S,1),repelem(S_gridvals,N_z,1)];
 end
 
+
 %% If you are dividing up the T dimension, so some setup for that
 if recursiveeqmoptions.divideT>1
     t1vec=floor(1:T/recursiveeqmoptions.divideT:T)';
@@ -367,9 +411,9 @@ recursiveeqmoptions=setupGEnewprice3_shooting(recursiveeqmoptions,GeneralEqmEqns
 
 %% Now solve the Matched-expectations path
 if N_d==0
-    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting_nod(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_a, n_z, n_S, l_a, l_z, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, simoptions,recursiveeqmoptions);
+    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting_nod(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_a, n_z, n_S, l_aprime, l_a, l_z, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, simoptions,recursiveeqmoptions);
 else
-    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_d, n_a, n_z, n_S, l_d, l_a, l_z, d_grid, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, simoptions,recursiveeqmoptions);
+    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_d, n_a, n_z, n_S, l_d, l_aprime, l_a, l_z, d_grid, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, simoptions,recursiveeqmoptions);
 end
 
 %% Need to reshape these for output, permute for fastOLG, and store in GeneralizedTransitionFn
