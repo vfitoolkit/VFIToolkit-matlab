@@ -375,31 +375,6 @@ if simoptions.lowmemory==0
             precision='double';
         end
 
-        %% Parameters
-        % Parameters are allowed to be given as structure, or as vector/matrix
-        % (in terms of their dependence on permanent type). So go through each of
-        % these in term.
-        Parameters_temp=Parameters;
-        FullParamNames=fieldnames(Parameters);
-        nFields=length(FullParamNames);
-        for kField=1:nFields
-            if isstruct(Parameters.(FullParamNames{kField})) % Check for permanent type in structure form
-                names=fieldnames(Parameters.(FullParamNames{kField}));
-                for jj=1:length(names)
-                    if strcmp(names{jj},Names_i{ii})
-                        Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{jj});
-                    end
-                end
-            elseif any(size(Parameters.(FullParamNames{kField}))==N_i) % Check for permanent type in vector/matrix form.
-                temp=Parameters.(FullParamNames{kField});
-                [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
-                if ptypedim==1
-                    Parameters_temp.(FullParamNames{kField})=temp(ii,:);
-                elseif ptypedim==2
-                    Parameters_temp.(FullParamNames{kField})=temp(:,ii);
-                end
-            end
-        end
         % Parameters
         Parameters_temp=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
 
