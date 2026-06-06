@@ -10,15 +10,12 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,precision,'gpuArray');
-Policy=zeros(1,N_a,N_j,precision,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(1,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
-ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
-if isUnderlyingType(a_grid,'single')
-    ReturnFnParamsVec=single(ReturnFnParamsVec);
-end
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j,precision);
 
 if ~isfield(vfoptions,'V_Jplus1')
     ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,0);
@@ -29,7 +26,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(1,:,N_j)=maxindex;
 else
     % Using V_Jplus1
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j,precision);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
@@ -54,13 +51,9 @@ for reverse_j=1:N_j-1
     end
 
     % Create a vector containing all the return function parameters (in order)
-    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj,precision);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj,precision);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    if isUnderlyingType(a_grid,'single')
-        ReturnFnParamsVec=single(ReturnFnParamsVec);
-        DiscountFactorParamsVec=single(DiscountFactorParamsVec);
-    end
 
     EV=V(:,jj+1);
 

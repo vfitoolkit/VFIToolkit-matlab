@@ -3,11 +3,10 @@ function varargout=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gri
 
 if isUnderlyingType(a_grid,'single')
     V=single(nan);
-    Policy=single(nan);
 else
     V=nan;
-    Policy=nan;
 end
+Policy=nan;
 
 
 %% Check which vfoptions have been used, set all others to defaults

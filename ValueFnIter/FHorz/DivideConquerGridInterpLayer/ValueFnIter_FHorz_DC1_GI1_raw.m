@@ -50,10 +50,7 @@ n2aprime=length(aprime_grid);
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
-ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
-if isUnderlyingType(a_grid,'single')
-    ReturnFnParamsVec=single(ReturnFnParamsVec);
-end
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j,precision);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
@@ -164,11 +161,8 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j,precision);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    if isUnderlyingType(a_grid,'single')
-        DiscountFactorParamsVec=single(DiscountFactorParamsVec);
-    end
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % First, switch V_Jplus1 into Kron form
 
@@ -178,9 +172,6 @@ else
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
-    if isUnderlyingType(a_grid,'single')
-        EVinterp=single(EVinterp);
-    end
 
     if vfoptions.lowmemory==0
         % n-Monotonicity
@@ -314,8 +305,8 @@ for reverse_j=1:N_j-1
     end
 
     % Create a vector containing all the return function parameters (in order)
-    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj,precision);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj,precision);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=V(:,:,jj+1);
@@ -326,11 +317,6 @@ for reverse_j=1:N_j-1
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
-    if isUnderlyingType(a_grid,'single')
-        ReturnFnParamsVec=single(ReturnFnParamsVec);
-        DiscountFactorParamsVec=single(DiscountFactorParamsVec);
-        EVinterp=single(EVinterp);
-    end
 
     if vfoptions.lowmemory==0
         % n-Monotonicity

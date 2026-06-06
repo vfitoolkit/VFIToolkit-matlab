@@ -95,7 +95,7 @@ a_gridvals=CreateGridvals(n_a,a_grid,1);
 %%
 if N_z==0
     if simoptions.lowmemory==0
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+        AggVars=zeros(length(FnsToEvaluate),1,precision,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_j]);
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
@@ -124,7 +124,7 @@ if N_z==0
         end
 
     elseif simoptions.lowmemory==1 % Loop over age j
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+        AggVars=zeros(length(FnsToEvaluate),1,precision,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_j]);
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
@@ -148,7 +148,7 @@ if N_z==0
 else % N_z
 
     if simoptions.lowmemory==0
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+        AggVars=zeros(length(FnsToEvaluate),1,precision,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
@@ -176,7 +176,7 @@ else % N_z
         end
 
     elseif simoptions.lowmemory==1 % Loop over age j
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+        AggVars=zeros(length(FnsToEvaluate),1,precision,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);

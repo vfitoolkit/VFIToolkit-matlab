@@ -5,11 +5,9 @@ function [V,Policy]=ValueFnIter_FHorz_DC2A_GI2A_nod_raw(n_a, n_z, N_j, a_grid, z
 if isUnderlyingType(a_grid,'single')
     precision='single';
     precision_index='int32';
-    precision_cast=@(x) single(x);
 else
     precision='double';
     precision_index='int32';
-    precision_cast=@(x) x;
 end
 
 N_a=int32(prod(n_a));

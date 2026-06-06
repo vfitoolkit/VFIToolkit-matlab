@@ -28,7 +28,7 @@ d23_grid=[d2_grid; d3_grid];
 N_a=N_a1*N_a2;
 
 V=zeros(N_a,N_z,N_e,N_j,precision,'gpuArray');
-Policy=zeros(3,N_a,N_z,N_e,N_j,precision,'gpuArray'); % d2, d3, a1prime
+Policy=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); % d2, d3, a1prime
 
 %%
 d3_grid=gpuArray(d3_grid);
