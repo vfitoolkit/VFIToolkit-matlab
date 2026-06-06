@@ -105,8 +105,14 @@ if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
     % Note: assumed there is only one AgeWeightParamNames
 end
 % And check that the age weights sum to one
-if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
-    warning('StationaryDist: The age-weights do not sum to one')
+if strcmp(precision,'single')
+    if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-6)
+        warning('StationaryDist: The age-weights do not sum to one')
+    end
+else
+    if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
+        warning('StationaryDist: The age-weights do not sum to one')
+    end
 end
 
 %%

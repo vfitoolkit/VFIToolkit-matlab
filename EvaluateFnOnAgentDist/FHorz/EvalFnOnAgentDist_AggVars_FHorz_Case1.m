@@ -1,5 +1,11 @@
 function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 
+if isUnderlyingType(StationaryDist,'single')
+    precision='single';
+else
+    precision='double';
+end
+
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
     % Model setup
@@ -103,7 +109,7 @@ if N_z==0
             else
                 % Create a matrix containing all the return function parameters (in order).
                 % Each column will be a specific parameter with the values at every age.
-                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
+                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j,precision); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
                 nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
 
@@ -155,7 +161,7 @@ else % N_z
             else
                 % Create a matrix containing all the return function parameters (in order).
                 % Each column will be a specific parameter with the values at every age.
-                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
+                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j,precision); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
                 nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
 

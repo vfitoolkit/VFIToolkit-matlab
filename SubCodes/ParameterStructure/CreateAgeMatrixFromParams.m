@@ -1,4 +1,4 @@
-function AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,N_j)
+function AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,N_j,precision)
 %
 % AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,N_j)
 %
@@ -11,12 +11,21 @@ nCalibParams=length(ParamNames);
 FullParamNames=fieldnames(Parameters);
 nFields=length(FullParamNames);
 
-AgeMatrixOfParamValues=zeros(N_j,nCalibParams);
+if ~exist('precision','var')
+    precision='double';
+end
+if strcmp(precision,'single')
+    precision_cast=@(x) single(x);
+else
+    precision_cast=@(x) x;
+end
+
+AgeMatrixOfParamValues=zeros(N_j,nCalibParams,precision);
 for iCalibParam = 1:nCalibParams
     found=0;
     for iField=1:nFields
         if strcmp(ParamNames{iCalibParam},FullParamNames{iField})
-            AgeMatrixOfParamValues(:,iCalibParam)=reshape(gather(Parameters.(FullParamNames{iField})),[length(Parameters.(FullParamNames{iField})),1]).*ones(N_j,1);
+            AgeMatrixOfParamValues(:,iCalibParam)=reshape(precision_cast(gather(Parameters.(FullParamNames{iField}))),[length(Parameters.(FullParamNames{iField})),1]).*ones(N_j,1,precision);
             % Note, if parameter depends on age this is just the column vector, if parameter does not depend on age then this turns it into a constant valued column vector
             found=1;
             break

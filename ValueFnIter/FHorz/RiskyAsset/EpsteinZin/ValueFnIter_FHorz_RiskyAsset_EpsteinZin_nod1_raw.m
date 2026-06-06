@@ -4,16 +4,14 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_raw(n_d2,n_d3,n
 
 if isUnderlyingType(a1_grid,'single')
     precision='single';
-    precision_cast=@(x) single(x);
 else
     precision='double';
-    precision_cast=@(x) double(x);
 end
 
 N_d2=prod(n_d2);
 N_d3=prod(n_d3);
-N_a1=precision_cast(prod(n_a1));
-N_a2=precision_cast(prod(n_a2));
+N_a1=prod(n_a1);
+N_a2=prod(n_a2);
 N_z=prod(n_z);
 N_u=prod(n_u);
 
@@ -50,9 +48,9 @@ zind=shiftdim(0:1:N_z-1,-1);
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
-ReturnFnParamsVec=precision_cast(CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j));
-DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
-DiscountFactorParamsVec=precision_cast(prod(DiscountFactorParamsVec));
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j,precision);
+DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j,precision);
+DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 if vfoptions.EZoneminusbeta==1
     ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
 elseif vfoptions.EZoneminusbeta==2
@@ -62,14 +60,14 @@ end
 
 % If there is a warm-glow at end of the final period, evaluate the warmglowfn
 if warmglow==1
-    WGParamsVec=precision_cast(CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,N_j));
+    WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,N_j,precision);
     WGmatrixraw=CreateWarmGlowFnMatrix_Case1_Disc_Par2(vfoptions.WarmGlowBequestsFn, n_a2, a2_grid, WGParamsVec); % This depends on aprime
     WGmatrix=WGmatrixraw;
     WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(N_j);
     WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
 
     %  Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-    aprimeFnParamsVec=precision_cast(CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j));
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j,precision);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d,N_u], whereas aprimeProbs is [N_d,N_u]
 
@@ -124,7 +122,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
         ReturnMatrix(becareful)=(ezc1*ReturnMatrix(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
-        ReturnMatrix(ReturnMatrix==0)=precision_cast(-Inf);
+        ReturnMatrix(ReturnMatrix==0)=-Inf;
 
         if warmglow==1
             % Time to refine
@@ -160,7 +158,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
             ReturnMatrix_z(becareful)=(ezc1*ReturnMatrix_z(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
-            ReturnMatrix_z(ReturnMatrix_z==0)=precision_cast(-Inf);
+            ReturnMatrix_z(ReturnMatrix_z==0)=-Inf;
 
             if warmglow==1
                 % Time to refine
@@ -193,7 +191,7 @@ else
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a2,N_z]);    % First, switch V_Jplus1 into Kron form
 
     if warmglow==0 % if warmglow==1 these were already created above
-        aprimeFnParamsVec=precision_cast(CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j));
+        aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j,precision);
         [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
         % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
 
@@ -217,7 +215,7 @@ else
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
         temp2=ReturnMatrix;
         temp2(becareful)=ReturnMatrix(becareful).^ezc2(N_j);
-        temp2(ReturnMatrix==0)=precision_cast(-Inf);
+        temp2(ReturnMatrix==0)=-Inf;
 
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
@@ -281,7 +279,7 @@ else
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
             temp2=ReturnMatrix_z;
             temp2(becareful)=ReturnMatrix_z(becareful).^ezc2(N_j);
-            temp2(ReturnMatrix_z==0)=precision_cast(-Inf);
+            temp2(ReturnMatrix_z==0)=-Inf;
 
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
@@ -349,8 +347,8 @@ for reverse_j=1:N_j-1
 
 
     % Create a vector containing all the return function parameters (in order)
-    ReturnFnParamsVec=precision_cast(CreateVectorFromParams(Parameters, ReturnFnParamNames,jj));
-    DiscountFactorParamsVec=precision_cast(CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj));
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj,precision);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj,precision);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     if vfoptions.EZoneminusbeta==1
         ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
@@ -358,7 +356,7 @@ for reverse_j=1:N_j-1
         ezc1=1-sj(jj)*DiscountFactorParamsVec;
     end
 
-    aprimeFnParamsVec=precision_cast(CreateVectorFromParams(Parameters, aprimeFnParamNames,jj));
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj,precision);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
     aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
@@ -417,7 +415,7 @@ for reverse_j=1:N_j-1
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
         temp2=ReturnMatrix;
         temp2(becareful)=ReturnMatrix(becareful).^ezc2(jj);
-        temp2(ReturnMatrix==0)=precision_cast(-Inf);
+        temp2(ReturnMatrix==0)=-Inf;
 
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
