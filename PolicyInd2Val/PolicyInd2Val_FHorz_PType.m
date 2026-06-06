@@ -10,36 +10,17 @@ PolicyValues=struct();
 for ii=1:N_i
     iistr=Names_i{ii};
     % Go through everything which might be dependent on fixed type (PType)
-    n_d_temp=n_d;
-    if isa(n_d,'struct')
-        names=fieldnames(n_d);
-        n_d_temp=n_d.(names{ii});
-    end
-    n_a_temp=n_a;
-    if isa(n_a,'struct')
-        names=fieldnames(n_a);
-        n_a_temp=n_a.(names{ii});
-    end
-    n_z_temp=n_z;
-    if isa(n_z,'struct')
-        names=fieldnames(n_z);
-        n_z_temp=n_z.(names{ii});
-    end
-    N_j_temp=N_j;
-    if isa(N_j,'struct')
-        names=fieldnames(N_j);
-        N_j_temp=N_j.(names{ii});
-    end
+    [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
 
-    d_grid_temp=d_grid;
-    if isa(d_grid,'struct')
-        names=fieldnames(d_grid);
-        d_grid_temp=d_grid.(names{ii});
+    if isstruct(n_z)
+        n_z_temp=n_z.(iistr);
+    else
+        n_z_temp=n_z;
     end
-    a_grid_temp=a_grid;
-    if isa(a_grid,'struct')
-        names=fieldnames(a_grid);
-        a_grid_temp=a_grid.(names{ii});
+    if isstruct(N_j)
+        N_j_temp=N_j.(iistr);
+    else
+        N_j_temp=N_j;
     end
 
     PolicyValues.(iistr)=PolicyInd2Val_FHorz(PolicyIndexes.(iistr),n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,vfoptions);

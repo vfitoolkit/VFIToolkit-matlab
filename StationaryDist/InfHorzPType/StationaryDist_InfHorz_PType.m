@@ -74,12 +74,7 @@ for ii=1:N_i
 
     Policy_temp=Policy.(iistr);
 
-    % Go through everything which might be dependent on permanent type (PType)
-    % Notice that the way this is coded the grids (etc.) could be either
-    % fixed, or a function (that depends on age, and possibly on permanent
-    % type), or they could be a structure. Only in the case where they are
-    % a structure is there a need to take just a specific part and send
-    % only that to the 'non-PType' version of the command.
+    %% Go through everything which might be dependent on fixed type (PType)
     if isstruct(n_d)
         n_d_temp=n_d.(iistr);
     else
@@ -90,37 +85,12 @@ for ii=1:N_i
     else
         n_a_temp=n_a;
     end
-    if isstruct(n_z)
-        n_z_temp=n_z.(iistr);
-    else
-        n_z_temp=n_z;
-    end
-    if isstruct(pi_z)
-        pi_z_temp=pi_z.(iistr);
-    else
-        pi_z_temp=pi_z;
-    end
 
-    % Parameters are allowed to be given as structure, or as vector/matrix
-    % (in terms of their dependence on fixed type). So go through each of
-    % these in term.
-    Parameters_temp=Parameters;
-    FullParamNames=fieldnames(Parameters);
-    nFields=length(FullParamNames);
-    for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
-            names=fieldnames(Parameters.(FullParamNames{kField}));
-            Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{ii});
-        elseif any(size(Parameters.(FullParamNames{kField}))==N_i) % Check for permanent type in vector/matrix form.
-            temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
-            if ptypedim==1
-                Parameters_temp.(FullParamNames{kField})=temp(ii,:);
-            elseif ptypedim==2
-                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
-            end
-        end
-    end
+    % Exogenous shocks
+    [n_z_temp,~,pi_z_temp,simoptions_temp]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,[],pi_z,simoptions_temp,3);
+
+    % Parameters
+    Parameters_temp=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
 
     if simoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')

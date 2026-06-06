@@ -205,7 +205,9 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions.divideandconquer=0; %default
     else
         if PTypeStructure.(iistr).vfoptions.divideandconquer==1
-            PTypeStructure.(iistr).vfoptions.level1n=ceil(n_a/50); % default
+            if ~isfield(PTypeStructure.(iistr).vfoptions,'level1n')
+                PTypeStructure.(iistr).vfoptions.level1n=floor(sqrt(n_a(1))); % default
+            end
         end
     end
     if ~isfield(PTypeStructure.(iistr).vfoptions,'gridinterplayer')
@@ -227,89 +229,45 @@ for ii=1:PTypeStructure.N_i
     end
 
     %%
-    % Go through everything which might be dependent on permanent type (PType)
-    % Notice that the way this is coded the grids (etc.) could be either
-    % fixed, or a function (that depends on age, and possibly on permanent
-    % type), or they could be a structure. Only in the case where they are
-    % a structure is there a need to take just a specific part and send
-    % only that to the 'non-PType' version of the command.
-
-    % Start with those that determine whether the current permanent type is finite or
-    % infinite horizon, and whether it is Case 1 or Case 2
-    % Figure out which case is relevant to the current PType. This is done
-    % using N_j which for the current type will evaluate to 'Inf' if it is
-    % infinite horizon and a finite number for any other finite horizon.
-    % First, check if it is a structure, and otherwise just get the
-    % relevant value.
-
-    % Horizon is determined via N_j
-    if isstruct(N_j)
-        PTypeStructure.(iistr).N_j=N_j.(iistr);
-    elseif isscalar(N_j)
-        PTypeStructure.(iistr).N_j=N_j;
-    else
-        PTypeStructure.(iistr).N_j=N_j(ii);
-    end
-
-    if isa(n_d,'struct')
-        PTypeStructure.(iistr).n_d=n_d.(iistr);
-    else
-        PTypeStructure.(iistr).n_d=n_d;
-    end
-    N_d=prod(PTypeStructure.(iistr).n_d);
-    PTypeStructure.(iistr).N_d=N_d;
-    if N_d==0
+    %% Go through everything which might be dependent on fixed type (PType)
+    [PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
+    PTypeStructure.(iistr).d_grid=gpuArray(PTypeStructure.(iistr).d_grid);
+    PTypeStructure.(iistr).a_grid=gpuArray(PTypeStructure.(iistr).a_grid);
+    PTypeStructure.(iistr).N_d=prod(PTypeStructure.(iistr).n_d);
+    PTypeStructure.(iistr).N_a=prod(PTypeStructure.(iistr).n_a);
+    if PTypeStructure.(iistr).n_d(1)==0
         PTypeStructure.(iistr).l_d=0;
     else
-        PTypeStructure.(iistr).l_d=length(n_d);
+        PTypeStructure.(iistr).l_d=length(PTypeStructure.(iistr).n_d);
     end
-    if isa(n_a,'struct')
-        PTypeStructure.(iistr).n_a=n_a.(iistr);
-    else
-        PTypeStructure.(iistr).n_a=n_a;
-    end
-    N_a=prod(PTypeStructure.(iistr).n_a);
-    PTypeStructure.(iistr).N_a=N_a;
     PTypeStructure.(iistr).l_a=length(PTypeStructure.(iistr).n_a);
     PTypeStructure.(iistr).l_aprime=PTypeStructure.(iistr).l_a;
-    if PTypeStructure.(iistr).vfoptions.experienceasset==1
+    if PTypeStructure.(iistr).vfoptions.experienceasset>=1
         PTypeStructure.(iistr).l_aprime=PTypeStructure.(iistr).l_aprime-1;
     end
-    if isa(n_z,'struct')
-        PTypeStructure.(iistr).n_z=n_z.(iistr);
+
+    if isstruct(N_j)
+        PTypeStructure.(iistr).N_j=N_j.(iistr);
     else
-        PTypeStructure.(iistr).n_z=n_z;
-    end
-    N_z=prod(PTypeStructure.(iistr).n_z);
-    PTypeStructure.(iistr).N_z=N_z;
-    if N_z==0
-        PTypeStructure.(iistr).l_z=0;
-    else
-        PTypeStructure.(iistr).l_z=length(n_z);
-    end
-    N_e=prod(PTypeStructure.(iistr).n_e);
-    PTypeStructure.(iistr).N_e=N_e;
-    if N_e==0
-        PTypeStructure.(iistr).l_e=0;
-    else
-        PTypeStructure.(iistr).l_e=length(n_e);
+        PTypeStructure.(iistr).N_j=N_j;
     end
 
-    if isa(d_grid,'struct')
-        PTypeStructure.(iistr).d_grid=gpuArray(d_grid.(iistr));
+    % Exogenous shocks
+    [PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).vfoptions]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,pi_z,PTypeStructure.(iistr).vfoptions,3);
+    PTypeStructure.(iistr).z_grid=gpuArray(PTypeStructure.(iistr).z_grid);
+    PTypeStructure.(iistr).N_z=prod(PTypeStructure.(iistr).n_z);
+    if PTypeStructure.(iistr).N_z==0
+        PTypeStructure.(iistr).l_z=0;
     else
-        PTypeStructure.(iistr).d_grid=gpuArray(d_grid);
+        PTypeStructure.(iistr).l_z=length(PTypeStructure.(iistr).n_z);
     end
-    if isa(a_grid,'struct')
-        PTypeStructure.(iistr).a_grid=gpuArray(a_grid.(iistr));
+    PTypeStructure.(iistr).N_e=prod(PTypeStructure.(iistr).n_e);
+    if PTypeStructure.(iistr).N_e==0
+        PTypeStructure.(iistr).l_e=0;
     else
-        PTypeStructure.(iistr).a_grid=gpuArray(a_grid);
+        PTypeStructure.(iistr).l_e=length(PTypeStructure.(iistr).n_e);
     end
-    if isa(z_grid,'struct')
-        PTypeStructure.(iistr).z_grid=gpuArray(z_grid.(iistr));
-    else
-        PTypeStructure.(iistr).z_grid=gpuArray(z_grid);
-    end
+
     % to be able to EvalFnsOnAgentDist using fastOLG we also need
     PTypeStructure.(iistr).a_gridvals=gpuArray(CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1)); % a_grivdals is [N_a,l_a]
     % use fine grid for aprime_gridvals
@@ -330,54 +288,13 @@ for ii=1:PTypeStructure.N_i
         end
     end
     PTypeStructure.(iistr).d_gridvals=CreateGridvals(PTypeStructure.(iistr).n_d,gpuArray(PTypeStructure.(iistr).d_grid),1);
-    % if N_d==0
-    %     PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
-    % else
-    %     PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
-    % end
 
-    if isa(pi_z,'struct')
-        PTypeStructure.(iistr).pi_z=pi_z.(iistr); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occur with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
-    else
-        PTypeStructure.(iistr).pi_z=pi_z;
-    end
+    % ReturnFn and DiscountFactor
+    [PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).DiscountFactorParamNames]=PType_setup_ReturnFnDiscountFactor(iistr,ReturnFn,DiscountFactorParamNames);
 
-    PTypeStructure.(iistr).ReturnFn=ReturnFn;
-    if isa(ReturnFn,'struct')
-        PTypeStructure.(iistr).ReturnFn=ReturnFn.(iistr);
-    end
-
-    % Parameters are allowed to be given as structure, or as vector/matrix (in terms of their dependence on permanent type).
-    % So go through each of these in term.
-    % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
-    PTypeStructure.(iistr).Parameters=Parameters;
-    FullParamNames=fieldnames(Parameters); % all the different parameters
-    nFields=length(FullParamNames);
-    for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-            % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(iistr);
-            end
-        elseif sum(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i)>=1 % Check for permanent type in vector/matrix form.
-            temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType, it should be the row dimension, if it is not then give a warning.
-            if ptypedim==1
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(ii,:);
-            elseif ptypedim==2
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(:,ii);
-            end
-        end
-    end
-    % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
+    % Parameters
+    PTypeStructure.(iistr).Parameters=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
     PTypeStructure.ParametersRaw=Parameters; % For use in General eqm conditions (as we might want them across ptypes for some purposes)
-
-
-    % The parameter names can be made to depend on the permanent-type
-    PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
-    if isa(DiscountFactorParamNames,'struct')
-        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(iistr);
-    end
 
     % Implement new way of handling ReturnFn inputs (note l_d, l_a, l_z are just created for this and then not used for anything else later)
     if PTypeStructure.(iistr).n_d(1)==0
