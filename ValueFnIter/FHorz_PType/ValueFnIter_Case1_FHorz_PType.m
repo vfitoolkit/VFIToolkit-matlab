@@ -32,20 +32,14 @@ for ii=1:N_i
     iistr=Names_i{ii};
 
     % First set up vfoptions
-    if exist('vfoptions','var')
-        vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
-        if ~isfield(vfoptions_temp,'verbose')
-            vfoptions_temp.verbose=0;
-        end
-        if ~isfield(vfoptions_temp,'verboseparams')
-            vfoptions_temp.verboseparams=0;
-        end
-        if ~isfield(vfoptions_temp,'ptypestorecpu')
-            vfoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
-        end
-    else
+    vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
+    if ~isfield(vfoptions_temp,'verbose')
         vfoptions_temp.verbose=0;
+    end
+    if ~isfield(vfoptions_temp,'verboseparams')
         vfoptions_temp.verboseparams=0;
+    end
+    if ~isfield(vfoptions_temp,'ptypestorecpu')
         vfoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
     end
 
@@ -53,156 +47,25 @@ for ii=1:N_i
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
 
-    % Go through everything which might be dependent on fixed type (PType)
-    % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
-    if isstruct(n_d)
-        n_d_temp=n_d.(iistr);
-    else
-        n_d_temp=n_d;
-    end
-    if isstruct(n_a)
-        n_a_temp=n_a.(iistr);
-    else
-        n_a_temp=n_a;
-    end
-    if isstruct(n_z)
-        n_z_temp=n_z.(iistr);
-    else
-        n_z_temp=n_z;
-    end
+    %% Go through everything which might be dependent on fixed type (PType)
+    [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
+
     if isstruct(N_j)
         N_j_temp=N_j.(iistr);
     else
         N_j_temp=N_j;
     end
-    if isstruct(d_grid)
-        d_grid_temp=d_grid.(iistr);
-    else
-        d_grid_temp=d_grid;
-    end
-    if isstruct(a_grid)
-        a_grid_temp=a_grid.(iistr);
-    else
-        a_grid_temp=a_grid;
-    end
 
-    %% Exogenous shocks
-    if isstruct(z_grid)
-        z_grid_temp=z_grid.(iistr);
-    else
-        nn=size(z_grid,ndims(z_grid));
-        if nn==N_i
-            otherdims = repmat({':'},1,ndims(z_grid)-1);
-            z_grid_temp=z_grid(otherdims{:},ii);
-        else
-            z_grid_temp=z_grid;
-        end
-    end
-    if isstruct(pi_z)
-        pi_z_temp=pi_z.(iistr);
-    else
-        nn=size(pi_z,ndims(pi_z));
-        if nn==N_i
-            otherdims = repmat({':'},1,ndims(pi_z)-1);
-            pi_z_temp=pi_z(otherdims{:},ii);
-        else
-            pi_z_temp=pi_z;
-        end
-    end
+    % Exogenous shocks
+    [n_z_temp,z_grid_temp,pi_z_temp,vfoptions_temp]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,pi_z,vfoptions_temp,3);
 
-    % e
-    if prod(vfoptions_temp.n_e)>0
-        % If vfoptions_temp.e_grid is a structure that was already dealt with by PType_Options() command
-        if ~isstruct(vfoptions.e_grid)
-            % So just need to check if last dimension is of length N_i
-            nn=size(vfoptions_temp.e_grid,ndims(vfoptions_temp.e_grid));
-            if nn==N_i
-                otherdims = repmat({':'},1,ndims(vfoptions_temp.e_grid)-1);
-                vfoptions_temp.e_grid=vfoptions_temp.e_grid(otherdims{:},ii);
-            end
-        end
-        % If vfoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
-        if ~isstruct(vfoptions.pi_e)
-            % So just need to check if last dimension is of length N_i
-            nn=size(vfoptions_temp.pi_e,ndims(vfoptions_temp.pi_e));
-            if nn==N_i
-                otherdims = repmat({':'},1,ndims(vfoptions_temp.pi_e)-1);
-                vfoptions_temp.pi_e=vfoptions_temp.pi_e(otherdims{:},ii);
-            end
-        end
-    end
+    % ReturnFn and DiscountFactor
+    [ReturnFn_temp, DiscountFactorParamNames_temp]=PType_setup_ReturnFnDiscountFactor(iistr,ReturnFn,DiscountFactorParamNames);
 
-    % semiz
-    if prod(vfoptions_temp.n_semiz)>0
-        % If vfoptions_temp.semiz_grid is a structure that was already dealt with by PType_Options() command
-        if ~isstruct(vfoptions.semiz_grid)
-            % So just need to check if last dimension is of length N_i
-            nn=size(vfoptions_temp.semiz_grid,ndims(vfoptions_temp.semiz_grid));
-            if nn==N_i
-                otherdims = repmat({':'},1,ndims(vfoptions_temp.semiz_grid)-1);
-                vfoptions_temp.semiz_grid=vfoptions_temp.semiz_grid(otherdims{:},ii);
-            end
-        end
-        % Might use SemiExoShockFn or pi_semiz, if the later we need to deal with it
-        if isfield(vfoptions_temp,'pi_semiz')
-            % If vfoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
-            if ~isstruct(vfoptions.pi_semiz)
-                % So just need to check if last dimension is of length N_i
-                nn=size(vfoptions_temp.pi_semiz,ndims(vfoptions_temp.pi_semiz));
-                if nn==N_i
-                    otherdims = repmat({':'},1,ndims(vfoptions_temp.pi_semiz)-1);
-                    vfoptions_temp.pi_semiz=vfoptions_temp.pi_semiz(otherdims{:},ii);
-                end
-            end
-        end
-    end
-
+    % Parameters
+    Parameters_temp=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
 
     %%
-    DiscountFactorParamNames_temp=DiscountFactorParamNames;
-    if isstruct(DiscountFactorParamNames)
-        names=fieldnames(DiscountFactorParamNames);
-        for jj=1:length(names)
-            if strcmp(names{jj},Names_i{ii})
-                DiscountFactorParamNames_temp=DiscountFactorParamNames.(names{jj});
-            end
-        end
-    end
-
-    if isstruct(ReturnFn)
-        ReturnFn_temp=ReturnFn.(iistr);
-    else
-        ReturnFn_temp=ReturnFn;
-    end
-
-    %%
-    % Parameters are allowed to be given as structure, or as vector/matrix
-    % (in terms of their dependence on fixed type). So go through each of
-    % these in term.
-    Parameters_temp=Parameters;
-    FullParamNames=fieldnames(Parameters);
-    nFields=length(FullParamNames);
-    for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
-            names=fieldnames(Parameters.(FullParamNames{kField}));
-            for jj=1:length(names)
-                if strcmp(names{jj},Names_i{ii})
-                    Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{jj});
-                end
-            end
-        elseif any(size(Parameters.(FullParamNames{kField}))==N_i) % Check for permanent type in vector/matrix form.
-            temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
-            if ptypedim==1
-                Parameters_temp.(FullParamNames{kField})=temp(ii,:);
-            elseif ptypedim==2
-                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
-            end
-        end
-    end
-
-    % ReturnFnParamNames_temp=ReturnFnParamNamesFn(ReturnFn_temp,n_d_temp,n_a_temp,n_z_temp,vfoptions_temp,Parameters_temp);
-
     if vfoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp

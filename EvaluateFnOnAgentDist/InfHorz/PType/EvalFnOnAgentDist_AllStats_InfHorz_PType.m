@@ -183,98 +183,14 @@ for ii=1:N_i
 
     PolicyIndexes_temp=gpuArray(Policy.(iistr));
 
-    % Go through everything which might be dependent on permanent type (PType)
-    % Notice that the way this is coded the grids (etc.) could be either
-    % fixed, or a function (that depends on age, and possibly on permanent
-    % type), or they could be a structure. Only in the case where they are
-    % a structure is there a need to take just a specific part and send
-    % only that to the 'non-PType' version of the command.
+    %% Go through everything which might be dependent on fixed type (PType)
+    [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
 
-    % Start with those that determine whether the current permanent type is finite or
-    % infinite horizon, and whether it is Case 1 or Case 2
-    % Figure out which case is relevant to the current PType. This is done
-    % using N_j which for the current type will evaluate to 'Inf' if it is
-    % infinite horizon and a finite number for any other finite horizon.
-    % First, check if it is a structure, and otherwise just get the
-    % relevant value.
+    % Exogenous shocks
+    [n_z_temp,z_grid_temp,~,simoptions_temp]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,[],simoptions_temp,3);
 
-    n_d_temp=n_d;
-    if isa(n_d,'struct')
-        n_d_temp=n_d.(iistr);
-    else
-        temp=size(n_d);
-        if temp(1)>1 % n_d depends on fixed type
-            n_d_temp=n_d(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
-        end
-    end
-    n_a_temp=n_a;
-    if isa(n_a,'struct')
-        n_a_temp=n_a.(iistr);
-    else
-        temp=size(n_a);
-        if temp(1)>1 % n_a depends on fixed type
-            n_a_temp=n_a(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-            dbstack
-        end
-    end
-    n_z_temp=n_z;
-    if isa(n_z,'struct')
-        n_z_temp=n_z.(iistr);
-    else
-        temp=size(n_z);
-        if temp(1)>1 % n_z depends on fixed type
-            n_z_temp=n_z(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-            dbstack
-        end
-    end
-
-
-    if isa(d_grid,'struct')
-        d_grid_temp=d_grid.(iistr);
-    else
-        d_grid_temp=d_grid;
-    end
-    if isa(a_grid,'struct')
-        a_grid_temp=a_grid.(iistr);
-    else
-        a_grid_temp=a_grid;
-    end
-    if isa(z_grid,'struct')
-        z_grid_temp=z_grid.(iistr);
-    else
-        z_grid_temp=z_grid;
-    end
-
-    % Parameters are allowed to be given as structure, or as vector/matrix
-    % (in terms of their dependence on permanent type). So go through each of
-    % these in term.
-    % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
-    Parameters_temp=Parameters;
-    FullParamNames=fieldnames(Parameters); % all the different parameters
-    nFields=length(FullParamNames);
-    for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-            % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(iistr);
-            end
-        elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
-            temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
-            if ptypedim==1
-                Parameters_temp.(FullParamNames{kField})=temp(ii,:);
-            elseif ptypedim==2
-                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
-            end
-        end
-    end
-    % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
+    % Parameters
+    Parameters_temp=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
 
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current permanent type \n')
@@ -312,7 +228,7 @@ for ii=1:N_i
 
     a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
 
-    [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
 
 
@@ -377,7 +293,7 @@ for ii=1:N_i
         if FnsAndPTypeIndicator_ii(kk)==1 % If this function is relevant to this ptype
 
             % Get parameter names for current FnsToEvaluate functions
-            tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{kk}));
+            tempnames=getAnonymousFnInputNames(FnsToEvaluate_temp.(FnsToEvalNames{kk}));
             if length(tempnames)>(l_d_temp+l_a_temp+l_a_temp+l_z_temp)
                 FnsToEvaluateParamNames={tempnames{l_d_temp+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
             else
@@ -387,7 +303,7 @@ for ii=1:N_i
 
             %% We have set up the current PType, now do some calculations for it.
             simoptions_temp.keepoutputasmatrix=1;
-            ValuesOnGrid_ii=EvalFnOnAgentDist_Grid(FnsToEvaluate.(FnsToEvalNames{kk}), FnsToEvaluateParamsCell, PolicyValuesPermute_temp, l_daprime_temp, n_a_temp, n_z_temp, a_gridvals_temp, z_gridvals_temp);
+            ValuesOnGrid_ii=EvalFnOnAgentDist_Grid(FnsToEvaluate_temp.(FnsToEvalNames{kk}), FnsToEvaluateParamsCell, PolicyValuesPermute_temp, l_daprime_temp, n_a_temp, n_z_temp, a_gridvals_temp, z_gridvals_temp);
 
             ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp,1]);
 
@@ -497,8 +413,13 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                 AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}),[],@sum);
                 tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{kk}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
+                % Guard isfield: some stats (e.g. LorenzCurveComment) are only emitted by StatsFromWeightedGrid
+                % when the values contain negatives, so they may be present in tempStats but not in
+                % the restricted-regime tempStatsRestricted.
                 for aa=1:length(allstatnames)
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}).(allstatnames{aa})=tempStatsRestricted.(allstatnames{aa});
+                    if isfield(tempStatsRestricted,allstatnames{aa})
+                        AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}).(allstatnames{aa})=tempStatsRestricted.(allstatnames{aa});
+                    end
                 end
                 if kk==1
                     AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(restrictedsamplemass(:,rr));

@@ -1,4 +1,4 @@
-function [PricePath,VPath,AgentDistPath,AggVarsPath,GEcheck]=MatchedExpectationsPath_CreateInitialGuess(T,ss_ind_T,n_d,n_a,n_z,n_S,N_a,N_z,N_S,d_grid,a_grid,initialguessobjects,AggShockNames,AggVarNames,ReturnFn,FnsToEvaluate,GeneralEqmEqnsStruct,Parameters,DiscountFactorParamNames, GEPriceParamNames,GEeqnNames,recursiveeqmoptions,vfoptions,simoptions)
+function [PricePath,VPath,AgentDistPath,AggVarsPath,GEcheck]=MEP_CreateInitialGuess(T,ss_ind_T,n_d,n_a,n_z,n_S,N_a,N_z,N_S,d_grid,a_grid,initialguessobjects,AggShockNames,AggVarNames,ReturnFn,FnsToEvaluate,GeneralEqmEqnsStruct,Parameters,DiscountFactorParamNames, GEPriceParamNames,GEeqnNames,recursiveeqmoptions,vfoptions,simoptions)
 % initialguessobjects.methodforguess
 % =1: replace S with E[S]
 % =2: treat S as idiosyncratic shock
@@ -13,13 +13,13 @@ if initialguessobjects.methodforguess==1
     % Because it is InfHorz, turn off divide-and-conquer if that is used
     vfoptions.divideandconquer=0;
     % initialguessobjects.heteroagentoptions.verbose=1
-    [p_eqm,GEcheck]=HeteroAgentStationaryEqm_Case1(n_d, n_a, n_z, 0, initialguessobjects.pi_z, d_grid, a_grid, initialguessobjects.z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqnsStruct, Parameters, DiscountFactorParamNames, [], [], [], GEPriceParamNames, initialguessobjects.heteroagentoptions, simoptions, vfoptions);
+    [p_eqm,GEcheck]=HeteroAgentStationaryEqm_InfHorz(n_d, n_a, n_z, 0, initialguessobjects.pi_z, d_grid, a_grid, initialguessobjects.z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqnsStruct, Parameters, DiscountFactorParamNames, [], [], [], GEPriceParamNames, initialguessobjects.heteroagentoptions, simoptions, vfoptions);
     for pp=1:length(GEPriceParamNames)
         Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
     end
-    [V,Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,initialguessobjects.z_gridvals, initialguessobjects.pi_z, ReturnFn, Parameters, DiscountFactorParamNames, [], vfoptions);
-    StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,initialguessobjects.pi_z,simoptions,Parameters);
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, [], n_d, n_a, n_z, d_grid, a_grid, initialguessobjects.z_gridvals, simoptions);
+    [V,Policy]=ValueFnIter_InfHorz(n_d,n_a,n_z,d_grid,a_grid,initialguessobjects.z_gridvals, initialguessobjects.pi_z, ReturnFn, Parameters, DiscountFactorParamNames, [], vfoptions);
+    StationaryDist=StationaryDist_InfHorz(Policy,n_d,n_a,n_z,initialguessobjects.pi_z,simoptions,Parameters);
+    AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist, Policy, FnsToEvaluate, Parameters, [], n_d, n_a, n_z, d_grid, a_grid, initialguessobjects.z_gridvals, simoptions);
     % Create the objects needed as the initial guess setup for the matched expectations
     VPath=repelem(reshape(V,[N_a,1,N_z]),1,T,1); % fastOLG means (a,t)-by-z
     AgentDistPath=repelem(reshape(StationaryDist,[N_a,1,N_z]),1,T,1); % fastOLG means (a,t,z)-by-1
@@ -44,13 +44,13 @@ elseif initialguessobjects.methodforguess==2
     % Because it is InfHorz, turn off divide-and-conquer if that is used
     vfoptions.divideandconquer=0;
     % initialguessobjects.heteroagentoptions.verbose=1
-    [p_eqm,GEcheck]=HeteroAgentStationaryEqm_Case1(n_d, n_a, n_zS, 0, initialguessobjects.pi_zS, d_grid, a_grid, initialguessobjects.zS_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqnsStruct, Parameters, DiscountFactorParamNames, [], [], [], GEPriceParamNames, initialguessobjects.heteroagentoptions, simoptions, vfoptions);
+    [p_eqm,GEcheck]=HeteroAgentStationaryEqm_InfHorz(n_d, n_a, n_zS, 0, initialguessobjects.pi_zS, d_grid, a_grid, initialguessobjects.zS_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqnsStruct, Parameters, DiscountFactorParamNames, [], [], [], GEPriceParamNames, initialguessobjects.heteroagentoptions, simoptions, vfoptions);
     for pp=1:length(GEPriceParamNames)
         Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
     end
-    [V,Policy]=ValueFnIter_Case1(n_d,n_a,n_zS,d_grid,a_grid,initialguessobjects.zS_gridvals, initialguessobjects.pi_zS, ReturnFn, Parameters, DiscountFactorParamNames, [], vfoptions);
-    StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_zS,initialguessobjects.pi_zS,simoptions,Parameters);
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, [], n_d, n_a, n_zS, d_grid, a_grid, initialguessobjects.zS_gridvals, simoptions);
+    [V,Policy]=ValueFnIter_InfHorz(n_d,n_a,n_zS,d_grid,a_grid,initialguessobjects.zS_gridvals, initialguessobjects.pi_zS, ReturnFn, Parameters, DiscountFactorParamNames, [], vfoptions);
+    StationaryDist=StationaryDist_InfHorz(Policy,n_d,n_a,n_zS,initialguessobjects.pi_zS,simoptions,Parameters);
+    AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist, Policy, FnsToEvaluate, Parameters, [], n_d, n_a, n_zS, d_grid, a_grid, initialguessobjects.zS_gridvals, simoptions);
     % Create the objects needed as the initial guess setup for the matched expectations
     V=reshape(V,[N_a,1,N_z,N_S]);
     StationaryDist=reshape(StationaryDist,[N_a,1,N_z,N_S]);

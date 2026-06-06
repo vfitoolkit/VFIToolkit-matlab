@@ -16,6 +16,8 @@ function [z_grid,pi_z] = discretizeAR1_FarmerToda(mew,rho,sigma,znum,farmertodao
 %   nMoments       - Number of conditional moments to match (default=2)
 %   nSigmas        - (Hyperparameter) Defines max/min grid points as mew+-nSigmas*sigmaz (default depends on znum)
 %   parallel:      - set equal to 2 to use GPU, 0 to use CPU
+%   z_grid         - (znum-by-1 or 1-by-znum) skip grid construction and build pi_z on this grid;
+%                    method/nSigmas are ignored, prior is treated as in 'even' (q=normpdf)
 % Outputs
 %   z_grid         - column vector containing the znum states of the discrete approximation of z
 %   pi_z           - transition matrix of the discrete approximation of z;
@@ -102,6 +104,19 @@ else
 end
 % Note: the choice of setting nSigmas to sqrt(znum-1) is based on asymptotic theory in Corrallary 3.5(ii) of Farmer & Toda (2017)
 
+%% Check for user-supplied grid
+if isfield(farmertodaoptions,'z_grid')
+    farmertodaoptions.usergrid=1;
+    if size(farmertodaoptions.z_grid,1)>1
+        farmertodaoptions.z_grid=farmertodaoptions.z_grid'; % use row internally
+    end
+    if length(farmertodaoptions.z_grid)~=znum
+        error('length of farmertodaoptions.z_grid must equal znum')
+    end
+else
+    farmertodaoptions.usergrid=0;
+end
+
 %% Check inputs are correctly formatted
 % Check that Nm is a valid number of grid points
 if ~isnumeric(znum) || znum < 3 || rem(znum,1) ~= 0
@@ -121,21 +136,26 @@ end
 sigmaz = sigma/sqrt(1-rho^2); % unconditional standard deviation
 mewz=mew/(1-rho); % unconditional mean
 
-switch farmertodaoptions.method
-    case 'even'
-        z_grid = linspace(mewz-farmertodaoptions.nSigmas*sigmaz,mewz+farmertodaoptions.nSigmas*sigmaz,znum);
-        W = ones(1,znum);
-    case 'gauss-legendre'
-        [z_grid,W] = legpts(znum,[mewz-farmertodaoptions.nSigmas*sigmaz,mewz+farmertodaoptions.nSigmas*sigmaz]);
-        z_grid = z_grid';
-    case 'clenshaw-curtis'
-        [z_grid,W] = fclencurt(znum,mewz-farmertodaoptions.nSigmas*sigmaz,mewz+farmertodaoptions.nSigmas*sigmaz);
-        z_grid = fliplr(z_grid');
-        W = fliplr(W');
-    case 'gauss-hermite'
-        [z_grid,W] = GaussHermite(znum);
-        z_grid = mewz+sqrt(2)*sigma*z_grid';
-        W = W'./sqrt(pi);
+if farmertodaoptions.usergrid==1
+    z_grid = farmertodaoptions.z_grid; % row vector
+    W = ones(1,znum); % treat like 'even' for the prior q in moment matching
+else
+    switch farmertodaoptions.method
+        case 'even'
+            z_grid = linspace(mewz-farmertodaoptions.nSigmas*sigmaz,mewz+farmertodaoptions.nSigmas*sigmaz,znum);
+            W = ones(1,znum);
+        case 'gauss-legendre'
+            [z_grid,W] = legpts(znum,[mewz-farmertodaoptions.nSigmas*sigmaz,mewz+farmertodaoptions.nSigmas*sigmaz]);
+            z_grid = z_grid';
+        case 'clenshaw-curtis'
+            [z_grid,W] = fclencurt(znum,mewz-farmertodaoptions.nSigmas*sigmaz,mewz+farmertodaoptions.nSigmas*sigmaz);
+            z_grid = fliplr(z_grid');
+            W = fliplr(W');
+        case 'gauss-hermite'
+            [z_grid,W] = GaussHermite(znum);
+            z_grid = mewz+sqrt(2)*sigma*z_grid';
+            W = W'./sqrt(pi);
+    end
 end
 
 %% define conditional central moments that Farmer-Toda method targets
@@ -155,7 +175,7 @@ kappa = 1e-8;
 for ii = 1:znum
     
     condMean = mew+rho*z_grid(ii); % conditional mean
-    if strcmp(farmertodaoptions.method,'gauss-hermite')  % define prior probabilities
+    if strcmp(farmertodaoptions.method,'gauss-hermite') && farmertodaoptions.usergrid==0  % define prior probabilities
         q = W;
     else
         q = W.*normpdf(z_grid,condMean,sigma);

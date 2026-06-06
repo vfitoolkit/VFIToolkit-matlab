@@ -9,40 +9,15 @@ N_i=length(Names_i);
 PolicyValues=struct();
 for ii=1:N_i
     iistr=Names_i{ii};
-    % Go through everything which might be dependent on fixed type (PType)
-    n_d_temp=n_d;
-    if isa(n_d,'struct')
-        names=fieldnames(n_d);
-        n_d_temp=n_d.(names{ii});
-    end
-    n_a_temp=n_a;
-    if isa(n_a,'struct')
-        names=fieldnames(n_a);
-        n_a_temp=n_a.(names{ii});
-    end
-    n_z_temp=n_z;
-    if isa(n_z,'struct')
-        names=fieldnames(n_z);
-        n_z_temp=n_z.(names{ii});
-    end
+    vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
 
-    d_grid_temp=d_grid;
-    if isa(d_grid,'struct')
-        names=fieldnames(d_grid);
-        d_grid_temp=d_grid.(names{ii});
-    end
-    a_grid_temp=a_grid;
-    if isa(a_grid,'struct')
-        names=fieldnames(a_grid);
-        a_grid_temp=a_grid.(names{ii});
-    end
-    vfoptions_temp=vfoptions;
-    vfoptionsfieldnames=fieldnames(vfoptions);
-    for ff=1:length(vfoptionsfieldnames)
-        if isa(vfoptions.(vfoptionsfieldnames{ff}),'struct')
-            names=fieldnames(vfoptions.(vfoptionsfieldnames{ff}));
-            vfoptions_temp=vfoptions.(vfoptionsfieldnames{ff}).(names{ii});
-        end
+    % Go through everything which might be dependent on fixed type (PType)
+    [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
+
+    if isstruct(n_z)
+        n_z_temp=n_z.(iistr);
+    else
+        n_z_temp=n_z;
     end
 
     PolicyValues.(iistr)=PolicyInd2Val_InfHorz(PolicyIndexes.(iistr),n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,vfoptions_temp);

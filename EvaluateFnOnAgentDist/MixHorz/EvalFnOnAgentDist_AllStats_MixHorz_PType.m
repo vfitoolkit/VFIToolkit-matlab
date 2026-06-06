@@ -223,10 +223,8 @@ for ii=1:N_i
     % Horizon is determined via N_j
     if isstruct(N_j)
         N_j_temp=N_j.(iistr);
-    elseif isscalar(N_j)
+    else
         N_j_temp=N_j;
-    else % is a vector
-        N_j_temp=N_j(ii);
     end
 
     if isstruct(n_d)

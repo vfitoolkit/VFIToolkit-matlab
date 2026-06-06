@@ -11,6 +11,8 @@ function [z_grid,pi_z]=discretizeAR1_Tauchen(mew,rho,sigma,znum,Tauchen_q, tauch
 % Optional Inputs (tauchenoptions)
 %   parallel:      - set equal to 2 to use GPU, 0 to use CPU
 %   dshift:        - allows approximating 'trend-reverting' process around a deterministic trend (not part of standard Tauchen method)
+%   z_grid:        - (znum-by-1) skip grid construction and build pi_z on this grid;
+%                    Tauchen_q is ignored, bin edges are midpoints between adjacent grid points
 % Outputs
 %   z_grid         - column vector containing the znum states of the discrete approximation of z
 %   pi_z           - transition matrix of the discrete approximation of z;
@@ -39,8 +41,25 @@ if exist('tauchenoptions.dshift','var')==0
     tauchenoptions.dshift=0;
 end
 
+%% Check for user-supplied grid
+if isfield(tauchenoptions,'z_grid')
+    tauchenoptions.usergrid=1;
+    if size(tauchenoptions.z_grid,2)>1
+        tauchenoptions.z_grid=tauchenoptions.z_grid'; % use column internally
+    end
+    if length(tauchenoptions.z_grid)~=znum
+        error('length of tauchenoptions.z_grid must equal znum')
+    end
+else
+    tauchenoptions.usergrid=0;
+end
+
 if znum==1
-    z_grid=mew/(1-rho); %expected value of z
+    if tauchenoptions.usergrid==1
+        z_grid=tauchenoptions.z_grid;
+    else
+        z_grid=mew/(1-rho); %expected value of z
+    end
     pi_z=1;
     if tauchenoptions.parallel==2
         z_grid=gpuArray(z_grid);
@@ -52,29 +71,45 @@ end
 % Note: tauchenoptions.dshift equals zero gives the Tauchen method.
 % For nonzero tauchenoptions.dshift this is actually implementing a non-standard Tauchen method.
 if tauchenoptions.parallel==0 || tauchenoptions.parallel==1
-    zstar=mew/(1-rho); %expected value of z
-    sigmaz=sigma/sqrt(1-rho^2); %stddev of z
-
-    z_grid=zstar*ones(znum,1) + linspace(-Tauchen_q*sigmaz,Tauchen_q*sigmaz,znum)';
-    omega=z_grid(2)-z_grid(1); %Note that all the points are equidistant by construction.
+    if tauchenoptions.usergrid==1
+        z_grid=tauchenoptions.z_grid;
+        edges=(z_grid(1:end-1)+z_grid(2:end))/2;
+        upper=[edges; z_grid(end)]; % last entry overwritten below (extends to +inf)
+        lower=[z_grid(1); edges];   % first entry overwritten below (extends to -inf)
+    else
+        zstar=mew/(1-rho); %expected value of z
+        sigmaz=sigma/sqrt(1-rho^2); %stddev of z
+        z_grid=zstar*ones(znum,1) + linspace(-Tauchen_q*sigmaz,Tauchen_q*sigmaz,znum)';
+        omega=z_grid(2)-z_grid(1); %Note that all the points are equidistant by construction.
+        upper=z_grid+omega/2;
+        lower=z_grid-omega/2;
+    end
 
     zi=z_grid*ones(1,znum);
-%     zj=ones(znum,1)*z';
-    zj=tauchenoptions.dshift*ones(znum,znum)+ones(znum,1)*z_grid';
+    upperj=tauchenoptions.dshift*ones(znum,znum)+ones(znum,1)*upper';
+    lowerj=tauchenoptions.dshift*ones(znum,znum)+ones(znum,1)*lower';
 
-    P_part1=normcdf(zj+omega/2-rho*zi,mew,sigma);
-    P_part2=normcdf(zj-omega/2-rho*zi,mew,sigma);
+    P_part1=normcdf(upperj-rho*zi,mew,sigma);
+    P_part2=normcdf(lowerj-rho*zi,mew,sigma);
 
     pi_z=P_part1-P_part2;
     pi_z(:,1)=P_part1(:,1);
     pi_z(:,znum)=1-P_part2(:,znum);
 
 elseif tauchenoptions.parallel==2 %Parallelize on GPU
-    zstar=mew/(1-rho); %expected value of z
-    sigmaz=sigma/sqrt(1-rho^2); %stddev of z
-
-    z_grid=gpuArray(zstar*ones(znum,1) + linspace(-Tauchen_q*sigmaz,Tauchen_q*sigmaz,znum)');
-    omega=z_grid(2)-z_grid(1); %Note that all the points are equidistant by construction.
+    if tauchenoptions.usergrid==1
+        z_grid=gpuArray(tauchenoptions.z_grid);
+        edges=(z_grid(1:end-1)+z_grid(2:end))/2;
+        upper=[edges; z_grid(end)]; % last entry overwritten below (extends to +inf)
+        lower=[z_grid(1); edges];   % first entry overwritten below (extends to -inf)
+    else
+        zstar=mew/(1-rho); %expected value of z
+        sigmaz=sigma/sqrt(1-rho^2); %stddev of z
+        z_grid=gpuArray(zstar*ones(znum,1) + linspace(-Tauchen_q*sigmaz,Tauchen_q*sigmaz,znum)');
+        omega=z_grid(2)-z_grid(1); %Note that all the points are equidistant by construction.
+        upper=z_grid+omega/2;
+        lower=z_grid-omega/2;
+    end
 
     % NOTE; normcdf NOW WORKS FOR GPU, I SHOULD CHECK IF IT IS FASTER
     %Note: normcdf is not yet a supported function for use on the gpu in Matlab
@@ -87,10 +122,10 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
 
     tauchenoptions.dshift=gpuArray(tauchenoptions.dshift*ones(1,znum));
 
-    erfinput=arrayfun(@(zi,zj,omega,rho,mew,sigma) ((zj+omega/2-rho*zi)-mew)/sqrt(2*sigma^2), z_grid,tauchenoptions.dshift+z_grid',omega, rho,mew,sigma);
+    erfinput=arrayfun(@(zi,zj,rho,mew,sigma) ((zj-rho*zi)-mew)/sqrt(2*sigma^2), z_grid,tauchenoptions.dshift+upper', rho,mew,sigma);
     P_part1=0.5*(1+erf(erfinput));
 
-    erfinput=arrayfun(@(zi,zj,omega,rho,mew,sigma) ((zj-omega/2-rho*zi)-mew)/sqrt(2*sigma^2), z_grid,tauchenoptions.dshift+z_grid',omega, rho,mew,sigma);
+    erfinput=arrayfun(@(zi,zj,rho,mew,sigma) ((zj-rho*zi)-mew)/sqrt(2*sigma^2), z_grid,tauchenoptions.dshift+lower', rho,mew,sigma);
     P_part2=0.5*(1+erf(erfinput));
 
     pi_z=P_part1-P_part2;
