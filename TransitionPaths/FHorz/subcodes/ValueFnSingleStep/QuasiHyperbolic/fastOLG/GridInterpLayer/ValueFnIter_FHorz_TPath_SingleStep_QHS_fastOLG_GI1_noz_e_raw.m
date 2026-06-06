@@ -80,7 +80,7 @@ if vfoptions.lowmemory==0
     Policy(4,:,:,:)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
     %% Vunderbar: re-evaluate at Policy's aprime with beta
-    linidx=double(reshape(maxindexL2,[1,N_a*N_j*N_e]))+N_d*n2long*(0:N_a*N_j*N_e-1);
+    linidx=reshape(maxindexL2,[1,N_a*N_j*N_e])+N_d*n2long*(0:N_a*N_j*N_e-1);
     EV_at_policy=reshape(EVfine(linidx),[N_a,N_j,N_e]);
     V=shiftdim(Vhatii,1)+reshape(beta_J-beta0beta_J,[1,N_j,1]).*EV_at_policy;
     V=reshape(V,[N_a*N_j,N_e]);
@@ -122,7 +122,7 @@ elseif vfoptions.lowmemory==1
         Policy(4,:,:,e_c)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
         %% Vunderbar
-        linidx_e=double(reshape(maxindexL2,[1,N_a*N_j]))+N_d*n2long*(0:N_a*N_j-1);
+        linidx_e=reshape(maxindexL2,[1,N_a*N_j])+N_d*n2long*(0:N_a*N_j-1);
         EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,N_j]);
         Vtemp=shiftdim(Vhatii,1)+reshape(beta_J-beta0beta_J,[1,N_j]).*EV_at_policy_e;
         V(:,e_c)=reshape(Vtemp,[N_a*N_j,1]);

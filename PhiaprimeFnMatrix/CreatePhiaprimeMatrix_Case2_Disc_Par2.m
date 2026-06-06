@@ -541,7 +541,6 @@ end
 % if option_forceintegertype==1
 %     Phi_aprimeMatrix2=Phi_aprimeMatrix;
 %     Phi_aprimeMatrix=uint64(Phi_aprimeMatrix);
-%     Phi_aprimeMatrix=double(Phi_aprimeMatrix);
 %     temp=abs(Phi_aprimeMatrix2-Phi_aprimeMatrix);
 %     temp=reshape(temp,[numel(temp),1]);
 %     if max(temp)>10^(-15)

@@ -102,9 +102,9 @@ Policy=zeros(N_a,N_j,N_z,N_e,'gpuArray');
 
 if vfoptions.lowmemory==0
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_z,n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, z_gridvals_J,e_gridvals_J, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
+    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_z,n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, z_gridvals_J,e_gridvals_J, ReturnFnParamsAgeMatrix,1,1); % Level=1, Refine=1
 
-    entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV,N_d1,1,1,1,1,1);
+    entireRHS_ii=reshape(ReturnMatrix_ii+reshape(DiscountedEV,[1,N_d2*N_a1,1,N_a2,N_j,N_z]),[N_d,N_a1,vfoptions.level1n,N_a2,N_j,N_z,N_e]);
 
     % First, we want a1prime conditional on (d,1,a)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -161,9 +161,9 @@ elseif vfoptions.lowmemory==1
         e_val=e_gridvals_J(1,1,1,1,1,:,e_c,:);
 
         % n-Monotonicity
-        ReturnMatrix_ii_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_z,special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, z_gridvals_J,e_val, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
+        ReturnMatrix_ii_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc_e(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_z,special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, z_gridvals_J,e_val, ReturnFnParamsAgeMatrix,1,1); % Level=1, Refine=1
 
-        entireRHS_ii_z=ReturnMatrix_ii_z+repelem(DiscountedEV,N_d1,1,1,1,1,1);
+        entireRHS_ii_z=reshape(ReturnMatrix_ii_z+reshape(DiscountedEV,[1,N_d2*N_a1,1,N_a2,N_j,N_z]),[N_d,N_a1,vfoptions.level1n,N_a2,N_j,N_z]);
 
         % First, we want a1prime conditional on (d,1,a)
         [~,maxindex1]=max(entireRHS_ii_z,[],2);

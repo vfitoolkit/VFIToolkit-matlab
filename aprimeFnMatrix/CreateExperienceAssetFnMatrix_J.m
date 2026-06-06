@@ -5,9 +5,11 @@ function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix_J(aprimeFn,
 %   l_a2==1 (legacy):
 %     a2primeIndexes - col=1 => [N_d*N_a2, N_j]; col=2 => [N_d, N_a2, N_j]
 %     a2primeProbs   - [N_d, N_a2, N_j]
-%   l_a2==2 (multi-dim, Kaprimepts=4 corners):
-%     a2primeIndexes - col=1 => [Kaprimepts, N_d*N_a2, N_j]; col=2 => [Kaprimepts, N_d, N_a2, N_j]
-%     a2primeProbs   - same shape; per-corner prob (sum_c = 1 across c)
+%   l_a2==2 (multi-dim, per-dim factored):
+%     a2primeIndexes - col=1 => [l_a2, N_d*N_a2, N_j]; col=2 => [l_a2, N_d, N_a2, N_j]
+%       a2primeIndexes(k,...) = lower-grid index in a2_k dim
+%     a2primeProbs   - same shape; a2primeProbs(k,...) = prob of lower in a2_k dim
+%     Caller does nested 2-corner interp with skipinterp at each level.
 
 ParamCell=cell(size(aprimeFnParams,2),1);
 for ii=1:size(aprimeFnParams,2)
@@ -133,28 +135,27 @@ elseif l_a2==2
     a2primeVals_1=reshape(a2primeVals_1,[N_d*N_a2,N_j]);
     a2primeVals_2=reshape(a2primeVals_2,[N_d*N_a2,N_j]);
 
-    [loIdx_1, prob_1]=local_interp1d(a2primeVals_1, a2_grid_1, n_a2_1); % loIdx, prob: [N_d*N_a2*N_j, 1]
+    [loIdx_1, prob_1]=local_interp1d(a2primeVals_1, a2_grid_1, n_a2_1); % [N_d*N_a2*N_j, 1]
     [loIdx_2, prob_2]=local_interp1d(a2primeVals_2, a2_grid_2, n_a2_2);
 
-    Kaprimepts=4;
+    % Per-dim factored output (NOT Kron-folded):
+    %   a2primeIndexes(k,:) = lower-grid index in a2_k dim (1..n_a2(k))
+    %   a2primeProbs(k,:)   = probability of lower grid point in a2_k dim
+    % Caller does nested 2-corner interp with skipinterp at each level (bit-exact when V is flat).
     N=N_d*N_a2*N_j;
-    a2primeIndexes=zeros(Kaprimepts,N,'gpuArray');
-    a2primeProbs=zeros(Kaprimepts,N,'gpuArray');
-    bits=[0 0; 1 0; 0 1; 1 1];
-    for c=1:Kaprimepts
-        b1=bits(c,1); b2=bits(c,2);
-        a2primeIndexes(c,:)=(loIdx_1(:)+b1) + n_a2_1*((loIdx_2(:)+b2)-1);
-        p1=prob_1(:); if b1==1, p1=1-p1; end
-        p2=prob_2(:); if b2==1, p2=1-p2; end
-        a2primeProbs(c,:)=p1.*p2;
-    end
+    a2primeIndexes=zeros(l_a2,N,'gpuArray');
+    a2primeProbs=zeros(l_a2,N,'gpuArray');
+    a2primeIndexes(1,:)=loIdx_1(:);
+    a2primeIndexes(2,:)=loIdx_2(:);
+    a2primeProbs(1,:)=prob_1(:);
+    a2primeProbs(2,:)=prob_2(:);
 
     if aprimeIndexAsColumn==1
-        a2primeIndexes=reshape(a2primeIndexes,[Kaprimepts,N_d*N_a2,N_j]);
+        a2primeIndexes=reshape(a2primeIndexes,[l_a2,N_d*N_a2,N_j]);
     else
-        a2primeIndexes=reshape(a2primeIndexes,[Kaprimepts,N_d,N_a2,N_j]);
+        a2primeIndexes=reshape(a2primeIndexes,[l_a2,N_d,N_a2,N_j]);
     end
-    a2primeProbs=reshape(a2primeProbs,[Kaprimepts,N_d,N_a2,N_j]);
+    a2primeProbs=reshape(a2primeProbs,[l_a2,N_d,N_a2,N_j]);
 end
 
 

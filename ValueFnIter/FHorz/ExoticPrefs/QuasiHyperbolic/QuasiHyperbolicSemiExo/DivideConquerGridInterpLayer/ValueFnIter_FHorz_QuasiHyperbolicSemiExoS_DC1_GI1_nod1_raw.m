@@ -139,7 +139,7 @@ else
         inUpperStrict = (maxindex >= n2short+3) & (maxindex <= n2long-1);
         PolicyL2flag_ford2_jj(:,:,d2_c) = squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper));
 
-        linidx=double(reshape(maxindex,[1,N_a*N_bothz]))+n2long*(0:N_a*N_bothz-1);
+        linidx=reshape(maxindex,[1,N_a*N_bothz])+n2long*(0:N_a*N_bothz-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_bothz]);
         Vunderbar_ford2_jj(:,:,d2_c)=Vhat_ford2_jj(:,:,d2_c)+(beta-beta0beta)*EV_at_policy;
     end
@@ -220,7 +220,7 @@ for reverse_j=1:N_j-1
         inUpperStrict = (maxindex >= n2short+3) & (maxindex <= n2long-1);
         PolicyL2flag_ford2_jj(:,:,d2_c) = squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper));
 
-        linidx=double(reshape(maxindex,[1,N_a*N_bothz]))+n2long*(0:N_a*N_bothz-1);
+        linidx=reshape(maxindex,[1,N_a*N_bothz])+n2long*(0:N_a*N_bothz-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_bothz]);
         Vunderbar_ford2_jj(:,:,d2_c)=Vhat_ford2_jj(:,:,d2_c)+(beta-beta0beta)*EV_at_policy;
     end

@@ -145,7 +145,7 @@ else
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
             flag_ford2_jj(:,:,:,d2_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
 
-            linidx=double(reshape(maxindex,[1,N_a*N_semiz*N_e]))+N_d1*n2long*(0:N_a*N_semiz*N_e-1);
+            linidx=reshape(maxindex,[1,N_a*N_semiz*N_e])+N_d1*n2long*(0:N_a*N_semiz*N_e-1);
             EV_at_policy=reshape(EVfine(linidx),[N_a,N_semiz,N_e]);
             Vunderbar_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1)+(beta-beta0beta)*EV_at_policy;
         end
@@ -190,7 +190,7 @@ else
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
                 flag_ford2_jj(:,:,e_c,d2_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
 
-                linidx_e=double(reshape(maxindex,[1,N_a*N_semiz]))+N_d1*n2long*(0:N_a*N_semiz-1);
+                linidx_e=reshape(maxindex,[1,N_a*N_semiz])+N_d1*n2long*(0:N_a*N_semiz-1);
                 EV_at_policy_e=reshape(EVfine(linidx_e),[N_a,N_semiz]);
                 Vunderbar_ford2_jj(:,:,e_c,d2_c)=shiftdim(Vtemp,1)+(beta-beta0beta)*EV_at_policy_e;
             end
@@ -264,7 +264,7 @@ for reverse_j=1:N_j-1
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
             flag_ford2_jj(:,:,:,d2_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
 
-            linidx=double(reshape(maxindex,[1,N_a*N_semiz*N_e]))+N_d1*n2long*(0:N_a*N_semiz*N_e-1);
+            linidx=reshape(maxindex,[1,N_a*N_semiz*N_e])+N_d1*n2long*(0:N_a*N_semiz*N_e-1);
             EV_at_policy=reshape(EVfine(linidx),[N_a,N_semiz,N_e]);
             Vunderbar_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1)+(beta-beta0beta)*EV_at_policy;
         end
@@ -309,7 +309,7 @@ for reverse_j=1:N_j-1
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
                 flag_ford2_jj(:,:,e_c,d2_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
 
-                linidx_e=double(reshape(maxindex,[1,N_a*N_semiz]))+N_d1*n2long*(0:N_a*N_semiz-1);
+                linidx_e=reshape(maxindex,[1,N_a*N_semiz])+N_d1*n2long*(0:N_a*N_semiz-1);
                 EV_at_policy_e=reshape(EVfine(linidx_e),[N_a,N_semiz]);
                 Vunderbar_ford2_jj(:,:,e_c,d2_c)=shiftdim(Vtemp,1)+(beta-beta0beta)*EV_at_policy_e;
             end

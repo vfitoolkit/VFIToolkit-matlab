@@ -124,7 +124,7 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=shiftdim(squeeze(midpoint),-1);
         Policy(2,:,:,jj)=shiftdim(maxindexL2,-1);
 
-        linidx=double(reshape(maxindexL2,[1,N_a*N_z]))+n2long*(0:N_a*N_z-1);
+        linidx=reshape(maxindexL2,[1,N_a*N_z])+n2long*(0:N_a*N_z-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z]);
         Vhat(:,:,jj)=shiftdim(Vtempii,1);
         V(:,:,jj)=shiftdim(Vtempii,1)+(beta-beta0beta)*EV_at_policy;
@@ -156,7 +156,7 @@ for reverse_j=1:N_j-1
             Policy(1,:,z_c,jj)=shiftdim(squeeze(midpoint),-1);
             Policy(2,:,z_c,jj)=shiftdim(maxindexL2,-1);
 
-            linidx_z=double(reshape(maxindexL2,[1,N_a]))+n2long*(0:N_a-1);
+            linidx_z=reshape(maxindexL2,[1,N_a])+n2long*(0:N_a-1);
             EV_at_policy_z=reshape(EVfine_z(linidx_z),[N_a,1]);
             Vhat(:,z_c,jj)=shiftdim(Vtempii,1);
             V(:,z_c,jj)=shiftdim(Vtempii,1)+(beta-beta0beta)*EV_at_policy_z;

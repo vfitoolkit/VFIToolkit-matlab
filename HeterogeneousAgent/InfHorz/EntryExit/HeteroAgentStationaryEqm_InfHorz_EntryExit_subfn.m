@@ -225,9 +225,9 @@ end
 %     % THIS IS NOT A GREAT IMPLEMENTATION OF CONDITIONAL ENTRY DECISION FOR VERBOSE. BUT WILL DO FOR NOW.
 %     figure(heteroagentoptions.verbosefighandle)
 %     if N_a>1 && N_z>1
-%         surf(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
+%         surf(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z]))
 %     else
-%         plot(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
+%         plot(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z]))
 %     end
 % end
 

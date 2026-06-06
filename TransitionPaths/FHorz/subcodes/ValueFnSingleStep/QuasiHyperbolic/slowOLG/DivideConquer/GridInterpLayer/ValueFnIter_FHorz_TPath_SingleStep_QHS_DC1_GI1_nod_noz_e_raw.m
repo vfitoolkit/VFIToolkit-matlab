@@ -161,7 +161,7 @@ for reverse_j=1:N_j-1
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
         Policy(3,:,:,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
-        linidx=double(reshape(maxindexL2,[1,N_a*N_e]))+n2long*(0:N_a*N_e-1);
+        linidx=reshape(maxindexL2,[1,N_a*N_e])+n2long*(0:N_a*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_e]);
         V(:,:,jj)=Vhat_jj+(beta-beta0beta)*EV_at_policy;
 
@@ -205,7 +205,7 @@ for reverse_j=1:N_j-1
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
             Policy(3,:,e_c,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
-            linidx_e=double(reshape(maxindexL2,[1,N_a]))+n2long*(0:N_a-1);
+            linidx_e=reshape(maxindexL2,[1,N_a])+n2long*(0:N_a-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,1]);
             V(:,e_c,jj)=Vhat_jj_e+(beta-beta0beta)*EV_at_policy_e;
         end

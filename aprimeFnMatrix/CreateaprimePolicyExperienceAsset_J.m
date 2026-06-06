@@ -6,14 +6,22 @@ function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(Poli
 %     N_semizze==0 : [N_a, N_j]
 %     fastOLG==0   : [N_a, N_semizze, N_j]
 %     fastOLG==1   : [N_a, N_j, N_semizze]
-%   l_a2==2 (multi-dim, Kaprimepts=4 corners): same layout with Kaprimepts-corner dim inserted just before N_j:
-%     N_semizze==0 : [N_a, Kaprimepts, N_j]
-%     fastOLG==0   : [N_a, Kaprimepts, N_semizze, N_j]
-%     fastOLG==1   : [N_a, Kaprimepts, N_j, N_semizze]
+%   l_a2==2 (multi-dim, per-dim factored): same layout with l_a2 dim inserted just before N_j:
+%     N_semizze==0 : [N_a, l_a2, N_j]
+%     fastOLG==0   : [N_a, l_a2, N_semizze, N_j]
+%     fastOLG==1   : [N_a, l_a2, N_j, N_semizze]
+%   a2primeIndexes(:,k,...) = lower-grid index in a2_k dim; a2primeProbs(:,k,...) = prob of lower.
+%   Caller does nested 2-corner interp with skipinterp at each level.
 
 ParamCell=cell(size(aprimeFnParams,2),1);
+if fastOLG==0 && N_semizze>0
+    % d1vals shape is [N_a, N_semizze, N_j] in this branch; N_j sits at dim 3
+    paramShift=-2;
+else
+    paramShift=-1;
+end
 for ii=1:size(aprimeFnParams,2)
-    ParamCell(ii,1)={shiftdim(aprimeFnParams(:,ii),-1)};
+    ParamCell(ii,1)={shiftdim(aprimeFnParams(:,ii),paramShift)};
 end
 
 N_a1=prod(n_a1);
@@ -311,35 +319,33 @@ elseif l_a2==2
     [loIdx_1, prob_1]=local_interp1d(a2pVals_1, a2_grid_1, n_a2_1);
     [loIdx_2, prob_2]=local_interp1d(a2pVals_2, a2_grid_2, n_a2_2);
 
-    Kaprimepts=4;
+    % Per-dim factored output (NOT Kron-folded):
+    %   a2primeIndexes(:,k,...) = lower-grid index in a2_k dim
+    %   a2primeProbs(:,k,...)   = probability of lower grid point in a2_k dim
     Ntot=numel(loIdx_1);
-    a2primeIndexes_flat=zeros(Ntot,Kaprimepts,'gpuArray');
-    a2primeProbs_flat=zeros(Ntot,Kaprimepts,'gpuArray');
-    bits=[0 0; 1 0; 0 1; 1 1];
-    for c=1:Kaprimepts
-        b1=bits(c,1); b2=bits(c,2);
-        a2primeIndexes_flat(:,c)=(loIdx_1(:)+b1) + n_a2_1*((loIdx_2(:)+b2)-1);
-        p1=prob_1(:); if b1==1, p1=1-p1; end
-        p2=prob_2(:); if b2==1, p2=1-p2; end
-        a2primeProbs_flat(:,c)=p1.*p2;
-    end
+    a2primeIndexes_flat=zeros(Ntot,l_a2,'gpuArray');
+    a2primeProbs_flat=zeros(Ntot,l_a2,'gpuArray');
+    a2primeIndexes_flat(:,1)=loIdx_1(:);
+    a2primeIndexes_flat(:,2)=loIdx_2(:);
+    a2primeProbs_flat(:,1)=prob_1(:);
+    a2primeProbs_flat(:,2)=prob_2(:);
 
-    % Reshape: Kaprimepts-corner dim inserted after N_a, before remaining dims
+    % Reshape: l_a2 dim inserted after N_a, before remaining dims (mirrors prior Kaprimepts layout)
     if fastOLG==0
         if N_semizze==0
-            a2primeIndexes=reshape(a2primeIndexes_flat,[N_a,N_j,Kaprimepts]); a2primeIndexes=permute(a2primeIndexes,[1,3,2]); % [N_a,Kaprimepts,N_j]
-            a2primeProbs=reshape(a2primeProbs_flat,[N_a,N_j,Kaprimepts]); a2primeProbs=permute(a2primeProbs,[1,3,2]);
+            a2primeIndexes=reshape(a2primeIndexes_flat,[N_a,N_j,l_a2]); a2primeIndexes=permute(a2primeIndexes,[1,3,2]); % [N_a,l_a2,N_j]
+            a2primeProbs=reshape(a2primeProbs_flat,[N_a,N_j,l_a2]); a2primeProbs=permute(a2primeProbs,[1,3,2]);
         else
-            a2primeIndexes=reshape(a2primeIndexes_flat,[N_a,N_semizze,N_j,Kaprimepts]); a2primeIndexes=permute(a2primeIndexes,[1,4,2,3]); % [N_a,Kaprimepts,N_semizze,N_j]
-            a2primeProbs=reshape(a2primeProbs_flat,[N_a,N_semizze,N_j,Kaprimepts]); a2primeProbs=permute(a2primeProbs,[1,4,2,3]);
+            a2primeIndexes=reshape(a2primeIndexes_flat,[N_a,N_semizze,N_j,l_a2]); a2primeIndexes=permute(a2primeIndexes,[1,4,2,3]); % [N_a,l_a2,N_semizze,N_j]
+            a2primeProbs=reshape(a2primeProbs_flat,[N_a,N_semizze,N_j,l_a2]); a2primeProbs=permute(a2primeProbs,[1,4,2,3]);
         end
     else % fastOLG==1
         if N_semizze==0
-            a2primeIndexes=reshape(a2primeIndexes_flat,[N_a,N_j,Kaprimepts]); a2primeIndexes=permute(a2primeIndexes,[1,3,2]); % [N_a,Kaprimepts,N_j]
-            a2primeProbs=reshape(a2primeProbs_flat,[N_a,N_j,Kaprimepts]); a2primeProbs=permute(a2primeProbs,[1,3,2]);
+            a2primeIndexes=reshape(a2primeIndexes_flat,[N_a,N_j,l_a2]); a2primeIndexes=permute(a2primeIndexes,[1,3,2]); % [N_a,l_a2,N_j]
+            a2primeProbs=reshape(a2primeProbs_flat,[N_a,N_j,l_a2]); a2primeProbs=permute(a2primeProbs,[1,3,2]);
         else
-            a2primeIndexes=reshape(a2primeIndexes_flat,[N_a,N_j,N_semizze,Kaprimepts]); a2primeIndexes=permute(a2primeIndexes,[1,4,2,3]); % [N_a,Kaprimepts,N_j,N_semizze]
-            a2primeProbs=reshape(a2primeProbs_flat,[N_a,N_j,N_semizze,Kaprimepts]); a2primeProbs=permute(a2primeProbs,[1,4,2,3]);
+            a2primeIndexes=reshape(a2primeIndexes_flat,[N_a,N_j,N_semizze,l_a2]); a2primeIndexes=permute(a2primeIndexes,[1,4,2,3]); % [N_a,l_a2,N_j,N_semizze]
+            a2primeProbs=reshape(a2primeProbs_flat,[N_a,N_j,N_semizze,l_a2]); a2primeProbs=permute(a2primeProbs,[1,4,2,3]);
         end
     end
 end

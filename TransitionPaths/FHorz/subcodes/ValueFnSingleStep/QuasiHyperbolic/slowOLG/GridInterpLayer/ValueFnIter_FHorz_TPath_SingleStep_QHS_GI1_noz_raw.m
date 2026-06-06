@@ -96,7 +96,7 @@ for reverse_j=1:N_j-1
     Policy(2,:,jj)=shiftdim(squeeze(midpoint(allind)),-1);
     Policy(3,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1);
 
-    linidx=double(reshape(maxindexL2,[1,N_a]))+N_d*n2long*(0:N_a-1);
+    linidx=reshape(maxindexL2,[1,N_a])+N_d*n2long*(0:N_a-1);
     EV_at_policy=reshape(EVfine(linidx),[N_a,1]);
     Vhat(:,jj)=shiftdim(Vtempii,1);
     V(:,jj)=shiftdim(Vtempii,1)+(beta-beta0beta)*EV_at_policy;

@@ -124,7 +124,7 @@ if vfoptions.lowmemory==0
     Policy(4,:,:,:)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
     % Vunderbar = Vhat + (beta - beta0beta)*EV_at_policy
-    linidx=double(reshape(maxindexL2,[1,N_a*N_j*N_z]))+N_d*n2long*(0:N_a*N_j*N_z-1);
+    linidx=reshape(maxindexL2,[1,N_a*N_j*N_z])+N_d*n2long*(0:N_a*N_j*N_z-1);
     EV_at_policy=reshape(EVfine(linidx),[N_a*N_j,N_z]);
     Vhat=reshape(Vhat,[N_a*N_j,N_z]);
     V=Vhat+EV_at_policy;
@@ -188,7 +188,7 @@ elseif vfoptions.lowmemory==1
         inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
         Policy(4,:,:,z_c)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
-        linidx_z=double(reshape(maxindexL2,[1,N_a*N_j]))+N_d*n2long*(0:N_a*N_j-1);
+        linidx_z=reshape(maxindexL2,[1,N_a*N_j])+N_d*n2long*(0:N_a*N_j-1);
         EV_at_policy_z=reshape(EVfine_z(linidx_z),[N_a*N_j,1]);
         Vhat(:,z_c)=reshape(Vhat_z,[N_a*N_j,1]);
         V(:,z_c)=Vhat(:,z_c)+EV_at_policy_z;

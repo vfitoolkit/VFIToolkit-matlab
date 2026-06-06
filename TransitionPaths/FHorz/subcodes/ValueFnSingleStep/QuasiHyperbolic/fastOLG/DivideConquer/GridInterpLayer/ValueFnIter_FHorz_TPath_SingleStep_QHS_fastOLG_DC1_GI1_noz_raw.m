@@ -104,7 +104,7 @@ inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
 Policy(4,:,:)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
 % Vunderbar = Vhat + (beta - beta0beta)*EV_at_policy
-linidx=double(reshape(maxindexL2,[1,N_a*N_j]))+N_d*n2long*(0:N_a*N_j-1);
+linidx=reshape(maxindexL2,[1,N_a*N_j])+N_d*n2long*(0:N_a*N_j-1);
 EV_at_policy=reshape(EVfine(linidx),[N_a,N_j]);
 Vhat=squeeze(Vhat);
 V=Vhat+EV_at_policy;

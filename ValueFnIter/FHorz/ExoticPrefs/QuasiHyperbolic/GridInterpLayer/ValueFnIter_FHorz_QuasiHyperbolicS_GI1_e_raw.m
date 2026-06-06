@@ -157,7 +157,7 @@ else
         Policy(1,:,:,:,N_j)=d_ind;
         Policy(2,:,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
         Policy(3,:,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1);
-        linidx=double(reshape(maxindexL2,[1,N_a*N_z*N_e]))+N_d*n2long*(0:N_a*N_z*N_e-1);
+        linidx=reshape(maxindexL2,[1,N_a*N_z*N_e])+N_d*n2long*(0:N_a*N_z*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z,N_e]);
         Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j)+(beta-beta0beta)*EV_at_policy;
 
@@ -190,7 +190,7 @@ else
             Policy(1,:,:,e_c,N_j)=d_ind;
             Policy(2,:,:,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
             Policy(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1);
-            linidx_e=double(reshape(maxindexL2,[1,N_a*N_z]))+N_d*n2long*(0:N_a*N_z-1);
+            linidx_e=reshape(maxindexL2,[1,N_a*N_z])+N_d*n2long*(0:N_a*N_z-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,N_z]);
             Vunderbar(:,:,e_c,N_j)=Vhat(:,:,e_c,N_j)+(beta-beta0beta)*EV_at_policy_e;
         end
@@ -227,7 +227,7 @@ else
                 Policy(1,:,z_c,e_c,N_j)=d_ind;
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
                 Policy(3,:,z_c,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1);
-                linidx_ze=double(reshape(maxindexL2,[1,N_a]))+N_d*n2long*(0:N_a-1);
+                linidx_ze=reshape(maxindexL2,[1,N_a])+N_d*n2long*(0:N_a-1);
                 EV_at_policy_ze=reshape(EVfine_ze(linidx_ze),[N_a,1]);
                 Vunderbar(:,z_c,e_c,N_j)=Vhat(:,z_c,e_c,N_j)+(beta-beta0beta)*EV_at_policy_ze;
             end
@@ -284,7 +284,7 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,:,jj)=d_ind;
         Policy(2,:,:,:,jj)=shiftdim(squeeze(midpoint(allind)),-1);
         Policy(3,:,:,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1);
-        linidx=double(reshape(maxindexL2,[1,N_a*N_z*N_e]))+N_d*n2long*(0:N_a*N_z*N_e-1);
+        linidx=reshape(maxindexL2,[1,N_a*N_z*N_e])+N_d*n2long*(0:N_a*N_z*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z,N_e]);
         Vunderbar(:,:,:,jj)=Vhat(:,:,:,jj)+(beta-beta0beta)*EV_at_policy;
 
@@ -317,7 +317,7 @@ for reverse_j=1:N_j-1
             Policy(1,:,:,e_c,jj)=d_ind;
             Policy(2,:,:,e_c,jj)=shiftdim(squeeze(midpoint(allind)),-1);
             Policy(3,:,:,e_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1);
-            linidx_e=double(reshape(maxindexL2,[1,N_a*N_z]))+N_d*n2long*(0:N_a*N_z-1);
+            linidx_e=reshape(maxindexL2,[1,N_a*N_z])+N_d*n2long*(0:N_a*N_z-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,N_z]);
             Vunderbar(:,:,e_c,jj)=Vhat(:,:,e_c,jj)+(beta-beta0beta)*EV_at_policy_e;
         end
@@ -354,7 +354,7 @@ for reverse_j=1:N_j-1
                 Policy(1,:,z_c,e_c,jj)=d_ind;
                 Policy(2,:,z_c,e_c,jj)=shiftdim(squeeze(midpoint(allind)),-1);
                 Policy(3,:,z_c,e_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1);
-                linidx_ze=double(reshape(maxindexL2,[1,N_a]))+N_d*n2long*(0:N_a-1);
+                linidx_ze=reshape(maxindexL2,[1,N_a])+N_d*n2long*(0:N_a-1);
                 EV_at_policy_ze=reshape(EVfine_ze(linidx_ze),[N_a,1]);
                 Vunderbar(:,z_c,e_c,jj)=Vhat(:,z_c,e_c,jj)+(beta-beta0beta)*EV_at_policy_ze;
             end

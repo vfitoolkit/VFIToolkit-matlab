@@ -125,7 +125,7 @@ for reverse_j=1:N_j-1
     inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
     Policy(4,:,jj)=shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper),-1);
 
-    linidx=double(reshape(maxindexL2,[1,N_a]))+N_d*n2long*(0:N_a-1);
+    linidx=reshape(maxindexL2,[1,N_a])+N_d*n2long*(0:N_a-1);
     EV_at_policy=reshape(EVfine(linidx),[N_a,1]);
     V(:,jj)=Vhat_jj+(beta-beta0beta)*EV_at_policy;
 end

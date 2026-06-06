@@ -172,7 +172,7 @@ else
         inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
         PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
-        linidx=double(reshape(maxindexL2,[1,N_a*N_e]))+N_d*n2long*(0:N_a*N_e-1);
+        linidx=reshape(maxindexL2,[1,N_a*N_e])+N_d*n2long*(0:N_a*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_e]);
         Vunderbar(:,:,N_j)=Vhat(:,:,N_j)+(beta-beta0beta)*EV_at_policy;
 
@@ -222,7 +222,7 @@ else
             inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
             PolicyL2flag(1,:,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
-            linidx_e=double(reshape(maxindexL2,[1,N_a]))+N_d*n2long*(0:N_a-1);
+            linidx_e=reshape(maxindexL2,[1,N_a])+N_d*n2long*(0:N_a-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,1]);
             Vunderbar(:,e_c,N_j)=Vhat(:,e_c,N_j)+(beta-beta0beta)*EV_at_policy_e;
         end
@@ -291,7 +291,7 @@ for reverse_j=1:N_j-1
         inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
         PolicyL2flag(1,:,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
-        linidx=double(reshape(maxindexL2,[1,N_a*N_e]))+N_d*n2long*(0:N_a*N_e-1);
+        linidx=reshape(maxindexL2,[1,N_a*N_e])+N_d*n2long*(0:N_a*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_e]);
         Vunderbar(:,:,jj)=Vhat(:,:,jj)+(beta-beta0beta)*EV_at_policy;
 
@@ -341,7 +341,7 @@ for reverse_j=1:N_j-1
             inUpperStrict=(L2offset>=n2short+3) & (L2offset<=n2long-1);
             PolicyL2flag(1,:,e_c,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
-            linidx_e=double(reshape(maxindexL2,[1,N_a]))+N_d*n2long*(0:N_a-1);
+            linidx_e=reshape(maxindexL2,[1,N_a])+N_d*n2long*(0:N_a-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,1]);
             Vunderbar(:,e_c,jj)=Vhat(:,e_c,jj)+(beta-beta0beta)*EV_at_policy_e;
         end
