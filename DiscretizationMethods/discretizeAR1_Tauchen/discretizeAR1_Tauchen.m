@@ -27,6 +27,20 @@ function [z_grid,pi_z]=discretizeAR1_Tauchen(mew,rho,sigma,znum,Tauchen_q, tauch
 % Tauchen (1986) - "Finite state Markov-chain approximations to univariate and vector autoregressions"
 
 if exist('tauchenoptions','var')==0
+    precision='double';
+    precision_cast=@(x) x;
+elseif isfield(tauchenoptions,'precision')
+    precision=tauchenoptions.precision;
+    if strcmp(precision,'single')
+        precision_cast=@(x) single(x);
+    elseif strcmp(precision,'double')
+        precision_cast=@(x) double(x);
+    else
+        error("Unknown precision option")
+    end
+end
+
+if exist('tauchenoptions','var')==0
     % Recommended choice for Parallel is 2 (on GPU). It is substantially faster (albeit only for very large grids; for small grids cpu is just as fast)
     tauchenoptions.parallel=1+(gpuDeviceCount>0);
 else

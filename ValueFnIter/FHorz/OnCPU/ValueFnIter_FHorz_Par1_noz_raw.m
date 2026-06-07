@@ -2,15 +2,17 @@ function [V,Policy2]=ValueFnIter_FHorz_Par1_noz_raw(n_d,n_a,N_j, d_grid, a_grid,
 
 if isUnderlyingType(a_grid,'single')
     precision='single';
+    precision_index='int32';
 else
     precision='double';
+    precision_index='double';
 end
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,precision);
-Policy=zeros(N_a,N_j); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(N_a,N_j,precision_index); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %% j=N_j
 

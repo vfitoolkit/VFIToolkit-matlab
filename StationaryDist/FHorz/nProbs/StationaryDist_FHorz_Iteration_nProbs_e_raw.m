@@ -3,19 +3,32 @@ function StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDis
 % Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case).
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
+if isUnderlyingType(PolicyProbs,'single')
+    precision='single';
+    precision_cast=@(x) single(x);
+else
+    precision='double';
+    precision_cast=@(x) double(x);
+end
+if isUnderlyingType(Policy_aprime,'int32')
+    precision_index_cast=@(x) int32(x);
+else
+    precision_index_cast=@(x) x;
+end
+
 % Policy_aprime and PolicyProbs are currently [N_a,N_z*N_e,N_probs,N_j]
-Policy_aprimez=Policy_aprime+repmat(N_a*(0:1:N_z-1),1,N_e);  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
+Policy_aprimez=Policy_aprime+repmat(N_a*(precision_index_cast(0):1:N_z-1),1,N_e);  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
 Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z*N_e,N_probs,N_j])); % sparse() requires inputs to be 2-D
 PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z*N_e,N_probs,N_j])); % sparse() requires inputs to be 2-D
 
 %% Use Tan improvement
 
-StationaryDist=zeros(N_a*N_z*N_e,N_j,'gpuArray');
+StationaryDist=zeros(N_a*N_z*N_e,N_j,precision,'gpuArray');
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % sparse() creates a matrix of zeros
 
 % Precompute
-II2=repmat((1:1:N_a*N_z*N_e)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
+II2=repmat((precision_index_cast(1):1:N_a*N_z*N_e)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
 
 for jj=1:(N_j-1)
 
@@ -38,7 +51,7 @@ end
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
 try
-    AgeWeights=Parameters.(AgeWeightParamNames{1});
+    AgeWeights=precision_cast(Parameters.(AgeWeightParamNames{1}));
 catch
     error('Unable to find the AgeWeightParamNames in the parameter structure')
 end

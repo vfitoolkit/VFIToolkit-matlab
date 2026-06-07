@@ -5,7 +5,7 @@ if isUnderlyingType(a_grid,'single')
     precision_index='int32';
 else
     precision='double';
-    precision_index='int32';
+    precision_index='double';
 end
 
 N_d=prod(n_d);
@@ -24,7 +24,6 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    maxindex=int32(maxindex);
     V(:,N_j)=Vtemp;
     Policy(1,:,N_j)=maxindex;
 else
@@ -41,7 +40,6 @@ else
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
-    maxindex=int32(maxindex);
     V(:,N_j)=Vtemp;
     Policy(1,:,N_j)=maxindex;
 end
@@ -68,7 +66,6 @@ for reverse_j=1:N_j-1
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
-    maxindex=int32(maxindex);
     V(:,jj)=Vtemp;
     Policy(1,:,jj)=maxindex;
 end

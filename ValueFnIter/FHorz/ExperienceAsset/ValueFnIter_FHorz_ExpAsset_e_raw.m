@@ -3,9 +3,11 @@ function [V,Policy]=ValueFnIter_FHorz_ExpAsset_e_raw(n_d1,n_d2,n_a1,n_a2,n_z,n_e
 if isUnderlyingType(a_grid,'single')
     precision='single';
     precision_index='int32';
+    precision_index_cast=@(x) int32(x);
 else
     precision='double';
-    precision_index='int32';
+    precision_index='double';
+    precision_index_cast=@(x) x;
 end
 
 N_d1=prod(n_d1);
@@ -39,7 +41,6 @@ if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d2,n_a1,n_a1,n_a2,n_z,n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0); % Level=0, Refine=0
         %Calc the max and its index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-        maxindex=int32(maxindex);
         V(:,:,:,N_j)=Vtemp;
         Policy(:,:,:,N_j)=maxindex;
     elseif vfoptions.lowmemory==1
@@ -48,7 +49,6 @@ if ~isfield(vfoptions,'V_Jplus1')
             ReturnMatrix_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
             %Calc the max and its index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-            maxindex=int32(maxindex);
             V(:,:,e_c,N_j)=Vtemp;
             Policy(:,:,e_c,N_j)=maxindex;
         end
@@ -60,7 +60,6 @@ if ~isfield(vfoptions,'V_Jplus1')
                 ReturnMatrix_ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d2,n_a1,n_a1,n_a2, special_n_z, special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
                 % Calc the max and its index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze);
-                maxindex=int32(maxindex);
                 V(:,z_c,e_c,N_j)=Vtemp;
                 Policy(:,z_c,e_c,N_j)=maxindex;
             end
@@ -74,7 +73,7 @@ else
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j,precision);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    a2primeIndex=int32(a2primeIndex);
+    a2primeIndex=precision_index_cast(a2primeIndex);
     % Note: aprimeIndex is [N_d2,N_a2], whereas aprimeProbs is [N_d2,N_a2]
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2]
@@ -106,7 +105,6 @@ else
 
         %Calc the max and its index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        maxindex=int32(maxindex);
 
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
@@ -121,7 +119,6 @@ else
 
             % Calc the max and its index
             [Vtemp,maxindex]=max(entireRHS,[],1);
-            maxindex=int32(maxindex);
 
             V(:,:,e_c,N_j)=shiftdim(Vtemp,1);
             Policy(:,:,e_c,N_j)=shiftdim(maxindex,1);
@@ -138,7 +135,6 @@ else
 
                 % Calc the max and its index
                 [Vtemp,maxindex]=max(entireRHS,[],1);
-                maxindex=int32(maxindex);
 
                 V(:,z_c,e_c,N_j)=shiftdim(Vtemp,1);
                 Policy(:,z_c,e_c,N_j)=shiftdim(maxindex,1);
@@ -163,7 +159,7 @@ for reverse_j=1:N_j-1
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj,precision);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    a2primeIndex=int32(a2primeIndex);
+    a2primeIndex=precision_index_cast(a2primeIndex);
     % Note: aprimeIndex is [N_d2,N_a2], whereas aprimeProbs is [N_d2,N_a2]
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2]
@@ -197,7 +193,6 @@ for reverse_j=1:N_j-1
 
         % Calc the max and its index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        maxindex=int32(maxindex);
 
         V(:,:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,:,jj)=shiftdim(maxindex,1);
@@ -212,7 +207,6 @@ for reverse_j=1:N_j-1
 
             % Calc the max and its index
             [Vtemp,maxindex]=max(entireRHS,[],1);
-            maxindex=int32(maxindex);
 
             V(:,:,e_c,jj)=shiftdim(Vtemp,1);
             Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
@@ -230,7 +224,6 @@ for reverse_j=1:N_j-1
 
                 %Calc the max and its index
                 [Vtemp,maxindex]=max(entireRHS,[],1);
-                maxindex=int32(maxindex);
 
                 V(:,z_c,e_c,jj)=shiftdim(Vtemp,1);
                 Policy(:,z_c,e_c,jj)=shiftdim(maxindex,1);

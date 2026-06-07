@@ -2,8 +2,10 @@ function [V,Policy2]=ValueFnIter_FHorz_Par1_raw(n_d,n_a,n_z,N_j, d_grid, a_grid,
 
 if isUnderlyingType(a_grid,'single')
     precision='single';
+    precision_index='int32';
 else
     precision='double';
+    precision_index='double';
 end
 
 N_d=prod(n_d);
@@ -17,7 +19,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j,prec
 
 
 V=zeros(N_a,N_z,N_j,precision);
-Policy=zeros(N_a,N_z,N_j,precision); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(N_a,N_z,N_j,precision_index); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 if ~isfield(vfoptions,'V_Jplus1')
 

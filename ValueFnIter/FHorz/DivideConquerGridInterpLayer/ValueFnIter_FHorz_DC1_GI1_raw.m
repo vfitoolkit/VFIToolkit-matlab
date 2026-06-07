@@ -1,16 +1,21 @@
 function [V,Policy]=ValueFnIter_FHorz_DC1_GI1_raw(n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
+if isUnderlyingType(a_grid,'single')
+    precision='single';
+    precision_index='int32';
+    precision_cast=@(x) single(x);
+    precision_index_cast=@(x) int32(x);
+else
+    precision='double';
+    precision_index='double';
+    precision_cast=@(x) x;
+    precision_index_cast=@(x) x;
+end
+
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if isUnderlyingType(a_grid,'single')
-    precision='single';
-    precision_index='int32';
-else
-    precision='double';
-    precision_index='int32';
-end
 V=zeros(N_a,N_z,N_j,precision,'gpuArray');
 Policy=zeros(3,N_a,N_z,N_j,precision_index,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
 PolicyL2flag=2*ones(1,N_a,N_z,N_j,precision_index,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
@@ -26,20 +31,20 @@ elseif vfoptions.lowmemory==1 % loops over z
     special_n_z=ones(1,length(n_z),precision);
 end
 
-aind=gpuArray(int32(0):1:N_a-1); % already includes -1
-zind=shiftdim(gpuArray(int32(0):1:N_z-1),-1); % already includes -1
+aind=gpuArray(precision_index_cast(0):1:N_a-1); % already includes -1
+zind=shiftdim(gpuArray(precision_index_cast(0):1:N_z-1),-1); % already includes -1
 
-zBind=shiftdim(gpuArray(int32(0):1:N_z-1),-2); % already includes -1
+zBind=shiftdim(gpuArray(precision_index_cast(0):1:N_z-1),-2); % already includes -1
 
 % n-Monotonicity
-level1ii=round(linspace(1,n_a,vfoptions.level1n));
+level1ii=precision_index_cast(round(linspace(1,n_a,vfoptions.level1n)));
 % level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 % Grid interpolation
 % vfoptions.ngridinterp=9;
-n2short=int32(vfoptions.ngridinterp); % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
-n2long=int32(vfoptions.ngridinterp*2+3); % total number of aprime points we end up looking at in second layer
-aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
+n2short=precision_index_cast(vfoptions.ngridinterp); % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
+n2long=precision_index_cast(vfoptions.ngridinterp*2+3); % total number of aprime points we end up looking at in second layer
+aprime_grid=interp1(precision_cast(1):1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*double(n2short)));
 n2aprime=length(aprime_grid);
 
 % For debugging, uncomment next two lines, with this 'aprime_grid' you
@@ -61,7 +66,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         % First, we want aprime conditional on (d,1,a,z)
         [~,maxindex1]=max(ReturnMatrix_ii,[],2);
-        maxindex1=int32(maxindex1);
+        maxindex1=precision_index_cast(maxindex1);
 
         % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
@@ -77,7 +82,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,3);
                 [~,maxindex]=max(ReturnMatrix_ii,[],2);
-                maxindex=int32(maxindex);
+                maxindex=precision_index_cast(maxindex);
                 midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(:,1,ii,:);
@@ -92,14 +97,15 @@ if ~isfield(vfoptions,'V_Jplus1')
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
         [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
+        maxindexL2=precision_index_cast(maxindexL2);
         V(:,:,N_j)=shiftdim(Vtempii,1);
-        d_ind=int32(rem(maxindexL2-1,N_d))+1;
+        d_ind=rem(maxindexL2-1,N_d)+1;
         allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
         Policy(1,:,:,N_j)=d_ind; % d
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-        Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+        Policy(3,:,:,N_j)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % aprimeL2ind
         % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-        L2offset = ceil(maxindexL2/N_d);
+        L2offset = ceil(double(maxindexL2)/N_d);
         linidx_lower = d_ind                  + N_d*n2long*aind + N_d*n2long*N_a*zind;
         linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
         isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -117,7 +123,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
             % First, we want aprime conditional on (d,1,a,z)
             [~,maxindex1]=max(ReturnMatrix_ii,[],2);
-            maxindex1=int32(maxindex1);
+            maxindex1=precision_index_cast(maxindex1);
 
             % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,level1ii)=maxindex1;
@@ -133,7 +139,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,3);
                     [~,maxindex]=max(ReturnMatrix_ii,[],2);
-                    maxindex=int32(maxindex);
+                    maxindex=precision_index_cast(maxindex);
                     midpoints_jj(:,1,curraindex)=shiftdim(maxindex+(loweredge-1),1);
                 else
                     loweredge=maxindex1(:,1,ii);
@@ -148,14 +154,15 @@ if ~isfield(vfoptions,'V_Jplus1')
             % aprime possibilities are n_d-by-n2long-by-n_a
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,special_n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
+            maxindexL2=precision_index_cast(maxindexL2);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;
             allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
             Policy(1,:,z_c,N_j)=d_ind; % d
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % aprimeL2ind
             % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-            L2offset = ceil(maxindexL2/N_d);
+            L2offset = ceil(double(maxindexL2)/N_d);
             linidx_lower = d_ind                  + N_d*n2long*aind;
             linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
             isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -187,7 +194,7 @@ else
 
         % First, we want aprime conditional on (d,1,a,z)
         [~,maxindex1]=max(entireRHS_ii,[],2);
-        maxindex1=int32(maxindex1);
+        maxindex1=precision_index_cast(maxindex1);
 
         % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
@@ -205,7 +212,7 @@ else
                 aprimez=aprimeindexes+N_a*zBind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[N_d,(maxgap(ii)+1),1,N_z]));  % autoexpand the level1iidiff(ii) in 3rd-dim
                 [~,maxindex]=max(entireRHS_ii,[],2);
-                maxindex=int32(maxindex);
+                maxindex=precision_index_cast(maxindex);
                 midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(:,1,ii,:);
@@ -222,14 +229,15 @@ else
         aprimez=aprimeindexes+n2aprime*zBind;
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[N_d*n2long,N_a,N_z]);
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+        maxindexL2=precision_index_cast(maxindexL2);
         V(:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d)+1;
         allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
         Policy(1,:,:,N_j)=d_ind; % d
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-        Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+        Policy(3,:,:,N_j)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % aprimeL2ind
         % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-        L2offset = ceil(maxindexL2/N_d);
+        L2offset = ceil(double(maxindexL2)/N_d);
         linidx_lower = d_ind                  + N_d*n2long*aind + N_d*n2long*N_a*zind;
         linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
         isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -253,7 +261,7 @@ else
 
             % First, we want aprime conditional on (d,1,a,z)
             [~,maxindex1]=max(entireRHS_ii,[],2);
-            maxindex1=int32(maxindex1);
+            maxindex1=precision_index_cast(maxindex1);
 
             % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,level1ii)=maxindex1;
@@ -270,7 +278,7 @@ else
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,3);
                     entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1]));  % autoexpand the level1iidiff(ii) in 3rd-dim
                     [~,maxindex]=max(entireRHS_ii,[],2);
-                    maxindex=int32(maxindex);
+                    maxindex=precision_index_cast(maxindex);
                     midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
                 else
                     loweredge=maxindex1(:,1,ii);
@@ -286,14 +294,15 @@ else
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,special_n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp_z(aprimeindexes(:)),[N_d*n2long,N_a]);
             [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+            maxindexL2=precision_index_cast(maxindexL2);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;
             allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
             Policy(1,:,z_c,N_j)=d_ind; % d
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % aprimeL2ind
             % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-            L2offset = ceil(maxindexL2/N_d);
+            L2offset = ceil(double(maxindexL2)/N_d);
             linidx_lower = d_ind                  + N_d*n2long*aind;
             linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
             isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -336,7 +345,7 @@ for reverse_j=1:N_j-1
 
         % First, we want aprime conditional on (d,1,a,z)
         [~,maxindex1]=max(entireRHS_ii,[],2);
-        maxindex1=int32(maxindex1);
+        maxindex1=precision_index_cast(maxindex1);
 
         % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
@@ -354,7 +363,7 @@ for reverse_j=1:N_j-1
                 aprimez=aprimeindexes+N_a*zBind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[N_d,(maxgap(ii)+1),1,N_z]));  % autoexpand the level1iidiff(ii) in 3rd-dim
                 [~,maxindex]=max(entireRHS_ii,[],2);
-                maxindex=int32(maxindex);
+                maxindex=precision_index_cast(maxindex);
                 midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(:,1,ii,:);
@@ -371,14 +380,15 @@ for reverse_j=1:N_j-1
         aprimez=aprimeindexes+n2aprime*zBind;
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[N_d*n2long,N_a,N_z]);
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+        maxindexL2=precision_index_cast(maxindexL2);
         V(:,:,jj)=shiftdim(Vtempii,1);
-        d_ind=int32(rem(maxindexL2-1,N_d))+1;
+        d_ind=rem(maxindexL2-1,N_d)+1;
         allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
         Policy(1,:,:,jj)=d_ind; % d
         Policy(2,:,:,jj)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-        Policy(3,:,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+        Policy(3,:,:,jj)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % aprimeL2ind
         % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-        L2offset = ceil(maxindexL2/N_d);
+        L2offset = ceil(double(maxindexL2)/N_d);
         linidx_lower = d_ind                  + N_d*n2long*aind + N_d*n2long*N_a*zind;
         linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zind;
         isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -402,7 +412,7 @@ for reverse_j=1:N_j-1
 
             % First, we want aprime conditional on (d,1,a,z)
             [~,maxindex1]=max(entireRHS_ii,[],2);
-            maxindex1=int32(maxindex1);
+            maxindex1=precision_index_cast(maxindex1);
 
             % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,level1ii)=maxindex1;
@@ -419,7 +429,7 @@ for reverse_j=1:N_j-1
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,3);
                     entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1]));  % autoexpand the level1iidiff(ii) in 3rd-dim
                     [~,maxindex]=max(entireRHS_ii,[],2);
-                    maxindex=int32(maxindex);
+                    maxindex=precision_index_cast(maxindex);
                     midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
                 else
                     loweredge=maxindex1(:,1,ii);
@@ -435,14 +445,15 @@ for reverse_j=1:N_j-1
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,special_n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp_z(aprimeindexes(:)),[N_d*n2long,N_a]);
             [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+            maxindexL2=precision_index_cast(maxindexL2);
             V(:,z_c,jj)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;
             allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
             Policy(1,:,z_c,jj)=d_ind; % d
             Policy(2,:,z_c,jj)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-            Policy(3,:,z_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+            Policy(3,:,z_c,jj)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % aprimeL2ind
             % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-            L2offset = ceil(maxindexL2/N_d);
+            L2offset = ceil(double(maxindexL2)/N_d);
             linidx_lower = d_ind                  + N_d*n2long*aind;
             linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
             isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -458,7 +469,7 @@ end
 % (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
 % we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
 % counting 0:nshort+1 up from this.
-adjust=int32(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
+adjust=precision_index_cast(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust; % lower grid point
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 

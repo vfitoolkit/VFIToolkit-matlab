@@ -5,9 +5,11 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_e_raw(n_d2,n_d3
 if isUnderlyingType(a1_grid,'single')
     precision='single';
     precision_index='int32';
+    precision_index_cast=@(x) int32(x);
 else
     precision='double';
-    precision_index='int32';
+    precision_index='double';
+    precision_index_cast=@(x) x;
 end
 
 N_d2=prod(n_d2);
@@ -130,12 +132,13 @@ if ~isfield(vfoptions,'V_Jplus1')
             % no d1 here
             % Second: EV, we can refine out d2
             [WGmatrix_onlyd3,d2index]=max(ezc9*reshape((~isinf(WGmatrix)).*WGmatrix,[N_d2,N_d3*N_a1]),[],1);
-            d2index=int32(d2index);
+            d2index=precision_index_cast(d2index);
 
             % Now put together entireRHS, which just depends on d3
             entireRHS=ReturnMatrix+ezc9*shiftdim(WGmatrix_onlyd3,1);
 
             [Vtemp,maxindex]=max(entireRHS,[],1);
+            maxindex=precision_index_cast(maxindex);
 
             V(:,:,:,N_j)=Vtemp;
             Policy(3,:,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
@@ -144,6 +147,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         elseif warmglow==0
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+            maxindex=precision_index_cast(maxindex);
 
             V(:,:,:,N_j)=Vtemp;
             Policy(2,:,:,:,N_j)=1; % d2, meaningless
@@ -169,12 +173,13 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % no d1 here
                 % Second: EV, we can refine out d2
                 [WGmatrix_onlyd3,d2index]=max(ezc9*reshape((~isinf(WGmatrix)).*WGmatrix,[N_d2,N_d3*N_a1]),[],1);
-                d2index=int32(d2index);
+                d2index=precision_index_cast(d2index);
 
                 % Now put together entireRHS, which just depends on d3
                 entireRHS=ReturnMatrix_e+ezc9*shiftdim(WGmatrix_onlyd3,1);
 
                 [Vtemp,maxindex]=max(entireRHS,[],1);
+                maxindex=precision_index_cast(maxindex);
 
                 V(:,:,e_c,N_j)=Vtemp;
                 Policy(2,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
@@ -183,6 +188,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             elseif warmglow==0
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
+                maxindex=precision_index_cast(maxindex);
 
                 V(:,:,e_c,N_j)=Vtemp;
                 Policy(1,:,:,e_c,N_j)=1; % d2, meaningless
@@ -210,12 +216,13 @@ if ~isfield(vfoptions,'V_Jplus1')
                     % no d1 here
                     % Second: EV, we can refine out d2
                     [WGmatrix_onlyd3,d2index]=max(ezc9*reshape((~isinf(WGmatrix)).*WGmatrix,[N_d2,N_d3*N_a1]),[],1);
-                    d2index=int32(d2index);
+                    d2index=precision_index_cast(d2index);
 
                     % Now put together entireRHS, which just depends on d3
                     entireRHS=ReturnMatrix_ze+ezc9*shiftdim(WGmatrix_onlyd3,1);
 
                     [Vtemp,maxindex]=max(entireRHS,[],1);
+                    maxindex=precision_index_cast(maxindex);
 
                     V(:,z_c,e_c,N_j)=Vtemp;
                     Policy(2,:,z_c,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
@@ -224,6 +231,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 elseif warmglow==0
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
+                    maxindex=precision_index_cast(maxindex);
 
                     V(:,z_c,e_c,N_j)=Vtemp;
                     Policy(1,:,z_c,e_c,N_j)=1; % d2, meaningless
@@ -303,7 +311,7 @@ else
         % no d1 here
         % Second: EV, we can refine out d2
         [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
-        d2index=int32(d2index);
+        d2index=precision_index_cast(d2index);
 
         % Now put together entireRHS, which just depends on d3
         entireRHS=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
@@ -315,6 +323,7 @@ else
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
+        maxindex=precision_index_cast(maxindex);
 
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(2,:,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
@@ -358,7 +367,7 @@ else
         % Time to refine
         % Second (out of order): EV, we can refine out d2
         [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
-        d2index=int32(d2index);
+        d2index=precision_index_cast(d2index);
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -384,6 +393,7 @@ else
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
+            maxindex=precision_index_cast(maxindex);
             V(:,:,e_c,N_j)=shiftdim(Vtemp,1);
             Policy(2,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
             Policy(3,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
@@ -428,7 +438,7 @@ else
             % Time to refine
             % Second (out of order): EV, we can refine out d2
             [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1]),[],1);
-            d2index=int32(d2index);
+            d2index=precision_index_cast(d2index);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
@@ -454,6 +464,7 @@ else
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
+                maxindex=precision_index_cast(maxindex);
                 V(:,z_c,e_c,N_j)=Vtemp;
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
                 Policy(3,:,z_c,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
@@ -582,7 +593,7 @@ for reverse_j=1:N_j-1
         % no d1 here
         % Second: EV, we can refine out d2
         [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
-        d2index=int32(d2index);
+        d2index=precision_index_cast(d2index);
         % Now put together entireRHS, which just depends on d3
         entireRHS=ezc1*temp2+ezc9*DiscountFactorParamsVec*shiftdim(temp4_onlyd3,1);
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -593,6 +604,7 @@ for reverse_j=1:N_j-1
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
+        maxindex=precision_index_cast(maxindex);
         V(:,:,:,jj)=shiftdim(Vtemp,1);
         Policy(2,:,:,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy(3,:,:,:,jj)=shiftdim(ceil(maxindex/N_d3),1);
@@ -637,7 +649,7 @@ for reverse_j=1:N_j-1
         % Time to refine
         % Second (out of order): EV, we can refine out d2
         [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
-        d2index=int32(d2index);
+        d2index=precision_index_cast(d2index);
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
@@ -663,6 +675,7 @@ for reverse_j=1:N_j-1
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
+            maxindex=precision_index_cast(maxindex);
             V(:,:,e_c,jj)=shiftdim(Vtemp,1);
             Policy(2,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
             Policy(3,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
@@ -708,7 +721,7 @@ for reverse_j=1:N_j-1
             % Time to refine
             % Second (out of order): EV, we can refine out d2
             [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1]),[],1);
-            d2index=int32(d2index);
+            d2index=precision_index_cast(d2index);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
@@ -734,6 +747,7 @@ for reverse_j=1:N_j-1
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
+                maxindex=precision_index_cast(maxindex);
                 V(:,z_c,e_c,jj)=Vtemp;
                 Policy(2,:,z_c,e_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
                 Policy(3,:,z_c,e_c,jj)=shiftdim(ceil(maxindex/N_d3),1);

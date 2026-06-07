@@ -88,10 +88,10 @@ if ~isfield(vfoptions,'V_Jplus1')
         allind=d_ind+N_d*aind+N_d*N_a*zindB; % midpoint is n_d-by-1-by-n_a1-by-n_a2-by-n_z
         Policy(1,:,:,N_j)=d_ind; % d2
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-        Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
+        Policy(3,:,:,N_j)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % a1primeL2ind
 
         % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-        L2offset = ceil(maxindexL2/N_d);
+        L2offset = ceil(double(maxindexL2)/N_d);
         linidx_lower = d_ind                  + N_d*n2long*aind + N_d*n2long*N_a*zindB;
         linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zindB;
         isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -142,10 +142,10 @@ if ~isfield(vfoptions,'V_Jplus1')
             allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a1-by-n_a2
             Policy(1,:,z_c,N_j)=d_ind; % d2
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % a1primeL2ind
 
             % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-            L2offset = ceil(maxindexL2/N_d);
+            L2offset = ceil(double(maxindexL2)/N_d);
             linidx_lower = d_ind                  + N_d*n2long*aind;
             linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
             isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -236,10 +236,10 @@ else
         allind=d_ind+N_d*aind+N_d*N_a*zindB; % midpoint is n_d-by-1-by-n_a1-by-n_a2-by-n_z
         Policy(1,:,:,N_j)=d_ind; % d
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-        Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
+        Policy(3,:,:,N_j)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % a1primeL2ind
 
         % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-        L2offset = ceil(maxindexL2/N_d);
+        L2offset = ceil(double(maxindexL2)/N_d);
         linidx_lower = d_ind                  + N_d*n2long*aind + N_d*n2long*N_a*zindB;
         linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zindB;
         isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -300,10 +300,10 @@ else
             allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a1-by-n_a2
             Policy(1,:,z_c,N_j)=d_ind; % d
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % a1primeL2ind
 
             % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-            L2offset = ceil(maxindexL2/N_d);
+            L2offset = ceil(double(maxindexL2)/N_d);
             linidx_lower = d_ind                  + N_d*n2long*aind;
             linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
             isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -404,10 +404,10 @@ for reverse_j=1:N_j-1
         allind=d_ind+N_d*aind+N_d*N_a*zindB; % midpoint is n_d-by-1-by-n_a1-by-n_a2-by-n_z
         Policy(1,:,:,jj)=d_ind; % d
         Policy(2,:,:,jj)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-        Policy(3,:,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
+        Policy(3,:,:,jj)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % a1primeL2ind
 
         % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-        L2offset = ceil(maxindexL2/N_d);
+        L2offset = ceil(double(maxindexL2)/N_d);
         linidx_lower = d_ind                  + N_d*n2long*aind + N_d*n2long*N_a*zindB;
         linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind + N_d*n2long*N_a*zindB;
         isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
@@ -468,10 +468,10 @@ for reverse_j=1:N_j-1
             allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a1-by-n_a2
             Policy(1,:,z_c,jj)=d_ind; % d
             Policy(2,:,z_c,jj)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
-            Policy(3,:,z_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % a1primeL2ind
+            Policy(3,:,z_c,jj)=shiftdim(ceil(double(maxindexL2)/N_d),-1); % a1primeL2ind
 
             % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
-            L2offset = ceil(maxindexL2/N_d);
+            L2offset = ceil(double(maxindexL2)/N_d);
             linidx_lower = d_ind                  + N_d*n2long*aind;
             linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
             isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
