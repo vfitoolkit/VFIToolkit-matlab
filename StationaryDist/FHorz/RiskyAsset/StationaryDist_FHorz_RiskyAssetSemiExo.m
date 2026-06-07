@@ -1,5 +1,16 @@
 function StationaryDist=StationaryDist_FHorz_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_semiz,n_z,N_j,pi_semiz_J,pi_z_J,Parameters,simoptions)
 
+if isUnderlyingType(jequaloneDist,'single')
+    precision='single';
+    precision_index='int32';
+    precision_cast=@(x) single(x);
+    precision_index_cast=@(x) int32(x);
+else
+    precision='double';
+    precision_index='double';
+    precision_cast=@(x) x;
+    precision_index_cast=@(x) x;
+end
 
 %% Setup related to risky asset
 if ~isfield(simoptions,'aprimeFn')
@@ -33,7 +44,7 @@ l_d4=simoptions.l_dsemiz;
 n_d23=n_d(simoptions.refine_d(1)+1:sum(simoptions.refine_d(1:3))); % decision variables for riskyasset
 l_d123=sum(simoptions.refine_d(1:3)); % everything except the d_semiz
 
-N_dsemiz=prod(n_d(l_d123+1:end));
+N_dsemiz=precision_index_cast(prod(n_d(l_d123+1:end)));
 
 % Split endogenous assets into the standard ones and the risky asset
 if isscalar(n_a)
@@ -46,8 +57,8 @@ a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
 
 
 %%
-N_e=prod(simoptions.n_e);
-N_z=prod(n_z);
+N_e=precision_index_cast(prod(simoptions.n_e));
+N_z=precision_index_cast(prod(n_z));
 if ~isfield(simoptions,'n_u')
     error('To use an risky asset you must define simoptions.n_u')
 end
@@ -87,10 +98,10 @@ end
 
 l_a=length(n_a);
 
-N_a=prod(n_a);
-N_a1=prod(n_a1);
-N_semiz=prod(n_semiz);
-N_u=prod(simoptions.n_u);
+N_a=precision_index_cast(prod(n_a));
+N_a1=precision_index_cast(prod(n_a1));
+N_semiz=precision_index_cast(prod(n_semiz));
+N_u=precision_index_cast(prod(simoptions.n_u));
 
 if N_a1==0
     n_a=n_a2;
@@ -123,12 +134,13 @@ Policy=reshape(Policy,[size(Policy,1),N_a,N_bothze,N_j]);
 
 
 %% riskyasset transitions
-Policy_aprime=zeros(N_a,N_bothze,N_u,2,N_j,'gpuArray'); % the lower grid point
-PolicyProbs=zeros(N_a,N_bothze,N_u,2,N_j,'gpuArray'); % probabilities of grid points
+Policy_aprime=zeros(N_a,N_bothze,N_u,2,N_j,precision_index,'gpuArray'); % the lower grid point
+PolicyProbs=zeros(N_a,N_bothze,N_u,2,N_j,precision,'gpuArray'); % probabilities of grid points
 whichisdforriskyasset=(simoptions.refine_d(1)+1):1:sum(simoptions.refine_d(1:3));  % is just saying which is the decision variable that influences the risky asset (it is all the decision variables)
-for jj=1:N_j
-    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
+for jj=precision_index_cast(1):N_j
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj,precision);
     [aprimeIndexes,aprimeProbs]=CreateaprimePolicyRiskyAsset(Policy(1:l_d,:,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_bothze, simoptions.n_u, simoptions.d_grid, a2_grid, u_grid, aprimeFnParamsVec);
+    aprimeIndexes=precision_index_cast(aprimeIndexes);
     % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z,N_u]
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
 

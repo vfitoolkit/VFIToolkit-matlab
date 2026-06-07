@@ -17,15 +17,16 @@ end
 
 n_bothz=[n_semiz,n_z]; % These are the return function arguments
 
-N_d2=prod(n_d2);
-N_d3=prod(n_d3);
-N_d4=prod(n_d4);
-N_a1=prod(n_a1);
-N_a2=prod(n_a2);
-N_semiz=prod(n_semiz);
-N_z=prod(n_z);
-N_bothz=prod(n_bothz);
-N_u=prod(n_u);
+N_j=precision_index_cast(N_j);
+N_d2=precision_index_cast(prod(n_d2));
+N_d3=precision_index_cast(prod(n_d3));
+N_d4=precision_index_cast(prod(n_d4));
+N_a1=precision_index_cast(prod(n_a1));
+N_a2=precision_index_cast(prod(n_a2));
+N_semiz=precision_index_cast(prod(n_semiz));
+N_z=precision_index_cast(prod(n_z));
+N_bothz=precision_index_cast(prod(n_bothz));
+N_u=precision_index_cast(prod(n_u));
 
 % d variable for the semiz
 special_n_d4=ones(1,length(n_d4),precision);
@@ -43,8 +44,8 @@ n_d23=[n_d2,n_d3];
 N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
-V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % d2, d3, d4 and a1prime
+V=zeros(N_a,N_semiz*N_z,N_j,precision,'gpuArray');
+Policy=zeros(4,N_a,N_semiz*N_z,N_j,precision_index,'gpuArray'); % d2, d3, d4 and a1prime
 
 %%
 % d3_grid=gpuArray(d3_grid);
@@ -97,11 +98,11 @@ if ~isfield(vfoptions,'V_Jplus1')
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            dindex=rem(maxindex-1,N_d3*N_d4)+1;
+            dindex=rem(precision_index_cast(maxindex)-1,N_d3*N_d4)+1;
             Policy(1,:,z_c,N_j)=1; % d2, is meaningless anyway
             Policy(2,:,z_c,N_j)=rem(precision_index_cast(dindex)-1,N_d3)+1; % d3
             Policy(3,:,z_c,N_j)=shiftdim(precision_index_cast(ceil(dindex/N_d3)),-1);% d4
-            Policy(4,:,z_c,N_j)=shiftdim(precision_index_cast(ceil(maxindex/(N_d3*N_d4))),-1); % a1prime
+            Policy(4,:,z_c,N_j)=shiftdim(precision_index_cast(ceil(maxindex/double(N_d3*N_d4))),-1); % a1prime
         end
     end
 else
@@ -250,7 +251,7 @@ end
 
 
 %% Iterate backwards through j.
-for reverse_j=1:N_j-1
+for reverse_j=precision_index_cast(1):N_j-1
     jj=N_j-reverse_j;
 
     if vfoptions.verbose==1
@@ -396,7 +397,7 @@ for reverse_j=1:N_j-1
         d3a1prime_ind=reshape(Policy_ford4_jj((precision_index_cast(1):1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
         Policy(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
         Policy(2,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
-        Policy(4,:,:,jj)=shiftdim(precision_index_cast(ceil(double(d3a1prime_ind)/N_d3)),-1); % a1prime
+        Policy(4,:,:,jj)=shiftdim(precision_index_cast(ceil(double(d3a1prime_ind)/double(N_d3))),-1); % a1prime
     end
 end
 
