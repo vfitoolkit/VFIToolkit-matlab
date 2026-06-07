@@ -3,6 +3,18 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAssetSemiExo_nod1_raw(n_d2,n_d3,n_d4,
 % d3: both ReturnFn and aprimeFn
 % d4: ReturnFn but not aprimeFn, and determines semiz transitions
 
+if isUnderlyingType(a1_grid,'single')
+    precision='single';
+    precision_index='int32';
+    precision_cast=@(x) single(x);
+    precision_index_cast=@(x) int32(x);
+else
+    precision='double';
+    precision_index='double';
+    precision_cast=@(x) x;
+    precision_index_cast=@(x) x;
+end
+
 n_bothz=[n_semiz,n_z]; % These are the return function arguments
 
 N_d2=prod(n_d2);
@@ -16,7 +28,7 @@ N_bothz=prod(n_bothz);
 N_u=prod(n_u);
 
 % d variable for the semiz
-special_n_d4=ones(1,length(n_d4));
+special_n_d4=ones(1,length(n_d4),precision);
 d4_gridvals=CreateGridvals(n_d4,d4_grid,1);
 
 % N_d=N_d2*N_d3*N_d4;
@@ -46,15 +58,15 @@ d3d4a1_gridvals=gpuArray(CreateGridvals([n_d3,n_d4,n_a1],[d3_grid;d4_grid;a1_gri
 a1a2_gridvals=gpuArray(CreateGridvals([n_a1,n_a2],[a1_grid;a2_grid],1));
 
 if vfoptions.lowmemory>0
-    special_n_bothz=ones(1,length(n_semiz)+length(n_z));
+    special_n_bothz=ones(1,length(n_semiz)+length(n_z),precision);
 end
 
-bothzind=shiftdim(0:1:N_bothz-1,-1);
+bothzind=shiftdim(precision_index_cast(0):1:N_bothz-1,-1);
 
 % Preallocate
-V_ford4_jj=zeros(N_a,N_semiz*N_z,N_d4,'gpuArray');
-Policy_ford4_jj=zeros(N_a,N_semiz*N_z,N_d4,'gpuArray');
-d2index_ford4_jj=zeros(N_d3*N_a1,N_semiz*N_z,N_d4,'gpuArray'); % Note, different first dimension
+V_ford4_jj=zeros(N_a,N_semiz*N_z,N_d4,precision,'gpuArray');
+Policy_ford4_jj=zeros(N_a,N_semiz*N_z,N_d4,precision_index,'gpuArray');
+d2index_ford4_jj=zeros(N_d3*N_a1,N_semiz*N_z,N_d4,precision_index,'gpuArray'); % Note, different first dimension
 
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
@@ -62,7 +74,7 @@ bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
-ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j,precision);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
@@ -73,9 +85,9 @@ if ~isfield(vfoptions,'V_Jplus1')
         V(:,:,N_j)=Vtemp;
         dindex=rem(maxindex-1,N_d3*N_d4)+1;
         Policy(1,:,:,N_j)=1; % d2, is meaningless anyway
-        Policy(2,:,:,N_j)=rem(dindex-1,N_d3)+1; % d3
-        Policy(3,:,:,N_j)=shiftdim(ceil(dindex/N_d3),-1);% d4
-        Policy(4,:,:,N_j)=shiftdim(ceil(maxindex/(N_d3*N_d4)),-1); % a1prime
+        Policy(2,:,:,N_j)=rem(precision_index_cast(dindex)-1,N_d3)+1; % d3
+        Policy(3,:,:,N_j)=shiftdim(precision_index_cast(ceil(dindex/N_d3)),-1);% d4
+        Policy(4,:,:,N_j)=shiftdim(precision_index_cast(ceil(maxindex/(N_d3*N_d4))),-1); % a1prime
 
     elseif vfoptions.lowmemory==1
 
@@ -87,24 +99,25 @@ if ~isfield(vfoptions,'V_Jplus1')
             V(:,z_c,N_j)=Vtemp;
             dindex=rem(maxindex-1,N_d3*N_d4)+1;
             Policy(1,:,z_c,N_j)=1; % d2, is meaningless anyway
-            Policy(2,:,z_c,N_j)=rem(dindex-1,N_d3)+1; % d3
-            Policy(3,:,z_c,N_j)=shiftdim(ceil(dindex/N_d3),-1);% d4
-            Policy(4,:,z_c,N_j)=shiftdim(ceil(maxindex/(N_d3*N_d4)),-1); % a1prime
+            Policy(2,:,z_c,N_j)=rem(precision_index_cast(dindex)-1,N_d3)+1; % d3
+            Policy(3,:,z_c,N_j)=shiftdim(precision_index_cast(ceil(dindex/N_d3)),-1);% d4
+            Policy(4,:,z_c,N_j)=shiftdim(precision_index_cast(ceil(maxindex/(N_d3*N_d4))),-1); % a1prime
         end
     end
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
 
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j,precision);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j,precision);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    a2primeIndex=precision_index_cast(a2primeIndex);
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
-    aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeIndex=repelem((precision_index_cast(1):1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeplus1Index=repelem((precision_index_cast(1):1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
     % aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
 
@@ -129,13 +142,13 @@ else
 
             % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
             % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-            skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index+N_a*((1:1:N_bothz)-1))); % Note, probably just do this off of a2prime values
+            skipinterp=logical(EV(aprimeIndex+N_a*((precision_index_cast(1):1:N_bothz)-1))==EV(aprimeplus1Index+N_a*((precision_index_cast(1):1:N_bothz)-1))); % Note, probably just do this off of a2prime values
             aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
             aprimeProbs(skipinterp)=0;
 
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1=EV(aprimeIndex+N_a*((1:1:N_bothz)-1)); % (d,a1prime,u,z), the lower aprime
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_bothz)-1)); % (d,a1prime,u,z), the upper aprime
+            EV1=EV(aprimeIndex+N_a*((precision_index_cast(1):1:N_bothz)-1)); % (d,a1prime,u,z), the lower aprime
+            EV2=EV((aprimeplus1Index)+N_a*((precision_index_cast(1):1:N_bothz)-1)); % (d,a1prime,u,z), the upper aprime
 
             % Apply the aprimeProbs
             EV1=reshape(EV1,[N_d23*N_a1,N_u,N_bothz]).*aprimeProbs; % probability of lower grid point
@@ -150,11 +163,13 @@ else
             % no d1 here
             % Second: EV, we can refine out d2
             [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3*N_a1,1,N_bothz]),[],1);
+            d2index=precision_index_cast(d2index);
             % Now put together entireRHS, which just depends on d3
             entireRHS=ReturnMatrix_d4+shiftdim(DiscountFactorParamsVec*EV_onlyd3,1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
+            maxindex=precision_index_cast(maxindex);
 
             V_ford4_jj(:,:,d4_c)=shiftdim(Vtemp,1);
             Policy_ford4_jj(:,:,d4_c)=shiftdim(maxindex,1);
@@ -163,13 +178,14 @@ else
 
         % Now we just max over d4, and keep the policy that corresponded to that (including modify the policy to include the d4 decision)
         [V_jj,maxindex]=max(V_ford4_jj,[],3); % max over d4
+        maxindex=precision_index_cast(maxindex);
         V(:,:,N_j)=V_jj;
         Policy(3,:,:,N_j)=maxindex; % d4 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_bothz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d3a1prime_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
         Policy(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
         Policy(2,:,:,N_j)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
-        Policy(4,:,:,N_j)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
+        Policy(4,:,:,N_j)=shiftdim(precision_index_cast(ceil(double(d3a1prime_ind)/N_d3)),-1); % a1prime
 
     elseif vfoptions.lowmemory==1
         for d4_c=1:N_d4
@@ -227,7 +243,7 @@ else
         d3a1prime_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
         Policy(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
         Policy(2,:,:,N_j)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
-        Policy(4,:,:,N_j)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
+        Policy(4,:,:,N_j)=shiftdim(precision_index_cast(ceil(double(d3a1prime_ind)/N_d3)),-1); % a1prime
     end
 end
 
@@ -242,16 +258,17 @@ for reverse_j=1:N_j-1
     end
 
     % Create a vector containing all the return function parameters (in order)
-    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj,precision);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj,precision);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    a2primeIndex=precision_index_cast(a2primeIndex);
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
 
-    aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeIndex=repelem((precision_index_cast(1):1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeplus1Index=repelem((precision_index_cast(1):1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
     % aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
 
@@ -277,14 +294,14 @@ for reverse_j=1:N_j-1
 
             % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
             % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1))); % Note, probably just do this off of a2prime values
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((precision_index_cast(1):1:N_bothz)-1))==EV(aprimeplus1Index(:)+N_a*((precision_index_cast(1):1:N_bothz)-1))); % Note, probably just do this off of a2prime values
             aprimeProbs=repmat(a2primeProbs,N_a1,N_bothz);  % [N_d*N_a1,N_u]
             aprimeProbs(skipinterp)=0;
             aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_bothz]);
 
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1=EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1)); % (d,u,z), the lower aprime
-            EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1)); % (d,u,z), the upper aprime
+            EV1=EV(aprimeIndex(:)+N_a*((precision_index_cast(1):1:N_bothz)-1)); % (d,u,z), the lower aprime
+            EV2=EV(aprimeplus1Index(:)+N_a*((precision_index_cast(1):1:N_bothz)-1)); % (d,u,z), the upper aprime
 
             % Apply the aprimeProbs
             EV1=reshape(EV1,[N_d23*N_a1,N_u,N_bothz]).*aprimeProbs; % probability of lower grid point
@@ -312,13 +329,14 @@ for reverse_j=1:N_j-1
 
         % Now we just max over d4, and keep the policy that corresponded to that (including modify the policy to include the d4 decision)
         [V_jj,maxindex]=max(V_ford4_jj,[],3); % max over d4
+        maxindex=precision_index_cast(maxindex);
         V(:,:,jj)=V_jj;
         Policy(3,:,:,jj)=maxindex; % d4 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_bothz,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d3a1prime_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+        d3a1prime_ind=reshape(Policy_ford4_jj((precision_index_cast(1):1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
         Policy(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
         Policy(2,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
-        Policy(4,:,:,jj)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
+        Policy(4,:,:,jj)=shiftdim(precision_index_cast(ceil(double(d3a1prime_ind)/N_d3)),-1); % a1prime
 
     elseif vfoptions.lowmemory==1
         for d4_c=1:N_d4
@@ -371,13 +389,14 @@ for reverse_j=1:N_j-1
 
         % Now we just max over d4, and keep the policy that corresponded to that (including modify the policy to include the d4 decision)
         [V_jj,maxindex]=max(V_ford4_jj,[],3); % max over d4
+        maxindex=precision_index_cast(maxindex);
         V(:,:,jj)=V_jj;
         Policy(3,:,:,jj)=maxindex; % d4 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_bothz,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d3a1prime_ind=reshape(Policy_ford4_jj((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+        d3a1prime_ind=reshape(Policy_ford4_jj((precision_index_cast(1):1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
         Policy(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3a1prime_ind+N_d3*N_a1*bothzind),-1); % d2
         Policy(2,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
-        Policy(4,:,:,jj)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
+        Policy(4,:,:,jj)=shiftdim(precision_index_cast(ceil(double(d3a1prime_ind)/N_d3)),-1); % a1prime
     end
 end
 
