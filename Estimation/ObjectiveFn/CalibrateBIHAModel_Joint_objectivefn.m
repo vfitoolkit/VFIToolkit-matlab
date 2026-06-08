@@ -238,6 +238,21 @@ elseif caliboptions.vectoroutput==2
 end
 
 
+if isfield(caliboptions,'progressreport') && caliboptions.progressreport==1
+    if caliboptions.vectoroutput==0
+        currentObj=Obj;
+    elseif caliboptions.vectoroutput==2
+        currentObj=Obj'*Obj;
+    else
+        currentObj=NaN;
+    end
+    if ~isnan(currentObj)
+        momentnames=CalibrateBIHAModel_TargetMomentNames(actualtarget,allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames,allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes);
+        CalibrateBIHAModel_ProgressReport(caliboptions,currentObj,CalibParamNames,calibparamsvec,calibparamsvecindex,currentmomentvec,targetmomentvec,momentnames,GEPriceParamNames,Parameters,GEeqnNames,GeneralEqmConditionsVec);
+    end
+end
+
+
 %% Verbose
 if caliboptions.verbose==1
     if usingcustomstats==1

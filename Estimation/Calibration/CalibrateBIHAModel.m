@@ -9,6 +9,12 @@ function [CalibParams,calibsummary]=CalibrateBIHAModel(CalibParamNames,TargetMom
 if ~isfield(caliboptions,'verbose')
     caliboptions.verbose=1; % sum of squares is the default
 end
+if ~isfield(caliboptions,'progressreport')
+    caliboptions.progressreport=0; % =1 writes a text file whenever the best objective value improves
+end
+if ~isfield(caliboptions,'progressreportfilename')
+    caliboptions.progressreportfilename='calibration_progress.txt';
+end
 if ~isfield(caliboptions,'constrainpositive')
     caliboptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
     % Convert constrained positive p into x=log(p) which is unconstrained.
@@ -57,6 +63,18 @@ if ~isfield(caliboptions,'fminalgo')
     % caliboptions.fminalgo=4; % CMA-ES, I tried fminsearch() by default but it regularly fails to converge to a decent solution
 end
 caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with other estimation commands)
+
+if caliboptions.progressreport==1
+    clear CalibrateBIHAModel_ProgressReport
+    fid=fopen(caliboptions.progressreportfilename,'w');
+    if fid==-1
+        error('Unable to open caliboptions.progressreportfilename for writing')
+    end
+    fprintf(fid,'CalibrateBIHAModel progress report\n');
+    fprintf(fid,'Started: %s\n',datestr(now,31));
+    fprintf(fid,'Only new best objective values are reported.\n\n');
+    fclose(fid);
+end
 
 caliboptions.useCustomModelStats=0;
 if isfield(caliboptions,'CustomModelStats')
