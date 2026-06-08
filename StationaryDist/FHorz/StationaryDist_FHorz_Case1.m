@@ -2,6 +2,14 @@ function StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamN
 %% Finite Horizon agent distribution. Solves using iteration (implemented with the Tan improvement).
 % jequaloneDist is the distribution of agents in period j=1.
 
+if isUnderlyingType(jequaloneDist,'single')
+    precision='single';
+    precision_cast=@(x) single(x);
+else
+    precision='double';
+    precision_cast=@(x) double(x);
+end
+
 if exist('simoptions','var')==0
     simoptions.gridinterplayer=0; % =1 Policy interpolates between grid points (must match vfoptions.interpgridlayer)
     % Alternative endo states
@@ -99,8 +107,14 @@ if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
     % Note: assumed there is only one AgeWeightParamNames
 end
 % And check that the age weights sum to one
-if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
-    warning('StationaryDist: The age-weights do not sum to one')
+if strcmp(precision,'single')
+    if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-6)
+        warning('StationaryDist: The age-weights do not sum to one')
+    end
+else
+    if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
+        warning('StationaryDist: The age-weights do not sum to one')
+    end
 end
 
 %%
@@ -181,8 +195,14 @@ if isa(jequaloneDist, 'function_handle')
 end
 
 % Check that the age one distribution is of mass one
-if abs(sum(jequaloneDist(:))-1)>10^(-9)
-    error('The jequaloneDist must be of mass one')
+if isUnderlyingType(jequaloneDist,'single')
+    if abs(sum(jequaloneDist(:))-1)>10^(-7)
+        error('The jequaloneDist must be of mass one')
+    end
+else
+    if abs(sum(jequaloneDist(:))-1)>10^(-9)
+        error('The jequaloneDist must be of mass one')
+    end
 end
 
 %%
@@ -327,11 +347,11 @@ if N_z==0 && N_e==0
         % (a,1,j)
         Policy_aprime=reshape(Policy_aprime,[N_a,1,N_j]);
         Policy_aprime=repmat(Policy_aprime,1,2,1);
-        PolicyProbs=ones([N_a,2,N_j],'gpuArray');
+        PolicyProbs=ones([N_a,2,N_j],precision,'gpuArray');
         % Policy_aprime(:,1,:) lower grid point for a1 is unchanged
         Policy_aprime(:,2,:)=Policy_aprime(:,2,:)+1; % add one to a1, to get upper grid point
 
-        aprimeProbs_upper=reshape(shiftdim((Policy(end-1,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
+        aprimeProbs_upper=reshape(shiftdim(double(Policy(end-1,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
         PolicyProbs(:,1,:)=PolicyProbs(:,1,:).*(1-aprimeProbs_upper); % lower a1
         PolicyProbs(:,2,:)=PolicyProbs(:,2,:).*aprimeProbs_upper; % upper a1
 
@@ -383,11 +403,11 @@ else
         % (a,z,1,j)
         Policy_aprime=reshape(Policy_aprime,[N_a,N_ze,1,N_j]);
         Policy_aprime=repmat(Policy_aprime,1,1,2,1);
-        PolicyProbs=ones([N_a,N_ze,2,N_j],'gpuArray');
+        PolicyProbs=ones([N_a,N_ze,2,N_j],precision,'gpuArray');
         % Policy_aprime(:,:,1,:) lower grid point for a1 is unchanged
         Policy_aprime(:,:,2,:)=Policy_aprime(:,:,2,:)+1; % add one to a1, to get upper grid point
 
-        aprimeProbs_upper=reshape(shiftdim((Policy(end-1,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
+        aprimeProbs_upper=reshape(shiftdim(precision_cast(Policy(end-1,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
         PolicyProbs(:,:,1,:)=PolicyProbs(:,:,1,:).*(1-aprimeProbs_upper); % lower a1
         PolicyProbs(:,:,2,:)=PolicyProbs(:,:,2,:).*aprimeProbs_upper; % upper a1
 

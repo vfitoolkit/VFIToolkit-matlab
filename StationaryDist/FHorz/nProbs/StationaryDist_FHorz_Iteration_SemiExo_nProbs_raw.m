@@ -3,6 +3,18 @@ function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_raw(jequal
 % Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case).
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
+if isUnderlyingType(jequaloneDistKron,'single')
+    precision='single';
+    precision_index='int32';
+    precision_cast=@(x) single(x);
+    precision_index_cast=@(x) int32(x);
+else
+    precision='double';
+    precision_index='double';
+    precision_cast=@(x) x;
+    precision_index_cast=@(x) x;
+end
+
 % When we use semiz, we need to use a different shape for Policy_aprime.
 % sparse() limits us to 2-D, and we need to get in a semiz' dimension. So I
 % put a&semiz&z together into the 1st dim, semiz'&nprobs into the 2nd dim.
@@ -15,22 +27,23 @@ function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_raw(jequal
 % maximum number of non-zeros in any row of pi_semiz. And we then use this
 % in place of N_semiz as the second dimension.
 
-N_semizshort=max(max(max(sum((pi_semiz_J>0),2))));
+N_semizshort=precision_index_cast(max(max(max(sum((pi_semiz_J>0),2)))));
 % Create smaller version of pi_semiz_J that eliminates as many non-zeros as possible
 [pi_semiz_J_short, idx] = sort(pi_semiz_J,2); % puts all the zeros on the left of the matrix
+idx=precision_index_cast(idx);
 
 pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
 idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
 Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_z,1,N_j]);
-semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+semizindex_short=repmat(repelem((precision_index_cast(1):1:N_semiz)',N_a,1),N_z,1)+N_semiz*(precision_index_cast(0):1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((precision_index_cast(0):1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
 pi_semiz_J_short=gather(pi_semiz_J_short);
 % semizindex_short is [N_a*N_semiz*N_z,N_semizshort,N_j]
 % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
 % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
 
 % Policy_aprime is currently [N_a,N_semiz*N_z,N_probs,N_j]
-Policy_aprimesemizz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,N_probs,N_j]),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_probs,1)+repelem(N_a*N_semiz*(0:1:N_z-1)',N_a*N_semiz,1); % Note: add semiz' index following the semiz' dimension, add z' index following the z dimension for Tan improvement
+Policy_aprimesemizz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,N_probs,N_j]),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_probs,1)+repelem(N_a*N_semiz*(precision_index_cast(0):1:N_z-1)',N_a*N_semiz,1); % Note: add semiz' index following the semiz' dimension, add z' index following the z dimension for Tan improvement
 % Policy_aprimesemizz is currently [N_a,N_semiz*N_z,N_probs*N_semizshort,N_j]
 
 % clear Policy_dsemiexo idxshort Policy_aprime semizindex_short
@@ -44,14 +57,14 @@ N_bothz=N_semiz*N_z;
 
 %% Use Tan improvement
 
-StationaryDist=zeros(N_a*N_bothz,N_j,'gpuArray'); % StationaryDist cannot be sparse
+StationaryDist=zeros(N_a*N_bothz,N_j,precision,'gpuArray'); % StationaryDist cannot be sparse
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse matrix
 
 % Precompute; II2 used only for sparse matrix creation...best done on CPU
-II2=repelem((1:1:N_a*N_bothz)',1,N_semizshort*N_probs); % Index for this period (a,semiz), note the N_probs-copies
+II2=repelem((precision_index_cast(1):1:N_a*N_bothz)',1,N_semizshort*N_probs); % Index for this period (a,semiz), note the N_probs-copies
 
-for jj=1:(N_j-1)
+for jj=precision_index_cast(1):(N_j-1)
     Gammatranspose=sparse(Policy_aprimesemizz(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_bothz,N_a*N_bothz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
 
     % First step of Tan improvement
@@ -67,7 +80,7 @@ end
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
 try
-    AgeWeights=Parameters.(AgeWeightParamNames{1});
+    AgeWeights=precision_cast(Parameters.(AgeWeightParamNames{1}));
 catch
     error('Unable to find the AgeWeightParamNames in the parameter structure')
 end

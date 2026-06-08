@@ -8,17 +8,24 @@ function Policy=UnKronPolicyIndexes1_FHorz_noz(PolicyKron, n_daprime1, n_a, N_j,
 %         If vfoptions.gridinterplayer==1, Policy is (l_daprime1+2,n_a,N_j).
 % Handy trick: You can pass N_a in place of n_a to skip unpacking that dimension.
 
+if isUnderlyingType(PolicyKron,'single')
+    precision_index_cast=@(x) int32(x);
+else
+    precision_index_cast=@(x) x;
+end
+
 l_daprime1=length(n_daprime1);
 
 divisors=cumprod([1,n_daprime1(1:end-1)])';   % [l_daprime1,1]
 
 if vfoptions.gridinterplayer==1
-    Policy=[mod(floor((PolicyKron(1,:)-1)./divisors),n_daprime1(:))+1;
+    Policy=[precision_index_cast(mod(floor(double(PolicyKron(1,:)-1)./divisors),n_daprime1(:)))+1;
             PolicyKron(2,:);
             PolicyKron(3,:)];
     Policy=reshape(Policy,[l_daprime1+2,n_a,N_j]);
 else
-    Policy=mod(floor((PolicyKron-1)./divisors),n_daprime1(:))+1;
+    % if PolicyKron is `int32` convert it to double so indexes are preserved
+    Policy=precision_index_cast(mod(floor(double(PolicyKron-1)./divisors),n_daprime1(:)))+1;
     Policy=reshape(Policy,[l_daprime1,n_a,N_j]);
 end
 

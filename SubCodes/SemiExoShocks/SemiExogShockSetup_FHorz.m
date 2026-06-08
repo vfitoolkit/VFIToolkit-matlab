@@ -3,6 +3,14 @@ function options=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,options,grid
 % options will either be options or simoptions
 % output: options.semiz_gridvals_J, options.pi_semiz_J
 
+if isUnderlyingType(d_grid,'single')
+    precision='single';
+    precision_cast=@(x) single(x);
+else
+    precision='double';
+    precision_cast=@(x) x;
+end
+
 % gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
 % gridpiboth=2: sometimes (agent dist)    we want just transition probabilities
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
@@ -40,13 +48,13 @@ if gridpiboth==3 || gridpiboth==1 || isfield(options,'SemiExoStateFn')
     elseif ndims(options.semiz_grid)==2
         if all(size(options.semiz_grid)==[sum(options.n_semiz),1])
             % need to convert to joint-grid, and make age-dependent
-            semiz_gridvals_J=CreateGridvals(options.n_semiz,options.semiz_grid,1).*ones(1,1,N_j,'gpuArray');
+            semiz_gridvals_J=CreateGridvals(options.n_semiz,options.semiz_grid,1).*ones(1,1,N_j,precision,'gpuArray');
         elseif all(size(options.semiz_grid)==[prod(options.n_semiz),length(options.n_semiz)]) % joint grid
             % already joint-grid, need to make age-dependent
-            semiz_gridvals_J=options.semiz_grid.*ones(1,1,N_j,'gpuArray');
+            semiz_gridvals_J=options.semiz_grid.*ones(1,1,N_j,precision,'gpuArray');
         elseif all(size(options.semiz_grid)==[sum(options.n_semiz),N_j])
             % already age-dependent, but need to convert to joint-grid
-            semiz_gridvals_J=zeros(prod(options.n_semiz),length(options.n_semiz),N_j,'gpuArray');
+            semiz_gridvals_J=zeros(prod(options.n_semiz),length(options.n_semiz),N_j,precision,'gpuArray');
             for jj=1:N_j
                 semiz_gridvals_J(:,:,jj)=CreateGridvals(options.n_semiz,options.semiz_grid(:,jj),1);
             end
@@ -59,7 +67,7 @@ end
 if gridpiboth==3 || gridpiboth==2
     if isempty(n_d)
         % FnsToEvaluate don't need pi_semiz_J
-        pi_semiz_J=[];
+        pi_semiz_J=precision_cast([]);
     else
         %% Find decision variables that matter for semiz (can differ by setting)
         if ~isfield(options,'riskyasset')
@@ -91,9 +99,9 @@ if gridpiboth==3 || gridpiboth==2
                 SemiExoStateFnParamNames={};
             end
             % Create pi_semiz_J
-            pi_semiz_J=zeros(N_semiz,N_semiz,N_dsemiz,N_j,'gpuArray');
+            pi_semiz_J=zeros(N_semiz,N_semiz,N_dsemiz,N_j,precision,'gpuArray');
             for jj=1:N_j
-                SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
+                SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj,precision);
                 pi_semiz_J(:,:,:,jj)=gpuArray(CreatePiSemiZ(n_dsemiz,options.n_semiz,dsemiz_grid,semiz_gridvals_J(:,:,jj),options.SemiExoStateFn,SemiExoStateFnParamValues));
             end
         else
@@ -118,9 +126,14 @@ if gridpiboth==3 || gridpiboth==2
 
         %% Check that pi_semiz_J has rows summing to one
         % Check that pi_semiz_J has rows summing to one, if not, print a warning
+        if strcmp(precision,'single')
+            pi_semiz_tolerance=1e-5;
+        else
+            pi_semiz_tolerance=1e-14;
+        end
         for jj=1:N_j
             temp=abs(sum(pi_semiz_J(:,:,:,jj),2)-1);
-            if any(temp(:)>1e-14)
+            if any(temp(:)>pi_semiz_tolerance)
                 warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
             end
         end

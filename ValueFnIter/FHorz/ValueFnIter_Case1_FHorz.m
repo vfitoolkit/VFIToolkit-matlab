@@ -1,7 +1,11 @@
 function varargout=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Typically, varargout=[V, Policy]
 
-V=nan;
+if isUnderlyingType(a_grid,'single')
+    V=single(nan);
+else
+    V=nan;
+end
 Policy=nan;
 
 
@@ -197,16 +201,28 @@ if vfoptions.alreadygridvals==0
         if ~all(pi_z_J(:)>=0)
             warning('Some elements of pi_z_J, the exogenous markov transition probabilities matrix, are negative')
         end
-        if ~all(all(squeeze(sum(pi_z_J,2))-1 <1e-13)) % sum of row must be within 1e-13 of 1
-            warning('Some rows of pi_z_J, the exogenous markov transition probabilities matrix, do not sum to one')
+        if isUnderlyingType(a_grid,'single')
+            if ~all(all(squeeze(sum(pi_z_J,2))-1 <1e-6)) % sum of row must be within 1e-6 of 1
+                warning('Some rows of pi_z_J, the exogenous markov transition probabilities matrix, do not sum to one')
+            end
+        else
+            if ~all(all(squeeze(sum(pi_z_J,2))-1 <1e-13)) % sum of row must be within 1e-13 of 1
+                warning('Some rows of pi_z_J, the exogenous markov transition probabilities matrix, do not sum to one')
+            end
         end
     end
     if isfield(vfoptions,'pi_e_J')
         if ~all(vfoptions.pi_e_J(:)>=0)
             warning('Some elements of pi_e_J, the exogenous i.i.d. probabilities matrix, are negative')
         end
-        if ~all(squeeze(sum(vfoptions.pi_e_J,1))-1 <1e-13) % sum of row must be within 1e-13 of 1
-            warning('Some columns of pi_e_J, the exogenous i.i.d. probabilities matrix, do not sum to one')
+        if isUnderlyingType(a_grid,'single')
+            if ~all(squeeze(sum(vfoptions.pi_e_J,1))-1 <1e-6) % sum of row must be within 1e-6 of 1
+                warning('Some columns of pi_e_J, the exogenous i.i.d. probabilities matrix, do not sum to one')
+            end
+        else
+            if ~all(squeeze(sum(vfoptions.pi_e_J,1))-1 <1e-13) % sum of row must be within 1e-13 of 1
+                warning('Some columns of pi_e_J, the exogenous i.i.d. probabilities matrix, do not sum to one')
+            end
         end
     end
 elseif vfoptions.alreadygridvals==1

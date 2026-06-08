@@ -37,6 +37,20 @@ function [z_grid,pi_z] = discretizeAR1_FarmerToda(mew,rho,sigma,znum,farmertodao
 % Farmer & Toda (2017) - Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments
 % They show that this method outperforms both Tauchen and Rouwenhorst for almost all discretization of Gaussian AR(1).
 
+if exist('farmertodaoptions','var')==0
+    precision='double';
+    precision_cast=@(x) x;
+elseif isfield(farmertodaoptions,'precision')
+    precision=farmertodaoptions.precision;
+    if strcmp(precision,'single')
+        precision_cast=@(x) single(x);
+    elseif strcmp(precision,'double')
+        precision_cast=@(x) double(x);
+    else
+        error("Unknown precision option")
+    end
+end
+
 if rho>=0.99
     fprintf('COMMENT: When discretizing gaussian AR(1) process with autocorrelation (rho) greater than 0.99 (which you currently have), the Rouwenhorst method tends to outperform Farmer-Toda method. \n')
     % This is based on findings of paper of Farmer & Toda (2017): last para on pg 678
@@ -154,7 +168,7 @@ TBar = [T1 T2 T3 T4]'; % vector of conditional central moments
 
 
 %% Farmer-Toda method
-pi_z = NaN(znum);
+pi_z = NaN(znum,precision);
 scalingFactor = max(abs(z_grid));
 kappa = 1e-8;
 
@@ -172,7 +186,7 @@ for ii = 1:znum
     end
     
     if farmertodaoptions.nMoments == 1 % match only 1 moment
-        pi_z(ii,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
+        pi_z(ii,:) = precision_cast(discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0));
     else % match 2 moments first
         [p,lambda,momentError] = discreteApproximation(z_grid,@(x) [(x-condMean)./scalingFactor;...
             ((x-condMean)./scalingFactor).^2],...
@@ -181,9 +195,9 @@ for ii = 1:znum
             if farmertodaoptions.verbose==1
                 warning('Failed to match first 2 moments. Just matching 1.')
             end
-            pi_z(ii,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,0,q,0);
+            pi_z(ii,:) = precision_cast(discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,0,q,0));
         elseif farmertodaoptions.nMoments == 2
-            pi_z(ii,:) = p;
+            pi_z(ii,:) = precision_cast(p);
         elseif farmertodaoptions.nMoments == 3 % 3 moments
             [pnew,~,momentError] = discreteApproximation(z_grid,@(x) [(x-condMean)./scalingFactor;...
                 ((x-condMean)./scalingFactor).^2;((x-condMean)./scalingFactor).^3],...
@@ -192,9 +206,9 @@ for ii = 1:znum
                 if farmertodaoptions.verbose==1
                     warning('Failed to match first 3 moments.  Just matching 2.')
                 end
-                pi_z(ii,:) = p;
+                pi_z(ii,:) = precision_cast(p);
             else
-                pi_z(ii,:) = pnew;
+                pi_z(ii,:) = precision_cast(pnew);
             end
         elseif farmertodaoptions.nMoments == 4 % 4 moments
             [pnew,~,momentError] = discreteApproximation(z_grid,@(x) [(x-condMean)./scalingFactor;...
@@ -209,15 +223,15 @@ for ii = 1:znum
                     if farmertodaoptions.verbose==1
                         warning('Failed to match first 3 moments.  Just matching 2.')
                     end
-                    pi_z(ii,:) = p;
+                    pi_z(ii,:) = precision_cast(p);
                 else
-                    pi_z(ii,:) = pnew;
+                    pi_z(ii,:) = precision_cast(pnew);
                     if farmertodaoptions.verbose==1
                         warning('Failed to match first 4 moments.  Just matching 3.')
                     end
                 end
             else
-                pi_z(ii,:) = pnew;
+                pi_z(ii,:) = precision_cast(pnew);
             end
         end
     end
@@ -230,6 +244,6 @@ if farmertodaoptions.parallel==2
     pi_z=gpuArray(pi_z); %(z,zprime)  
 end
 
-z_grid=z_grid'; % Output as column vector
+z_grid=precision_cast(z_grid)'; % Output as column vector
 
 end

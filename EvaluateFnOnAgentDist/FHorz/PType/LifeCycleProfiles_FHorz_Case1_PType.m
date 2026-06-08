@@ -60,7 +60,7 @@ if ~exist('simoptions','var')
             N_j_max=max(N_j_max,N_j.(Names_i{ii}));
         end
     else
-        simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
+        simoptions.agegroupings=1:1:N_j; % by default does each period separately, can be used to say, calculate gini for age bins
         N_j_max=N_j;
     end
     simoptions.nquantiles=20; % by default gives ventiles
@@ -368,6 +368,13 @@ if simoptions.lowmemory==0
         % Exogenous shocks
         [n_z_temp,z_grid_temp,~,simoptions_temp]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,[],simoptions_temp,3);
 
+        if isUnderlyingType(a_grid_temp,'single')
+            precision='single';
+            simoptions_temp.tolerance=1e-6;
+        else
+            precision='double';
+        end
+
         % Parameters
         Parameters_temp=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
 
@@ -428,10 +435,10 @@ if simoptions.lowmemory==0
                 end
 
                 if l_z_temp==0
-                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,2,precision); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
                     RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,0,a_gridvals_temp,[]));
                 else
-                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,3,precision); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
                     RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp));
                 end
                 RestrictionValues=reshape(RestrictionValues,[N_a_temp*N_z_temp*N_j_temp,1]);
@@ -469,9 +476,9 @@ if simoptions.lowmemory==0
                     FnsToEvaluateParamNames={};
                 end
                 if l_z_temp==0
-                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,2);
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,2,precision);
                 else
-                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3,precision);
                 end
 
                 %% We have set up the current PType, now do some calculations for it.
@@ -1145,9 +1152,9 @@ elseif simoptions.lowmemory==1
                     FnsToEvaluateParamNames={};
                 end
                 if l_z_temp==0
-                    CellOverAgeOfParamValues.(FnsToEvalNames{ff})=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,2);
+                    CellOverAgeOfParamValues.(FnsToEvalNames{ff})=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,2,precision);
                 else
-                    CellOverAgeOfParamValues.(FnsToEvalNames{ff})=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
+                    CellOverAgeOfParamValues.(FnsToEvalNames{ff})=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3,precision);
                 end
 
                 %% We have set up the current PType, now do some calculations for it.

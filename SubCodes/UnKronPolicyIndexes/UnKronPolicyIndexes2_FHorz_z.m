@@ -10,6 +10,12 @@ function Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron, n_daprime1, n_daprime2,
 %         If vfoptions.gridinterplayer==1, Policy is (l_daprime1+l_daprime2+2,n_a,n_z,N_j).
 % Handy trick: You can pass N_a in place of n_a, or N_z in place of n_z, to skip unpacking that dimension.
 
+if isUnderlyingType(PolicyKron,'single')
+    precision_index_cast=@(x) int32(x);
+else
+    precision_index_cast=@(x) x;
+end
+
 l_daprime1=length(n_daprime1);
 l_daprime2=length(n_daprime2);
 
@@ -17,14 +23,14 @@ divisors1=cumprod([1,n_daprime1(1:end-1)])';   % [l_daprime1,1]
 divisors2=cumprod([1,n_daprime2(1:end-1)])';   % [l_daprime2,1]
 
 if vfoptions.gridinterplayer==1
-    Policy=[mod(floor((PolicyKron(1,:)-1)./divisors1),n_daprime1(:))+1;
-            mod(floor((PolicyKron(2,:)-1)./divisors2),n_daprime2(:))+1;
+    Policy=[precision_index_cast(mod(floor(double(PolicyKron(1,:)-1)./divisors1),n_daprime1(:)))+1;
+            precision_index_cast(mod(floor(double(PolicyKron(2,:)-1)./divisors2),n_daprime2(:)))+1;
             PolicyKron(3,:);
             PolicyKron(4,:)];
     Policy=reshape(Policy,[l_daprime1+l_daprime2+2,n_a,n_z,N_j]);
 else
-    Policy=[mod(floor((PolicyKron(1,:)-1)./divisors1),n_daprime1(:))+1;
-            mod(floor((PolicyKron(2,:)-1)./divisors2),n_daprime2(:))+1];
+    Policy=[precision_index_cast(mod(floor(double(PolicyKron(1,:)-1)./divisors1),n_daprime1(:)))+1;
+            precision_index_cast(mod(floor(double(PolicyKron(2,:)-1)./divisors2),n_daprime2(:)))+1];
     Policy=reshape(Policy,[l_daprime1+l_daprime2,n_a,n_z,N_j]);
 end
 

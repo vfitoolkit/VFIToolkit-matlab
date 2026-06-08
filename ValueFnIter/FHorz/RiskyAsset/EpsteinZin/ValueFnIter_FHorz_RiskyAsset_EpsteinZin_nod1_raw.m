@@ -2,12 +2,22 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_raw(n_d2,n_d3,n
 % d2: aprimeFn but not ReturnFn
 % d3: both ReturnFn and aprimeFn
 
+if isUnderlyingType(a1_grid,'single')
+    precision='single';
+    precision_index='int32';
+    precision_index_cast=@(x) int32(x);
+else
+    precision='double';
+    precision_index='double';
+    precision_index_cast=@(x) x;
+end
+
 N_d2=prod(n_d2);
-N_d3=prod(n_d3);
-N_a1=prod(n_a1);
+N_d3=precision_index_cast(prod(n_d3));
+N_a1=precision_index_cast(prod(n_a1));
 N_a2=prod(n_a2);
-N_z=prod(n_z);
-N_u=prod(n_u);
+N_z=precision_index_cast(prod(n_z));
+N_u=precision_index_cast(prod(n_u));
 
 % For ReturnFn
 % n_d3
@@ -15,14 +25,14 @@ N_u=prod(n_u);
 % d3_grid
 % For aprimeFn
 n_d23=[n_d2,n_d3];
-N_d23=prod(n_d23);
+N_d23=precision_index_cast(prod(n_d23));
 d23_grid=[d2_grid; d3_grid];
 
-N_a=N_a1*N_a2;
+N_a=precision_index_cast(N_a1*N_a2);
 % N_d=N_d1*N_d2*N_d3;
 
-V=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % d2, d3, a1prime
+V=zeros(N_a,N_z,N_j,precision,'gpuArray');
+Policy=zeros(3,N_a,N_z,N_j,precision_index,'gpuArray'); % d2, d3, a1prime
 
 %%
 d3_grid=gpuArray(d3_grid);
@@ -32,7 +42,7 @@ a2_grid=gpuArray(a2_grid);
 u_grid=gpuArray(u_grid);
 
 if vfoptions.lowmemory>0
-    special_n_z=ones(1,length(n_z));
+    special_n_z=ones(1,length(n_z),precision);
 end
 
 aind=(0:1:N_a-1);
@@ -42,8 +52,8 @@ zind=shiftdim(0:1:N_z-1,-1);
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
-ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
-DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j,precision);
+DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j,precision);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 if vfoptions.EZoneminusbeta==1
     ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
@@ -54,14 +64,14 @@ end
 
 % If there is a warm-glow at end of the final period, evaluate the warmglowfn
 if warmglow==1
-    WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,N_j);
+    WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,N_j,precision);
     WGmatrixraw=CreateWarmGlowFnMatrix_Case1_Disc_Par2(vfoptions.WarmGlowBequestsFn, n_a2, a2_grid, WGParamsVec); % This depends on aprime
     WGmatrix=WGmatrixraw;
     WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(N_j);
     WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
 
     %  Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j,precision);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d,N_u], whereas aprimeProbs is [N_d,N_u]
 
@@ -124,10 +134,12 @@ if ~isfield(vfoptions,'V_Jplus1')
             % no d1 here
             % Second: EV, we can refine out d2
             [WGmatrix_onlyd3,d2index]=max(ezc9*reshape((~isinf(WGmatrix)).*WGmatrix,[N_d2,N_d3*N_a1]),[],1);
+            d2index=precision_index_cast(d2index);
             % Now put together entireRHS, which just depends on d3
             entireRHS=ReturnMatrix+ezc9*shiftdim(WGmatrix_onlyd3,1);
 
             [Vtemp,maxindex]=max(entireRHS,[],1);
+            maxindex=precision_index_cast(maxindex);
 
             V(:,:,N_j)=Vtemp;
             Policy(2,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1); % d3
@@ -136,6 +148,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         elseif warmglow==0
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+            maxindex=precision_index_cast(maxindex);
 
             V(:,:,N_j)=Vtemp;
             Policy(1,:,:,N_j)=1; % d2, meaningless
@@ -160,10 +173,12 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % no d1 here
                 % Second: EV, we can refine out d2
                 [WGmatrix_onlyd3,d2index]=max(ezc9*reshape((~isinf(WGmatrix)).*WGmatrix,[N_d2,N_d3*N_a1]),[],1);
+                d2index=precision_index_cast(d2index);
                 % Now put together entireRHS, which just depends on d3
                 entireRHS=shiftdim(ReturnMatrix_z+ezc9*WGmatrix_onlyd3,1);
 
                 [Vtemp,maxindex]=max(entireRHS,[],1);
+                maxindex=precision_index_cast(maxindex);
 
                 V(:,z_c,N_j)=Vtemp;
                 Policy(2,:,z_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
@@ -172,6 +187,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             elseif warmglow==0
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
+                maxindex=precision_index_cast(maxindex);
 
                 V(:,z_c,N_j)=Vtemp;
                 Policy(1,:,z_c,N_j)=1; % d2, meaningless
@@ -185,7 +201,7 @@ else
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a2,N_z]);    % First, switch V_Jplus1 into Kron form
 
     if warmglow==0 % if warmglow==1 these were already created above
-        aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
+        aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j,precision);
         [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
         % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
 
@@ -249,6 +265,7 @@ else
         % no d1 here
         % Second: EV, we can refine out d2
         [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
+        d2index=precision_index_cast(d2index);
         % Now put together entireRHS, which just depends on d3
         entireRHS=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -258,6 +275,7 @@ else
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
+        maxindex=precision_index_cast(maxindex);
 
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy(2,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
@@ -312,6 +330,7 @@ else
             % no d1 here
             % Second: EV, we can refine out d2
             [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1]),[],1);
+            d2index=precision_index_cast(d2index);
             % Now put together entireRHS, which just depends on d3
             entireRHS_z=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
             % entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -321,6 +340,7 @@ else
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
+            maxindex=precision_index_cast(maxindex);
 
             V(:,z_c,N_j)=Vtemp;
             Policy(2,:,z_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
@@ -341,8 +361,8 @@ for reverse_j=1:N_j-1
 
 
     % Create a vector containing all the return function parameters (in order)
-    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj,precision);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj,precision);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     if vfoptions.EZoneminusbeta==1
         ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
@@ -350,11 +370,12 @@ for reverse_j=1:N_j-1
         ezc1=1-sj(jj)*DiscountFactorParamsVec;
     end
 
-    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj,precision);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    a2primeIndex=precision_index_cast(a2primeIndex);
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
-    aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeIndex=repelem((precision_index_cast(1):1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeplus1Index=repelem((precision_index_cast(1):1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
     % aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
 
@@ -387,7 +408,7 @@ for reverse_j=1:N_j-1
         % WGmatrix is over (d,1)
         % Now just make it the right shape (currently has aprime, needs the d,a,z dimensions)
         if vfoptions.lowmemory==0 && vfoptions.paroverz==1
-            WGmatrix=WGmatrix.*ones(1,1,N_z);
+            WGmatrix=WGmatrix.*ones(1,1,N_z,precision);
         else % (vfoptions.lowmemory==0 && vfoptions.paroverz==0) || vfoptions.lowmemory==1 || vfoptions.lowmemory==2
             % WGmatrix=WGmatrix;
         end
@@ -450,6 +471,7 @@ for reverse_j=1:N_j-1
         % no d1 here
         % Second: EV, we can refine out d2
         [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
+        d2index=precision_index_cast(d2index);
         % Now put together entireRHS, which just depends on d3
         entireRHS=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -459,6 +481,7 @@ for reverse_j=1:N_j-1
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
+        maxindex=precision_index_cast(maxindex);
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(2,:,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy(3,:,:,jj)=shiftdim(ceil(maxindex/N_d3),1);
@@ -512,6 +535,7 @@ for reverse_j=1:N_j-1
             % no d1 here
             % Second: EV, we can refine out d2
             [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1]),[],1);
+            d2index=precision_index_cast(d2index);
             % Now put together entireRHS, which just depends on d3
             entireRHS_z=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
             % entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -521,6 +545,7 @@ for reverse_j=1:N_j-1
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
+            maxindex=precision_index_cast(maxindex);
             V(:,z_c,jj)=Vtemp;
             Policy(2,:,z_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
             Policy(3,:,z_c,jj)=shiftdim(ceil(maxindex/N_d3),1);

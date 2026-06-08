@@ -1,5 +1,11 @@
 function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 
+if isUnderlyingType(StationaryDist,'single')
+    precision='single';
+else
+    precision='double';
+end
+
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
     % Model setup
@@ -89,7 +95,7 @@ a_gridvals=CreateGridvals(n_a,a_grid,1);
 %%
 if N_z==0
     if simoptions.lowmemory==0
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+        AggVars=zeros(length(FnsToEvaluate),1,precision,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_j]);
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
@@ -103,7 +109,7 @@ if N_z==0
             else
                 % Create a matrix containing all the return function parameters (in order).
                 % Each column will be a specific parameter with the values at every age.
-                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
+                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j,precision); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
                 nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
 
@@ -118,7 +124,7 @@ if N_z==0
         end
 
     elseif simoptions.lowmemory==1 % Loop over age j
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+        AggVars=zeros(length(FnsToEvaluate),1,precision,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_j]);
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
@@ -142,7 +148,7 @@ if N_z==0
 else % N_z
 
     if simoptions.lowmemory==0
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+        AggVars=zeros(length(FnsToEvaluate),1,precision,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
@@ -155,7 +161,7 @@ else % N_z
             else
                 % Create a matrix containing all the return function parameters (in order).
                 % Each column will be a specific parameter with the values at every age.
-                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
+                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j,precision); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
                 nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
 
@@ -170,7 +176,7 @@ else % N_z
         end
 
     elseif simoptions.lowmemory==1 % Loop over age j
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+        AggVars=zeros(length(FnsToEvaluate),1,precision,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
         PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
