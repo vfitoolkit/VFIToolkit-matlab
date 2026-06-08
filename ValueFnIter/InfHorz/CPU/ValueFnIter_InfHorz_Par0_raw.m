@@ -60,8 +60,11 @@ Policy=zeros(2,N_a,N_z);
 Policy(1,:,:)=permute(PolicyIndexes1,[3,1,2]);
 Policy(2,:,:)=permute(PolicyIndexes2,[3,1,2]);
 
-if tempcounter>=maxiter
-    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+if currdist > Tolerance
+    warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, Tolerance)
 end
 
 

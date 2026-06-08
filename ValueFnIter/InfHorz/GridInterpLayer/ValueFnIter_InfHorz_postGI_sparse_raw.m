@@ -184,8 +184,11 @@ Policy(4,:,:) = PolicyL2flag_3d;
 
 %Policy=Policy(1,:,:)+N_d*(Policy(2,:,:)-1)+N_d*N_a*(Policy(3,:,:)-1);
 
-if tempcounter>=vfoptions.maxiter
-    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+if currdist > Tolerance
+    warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, Tolerance)
 end
 
 end

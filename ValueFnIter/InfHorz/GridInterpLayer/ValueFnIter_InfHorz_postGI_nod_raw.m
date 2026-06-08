@@ -255,8 +255,11 @@ isInfUpper = (ReturnMatrixfine(linidx_upper(:)) == -Inf);
 inInterior = (L2 >= 2) & (L2 <= n2short+1);
 Policy(3,:,:) = reshape(2 + (inInterior & isInfLower) - (inInterior & isInfUpper), [1,N_a,N_z]);
 
-if tempcounter>=vfoptions.maxiter
-    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+if currdist > Tolerance
+    warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, Tolerance)
 end
 
 end
