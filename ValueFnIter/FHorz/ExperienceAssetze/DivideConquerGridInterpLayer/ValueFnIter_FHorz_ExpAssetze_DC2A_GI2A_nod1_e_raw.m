@@ -295,8 +295,6 @@ else
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            DiscountedEV_z=DiscountedEV(:,:,:,:,:,:,z_c,:);
-            DiscountedEVinterp_z=DiscountedEVinterp(:,:,:,:,:,:,z_c,:);
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
                 DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);
@@ -486,8 +484,6 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            DiscountedEV_z=DiscountedEV(:,:,:,:,:,:,z_c,:);
-            DiscountedEVinterp_z=DiscountedEVinterp(:,:,:,:,:,:,z_c,:);
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
                 DiscountedEV_ze=DiscountedEV(:,:,:,:,:,:,z_c,e_c);

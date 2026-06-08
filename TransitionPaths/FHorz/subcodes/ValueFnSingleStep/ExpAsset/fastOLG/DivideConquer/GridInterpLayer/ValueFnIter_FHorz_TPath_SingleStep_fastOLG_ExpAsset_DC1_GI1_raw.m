@@ -112,9 +112,9 @@ DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6
 
 if vfoptions.lowmemory==0
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
+    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,1,1); % Level=1, Refine=1
 
-    entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
+    entireRHS_ii=reshape(ReturnMatrix_ii+reshape(DiscountedEV,[1,N_d2*N_a1,1,N_a2,N_j,N_z]),[N_d,N_a1,vfoptions.level1n,N_a2,N_j,N_z]);
 
     % First, we want a1prime conditional on (d,1,a)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -179,7 +179,7 @@ elseif vfoptions.lowmemory==1
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, z_val, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
 
-        entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z;
+        entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV_z,N_d1,1,1,1,1); % expand d2 → d=(d1,d2) to match ReturnMatrix_ii dim 1
 
         % First, we want a1prime conditional on (d,1,a)
         [~,maxindex1]=max(entireRHS_ii,[],2);

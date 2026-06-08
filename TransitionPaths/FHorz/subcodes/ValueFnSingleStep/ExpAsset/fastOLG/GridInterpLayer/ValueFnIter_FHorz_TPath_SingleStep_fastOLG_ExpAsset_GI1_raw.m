@@ -99,10 +99,10 @@ DiscountedEV=DiscountFactorParamsVec.*reshape(EV,[N_d2,N_a1,1,N_a2,N_j,N_z]);
 DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6]),a1prime_grid),[2,1,3,4,5,6]);   % [N_d2,N_a1prime,1,N_a2,N_j,N_z]
 
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
-    % fastOLG: ReturnMatrix is [N_d,N_a1prime,N_a1,N_a2,N_j,N_z]
+    ReturnMatrix=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,1,1); % Level=1, Refine=1
+    % fastOLG: ReturnMatrix is [N_d1,N_d2*N_a1prime,N_a1,N_a2,N_j,N_z] (d1 split out so DiscountedEV broadcasts over it)
 
-    entireRHS=ReturnMatrix+DiscountedEV;
+    entireRHS=reshape(ReturnMatrix+reshape(DiscountedEV,[1,N_d2*N_a1,1,N_a2,N_j,N_z]),[N_d,N_a1,N_a1,N_a2,N_j,N_z]);
 
     % First, we want a1prime conditional on (d,1,a1,a2,j,z)
     [~,maxindex1]=max(entireRHS,[],2);
@@ -145,7 +145,7 @@ elseif vfoptions.lowmemory==1
         ReturnMatrix_z=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
         % fastOLG: ReturnMatrix_z is [N_d,N_a1prime,N_a1,N_a2,N_j]
 
-        entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
+        entireRHS_z=ReturnMatrix_z+repelem(DiscountedEV_z,N_d1,1,1,1,1); % expand d2 → d=(d1,d2) to match ReturnMatrix_z dim 1
 
         [~,maxindex1]=max(entireRHS_z,[],2);
 

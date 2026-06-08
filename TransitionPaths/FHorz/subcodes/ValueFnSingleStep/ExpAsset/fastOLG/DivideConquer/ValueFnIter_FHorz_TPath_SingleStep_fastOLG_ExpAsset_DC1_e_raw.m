@@ -24,7 +24,7 @@ e_gridvals_J=shiftdim(e_gridvals_J,-5); % [1,1,1,1,1,N_j,N_e,l_e]
 level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
-d2ind=repmat(gpuArray(1:1:N_d2)',N_d1,1);
+d2ind=repelem(gpuArray(1:1:N_d2)',N_d1,1); % d2 component of each d=(d1,d2); d1 is fastest in d_gridvals
 a2ind=shiftdim(gpuArray(0:1:N_a2-1),-2);
 jind=shiftdim(gpuArray(0:1:N_j-1),-3);
 zind=shiftdim(gpuArray(0:1:N_z-1),-4);
@@ -35,7 +35,7 @@ eind=shiftdim(gpuArray(0:1:N_e-1),-5);
 
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-4); % -4 for DC1
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -50,7 +50,7 @@ if vfoptions.EVpre==0
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z);  % [N_d2*N_a1,N_a2,N_j,N_z]
 
-    EVpre=[sum(V(N_a+1:end,:).*replem(reshape(pi_e_J,[N_j,1,N_e]),N_a-1,1,1),3); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,:,:),3); zeros(N_a,N_z,'gpuArray')]; % pi_e_J already kron-expanded to (a-j,1,e) upstream; j=N_j zero-padded
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-z
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1),:),[N_d2*N_a1,N_a2,N_j,N_z]);
@@ -76,7 +76,7 @@ elseif vfoptions.EVpre==1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z);  % [N_d2*N_a1,N_a2,N_j,N_z]
 
-    EVpre=sum(V.*replem(reshape(pi_e_J,[N_j,1,N_e]),N_a,1,1),3);
+    EVpre=sum(V.*pi_e_J,3);
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-z
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1),:),[N_d2*N_a1,N_a2,N_j,N_z]);

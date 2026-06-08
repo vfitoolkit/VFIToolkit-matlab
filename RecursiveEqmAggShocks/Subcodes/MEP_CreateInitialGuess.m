@@ -92,7 +92,29 @@ if recursiveeqmoptions.verbose==2
     for gg=1:length(GEeqnNames)
         fprintf('	%s: %8.8f \n',GEeqnNames{gg},GEcheck.(GEeqnNames{gg}))
     end
+    fprintf(' \n')
+    fprintf('Mass of agents near top of endogenous state grid \n')
+    if length(n_a)>=1 && n_a(1)>50 % just assume that if grid has less than 50 points, it is not of interest if people reach the top
+        StationaryDist=reshape(StationaryDist,[n_a(1),numel(StationaryDist)/n_a(1)]);
+        cumDist1=cumsum(sum(StationaryDist,2));
+        if n_a(1)>99
+            fprintf('For a1: mass in top 50 points is: %1.8f \n',sum(cumDist1(end-20:1)))
+        end
+        fprintf('For a1: mass in top 20 points is: %1.8f \n',sum(cumDist1(end-20:1)))
+        fprintf('For a1: mass in top 5 points is: %1.8f \n',sum(cumDist1(end-5:1)))
+    end
+    if length(n_a)>=2 && n_a(2)>50 % just assume that if grid has less than 50 points, it is not of interest if people reach the top
+        StationaryDist=reshape(StationaryDist,[n_a(1),n_a(2),numel(StationaryDist)/prod(n_a(1:2))]);
+        cumDist2=cumsum(sum(sum(StationaryDist,3),1));
+        if n_a(2)>99
+            fprintf('For a2: mass in top 50 points is: %1.8f \n',sum(cumDist2(end-20:1)))
+        end
+        fprintf('For a2: mass in top 20 points is: %1.8f \n',sum(cumDist2(end-20:1)))
+        fprintf('For a2: mass in top 5 points is: %1.8f \n',sum(cumDist2(end-5:1)))
+    end
+    fprintf(' \n')
     fprintf('End of info about the initial guess stationary eqm. \n')
+    fprintf(' \n')
 end
 
 

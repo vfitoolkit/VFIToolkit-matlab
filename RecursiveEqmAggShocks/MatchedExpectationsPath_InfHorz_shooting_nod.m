@@ -141,6 +141,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(reshape(VPath,[N_a,T,N_z]),N_a,N_z,N_S,T,pi_Sprime_T,AggVarsPath,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions);
     % MatchedEV is the matched-expectations (have already taken expectation over Sprime)
     % DistMatches records which period is matched with which, not part of algorithm but provides useful/interesting feedback
+    % DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); last dim 1 is index of match and 2 is distance to match
     matchtime=toc;
 
     %% Update Params to contain the current price path
@@ -352,7 +353,6 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     matchingmap=zeros(T-1,T-1);
     for S_c=1:N_S
         for tt=1:T-1
-        % ind=(1:1:T-1)+T*(DistMatches(1:end-1,S_c,1,1)-1);
         matchingmap(tt,DistMatches(tt,S_c,1,1))=1;
         end
     end
@@ -368,30 +368,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     title('Aggregate value of endogenous state in each match (one line for each S value)')
 
     % Update PricePathOld
-    % Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
-    if recursiveeqmoptions.weightscheme==0
-        PricePathOld=PricePathNew; % The update weights are already in GEnewprice setup
-    elseif recursiveeqmoptions.weightscheme==1 % Just a constant weighting
-        PricePathOld(1:T-1,:)=recursiveeqmoptions.oldpathweight*PricePathOld(1:T-1)+(1-recursiveeqmoptions.oldpathweight)*PricePathNew(1:T-1,:);
-    elseif recursiveeqmoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
-        % I should precalculate these weighting vectors
-        Ttheta=recursiveeqmoptions.Ttheta;
-        PricePathOld(1:Ttheta,:)=recursiveeqmoptions.oldpathweight*PricePathOld(1:Ttheta)+(1-recursiveeqmoptions.oldpathweight)*PricePathNew(1:Ttheta,:);
-        PricePathOld(Ttheta:T-1,:)=((recursiveeqmoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-Ttheta)))*(1-recursiveeqmoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(Ttheta:T-1,:)+((exp(linspace(0,log(0.2),T-Ttheta)).*(1-recursiveeqmoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(Ttheta:T-1,:);
-    elseif recursiveeqmoptions.weightscheme==3 % A gradually opening window.
-        if (pathcounter*3)<T-1
-            PricePathOld(1:(pathcounter*3),:)=recursiveeqmoptions.oldpathweight*PricePathOld(1:(pathcounter*3),:)+(1-recursiveeqmoptions.oldpathweight)*PricePathNew(1:(pathcounter*3),:);
-        else
-            PricePathOld(1:T-1,:)=recursiveeqmoptions.oldpathweight*PricePathOld(1:T-1,:)+(1-recursiveeqmoptions.oldpathweight)*PricePathNew(1:T-1,:);
-        end
-    elseif recursiveeqmoptions.weightscheme==4 % Combines weightscheme 2 & 3
-        if (pathcounter*3)<T-1
-            PricePathOld(1:(pathcounter*3),:)=((recursiveeqmoptions.oldpathweight+(1-exp(linspace(0,log(0.2),pathcounter*3)))*(1-recursiveeqmoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:(pathcounter*3),:)+((exp(linspace(0,log(0.2),pathcounter*3)).*(1-recursiveeqmoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:(pathcounter*3),:);
-        else
-            PricePathOld(1:T-1,:)=((recursiveeqmoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-recursiveeqmoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-recursiveeqmoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
-        end
-    end
-
+    PricePathOld=updatePricePath(PricePathOld,PricePathNew,recursiveeqmoptions,T);
 
     TransPathConvergence_prices=max(CurrentPathDist_price)/recursiveeqmoptions.tolerance; % So when this gets to 1 we have convergence, in prices
     TransPathConvergence_GEcondns=max(GEcondnPath(:).^2)/recursiveeqmoptions.tolerance; % So when this gets to 1 we have convergence, in GE condns
@@ -408,6 +385,22 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         fprintf('Ratio of current distance to the convergence tolerance, in GE Condns: %.2f (convergence when reaches 1) \n',TransPathConvergence_GEcondns)
         fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1; is the minimum of both prices and GEcondns) \n',TransPathConvergence)
         fprintf(' \n')
+        if recursiveeqmoptions.verbose>=2
+            % How many matches change period?
+            DistMatches_lag=DistMatches;
+            if pathcounter>1
+                tempind=(DistMatches_lag(:,:,1,1)~=DistMatches(:,:,1,1));
+                fprintf('Number of matches that changed: \n')
+                fprintf('                        total number of Sprime changes: %i \n', sum(sum(tempind)))
+                fprintf('     number of periods with at least one Sprime change: %i \n', sum(max(tempind,[],2)))
+            end
+            % What is the distance to the match?
+            tempval=DistMatches(:,:,1,2);
+            quantilecutoffs=quantile(tempval(:),[0.1,0.25,0.5,0.75,0.9]);
+            fprintf('Distance to the match: \n')
+            fprintf('  Quantile [0.1,    0.25,    0.5,    0.75,   0.9] \n')
+            fprintf('           [%1.6f, %1.6f, %1.6f, %1.6f,%1.6f] \n',quantilecutoffs)
+        end
     end
 
     if recursiveeqmoptions.historyofpricepath==1

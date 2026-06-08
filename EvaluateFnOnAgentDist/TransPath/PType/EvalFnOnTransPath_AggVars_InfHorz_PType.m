@@ -35,7 +35,7 @@ for ii=1:N_i
 
     % First set up simoptions
     if exist('simoptions','var')
-        simoptions_temp=PType_Options(simoptions,Names_i,ii);
+        simoptions_temp=PType_Options(simoptions,iistr);
         if ~isfield(simoptions_temp,'verbose')
             simoptions_temp.verbose=0;
         end

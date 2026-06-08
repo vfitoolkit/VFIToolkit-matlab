@@ -75,16 +75,17 @@ end
 
 %%
 for ii=1:N_i % First set up simoptions
-    simoptions_temp=PType_Options(simoptions,Names_i,ii);  % Note: already check for existence of simoptions and created it if it was not inputted
+    iistr=Names_i{ii};
+    simoptions_temp=PType_Options(simoptions,iistr);  % Note: already check for existence of simoptions and created it if it was not inputted
 
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
 
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-        PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
+        PolicyIndexes_temp=gpuArray(Policy.(iistr));
     else
-        PolicyIndexes_temp=Policy.(Names_i{ii});
+        PolicyIndexes_temp=Policy.(iistr);
     end
     if isfield(simoptions_temp,'parallel')
         if simoptions.parallel~=2
@@ -94,7 +95,6 @@ for ii=1:N_i % First set up simoptions
 
 
     %% Go through everything which might be dependent on fixed type (PType)
-    iistr=Names_i{ii};
 
     if isstruct(N_j)
         N_j_temp=N_j.(iistr);

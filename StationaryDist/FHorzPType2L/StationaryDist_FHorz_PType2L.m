@@ -29,11 +29,11 @@ end
 
 StationaryDist=struct();
 
-for tt=1:N_topi
-    iistr=Names_i{tt};
+for ii_top=1:N_topi
+    iistr=Names_i{ii_top};
 
     % First set up simoptions
-    simoptions_temp=PType_Options_2L(simoptions,Names_i,tt);
+    simoptions_temp=PType_Options_2L(simoptions,iistr);
     if ~isfield(simoptions_temp,'verbose')
         simoptions_temp.verbose=0;
     end
@@ -45,7 +45,7 @@ for tt=1:N_topi
     end
 
     if simoptions_temp.verbose==1
-        fprintf('Top-level permanent type: %i of %i (%s)\n',tt,N_topi,iistr)
+        fprintf('Top-level permanent type: %i of %i (%s)\n',ii_top,N_topi,iistr)
     end
 
     % Go through everything which might be dependent on the top-level fixed
@@ -74,7 +74,7 @@ for tt=1:N_topi
     end
 
     % Exogenous shocks
-    [n_z_temp,~,pi_z_temp,simoptions_temp]=PType_setup_ExogShocks(tt,iistr,N_topi,n_z,[],pi_z,simoptions_temp,1);
+    [n_z_temp,~,pi_z_temp,simoptions_temp]=PType_setup_ExogShocks(ii_top,iistr,N_topi,n_z,[],pi_z,simoptions_temp,1);
 
     %%
     if isstruct(jequaloneDist) && isfield(jequaloneDist,iistr)
@@ -87,7 +87,7 @@ for tt=1:N_topi
     if isstruct(AgeWeightsParamNames)
         names=fieldnames(AgeWeightsParamNames);
         for jj=1:length(names)
-            if strcmp(names{jj},Names_i{tt})
+            if strcmp(names{jj},Names_i{ii_top})
                 AgeWeightsParamNames_temp=AgeWeightsParamNames.(names{jj});
             end
         end
@@ -97,14 +97,14 @@ for tt=1:N_topi
     if isstruct(PTypeDistParamNames)
         names=fieldnames(PTypeDistParamNames);
         for jj=1:length(names)
-            if strcmp(names{jj},Names_i{tt})
+            if strcmp(names{jj},Names_i{ii_top})
                 PTypeDistParamNames_temp=PTypeDistParamNames.(names{jj});
             end
         end
     end
 
     % Parameters are only allowed to depend on top-level PType through a structure keyed by Names_i.
-    Parameters_temp=PType_setup_Parameters(tt,iistr,N_topi,Parameters,1);
+    Parameters_temp=PType_setup_Parameters(ii_top,iistr,N_topi,Parameters,1);
 
     if simoptions_temp.verboseparams==1
         sprintf('Parameter values for the current top-level permanent type')
@@ -125,8 +125,8 @@ for kk=1:length(TopPTypeDistParamNames)
     val=Parameters.(TopPTypeDistParamNames{kk});
     if isstruct(val)
         v=zeros(N_topi,1);
-        for tt=1:N_topi
-            v(tt)=val.(Names_i{tt});
+        for ii_top=1:N_topi
+            v(ii_top)=val.(Names_i{ii_top});
         end
         val=v;
     end

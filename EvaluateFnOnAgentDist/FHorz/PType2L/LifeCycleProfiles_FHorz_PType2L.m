@@ -48,11 +48,11 @@ end
 
 AgeConditionalStats=struct();
 
-for tt=1:N_topi
-    iistr=Names_i{tt};
+for ii_top=1:N_topi
+    iistr=Names_i{ii_top};
 
     % First set up simoptions
-    simoptions_temp=PType_Options_2L(simoptions,Names_i,tt);
+    simoptions_temp=PType_Options_2L(simoptions,iistr);
     if ~isfield(simoptions_temp,'groupptypesforstats')
         simoptions_temp.groupptypesforstats=1; % needed so inner returns grouped-over-bottom profiles
     end
@@ -67,7 +67,7 @@ for tt=1:N_topi
     end
 
     if simoptions_temp.verbose==1
-        fprintf('Top-level permanent type: %i of %i (%s)\n',tt,N_topi,iistr)
+        fprintf('Top-level permanent type: %i of %i (%s)\n',ii_top,N_topi,iistr)
     end
 
     % Go through everything which might be dependent on the top-level fixed type.
@@ -85,10 +85,10 @@ for tt=1:N_topi
     end
 
     % Exogenous shocks
-    [n_z_temp,z_grid_temp,~,simoptions_temp]=PType_setup_ExogShocks(tt,iistr,N_topi,n_z,z_grid,[],simoptions_temp,1);
+    [n_z_temp,z_grid_temp,~,simoptions_temp]=PType_setup_ExogShocks(ii_top,iistr,N_topi,n_z,z_grid,[],simoptions_temp,1);
 
     % Parameters are only allowed to depend on top-level PType through a structure keyed by Names_i.
-    Parameters_temp=PType_setup_Parameters(tt,iistr,N_topi,Parameters,1);
+    Parameters_temp=PType_setup_Parameters(ii_top,iistr,N_topi,Parameters,1);
 
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current top-level permanent type\n')
@@ -113,8 +113,8 @@ if simoptions.grouptopptypesforstats==1 && isfield(StationaryDist,'topptweights'
         if isfield(AgeConditionalStats.(fn).(Names_i{1}),'Mean')
             Mref=AgeConditionalStats.(fn).(Names_i{1}).Mean;
             Mbar=zeros(size(Mref),'like',Mref);
-            for tt=1:N_topi
-                Mbar=Mbar+topptweights(tt)*AgeConditionalStats.(fn).(Names_i{tt}).Mean;
+            for ii_top=1:N_topi
+                Mbar=Mbar+topptweights(ii_top)*AgeConditionalStats.(fn).(Names_i{ii_top}).Mean;
             end
             AgeConditionalStats.(fn).Mean=Mbar;
         else
@@ -123,10 +123,10 @@ if simoptions.grouptopptypesforstats==1 && isfield(StationaryDist,'topptweights'
         % Variance / StdDeviation via law of total variance, per age
         if ~isempty(Mbar) && isfield(AgeConditionalStats.(fn).(Names_i{1}),'Variance')
             Vsum=zeros(size(Mbar),'like',Mbar);
-            for tt=1:N_topi
-                Vtt=AgeConditionalStats.(fn).(Names_i{tt}).Variance;
-                Mtt=AgeConditionalStats.(fn).(Names_i{tt}).Mean;
-                Vsum=Vsum+topptweights(tt)*(Vtt+Mtt.^2);
+            for ii_top=1:N_topi
+                Vii_top=AgeConditionalStats.(fn).(Names_i{ii_top}).Variance;
+                Mii_top=AgeConditionalStats.(fn).(Names_i{ii_top}).Mean;
+                Vsum=Vsum+topptweights(ii_top)*(Vii_top+Mii_top.^2);
             end
             V=Vsum-Mbar.^2;
             AgeConditionalStats.(fn).Variance=V;
@@ -138,9 +138,9 @@ if simoptions.grouptopptypesforstats==1 && isfield(StationaryDist,'topptweights'
             mxref=AgeConditionalStats.(fn).(Names_i{1}).Maximum;
             mn=Inf(size(mnref),'like',mnref);
             mx=-Inf(size(mxref),'like',mxref);
-            for tt=1:N_topi
-                mn=min(mn,AgeConditionalStats.(fn).(Names_i{tt}).Minimum);
-                mx=max(mx,AgeConditionalStats.(fn).(Names_i{tt}).Maximum);
+            for ii_top=1:N_topi
+                mn=min(mn,AgeConditionalStats.(fn).(Names_i{ii_top}).Minimum);
+                mx=max(mx,AgeConditionalStats.(fn).(Names_i{ii_top}).Maximum);
             end
             AgeConditionalStats.(fn).Minimum=mn;
             AgeConditionalStats.(fn).Maximum=mx;

@@ -9,7 +9,7 @@ N_i=length(Names_i);
 PolicyValues=struct();
 for ii=1:N_i
     iistr=Names_i{ii};
-    vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
+    vfoptions_temp=PType_Options(vfoptions,iistr);
 
     % Go through everything which might be dependent on fixed type (PType)
     [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);

@@ -179,22 +179,23 @@ if transpathoptions.verbose==1
     fprintf('Setting up the permanent types for transition \n')
 end
 
+
 for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.Names_i{ii};
     PTypeStructure.iistr{ii}=iistr;
-
+    
     %% Sort out vfoptions and simoptions
-    PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
-    PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+    PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,iistr); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+    PTypeStructure.(iistr).simoptions=PType_Options(simoptions,iistr); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+
     % Need to fill in some defaults
     PTypeStructure.(iistr).vfoptions.parallel=2; % hardcode
     PTypeStructure.(iistr).simoptions.parallel=2; % hardcode
-    if ~isfield(PTypeStructure.(iistr).vfoptions,'n_e')
-        PTypeStructure.(iistr).n_e=0;
-    else
-        PTypeStructure.(iistr).n_e=PTypeStructure.(iistr).vfoptions.n_e;
+    if ~isfield(PTypeStructure.(iistr).vfoptions,'lowmemory')
+        PTypeStructure.(iistr).vfoptions.lowmemory=0;
     end
+
     if ~isfield(PTypeStructure.(iistr).vfoptions,'divideandconquer')
         PTypeStructure.(iistr).vfoptions.divideandconquer=0; %default
     else
@@ -224,6 +225,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).simoptions.experienceasset=0;
     end
 
+
     %%
     %% Go through everything which might be dependent on fixed type (PType)
     [PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
@@ -251,6 +253,7 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).l_z=length(PTypeStructure.(iistr).n_z);
     end
+    PTypeStructure.(iistr).n_e=PTypeStructure.(iistr).vfoptions.n_e;
     PTypeStructure.(iistr).N_e=prod(PTypeStructure.(iistr).n_e);
     if PTypeStructure.(iistr).N_e==0
         PTypeStructure.(iistr).l_e=0;
@@ -285,7 +288,7 @@ for ii=1:PTypeStructure.N_i
     % Parameters
     PTypeStructure.(iistr).Parameters=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
     PTypeStructure.ParametersRaw=Parameters; % For use in General eqm conditions (as we might want them across ptypes for some purposes)
-
+    
     % Implement new way of handling ReturnFn inputs (note l_d, l_a, l_z are just created for this and then not used for anything else later)
     if PTypeStructure.(iistr).n_d(1)==0
         l_d=0;
@@ -319,7 +322,7 @@ for ii=1:PTypeStructure.N_i
     %% Figure out which functions are actually relevant to the present PType. And then change to FnsToEvaluate as cell so that it is not being recomputed all the time
     % Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
-
+    
     FnNames=fieldnames(FnsToEvaluate);
     PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
     PTypeStructure.(iistr).WhichFnsForCurrentPType=zeros(PTypeStructure.numFnsToEvaluate,1);
@@ -347,6 +350,9 @@ for ii=1:PTypeStructure.N_i
             PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;
         end
     end
+    PTypeStructure.(iistr).WhichFnsForCurrentPType=PTypeStructure.(iistr).WhichFnsForCurrentPType(PTypeStructure.(iistr).WhichFnsForCurrentPType>0); % strip out the zeros
+
+
     % Now that all the relevant FnsToEvaluate for type ii are in PTypeStructure.(iistr).FnsToEvaluate
     PTypeStructure.(iistr).l_daprime=PTypeStructure.(iistr).l_d+PTypeStructure.(iistr).l_aprime;
     PTypeStructure.(iistr).AggVarNames=fieldnames(PTypeStructure.(iistr).FnsToEvaluate);
@@ -362,7 +368,7 @@ for ii=1:PTypeStructure.N_i
     end
     % Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
     PTypeStructure.(iistr).simoptions.outputasstructure=1;
-
+    
     %% Set up exogenous shock processes
     [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).pi_z_sparse, PTypeStructure.(iistr).e_gridvals, PTypeStructure.(iistr).pi_e, PTypeStructure.(iistr).pi_e_sparse, PTypeStructure.(iistr).ze_gridvals, transpathoptions, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz_TPath(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).vfoptions,4);
     % Convert z and e to joint-grids and transtion matrix
@@ -373,34 +379,34 @@ for ii=1:PTypeStructure.N_i
 
     %% Organise V_final and AgentDist_initial
     % Reshape V_final
-    if N_z==0
-        if N_e==0
-            V_final.(iistr)=reshape(V_final.(iistr),[N_a,1]);
+    if PTypeStructure.(iistr).N_z==0
+        if PTypeStructure.(iistr).N_e==0
+            V_final.(iistr)=reshape(V_final.(iistr),[PTypeStructure.(iistr).N_a,1]);
         else
-            V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_e]);
+            V_final.(iistr)=reshape(V_final.(iistr),[PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_e]);
         end
     else
-        if N_e==0
-            V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
+        if PTypeStructure.(iistr).N_e==0
+            V_final.(iistr)=reshape(V_final.(iistr),[PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z]);
         else
-            V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e]);
+            V_final.(iistr)=reshape(V_final.(iistr),[PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e]);
         end
     end
     % Reshape AgentDist_initial
-    if N_z==0
-        if N_e==0
-            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a,1]);
+    if PTypeStructure.(iistr).N_z==0
+        if PTypeStructure.(iistr).N_e==0
+            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[PTypeStructure.(iistr).N_a,1]);
         else
-            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_e,1]);
+            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[PTypeStructure.(iistr).N_a*PTypeStructure.(iistr).N_e,1]);
         end
     else
-        if N_e==0
-            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z,1]);
+        if PTypeStructure.(iistr).N_e==0
+            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[PTypeStructure.(iistr).N_a*PTypeStructure.(iistr).N_z,1]);
         else
-            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z*N_e,1]);
+            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[PTypeStructure.(iistr).N_a*PTypeStructure.(iistr).N_z*PTypeStructure.(iistr).N_e,1]);
         end
     end
-
+    
     %% Which parts of ParamPath and PricePath relate to ptype ii
     % Some ParamPath and PricePath parameters may depend on ptype
     PTypeStructure.(iistr).RelevantPricePath=ones(1,size(PricePath0,2)); % start will all relevant

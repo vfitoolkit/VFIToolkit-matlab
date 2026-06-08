@@ -25,11 +25,11 @@ if ~exist('vfoptions','var')
     error('You must input vfoptions; you can always set vfoptions=struct().')
 end
 
-for tt=1:N_topi
-    iistr=Names_i{tt};
+for ii_top=1:N_topi
+    iistr=Names_i{ii_top};
 
     % First set up vfoptions
-    vfoptions_temp=PType_Options_2L(vfoptions,Names_i,tt);
+    vfoptions_temp=PType_Options_2L(vfoptions,iistr);
     if ~isfield(vfoptions_temp,'verbose')
         vfoptions_temp.verbose=0;
     end
@@ -41,7 +41,7 @@ for tt=1:N_topi
     end
 
     if vfoptions_temp.verbose==1
-        fprintf('Top-level permanent type: %i of %i (%s)\n',tt,N_topi,iistr)
+        fprintf('Top-level permanent type: %i of %i (%s)\n',ii_top,N_topi,iistr)
     end
 
     % Go through everything which might be dependent on the top-level fixed
@@ -62,7 +62,7 @@ for tt=1:N_topi
     end
 
     % Exogenous shocks
-    [n_z_temp,z_grid_temp,pi_z_temp,vfoptions_temp]=PType_setup_ExogShocks(tt,iistr,N_topi,n_z,z_grid,pi_z,vfoptions_temp,1);
+    [n_z_temp,z_grid_temp,pi_z_temp,vfoptions_temp]=PType_setup_ExogShocks(ii_top,iistr,N_topi,n_z,z_grid,pi_z,vfoptions_temp,1);
 
     % DiscountFactorParamNames
     DiscountFactorParamNames_temp=DiscountFactorParamNames;
@@ -83,7 +83,7 @@ for tt=1:N_topi
     end
 
     % Parameters
-    Parameters_temp=PType_setup_Parameters(tt,iistr,N_topi,Parameters,1);
+    Parameters_temp=PType_setup_Parameters(ii_top,iistr,N_topi,Parameters,1);
 
     if vfoptions_temp.verboseparams==1
         sprintf('Parameter values for the current top-level permanent type')

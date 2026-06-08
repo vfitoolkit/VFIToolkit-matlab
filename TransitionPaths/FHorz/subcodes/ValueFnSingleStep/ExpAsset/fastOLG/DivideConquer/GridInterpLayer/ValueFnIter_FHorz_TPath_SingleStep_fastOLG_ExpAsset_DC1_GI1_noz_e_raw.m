@@ -64,7 +64,7 @@ if vfoptions.EVpre==0
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2,N_j]
 
-    EVpre=[sum(V(N_a+1:end,:).*repelem(pi_e_J,N_a-1,1),2); zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EVpre=[sum(V(N_a+1:end,:).*pi_e_J(N_a+1:end,:),2); zeros(N_a,1,'gpuArray')]; % pi_e_J already kron-expanded to (a-j,e) upstream; j=N_j zero-padded
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-e
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1)),[N_d2*N_a1,N_a2,N_j]);
@@ -88,7 +88,7 @@ elseif vfoptions.EVpre==1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2,N_j]
 
-    EVpre=sum(V.*repelem(pi_e_J,N_a,1),2);
+    EVpre=sum(V.*pi_e_J,2);
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-e
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1)),[N_d2*N_a1,N_a2,N_j]);
@@ -110,9 +110,9 @@ DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5])
 
 if vfoptions.lowmemory==0
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, e_gridvals_J, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
+    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, e_gridvals_J, ReturnFnParamsAgeMatrix,1,1); % Level=1, Refine=1
 
-    entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
+    entireRHS_ii=reshape(ReturnMatrix_ii+reshape(DiscountedEV,[1,N_d2*N_a1,1,N_a2,N_j]),[N_d,N_a1,vfoptions.level1n,N_a2,N_j,N_e]);
 
     % First, we want a1prime conditional on (d,1,a)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -175,7 +175,7 @@ elseif vfoptions.lowmemory==1
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, special_n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, e_val, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
 
-        entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
+        entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV,N_d1,1,1,1,1); % expand d2 → d=(d1,d2) to match ReturnMatrix_ii dim 1
 
         % First, we want a1prime conditional on (d,1,a)
         [~,maxindex1]=max(entireRHS_ii,[],2);

@@ -343,7 +343,7 @@ if simoptions.lowmemory==0
         iistr=Names_i{ii};
 
         % First set up simoptions
-        simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
+        simoptions_temp=PType_Options(simoptions,iistr); % Note: already check for existence of simoptions and created it if it was not inputted
 
         if simoptions_temp.verbose==1
             fprintf('Permanent type: %i of %i \n',ii, N_i)
@@ -1073,7 +1073,7 @@ elseif simoptions.lowmemory==1
             iistr=Names_i{ii};
 
             % First set up simoptions
-            simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
+            simoptions_temp=PType_Options(simoptions,iistr); % Note: already check for existence of simoptions and created it if it was not inputted
 
             if simoptions_temp.verbose==1
                 fprintf('Permanent type: %i of %i \n',ii, N_i)

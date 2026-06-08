@@ -62,7 +62,7 @@ end
 for ii=1:N_i
     iistr=Names_i{ii};
     % First set up simoptions
-    simoptions_temp=PType_Options(simoptions,Names_i,ii);
+    simoptions_temp=PType_Options(simoptions,iistr);
     if ~isfield(simoptions_temp,'verbose')
         simoptions_temp.verbose=0;
     end

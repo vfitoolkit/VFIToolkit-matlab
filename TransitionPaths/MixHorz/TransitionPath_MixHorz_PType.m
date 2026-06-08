@@ -235,11 +235,11 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.iistr{ii}=iistr;
 
     if exist('vfoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
-        PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+        PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,iistr); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
     end
 
     if exist('simoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
-        PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
+        PTypeStructure.(iistr).simoptions=PType_Options(simoptions,iistr); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
     end
 
     % Need to fill in some defaults

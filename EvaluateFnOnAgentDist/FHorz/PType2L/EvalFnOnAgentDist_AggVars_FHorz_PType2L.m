@@ -45,11 +45,11 @@ end
 
 AggVars=struct();
 
-for tt=1:N_topi
-    iistr=Names_i{tt};
+for ii_top=1:N_topi
+    iistr=Names_i{ii_top};
 
     % First set up simoptions
-    simoptions_temp=PType_Options_2L(simoptions,Names_i,tt);
+    simoptions_temp=PType_Options_2L(simoptions,iistr);
     if ~isfield(simoptions_temp,'groupptypesforstats')
         simoptions_temp.groupptypesforstats=1; % needed so inner returns .(fn).Mean grouped over bottom
     end
@@ -64,7 +64,7 @@ for tt=1:N_topi
     end
 
     if simoptions_temp.verbose==1
-        fprintf('Top-level permanent type: %i of %i (%s)\n',tt,N_topi,iistr)
+        fprintf('Top-level permanent type: %i of %i (%s)\n',ii_top,N_topi,iistr)
     end
 
     % Go through everything which might be dependent on the top-level fixed
@@ -83,10 +83,10 @@ for tt=1:N_topi
     end
 
     % Exogenous shocks
-    [n_z_temp,z_grid_temp,~,simoptions_temp]=PType_setup_ExogShocks(tt,iistr,N_topi,n_z,z_grid,[],simoptions_temp,1);
+    [n_z_temp,z_grid_temp,~,simoptions_temp]=PType_setup_ExogShocks(ii_top,iistr,N_topi,n_z,z_grid,[],simoptions_temp,1);
 
     % Parameters are only allowed to depend on top-level PType through a structure keyed by Names_i.
-    Parameters_temp=PType_setup_Parameters(tt,iistr,N_topi,Parameters,1);
+    Parameters_temp=PType_setup_Parameters(ii_top,iistr,N_topi,Parameters,1);
 
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current top-level permanent type\n')
@@ -107,10 +107,10 @@ if simoptions.grouptopptypesforstats==1 && isfield(StationaryDist,'topptweights'
     topptweights=StationaryDist.topptweights;
     for ff=1:length(FnNames)
         m=0;
-        for tt=1:N_topi
-            iistr=Names_i{tt};
+        for ii_top=1:N_topi
+            iistr=Names_i{ii_top};
             if isfield(AggVars.(FnNames{ff}).(iistr),'Mean')
-                m=m+topptweights(tt)*AggVars.(FnNames{ff}).(iistr).Mean;
+                m=m+topptweights(ii_top)*AggVars.(FnNames{ff}).(iistr).Mean;
             end
         end
         AggVars.(FnNames{ff}).Mean=m;

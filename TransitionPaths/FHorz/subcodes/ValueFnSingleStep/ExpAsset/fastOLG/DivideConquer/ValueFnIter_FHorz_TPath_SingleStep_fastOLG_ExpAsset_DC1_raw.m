@@ -23,7 +23,7 @@ z_gridvals_J=shiftdim(z_gridvals_J,-4); % [1,1,1,1,N_j,N_z,l_z]
 level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
-d2ind=repmat(gpuArray(1:1:N_d2)',N_d1,1);
+d2ind=repelem(gpuArray(1:1:N_d2)',N_d1,1); % d2 component of each d=(d1,d2); d1 is fastest in d_gridvals
 a2ind=shiftdim(gpuArray(0:1:N_a2-1),-2);
 jind=shiftdim(gpuArray(0:1:N_j-1),-3);
 zind=shiftdim(gpuArray(0:1:N_z-1),-4);
@@ -33,7 +33,7 @@ zind=shiftdim(gpuArray(0:1:N_z-1),-4);
 
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
+DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-4); % -4 for DC1
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.

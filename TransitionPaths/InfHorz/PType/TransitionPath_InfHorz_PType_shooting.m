@@ -236,7 +236,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             AgentDist_ii=AgentDistnext_ii;
 
         end
-
+        
         AggVarsFullPath(PTypeStructure.(iistr).WhichFnsForCurrentPType,:,ii)=AggVarsPath_ii;
 
     end % done loop over ii

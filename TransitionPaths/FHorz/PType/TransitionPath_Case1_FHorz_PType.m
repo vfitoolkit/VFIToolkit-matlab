@@ -190,8 +190,8 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.iistr{ii}=iistr;
 
     %% Sort out vfoptions and simoptions
-    PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
-    PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
+    PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,iistr); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+    PTypeStructure.(iistr).simoptions=PType_Options(simoptions,iistr); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
     % Need to fill in some defaults
     PTypeStructure.(iistr).vfoptions.parallel=2; % hardcode
     PTypeStructure.(iistr).simoptions.parallel=2; % hardcode

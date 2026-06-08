@@ -325,9 +325,9 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.iistr{ii}=iistr;
 
     % vfoptions must be input, check if it depends on ptype
-    PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+    PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,iistr); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
     % simoptions must be input, check if it depends on ptype
-    PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
+    PTypeStructure.(iistr).simoptions=PType_Options(simoptions,iistr); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
 
     PTypeStructure.(iistr).simoptions.outputasstructure=0; % Used by AggVars (in heteroagent subfn)
 
