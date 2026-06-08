@@ -1,4 +1,4 @@
-function [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(VPath,N_a,N_z,l_a,l_z,N_S,T,pi_Sprime_T,AggVarsPath,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions)
+function [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(VPath,N_a,N_z,l_a,l_z,N_S,T,pi_Sprime_T,AggVarsPath,Distances_ExoState,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions)
 % VPath=reshape(VPath,[N_a,T,N_z]);
 
 % MatchedEV will be [N_a,T,N_z] (as fastOLG)
@@ -28,8 +28,8 @@ if recursiveeqmoptions.matchE_distmeasure==1
         end
         Distances(tt1,tt1)=Inf;
     end
+    % NEED recursiveeqmoptions.matching_IdiosyncraticExogenousStates
 
-    % recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates
 
 elseif recursiveeqmoptions.matchE_distmeasure==2 
     %% Percentage distance of first moments
@@ -47,7 +47,8 @@ elseif recursiveeqmoptions.matchE_distmeasure==2
             Distances_EndoState=Distances_EndoState1;
         end
     end
-    if recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates==0
+    if recursiveeqmoptions.matching_IdiosyncraticExogenousStates==2
+        % Exogenous states are determined in general eqm, so have to recompute matching distances every iteration of the path
         if l_z>=1
             Distances_ExoState1=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
             if l_z>=2
@@ -73,7 +74,11 @@ elseif recursiveeqmoptions.matchE_distmeasure==2
             end
         end
         Distances=Distances_EndoState+Distances_ExoState;
-    else % if recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates==1
+    elseif recursiveeqmoptions.matching_IdiosyncraticExogenousStates==1
+        % Use the Distances_ExoState that was pre-computed as it does not change across the iterations of the path
+        Distances=Distances_EndoState+Distances_ExoState;
+    elseif recursiveeqmoptions.matching_IdiosyncraticExogenousStates==0
+        % Not using ExoState as part of the matching (most likely just because exogenous states are constant across periods anyway)
         Distances=Distances_EndoState;
     end
 end

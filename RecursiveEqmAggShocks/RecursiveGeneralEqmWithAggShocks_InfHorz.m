@@ -152,16 +152,17 @@ if recursiveeqmoptions.matchE_distmeasure==2
         end
     end
     % Exogenous states
+    FnsToEvaluate_Exo=struct();
     if l_z>=1
-        FnsToEvaluate.ExoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+1)]);
+        FnsToEvaluate_Exo.ExoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+1)]);
         if l_z>=2
-            FnsToEvaluate.ExoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+2)]);
+            FnsToEvaluate_Exo.ExoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+2)]);
             if l_z>=3
-                FnsToEvaluate.ExoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+3)]);
+                FnsToEvaluate_Exo.ExoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+3)]);
                 if l_z>=4
-                    FnsToEvaluate.ExoState4=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+4)]);
+                    FnsToEvaluate_Exo.ExoState4=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+4)]);
                     if l_z>=5
-                        FnsToEvaluate.ExoState5=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+5)]);
+                        FnsToEvaluate_Exo.ExoState5=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+5)]);
                         if L_z>=6
                             error('Have not implemented expectations matching for lenght(n_z)>5')
                         end
@@ -321,11 +322,18 @@ end
 
 
 %% Setup path for idiosyncratic shocks
+% Three possibilities for the dependence of idiosyncratic shocks on aggregate shocks
+% pizdependS=0: idiosyncratic shock transition probabilities are independent of aggregate shocks
+% pizdependS=1: idiosyncratic shock transition probabilities depend on S
+% pizdependS=2: idiosyncratic shock transition probabilities depend on S and Sprime
+
 % setup pi_z_T as the idiosyncratic transition probs, since they may depend on aggregate shocks
 % Need to do different things depending on if idiosyncratic shocks depend on aggregate shocks
 if ndims(pi_z)==2 % Does not depend on S
+    pizdependS=0;
     pi_z_T=repmat(gpuArray(pi_z),1,1,T);
 elseif ndims(pi_z)==3 % Depends on current S
+    pizdependS=1;
     pi_z_T=zeros(N_z,N_z,T,'gpuArray');
     pi_z_T(:,:,tt)=pi_z(:,:,ss_ind_T);
     % TEST: TO DELETE LATER: I need to test the vectorized version on previous line works and then I can delete the following version with loop
@@ -337,6 +345,7 @@ elseif ndims(pi_z)==3 % Depends on current S
         error('Wrong vectorization (if you see this error, let me know on forum)')
     end
 elseif ndims(pi_z)==4 % joint transition of z with S
+    pizdependS=2;
     pi_z_T=zeros(N_z,N_z,T,'gpuArray');
     for tt=1:T-1
         pi_z_T(:,:,tt)=pi_z(:,:,ss_ind_T(tt),ss_ind_T(tt+1));
@@ -412,13 +421,15 @@ if ndims(z_grid)==2
             end
             z_gridvals_S(:,:,ss)=z_gridvals;
         end
-        z_gridvals_T=z_gridvals_S(:,:,ss_ind_T);
+        z_gridvals_T=z_gridvals_S(:,:,ss_ind_T); % [N_z,l_z,T]
+        z_gridvals_T=permute(z_gridvals_T,[3,1,2]); % [T,N_z,l_z] for fastOLG
     end
 elseif ndims(z_grid)==3
     if all(size(z_grid)==[prod(n_z),length(l_z),S]) % Joint-grid, depends on S
         zgriddependS=1; % Needed for creating the initial guess later
         z_gridvals_S=z_grid; % Needed for creating the initial guess later
         z_gridvals_T=z_gridvals_S(:,:,ss_ind_T);
+        z_gridvals_T=permute(z_gridvals_T,[3,1,2]); % [T,N_z,l_z] for fastOLG
     else
         error('size(z_grid) does not fit any accepted pattern')
     end
@@ -426,7 +437,11 @@ else
     error('size(z_grid) does not fit any accepted pattern')
 end
 % Check that I coded this right
-if ~all(size(z_gridvals_T)==[T,N_z,l_z])
+if l_z==1
+    if ~all(size(z_gridvals_T)==[T,N_z])
+        error('The z_gridvals_T setup has a problem, please let me know on forum so I can fix')
+    end
+elseif ~all(size(z_gridvals_T)==[T,N_z,l_z])
     error('The z_gridvals_T setup has a problem, please let me know on forum so I can fix')
 end
 
@@ -435,13 +450,6 @@ z_gridvals_T_fastOLG=shiftdim(z_gridvals_T,-1); % [1,T,N_z,l_z] need this for fa
 % Keep some of this stuff for the output
 GeneralizedTransitionFn.OtherStuff.pi_z_T=pi_z_T(:,:,recursiveeqmoptions.burnin+1:end);
 GeneralizedTransitionFn.OtherStuff.z_gridvals_T=z_gridvals_T(recursiveeqmoptions.burnin+1:end,:,:);
-
-
-%% When pi_z and z_grid are independent of S and Sprime, we can omit exogenous states from the matching process entirely
-recursiveeqmoptions.matching_IdiosyncraticExogenousStates=0;
-if ndims(pi_z)==2 && zgriddependS==0
-    recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates=1;
-end
 
 
 %% Things for the initial guess
@@ -507,6 +515,107 @@ elseif initialguessobjects.methodforguess==2 % treat S as idiosyncratic shock
     end
 end
 
+%% Precompute the matching distances for the idiosyncratic exogenous states as these are constant across path iterations
+% recursiveeqmoptions.matching_IdiosyncraticExogenousStates
+%  =0 we ignore the idiosyncratic exogenous states, omitting them from the  matching entirely
+%  =1 we can precompute the distances for the idiosyncratic exogenous states as they do not differ across iteration of the path
+%  =2 idiosyncratic exogenous states change across iterations of the path and so the distances must be computed at each iteration
+
+
+% When pi_z and z_grid are independent of S and Sprime, we can omit exogenous states from the matching process entirely
+recursiveeqmoptions.matching_IdiosyncraticExogenousStates=0;
+if pizdependS==0 % pizdependS=0: idiosyncratic shock transition probabilities are independent of aggregate shocks
+    % When matching, we can just ignore the idiosyncratic exogenous states as they will anyway be identical in every period.
+    recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates=1;
+    Distances_ExoState=[]; % placeholder, this will be ignored
+else % recursiveeqmoptions.matching_IdiosyncraticExogenousStates==0
+    % We already have pi_z_T and z_gridvals_T
+    % From these we can compute the agent distribution in every period, and the matching distances for the Idiosyncratic Exogenous States
+
+    % First, calculate the AggPath on the ExoStates
+    % We know that the period 1 of path will be from the initial guess
+    zdist=ones(N_z,1,'gpuArray')/N_z;
+    pi_z_transpose=initialguessobjects.pi_z';
+    zdistlag=zeros(N_z,1,'gpuArray');
+    while max(abs(zdist-zdistlag))>1e-9
+        zdistlag=zdist;
+        zdist=pi_z_transpose*zdist;
+    end
+    % Now create the whole zdist path
+    zdistpath=zeros(N_z,T,'gpuArray');
+    zdistpath(:,1)=zdist;
+    for tt=2:T
+       zdistpath(:,tt)=pi_z_T(:,:,tt)'*zdistpath(:,tt-1); % pi_z_T is (z,z',t)
+    end
+    % Now use the grids together with distribution to calculate the AggVarsPath
+    % [Use AggVarsPath.ExoState1.Mean nomenclature so it is obvious how it relates to other parts of code when doing endogenous states, etc.]
+    % z_gridvals_T is [T,N_z,l_z]
+    z_gridvals_T_temp=permute(z_gridvals_T,[2,1,3]); % [N_z,T,l_z]
+    if l_z>=1
+        AggVarsPath.ExoState1.Mean=sum(zdistpath.*z_gridvals_T_temp(:,:,1),1);
+        if l_z>=2
+            AggVarsPath.ExoState2.Mean=sum(zdistpath.*z_gridvals_T_temp(:,:,2),1);
+            if l_z>=3
+                AggVarsPath.ExoState3.Mean=sum(zdistpath.*z_gridvals_T_temp(:,:,3),1);
+                if l_z>=4
+                    AggVarsPath.ExoState4.Mean=sum(zdistpath.*z_gridvals_T_temp(:,:,4),1);
+                    if l_z>=5
+                        AggVarsPath.ExoState5.Mean=sum(zdistpath.*z_gridvals_T_temp(:,:,5),1);
+                    end
+                end
+            end
+        end
+    end
+    % Now the distances
+    % Exogenous states are determined in general eqm, so have to recompute matching distances every iteration of thte path
+    if l_z>=1
+        Distances_ExoState1=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+        if l_z>=2
+            Distances_ExoState2=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+            if l_z>=3
+                Distances_ExoState3=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                if l_z>=4
+                    Distances_ExoState4=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                    if l_z>=5
+                        Distances_ExoState5=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                        Distances_ExoState=(Distances_ExoState1+Distances_ExoState2+Distances_ExoState3+Distances_ExoState4+Distances_ExoState5)/5;
+                    else
+                        Distances_ExoState=(Distances_ExoState1+Distances_ExoState2+Distances_ExoState3+Distances_ExoState4)/4;
+                    end
+                else
+                    Distances_ExoState=(Distances_ExoState1+Distances_ExoState2+Distances_ExoState3)/3;
+                end
+            else
+                Distances_ExoState=(Distances_ExoState1+Distances_ExoState2)/2;
+            end
+        else
+            Distances_ExoState=Distances_ExoState1;
+        end
+    end
+
+    % How exactly we will use this distance depends slightly on the case
+    if pizdependS==1 % pizdependS=1: idiosyncratic shock transition probabilities depend on S
+        % We match based on getting the same value for exogenous shocks in 't+1'
+        Distances_ExoState=Distances_ExoState1;
+    elseif pizdependS==2 % pizdependS=2: idiosyncratic shock transition probabilities depend on S and Sprime
+        % We match based on getting the same value for exogenous shocks in 't'
+        % The dependence on Sprime means the actual next period exogenous shocks will be different for each Sprime
+        Distances_ExoState=[0,Distances_ExoState1(1:T-1)];
+    end
+end
+% NOTE: WHEN I IMPLEMENT THE POSSIBILITY THAT THE EXOG. STATES ARE USING
+% ExogShockFn AND WILL BE DETERMINED IN GENERAL EQM, NEED TO HAVE A WAY OUT
+% OF THIS SO I HAVE LEFT A
+% recursiveeqmoptions.matching_IdiosyncraticExogenousStates=2;
+% THAT DOES THIS LATER ON IN THE CODE: MEP_InfHorz_Step_MatchExpectations()
+if recursiveeqmoptions.matching_IdiosyncraticExogenousStates==2
+    temp=fieldnames(FnsToEvaluate_Exo);
+    for ff=1:length(temp)
+        FnsToEvaluate.(temp{ff})=FnsToEvaluate_Exo.(temp{ff});
+    end
+    Distances_ExoState=[]; % placeholder, this will be ignored
+end
+
 
 %% If you are dividing up the T dimension, so some setup for that
 if recursiveeqmoptions.divideT>1
@@ -519,9 +628,9 @@ recursiveeqmoptions=setupGEnewprice3_shooting(recursiveeqmoptions,GeneralEqmEqns
 
 %% Now solve the Matched-expectations path
 if N_d==0
-    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting_nod(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_a, n_z, n_S, l_aprime, l_a, l_z, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, simoptions,recursiveeqmoptions);
+    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting_nod(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_a, n_z, n_S, l_aprime, l_a, l_z, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, Distances_ExoState, vfoptions, simoptions,recursiveeqmoptions);
 else
-    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_d, n_a, n_z, n_S, l_d, l_aprime, l_a, l_z, d_grid, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, simoptions,recursiveeqmoptions);
+    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_d, n_a, n_z, n_S, l_d, l_aprime, l_a, l_z, d_grid, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, Distances_ExoState, simoptions,recursiveeqmoptions);
 end
 
 %% Need to reshape these for output, permute for fastOLG, and store in GeneralizedTransitionFn
