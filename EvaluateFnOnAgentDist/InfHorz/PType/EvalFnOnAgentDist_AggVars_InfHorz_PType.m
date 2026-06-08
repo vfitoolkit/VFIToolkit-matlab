@@ -51,39 +51,8 @@ else
 end
 
 % Set default of grouping all the PTypes together when reporting statistics
-if ~exist('simoptions','var')
-    simoptions.groupptypesforstats=1;
-    simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-    simoptions.verbose=0;
-    simoptions.verboseparams=0;
-else
-    if ~isfield(simoptions,'groupptypesforstats')
-        simoptions.groupptypesforstats=1;
-    end
-    if ~isfield(simoptions,'ptypestorecpu')
-        if simoptions.groupptypesforstats==1
-            simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-        elseif simoptions.groupptypesforstats==0
-            simoptions.ptypestorecpu=0;
-        end
-    end
-    if ~isfield(simoptions,'verboseparams')
-        simoptions.verboseparams=100;
-    end
-    if ~isfield(simoptions,'verbose')
-        simoptions.verbose=100;
-    end
-end
-
-if simoptions.groupptypesforstats==1
-    if isa(StationaryDist.(Names_i{1}), 'gpuArray')
-        AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
-    else
-        AggVars=zeros(numFnsToEvaluate,1);
-    end
-else % simoptions.groupptypesforstats==0
-    AggVars=struct();
-end
+% For AggVars, there is no point in not grouping all the PTypes together as it is essentially trivial to do so.
+AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
 
 %%
 for ii=1:N_i
@@ -91,17 +60,19 @@ for ii=1:N_i
 
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,iistr); % Note: already check for existence of simoptions and created it if it was not inputted
+    if ~isfield(simoptions_temp,'verboseparams')
+        simoptions_temp.verboseparams=0;
+    end
+    if ~isfield(simoptions_temp,'verbose')
+        simoptions_temp.verbose=0;
+    end
 
-    if simoptions_temp.verbose==1
+    if simoptions_temp.verbose>=1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-    if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-        PolicyIndexes_temp=gpuArray(Policy.(iistr)); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
-        StationaryDist_temp=gpuArray(StationaryDist.(iistr));
-    else
-        PolicyIndexes_temp=Policy.(iistr);
-        StationaryDist_temp=StationaryDist.(iistr);
-    end
+
+    PolicyIndexes_temp=gpuArray(Policy.(iistr)); % Just in case using vfoptions.ptypestorecpu=1
+    StationaryDist_temp=gpuArray(StationaryDist.(iistr));
 
     %% Go through everything which might be dependent on fixed type (PType)
     [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
@@ -132,41 +103,26 @@ for ii=1:N_i
     simoptions_temp.outputasstructure=0;
     StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
 
-    if simoptions.groupptypesforstats==1
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                AggVars(kk)=AggVars(kk)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
-            end
-        end
-    else
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                AggVars(kk).(iistr)=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
-            end
+    % if simoptions.groupptypesforstats==1
+    for kk=1:numFnsToEvaluate
+        jj=WhichFnsForCurrentPType(kk);
+        if jj>0
+            AggVars(kk)=AggVars(kk)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
         end
     end
 end
 
-% If using FnsToEvaluate as structure need to get in appropriate form for output
+
+%% If using FnsToEvaluate as structure need to get in appropriate form for output
 if isstruct(FnsToEvaluate)
     AggVarNames=fieldnames(FnsToEvaluate);
     % Change the output into a structure
     AggVars2=AggVars;
     clear AggVars
     AggVars=struct();
-    %     AggVarNames=fieldnames(FnsToEvaluate);
-    if simoptions.groupptypesforstats==1
-        for ff=1:length(AggVarNames)
-            AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
-        end
-    else % simoptions.groupptypesforstats==0
-        for ff=1:length(AggVarNames)
-            for ii=1:N_i
-                AggVars.(AggVarNames{ff}).(Names_i{ii}).Mean=AggVars2(ff).(Names_i{ii});
-            end
-        end
+    % if simoptions.groupptypesforstats==1
+    for ff=1:length(AggVarNames)
+        AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
     end
 end
 

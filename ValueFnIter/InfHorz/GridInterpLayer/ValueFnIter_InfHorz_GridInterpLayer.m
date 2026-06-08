@@ -192,26 +192,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
     end
 end
 
-
-%% Reshape
-% Grid interp with 2 endo states leaves them separate, so first we have to
-% put them together before we can pass it to UnKronPolicyIndexes [nowadays
-% with divide-and-conquer and grid interpolation layer, this is common, so
-% maybe I should modify UnKronPolicyIndexes to just permit this as an
-% alternative case]
-if ~isscalar(n_a)
-    if N_d==0
-        Policy(1,:,:)=Policy(1,:,:)+n_a(1)*(Policy(2,:,:)-1); % aprime (both)
-        Policy(2,:,:)=Policy(3,:,:); % L2index
-        Policy=Policy(1:2,:,:);
-    else
-        % Policy(1,:,:)=Policy(1,:,:); % d
-        Policy(2,:,:)=Policy(2,:,:)+n_a(1)*(Policy(3,:,:)-1); % aprime (both)
-        Policy(3,:,:)=Policy(4,:,:); % L2index
-        Policy=Policy(1:3,:,:);
-    end
-end
-
+%%
 V=reshape(V,[n_a,n_z]);
 if N_d==0
     Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
