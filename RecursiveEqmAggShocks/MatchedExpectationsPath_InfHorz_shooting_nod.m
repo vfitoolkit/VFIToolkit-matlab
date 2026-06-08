@@ -78,12 +78,14 @@ if recursiveeqmoptions.verbose>=1
     fprintf(' \n')
 end
 
-l_p=length(GEPriceParamNames);
+% l_p=length(GEPriceParamNames);
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
-%% DEBUG
-FnsToEvaluate
-AggVarsPath
+if recursiveeqmoptions.verbose>=2
+    fprintf('Some things that can be useful for debugging \n')
+    FnsToEvaluate
+    AggVarsPath
+end
 
 %% We do the time periods tt=1:T all in parallel
 % This leverages the fastOLG commands, which use a different shape
@@ -138,7 +140,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     tic;
     % Note: fastOLG, so VPath is (a,j)-by-z
     % VPath=reshape(VPath,[N_a,T,N_z]);    
-    [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(reshape(VPath,[N_a,T,N_z]),N_a,N_z,N_S,T,pi_Sprime_T,AggVarsPath,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions);
+    [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(reshape(VPath,[N_a,T,N_z]),N_a,N_z,l_a,l_z,N_S,T,pi_Sprime_T,AggVarsPath,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions);
     % MatchedEV is the matched-expectations (have already taken expectation over Sprime)
     % DistMatches records which period is matched with which, not part of algorithm but provides useful/interesting feedback
     % DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); last dim 1 is index of match and 2 is distance to match
@@ -356,17 +358,23 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         matchingmap(tt,DistMatches(tt,S_c,1,1))=1;
         end
     end
-    figure(4)
-    maprange=floor(T/2):1:floor(T/2)+19;
-    subplot(2,1,1); heatmap(matchingmap(maprange,maprange))
-    title('Heatmap of the Matches (for 20 time periods)')
-    matchingAggEndoState=zeros(T-1,N_S);
-    for S_c=1:N_S
-        matchingAggEndoState(:,S_c)=AggVarsPath.K.Mean(DistMatches(1:end-1,S_c,1,1));
-    end
-    subplot(2,1,2); plot(1:1:T-1,matchingAggEndoState)
-    title('Aggregate value of endogenous state in each match (one line for each S value)')
+    if recursiveeqmoptions.verbose>=2
+        figure(4)
+        maprange=floor(T/2):1:floor(T/2)+19;
+        heatmap(matchingmap(maprange,maprange))
+        title('Heatmap of the Matches (for 20 time periods)')
 
+        figure(5)
+        for a_c=1:l_a
+            matchingAggEndoState=zeros(T-1,N_S);
+            for S_c=1:N_S
+                matchingAggEndoState(:,S_c)=AggVarsPath.EndoState1.Mean(DistMatches(1:end-1,S_c,1,1));
+            end
+            subplot(l_a,1,a_c); plot(1:1:T-1,matchingAggEndoState)
+            title(['Aggregate value of endogenous state ',num2str(a_c),' in each match (one line for each S value)'])
+        end
+    end
+    
     % Update PricePathOld
     PricePathOld=updatePricePath(PricePathOld,PricePathNew,recursiveeqmoptions,T);
 
@@ -386,20 +394,23 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1; is the minimum of both prices and GEcondns) \n',TransPathConvergence)
         fprintf(' \n')
         if recursiveeqmoptions.verbose>=2
-            % How many matches change period?
             DistMatches_lag=DistMatches;
+            % DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); last dim 1 is index of match and 2 is distance to match
+            % For each period, contains the matches for each Sprime (both the index and distance for the period that it matches to)
             if pathcounter>1
+                % How many matches change period?
                 tempind=(DistMatches_lag(:,:,1,1)~=DistMatches(:,:,1,1));
                 fprintf('Number of matches that changed: \n')
                 fprintf('                        total number of Sprime changes: %i \n', sum(sum(tempind)))
                 fprintf('     number of periods with at least one Sprime change: %i \n', sum(max(tempind,[],2)))
+
+                % What is the distance to the match?
+                tempval=DistMatches(:,:,1,2);
+                quantilecutoffs=quantile(tempval(:),[0.1,0.25,0.5,0.75,0.9]);
+                fprintf('Distance to the match: \n')
+                fprintf('  Quantile [0.1,    0.25,    0.5,    0.75,   0.9] \n')
+                fprintf('           [%1.6f, %1.6f, %1.6f, %1.6f,%1.6f] \n',quantilecutoffs)
             end
-            % What is the distance to the match?
-            tempval=DistMatches(:,:,1,2);
-            quantilecutoffs=quantile(tempval(:),[0.1,0.25,0.5,0.75,0.9]);
-            fprintf('Distance to the match: \n')
-            fprintf('  Quantile [0.1,    0.25,    0.5,    0.75,   0.9] \n')
-            fprintf('           [%1.6f, %1.6f, %1.6f, %1.6f,%1.6f] \n',quantilecutoffs)
         end
     end
 

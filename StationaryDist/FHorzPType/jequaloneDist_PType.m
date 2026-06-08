@@ -33,7 +33,8 @@ end
 
 
 if ~isstruct(jequaloneDist)
-    % Using matrix, reshape now to save multiple reshapes later
+    % jequaloneDist is a matrix, convert to structure-
+    % Reshape now to save multiple reshapes later
     % (Note that matrix implies same grids for all agents)
     if isfield(simoptions,'n_e') && prod(simoptions.n_e)>0
         if isfield(simoptions,'n_semiz') && prod(simoptions.n_semiz)>0
@@ -153,7 +154,7 @@ if ~isstruct(jequaloneDist)
                 end
             end
         else
-            if prod(n_z)==0
+            if prod(n_z)==0 || prod(n_z)==1
                 if numel(jequaloneDist)==prod(n_a)
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),1]);
                     idiminj1dist=0;
@@ -170,7 +171,7 @@ if ~isstruct(jequaloneDist)
                     end
                 end
             else
-                if ndims(jequaloneDist)==length([n_a,n_z])
+                if all(size(jequaloneDist)==[n_a,n_z])
                     if numel(jequaloneDist)==prod([n_a,n_z]) % avoid size()=[n_a,n_z] because this errors if last dimensions are singular as they get dropped from jequaloneDist
                         jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z)]);
                         idiminj1dist=0;

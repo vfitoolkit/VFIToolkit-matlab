@@ -139,28 +139,36 @@ if recursiveeqmoptions.matchE_distmeasure==2
     inputNames = compose('x%d', 1:nfinput); % Create {'x1', 'x2', ..., 'x5'}
     argStr = strjoin(inputNames, ','); % Create 'x1,x2,x3,x4,x5'
     % Endogenous states
-    if l_a==1
+    if l_a>=1
         FnsToEvaluate.EndoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+1)]);
-    elseif l_a==2
-        FnsToEvaluate.EndoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+2)]);
-    elseif l_a==3
-        FnsToEvaluate.EndoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+3)]);
-    else
-        error('Have not implemented expectations matching for lenght(n_a)>3')
+        if l_a>=2
+            FnsToEvaluate.EndoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+2)]);
+            if l_a>=3
+                FnsToEvaluate.EndoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+3)]);
+                if l_a>=4
+                    error('Have not implemented expectations matching for lenght(n_a)>3')
+                end
+            end
+        end
     end
     % Exogenous states
-    if l_z==1
+    if l_z>=1
         FnsToEvaluate.ExoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+1)]);
-    elseif l_z==2
-        FnsToEvaluate.ExoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+2)]);
-    elseif l_z==3
-        FnsToEvaluate.ExoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+3)]);
-    elseif l_z==4
-        FnsToEvaluate.ExoState4=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+4)]);
-    elseif l_z==5
-        FnsToEvaluate.ExoState5=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+5)]);
-    else
-        error('Have not implemented expectations matching for lenght(n_z)>5')
+        if l_z>=2
+            FnsToEvaluate.ExoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+2)]);
+            if l_z>=3
+                FnsToEvaluate.ExoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+3)]);
+                if l_z>=4
+                    FnsToEvaluate.ExoState4=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+4)]);
+                    if l_z>=5
+                        FnsToEvaluate.ExoState5=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+5)]);
+                        if L_z>=6
+                            error('Have not implemented expectations matching for lenght(n_z)>5')
+                        end
+                    end
+                end
+            end
+        end
     end
 end
 
@@ -237,6 +245,9 @@ recursiveeqmoptions.matchingsetup=1; % Match based on Sprime and Distance
 if ndims(pi_z)==4 % joint transition of z with S
     recursiveeqmoptions.matchingsetup=2; % Match based on (S,Sprime) and Distance
 end
+% When pi_z and z_grid are independent of S and Sprime, we can omit exogenous states from the matching process entirely
+% recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates is set below
+
 
 if recursiveeqmoptions.matchingsetup==1
     % To be able to speed up the code, we create a record of which t is which S
@@ -308,6 +319,7 @@ if recursiveeqmoptions.verbose==2
     xlim([-recursiveeqmoptions.burnin+1,T-recursiveeqmoptions.burnin])
 end
 
+
 %% Setup path for idiosyncratic shocks
 % setup pi_z_T as the idiosyncratic transition probs, since they may depend on aggregate shocks
 % Need to do different things depending on if idiosyncratic shocks depend on aggregate shocks
@@ -315,8 +327,14 @@ if ndims(pi_z)==2 % Does not depend on S
     pi_z_T=repmat(gpuArray(pi_z),1,1,T);
 elseif ndims(pi_z)==3 % Depends on current S
     pi_z_T=zeros(N_z,N_z,T,'gpuArray');
+    pi_z_T(:,:,tt)=pi_z(:,:,ss_ind_T);
+    % TEST: TO DELETE LATER: I need to test the vectorized version on previous line works and then I can delete the following version with loop
+    pi_z_T2=zeros(N_z,N_z,T,'gpuArray');
     for tt=1:T
-        pi_z_T(:,:,tt)=pi_z(:,:,ss_ind_T(tt));
+        pi_z_T2(:,:,tt)=pi_z(:,:,ss_ind_T(tt));
+    end
+    if max(abs(pi_z_T-pi_z_T2))>1e-12
+        error('Wrong vectorization (if you see this error, let me know on forum)')
     end
 elseif ndims(pi_z)==4 % joint transition of z with S
     pi_z_T=zeros(N_z,N_z,T,'gpuArray');
@@ -336,14 +354,94 @@ II2=repmat(1:1:(T-1),1,N_z*N_z)+repelem((T-1)*(0:1:N_z-1),1,N_z*(T-1)); % index 
 pi_z_T_sim=sparse(II1,II2,pi_z_T_sim,(T-1)*N_z,(T-1)*N_z);
 % pi_z_T needs to be (t,zprime,z) for fastOLG
 pi_z_T_fastOLG=permute(pi_z_T,[3,2,1]); % pi_z_T_fastOLG is [T,N_zprime,N_z]
-% setup z_gridvals_T
-% NOT REALLY DONE YET, JUST GOING TO ASSUME INPUT WAS A BASIC z_grid WITH NO DEPENDENCE ON S
-z_gridvals_T=repmat(shiftdim(CreateGridvals(n_z,gpuArray(z_grid),1),1),T,1,1); % [T,N_z,l_z] for fastOLG
+
+% setup z_gridvals_T: [T,N_z,l_z]
+if ndims(z_grid)==2
+    if all(size(z_grid)==[prod(n_z),length(l_z)]) % Joint-grid, no dependence on S
+        zgriddependS=0; % Needed for creating the initial guess later
+        z_gridvals=z_grid; % Needed for creating the initial guess later
+        z_gridvals_T=repmat(shiftdim(z_gridvals,-1),T,1,1); % [T,N_z,l_z] for fastOLG
+    elseif all(size(z_grid)==[sum(n_z),1]) % Stacked-column grid, no dependence on S
+        zgriddependS=0; % Needed for creating the initial guess later
+        if l_z>=1
+            z1_gridvals=CreateGridvals(n_z(1),gpuArray(z_grid(1:n_z(1))),1);
+            z_gridvals=z1_gridvals;
+            if l_z>=2
+                z2_gridvals=CreateGridvals(n_z(2),gpuArray(z_grid(n_z(1)+1:n_z(1)+n_z(2))),1);
+                z_gridvals=[repmat(z_gridvals,n_z(2),1),repelem(z2_gridvals,n_z(1))];
+                if l_z>=3
+                    z3_gridvals=CreateGridvals(n_z(3),gpuArray(z_grid(sum(n_z(1:2))+1:sum(n_z(1:2))+n_z(3))),1);
+                    z_gridvals=[repmat(z_gridvals,n_z(3),1),repelem(z3_gridvals,sum(n_z(1:2)),1)];
+                    if l_z>=4
+                        z4_gridvals=CreateGridvals(n_z(3),gpuArray(z_grid(sum(n_z(1:2))+1:sum(n_z(1:2))+n_z(3))),1);
+                        z_gridvals=[repmat(z_gridvals,n_z(3),1),repelem(z4_gridvals,sum(n_z(1:2)),1)];
+                        if l_z>=5
+                            z5_gridvals=CreateGridvals(n_z(3),gpuArray(z_grid(sum(n_z(1:2))+1:sum(n_z(1:2))+n_z(3))),1);
+                            z_gridvals=[repmat(z_gridvals,n_z(3),1),repelem(z5_gridvals,sum(n_z(1:2)),1)];
+                        end
+                    end
+                end
+            end
+        end
+        z_gridvals_T=repmat(shiftdim(z_gridvals,-1),T,1,1); % [T,N_z,l_z] for fastOLG
+    elseif all(size(z_grid)==[sum(n_z),prod(n_S)]) || all(size(z_grid)==[sum(n_z),1,prod(n_S)]) % Stacked-column grid, depends on S
+        z_grid=reshape(z_grid,[sum(n_z),prod(n_S)]);
+        zgriddependS=1; % Needed for creating the initial guess later
+        z_gridvals_S=zeros(N_z,l_z,N_S);
+        for ss=1:N_S
+            z_grid_ss=z_grid(:,ss);
+            if l_z>=1
+                z1_gridvals=CreateGridvals(n_z(1),gpuArray(z_grid_ss(1:n_z(1))),1);
+                z_gridvals=z1_gridvals;
+                if l_z>=2
+                    z2_gridvals=CreateGridvals(n_z(2),gpuArray(z_grid_ss(n_z(1)+1:n_z(1)+n_z(2))),1);
+                    z_gridvals=[repmat(z_gridvals,n_z(2),1),repelem(z2_gridvals,n_z(1))];
+                    if l_z>=3
+                        z3_gridvals=CreateGridvals(n_z(3),gpuArray(z_grid_ss(sum(n_z(1:2))+1:sum(n_z(1:2))+n_z(3))),1);
+                        z_gridvals=[repmat(z_gridvals,n_z(3),1),repelem(z3_gridvals,sum(n_z(1:2)),1)];
+                        if l_z>=4
+                            z4_gridvals=CreateGridvals(n_z(3),gpuArray(z_grid_ss(sum(n_z(1:2))+1:sum(n_z(1:2))+n_z(3))),1);
+                            z_gridvals=[repmat(z_gridvals,n_z(3),1),repelem(z4_gridvals,sum(n_z(1:2)),1)];
+                            if l_z>=5
+                                z5_gridvals=CreateGridvals(n_z(3),gpuArray(z_grid_ss(sum(n_z(1:2))+1:sum(n_z(1:2))+n_z(3))),1);
+                                z_gridvals=[repmat(z_gridvals,n_z(3),1),repelem(z5_gridvals,sum(n_z(1:2)),1)];
+                            end
+                        end
+                    end
+                end
+            end
+            z_gridvals_S(:,:,ss)=z_gridvals;
+        end
+        z_gridvals_T=z_gridvals_S(:,:,ss_ind_T);
+    end
+elseif ndims(z_grid)==3
+    if all(size(z_grid)==[prod(n_z),length(l_z),S]) % Joint-grid, depends on S
+        zgriddependS=1; % Needed for creating the initial guess later
+        z_gridvals_S=z_grid; % Needed for creating the initial guess later
+        z_gridvals_T=z_gridvals_S(:,:,ss_ind_T);
+    else
+        error('size(z_grid) does not fit any accepted pattern')
+    end
+else
+    error('size(z_grid) does not fit any accepted pattern')
+end
+% Check that I coded this right
+if ~all(size(z_gridvals_T)==[T,N_z,l_z])
+    error('The z_gridvals_T setup has a problem, please let me know on forum so I can fix')
+end
+
 % For the fastOLG evaluation of AggVars we need
 z_gridvals_T_fastOLG=shiftdim(z_gridvals_T,-1); % [1,T,N_z,l_z] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
 % Keep some of this stuff for the output
 GeneralizedTransitionFn.OtherStuff.pi_z_T=pi_z_T(:,:,recursiveeqmoptions.burnin+1:end);
 GeneralizedTransitionFn.OtherStuff.z_gridvals_T=z_gridvals_T(recursiveeqmoptions.burnin+1:end,:,:);
+
+
+%% When pi_z and z_grid are independent of S and Sprime, we can omit exogenous states from the matching process entirely
+recursiveeqmoptions.matching_IdiosyncraticExogenousStates=0;
+if ndims(pi_z)==2 && zgriddependS==0
+    recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates=1;
+end
 
 
 %% Things for the initial guess
@@ -366,7 +464,7 @@ else
     initialguessobjects.heteroagentoptions.verbose=0;
 end
 
-initialguessobjects.methodforguess=1;
+initialguessobjects.methodforguess=1; % =1 is the default
 % =1: replace S with E[S]
 % =2: treat S as idiosyncratic shock (this is probably a better idea?, but the initial guess becomes a memory bottleneck, which seems a bit silly)
 
@@ -382,8 +480,12 @@ if initialguessobjects.methodforguess==1 % Replace S with E[S]
         initialguessobjects.pi_z=reshape(temp,[N_z,N_z]);
     end
 
-    % NOT REALLY DONE YET, JUST GOING TO ASSUME INPUT WAS A BASIC z_grid WITH NO DEPENDENCE ON S
-    initialguessobjects.z_gridvals=CreateGridvals(n_z,z_grid,1);
+    % We aleady build z_gridvals
+    if zgriddependS==0
+        initialguessobjects.z_gridvals=z_gridvals;
+    elseif zgriddependS==1
+        initialguessobjects.z_gridvals=sum(z_gridvals_S.*shiftdim(statdist_S,-2)); % Bit weird, but will do for now. Not obvious what a better choice would be.
+    end
 
 elseif initialguessobjects.methodforguess==2 % treat S as idiosyncratic shock
     % Put things for the initial guess into a structure
@@ -395,8 +497,14 @@ elseif initialguessobjects.methodforguess==2 % treat S as idiosyncratic shock
     elseif ndims(pi_z)==4 % joint transition of z with S
         initialguessobjects.pi_zS=reshape(permute(pi_z,[1,3,2,4]),[N_z*N_S,N_z*N_S]).*repelem(pi_S,N_z,N_z);
     end
-    % NOT REALLY DONE YET, JUST GOING TO ASSUME INPUT WAS A BASIC z_grid WITH NO DEPENDENCE ON S
-    initialguessobjects.zS_gridvals=[repmat(CreateGridvals(n_z,z_grid,1),N_S,1),repelem(S_gridvals,N_z,1)];
+
+    % We aleady build z_gridvals
+    if zgriddependS==0
+        initialguessobjects.zS_gridvals=[repmat(z_gridvals,N_S,1),repelem(S_gridvals,N_z,1)];
+    elseif zgriddependS==1
+        z_gridvals=sum(z_gridvals_S.*shiftdim(statdist_S,-2)); % Bit weird, but will do for now. Not obvious what a better choice would be;
+        initialguessobjects.z_gridvals=[repmat(z_gridvals,N_S,1),repelem(S_gridvals,N_z,1)];
+    end
 end
 
 

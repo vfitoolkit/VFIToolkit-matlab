@@ -74,8 +74,14 @@ if recursiveeqmoptions.verbose>=1
     fprintf(' \n')
 end
 
-l_p=length(GEPriceParamNames);
+% l_p=length(GEPriceParamNames);
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+
+if recursiveeqmoptions.verbose>=2
+    fprintf('Some things that can be useful for debugging \n')
+    FnsToEvaluate
+    AggVarsPath
+end
 
 %% We do the time periods tt=1:T all in parallel
 % This leverages the fastOLG commands, which use a different shape
@@ -128,7 +134,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     tic;
     % Note: fastOLG, so VPath is (a,j)-by-z
     % VPath=reshape(VPath,[N_a,T,N_z]);
-    [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(reshape(VPath,[N_a,T,N_z]),N_a,N_z,N_S,T,pi_Sprime_T,AggVarsPath,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions);
+    [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(reshape(VPath,[N_a,T,N_z]),N_a,N_z,l_a,l_z,N_S,T,pi_Sprime_T,AggVarsPath,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions);
     % MatchedEV is the matched-expectations (have already taken expectation over Sprime)
     % DistMatches records which period is matched with which, not part of algorithm but provides useful/interesting feedback
     % DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); last dim 1 is index of match and 2 is distance to match

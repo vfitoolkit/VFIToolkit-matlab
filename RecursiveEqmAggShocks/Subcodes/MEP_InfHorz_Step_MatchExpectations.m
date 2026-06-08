@@ -1,10 +1,15 @@
-function [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(VPath,N_a,N_z,N_S,T,pi_Sprime_T,AggVarsPath,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions)
+function [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(VPath,N_a,N_z,l_a,l_z,N_S,T,pi_Sprime_T,AggVarsPath,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions)
 % VPath=reshape(VPath,[N_a,T,N_z]);
 
-Distances=nan(T,T);
+% MatchedEV will be [N_a,T,N_z] (as fastOLG)
+% MatchedEV(:,t,:) is the 'matched expectation' for the next period E[V_{t+1}]
 DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); % Use the closest few expectations [4th dimension: index 1 contains the t-index for the matches, index 2 contains the distances of the matches]
-% First, we have to find which agent dist with the same aggregate shock today are the 'most similar'
-if recursiveeqmoptions.matchE_distmeasure==1 % Kolmogorov-Smirnoff distance
+
+%% First, we just measure which AgentDist are 'most similar'
+% We measure the distance between them the AgentDist for every two periods
+Distances=nan(T,T);
+if recursiveeqmoptions.matchE_distmeasure==1
+    %% Kolmogorov-Smirnoff distance
     % Need to parallelize
     % Calculate distance for the upper triangular
     for tt1=1:T
@@ -23,13 +28,58 @@ if recursiveeqmoptions.matchE_distmeasure==1 % Kolmogorov-Smirnoff distance
         end
         Distances(tt1,tt1)=Inf;
     end
-elseif recursiveeqmoptions.matchE_distmeasure==2 % Distance of first moments
-    Distances_EndoState=100*abs(AggVarsPath.EndoState1.Mean'-AggVarsPath.EndoState1.Mean)./AggVarsPath.EndoState1.Mean; % percentage difference
-    Distances_ExoState=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
-    Distances=Distances_EndoState+Distances_ExoState;
+
+    % recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates
+
+elseif recursiveeqmoptions.matchE_distmeasure==2 
+    %% Percentage distance of first moments
+    if l_a>=1
+        Distances_EndoState1=100*abs(AggVarsPath.EndoState1.Mean'-AggVarsPath.EndoState1.Mean)./AggVarsPath.EndoState1.Mean; % percentage difference
+        if l_a>=2
+            Distances_EndoState2=100*abs(AggVarsPath.EndoState1.Mean'-AggVarsPath.EndoState1.Mean)./AggVarsPath.EndoState1.Mean; % percentage difference
+            if l_a>=3
+                Distances_EndoState3=100*abs(AggVarsPath.EndoState1.Mean'-AggVarsPath.EndoState1.Mean)./AggVarsPath.EndoState1.Mean; % percentage difference
+                Distances_EndoState=(Distances_EndoState1+Distances_EndoState2+Distances_EndoState3)/3;
+            else
+                Distances_EndoState=(Distances_EndoState1+Distances_EndoState2)/2;
+            end
+        else
+            Distances_EndoState=Distances_EndoState1;
+        end
+    end
+    if recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates==0
+        if l_z>=1
+            Distances_ExoState1=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+            if l_z>=2
+                Distances_ExoState2=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                if l_z>=3
+                    Distances_ExoState3=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                    if l_z>=4
+                        Distances_ExoState4=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                        if l_z>=5
+                            Distances_ExoState5=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                            Distances_ExoState=(Distances_ExoState1+Distances_ExoState2+Distances_ExoState3+Distances_ExoState4+Distances_ExoState5)/5;
+                        else
+                            Distances_ExoState=(Distances_ExoState1+Distances_ExoState2+Distances_ExoState3+Distances_ExoState4)/4;
+                        end
+                    else
+                        Distances_ExoState=(Distances_ExoState1+Distances_ExoState2+Distances_ExoState3)/3;
+                    end
+                else
+                    Distances_ExoState=(Distances_ExoState1+Distances_ExoState2)/2;
+                end
+            else
+                Distances_ExoState=Distances_ExoState1;
+            end
+        end
+        Distances=Distances_EndoState+Distances_ExoState;
+    else % if recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates==1
+        Distances=Distances_EndoState;
+    end
 end
 Distances=gpuArray(Distances);
-% Put indicators on the closest ones and store them in
+
+%% Put indicators on the closest ones and store them in
 MatchedEV_full=zeros(N_a,T,N_z,N_S,recursiveeqmoptions.matchE_nnearest,'gpuArray'); % note: N_a,T,N_z due to fastOLG
 if recursiveeqmoptions.matchingsetup==1 % Match Sprime based on Distances
     for tt=1:T-1
@@ -89,6 +139,8 @@ elseif recursiveeqmoptions.matchingsetup==2 % Match (S,Sprime) based on Distance
         end
     end
 end
+
+%% Build MatchedEV itself
 % For period T, we just fill MatchedEV with the MatchedEV that is the period most similar in terms of S and 'Distances' [we cannot next period S, so this will do]
 [~,matchindT]=min(Distances(T,:).*SSmask_T(ss_ind_T(T),:));
 MatchedEV_full(:,T,:,:,:)=MatchedEV_full(:,matchindT,:,:,:);

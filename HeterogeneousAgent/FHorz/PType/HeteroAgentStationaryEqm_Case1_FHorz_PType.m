@@ -366,12 +366,12 @@ for ii=1:PTypeStructure.N_i
 
     % ReturnFn and DiscountFactor
     [PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).DiscountFactorParamNames]=PType_setup_ReturnFnDiscountFactor(iistr,ReturnFn,DiscountFactorParamNames);
-    % And set up the ReturnFnParamNames
-    PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
 
     % Parameters
     PTypeStructure.(iistr).Parameters=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
     
+    % And set up the ReturnFnParamNames
+    PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
     
     %% Set up exogenous shock grids now (so they can then just be reused every time)
 
