@@ -1,4 +1,4 @@
-function [PricePath,GEcondnPath,VPath,PolicyIndexesPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting_nod(AggShocksPath, AggShockNames, T,SSmask_T,SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_a, n_z, n_S, l_aprime, l_a, l_z, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqnsStruct, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, simoptions,recursiveeqmoptions)
+function [PricePath,GEcondnPath,VPath,PolicyIndexesPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting_nod(AggShocksPath, AggShockNames, T,ss_ind_T, n_a, n_z, n_S, l_aprime, l_a, l_z, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqnsStruct, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects,matchexpectations, vfoptions, simoptions,recursiveeqmoptions)
 
 n_d=0;
 d_grid=[];
@@ -60,6 +60,8 @@ AgeWeights_T=repmat(repelem(ones(T,1,'gpuArray'),N_a,1),N_z,1);
 % For now I just use the fastOLG style approach
 fastOLGtheAgentDist=1;
 % But setting this to zero will do the time-loop version that Lee uses.
+
+% Or we could use the fastOLGtheAgentDist=1, but then periodically do the time-loop version every couple of iterations of the path
 goSlowAgentDistEveryN=Inf; % only relevant when fastOLGtheAgentDist=1, every goslowEveryN-th agent dist iteration is done iterating on t (rather than on path)
 % set goSlowAgentDistEveryN=Inf to disable
 
@@ -85,6 +87,7 @@ if recursiveeqmoptions.verbose>=2
     fprintf('Some things that can be useful for debugging \n')
     FnsToEvaluate
     AggVarsPath
+    AggVarNames
 end
 
 %% We do the time periods tt=1:T all in parallel
@@ -140,7 +143,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     tic;
     % Note: fastOLG, so VPath is (a,j)-by-z
     % VPath=reshape(VPath,[N_a,T,N_z]);    
-    [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(reshape(VPath,[N_a,T,N_z]),N_a,N_z,l_a,l_z,N_S,T,pi_Sprime_T,AggVarsPath,SSprimemask_T,SSmask_T,SSprimemask_T_indexes,ss_ind_T,recursiveeqmoptions);
+    [MatchedEV,DistMatches]=MEP_InfHorz_Step_MatchExpectations(reshape(VPath,[N_a,T,N_z]),N_a,N_z,l_a,l_z,N_S,T,pi_Sprime_T,AggVarsPath,matchexpectations,recursiveeqmoptions);
     % MatchedEV is the matched-expectations (have already taken expectation over Sprime)
     % DistMatches records which period is matched with which, not part of algorithm but provides useful/interesting feedback
     % DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); last dim 1 is index of match and 2 is distance to match
@@ -351,28 +354,29 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     % Create plots of the transition path (before we update pricepath)
     createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,recursiveeqmoptions);
 
-    % Create a plot about the matching process (omit period T)
-    matchingmap=zeros(T-1,T-1);
-    for S_c=1:N_S
-        for tt=1:T-1
-        matchingmap(tt,DistMatches(tt,S_c,1,1))=1;
-        end
-    end
+    % Create plots about the matching expectations process
     if recursiveeqmoptions.verbose>=2
-        figure(4)
-        maprange=floor(T/2):1:floor(T/2)+19;
-        heatmap(matchingmap(maprange,maprange))
-        title('Heatmap of the Matches (for 20 time periods)')
+        % % Create a plot about the matching process (omit period T)
+        % matchingmap=zeros(T-1,T-1);
+        % for S_c=1:N_S
+        %     for tt=1:T-1
+        %         matchingmap(tt,DistMatches(tt,S_c,1,1))=1;
+        %     end
+        % end
+        % figure(4)
+        % maprange=floor(T/2):1:floor(T/2)+19;
+        % heatmap(matchingmap(maprange,maprange))
+        % title('Heatmap of the Matches (for 20 time periods)')
 
-        figure(5)
-        for a_c=1:l_a
-            matchingAggEndoState=zeros(T-1,N_S);
-            for S_c=1:N_S
-                matchingAggEndoState(:,S_c)=AggVarsPath.EndoState1.Mean(DistMatches(1:end-1,S_c,1,1));
-            end
-            subplot(l_a,1,a_c); plot(1:1:T-1,matchingAggEndoState)
-            title(['Aggregate value of endogenous state ',num2str(a_c),' in each match (one line for each S value)'])
-        end
+        % figure(5)
+        % for a_c=1:l_a
+        %     matchingAggEndoState=zeros(T-1,N_S);
+        %     for S_c=1:N_S
+        %         matchingAggEndoState(:,S_c)=AggVarsPath.EndoState1.Mean(DistMatches(:,S_c,1,1));
+        %     end
+        %     subplot(l_a,1,a_c); plot(1:1:T-1,matchingAggEndoState)
+        %     title(['Aggregate value of endogenous state ',num2str(a_c),' in each match (one line for each S value)'])
+        % end
     end
     
     % Update PricePathOld

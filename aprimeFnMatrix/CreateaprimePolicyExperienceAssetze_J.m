@@ -20,8 +20,14 @@ function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetze_J(Po
 % shifted so j lives at the appropriate dimension for the chosen fastOLG.
 %
 % Output sizes:
-%   fastOLG==0 : [N_a, N_semizze, N_j]
-%   fastOLG==1 : [N_a, N_j, N_semizze]
+%   l_a2==1 (legacy):
+%     fastOLG==0 : a2primeIndexes/Probs [N_a, N_semizze, N_j]
+%     fastOLG==1 : a2primeIndexes/Probs [N_a, N_j, N_semizze]
+%   l_a2==2 (multi-dim, per-dim factored; fastOLG==0 only at present):
+%     fastOLG==0 : a2primeIndexes/Probs [N_a, l_a2, N_semizze, N_j]
+%     a2primeIndexes(:,k,:,:) = lower-grid index in a2_k dim
+%     a2primeProbs(:,k,:,:)   = probability of lower grid point in a2_k dim
+%     Caller does nested 2-corner interp (Kron-fold to 4 corners).
 %
 % Note: N_semizze = N_semiz * N_z * N_e (with size-1 substituted for any
 % absent dim) is just the 'size' of Policy beyond a and j.
@@ -34,10 +40,20 @@ else
 end
 
 l_dexp=length(whichisdforexpasset);
+l_a2=length(n_a2);
 l_z=length(n_z);
 l_e=length(n_e);
 
-if nargin(aprimeFn)~=l_dexp+1+l_z+l_e+size(aprimeFnParams,2)
+if l_a2>2
+    error('experienceassetze currently supports length(n_a2) in {1,2}')
+end
+if l_a2>1 && fastOLG==1
+    error('experienceassetze l_a2==2 is not yet supported in fastOLG==1 mode')
+end
+
+if nargin(aprimeFn)~=l_dexp+l_a2+l_z+l_e+(l_a2>=2)+size(aprimeFnParams,2)
+    % When l_a2>=2, aprimeFn takes an extra 'whicha' integer selector slot
+    % between the z,e inputs and the parameter inputs.
     error('Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
 end
 
@@ -97,10 +113,24 @@ if fastOLG==0 % state order (a, semiz, z, e, j)
         end
     end
 
-    if N_a1==0
-        a2vals=a2_grid;
-    else
-        a2vals=repelem(a2_grid,N_a1,1);
+    if l_a2==1
+        if N_a1==0
+            a2vals=a2_grid;
+        else
+            a2vals=repelem(a2_grid,N_a1,1);
+        end
+    elseif l_a2==2
+        n_a2_1=n_a2(1); n_a2_2=n_a2(2);
+        a2_grid_1=a2_grid(1:n_a2_1);
+        a2_grid_2=a2_grid(n_a2_1+1:n_a2_1+n_a2_2);
+        a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
+        if N_a1==0
+            a2vals_1=a2_gridvals(:,1);
+            a2vals_2=a2_gridvals(:,2);
+        else
+            a2vals_1=repelem(a2_gridvals(:,1),N_a1,1);
+            a2vals_2=repelem(a2_gridvals(:,2),N_a1,1);
+        end
     end
 
     % permute once: [N_z, l_z, N_j] -> [1, 1, N_z, 1, N_j, l_z]; index final dim per z column
@@ -133,7 +163,8 @@ if fastOLG==0 % state order (a, semiz, z, e, j)
         end
     end
 
-    %% expassetze_J: aprime(d, a2, z, e)
+    %% expassetze_J: aprime(d, a2, z, e) [plus whicha when l_a2>=2]
+    if l_a2==1
     if l_dexp==1
         if l_z==1
             if l_e==1
@@ -321,6 +352,41 @@ if fastOLG==0 % state order (a, semiz, z, e, j)
 
     a2primeIndexes=reshape(a2primeIndexes,[N_a,N_semizze,N_j]);
     a2primeProbs=reshape(a2primeProbs,[N_a,N_semizze,N_j]);
+
+    elseif l_a2==2
+        %% Multi-dim a2 (l_a2=2) in fastOLG==0: bilinear, per-dim factored
+        % Build arrayfun arg list dynamically (avoids 4*4*4*2 enumeration).
+        args=cell(0,1);
+        args{end+1}=d1vals;
+        if l_dexp>=2, args{end+1}=d2vals; end
+        if l_dexp>=3, args{end+1}=d3vals; end
+        if l_dexp>=4, args{end+1}=d4vals; end
+        args{end+1}=a2vals_1;
+        args{end+1}=a2vals_2;
+        if l_z>=1, args{end+1}=z1vals; end
+        if l_z>=2, args{end+1}=z2vals; end
+        if l_z>=3, args{end+1}=z3vals; end
+        if l_z>=4, args{end+1}=z4vals; end
+        if l_e>=1, args{end+1}=e1vals; end
+        if l_e>=2, args{end+1}=e2vals; end
+        if l_e>=3, args{end+1}=e3vals; end
+        if l_e>=4, args{end+1}=e4vals; end
+
+        args1=[args; {1}; ParamCell];
+        args2=[args; {2}; ParamCell];
+        a2pVals_1=arrayfun(aprimeFn, args1{:});
+        a2pVals_2=arrayfun(aprimeFn, args2{:});
+
+        [loIdx_1, prob_1]=local_interp1d(a2pVals_1, a2_grid_1, n_a2_1);
+        [loIdx_2, prob_2]=local_interp1d(a2pVals_2, a2_grid_2, n_a2_2);
+
+        a2primeIndexes=zeros(N_a,l_a2,N_semizze,N_j,'gpuArray');
+        a2primeProbs=zeros(N_a,l_a2,N_semizze,N_j,'gpuArray');
+        a2primeIndexes(:,1,:,:)=reshape(loIdx_1,[N_a,1,N_semizze,N_j]);
+        a2primeIndexes(:,2,:,:)=reshape(loIdx_2,[N_a,1,N_semizze,N_j]);
+        a2primeProbs(:,1,:,:)=reshape(prob_1,[N_a,1,N_semizze,N_j]);
+        a2primeProbs(:,2,:,:)=reshape(prob_2,[N_a,1,N_semizze,N_j]);
+    end
 
 
 elseif fastOLG==1 % state order (a, j, semiz, z, e)
@@ -599,4 +665,37 @@ elseif fastOLG==1 % state order (a, j, semiz, z, e)
 
 end
 
+end
+
+
+function [loIdx, prob]=local_interp1d(aprimeVals, grid, n_grid)
+% 1D linear-interp: lower-grid index in 1..n_grid and prob of lower point.
+apvals=aprimeVals(:);
+N=numel(apvals);
+griddiff=grid(2:end)-grid(1:end-1);
+
+if N*n_grid<1000000
+    [~,upIdx]=max((grid>apvals'),[],1);
+    loIdx=upIdx-1;
+    loIdx(loIdx==0)=1;
+    loIdx=loIdx(:);
+    residual=apvals-grid(loIdx);
+    prob=1-residual./griddiff(loIdx);
+    offTop=(apvals>=grid(end));
+    loIdx(offTop)=n_grid-1;
+    prob(offTop)=0;
+    offBottom=(apvals<=grid(1));
+    prob(offBottom)=1;
+else
+    loIdx=discretize(apvals,grid);
+    loIdx=loIdx(:);
+    offBottom=(apvals<=grid(1));
+    loIdx(offBottom)=1;
+    offTop=(apvals>=grid(end));
+    loIdx(offTop)=n_grid-1;
+    residual=apvals-grid(loIdx);
+    prob=1-residual./griddiff(loIdx);
+    prob(offBottom)=1;
+    prob(offTop)=0;
+end
 end

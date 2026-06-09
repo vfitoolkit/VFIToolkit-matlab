@@ -190,8 +190,11 @@ Policy(4,:,:) = reshape(2 + (inInterior & isInfLower) - (inInterior & isInfUpper
 if any(~isfinite(Ftemp))
     warning('Howards-greedy cannot be used for models where V contains values of -Inf. This model looks like it may be one where V takes a value of -Inf at some points in the state-space. Consider checking solution against that with vfoptions.howardsgreedy=0')
 end
-if tempcounter>=vfoptions.maxiter
-    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+if currdist > vfoptions.tolerance
+    warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, vfoptions.tolerance)
 end
 
 end

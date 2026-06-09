@@ -2,13 +2,15 @@ function StationaryDist=StationaryDist_FHorz_ExpAssetze(jequaloneDist,AgeWeightP
 
 %% Setup related to experience asset
 n_d2=n_d(end-simoptions.l_dexperienceassetze+1:end);
-% Split endogenous assets into the standard ones and the experience asset
-if isscalar(n_a)
+% Split endogenous assets into the standard ones and the experience asset(s).
+% simoptions.experienceassetze is the *count* of EAZE dims (1 or 2).
+l_a2=simoptions.experienceassetze;
+if length(n_a)<=l_a2
     n_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-l_a2);
 end
-n_a2=n_a(end); % n_a2 is the experience asset
+n_a2=n_a(end-l_a2+1:end); % last l_a2 dims are the experience asset(s)
 
 if ~isfield(simoptions,'aprimeFn')
     error('To use an experience asset you must define simoptions.aprimeFn')
@@ -54,37 +56,82 @@ Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 
 %% expassetze transitions
 % Policy is currently about d and a1prime. Convert it to being about aprime
-% as that is what we need for simulation, and we can then just send it to standard Case1 commands.
-Policy_aprime=zeros(N_a,N_ze,2,N_j,'gpuArray'); % the lower grid point
-PolicyProbs=zeros(N_a,N_ze,2,N_j,'gpuArray'); % The third dimension is lower/upper grid point
-whichisdforexpassetze=length(n_d)-simoptions.l_dexperienceassetze+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
+% (Kron'd linear index in N_a=N_a1*N_a2 space), per corner, with probs.
+% For l_a2==1: 2 corners (lower/upper). For l_a2==2: 4 corners (bilinear lattice).
+Kaprimepts=2^l_a2;
+Policy_aprime=zeros(N_a,N_ze,Kaprimepts,N_j,'gpuArray'); % Kron'd a-index per corner
+PolicyProbs  =zeros(N_a,N_ze,Kaprimepts,N_j,'gpuArray'); % corner probabilities
+whichisdforexpassetze=length(n_d)-simoptions.l_dexperienceassetze+1:length(n_d);
+
+l_a1=length(n_a)-l_a2;
+N_a1=prod(n_a1);
+if N_a1==0
+    N_a1=1; % so the Kron offset N_a1*(a2Kron-1) is well-defined; a2Kron alone is the index
+end
+N_a2=prod(n_a2);
+
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssetze(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpassetze, n_d, n_a1,n_a2, n_z, simoptions.n_e, 0,N_z,N_e, d_grid, a2_grid, z_gridvals_J(:,:,jj), simoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
-    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_ze] with z varying fastest -- matches N_ze=[n_z,n_e] ordering.
-    % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
+    % l_a2==1: aprimeIndexes/aprimeProbs are [N_a, N_ze] (lower-corner; upper = lower+1)
+    % l_a2==2: aprimeIndexes/aprimeProbs are [N_a, l_a2, N_ze] (per-dim factored)
 
-    if l_a==1 % just experience asset
-        Policy_aprime(:,:,1,jj)=aprimeIndexes;
-        Policy_aprime(:,:,2,jj)=aprimeIndexes+1;
-    elseif l_a==2 % one other asset, then experience asset
-        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(aprimeIndexes-1);
-        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1);
-    elseif l_a==3 % two other assets, then experience asset
-        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+prod(n_a(1:2))*(aprimeIndexes-1);
-        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+prod(n_a(1:2));
-    elseif l_a==4 % three other assets, then experience asset
-        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+prod(n_a(1:2))*(shiftdim(Policy(l_d+3,:,:,jj),1)-1)+prod(n_a(1:3))*(aprimeIndexes-1);
-        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+prod(n_a(1:3));
-    elseif l_a==5 % four other assets, then experience asset
-        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+prod(n_a(1:2))*(shiftdim(Policy(l_d+3,:,:,jj),1)-1)+prod(n_a(1:3))*(shiftdim(Policy(l_d+4,:,:,jj),1)-1)+prod(n_a(1:4))*(aprimeIndexes-1);
-        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+prod(n_a(1:4));
+    % Build a1-Kron'd index, same shape for all corners ([N_a, N_ze]).
+    if l_a1==0
+        a1primeKron=zeros(N_a,N_ze,'gpuArray'); % no a1; offset is 0 (a2Kron itself is the index)
     else
-        error('Not yet implemented experience asset with length(n_a)>5')
+        a1primeKron=shiftdim(Policy(l_d+1,:,:,jj),1);
+        if l_a1>=2
+            a1primeKron=a1primeKron+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1);
+        end
+        if l_a1>=3
+            a1primeKron=a1primeKron+prod(n_a(1:2))*(shiftdim(Policy(l_d+3,:,:,jj),1)-1);
+        end
+        if l_a1>=4
+            a1primeKron=a1primeKron+prod(n_a(1:3))*(shiftdim(Policy(l_d+4,:,:,jj),1)-1);
+        end
+        if l_a1>=5
+            error('Not yet implemented experience asset with length(n_a1)>4')
+        end
+        a1primeKron=a1primeKron-1; % zero-based offset so the final +1 comes from a2Kron
     end
 
-    PolicyProbs(:,:,1,jj)=aprimeProbs;
-    PolicyProbs(:,:,2,jj)=1-aprimeProbs;
+    if l_a2==1
+        for c=1:Kaprimepts
+            if c==1
+                a2Kron=aprimeIndexes;
+                pcorner=aprimeProbs;
+            else
+                a2Kron=aprimeIndexes+1;
+                pcorner=1-aprimeProbs;
+            end
+            if l_a1==0
+                Policy_aprime(:,:,c,jj)=a2Kron;
+            else
+                Policy_aprime(:,:,c,jj)=a1primeKron+1+N_a1*(a2Kron-1);
+            end
+            PolicyProbs(:,:,c,jj)=pcorner;
+        end
+    else % l_a2==2
+        n_a2_1=n_a2(1);
+        loIdx_1=reshape(aprimeIndexes(:,1,:),[N_a,N_ze]);
+        loIdx_2=reshape(aprimeIndexes(:,2,:),[N_a,N_ze]);
+        prob_1=reshape(aprimeProbs(:,1,:),[N_a,N_ze]);
+        prob_2=reshape(aprimeProbs(:,2,:),[N_a,N_ze]);
+        bits=[0 0; 1 0; 0 1; 1 1];
+        for c=1:Kaprimepts
+            b1=bits(c,1); b2=bits(c,2);
+            a2Kron=(loIdx_1+b1)+n_a2_1*((loIdx_2+b2)-1);
+            if l_a1==0
+                Policy_aprime(:,:,c,jj)=a2Kron;
+            else
+                Policy_aprime(:,:,c,jj)=a1primeKron+1+N_a1*(a2Kron-1);
+            end
+            p1=prob_1; if b1==1, p1=1-p1; end
+            p2=prob_2; if b2==1, p2=1-p2; end
+            PolicyProbs(:,:,c,jj)=p1.*p2;
+        end
+    end
 end
 
 
@@ -94,8 +141,11 @@ clear aprimeIndexes aprimeProbs
 %%
 if simoptions.gridinterplayer==0
     % Both z and e required for experienceassetze
-    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,gather(Policy_aprime),gather(PolicyProbs),2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,gather(Policy_aprime),gather(PolicyProbs),Kaprimepts,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
 elseif simoptions.gridinterplayer==1
+    if l_a2>1
+        error('gridinterplayer=1 not yet supported with multi-dim experienceassetze (l_a2>1)')
+    end
     % (a,z,2,j)
     Policy_aprime=repmat(Policy_aprime,1,1,2,1);
     % Policy_aprime(:,:,1:2,:) lower grid point for a1 is unchanged

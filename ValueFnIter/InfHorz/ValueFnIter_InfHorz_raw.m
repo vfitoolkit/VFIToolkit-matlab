@@ -61,8 +61,11 @@ Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
 Policy(1,:,:)=shiftdim(rem(PolicyIndexes-1,N_d)+1,-1);
 Policy(2,:,:)=shiftdim(ceil(PolicyIndexes/N_d),-1);
 
-if tempcounter>=maxiter
-    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+if currdist > Tolerance
+    warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, Tolerance)
 end
 
 end

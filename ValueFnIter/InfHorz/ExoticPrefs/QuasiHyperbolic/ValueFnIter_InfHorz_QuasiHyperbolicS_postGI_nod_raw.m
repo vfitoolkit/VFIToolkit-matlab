@@ -164,8 +164,11 @@ Policy_a=reshape(Policy,[1,N_a,N_z]);
 Policy=local_extract_postGI(Policy_a, aprimeshifter, n2short, vfoptions, N_a, N_z, N_aprime, ReturnMatrixfine, addindexforazfine);
 Policyalt=[];
 
-if tempcounter>=vfoptions.maxiter
-    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+if currdist > vfoptions.tolerance
+    warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, vfoptions.tolerance)
 end
 
 end
