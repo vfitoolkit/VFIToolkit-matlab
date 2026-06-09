@@ -14,7 +14,15 @@ if ~isfield(recursiveeqmoptions,'maxiter')
     recursiveeqmoptions.maxiter=1000; % maximum iterations of optimization routine
 end
 if ~isfield(recursiveeqmoptions,'burnin')
-    recursiveeqmoptions.burnin=100; % burnin on the aggregate shock
+    recursiveeqmoptions.burnin=30; % burnin on the aggregate shock
+    % Note: This burnin is used to avoid the ends of the generalized transition path during the matching expectations step.
+    % Burnin at both ends.
+    % Burnin this many periods at the beginning to eliminate influence of t=1 distribution
+    % Burnin this many periods at the end to eliminate influence of t=T expected value fn
+end
+if ~isfield(recursiveeqmoptions,'burnin_simS')
+    % separate burnin, this is just for the simulation of the S path, not used when iterating the path
+    recursiveeqmoptions.burnin_simS=50; 
 end
 if ~isfield(recursiveeqmoptions,'graphpricepath')
     recursiveeqmoptions.graphpricepath=0;
@@ -63,11 +71,15 @@ GeneralizedTransitionFn=struct();
 
 %%
 if recursiveeqmoptions.verbose>=1
-    fprintf('VFI Toolkit uses the Matched-Expectations Path of Hanbaek Lee to solve models with Aggregate Shocks, please cite his paper if you use this in your publication: Global Nonlinear Solutions in Sequence Space and the Generalized Transition Function')
+    fprintf(['VFI Toolkit uses the Matched-Expectations Path of Hanbaek Lee to solve models with Aggregate Shocks  \n' ...
+        'Please cite his paper if you use this in your publication: Global Nonlinear Solutions in Sequence Space and the Generalized Transition Function  \n'])
 end
 
-%% Just treat burnin+T as T, and then remove the burnin while cleaning up at the end
-T=recursiveeqmoptions.burnin+T;
+%% Just treat burnin+T+burnin as T, and then remove the burnin while cleaning up at the end
+T=recursiveeqmoptions.burnin+T+recursiveeqmoptions.burnin;
+% Note: Burnin at both ends.
+% Burnin this many periods at the beginning to eliminate influence of t=1 distribution
+% Burnin this many periods at the end to eliminate influence of t=T expected value fn
 
 l_S=length(n_S);
 
@@ -124,84 +136,6 @@ for SS_c=1:l_S
 end
 
 
-%% Setup for how to implement the Matching Expectations
-recursiveeqmoptions.matchE_nnearest=1; % How many 'nearest' agent distributions to use when constructing expectations
- % =1 Match Sprime based on Distances
- % =2 Match (S,Sprime) based on Distances
- % Note: =1 is standard, but when pi(z,zprime) is conditional on both S and Sprime it will instead use =2
-recursiveeqmoptions.matchE_distmeasure=2; % How to measure the distance between agent distributions
- % =1 is Kolmogorov-Smirnoff distance, not yet implemented
- % =2 is Mean of (next period) Endogenous and (this period) Exogenous States
-
-if recursiveeqmoptions.matchE_distmeasure==2
-    % Create FnsToEvaluate the are the endogenous state and exogenous state
-    nfinput = l_aprime+l_a+l_z; % Variable number of inputs (this is the nod code)
-    inputNames = compose('x%d', 1:nfinput); % Create {'x1', 'x2', ..., 'x5'}
-    argStr = strjoin(inputNames, ','); % Create 'x1,x2,x3,x4,x5'
-    % Endogenous states
-    if l_a>=1
-        FnsToEvaluate.EndoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+1)]);
-        if l_a>=2
-            FnsToEvaluate.EndoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+2)]);
-            if l_a>=3
-                FnsToEvaluate.EndoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+3)]);
-                if l_a>=4
-                    error('Have not implemented expectations matching for lenght(n_a)>3')
-                end
-            end
-        end
-    end
-    % Exogenous states
-    FnsToEvaluate_Exo=struct();
-    if l_z>=1
-        FnsToEvaluate_Exo.ExoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+1)]);
-        if l_z>=2
-            FnsToEvaluate_Exo.ExoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+2)]);
-            if l_z>=3
-                FnsToEvaluate_Exo.ExoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+3)]);
-                if l_z>=4
-                    FnsToEvaluate_Exo.ExoState4=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+4)]);
-                    if l_z>=5
-                        FnsToEvaluate_Exo.ExoState5=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+5)]);
-                        if L_z>=6
-                            error('Have not implemented expectations matching for lenght(n_z)>5')
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
-
-%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
-AggVarNames=fieldnames(FnsToEvaluate);
-FnsToEvaluateCell=cell(1,length(AggVarNames));
-for ff=1:length(AggVarNames)
-    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-    if length(temp)>(l_daprime+l_a+l_z+l_e) % Note: S is not counted here, as that is handled via Parameters
-        FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
-    else
-        FnsToEvaluateParamNames(ff).Names={};
-    end
-    FnsToEvaluateCell{ff}=FnsToEvaluate.(AggVarNames{ff});
-end
-% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
-simoptions.outputasstructure=1;
-
-%% GE eqns, switch from structure to cell setup
-GEeqnNames=fieldnames(GeneralEqmEqns);
-nGeneralEqmEqns=length(GEeqnNames);
-
-GeneralEqmEqnsCell=cell(1,nGeneralEqmEqns);
-for gg=1:nGeneralEqmEqns
-    temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
-    GeneralEqmEqnParamNames(gg).Names=temp;
-    GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
-end
-% Now:
-%  GeneralEqmEqns is still the structure
-%  GeneralEqmEqnsCell is cell
-%  GeneralEqmEqnParamNames(ff).Names contains the names
 
 
 %% Set up the path:
@@ -216,7 +150,7 @@ cumsum_pi_S=cumsum(pi_S,2);
 % setup ParamPath as the aggregate shock path
 AggShocksPathIndexesMatrix=zeros(l_S,T);
 ss_ind=1+floor(rand(1,1)*N_S); % pick random initial S
-for bb=1:recursiveeqmoptions.burnin
+for bb=1:recursiveeqmoptions.burnin_simS
     [~,ss_ind]=max(cumsum_pi_S(ss_ind,:)>rand(1,1));
 end
 ss_ind_T=zeros(T,1); % one spare at end
@@ -241,87 +175,7 @@ for SS_c=1:length(n_S)
 end
 
 
-%% Matching setup
-recursiveeqmoptions.matchingsetup=1; % Match based on Sprime and Distance
-if ndims(pi_z)==4 % joint transition of z with S
-    recursiveeqmoptions.matchingsetup=2; % Match based on (S,Sprime) and Distance
-end
-% When pi_z and z_grid are independent of S and Sprime, we can omit exogenous states from the matching process entirely
-% recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates is set below
-
-
-if recursiveeqmoptions.matchingsetup==1
-    % To be able to speed up the code, we create a record of which t is which S
-    % For a given S, the row of SSmask_T indicates all the periods with the same S
-    SSmask_T=zeros(N_S,T,'gpuArray');
-    SSprimemask_T=zeros(1,T,N_S,'gpuArray'); % For given SS_c and SSprime_c, it will give a vector of length T, with 1s where you get that combo (SS_c,SSprime_c) at tt
-    for tt=1:T
-        SSmask_T(ss_ind_T(tt),tt)=1;
-        if tt<T
-            SSprimemask_T(1,tt,ss_ind_T(tt+1))=1;
-        end
-    end
-    SSmask_T=logical(SSmask_T);
-    SSprimemask_T=logical(SSprimemask_T); % Note: for last period this is zero by construction (as cannot see periods after)
-    % % notSSmask_Tplus1(SSprime_c,:) should have zeros when next-period is SSprime_c, otherwise has 1 (plus we will put 1 in period T and in burnin periods)
-    % notSSmask_Tplus1=[(~SSmask_T(:,2:end)),logical(ones(N_S,1,'gpuArray'))]; % next period, 2:end, and then for final period just 'always not' with the ones()
-
-    % LAZY ASS VERSION (I should after a few iterations just throw away the burnin, as it is a lot of things to calculate when you are not using them)
-    % Just use Mask to rule out the whole burnin of the value fns
-    SSmask_T(:,1:recursiveeqmoptions.burnin)=0; % remove these from consideration
-    SSprimemask_T(1,1:recursiveeqmoptions.burnin,:)=0; % remove these from consideration
-    % notSSmask_Tplus1(:,1:recursiveeqmoptions.burnin)=1; % remove these from consideration
-
-    SSprimemask_T_indexes=repmat(gpuArray(1:1:T),1,1,N_S); % Have to initially have same size as SSprimemask_T, for the next line
-    SSprimemask_T_indexes(~SSprimemask_T)=nan;
-    SSprimemask_T_indexes=reshape(SSprimemask_T_indexes,[T,N_S]);
-    SSprimemask_T_indexes=sort(SSprimemask_T_indexes,1); % Note: sort() moves all the Nan to the end
-    % SSprimemask_T_indexes keeps the time period indexes that correspond to the ones in SSprimemask_T
-
-elseif recursiveeqmoptions.matchingsetup==2
-    % To be able to speed up the code, we create a record of which t is which S
-    % For a given S, the row of SSmask_T indicates all the periods with the same S
-    % We also want to find where there is same S today, with different Sprimes next period.
-    SSmask_T=zeros(N_S,T,'gpuArray');
-    SSprimemask_T=zeros(1,T,N_S,N_S,'gpuArray'); % For given SS_c and SSprime_c, it will give a vector of length T, with 1s where you get that combo (SS_c,SSprime_c) at tt
-    for tt=1:T
-        SSmask_T(ss_ind_T(tt),tt)=1;
-        if tt<T
-            SSprimemask_T(1,tt,ss_ind_T(tt),ss_ind_T(tt+1))=1;
-        end
-    end
-    SSmask_T=logical(SSmask_T);
-    SSprimemask_T=logical(SSprimemask_T); % Note: for last period this is zero by construction (as cannot see periods after)
-    % % notSSmask_Tplus1(SSprime_c,:) should have zeros when next-period is SSprime_c, otherwise has 1 (plus we will put 1 in period T and in burnin periods)
-    % notSSmask_Tplus1=[(~SSmask_T(:,2:end)),logical(ones(N_S,1,'gpuArray'))]; % next period, 2:end, and then for final period just 'always not' with the ones()
-
-    % LAZY ASS VERSION (I should after a few iterations just throw away the burnin, as it is a lot of things to calculate when you are not using them)
-    % Just use Mask to rule out the whole burnin of the value fns
-    SSmask_T(:,1:recursiveeqmoptions.burnin)=0; % remove these from consideration
-    SSprimemask_T(1,1:recursiveeqmoptions.burnin,:,:)=0; % remove these from consideration
-    % notSSmask_Tplus1(:,1:recursiveeqmoptions.burnin)=1; % remove these from consideration
-
-    SSprimemask_T_indexes=repmat(gpuArray(1:1:T),1,1,N_S,N_S); % Have to initially have same size as SSprimemask_T, for the next line
-    SSprimemask_T_indexes(~SSprimemask_T)=nan;
-    SSprimemask_T_indexes=reshape(SSprimemask_T_indexes,[T,N_S,N_S]);
-    SSprimemask_T_indexes=sort(SSprimemask_T_indexes,1); % Note: sort() moves all the Nan to the end
-    % SSprimemask_T_indexes keeps the time period indexes that correspond to the ones in SSprimemask_T
-end
-
-if recursiveeqmoptions.verbose==2
-    fprintf('Number of instances of each S (multidimensional index) \n')
-    sum(SSmask_T,2)
-    figure(10)
-    plot(-recursiveeqmoptions.burnin+1:1:T-recursiveeqmoptions.burnin,ss_ind_T)
-    title('Time series for S index in the Generalized Transition Fn (shaded area is burnin)')
-    hold on
-    patch([-recursiveeqmoptions.burnin+1 0 0 -recursiveeqmoptions.burnin+1],[1 1 2 2],'r', 'FaceAlpha', 0.2, 'EdgeColor', 'none');
-    hold off
-    xlim([-recursiveeqmoptions.burnin+1,T-recursiveeqmoptions.burnin])
-end
-
-
-%% Setup path for idiosyncratic shocks
+%% Setup path for idiosyncratic shocks: pi_z_T and z_gridvals_T
 % Three possibilities for the dependence of idiosyncratic shocks on aggregate shocks
 % pizdependS=0: idiosyncratic shock transition probabilities are independent of aggregate shocks
 % pizdependS=1: idiosyncratic shock transition probabilities depend on S
@@ -448,8 +302,26 @@ end
 % For the fastOLG evaluation of AggVars we need
 z_gridvals_T_fastOLG=shiftdim(z_gridvals_T,-1); % [1,T,N_z,l_z] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
 % Keep some of this stuff for the output
-GeneralizedTransitionFn.OtherStuff.pi_z_T=pi_z_T(:,:,recursiveeqmoptions.burnin+1:end);
-GeneralizedTransitionFn.OtherStuff.z_gridvals_T=z_gridvals_T(recursiveeqmoptions.burnin+1:end,:,:);
+GeneralizedTransitionFn.OtherStuff.pi_z_T=pi_z_T(:,:,recursiveeqmoptions.burnin+1:end-recursiveeqmoptions.burnin+1);
+GeneralizedTransitionFn.OtherStuff.z_gridvals_T=z_gridvals_T(recursiveeqmoptions.burnin+1:end-recursiveeqmoptions.burnin+1,:,:);
+
+if recursiveeqmoptions.verbose>=2
+    fprintf('\n Interpretation of shock setup: \n')
+    if zgriddependS==0
+        fprintf('Idiosyncratic shocks, z, grid is independent of aggregate S \n')
+    elseif zgriddependS==1
+        fprintf('Idiosyncratic shocks, z, grid depends on aggregate S \n')
+    end
+    if pizdependS==0
+        fprintf('Idiosyncratic shocks, z, transition probabilities are independent of S \n')
+    elseif pizdependS==1
+        fprintf('Idiosyncratic shocks, z, transition probabilities depend on S \n')
+    elseif pizdependS==2
+        fprintf('Idiosyncratic shocks, z, transition probabilities depend on S and Sprime \n')
+    end
+    fprintf(' \n')
+end
+
 
 
 %% Things for the initial guess
@@ -515,22 +387,188 @@ elseif initialguessobjects.methodforguess==2 % treat S as idiosyncratic shock
     end
 end
 
-%% Precompute the matching distances for the idiosyncratic exogenous states as these are constant across path iterations
+
+
+%% Matching Expectations
+% Set some options about exactly how the matching will be done.
+
+% First, we normally match on Sprime, but sometimes need to do something more
+recursiveeqmoptions.matchingsetup=1; % Match based on Sprime and Distance
+if ndims(pi_z)==4 % joint transition of z with S
+    recursiveeqmoptions.matchingsetup=2; % Match based on (S,Sprime) and Distance
+end
+
+% How to measure the distance:
+recursiveeqmoptions.matchE_distmeasure=2; % How to measure the distance between agent distributions
+% =1 is Kolmogorov-Smirnoff distance, not yet implemented
+% =2 is Mean of (next period) Endogenous and (this period) Exogenous States
+
+% How to handle the idiosyncratic exogenous states:
+recursiveeqmoptions.matching_IdiosyncraticExogenousStates=1;
+% When pi_z is independent of S and Sprime, we can omit exogenous states from the matching process entirely
+if pizdependS==0 % pizdependS=0: idiosyncratic shock transition probabilities are independent of aggregate shocks
+    % When matching, we can just ignore the idiosyncratic exogenous states as they will anyway be identical in every period.
+    recursiveeqmoptions.matching_IdiosyncraticExogenousStates=0;
+end
+% When idiosyncratic states are being determined in General Eqm, WE WILL NEED THE CURRENTLY UNUSED
+% recursiveeqmoptions.matching_IdiosyncraticExogenousStates=2;
+
+% How many 'nearest' agent distributions to use when constructing expectations
+recursiveeqmoptions.matchE_nnearest=1;
+% Idea is that instead of just using the single best match (=1) we can,
+% e.g., instead use the average of the best three matches (=3).
+if recursiveeqmoptions.matchE_nnearest>1
+    error('Cannot yet use recursiveeqmoptions.matchE_nnearest>1 to match more than one period')
+end
+
+% Convenient to just keep a bunch of things needed to match expectations together in a structure
+matchexpectations=struct();
+
+%% Matching Setup 1/3
+% Build masks for the values of Sprime that allow us to speed up the computation of the expectations
+
+% if recursiveeqmoptions.matchingsetup==1 % Match based on Sprime and Distance of t+1 [the baseline]
+
+% To be able to speed up the code, we create a record of which t is which S
+% For a given S, the row of SSmask_T indicates all the periods with the same S
+SSmask_T=zeros(N_S,T,'gpuArray'); % For SS_c, it gives you a vector of length T, with 1s in the time periods tt where you get that SS_c
+SSprimemask_T=zeros(1,T,N_S,'gpuArray'); % For SSprime_c, it gives you a vector of length T, with 1s in the time periods tt where you get that SSprime_c
+for tt=1:T
+    SSmask_T(ss_ind_T(tt),tt)=1;
+    if tt<T
+        SSprimemask_T(1,tt,ss_ind_T(tt+1))=1;
+    end
+end
+% Use Mask to rule out the burnin of the value fns from consideration
+SSmask_T(:,1:recursiveeqmoptions.burnin)=0; % remove these from consideration
+SSmask_T(:,end-recursiveeqmoptions.burnin+1:end)=0; % remove these from consideration
+SSprimemask_T(1,1:recursiveeqmoptions.burnin,:)=0; % remove these from consideration
+SSprimemask_T(1,end-recursiveeqmoptions.burnin+1:end,:)=0; % remove these from consideration
+% Convert to logical
+SSmask_T=logical(SSmask_T);
+SSprimemask_T=logical(SSprimemask_T); % Note: for last period this is zero by construction (as cannot see periods after)
+
+
+for SSprime_c=1:N_S % Loop over the possible next-period aggregate shocks
+    Sstr=['S',num2str(SSprime_c),'distancemodifier'];
+    DistancesModifier=Inf*ones(T-1,T,'gpuArray');
+    % tt1: this period, omits period T
+    % tt2: potential next period
+    % =Inf is essentially ruling everything out
+    % Now we go through and rule things in
+    % DistancesModifier(:,tt2)=1 when Sprime_tt2=Sprime_c
+    for tt2=1:T
+        if SSprimemask_T(1,tt2,SSprime_c)
+            DistancesModifier(:,tt2)=1;
+        end
+    end
+    % DistancesModifier(tt1,tt2)=0 when tt2=tt1+1 && Sprime_c is the actual Sprime_tt2
+    for tt1=1:T-1
+        if ss_ind_T(tt1+1)==SSprime_c
+            DistancesModifier(tt1,tt1+1)=0 ;
+        end
+    end
+    matchexpectations.(Sstr)=DistancesModifier;
+end
+    
+if recursiveeqmoptions.matchingsetup==2
+    % We additionally need that S matches as well
+    for SSprime_c=1:N_S % Loop over the possible next-period aggregate shocks
+        Sstr=['S',num2str(SSprime_c),'distancemodifier'];
+        DistancesModifier=matchexpectations.(Sstr);
+
+        % When S does not match, switch the distance to Inf
+        for tt1=1:T-1
+            for tt2=2:T
+                if ss_ind_T(tt1)==ss_ind_T(tt2-1) % S matches the period before the expectations term comes from
+                    % This is fine
+                else % But if they don't match, cannot use this one
+                    DistancesModifier(tt1,tt2)=Inf;
+                end
+            end
+        end
+
+        matchexpectations.(Sstr)=DistancesModifier;
+    end
+end
+
+
+if recursiveeqmoptions.verbose==2
+    fprintf('Number of instances of each S (multidimensional index) \n')
+    sum(SSmask_T,2)'
+
+    % Create a time-series plot of the aggregate shock path
+    figure(1)
+    plot(-recursiveeqmoptions.burnin+(1:1:T),ss_ind_T)
+    title('Time series for S index in the Generalized Transition Fn (shaded area is burnin; omited from matching)')
+    hold on
+    patch([-recursiveeqmoptions.burnin+1 0 0 -recursiveeqmoptions.burnin+1],[1 1 2 2],'r', 'FaceAlpha', 0.2, 'EdgeColor', 'none');
+    patch([0 T-recursiveeqmoptions.burnin+1 T-recursiveeqmoptions.burnin+1 0],[1 1 2 2],'r', 'FaceAlpha', 0.2, 'EdgeColor', 'none');
+    hold off
+    xlim([-recursiveeqmoptions.burnin+1,T-recursiveeqmoptions.burnin])
+end
+
+
+%% Matching Setup 2/3
+% Build some FnsToEvaluate that are used to calculate the distances
+if recursiveeqmoptions.matchE_distmeasure==2
+    % Create FnsToEvaluate the are the endogenous state and exogenous state
+    nfinput = l_aprime+l_a+l_z; % Variable number of inputs (this is the nod code)
+    inputNames = compose('x%d', 1:nfinput); % Create {'x1', 'x2', ..., 'x5'}
+    argStr = strjoin(inputNames, ','); % Create 'x1,x2,x3,x4,x5'
+    % Endogenous states
+    if l_a>=1
+        FnsToEvaluate.EndoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+1)]);
+        if l_a>=2
+            FnsToEvaluate.EndoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+2)]);
+            if l_a>=3
+                FnsToEvaluate.EndoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+3)]);
+                if l_a>=4
+                    error('Have not implemented expectations matching for lenght(n_a)>3')
+                end
+            end
+        end
+    end
+    % Exogenous states
+    if recursiveeqmoptions.matching_IdiosyncraticExogenousStates==2 % We only need these if the idiosyncratic exogenous shocks are being determined in General Eqm
+        FnsToEvaluate_Exo=struct();
+        if l_z>=1
+            FnsToEvaluate_Exo.ExoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+1)]);
+            if l_z>=2
+                FnsToEvaluate_Exo.ExoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+2)]);
+                if l_z>=3
+                    FnsToEvaluate_Exo.ExoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+3)]);
+                    if l_z>=4
+                        FnsToEvaluate_Exo.ExoState4=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+4)]);
+                        if l_z>=5
+                            FnsToEvaluate_Exo.ExoState5=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+5)]);
+                            if L_z>=6
+                                error('Have not implemented expectations matching for lenght(n_z)>5')
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+%% Matching Setup 3/3
+% Precompute the matching distances for the idiosyncratic exogenous states as these are constant across path iterations
 % recursiveeqmoptions.matching_IdiosyncraticExogenousStates
 %  =0 we ignore the idiosyncratic exogenous states, omitting them from the  matching entirely
 %  =1 we can precompute the distances for the idiosyncratic exogenous states as they do not differ across iteration of the path
 %  =2 idiosyncratic exogenous states change across iterations of the path and so the distances must be computed at each iteration
+%
+% Note: zgriddependS does not change this behaviour in any way.
 
-
-% When pi_z and z_grid are independent of S and Sprime, we can omit exogenous states from the matching process entirely
-recursiveeqmoptions.matching_IdiosyncraticExogenousStates=0;
-if pizdependS==0 % pizdependS=0: idiosyncratic shock transition probabilities are independent of aggregate shocks
+if recursiveeqmoptions.matching_IdiosyncraticExogenousStates==0
     % When matching, we can just ignore the idiosyncratic exogenous states as they will anyway be identical in every period.
-    recursiveeqmoptions.matching_omitIdiosyncraticExogenousStates=1;
     Distances_ExoState=[]; % placeholder, this will be ignored
-else % recursiveeqmoptions.matching_IdiosyncraticExogenousStates==0
+elseif recursiveeqmoptions.matching_IdiosyncraticExogenousStates==1
     % We already have pi_z_T and z_gridvals_T
-    % From these we can compute the agent distribution in every period, and the matching distances for the Idiosyncratic Exogenous States
+    % From these we can precompute the agent distribution over idiosyncratic exogenous shocks in every period, 
+    % and thus the matching distances for the Idiosyncratic Exogenous States
 
     % First, calculate the AggPath on the ExoStates
     % We know that the period 1 of path will be from the initial guess
@@ -602,19 +640,47 @@ else % recursiveeqmoptions.matching_IdiosyncraticExogenousStates==0
         % The dependence on Sprime means the actual next period exogenous shocks will be different for each Sprime
         Distances_ExoState=[0,Distances_ExoState1(1:T-1)];
     end
-end
-% NOTE: WHEN I IMPLEMENT THE POSSIBILITY THAT THE EXOG. STATES ARE USING
-% ExogShockFn AND WILL BE DETERMINED IN GENERAL EQM, NEED TO HAVE A WAY OUT
-% OF THIS SO I HAVE LEFT A
-% recursiveeqmoptions.matching_IdiosyncraticExogenousStates=2;
-% THAT DOES THIS LATER ON IN THE CODE: MEP_InfHorz_Step_MatchExpectations()
-if recursiveeqmoptions.matching_IdiosyncraticExogenousStates==2
+elseif recursiveeqmoptions.matching_IdiosyncraticExogenousStates==2
     temp=fieldnames(FnsToEvaluate_Exo);
     for ff=1:length(temp)
         FnsToEvaluate.(temp{ff})=FnsToEvaluate_Exo.(temp{ff});
     end
     Distances_ExoState=[]; % placeholder, this will be ignored
 end
+
+% Put a bunch of the things that are used for matching expectations into a structure for convenience
+matchexpectations.Distances_ExoState=Distances_ExoState;
+
+
+%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
+AggVarNames=fieldnames(FnsToEvaluate);
+FnsToEvaluateCell=cell(1,length(AggVarNames));
+for ff=1:length(AggVarNames)
+    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    if length(temp)>(l_daprime+l_a+l_z+l_e) % Note: S is not counted here, as that is handled via Parameters
+        FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        FnsToEvaluateParamNames(ff).Names={};
+    end
+    FnsToEvaluateCell{ff}=FnsToEvaluate.(AggVarNames{ff});
+end
+% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
+simoptions.outputasstructure=1;
+
+%% GE eqns, switch from structure to cell setup
+GEeqnNames=fieldnames(GeneralEqmEqns);
+nGeneralEqmEqns=length(GEeqnNames);
+
+GeneralEqmEqnsCell=cell(1,nGeneralEqmEqns);
+for gg=1:nGeneralEqmEqns
+    temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
+    GeneralEqmEqnParamNames(gg).Names=temp;
+    GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
+end
+% Now:
+%  GeneralEqmEqns is still the structure
+%  GeneralEqmEqnsCell is cell
+%  GeneralEqmEqnParamNames(ff).Names contains the names
 
 
 %% If you are dividing up the T dimension, so some setup for that
@@ -626,11 +692,19 @@ end
 %% Set up the shooting algorithm
 recursiveeqmoptions=setupGEnewprice3_shooting(recursiveeqmoptions,GeneralEqmEqns,GEPriceParamNames);
 
+
+if recursiveeqmoptions.verbose>=2
+    fprintf('The recursiveeqmoptions are: \n')
+    recursiveeqmoptions
+    fprintf('Done setup, now moving on to intial guess. \n')
+    fprintf(' \n')
+end
+
 %% Now solve the Matched-expectations path
 if N_d==0
-    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting_nod(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_a, n_z, n_S, l_aprime, l_a, l_z, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, Distances_ExoState, vfoptions, simoptions,recursiveeqmoptions);
+    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting_nod(AggShocksPath, AggShockNames, T, ss_ind_T, n_a, n_z, n_S, l_aprime, l_a, l_z, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, matchexpectations, vfoptions, simoptions,recursiveeqmoptions);
 else
-    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting(AggShocksPath, AggShockNames, T, SSmask_T, SSprimemask_T,SSprimemask_T_indexes,ss_ind_T, n_d, n_a, n_z, n_S, l_d, l_aprime, l_a, l_z, d_grid, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, Distances_ExoState, simoptions,recursiveeqmoptions);
+    [PricePath,GEcondnPath,VPath,PolicyPath,AgentDistPath,DistMatches]=MatchedExpectationsPath_InfHorz_shooting(AggShocksPath, AggShockNames, T, ss_ind_T, n_d, n_a, n_z, n_S, l_d, l_aprime, l_a, l_z, d_grid, a_grid,z_gridvals_T,z_gridvals_T_fastOLG, pi_Sprime_T, pi_z_T_fastOLG, pi_z_T_sim, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEPriceParamNames, GEeqnNames, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, initialguessobjects, vfoptions, matchexpectations, simoptions,recursiveeqmoptions);
 end
 
 %% Need to reshape these for output, permute for fastOLG, and store in GeneralizedTransitionFn

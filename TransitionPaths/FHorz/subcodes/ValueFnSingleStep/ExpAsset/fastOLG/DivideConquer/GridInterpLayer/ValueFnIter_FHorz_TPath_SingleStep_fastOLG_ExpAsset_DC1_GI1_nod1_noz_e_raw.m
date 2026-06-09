@@ -173,7 +173,7 @@ elseif vfoptions.lowmemory==1
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, 0, n_d2, n_a1, vfoptions.level1n,n_a2, special_n_e,N_j, d2_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, e_val, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
 
-        entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z;
+        entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
         % First, we want a1prime conditional on (d,1,a)
         [~,maxindex1]=max(entireRHS_ii,[],2);
