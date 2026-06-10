@@ -32,8 +32,8 @@ l_a2=length(n_a2);
 l_z=length(n_z);
 l_e=length(simoptions.n_e);
 temp=getAnonymousFnInputNames(simoptions.aprimeFn);
-if length(temp)>(l_d2+l_a2+l_z+l_e)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_z+l_e+1:end}}; % the first inputs will always be (d2,a2,z,e)
+if length(temp)>(l_d2+l_a2+l_z+l_e+(l_a2>=2))
+    aprimeFnParamNames={temp{l_d2+l_a2+l_z+l_e+(l_a2>=2)+1:end}}; % the first inputs will always be (d2,a2,z,e), plus a 'whicha' slot when l_a2>=2
 else
     aprimeFnParamNames={};
 end

@@ -135,8 +135,60 @@ elseif l_a2==2
     a2primeVals_1=reshape(a2primeVals_1,[N_d*N_a2,N_j]);
     a2primeVals_2=reshape(a2primeVals_2,[N_d*N_a2,N_j]);
 
-    [loIdx_1, prob_1]=local_interp1d(a2primeVals_1, a2_grid_1, n_a2_1); % [N_d*N_a2*N_j, 1]
-    [loIdx_2, prob_2]=local_interp1d(a2primeVals_2, a2_grid_2, n_a2_2);
+    %% Per-dim grid indexes and probs (inlined 1D linear-interp; mirrors l_a2==1 above)
+    N_total=N_d*N_a2*N_j;
+    a2primeVals_1=reshape(a2primeVals_1,[1,N_total]);
+    a2primeVals_2=reshape(a2primeVals_2,[1,N_total]);
+    a2_griddiff_1=a2_grid_1(2:end)-a2_grid_1(1:end-1);
+    a2_griddiff_2=a2_grid_2(2:end)-a2_grid_2(1:end-1);
+
+    % --- a2 dim 1 ---
+    if N_total*n_a2_1<1000000
+        [~,loIdx_1]=max((a2_grid_1>a2primeVals_1),[],1);
+        loIdx_1=loIdx_1-1;
+        loIdx_1(loIdx_1==0)=1;
+        aprime_residual_1=a2primeVals_1'-a2_grid_1(loIdx_1);
+        prob_1=1-aprime_residual_1./a2_griddiff_1(loIdx_1);
+        offTopOfGrid_1=(a2primeVals_1>=a2_grid_1(end));
+        loIdx_1(offTopOfGrid_1)=n_a2_1-1;
+        prob_1(offTopOfGrid_1)=0;
+        offBottomOfGrid_1=(a2primeVals_1<=a2_grid_1(1));
+        prob_1(offBottomOfGrid_1)=1;
+    else
+        loIdx_1=discretize(a2primeVals_1,a2_grid_1);
+        offBottomOfGrid_1=(a2primeVals_1<=a2_grid_1(1));
+        loIdx_1(offBottomOfGrid_1)=1;
+        offTopOfGrid_1=(a2primeVals_1>=a2_grid_1(end));
+        loIdx_1(offTopOfGrid_1)=n_a2_1-1;
+        aprime_residual_1=a2primeVals_1'-a2_grid_1(loIdx_1);
+        prob_1=1-aprime_residual_1./a2_griddiff_1(loIdx_1);
+        prob_1(offBottomOfGrid_1)=1;
+        prob_1(offTopOfGrid_1)=0;
+    end
+
+    % --- a2 dim 2 ---
+    if N_total*n_a2_2<1000000
+        [~,loIdx_2]=max((a2_grid_2>a2primeVals_2),[],1);
+        loIdx_2=loIdx_2-1;
+        loIdx_2(loIdx_2==0)=1;
+        aprime_residual_2=a2primeVals_2'-a2_grid_2(loIdx_2);
+        prob_2=1-aprime_residual_2./a2_griddiff_2(loIdx_2);
+        offTopOfGrid_2=(a2primeVals_2>=a2_grid_2(end));
+        loIdx_2(offTopOfGrid_2)=n_a2_2-1;
+        prob_2(offTopOfGrid_2)=0;
+        offBottomOfGrid_2=(a2primeVals_2<=a2_grid_2(1));
+        prob_2(offBottomOfGrid_2)=1;
+    else
+        loIdx_2=discretize(a2primeVals_2,a2_grid_2);
+        offBottomOfGrid_2=(a2primeVals_2<=a2_grid_2(1));
+        loIdx_2(offBottomOfGrid_2)=1;
+        offTopOfGrid_2=(a2primeVals_2>=a2_grid_2(end));
+        loIdx_2(offTopOfGrid_2)=n_a2_2-1;
+        aprime_residual_2=a2primeVals_2'-a2_grid_2(loIdx_2);
+        prob_2=1-aprime_residual_2./a2_griddiff_2(loIdx_2);
+        prob_2(offBottomOfGrid_2)=1;
+        prob_2(offTopOfGrid_2)=0;
+    end
 
     % Per-dim factored output (NOT Kron-folded):
     %   a2primeIndexes(k,:) = lower-grid index in a2_k dim (1..n_a2(k))
@@ -159,36 +211,4 @@ elseif l_a2==2
 end
 
 
-end
-
-
-function [loIdx, prob]=local_interp1d(aprimeVals, grid, n_grid)
-apvals=aprimeVals(:);
-N=numel(apvals);
-griddiff=grid(2:end)-grid(1:end-1);
-
-if N*n_grid<1000000
-    [~,upIdx]=max((grid>apvals'),[],1);
-    loIdx=upIdx-1;
-    loIdx(loIdx==0)=1;
-    loIdx=loIdx(:);
-    residual=apvals-grid(loIdx);
-    prob=1-residual./griddiff(loIdx);
-    offTop=(apvals>=grid(end));
-    loIdx(offTop)=n_grid-1;
-    prob(offTop)=0;
-    offBottom=(apvals<=grid(1));
-    prob(offBottom)=1;
-else
-    loIdx=discretize(apvals,grid);
-    loIdx=loIdx(:);
-    offBottom=(apvals<=grid(1));
-    loIdx(offBottom)=1;
-    offTop=(apvals>=grid(end));
-    loIdx(offTop)=n_grid-1;
-    residual=apvals-grid(loIdx);
-    prob=1-residual./griddiff(loIdx);
-    prob(offBottom)=1;
-    prob(offTop)=0;
-end
 end

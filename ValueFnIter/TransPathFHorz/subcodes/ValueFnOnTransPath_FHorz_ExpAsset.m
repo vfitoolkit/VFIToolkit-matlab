@@ -284,7 +284,9 @@ else % N_e
             %% fastOLG=1, z, e
             VPath=zeros(N_a*N_j,N_z,N_e,T,'gpuArray');
             VPath(:,:,:,T)=V_final;
-            PolicyPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_z,N_e,T,'gpuArray');
+            l_dap=l_daprime+2*(vfoptions.gridinterplayer>0);
+            PolicyPath=zeros([l_dap,prod(N_a),N_j,N_z,N_e,T],'gpuArray'); % size vec in brackets + prod() forces scalar dims; avoids MATLAB unpacking if N_a/N_j/etc. arrive as vectors
+            Policy_final=reshape(Policy_final,[l_dap,prod(N_a),N_j,N_z,N_e]); % defensive: Policy_final from upstream may have a (n_a1,n_a2) split rather than flat N_a
             PolicyPath(:,:,:,:,:,T)=Policy_final;
 
             %First, go from T-1 to 1 calculating the Value function and Optimal

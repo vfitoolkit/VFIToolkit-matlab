@@ -17,7 +17,7 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 z_gridvals_J=shiftdim(z_gridvals_J,-4); % [1,1,1,1,N_j,N_z,l_z]
-e_gridvals_J=shiftdim(e_gridvals_J,-5); % [1,1,1,1,1,N_j,N_e,l_e]
+e_gridvals_J=reshape(e_gridvals_J,[1,1,1,1,1,N_j,N_e,length(n_e)]); % [1,1,1,1,1,N_j,N_e,l_e]; ExogShockSetup leaves it as (N_j,1,N_e,l_e), so reshape drops the middle singleton so N_e/l_e land on dims 7/8 (slicing assumes this)
 
 %%
 % n-Monotonicity
@@ -129,13 +129,13 @@ if vfoptions.lowmemory==0
             d2aprimejz=d2ind+N_d2*(aprimeindexes-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*jind+N_d2*N_a1*N_a2*N_j*zind; % with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+repelem(reshape(DiscountedEV(d2aprimejz),[N_d*(maxgap(ii)+1),N_a2,N_j,N_z,N_e]),1,level1iidiff(ii),1,1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-            V(curraindex,:,:)=shiftdim(Vtempii,1);
+            V(curraindex,:,:,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
             % the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             dind=(rem(maxindex-1,N_d)+1);
             allind=reshape(dind,[1,1,level1iidiff(ii),N_a2,N_j,N_z,N_e])+N_d*a2ind+N_d*N_a2*jind+N_d*N_a2*N_j*zind+N_d*N_a2*N_j*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_a2-by-N_j-by-n_z-by-n_e
             allind=reshape(allind,[1,level1iidiff(ii)*N_a2,N_j,N_z,N_e]);
-            Policy(curraindex,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
         else
             loweredge=maxindex1(:,1,ii,:,:,:,:);
             % Just use aprime(ii) for everything
@@ -143,13 +143,13 @@ if vfoptions.lowmemory==0
             d2aprimejz=d2ind+N_d2*(loweredge-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*jind+N_d2*N_a1*N_a2*N_j*zind; % with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+repelem(reshape(DiscountedEV(d2aprimejz),[N_d,N_a2,N_j,N_z,N_e]),1,level1iidiff(ii),1,1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-            V(curraindex,:,:)=shiftdim(Vtempii,1);
+            V(curraindex,:,:,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
             % the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             dind=(rem(maxindex-1,N_d)+1);
             allind=reshape(dind,[1,1,level1iidiff(ii),N_a2,N_j,N_z,N_e])+N_d*a2ind+N_d*N_a2*jind+N_d*N_a2*N_j*zind+N_d*N_a2*N_j*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_a2-by-N_j-by-n_z-by-n_e
             allind=reshape(allind,[1,level1iidiff(ii)*N_a2,N_j,N_z,N_e]);
-            Policy(curraindex,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge
+            Policy(curraindex,:,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge
         end
     end
 
@@ -169,7 +169,7 @@ elseif vfoptions.lowmemory==1
         [~,maxindex1]=max(entireRHS_ii_z,[],2);
 
         % Now, get and store the full (d,aprime)
-        [Vtempii,maxindex2]=max(reshape(entireRHS_ii_z,[N_d*N_a1,vfoptions.level1n*N_a2,N_j],N_z),[],1);
+        [Vtempii,maxindex2]=max(reshape(entireRHS_ii_z,[N_d*N_a1,vfoptions.level1n*N_a2,N_j,N_z]),[],1);
 
         % Store
         curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
