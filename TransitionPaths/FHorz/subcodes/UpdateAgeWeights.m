@@ -1,4 +1,5 @@
 function Path_mewj=UpdateAgeWeights(initial_mewj,Path_sj,Path_n,Path_immigrantmewj,Path_immigrationrate,Path_emmigrantmewj,Path_emmigrationrate, Path_fertilityrate)
+error('This commands are not yet implemented')
 % Important note: n is NOT the population growth rate, it is the rate of growth of the population of age j=1
 %
 % immigrationrate is immigrants as a percentage of the population
