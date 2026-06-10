@@ -16,21 +16,6 @@ for pp=1:nGEprices
     Parameters.(GEPriceParamNames{pp})=GEpricesvec(pp);
 end
 
-% If z (and e) are determined in GE
-if any(heteroagentoptions.gridsinGE)
-    for ii=1:PTypeStructure.N_i
-        if heteroagentoptions.gridsinGE(ii)==0
-            iistr=PTypeStructure.iistr{ii};
-            % Some of the shock grids depend on parameters that are determined in general eqm
-            [PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
-            % Note: these are actually z_gridvals and pi_z
-            PTypeStructure.(iistr).simoptions.e_gridvals=PTypeStructure.(iistr).vfoptions.e_gridvals; % Note, will be [] if no e
-            PTypeStructure.(iistr).simoptions.pi_e=PTypeStructure.(iistr).vfoptions.pi_e; % Note, will be [] if no e
-        end
-    end
-end
-
-
 %%
 AggVars=zeros(PTypeStructure.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate is independent of the ptype
 
@@ -43,7 +28,7 @@ for ii=1:PTypeStructure.N_i
 
     if heteroagentoptions.gridsinGE(ii)==1
         % Some of the shock grids depend on parameters that are determined in general eqm
-        [PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
+        [PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
         % Convert z and e to age-dependent joint-grids and transtion matrix
         % Note: Ignores which, just redoes both z and e
         PTypeStructure.(iistr).simoptions.e_gridvals=PTypeStructure.(iistr).vfoptions.e_gridvals; % if no e, this is just empty anyway
@@ -84,13 +69,25 @@ end
 %% Custom Model Stats
 if heteroagentoptions.useCustomModelStats==1
     StationaryDist.ptweights=PTypeStructure.ptweights;
-    if heteroagentoptions.gridsinGE==1
-        heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
-        heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    if heteroagentoptions.CustomModelStats_origgrids==0 || any(heteroagentoptions.gridsinGE)
+        % Internal grids, as a struct with one field per ptype [note: PTypeStructure.(iistr).z_grid contains z_gridvals, as ExogShockSetup converted them]
+        for ii=1:PTypeStructure.N_i
+            iistr=PTypeStructure.iistr{ii};
+            z_gridvals_PType.(iistr)=PTypeStructure.(iistr).z_grid;
+            pi_z_PType.(iistr)=PTypeStructure.(iistr).pi_z;
+        end
     end
     % A bunch of the inputs are stashed in heteroagentoptions.CustomModelStatsInputs
     % Note: CustomStats deliberately does not get AgeWeightParamNames and PTypeDistParamNames, user will anyway know them
-    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    if heteroagentoptions.CustomModelStats_origgrids==0
+        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,z_gridvals_PType,pi_z_PType,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    elseif heteroagentoptions.CustomModelStats_origgrids==1
+        if any(heteroagentoptions.gridsinGE) % grids depend on GE prices (for at least one ptype), so the user input grids are not meaningful
+            heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals_PType;
+            heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z_PType;
+        end
+        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    end
     % Note: anything else you want, just 'hide' it in heteroagentoptions
     customstatnames=fieldnames(CustomStats);
     for pp=1:length(customstatnames)

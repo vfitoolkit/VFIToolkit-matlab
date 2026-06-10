@@ -131,10 +131,15 @@ end
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
+    if ~isfield(heteroagentoptions,'CustomModelStats_origgrids')
+        heteroagentoptions.CustomModelStats_origgrids=0; % =0: pass internal z_gridvals_J & pi_z_J; =1: pass exactly the z_grid & pi_z the user input
+    end
     % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
-    heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
-    heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    if heteroagentoptions.CustomModelStats_origgrids==1
+        heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
+        heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    end
     % Need the following two as otherwise they would contain alreadygridvals=1
     heteroagentoptions.CustomModelStatsInputs.vfoptions=vfoptions;
     heteroagentoptions.CustomModelStatsInputs.simoptions=simoptions;
@@ -226,7 +231,7 @@ if heteroagentoptions.gridsinGE==0
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % Note, will be [] if no e
     simoptions.pi_e_J=vfoptions.pi_e_J; % Note, will be [] if no e
     if isfield(simoptions,'ExogShockFn') % Note: ExogShockSetup_FHorz() removed ExogShockFn from vfoptions but not from simoptions
-        if heteroagentoptions.useCustomModelStats==1
+        if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_origgrids==1
             heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals_J;
             heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z_J;
         end

@@ -61,10 +61,15 @@ caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with o
 caliboptions.useCustomModelStats=0;
 if isfield(caliboptions,'CustomModelStats')
     caliboptions.useCustomModelStats=1;
+    if ~isfield(caliboptions,'CustomModelStats_origgrids')
+        caliboptions.CustomModelStats_origgrids=0; % =0: pass internal z_gridvals_J & pi_z_J; =1: pass exactly the z_grid & pi_z the user input
+    end
     % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
-    caliboptions.CustomModelStatsInputs.z_grid=z_grid;
-    caliboptions.CustomModelStatsInputs.pi_z=pi_z;
+    if caliboptions.CustomModelStats_origgrids==1
+        caliboptions.CustomModelStatsInputs.z_grid=z_grid;
+        caliboptions.CustomModelStatsInputs.pi_z=pi_z;
+    end
     % Need the following two as otherwise they would contain alreadygridvals=1
     caliboptions.CustomModelStatsInputs.vfoptions=vfoptions;
     caliboptions.CustomModelStatsInputs.simoptions=simoptions;

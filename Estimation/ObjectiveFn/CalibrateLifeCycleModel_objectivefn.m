@@ -51,7 +51,15 @@ StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Poli
 
 %% Custom Model Stats
 if usingcustomstats==1
-    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+    if caliboptions.CustomModelStats_origgrids==0
+        CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+    elseif caliboptions.CustomModelStats_origgrids==1
+        if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so the user input grids are not meaningful
+            caliboptions.CustomModelStatsInputs.z_grid=z_gridvals_J;
+            caliboptions.CustomModelStatsInputs.pi_z=pi_z_J;
+        end
+        CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+    end
 end
 
 %% Calculate model stats

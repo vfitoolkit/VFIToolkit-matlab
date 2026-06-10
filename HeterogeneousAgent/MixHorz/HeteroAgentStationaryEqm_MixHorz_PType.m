@@ -165,6 +165,9 @@ end
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
+    if ~isfield(heteroagentoptions,'CustomModelStats_origgrids')
+        heteroagentoptions.CustomModelStats_origgrids=0; % =0: pass internal grids (struct with one field per ptype); =1: pass exactly the z_grid & pi_z the user input
+    end
     % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overwrite).
     % So that user gets exactly what they input, not any internally reworked things
     % In this (PType) context, these assignments are typically structs that each have all the PType fields within them
@@ -175,8 +178,10 @@ if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.CustomModelStatsInputs.N_j=N_j;
     heteroagentoptions.CustomModelStatsInputs.d_grid=d_grid;
     heteroagentoptions.CustomModelStatsInputs.a_grid=a_grid;
-    heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
-    heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    if heteroagentoptions.CustomModelStats_origgrids==1
+        heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
+        heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    end
     heteroagentoptions.CustomModelStatsInputs.vfoptions=vfoptions;
     heteroagentoptions.CustomModelStatsInputs.simoptions=simoptions;
 end

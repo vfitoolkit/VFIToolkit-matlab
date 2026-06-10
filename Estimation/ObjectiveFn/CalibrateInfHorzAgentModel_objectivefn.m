@@ -37,7 +37,7 @@ end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
     % Internally, only ever use joint-grids (makes all the code much easier to write)
-    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_gridvals,pi_z,Parameters,vfoptions,3);
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_gridvals,pi_z,Parameters,vfoptions,3);
     % output: z_gridvals, pi_z, vfoptions.e_gridvals, vfoptions.pi_e
     simoptions.e_gridvals=vfoptions.e_gridvals;
     simoptions.pi_e=vfoptions.pi_e;
@@ -51,7 +51,15 @@ StationaryDist=StationaryDist_InfHorz(Policy,n_d,n_a,n_z,pi_z,simoptions,Paramet
 
 %% Custom Model Stats
 if usingcustomstats==1
-    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+    if caliboptions.CustomModelStats_origgrids==0
+        CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+    elseif caliboptions.CustomModelStats_origgrids==1
+        if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so the user input grids are not meaningful
+            caliboptions.CustomModelStatsInputs.z_grid=z_gridvals;
+            caliboptions.CustomModelStatsInputs.pi_z=pi_z;
+        end
+        CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+    end
 end
 
 %% Calculate model stats
