@@ -476,37 +476,7 @@ if heteroagentoptions.maxiter>0
         end
         [p_eqm_vec,GeneralEqmConditions,~,~,~,~]=cmaes_vfitoolkit(GeneralEqmConditionsFnOpt,GEparamsvec0,heteroagentoptions.insigma,heteroagentoptions.inopts);
     elseif heteroagentoptions.fminalgo==5
-        heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames,1,GEpriceindexes');
-        p=nan(1,length(GEPriceParamNames));
-        for ii=1:length(GEPriceParamNames)
-            p(ii)=Parameters.(GEPriceParamNames{ii});
-        end
-        itercounter=0;
-        p_change=Inf;
-        GeneralEqmConditions=Inf;
-        while (any(p_change>heteroagentoptions.toleranceGEprices) || GeneralEqmConditions>heteroagentoptions.toleranceGEcondns) && itercounter<heteroagentoptions.maxiter
-            p_i=GeneralEqmConditionsFnOpt(p);
-            GeneralEqmConditionsVec=p_i;
-            p_i=p_i(heteroagentoptions.fminalgo5.permute);
-            I_makescutoff=(abs(p_i)>heteroagentoptions.updateaccuracycutoff);
-            p_i=I_makescutoff.*p_i;
-            p_new=(p.*heteroagentoptions.fminalgo5.keepold)+heteroagentoptions.fminalgo5.add.*heteroagentoptions.fminalgo5.factor.*p_i-(1-heteroagentoptions.fminalgo5.add).*heteroagentoptions.fminalgo5.factor.*p_i;
-            if heteroagentoptions.multiGEcriterion==0
-                GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
-            elseif heteroagentoptions.multiGEcriterion==1
-                GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));
-            end
-            for ii=1:length(GEPriceParamNames)
-                Parameters.(GEPriceParamNames{ii})=p_new(ii);
-            end
-            p_change=abs(p_new-p);
-            p=p_new;
-            itercounter=itercounter+1;
-        end
-        if itercounter>=heteroagentoptions.maxiter
-            warning('HeteroAgentStationaryEqm stopped due to reaching maximum number of iterations (heteroagentoptions.maxiter)')
-        end
-        p_eqm_vec=p_new;
+        [p_eqm_vec,GeneralEqmConditions]=StationaryGeneralEqm_subcode_fminalgo5_PType(GeneralEqmConditionsFnOpt,GEparamsvec0,Parameters,GeneralEqmEqns,GEPriceParamNames,GEpriceindexesB,heteroagentoptions,1,GEpriceindexes);
     elseif heteroagentoptions.fminalgo==6
         if ~isfield(heteroagentoptions,'lb') || ~isfield(heteroagentoptions,'ub')
             error('When using constrained optimization (heteroagentoptions.fminalgo=6) you must set heteroagentoptions.lb and heteroagentoptions.ub')
