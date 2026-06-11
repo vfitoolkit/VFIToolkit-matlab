@@ -43,11 +43,15 @@ end
 
 %% Custom Model Stats
 if heteroagentoptions.useCustomModelStats==1
-    if heteroagentoptions.gridsinGE==1
-        heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
-        heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    if heteroagentoptions.CustomModelStats_origgrids==0
+        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
+    elseif heteroagentoptions.CustomModelStats_origgrids==1
+        if heteroagentoptions.gridsinGE==1 % grids depend on GE prices, so the user input grids are not meaningful
+            heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
+            heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+        end
+        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,vfoptions,simoptions);
     end
-    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,vfoptions,simoptions);
     % Note: anything else you want, just 'hide' it in heteroagentoptions
     customstatnames=fieldnames(CustomStats);
     for pp=1:length(customstatnames)

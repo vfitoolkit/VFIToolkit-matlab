@@ -115,6 +115,22 @@ if recursiveeqmoptions.verbose==2
     fprintf(' \n')
     fprintf('End of info about the initial guess stationary eqm. \n')
     fprintf(' \n')
+
+    figure(10)
+    l_a=length(n_a);
+    if l_a==1
+        adist=sum(reshape(StationaryDist,[n_a(1),N_z]),2);
+        plot(a_grid,cumsum(adist))
+        title('CDF of endogenous state in Stationary Eqm (so you can see if hitting top of grid)')
+    elseif l_a==2
+        a1dist=sum(reshape(StationaryDist,[n_a(1),n_a(2)*N_z]),2);
+        a2dist=sum(sum(reshape(StationaryDist,[n_a(1),n_a(2),N_z]),3),1);
+        subplot(2,1,1); plot(a_grid(1:n_a(1)),cumsum(a1dist))
+        title('CDF of 1st endogenous state in Stationary Eqm (so you can see if hitting top of grid)')
+        subplot(2,1,2); plot(a_grid(n_a(1)+1:end),cumsum(a2dist))
+        title('CDF of 2nd endogenous state in Stationary Eqm (so you can see if hitting top of grid)')
+    end
+
 end
 
 

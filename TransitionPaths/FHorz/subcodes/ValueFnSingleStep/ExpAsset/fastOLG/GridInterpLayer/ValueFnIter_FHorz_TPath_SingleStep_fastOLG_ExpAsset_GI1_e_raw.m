@@ -17,7 +17,7 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 z_gridvals_J=shiftdim(z_gridvals_J,-4); % [1,1,1,1,N_j,N_z,l_z]
-e_gridvals_J=shiftdim(e_gridvals_J,-5); % [1,1,1,1,1,N_j,N_e,l_e]
+e_gridvals_J=reshape(e_gridvals_J,[1,1,1,1,1,N_j,N_e,length(n_e)]); % [1,1,1,1,1,N_j,N_e,l_e]; ExogShockSetup leaves it as (N_j,1,N_e,l_e), so reshape drops the middle singleton so N_e/l_e land on dims 7/8 (slicing assumes this)
 
 Policy3=zeros(4,N_a,N_j,N_z,N_e,'gpuArray'); % first dim indexes the optimal choice for d and a1prime rest of dimensions a,z (d, midpoint, a1primeL2ind, L2flag)
 

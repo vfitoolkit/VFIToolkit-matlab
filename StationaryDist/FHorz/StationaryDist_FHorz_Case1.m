@@ -348,7 +348,6 @@ else
         n_ze=[n_z,simoptions.n_e];
         N_ze=N_z*N_e;
     end
-
     jequaloneDist=gpuArray(jequaloneDist); % make sure it is on gpu
     jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,1]);
     Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);

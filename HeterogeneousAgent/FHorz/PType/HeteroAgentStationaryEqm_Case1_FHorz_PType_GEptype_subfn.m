@@ -110,13 +110,25 @@ end
 %% Custom Model Stats
 if heteroagentoptions.useCustomModelStats==1
     StationaryDist.ptweights=PTypeStructure.ptweights;
-    if heteroagentoptions.gridsinGE==1
-        heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
-        heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    if heteroagentoptions.CustomModelStats_origgrids==0 || any(heteroagentoptions.gridsinGE)
+        % Internal grids, as a struct with one field per ptype
+        for ii=1:PTypeStructure.N_i
+            iistr=PTypeStructure.iistr{ii};
+            z_gridvals_J_PType.(iistr)=PTypeStructure.(iistr).z_gridvals_J;
+            pi_z_J_PType.(iistr)=PTypeStructure.(iistr).pi_z_J;
+        end
     end
     % A bunch of the inputs are stashed in heteroagentoptions.CustomModelStatsInputs
     % Note: CustomStats deliberately does not get AgeWeightParamNames and PTypeDistParamNames, user will anyway know them
-    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,heteroagentoptions.CustomModelStatsInputs.N_j,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    if heteroagentoptions.CustomModelStats_origgrids==0
+        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,heteroagentoptions.CustomModelStatsInputs.N_j,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,z_gridvals_J_PType,pi_z_J_PType,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    elseif heteroagentoptions.CustomModelStats_origgrids==1
+        if any(heteroagentoptions.gridsinGE) % grids depend on GE prices (for at least one ptype), so the user input grids are not meaningful
+            heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals_J_PType;
+            heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z_J_PType;
+        end
+        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,heteroagentoptions.CustomModelStatsInputs.N_j,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    end
     % Note: anything else you want, just 'hide' it in heteroagentoptions
     customstatnames=fieldnames(CustomStats);
     for pp=1:length(customstatnames)

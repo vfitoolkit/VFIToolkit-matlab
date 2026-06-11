@@ -1,4 +1,5 @@
 function mewj=UpdateAgeWeights_raw(mewjlag,sj,n,immigrantmewj,immigrationrate,emmigrantmewj,emmigrationrate)
+error('This commands are not yet implemented')
 % Important note: n is NOT the population growth rate, it is the rate of growth of the population of age j=1
 %
 % immigrationrate is immigrants as a percentage of the population

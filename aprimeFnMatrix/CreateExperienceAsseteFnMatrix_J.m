@@ -67,20 +67,46 @@ if l_e>=1
     end
 end
 
-ecell={};
-if l_e>=1, ecell{end+1}=e1vals; end
-if l_e>=2, ecell{end+1}=e2vals; end
-if l_e>=3, ecell{end+1}=e3vals; end
-if l_e>=4, ecell{end+1}=e4vals; end
-
-if l_d==1
-    a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, ecell{:}, ParamCell{:});
-elseif l_d==2
-    a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, ecell{:}, ParamCell{:});
-elseif l_d==3
-    a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, ecell{:}, ParamCell{:});
-elseif l_d==4
-    a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, ecell{:}, ParamCell{:});
+if l_e==1
+    if l_d==1
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, e1vals, ParamCell{:});
+    elseif l_d==2
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, e1vals, ParamCell{:});
+    elseif l_d==3
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, e1vals, ParamCell{:});
+    elseif l_d==4
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, e1vals, ParamCell{:});
+    end
+elseif l_e==2
+    if l_d==1
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, e1vals,e2vals, ParamCell{:});
+    elseif l_d==2
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, e1vals,e2vals, ParamCell{:});
+    elseif l_d==3
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, e1vals,e2vals, ParamCell{:});
+    elseif l_d==4
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, e1vals,e2vals, ParamCell{:});
+    end
+elseif l_e==3
+    if l_d==1
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, e1vals,e2vals,e3vals, ParamCell{:});
+    elseif l_d==2
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, e1vals,e2vals,e3vals, ParamCell{:});
+    elseif l_d==3
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, e1vals,e2vals,e3vals, ParamCell{:});
+    elseif l_d==4
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, e1vals,e2vals,e3vals, ParamCell{:});
+    end
+elseif l_e==4
+    if l_d==1
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, e1vals,e2vals,e3vals,e4vals, ParamCell{:});
+    elseif l_d==2
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, e1vals,e2vals,e3vals,e4vals, ParamCell{:});
+    elseif l_d==3
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, e1vals,e2vals,e3vals,e4vals, ParamCell{:});
+    elseif l_d==4
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, e1vals,e2vals,e3vals,e4vals, ParamCell{:});
+    end
 end
 
 %% Calcuate grid indexes and probs from the values

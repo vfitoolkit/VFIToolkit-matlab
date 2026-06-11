@@ -15,7 +15,7 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 z_gridvals_J=shiftdim(z_gridvals_J,-4); % [1,1,1,1,N_j,N_z,l_z]
-e_gridvals_J=shiftdim(e_gridvals_J,-5); % [1,1,1,1,1,N_j,N_e,l_e]
+e_gridvals_J=reshape(e_gridvals_J,[1,1,1,1,1,N_j,N_e,length(n_e)]); % [1,1,1,1,1,N_j,N_e,l_e]; ExogShockSetup leaves it as (N_j,1,N_e,l_e), so reshape drops the middle singleton so N_e/l_e land on dims 7/8 (slicing assumes this)
 
 %%
 % n-Monotonicity
@@ -26,7 +26,7 @@ d2ind=gpuArray(1:1:N_d2)';
 a2ind=shiftdim(gpuArray(0:1:N_a2-1),-2);
 jind=shiftdim(gpuArray(0:1:N_j-1),-3);
 zind=shiftdim(gpuArray(0:1:N_z-1),-4);
-eind=shiftdim(gpuArray(0:1:N_z-1),-5);
+eind=shiftdim(gpuArray(0:1:N_e-1),-5);
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z (note: N_aprime is just equal to N_a)
@@ -111,8 +111,8 @@ if vfoptions.lowmemory==0
 
     % Store
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
-    V(curraindex,:,:)=shiftdim(Vtempii,1);
-    Policy(curraindex,:,:)=shiftdim(maxindex2,1);
+    V(curraindex,:,:,:)=shiftdim(Vtempii,1);
+    Policy(curraindex,:,:,:)=shiftdim(maxindex2,1);
 
     % Attempt for improved version
     maxgap=squeeze(max(max(max(max(max(maxindex1(:,1,2:end,:,:,:,:)-maxindex1(:,1,1:end-1,:,:,:,:),[],7),[],6),[],5),[],4),[],1));
@@ -126,13 +126,13 @@ if vfoptions.lowmemory==0
             d2aprimejz=d2ind+N_d2*(aprimeindexes-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*jind+N_d2*N_a1*N_a2*N_j*zind; % with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+repelem(reshape(DiscountedEV(d2aprimejz),[N_d2*(maxgap(ii)+1),N_a2,N_j,N_z,N_e]),1,level1iidiff(ii),1,1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-            V(curraindex,:,:)=shiftdim(Vtempii,1);
+            V(curraindex,:,:,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
             % the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             dind=(rem(maxindex-1,N_d2)+1);
             allind=reshape(dind,[1,1,level1iidiff(ii),N_a2,N_j,N_z,N_e])+N_d2*a2ind+N_d2*N_a2*jind+N_d2*N_a2*N_j*zind+N_d2*N_a2*N_j*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_a2-by-N_j-by-n_z-by-n_e
             allind=reshape(allind,[1,level1iidiff(ii)*N_a2,N_j,N_z,N_e]);
-            Policy(curraindex,:,:)=shiftdim(maxindex+N_d2*(loweredge(allind)-1),1);
+            Policy(curraindex,:,:,:)=shiftdim(maxindex+N_d2*(loweredge(allind)-1),1);
         else
             loweredge=maxindex1(:,1,ii,:,:,:,:);
             % Just use aprime(ii) for everything
@@ -140,13 +140,13 @@ if vfoptions.lowmemory==0
             d2aprimejz=d2ind+N_d2*(loweredge-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*jind+N_d2*N_a1*N_a2*N_j*zind; % with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+repelem(reshape(DiscountedEV(d2aprimejz),[N_d2,N_a2,N_j,N_z,N_e]),1,level1iidiff(ii),1,1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-            V(curraindex,:,:)=shiftdim(Vtempii,1);
+            V(curraindex,:,:,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
             % the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             dind=(rem(maxindex-1,N_d2)+1);
             allind=reshape(dind,[1,1,level1iidiff(ii),N_a2,N_j,N_z,N_e])+N_d2*a2ind+N_d2*N_a2*jind+N_d2*N_a2*N_j*zind+N_d2*N_a2*N_j*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_a2-by-N_j-by-n_z-by-n_e
             allind=reshape(allind,[1,level1iidiff(ii)*N_a2,N_j,N_z,N_e]);
-            Policy(curraindex,:,:)=shiftdim(maxindex+N_d2*(loweredge(allind)-1),1); % loweredge
+            Policy(curraindex,:,:,:)=shiftdim(maxindex+N_d2*(loweredge(allind)-1),1); % loweredge
         end
     end
 
@@ -166,7 +166,7 @@ elseif vfoptions.lowmemory==1
         [~,maxindex1]=max(entireRHS_ii_e,[],2);
 
         % Now, get and store the full (d,aprime)
-        [Vtempii,maxindex2]=max(reshape(entireRHS_ii_e,[N_d2*N_a1,vfoptions.level1n*N_a2,N_j]),[],1);
+        [Vtempii,maxindex2]=max(reshape(entireRHS_ii_e,[N_d2*N_a1,vfoptions.level1n*N_a2,N_j,N_z]),[],1);
 
         % Store
         curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);

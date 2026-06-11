@@ -51,10 +51,15 @@ estimoptions.simulatemoments=0; % Set to zero to get point estimates, is needed 
 estimoptions.useCustomModelStats=0;
 if isfield(estimoptions,'CustomModelStats')
     estimoptions.useCustomModelStats=1;
+    if ~isfield(estimoptions,'CustomModelStats_origgrids')
+        estimoptions.CustomModelStats_origgrids=0; % =0: pass internal z_gridvals_J & pi_z_J; =1: pass exactly the z_grid & pi_z the user input
+    end
     % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
-    estimoptions.CustomModelStatsInputs.z_grid=z_grid;
-    estimoptions.CustomModelStatsInputs.pi_z=pi_z;
+    if estimoptions.CustomModelStats_origgrids==1
+        estimoptions.CustomModelStatsInputs.z_grid=z_grid;
+        estimoptions.CustomModelStatsInputs.pi_z=pi_z;
+    end
     % Need the following two as otherwise they would contain alreadygridvals=1
     estimoptions.CustomModelStatsInputs.vfoptions=vfoptions;
     estimoptions.CustomModelStatsInputs.simoptions=simoptions;

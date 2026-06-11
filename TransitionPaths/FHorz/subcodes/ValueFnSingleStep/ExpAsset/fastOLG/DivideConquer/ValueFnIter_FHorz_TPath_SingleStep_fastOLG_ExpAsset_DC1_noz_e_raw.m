@@ -8,7 +8,7 @@ function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_noz_
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
-% N_d=N_d1*N_d2;
+N_d=N_d1*N_d2;
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 N_a=N_a1*N_a2;
@@ -27,7 +27,7 @@ jind=shiftdim(gpuArray(0:1:N_j-1),-3);
 eind=shiftdim(gpuArray(0:1:N_e-1),-4);
 
 %% First, create the big 'next period (of transition path) expected value fn.
-% fastOLG will be N_d*N_aprime by N_a*N_j*N_z (note: N_aprime is just equal to N_a)
+% fastOLG will be N_d*N_aprime by N_a*N_j*N_e (note: N_aprime is just equal to N_a)
 
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
@@ -94,7 +94,7 @@ Policy=zeros(N_a,N_j,N_e,'gpuArray');
 
 if vfoptions.lowmemory==0
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, e_gridvals_J, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
+    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_ExpAsset_Disc(ReturnFn, n_d1, n_d2, n_a1, vfoptions.level1n,n_a2, n_e,N_j, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_grid, e_gridvals_J, ReturnFnParamsAgeMatrix,1,0); % Level=1, Refine=0
 
     entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedEV,N_d1,1,1,1,1);
 

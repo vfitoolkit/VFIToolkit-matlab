@@ -34,8 +34,8 @@ if simoptions.experienceasset>=1
                 aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,simoptions.setup_experienceasset.aprimeFnParamNames,N_j);
                 % [N_j,number of params]
 
-                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyIndexesPath(:,:,:,:,tt),simoptions.setup_experienceasset.aprimeFn, whichisdforexpasset, n_d, simoptions.setup_experienceasset.n_a1,simoptions.setup_experienceasset.n_a2, N_ze, N_j, simoptions.setup_experienceasset.d_grid, simoptions.setup_experienceasset.a2_grid, aprimeFnParamsVec,transpathoptions.fastOLG);
-                % Note: a2primeIndexes and a2primeProbs are both [N_a,N_z,N_j] for fastOLG=0
+                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyIndexesPath(:,:,:,:,:,tt),simoptions.setup_experienceasset.aprimeFn, whichisdforexpasset, n_d, simoptions.setup_experienceasset.n_a1,simoptions.setup_experienceasset.n_a2, N_ze, N_j, simoptions.setup_experienceasset.d_grid, simoptions.setup_experienceasset.a2_grid, aprimeFnParamsVec,transpathoptions.fastOLG);
+                % Note: a2primeIndexes and a2primeProbs are both [N_a,N_z*N_e,N_j] for fastOLG=0
                 % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
                 a2primeIndexesPath(:,:,:,tt)=a2primeIndexes(:,:,1:end-1);
                 a2primeProbsPath(:,:,:,tt)=a2primeProbs(:,:,1:end-1);
@@ -47,8 +47,8 @@ if simoptions.experienceasset>=1
                 aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,simoptions.setup_experienceasset.aprimeFnParamNames,N_j);
                 % [N_j,number of params]
 
-                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyIndexesPath(:,:,:,:,tt),simoptions.setup_experienceasset.aprimeFn, whichisdforexpasset, n_d, simoptions.setup_experienceasset.n_a1,simoptions.setup_experienceasset.n_a2, N_ze, N_j, simoptions.setup_experienceasset.d_grid, simoptions.setup_experienceasset.a2_grid, aprimeFnParamsVec,transpathoptions.fastOLG);
-                % Note: a2primeIndexes and a2primeProbs are both [N_a,N_j,N_z] for fastOLG=1
+                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyIndexesPath(:,:,:,:,:,tt),simoptions.setup_experienceasset.aprimeFn, whichisdforexpasset, n_d, simoptions.setup_experienceasset.n_a1,simoptions.setup_experienceasset.n_a2, N_ze, N_j, simoptions.setup_experienceasset.d_grid, simoptions.setup_experienceasset.a2_grid, aprimeFnParamsVec,transpathoptions.fastOLG);
+                % Note: a2primeIndexes and a2primeProbs are both [N_a,N_j,N_z*N_e] for fastOLG=1
                 % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
                 a2primeIndexesPath(:,:,:,tt)=a2primeIndexes(:,1:end-1,:);
                 a2primeProbsPath(:,:,:,tt)=a2primeProbs(:,1:end-1,:);
