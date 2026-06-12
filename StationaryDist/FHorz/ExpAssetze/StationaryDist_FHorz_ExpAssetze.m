@@ -143,21 +143,21 @@ if simoptions.gridinterplayer==0
     % Both z and e required for experienceassetze
     StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,gather(Policy_aprime),gather(PolicyProbs),Kaprimepts,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
 elseif simoptions.gridinterplayer==1
-    if l_a2>1
-        error('gridinterplayer=1 not yet supported with multi-dim experienceassetze (l_a2>1)')
-    end
-    % (a,z,2,j)
-    Policy_aprime=repmat(Policy_aprime,1,1,2,1);
-    % Policy_aprime(:,:,1:2,:) lower grid point for a1 is unchanged
-    Policy_aprime(:,:,3:4,:)=Policy_aprime(:,:,3:4,:)+1; % add one to a1, to get upper grid point
-    Policy_aprime=gather(Policy_aprime);
+    % GI doubles the corner count: each EAZE corner -> (lower a1, upper a1) pair.
+    % l_a2==1: Kaprimepts=2 -> Kaprimepts_GI=4 (legacy)
+    % l_a2==2: Kaprimepts=4 -> Kaprimepts_GI=8
+    Kaprimepts_GI = 2*Kaprimepts;
+    Policy_aprime = repmat(Policy_aprime,1,1,2,1);                                       % (N_a,N_ze,Kaprimepts_GI,N_j)
+    % Corners 1..Kaprimepts are EAZE corners at lower a1; Kaprimepts+1..Kaprimepts_GI at upper a1.
+    Policy_aprime(:,:,Kaprimepts+1:Kaprimepts_GI,:) = Policy_aprime(:,:,Kaprimepts+1:Kaprimepts_GI,:) + 1;
+    Policy_aprime = gather(Policy_aprime);
 
-    PolicyProbs=repmat(PolicyProbs,1,1,2,1);
-    aprimeProbs_upper=reshape(shiftdim((Policy(end-1,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
-    PolicyProbs(:,:,1:2,:)=PolicyProbs(:,:,1:2,:).*(1-aprimeProbs_upper); % lower a1
-    PolicyProbs(:,:,3:4,:)=PolicyProbs(:,:,3:4,:).*aprimeProbs_upper; % upper a1
+    PolicyProbs = repmat(PolicyProbs,1,1,2,1);
+    aprimeProbs_upper = reshape(shiftdim((Policy(end-1,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper a1 grid point (from L2 index; end-1 because end is now L2flag)
+    PolicyProbs(:,:,1:Kaprimepts,:)                = PolicyProbs(:,:,1:Kaprimepts,:)                .*(1-aprimeProbs_upper); % lower a1
+    PolicyProbs(:,:,Kaprimepts+1:Kaprimepts_GI,:)  = PolicyProbs(:,:,Kaprimepts+1:Kaprimepts_GI,:)  .*   aprimeProbs_upper;  % upper a1
 
-    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,gather(PolicyProbs),4,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+    StationaryDist = StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,gather(PolicyProbs),Kaprimepts_GI,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
 end
 
 

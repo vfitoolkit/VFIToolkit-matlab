@@ -234,11 +234,8 @@ for ii=1:N_i
 
 
     %% Some things that don't need to go in the loop over FnsToEvalaute
-    if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-        StationaryDist_ii=gpuArray(reshape(StationaryDist.(iistr),[N_a_temp*N_z_temp,1])); % Note: does not impose *StationaryDist.ptweights(ii)
-    else
-        StationaryDist_ii=reshape(StationaryDist.(iistr),[N_a_temp*N_z_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
-    end
+    StationaryDist_ii=gpuArray(reshape(StationaryDist.(iistr),[N_a_temp*N_z_temp,1])); % Note: does not impose *StationaryDist.ptweights(ii)
+    
     % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
     % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)
     temp=logical(StationaryDist_ii~=0);
@@ -270,6 +267,9 @@ for ii=1:N_i
             % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
             restrictedsamplemass(ii,rr)=sum(RestrictedStationaryDistVec);
             RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass(ii,rr); % Normalize to mass of 1
+            % Note: if the restriction is zero mass for this ptype the restricted stats are NaN (0/0), which is the
+            % correct behaviour: the conditional moment of a group that does not exist is unknown (and the grouped
+            % stats are then also NaN).
             % Store for later
             RestrictionStruct_ii(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec;
 

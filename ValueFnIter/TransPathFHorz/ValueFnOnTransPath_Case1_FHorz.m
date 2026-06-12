@@ -33,6 +33,7 @@ if exist('vfoptions','var')==0
     % Model setup
     vfoptions.exoticpreferences='None';
     vfoptions.experienceasset=0;
+    vfoptions.experienceassetz=0;
     % Exogenous shocks
     vfoptions.n_e=0;
 else
@@ -87,6 +88,13 @@ else
             vfoptions.level1n=vfoptions.level1n(1);
         end
     end
+    if ~isfield(vfoptions,'experienceassetz')
+        vfoptions.experienceassetz=0;
+    elseif vfoptions.experienceassetz>=1
+        if isfield(vfoptions,'level1n')
+            vfoptions.level1n=vfoptions.level1n(1);
+        end
+    end
     % Exogenous shocks
     if ~isfield(vfoptions,'n_e')
         vfoptions.n_e=0;
@@ -130,7 +138,7 @@ else
 end
 l_a=length(n_a);
 l_aprime=l_a;
-if vfoptions.experienceasset>=1
+if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
     l_aprime=l_aprime-1;
 end
 
@@ -204,6 +212,8 @@ end
 %%
 if vfoptions.experienceasset>=1
     [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_ExpAsset(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
+elseif vfoptions.experienceassetz>=1
+    [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_ExpAssetz(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
 else
     %%
     if N_e==0

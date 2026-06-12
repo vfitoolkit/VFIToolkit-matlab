@@ -188,16 +188,16 @@ if ndims(pi_z)==2 % Does not depend on S
     pi_z_T=repmat(gpuArray(pi_z),1,1,T);
 elseif ndims(pi_z)==3 % Depends on current S
     pizdependS=1;
-    pi_z_T=zeros(N_z,N_z,T,'gpuArray');
-    pi_z_T(:,:,tt)=pi_z(:,:,ss_ind_T);
-    % TEST: TO DELETE LATER: I need to test the vectorized version on previous line works and then I can delete the following version with loop
-    pi_z_T2=zeros(N_z,N_z,T,'gpuArray');
-    for tt=1:T
-        pi_z_T2(:,:,tt)=pi_z(:,:,ss_ind_T(tt));
-    end
-    if max(abs(pi_z_T-pi_z_T2))>1e-12
-        error('Wrong vectorization (if you see this error, let me know on forum)')
-    end
+    % pi_z_T=zeros(N_z,N_z,T,'gpuArray');
+    pi_z_T=pi_z(:,:,ss_ind_T);
+    % % TEST: TO DELETE LATER: I need to test the vectorized version on previous line works and then I can delete the following version with loop
+    % pi_z_T2=zeros(N_z,N_z,T,'gpuArray');
+    % for tt=1:T
+    %     pi_z_T2(:,:,tt)=pi_z(:,:,ss_ind_T(tt));
+    % end
+    % if max(abs(pi_z_T-pi_z_T2))>1e-12
+    %     error('Wrong vectorization (if you see this error, let me know on forum)')
+    % end
 elseif ndims(pi_z)==4 % joint transition of z with S
     pizdependS=2;
     pi_z_T=zeros(N_z,N_z,T,'gpuArray');
@@ -325,7 +325,6 @@ end
 
 
 %% Things for the initial guess
-
 % Use the mean of S based on stationary dist of S as the value of S here
 % (which makes sense with the way I treat S as idiosyncratic shock while doing the initial guess)
 statdist_S=ones(N_S,1)/N_S;
@@ -364,7 +363,7 @@ if initialguessobjects.methodforguess==1 % Replace S with E[S]
     if zgriddependS==0
         initialguessobjects.z_gridvals=z_gridvals;
     elseif zgriddependS==1
-        initialguessobjects.z_gridvals=sum(z_gridvals_S.*shiftdim(statdist_S,-2)); % Bit weird, but will do for now. Not obvious what a better choice would be.
+        initialguessobjects.z_gridvals=sum(z_gridvals_S.*shiftdim(statdist_S,-2),3); % Bit weird, but will do for now. Not obvious what a better choice would be.
     end
 
 elseif initialguessobjects.methodforguess==2 % treat S as idiosyncratic shock
@@ -387,6 +386,12 @@ elseif initialguessobjects.methodforguess==2 % treat S as idiosyncratic shock
     end
 end
 
+% zgriddependS
+% size(z_gridvals_S)
+% size(shiftdim(statdist_S,-2))
+% size(initialguessobjects.pi_z)
+% size(initialguessobjects.z_gridvals)
+% error('stop')
 
 
 %% Matching Expectations
@@ -607,15 +612,15 @@ elseif recursiveeqmoptions.matching_IdiosyncraticExogenousStates==1
     % Now the distances
     % Exogenous states are determined in general eqm, so have to recompute matching distances every iteration of thte path
     if l_z>=1
-        Distances_ExoState1=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+        Distances_ExoState1=100*abs(AggVarsPath.ExoState1.Mean(2:T)'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean(2:T)'; % percentage difference
         if l_z>=2
-            Distances_ExoState2=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+            Distances_ExoState2=100*abs(AggVarsPath.ExoState1.Mean(2:T)'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean(2:T)'; % percentage difference
             if l_z>=3
-                Distances_ExoState3=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                Distances_ExoState3=100*abs(AggVarsPath.ExoState1.Mean(2:T)'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean(2:T)'; % percentage difference
                 if l_z>=4
-                    Distances_ExoState4=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                    Distances_ExoState4=100*abs(AggVarsPath.ExoState1.Mean(2:T)'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean(2:T)'; % percentage difference
                     if l_z>=5
-                        Distances_ExoState5=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+                        Distances_ExoState5=100*abs(AggVarsPath.ExoState1.Mean(2:T)'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean(2:T)'; % percentage difference
                         Distances_ExoState=(Distances_ExoState1+Distances_ExoState2+Distances_ExoState3+Distances_ExoState4+Distances_ExoState5)/5;
                     else
                         Distances_ExoState=(Distances_ExoState1+Distances_ExoState2+Distances_ExoState3+Distances_ExoState4)/4;

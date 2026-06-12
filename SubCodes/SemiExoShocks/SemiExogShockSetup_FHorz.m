@@ -8,7 +8,7 @@ function options=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,options,grid
 % gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
 
 %% Check basic setup
-if ~isfield(options,'n_semiz')
+if options.n_semiz(1)==0
     return
 end
 if ~isfield(options,'l_dsemiz')
@@ -56,6 +56,7 @@ if gridpiboth==3 || gridpiboth==1 || isfield(options,'SemiExoStateFn')
 end
 
 
+%% Create pi_semiz_J (transition probabilities for semiz, they depend on d)
 if gridpiboth==3 || gridpiboth==2
     if isempty(n_d)
         % FnsToEvaluate don't need pi_semiz_J

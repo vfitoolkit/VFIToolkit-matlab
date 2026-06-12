@@ -356,19 +356,52 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
 
     % Create plots about the matching expectations process
     if recursiveeqmoptions.verbose>=2
-        % % Create a plot about the matching process (omit period T)
-        % matchingmap=zeros(T-1,T-1);
-        % for S_c=1:N_S
-        %     for tt=1:T-1
-        %         matchingmap(tt,DistMatches(tt,S_c,1,1))=1;
-        %     end
-        % end
-        % figure(4)
-        % maprange=floor(T/2):1:floor(T/2)+19;
-        % heatmap(matchingmap(maprange,maprange))
-        % title('Heatmap of the Matches (for 20 time periods)')
+        fprintf('Matches for period 150')
+        DistMatches(150,:,1,1)
+        fprintf('Distance to Matches for period 150')
+        DistMatches(150,:,1,2)
 
-        % figure(5)
+        fprintf('Matches for period 500')
+        DistMatches(500,:,1,1)
+        fprintf('Distance to Matches for period 500')
+        DistMatches(500,:,1,2)
+
+        % Draw some graphs of match quality
+        taxis=1:1:T;
+        coloursforheat=max(DistMatches(:,:,1,2),[],2)'; % color using the 'worst' distances
+        
+        % Match quality, showing y-axis as S index (todays aggregate state)
+        figure(4)
+        if isscalar(n_S)
+            fig4colourmap=zeros(N_S,T-1); % imagesc() leave nan as blank
+            for tt=1:T-1
+                fig4colourmap(ss_ind_T(tt),tt)=coloursforheat(tt);
+            end
+        elseif length(n_S)==2
+            fig4colourmap=zeros(sum(n_S),T-1); % imagesc() leave nan as blank
+            ss_ind_T_d1=rem(ss_ind_T-1,n_S(1))+1;
+            ss_ind_T_d2=ceil(ss_ind_T/n_S(1));
+            for tt=1:T-1
+                fig4colourmap(ss_ind_T_d1(tt),tt)=coloursforheat(tt);
+                fig4colourmap(n_S(1)+ss_ind_T_d2(tt),tt)=coloursforheat(tt);
+            end
+        end
+        % Create an alpha matrix (1 for visible, 0 for blank)
+        alphaMatrix = ones(size(fig4colourmap));
+        alphaMatrix(fig4colourmap == 0) = 0;
+        % Coloured squares version of fig4colourmap, but only the non-zeros
+        imagesc(fig4colourmap, 'AlphaData', alphaMatrix);
+
+        % Match quality vs EndoState1
+        figure(5)
+        scatter(taxis,AggVarsPath.EndoState1.Mean,[],[coloursforheat,max(coloursforheat)],'fill')
+        % Note: max(coloursforheat) is just filling in the last period, give it the 'worst' colour
+        % surface([taxis; taxis], [AggVarsPath.EndoState1.Mean; AggVarsPath.EndoState1.Mean], [zeros(size(taxis)); zeros(size(taxis))], [coloursforheat; coloursforheat], 'FaceColor', 'none','EdgeColor', 'interp','LineWidth', 3);
+        colormap(hot);
+        colorbar;
+        title('Value of first endogenous state, colours are the distance to the worst matches')
+
+        % figure(6)
         % for a_c=1:l_a
         %     matchingAggEndoState=zeros(T-1,N_S);
         %     for S_c=1:N_S
@@ -377,6 +410,10 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         %     subplot(l_a,1,a_c); plot(1:1:T-1,matchingAggEndoState)
         %     title(['Aggregate value of endogenous state ',num2str(a_c),' in each match (one line for each S value)'])
         % end
+        
+        fprintf('Range of EndoState1 is: min of %2.4f, max of %2.4f', min(AggVarsPath.EndoState1.Mean),max(AggVarsPath.EndoState1.Mean))
+        % fprintf('Range of ExoState1 is: min of %2.4f, max of %2.4f', min(AggVarsPath.ExoState1.Mean),max(AggVarsPath.ExoState1.Mean))
+        
     end
     
     % Update PricePathOld
@@ -398,7 +435,6 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1; is the minimum of both prices and GEcondns) \n',TransPathConvergence)
         fprintf(' \n')
         if recursiveeqmoptions.verbose>=2
-            DistMatches_lag=DistMatches;
             % DistMatches=zeros(T,N_S,recursiveeqmoptions.matchE_nnearest,2); last dim 1 is index of match and 2 is distance to match
             % For each period, contains the matches for each Sprime (both the index and distance for the period that it matches to)
             if pathcounter>1
@@ -415,6 +451,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
                 fprintf('  Quantile [0.1,    0.25,    0.5,    0.75,   0.9] \n')
                 fprintf('           [%1.6f, %1.6f, %1.6f, %1.6f,%1.6f] \n',quantilecutoffs)
             end
+            DistMatches_lag=DistMatches;
         end
     end
 

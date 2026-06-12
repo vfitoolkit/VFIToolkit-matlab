@@ -9,7 +9,7 @@ N_e=prod(n_e);
 
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); % joint (a1prime,a2prime) index at each (a,z,e,j) cell
 
-Vnext=sum(V.*shiftdim(pi_e_J,-2),3); % Take expectations over e
+Vnext=sum(V.*shiftdim(pi_e_J(:,[1,1:end-1]),-2),3); % Take expectations over e: Vnext(...,jj+1) is read for current age jj, so weight V at age jj+1 by pi_e_J(:,jj) [same timing as standard ValueFnIter commands]; first column is padding, never read
 
 %%
 n_a1=n_a(1);
