@@ -5,6 +5,11 @@ function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_raw(jequaloneDist
 % sparse() limits us to 2-D, and we need to get in a semiz' dimension. So I
 % put a&semiz&z together into the 1st dim.
 
+% Note: Tried doing creation of semiztransitions, etc., in parallel over jj
+% before the loop. Having it in the loop massively reduces the memory-use which
+% was a bottleneck when parallel over jj, and the runtime is actually if
+% anything faster in the loop version that it was parallel over jj.
+
 %%
 % It is likely that most of the elements in pi_semiz_J are zero, we can
 % take advantage of this to speed things up. Ignore for a moment the
@@ -20,21 +25,15 @@ N_semizshort=max(max(max(sum((pi_semiz_J>0),2))));
 pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
 idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_z,1,N_j]);
-semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
-pi_semiz_J_short=gather(pi_semiz_J_short);
-% semizindex_short is [N_a*N_semiz*N_z,N_semizshort,N_j]
-% used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-% and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-
-% Policy_aprime is currently [N_a,N_semiz*N_z,1,N_j]
-Policy_aprimesemizz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,1,N_j]),1,N_semizshort)+N_a*(idxshort(semizindex_short)-1)+repelem(N_a*N_semiz*(0:1:N_z-1)',N_a*N_semiz,1); % Note: add semiz' index following the semiz' dimension, add z' index following the z dimension for Tan improvement
-% Policy_aprimesemizz is currently [N_a,N_semiz*N_z,N_semizshort,N_j]
-
-semiztransitions=gather(pi_semiz_J_short(semizindex_short));
-
-pi_z_J=gather(pi_z_J);
 N_bothz=N_semiz*N_z;
+Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_bothz,1,N_j]));
+Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_bothz,1,N_j]);
+pi_semiz_J_short=gather(pi_semiz_J_short);
+idxshort=gather(idxshort);
+pi_z_J=gather(pi_z_J);
+semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+zprimeoffset=repelem(N_a*N_semiz*(0:1:N_z-1)',N_a*N_semiz,1);
+% semizindex_short_jj (built per age below) is [N_a*N_bothz,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j]
 
 %% Tan improvement version
 % To do Tan improvement with semiz shocks we treat the first step as
@@ -48,8 +47,11 @@ StationaryDist_jj=sparse(gather(jequaloneDistKron));
 II2=repelem((1:1:N_a*N_bothz)',1,N_semizshort);
 
 for jj=1:(N_j-1)
+    semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1);
+    Policy_aprimesemizz_jj=repelem(Policy_aprime(:,1,jj),1,N_semizshort)+N_a*(idxshort(semizindex_short_jj)-1)+zprimeoffset; % Note: add semiz' index, and z' index for Tan improvement
+    semiztransitions_jj=pi_semiz_J_short(semizindex_short_jj);
 
-    Gammatranspose=sparse(Policy_aprimesemizz(:,:,jj),II2,semiztransitions(:,:,jj),N_a*N_bothz,N_a*N_bothz); % From (a,semiz,z) to (a',semiz',z)
+    Gammatranspose=sparse(Policy_aprimesemizz_jj,II2,semiztransitions_jj,N_a*N_bothz,N_a*N_bothz); % From (a,semiz,z) to (a',semiz',z)
 
     % First step of Tan improvement
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a*N_semiz,N_z]);
