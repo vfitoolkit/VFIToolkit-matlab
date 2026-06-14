@@ -204,9 +204,6 @@ if length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
     error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
 end
 
-heteroagentoptions.verboseaccuracy1=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy1),'f \n']; % set up a string
-heteroagentoptions.verboseaccuracy2=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy2),'f \n']; % set up a string
-
 AggVarNames=fieldnames(FnsToEvaluate);
 nGEprices=length(GEPriceParamNames);
 
@@ -228,6 +225,13 @@ else
         end
     end
 end
+
+%%
+heteroagentoptions.verboseaccuracy1ptype=['	%s: ',repmat([' %8.',num2str(heteroagentoptions.verboseaccuracy1),'f '],1,N_i),' \n']; % set up a string for printing things that are conditional on ptype
+heteroagentoptions.verboseaccuracy2ptype=['	%s: ',repmat([' %8.',num2str(heteroagentoptions.verboseaccuracy2),'f '],1,N_i),' \n']; % set up a string for printing things that are conditional on ptype
+heteroagentoptions.verboseaccuracy1=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy1),'f \n']; % set up a string
+heteroagentoptions.verboseaccuracy2=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy2),'f \n']; % set up a string
+
 
 %% Reformat heteroagentoptions.GEptype from cell of names into vector of 1s and 0s
 if isempty(heteroagentoptions.GEptype)
@@ -402,6 +406,13 @@ for ii=1:PTypeStructure.N_i
     if heteroagentoptions.gridsinGE(ii)==0
         [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
         % Note: these are actually z_gridvals_J and pi_z_J
+        if isfield(PTypeStructure.(iistr).simoptions,'z_grid')
+            % alreadygridvals=1 is set further below, so any downstream code that
+            % reads simoptions.z_grid (e.g. StationaryDist_FHorz_Case1 routing to
+            % StationaryDist_FHorz_ExpAssetz) expects the joint-grid form. Mirror
+            % z_gridvals_J into simoptions.z_grid here so that path works.
+            PTypeStructure.(iistr).simoptions.z_grid=PTypeStructure.(iistr).z_gridvals_J;
+        end
         PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % Note, will be [] if no e
         PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J; % Note, will be [] if no e
     else

@@ -136,6 +136,13 @@ if any(temp)
     AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % N_j-by-T
 end
 
+%% Semi-exogenous states get their own subfunction
+% Note: called before the (non-semiz) reshapes of AgentDist_initial/jequaloneDist/PolicyPath (those do not know about the semiz dimension; the subfunction does its own reshaping)
+if prod(simoptions.n_semiz)>0
+    AgentDistPath=AgentDistOnTransPath_FHorz_SemiExo(AgentDist_initial, jequaloneDist, PolicyPath, AgeWeights, AgeWeights_T, n_d, n_a, n_z, N_j, T, pi_z_J, pi_z_J_sim, Parameters, transpathoptions, simoptions);
+    return
+end
+
 %% Setup for AgentDist_initial (includes a check that if AgeWeights do not change over the transition then they should match the initial agent distribution)
 if N_e==0  % no z, no e
     if N_z==0

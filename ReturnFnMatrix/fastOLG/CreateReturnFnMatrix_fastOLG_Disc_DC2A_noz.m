@@ -13,7 +13,7 @@ end
 nReturnFnParams=size(ReturnFnParamsAgeMatrix,2);
 ReturnFnParamsCell=cell(nReturnFnParams,1);
 for ii=1:nReturnFnParams
-    ReturnFnParamsCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-l_d-l_a1-l_a2-l_a1-l_a2)};
+    ReturnFnParamsCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-1-l_a1-l_a2-l_a1-l_a2)};
 end
 
 N_d=prod(n_d);

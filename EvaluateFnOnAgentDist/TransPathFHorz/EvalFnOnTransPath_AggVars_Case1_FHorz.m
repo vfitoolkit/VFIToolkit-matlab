@@ -95,6 +95,13 @@ else
     end
 end
 
+%% Semi-exogenous states get their own subfunction
+% Note: called before the (non-semiz) FnsToEvaluate/path processing and reshapes (which do not know about the semiz dimension; the subfunction does its own setup and reshaping)
+if prod(simoptions.n_semiz)>0
+    AggVarsPath=EvalFnOnTransPath_AggVars_FHorz_SemiExo(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, ParamPath, Parameters, T, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, transpathoptions, simoptions);
+    return
+end
+
 %%
 N_d=prod(n_d);
 N_a=prod(n_a);
