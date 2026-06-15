@@ -23,14 +23,14 @@ if ~isfield(estimoptions,'constrainpositive')
     % Then use p=exp(x) in the model.
 end
 if ~isfield(estimoptions,'constrain0to1')
-    estimoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    estimoptions.constrain0to1={}; % names of parameters to be constrained to 0 to 1 (gets converted to binary-valued vector below)
     % Handle 0 to 1 constraints by using log-odds function to switch parameter p into unconstrained x, so x=log(p/(1-p))
     % Then use the logistic-sigmoid p=1/(1+exp(-x)) when evaluating model.
 end
 if ~isfield(estimoptions,'constrainAtoB')
-    estimoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    estimoptions.constrainAtoB={}; % names of parameters to be constrained to interval A to B (gets converted to binary-valued vector below)
     % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
-    % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
+    % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-A)*y
 else
     if ~isfield(estimoptions,'constrainAtoBlimits')
         error('You have used estimoptions.constrainAtoB, but are missing estimoptions.constrainAtoBlimits')

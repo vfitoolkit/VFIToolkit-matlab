@@ -41,17 +41,25 @@ l_aprime=1; % semiz only allows scalar n_a
 %% Set up the semi-exogenous state
 % Check whether any of the parameters of SemiExoStateFn are on the path (in which case pi_semiz_J varies over the transition)
 transpathoptions.semizpathtrivial=1;
-temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
-nargsSemiExo=2*length(n_semiz)+vfoptions.l_dsemiz; % first inputs are (semiz,semizprime,dsemiz)
-if length(temp)>nargsSemiExo
-    SemiExoStateFnParamNames={temp{nargsSemiExo+1:end}};
-else
-    SemiExoStateFnParamNames={};
-end
-for kk=1:length(SemiExoStateFnParamNames)
-    if any(strcmp(ParamPathNames,SemiExoStateFnParamNames{kk})) || any(strcmp(PricePathNames,SemiExoStateFnParamNames{kk}))
-        transpathoptions.semizpathtrivial=0;
+if isfield(vfoptions,'SemiExoStateFn')
+    temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
+    nargsSemiExo=2*length(n_semiz)+vfoptions.l_dsemiz; % first inputs are (semiz,semizprime,dsemiz)
+    if length(temp)>nargsSemiExo
+        SemiExoStateFnParamNames={temp{nargsSemiExo+1:end}};
+    else
+        SemiExoStateFnParamNames={};
     end
+    for kk=1:length(SemiExoStateFnParamNames)
+        if any(strcmp(ParamPathNames,SemiExoStateFnParamNames{kk})) || any(strcmp(PricePathNames,SemiExoStateFnParamNames{kk}))
+            transpathoptions.semizpathtrivial=0;
+        end
+    end
+elseif isfield(vfoptions,'pi_semiz')
+    if ndims(vfoptions.pi_semiz)>4
+        error('Have not yet implemented that semi-exogenous shocks can vary over the transition path')
+    end
+else
+    error('When using semi-exogenous state you must declare either vfoptions.SemiExoStateFn or vfoptions.pi_semiz')
 end
 if transpathoptions.semizpathtrivial==0
     error('Parameters of vfoptions.SemiExoStateFn appearing on PricePath/ParamPath are not yet implemented for transition paths (the semi-exogenous transition probabilities would need to vary over the transition path) - email me if you want this')

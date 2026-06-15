@@ -102,8 +102,8 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     % Constrain parameters
     heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
-    heteroagentoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
-    heteroagentoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    heteroagentoptions.constrain0to1={}; % names of parameters to be constrained to 0 to 1 (gets converted to binary-valued vector below)
+    heteroagentoptions.constrainAtoB={}; % names of parameters to be constrained to interval A to B (gets converted to binary-valued vector below)
     % Verbose settings (feedback)
     heteroagentoptions.verbose=0; % =1, give feedback [=2, more feedback, good for debugging]
     heteroagentoptions.verboseaccuracy1=4; % number of decimal places for GEPrices (among others)
@@ -144,19 +144,17 @@ else
         % Then use p=exp(x) in the model.
     end
     if ~isfield(heteroagentoptions,'constrain0to1')
-        heteroagentoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+        heteroagentoptions.constrain0to1={}; % names of parameters to be constrained to 0 to 1 (gets converted to binary-valued vector below)
         % Handle 0 to 1 constraints by using log-odds function to switch parameter p into unconstrained x, so x=log(p/(1-p))
         % Then use the logistic-sigmoid p=1/(1+exp(-x)) when evaluating model.
     end
     if ~isfield(heteroagentoptions,'constrainAtoB')
-        heteroagentoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+        heteroagentoptions.constrainAtoB={}; % names of parameters to be constrained to interval A to B (gets converted to binary-valued vector below)
         % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
-        % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
+        % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-A)*y
     elseif ~isempty(heteroagentoptions.constrainAtoB)
-        if prod(heteroagentoptions.constrainAtoB)>0
-            if ~isfield(heteroagentoptions,'constrainAtoBlimits')
-                error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
-            end
+        if ~isfield(heteroagentoptions,'constrainAtoBlimits')
+            error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
         end
     end
     % Verbose settings (feedback)

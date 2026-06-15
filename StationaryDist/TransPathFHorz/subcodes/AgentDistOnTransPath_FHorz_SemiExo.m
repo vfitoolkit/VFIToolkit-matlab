@@ -1,4 +1,4 @@
-function AgentDistPath=AgentDistOnTransPath_FHorz_SemiExo(AgentDist_initial, jequaloneDist, PolicyPath, AgeWeights, AgeWeights_T, n_d, n_a, n_z, N_j, T, pi_z_J, pi_z_J_sim, Parameters, transpathoptions, simoptions)
+function AgentDistPath=AgentDistOnTransPath_FHorz_SemiExo(AgentDist_initial, jequaloneDist, PolicyPath, AgeWeights, AgeWeights_T, n_d, n_a, n_z, n_e, N_j, pi_z_J, pi_z_J_sim, pi_e_J, pi_e_J_sim, T, Parameters, transpathoptions, simoptions)
 % Agent distribution along the transition path, with a semi-exogenous state.
 % The semi-exogenous transition (semiz->semiz') depends on the decision d2, so it is folded into the
 % single-step iteration (cannot be a fixed markov step). semiz and z are treated as the composite
@@ -10,8 +10,7 @@ n_semiz=simoptions.n_semiz;
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);
 N_z=prod(n_z);
-N_e=prod(simoptions.n_e);
-N_AS=N_a*N_semiz;
+N_e=prod(n_e);
 
 if ~isscalar(n_a)
     error('Transition paths with semi-exogenous states only allow a single endogenous state (cannot have length(n_a)>1)')
@@ -28,13 +27,13 @@ if N_z==0
     if N_e==0
         n_bothze=n_semiz; N_bothze=N_semiz;
     else
-        n_bothze=[n_semiz,simoptions.n_e]; N_bothze=N_semiz*N_e;
+        n_bothze=[n_semiz,n_e]; N_bothze=N_semiz*N_e;
     end
 else
     if N_e==0
         n_bothze=[n_semiz,n_z]; N_bothze=N_semiz*N_z;
     else
-        n_bothze=[n_semiz,n_z,simoptions.n_e]; N_bothze=N_semiz*N_z*N_e;
+        n_bothze=[n_semiz,n_z,n_e]; N_bothze=N_semiz*N_z*N_e;
     end
 end
 
@@ -53,20 +52,15 @@ end
 simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,2);
 pi_semiz_J=simoptions.pi_semiz_J; % [N_semiz,N_semiz',N_dsemiz,N_j]
 
-%% Build clean pi_e_J [N_e,N_j] and, for fastOLG, pi_e_J_sim with N_AS in place of N_a
+
+%% pi_e_J [N_e,N_j] is used by the slowOLG raws; pi_e_J_sim (with N_asemiz) by the fastOLG raws.
+% For fastOLG the passed-in pi_e_J is the value-fn form (not [N_e,N_j]), so build pi_e_J_sim from the generic
+% pi_e_J_sim (the agent-dist form [N_a*(N_j-1)(*N_z),N_e]) by repelem (valid: pi_e is constant within each age block).
 if N_e>0
-    if ~isfield(simoptions,'pi_e')
-        error('To use a semi-exogenous state with an iid shock e in AgentDistOnTransPath you must provide simoptions.pi_e')
-    end
-    pi_e_J=simoptions.pi_e.*ones(1,N_j,'gpuArray'); % [N_e,N_j] (works whether pi_e is [N_e,1] or [N_e,N_j])
-    pi_e_J=gather(pi_e_J);
     if simoptions.fastOLG==1
-        if N_z==0
-            pi_e_J_sim=repelem(pi_e_J(:,1:end-1)',N_AS,1); % [N_AS*(N_j-1),N_e]
-        else
-            pi_e_J_sim=repmat(repelem(pi_e_J(:,1:end-1)',N_AS,1),N_z,1); % [N_AS*(N_j-1)*N_z,N_e]
-        end
-        pi_e_J_sim=gpuArray(pi_e_J_sim);
+        pi_e_J_sim=gpuArray(repelem(gather(pi_e_J_sim),N_semiz,1)); % [N_a*(N_j-1)(*N_z),N_e] -> [N_asemiz*(N_j-1)(*N_z),N_e]
+    else
+        pi_e_J=gather(pi_e_J); % [N_e,N_j]
     end
 end
 
@@ -155,21 +149,21 @@ else
     AgentDist_noweights=AgentDist_initial./AgeWeights_initial; % [N_a*N_bothze,N_j], remove age weights
     % reshape to [N_a,N_semiz,(N_z),(N_e),N_j] then permute so that the order is (a,semiz,j,(z)) with e in trailing columns
     if N_z==0 && N_e==0
-        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_j]),[1,2,3]),[N_AS*N_j,1]);
-        jequalOneDist=reshape(jequaloneDist,[N_AS,1]);
-        AgentDistPath=zeros(N_AS*N_j,T,'gpuArray');
+        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_j]),[1,2,3]),[N_a*N_semiz*N_j,1]);
+        jequalOneDist=reshape(jequaloneDist,[N_a*N_semiz,1]);
+        AgentDistPath=zeros(N_a*N_semiz*N_j,T,'gpuArray');
     elseif N_e==0
-        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_z,N_j]),[1,2,4,3]),[N_AS*N_j*N_z,1]);
-        jequalOneDist=reshape(jequaloneDist,[N_AS*N_z,1]);
-        AgentDistPath=zeros(N_AS*N_j*N_z,T,'gpuArray');
+        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_z,N_j]),[1,2,4,3]),[N_a*N_semiz*N_j*N_z,1]);
+        jequalOneDist=reshape(jequaloneDist,[N_a*N_semiz*N_z,1]);
+        AgentDistPath=zeros(N_a*N_semiz*N_j*N_z,T,'gpuArray');
     elseif N_z==0
-        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_e,N_j]),[1,2,4,3]),[N_AS*N_j,N_e]);
-        jequalOneDist=reshape(jequaloneDist,[N_AS*N_e,1]);
-        AgentDistPath=zeros(N_AS*N_j,N_e,T,'gpuArray');
+        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_e,N_j]),[1,2,4,3]),[N_a*N_semiz*N_j,N_e]);
+        jequalOneDist=reshape(jequaloneDist,[N_a*N_semiz*N_e,1]);
+        AgentDistPath=zeros(N_a*N_semiz*N_j,N_e,T,'gpuArray');
     else
-        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_z,N_e,N_j]),[1,2,5,3,4]),[N_AS*N_j*N_z,N_e]);
-        jequalOneDist=reshape(jequaloneDist,[N_AS*N_z*N_e,1]);
-        AgentDistPath=zeros(N_AS*N_j*N_z,N_e,T,'gpuArray');
+        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_z,N_e,N_j]),[1,2,5,3,4]),[N_a*N_semiz*N_j*N_z,N_e]);
+        jequalOneDist=reshape(jequaloneDist,[N_a*N_semiz*N_z*N_e,1]);
+        AgentDistPath=zeros(N_a*N_semiz*N_j*N_z,N_e,T,'gpuArray');
     end
     if N_z==0 && N_e==0
         AgentDistPath(:,1)=AgentDist;
@@ -217,20 +211,20 @@ else
 
     % Put the age weights back in, and reshape to output [n_a,n_bothze,N_j,T]
     if N_z==0 && N_e==0
-        AgentDistPath=AgentDistPath.*repelem(AgeWeights_T,N_AS,1); % [N_AS*N_j,T]
-        AgentDistPath=reshape(AgentDistPath,[N_AS,N_j,T]); % (a,semiz,j,T)
+        AgentDistPath=AgentDistPath.*repelem(AgeWeights_T,N_a*N_semiz,1); % [N_a*N_semiz*N_j,T]
+        AgentDistPath=reshape(AgentDistPath,[N_a*N_semiz,N_j,T]); % (a,semiz,j,T)
         AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
     elseif N_e==0
-        AgentDistPath=AgentDistPath.*repmat(repelem(AgeWeights_T,N_AS,1),N_z,1); % [N_AS*N_j*N_z,T]
-        AgentDistPath=permute(reshape(AgentDistPath,[N_AS,N_j,N_z,T]),[1,3,2,4]); % (a,semiz,z,j,T)
+        AgentDistPath=AgentDistPath.*repmat(repelem(AgeWeights_T,N_a*N_semiz,1),N_z,1); % [N_a*N_semiz*N_j*N_z,T]
+        AgentDistPath=permute(reshape(AgentDistPath,[N_a*N_semiz,N_j,N_z,T]),[1,3,2,4]); % (a,semiz,z,j,T)
         AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
     elseif N_z==0
-        AgentDistPath=AgentDistPath.*repelem(reshape(AgeWeights_T,[N_j,1,T]),N_AS,1); % [N_AS*N_j,N_e,T]
-        AgentDistPath=permute(reshape(AgentDistPath,[N_AS,N_j,N_e,T]),[1,3,2,4]); % (a,semiz,e,j,T)
+        AgentDistPath=AgentDistPath.*repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a*N_semiz,1); % [N_a*N_semiz*N_j,N_e,T]
+        AgentDistPath=permute(reshape(AgentDistPath,[N_a*N_semiz,N_j,N_e,T]),[1,3,2,4]); % (a,semiz,e,j,T)
         AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
     else
-        AgentDistPath=AgentDistPath.*repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_AS,1),N_z,1); % [N_AS*N_j*N_z,N_e,T]
-        AgentDistPath=permute(reshape(AgentDistPath,[N_AS,N_j,N_z,N_e,T]),[1,3,4,2,5]); % (a,semiz,z,e,j,T)
+        AgentDistPath=AgentDistPath.*repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a*N_semiz,1),N_z,1); % [N_a*N_semiz*N_j*N_z,N_e,T]
+        AgentDistPath=permute(reshape(AgentDistPath,[N_a*N_semiz,N_j,N_z,N_e,T]),[1,3,4,2,5]); % (a,semiz,z,e,j,T)
         AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
     end
 end

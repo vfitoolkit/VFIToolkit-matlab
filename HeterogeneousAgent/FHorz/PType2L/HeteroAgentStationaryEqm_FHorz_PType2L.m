@@ -78,10 +78,8 @@ if ~isfield(heteroagentoptions,'constrainpositive'), heteroagentoptions.constrai
 if ~isfield(heteroagentoptions,'constrain0to1'),    heteroagentoptions.constrain0to1={}; end
 if ~isfield(heteroagentoptions,'constrainAtoB'),    heteroagentoptions.constrainAtoB={}; end
 if isfield(heteroagentoptions,'constrainAtoB') && ~isempty(heteroagentoptions.constrainAtoB)
-    if prod(heteroagentoptions.constrainAtoB)>0
-        if ~isfield(heteroagentoptions,'constrainAtoBlimits')
-            error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
-        end
+    if ~isfield(heteroagentoptions,'constrainAtoBlimits')
+        error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
     end
 end
 if ~isfield(heteroagentoptions,'verbose'),          heteroagentoptions.verbose=0; end
