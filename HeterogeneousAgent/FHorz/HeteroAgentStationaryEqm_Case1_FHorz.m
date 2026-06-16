@@ -258,7 +258,9 @@ if isstruct(FnsToEvaluate)
     if prod(n_z)==0
         l_z=0;
     end
-    if isfield(simoptions,'SemiExoStateFn')
+    if isfield(simoptions,'SemiExoStateFn') || prod(simoptions.n_semiz)>0
+        % semiz states count toward the FnsToEvaluate input parse whether they come from a
+        % SemiExoStateFn or a pre-built simoptions.pi_semiz
         l_z=l_z+length(simoptions.n_semiz);
     end
     l_e=0;

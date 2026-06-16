@@ -167,13 +167,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 end
 
 
-%% Cleaning up the output
-if vfoptions.outputkron==0
-    V=reshape(V,[n_a,n_z]);
-    Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
-else
-    return
-end
+%% Output in kron form; V and Policy are reshaped/unkroned by the caller (ValueFnIter_InfHorz_DivideConquer)
+Policy=shiftdim(Policy,-1); % [N_a,N_z] -> [1,N_a,N_z]
 
 
 end

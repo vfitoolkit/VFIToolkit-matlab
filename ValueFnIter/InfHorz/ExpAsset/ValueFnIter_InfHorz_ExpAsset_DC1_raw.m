@@ -202,7 +202,8 @@ end
 
 
 
-%% For experience asset, just output Policy as is and then use Case2 to UnKron
+%% Output in kron form ([1,N_a,N_z]); caller (ValueFnIter_InfHorz_ExpAsset) does the UnKron
+Policy=shiftdim(Policy,-1); % [N_a,N_z] -> [1,N_a,N_z]
 
 end
 

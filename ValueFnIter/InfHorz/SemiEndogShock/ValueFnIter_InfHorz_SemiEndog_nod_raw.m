@@ -65,7 +65,7 @@ while currdist>Tolerance
 
 end
 
-Policy=PolicyIndexes;
+Policy=shiftdim(PolicyIndexes,-1); % [N_a,N_z] -> [1,N_a,N_z]
 
 
 

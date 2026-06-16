@@ -102,11 +102,14 @@ end
 
 Policy=reshape(Policy,[N_a,N_z]);
 
-%% For refinement, add d1 into Policy (which is just d2)
-% Policy is currently
+%% For refinement, recover d1
 temppolicyindex=reshape(Policy,[1,N_a*N_z])+(0:1:N_a*N_z-1)*N_a;
 Policy_d1=reshape(d1star(temppolicyindex),[N_a,N_z]);
-Policy=Policy_d1+N_d1*(Policy-1);
+% Output d1 and d2 as two separate points (first dim) rather than combining into one index
+Policytemp=zeros(2,N_a,N_z,'gpuArray');
+Policytemp(1,:,:)=Policy_d1; % d1
+Policytemp(2,:,:)=Policy;    % d2
+Policy=Policytemp;
 
 
 
