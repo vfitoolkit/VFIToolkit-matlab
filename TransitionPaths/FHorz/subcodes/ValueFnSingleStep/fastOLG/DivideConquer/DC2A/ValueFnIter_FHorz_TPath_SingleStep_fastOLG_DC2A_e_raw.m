@@ -51,7 +51,7 @@ DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamN
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if vfoptions.EVpre==0
-    EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,:,:),3); zeros(N_a,N_z,'gpuArray')]; % (N_a*N_j, N_z); zeros at j=N_j (terminal)
+    EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(1:end-N_a,:,:),3); zeros(N_a,N_z,'gpuArray')]; % (N_a*N_j, N_z); zeros at j=N_j (terminal)
     EVpre=reshape(EVpre,[N_a1,N_a2,1,1,N_j,N_z]);
     EV=EVpre.*shiftdim(pi_z_J,-4); % [1,1,1,1,N_j,N_z',N_z]
     EV(isnan(EV))=0; % -Inf*0 = NaN, replace with 0 (the 0 comes from transition prob)

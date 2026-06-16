@@ -22,19 +22,10 @@ else
 end
 transpathoptions.parallel=2; % transition path requires GPU
 
+
 %% Check which vfoptions have been used, set all others to defaults
-if exist('vfoptions','var')==0
-    disp('No vfoptions given, using defaults')
-    %If vfoptions is not given, just use all the defaults
-    vfoptions.divideandconquer=0;
-    vfoptions.gridinterplayer=0;
-    vfoptions.verbose=0;
-    vfoptions.lowmemory=0;
-    % Model setup
-    vfoptions.exoticpreferences='None';
-    vfoptions.experienceasset=0;
-    % Exogenous shocks
-    vfoptions.n_e=0;
+if ~exist('vfoptions','var')
+    error('You must provide vfoptions when doing transition paths')
 else
     % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'divideandconquer')
@@ -87,13 +78,24 @@ else
             vfoptions.level1n=vfoptions.level1n(1);
         end
     end
+    if ~isfield(vfoptions,'experienceassetz')
+        vfoptions.experienceassetz=0;
+    elseif vfoptions.experienceassetz>=1
+        if isfield(vfoptions,'level1n')
+            vfoptions.level1n=vfoptions.level1n(1);
+        end
+    end
     % Exogenous shocks
     if ~isfield(vfoptions,'n_e')
         vfoptions.n_e=0;
     end
+    if ~isfield(vfoptions,'n_semiz')
+        vfoptions.n_semiz=0;
+    end
 end
 vfoptions.parallel=2; % transition path requires GPU
 vfoptions.EVpre=0; % =1 is used by 'Matched Expecations Path', for TPath we want =0 (this relates to details of fastOLG=1 value fn code)
+
 
 %% Dispatch to QuasiHyperbolic subfn (returns via varargout)
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
@@ -130,7 +132,7 @@ else
 end
 l_a=length(n_a);
 l_aprime=l_a;
-if vfoptions.experienceasset>=1
+if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
     l_aprime=l_aprime-1;
 end
 
@@ -162,6 +164,14 @@ if transpathoptions.verbose==2
     ReturnFnParamNames
     ParamPathNames
     PricePathNames
+end
+
+%% Semi-exogenous states get their own subfunction
+% Note: called before the reshaping of V_final/Policy_final (those reshapes do not know about the semiz dimension; the subfunction does them internally)
+if prod(vfoptions.n_semiz)>0
+    [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_SemiExo(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
+    varargout={VPath,PolicyPath};
+    return
 end
 
 %% Setup for various objects
@@ -204,6 +214,8 @@ end
 %%
 if vfoptions.experienceasset>=1
     [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_ExpAsset(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
+elseif vfoptions.experienceassetz>=1
+    [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_ExpAssetz(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
 else
     %%
     if N_e==0

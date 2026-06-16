@@ -37,6 +37,14 @@ else % N_d
     end
 end
 
-
+%% UnKron the output
+if vfoptions.outputkron==0
+    V=reshape(V,[n_a,n_z]);
+    if prod(n_d)==0
+        Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
+    else
+        Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
+    end
+end
 
 end

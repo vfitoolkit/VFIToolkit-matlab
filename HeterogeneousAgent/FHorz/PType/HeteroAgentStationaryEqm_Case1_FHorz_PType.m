@@ -76,8 +76,8 @@ if exist('heteroagentoptions','var')==0
     % heteroagentoptions.GEusenames=0; % =1, can use '_name' for Params and AggVars in the general eqm eqns
     % Constrain parameters
     heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
-    heteroagentoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
-    heteroagentoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    heteroagentoptions.constrain0to1={}; % names of parameters to be constrained to 0 to 1 (gets converted to binary-valued vector below)
+    heteroagentoptions.constrainAtoB={}; % names of parameters to be constrained to interval A to B (gets converted to binary-valued vector below)
     % Verbose settings (feedback)
     heteroagentoptions.verbose=0; % =1, give feedback
     heteroagentoptions.verboseaccuracy1=4; % number of decimal places for GEPrices (among others)
@@ -124,19 +124,17 @@ else
         % Then use p=exp(x) in the model.
     end
     if ~isfield(heteroagentoptions,'constrain0to1')
-        heteroagentoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+        heteroagentoptions.constrain0to1={}; % names of parameters to be constrained to 0 to 1 (gets converted to binary-valued vector below)
         % Handle 0 to 1 constraints by using log-odds function to switch parameter p into unconstrained x, so x=log(p/(1-p))
         % Then use the logistic-sigmoid p=1/(1+exp(-x)) when evaluating model.
     end
     if ~isfield(heteroagentoptions,'constrainAtoB')
-        heteroagentoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+        heteroagentoptions.constrainAtoB={}; % names of parameters to be constrained to interval A to B (gets converted to binary-valued vector below)
         % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
-        % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
+        % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-A)*y
     elseif ~isempty(heteroagentoptions.constrainAtoB)
-        if prod(heteroagentoptions.constrainAtoB)>0
-            if ~isfield(heteroagentoptions,'constrainAtoBlimits')
-                error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
-            end
+        if ~isfield(heteroagentoptions,'constrainAtoBlimits')
+            error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
         end
     end
     % Verbose settings (feedback)
@@ -204,9 +202,6 @@ if length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
     error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
 end
 
-heteroagentoptions.verboseaccuracy1=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy1),'f \n']; % set up a string
-heteroagentoptions.verboseaccuracy2=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy2),'f \n']; % set up a string
-
 AggVarNames=fieldnames(FnsToEvaluate);
 nGEprices=length(GEPriceParamNames);
 
@@ -228,6 +223,13 @@ else
         end
     end
 end
+
+%%
+heteroagentoptions.verboseaccuracy1ptype=['	%s: ',repmat([' %8.',num2str(heteroagentoptions.verboseaccuracy1),'f '],1,N_i),' \n']; % set up a string for printing things that are conditional on ptype
+heteroagentoptions.verboseaccuracy2ptype=['	%s: ',repmat([' %8.',num2str(heteroagentoptions.verboseaccuracy2),'f '],1,N_i),' \n']; % set up a string for printing things that are conditional on ptype
+heteroagentoptions.verboseaccuracy1=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy1),'f \n']; % set up a string
+heteroagentoptions.verboseaccuracy2=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy2),'f \n']; % set up a string
+
 
 %% Reformat heteroagentoptions.GEptype from cell of names into vector of 1s and 0s
 if isempty(heteroagentoptions.GEptype)
@@ -402,6 +404,13 @@ for ii=1:PTypeStructure.N_i
     if heteroagentoptions.gridsinGE(ii)==0
         [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
         % Note: these are actually z_gridvals_J and pi_z_J
+        if isfield(PTypeStructure.(iistr).simoptions,'z_grid')
+            % alreadygridvals=1 is set further below, so any downstream code that
+            % reads simoptions.z_grid (e.g. StationaryDist_FHorz_Case1 routing to
+            % StationaryDist_FHorz_ExpAssetz) expects the joint-grid form. Mirror
+            % z_gridvals_J into simoptions.z_grid here so that path works.
+            PTypeStructure.(iistr).simoptions.z_grid=PTypeStructure.(iistr).z_gridvals_J;
+        end
         PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % Note, will be [] if no e
         PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J; % Note, will be [] if no e
     else

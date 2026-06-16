@@ -5,7 +5,7 @@ function [p_eqm_vec,GeneralEqmConditions]=StationaryGeneralEqm_subcode_fminalgo5
 heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames);
 
 % Get initial prices, p
-p_old_unconstrained=GEparamsvec0;
+p_old_unconstrained=GEparamsvec0'; % row orientation, to match the add/factor/keepold rule vectors (rows)
 [p_old,~]=ParameterConstraints_TransformParamsToOriginal(p_old_unconstrained,0:1:nGEParams,GEPriceParamNames,heteroagentoptions);
 
 % Given current prices solve the model to get the general equilibrium conditions as a structure

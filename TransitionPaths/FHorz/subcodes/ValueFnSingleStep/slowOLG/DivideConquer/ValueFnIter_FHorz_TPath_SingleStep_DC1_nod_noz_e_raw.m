@@ -6,7 +6,7 @@ N_e=prod(n_e);
 
 Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,e
 
-Vnext=sum(V.*shiftdim(pi_e_J,-1),2); % Take expectations over e
+Vnext=sum(V.*shiftdim(pi_e_J(:,[1,1:end-1]),-1),2); % Take expectations over e: Vnext(...,jj+1) is read for current age jj, so weight V at age jj+1 by pi_e_J(:,jj) [same timing as standard ValueFnIter commands]; first column is padding, never read
 
 %%
 if vfoptions.lowmemory==0

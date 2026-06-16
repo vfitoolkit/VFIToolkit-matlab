@@ -193,7 +193,6 @@ if N_z==0
 
 else % N_z
     if l_d==0
-
         Policy=reshape(Policy,[l_aprime,N_a*N_z*N_j]);
         PolicyValues=zeros(l_aprime,N_a*N_z*N_j,'gpuArray');
 

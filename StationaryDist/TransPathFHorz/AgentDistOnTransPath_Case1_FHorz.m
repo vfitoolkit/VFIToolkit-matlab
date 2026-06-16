@@ -21,6 +21,7 @@ if exist('simoptions','var')==0
     simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
+    simoptions.experienceassetz=0;
     % Exogenous shocks
     simoptions.n_e=0;
     simoptions.n_semiz=0;
@@ -46,6 +47,9 @@ else
     % Model setup
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
     end
     % Exogenous shocks
     if ~isfield(simoptions,'n_e')
@@ -84,22 +88,6 @@ end
 % Make sure all the relevant inputs are GPU arrays (not standard arrays)
 AgentDist_initial=gpuArray(AgentDist_initial);
 
-
-%% Set up exogenous shock processes
-[~, pi_z_J, pi_z_J_sim, ~, pi_e_J, pi_e_J_sim, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,[],pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,2);
-% Convert z and e to age-dependent joint-grids and transtion matrix
-% output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
-
-% Sets up
-% transpathoptions.zpathtrivial=1; % z_gridvals_J and pi_z_J are not varying over the path
-%                              =0; % they vary over path, so z_gridvals_J_T and pi_z_J_T
-% transpathoptions.epathtrivial=1; % e_gridvals_J and pi_e_J are not varying over the path
-%                              =0; % they vary over path, so e_gridvals_J_T and pi_e_J_T
-% and
-% transpathoptions.gridsinGE=1; % grids depend on a GE parameter and so need to be recomputed every iteration
-%                           =0; % grids are exogenous
-
-
 %%
 if transpathoptions.verbose==1
     transpathoptions
@@ -130,6 +118,28 @@ if any(temp)
     [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
     % Create AgeWeights_T
     AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % N_j-by-T
+end
+
+
+%% Set up exogenous shock processes
+[~, pi_z_J, pi_z_J_sim, ~, pi_e_J, pi_e_J_sim, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,[],pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,2);
+% Convert z and e to age-dependent joint-grids and transtion matrix
+% output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
+
+% Sets up
+% transpathoptions.zpathtrivial=1; % z_gridvals_J and pi_z_J are not varying over the path
+%                              =0; % they vary over path, so z_gridvals_J_T and pi_z_J_T
+% transpathoptions.epathtrivial=1; % e_gridvals_J and pi_e_J are not varying over the path
+%                              =0; % they vary over path, so e_gridvals_J_T and pi_e_J_T
+% and
+% transpathoptions.gridsinGE=1; % grids depend on a GE parameter and so need to be recomputed every iteration
+%                           =0; % grids are exogenous
+
+%% Semi-exogenous states get their own subfunction
+% Note: called before the (non-semiz) reshapes of AgentDist_initial/jequaloneDist/PolicyPath (those do not know about the semiz dimension; the subfunction does its own reshaping)
+if prod(simoptions.n_semiz)>0
+    AgentDistPath=AgentDistOnTransPath_FHorz_SemiExo(AgentDist_initial, jequaloneDist, PolicyPath, AgeWeights, AgeWeights_T, n_d, n_a, n_z, n_e, N_j, pi_z_J, pi_z_J_sim, pi_e_J, pi_e_J_sim, T, Parameters, transpathoptions, simoptions);
+    return
 end
 
 %% Setup for AgentDist_initial (includes a check that if AgeWeights do not change over the transition then they should match the initial agent distribution)
@@ -185,7 +195,7 @@ N_probs=1; % Not using N_probs
 if simoptions.gridinterplayer==1
     N_probs=N_probs*2;
 end
-if simoptions.experienceasset>=1
+if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
     N_probs=N_probs*2;
 end
 
@@ -196,7 +206,7 @@ else
     l_d=length(n_d);
 end
 l_aprime=l_a;
-if simoptions.experienceasset>=1
+if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
     l_aprime=l_aprime-1;
 end
 
@@ -216,7 +226,7 @@ else
 end
 
 n_aprime=n_a;
-if simoptions.experienceasset>=1
+if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
     if ~isfield(simoptions,'l_dexperienceasset')
         simoptions.l_dexperienceasset=1;
     end
@@ -236,10 +246,34 @@ if simoptions.experienceasset>=1
     l_d2=length(n_d2);
     l_a2=length(n_a2);
     temp=getAnonymousFnInputNames(simoptions.aprimeFn);
-    if length(temp)>(l_d2+l_a2)
-        aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+    if simoptions.experienceassetz>=1
+        l_z=length(n_z);
+        if length(temp)>(l_d2+l_a2+l_z)
+            aprimeFnParamNames={temp{l_d2+l_a2+l_z+1:end}}; % the first inputs will always be (d2,a2,z)
+        else
+            aprimeFnParamNames={};
+        end
+        % experienceassetz: aprimeFn depends on z, so we need z_gridvals_J
+        if N_z==0
+            error('experienceassetz requires a markov shock z (the aprimeFn depends on z); cannot use experienceassetz without z')
+        end
+        if transpathoptions.zpathtrivial==0
+            error('experienceassetz with z varying over the transition path is not yet implemented for AgentDistOnTransPath (email me if you want this)')
+        end
+        if ~isfield(simoptions,'z_grid')
+            error('To use experienceassetz you must provide simoptions.z_grid (needed to evaluate the aprimeFn)')
+        end
+        tempoptions=struct(); % minimal options: we only want z_gridvals_J (gridpiboth=1 skips pi_z, and no n_e field means e is skipped)
+        if isfield(simoptions,'ExogShockFn')
+            tempoptions.ExogShockFn=simoptions.ExogShockFn;
+        end
+        [z_gridvals_J_expassetz,~,~]=ExogShockSetup_FHorz(n_z,simoptions.z_grid,pi_z,N_j,Parameters,tempoptions,1); % [N_z,l_z,N_j]
     else
-        aprimeFnParamNames={};
+        if length(temp)>(l_d2+l_a2)
+            aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+        else
+            aprimeFnParamNames={};
+        end
     end
 
 
@@ -264,7 +298,11 @@ if simoptions.experienceasset>=1
             aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
             % [N_j,number of params]
 
-            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
+            if simoptions.experienceassetz>=1
+                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetz_J(PolicyPath(:,:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, n_z, 0,N_z,N_e, N_j, simoptions.d_grid, a2_grid, z_gridvals_J_expassetz, aprimeFnParamsVec,0);
+            else
+                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
+            end
             % Note: a2primeIndexes and a2primeProbs are both [N_a,N_z,N_j]
             % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
             a2primeIndexesPath(:,:,:,tt)=a2primeIndexes(:,:,1:end-1);
@@ -330,7 +368,7 @@ if N_e==0
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
-        if simoptions.experienceasset>=1
+        if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
             if simoptions.fastOLG==0
                 PolicyaprimePath=reshape(PolicyaprimePath,[N_a,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
@@ -373,7 +411,7 @@ if N_e==0
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
-        if simoptions.experienceasset>=1
+        if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
             if simoptions.fastOLG==0
                 PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
@@ -418,7 +456,7 @@ else
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
-        if simoptions.experienceasset>=1
+        if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
             if simoptions.fastOLG==0
                 PolicyaprimePath=reshape(PolicyaprimePath,[N_a*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
@@ -461,7 +499,7 @@ else
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
-        if simoptions.experienceasset>=1
+        if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
             if simoptions.fastOLG==0
                 PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
                 PolicyProbsPath=a2primeProbsPath;
