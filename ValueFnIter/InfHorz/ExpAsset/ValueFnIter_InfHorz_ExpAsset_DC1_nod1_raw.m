@@ -190,7 +190,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     tempcounter=tempcounter+1;
 end
 
-
-
+%% Output in kron form ([1,N_a,N_z]); caller (ValueFnIter_InfHorz_ExpAsset) does the UnKron
+Policy=shiftdim(Policy,-1); % [N_a,N_z] -> [1,N_a,N_z]
 
 end

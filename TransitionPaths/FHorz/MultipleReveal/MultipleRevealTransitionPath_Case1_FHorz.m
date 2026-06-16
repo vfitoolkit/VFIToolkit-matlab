@@ -161,7 +161,7 @@ for rr=1:nReveals
     % Store the final stationary eqm
     multirevealsummary.finaleqm.(revealperiodnames{rr}).p_eqm_final=p_eqm_final;
     multirevealsummary.finaleqm.(revealperiodnames{rr}).GeneralEqmCondnValues=GeneralEqmCondnValues;
-
+    
     for pp=1:nPricesOnPath
         Parameters.(PricesOnPathNames{pp})=p_eqm_final.(PricesOnPathNames{pp});
     end

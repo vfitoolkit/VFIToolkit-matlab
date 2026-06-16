@@ -344,9 +344,9 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     %% Perform update of prices and give feedback
 
     % See how far apart the price paths are
-    CurrentPathDist_price_vec=abs(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:));
-    CurrentPathDist_price=max(CurrentPathDist_price_vec,[],1); % 1-by-prices
-    % Notice that the distance is always calculated ignoring the time t=1 & t=T periods, as these needn't ever converges
+    CurrentPathDist_price_vec=abs(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:)); % Note: _vec includes all the burnin periods, and is used for figures [but drop the first and last periods]
+    CurrentPathDist_price=max(CurrentPathDist_price_vec(recursiveeqmoptions.burnin+1:T-recursiveeqmoptions.burnin,:),[],1); % 1-by-prices
+    % Notice that the distance is always calculated ignoring the burnin periods at each end, as these needn't ever converges
     % Why look at price paths, why just look at the general eqm conditions??
 
     % CurrentPathDist=max(abs(GEcondnPath));
@@ -363,19 +363,9 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     TransPathConvergence_GEcondns=max(GEcondnPath(:).^2)/recursiveeqmoptions.tolerance; % So when this gets to 1 we have convergence, in GE condns
     TransPathConvergence=max(TransPathConvergence_prices,TransPathConvergence_GEcondns); % we require convergence in both
 
-
+    
     % Create plots about the matching expectations process
     if recursiveeqmoptions.verbose>=2
-        % fprintf('Matches for period 150')
-        % DistMatches(150,:,1,1)
-        % fprintf('Distance to Matches for period 150')
-        % DistMatches(150,:,1,2)
-        % 
-        % fprintf('Matches for period 500')
-        % DistMatches(500,:,1,1)
-        % fprintf('Distance to Matches for period 500')
-        % DistMatches(500,:,1,2)
-
         % Draw some graphs of match quality
         taxis=1:1:T;
         coloursformatchheat=max(DistMatches(:,:,1,2),[],2)'; % color using the 'worst' distances
@@ -401,10 +391,14 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         alphaMatrix(fig4colourmap == 0) = 0;
         % Coloured squares version of fig4colourmap, but only the non-zeros
         imagesc(fig4colourmap, 'AlphaData', alphaMatrix);
-
+        
         % Match quality vs EndoState1
         figure(5)
-        scatter(taxis,AggVarsPath.EndoState1.Mean,[],[coloursformatchheat,max(coloursformatchheat)],'fill')
+        if l_a>=1
+            subplot(l_a,1,1); scatter(taxis,AggVarsPath.EndoState1.Mean,[],[coloursformatchheat,max(coloursformatchheat)],'fill')
+        elseif l_a>=2
+            subplot(l_a,1,2); scatter(taxis,AggVarsPath.EndoState2.Mean,[],[coloursformatchheat,max(coloursformatchheat)],'fill')
+        end
         % Note: max(coloursforheat) is just filling in the last period, give it the 'worst' colour
         colormap(hot);
         colorbar;
@@ -413,8 +407,13 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
 
         % Price-convergence vs EndoState1
         figure(6)
-        coloursforpriceheat=CurrentPathDist_price_vec'; % color using the price convergence distances
-        scatter(taxis,AggVarsPath.EndoState1.Mean,[],[coloursforpriceheat,max(coloursforpriceheat)],'fill')
+        if l_a>=1
+            coloursforpriceheat=CurrentPathDist_price_vec(:,1)'; % color using the price convergence distances
+            subplot(l_a,1,1); scatter(taxis,AggVarsPath.EndoState1.Mean,[],[coloursforpriceheat,max(coloursforpriceheat)],'fill')
+        elseif l_a>=2
+            coloursforpriceheat2=CurrentPathDist_price_vec(:,2)'; % color using the price convergence distances
+            subplot(l_a,1,2); scatter(taxis,AggVarsPath.EndoState2.Mean,[],[coloursforpriceheat2,max(coloursforpriceheat2)],'fill')
+        end
         colormap(hot);
         colorbar;
         title('Value of first endogenous state, colours are |p_{new}-p_{old}|')
@@ -423,7 +422,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
         fprintf('Miscellaneous info: \n')
         fprintf('Range of EndoState1 is: min of %2.4f, max of %2.4f \n', min(AggVarsPath.EndoState1.Mean),max(AggVarsPath.EndoState1.Mean))
         % fprintf('Range of ExoState1 is: min of %2.4f, max of %2.4f', min(AggVarsPath.ExoState1.Mean),max(AggVarsPath.ExoState1.Mean))
-        pricedistquantiles=prctile(CurrentPathDist_price_vec,[0.95,0.99,0.995,0.999]);
+        pricedistquantiles=prctile(CurrentPathDist_price_vec(recursiveeqmoptions.burnin+1:T-recursiveeqmoptions.burnin,:),[0.95,0.99,0.995,0.999]);
         fprintf('Current distance between old and new price path,     95th percentile:    %2.8f \n', pricedistquantiles(1))
         fprintf('Current distance between old and new price path,     99th percentile:    %2.8f \n', pricedistquantiles(2))
         fprintf('Current distance between old and new price path,     99.5th percentile:  %2.8f \n', pricedistquantiles(3))
