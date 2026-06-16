@@ -195,9 +195,17 @@ end
 %%
 V=reshape(V,[n_a,n_z]);
 if N_d==0
-    Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
+    if isscalar(n_a)
+        Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
+    else % grid interp layer on first asset only; postGI2A/preGI2A output [a1prime, a2prime, L2, L2flag]
+        Policy=UnKronPolicyIndexes2_z(Policy, n_a(1), n_a(2:end), n_a, n_z, vfoptions);
+    end
 else
-    Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
+    if isscalar(n_a)
+        Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
+    else % [d, a1prime, a2prime, L2, L2flag]
+        Policy=UnKronPolicyIndexes3_z(Policy, n_d, n_a(1), n_a(2:end), n_a, n_z, vfoptions);
+    end
 end
 
 

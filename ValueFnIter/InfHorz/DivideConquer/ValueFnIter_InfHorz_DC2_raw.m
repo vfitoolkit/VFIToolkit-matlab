@@ -240,12 +240,6 @@ Policy(1,:,:)=rem(Policyraw-1,N_d)+1;
 Policy(2,:,:)=ceil(Policyraw/N_d);
 
 
-%% Cleaning up the output
-if vfoptions.outputkron==0
-    V=reshape(V,[n_a,n_z]);
-    Policy=UnKronPolicyIndexes1_z(Policy, [n_d,n_a], n_a, n_z, vfoptions);
-else
-    return
-end
+%% Output in kron form ([2,N_a,N_z] = [d; aprime]); V and Policy are reshaped/unkroned by the caller (ValueFnIter_InfHorz_DivideConquer)
 
 end

@@ -157,8 +157,9 @@ end
 % Policy is currently
 temppolicyindex=reshape(Policy,[1,N_a*N_z])+gpuArray(0:1:N_a*N_z-1)*N_a;
 Policy=reshape(dstar(temppolicyindex),[N_a,N_z]) + N_d1*(Policy-1); % Add in d1, but keep in a fully vectorized form
+Policy=shiftdim(Policy,-1); % [N_a,N_z] -> [1,N_a,N_z]
 
-%% For experience asset, just output Policy as is and then use Case2 to UnKron
+%% Output in kron form ([1,N_a,N_z]); caller (ValueFnIter_InfHorz_ExpAsset) does the UnKron
 
 end
 

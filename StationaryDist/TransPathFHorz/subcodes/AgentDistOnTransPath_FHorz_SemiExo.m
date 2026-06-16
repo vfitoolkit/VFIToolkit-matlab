@@ -128,7 +128,7 @@ if simoptions.fastOLG==0
             end
         else % gridinterplayer==1
             PolicyProbs_tt=PolicyProbs(:,:,:,tt);
-            Policy_aprime_tt=reshape(Policy_aprime(:,:,:,tt),[N_a*N_bothze,N_probs]);
+            Policy_aprime_tt=reshape(Policy_aprime(:,:,:,tt),[N_a*N_bothze,N_probs,N_j]);
             if N_z==0 && N_e==0
                 AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_nProbs_SemiExo_noz_raw(AgentDist,Policy_dsemiexo_tt,Policy_aprime_tt,PolicyProbs_tt,N_probs,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,jequaloneDist);
             elseif N_e==0

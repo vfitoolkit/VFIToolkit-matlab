@@ -312,14 +312,20 @@ if N_semiz>0
 
     % semizpathtrivial: error if any SemiExoStateFn parameter is on the path (not yet supported)
     transpathoptions.semizpathtrivial=1;
-    temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
-    nargsSemiExo=2*length(vfoptions.n_semiz)+vfoptions.l_dsemiz; % inputs are (semiz,semizprime,dsemiz,...)
-    if length(temp)>nargsSemiExo
-        SemiExoStateFnParamNames={temp{nargsSemiExo+1:end}};
-        for kk=1:length(SemiExoStateFnParamNames)
-            if any(strcmp(ParamPathNames,SemiExoStateFnParamNames{kk})) || any(strcmp(PricePathNames,SemiExoStateFnParamNames{kk}))
-                transpathoptions.semizpathtrivial=0;
+    if isfield(vfoptions,'SemiExoStateFn')
+        temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
+        nargsSemiExo=2*length(vfoptions.n_semiz)+vfoptions.l_dsemiz; % inputs are (semiz,semizprime,dsemiz,...)
+        if length(temp)>nargsSemiExo
+            SemiExoStateFnParamNames={temp{nargsSemiExo+1:end}};
+            for kk=1:length(SemiExoStateFnParamNames)
+                if any(strcmp(ParamPathNames,SemiExoStateFnParamNames{kk})) || any(strcmp(PricePathNames,SemiExoStateFnParamNames{kk}))
+                    transpathoptions.semizpathtrivial=0;
+                end
             end
+        end
+    elseif isfield(vfoptions,'pi_semiz')
+        if ndims(vfoptions.pi_semiz)>4
+            transpathoptions.semizpathtrivial=0;
         end
     end
     if transpathoptions.semizpathtrivial==0
