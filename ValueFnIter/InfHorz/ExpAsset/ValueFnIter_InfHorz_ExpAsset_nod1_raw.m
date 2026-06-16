@@ -125,7 +125,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     tempcounter=tempcounter+1;
 end
 
-
+V=shiftdim(V,-1);
+Policy=shiftdim(Policy,-1);
 
 
 end
