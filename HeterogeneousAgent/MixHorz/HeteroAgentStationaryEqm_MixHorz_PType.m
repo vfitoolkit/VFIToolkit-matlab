@@ -438,7 +438,7 @@ for ii=1:PTypeStructure.N_i
 
     % Now do same for semi-exogenous state if that is being used
     heteroagentoptions.gridsinGE_semiexo(ii)=0;
-    if isfield(PTypeStructure.(iistr).vfoptions,'n_semiz')
+    if PTypeStructure.(iistr).vfoptions.n_semiz
         heteroagentoptions.gridsinGE_semiexo(ii)=0;
         if isfield(PTypeStructure.(iistr).vfoptions,'SemiExoShockFn')
             tempExogShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.SemiExoShockFn);

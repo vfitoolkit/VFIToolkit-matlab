@@ -123,19 +123,44 @@ vfoptions.EVpre=0; % Not actually an option that can be used here
 if ~isfield(vfoptions,'verbose')
     vfoptions.verbose=0;
 end
-if ~isfield(vfoptions,'experienceasset')
+ea_types = { 'experienceasset', 'experienceassetu', 'experienceassetz', 'experienceassete', 'experienceassetze'};
+experienceasset_matches=startsWith(fieldnames(vfoptions),'experienceasset');
+if ~any(experienceasset_matches)
     for ii=1:N_i
-        vfoptions.experienceasset.(Names_i{ii})=0;
+        for ea_type = ea_types
+            if isfield(simoptions,ea_type{1}) && isfield(simoptions.(ea_type{1}),Names_i{ii}) && logical(simoptions.(ea_type{1}).(Names_i{ii}))
+                error("simoptions has experience asset that vfoptions does not");
+            end
+            % Must force these to zero so they can be tested
+            vfoptions.(ea_type{1}).(Names_i{ii})=0;
+            simoptions.(ea_type{1}).(Names_i{ii})=0;
+        end
     end
 else
     % User created vfoptions.PType.experienceasset; we have Names_i
     for ii=1:N_i
-        if isfield(vfoptions.experienceasset, Names_i{ii})
-            if ~isfield(vfoptions,'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
-                error('To use an experience asset you must define vfoptions.aprimeFn')
+        for ea_type = ea_types
+            if isfield(vfoptions, ea_type{1}) && isfield(vfoptions.(ea_type{1}), Names_i{ii})
+                if logical(vfoptions.(ea_type{1}).(Names_i{ii}))
+                    if ~isfield(vfoptions,'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
+                        error('To use an experience asset you must define vfoptions.aprimeFn')
+                    end
+                    if isfield(simoptions,ea_type{1}) && isfield(simoptions.(ea_type{1}), Names_i{ii}) && vfoptions.(ea_type{1}).(Names_i{ii})~=simoptions.(ea_type{1}).(Names_i{ii})
+                        error('simoptions and vfoptions disagree on experience asset settings');
+                    end
+                    simoptions.(ea_type{1}).(Names_i{ii})=1;
+                elseif isfield(simoptions,ea_type{1}) && isfield(simoptions.(ea_type{1}), Names_i{ii}) && vfoptions.(ea_type{1}).(Names_i{ii})~=simoptions.(ea_type{1}).(Names_i{ii})
+                    error('simoptions and vfoptions disagree on experience asset settings');
+                else
+                    simoptions.(ea_type{1}).(Names_i{ii})=0;
+                end
+            elseif isfield(simoptions,ea_type{1}) && isfield(simoptions.(ea_type{1}), Names_i{ii})
+                vfoptions.(ea_type{1}).(Names_i{ii})=simoptions.(ea_type{1}).(Names_i{ii});
+            else
+                % Must force these to zero so they can be tested
+                vfoptions.(ea_type{1}).(Names_i{ii})=0;
+                simoptions.(ea_type{1}).(Names_i{ii})=0;
             end
-        else
-            vfoptions.experienceasset.(Names_i{ii})=0;
         end
     end
 end
@@ -469,6 +494,10 @@ for ii=1:PTypeStructure.N_i
     ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,Parameters);
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames;
 
+    % To make all the reshaping easier
+    N_a=PTypeStructure.(iistr).N_a;
+    N_z=PTypeStructure.(iistr).N_z;
+    N_e=PTypeStructure.(iistr).N_e;
 
     %% Figure out which functions are actually relevant to the present PType. And then change to FnsToEvaluate as cell so that it is not being recomputed all the time
     % Only the relevant ones need to be evaluated.
@@ -538,7 +567,7 @@ for ii=1:PTypeStructure.N_i
     end
 
     %% Organise V_final and AgentDist_initial
-    % Reshape V_final
+    % Reshape V_final; Note: N_j_temp is not the `N_j` passed in at the start
     N_j_temp=PTypeStructure.(iistr).N_j;
     if ~isfinite(N_j_temp)
         % If no z, then N_z=1 here
