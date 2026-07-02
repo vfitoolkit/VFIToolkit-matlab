@@ -199,18 +199,19 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             end
 
             % Update current PricePath and ParamPath
+            % Note: PricePathOld_ii/ParamPath_ii are the per-type slices, so use the _ii size vectors
             for pp=1:length(PricePathNames)
-                Parameters.(PricePathNames{pp})=PricePathOld_ii(tt,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp));
+                Parameters.(PricePathNames{pp})=PricePathOld_ii(tt,PricePathSizeVec_ii(1,pp):PricePathSizeVec_ii(2,pp));
             end
             for pp=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{pp})=ParamPath_ii(tt,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp));
+                Parameters.(ParamPathNames{pp})=ParamPath_ii(tt,ParamPathSizeVec_ii(1,pp):ParamPathSizeVec_ii(2,pp));
             end
 
             % Get t+1 PricePath
             if use_tplus1price==1
                 for pp=1:length(tplus1priceNames)
                     kk=tplus1pricePathkk(pp);
-                    Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld_ii(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
+                    Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld_ii(tt+1,PricePathSizeVec_ii(1,kk):PricePathSizeVec_ii(2,kk)); % Make is so that the time t+1 variables can be used
                 end
             end
 
@@ -516,7 +517,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 if (ParamPathSizeVec(2,kk)-ParamPathSizeVec(1,kk)+1)==N_i
                     for ii=1:N_i
                         iistr=PTypeStructure.Names_i{ii};
-                        Parameters_ii.(iistr).(ParamPathNames{kk})=PricePathOld(tt,ParamPathSizeVec(1,kk)+ii-1);
+                        Parameters_ii.(iistr).(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk)+ii-1);
                     end
                 end
             end
@@ -561,13 +562,16 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                         gg_c=gg_c+1;
                         PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names, Parameters));
                     elseif transpathoptions.GEptype(gg)==1
-                        gg_c=gg_c+1;
-                        PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr)));
+                        for ii=1:N_i
+                            iistr=PTypeStructure.Names_i{ii};
+                            gg_c=gg_c+1;
+                            PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr)));
+                        end
                     end
                 end
             % Note there is no GEnewprice==2, it uses a completely different code
             elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
-                p_i=zeros(1,length(GeneralEqmEqnsCell)+sum(transpathoptions.GEptype),'gpuArray');
+                p_i=zeros(1,nGeneralEqmEqns_acrossptypes,'gpuArray');
                 gg_c=0;
                 for gg=1:nGeneralEqmEqns
                     if transpathoptions.GEptype(gg)==0

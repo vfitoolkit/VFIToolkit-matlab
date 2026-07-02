@@ -213,6 +213,9 @@ for ii=1:PTypeStructure.N_i
     if ~isfield(PTypeStructure.(iistr).vfoptions,'gridinterplayer')
         PTypeStructure.(iistr).vfoptions.gridinterplayer=0; %default
     end
+    if ~isfield(PTypeStructure.(iistr).simoptions,'gridinterplayer')
+        PTypeStructure.(iistr).simoptions.gridinterplayer=PTypeStructure.(iistr).vfoptions.gridinterplayer;
+    end
     % Model setup
     if ~isfield(PTypeStructure.(iistr).vfoptions,'exoticpreferences')
         PTypeStructure.(iistr).vfoptions.exoticpreferences='None'; % not yet implemented, so hardcodes None
@@ -326,6 +329,11 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames;
 
 
+    % To make all the reshaping easier
+    N_a=PTypeStructure.(iistr).N_a;
+    N_z=PTypeStructure.(iistr).N_z;
+    N_e=PTypeStructure.(iistr).N_e;
+
     %% Figure out which functions are actually relevant to the present PType. And then change to FnsToEvaluate as cell so that it is not being recomputed all the time
     % Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
@@ -418,6 +426,7 @@ for ii=1:PTypeStructure.N_i
         if N_e==0
             AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a,N_j]); % if simoptions.fastOLG==0
             AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
+            AgentDist_initial.(iistr)=AgentDist_initial.(iistr)./AgeWeights_init.(iistr); % remove age weights (Step4tt_AggVars puts them back in via AgeWeights_T, mirrors what TransitionPath_Case1_FHorz does)
             if PTypeStructure.(iistr).simoptions.fastOLG==1
                 AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_j,1]);
                 AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
@@ -425,8 +434,9 @@ for ii=1:PTypeStructure.N_i
         else
             AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_e,N_j]); % if simoptions.fastOLG==0
             AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
+            AgentDist_initial.(iistr)=AgentDist_initial.(iistr)./AgeWeights_init.(iistr); % remove age weights (Step4tt_AggVars puts them back in via AgeWeights_T, mirrors what TransitionPath_Case1_FHorz does)
             if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
-                AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_e,N_j]),[1,3,2]),[N_a*N_j*N_e,1]);
+                AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_e,N_j]),[1,3,2]),[N_a*N_j,N_e]);
                 AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
             end
         end
@@ -434,6 +444,7 @@ for ii=1:PTypeStructure.N_i
         if N_e==0
             AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z,N_j]); % if simoptions.fastOLG==0
             AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
+            AgentDist_initial.(iistr)=AgentDist_initial.(iistr)./AgeWeights_init.(iistr); % remove age weights (Step4tt_AggVars puts them back in via AgeWeights_T, mirrors what TransitionPath_Case1_FHorz does)
             if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
                 AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j*N_z,1]);
                 AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
@@ -441,6 +452,7 @@ for ii=1:PTypeStructure.N_i
         else
             AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z*N_e,N_j]); % if simoptions.fastOLG==0
             AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
+            AgentDist_initial.(iistr)=AgentDist_initial.(iistr)./AgeWeights_init.(iistr); % remove age weights (Step4tt_AggVars puts them back in via AgeWeights_T, mirrors what TransitionPath_Case1_FHorz does)
             if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
                 AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j*N_z,N_e]);
                 AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
@@ -485,10 +497,18 @@ for ii=1:PTypeStructure.N_i
     end
     % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
     if PTypeStructure.(iistr).simoptions.fastOLG==1
-        if N_z==0
-            PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
-        else
-            PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+        if N_e==0
+            if N_z==0
+                PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
+            else
+                PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+            end
+        else % N_e>0
+            if N_z==0
+                PTypeStructure.(iistr).AgeWeights_T=repelem(reshape(PTypeStructure.(iistr).AgeWeights_T,[N_j,1,T]),N_a,N_e); % [N_a*N_j,N_e,T]
+            else
+                PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(reshape(PTypeStructure.(iistr).AgeWeights_T,[N_j,1,T]),N_a,1),N_z,N_e); % [N_a*N_j*N_z,N_e,T]
+            end
         end
     end
 

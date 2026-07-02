@@ -38,10 +38,10 @@ ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames
 
 % pi_e_J is (a,j)-by-e
 if vfoptions.EVpre==0
-    EV=[sum(V(N_a+1:end,:).*pi_e_J(N_a+1:end,:),2); zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EV=[sum(V(N_a+1:end,:).*pi_e_J(1:end-N_a,:),2); zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
 elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
-    EV=[reshape(V,[N_a*N_j,N_e].*pi_e_J,2)];  % input V is already of size [N_a,N_j] and we want to use the whole thing
+    EV=sum(reshape(V,[N_a*N_j,N_e]).*pi_e_J,2);  % input V is already of size [N_a,N_j] and we want to use the whole thing
 end
 V=zeros(N_a,N_j,N_e,'gpuArray'); % V is over (a,j,e); for Naive QH carries Valt
 

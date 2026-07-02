@@ -246,11 +246,22 @@ function resp = httpSendJson(url, method, jsonBody, api_key, timeoutSec)
 % than webwrite because the older webwrite/webread family silently
 % strips the Authorization header on some MATLAB versions, which
 % manifests as a server-side 401.
+%
+% Important: we set MessageBody.Payload to the raw UTF-8 bytes of
+% jsonBody rather than passing jsonBody as the body argument to
+% RequestMessage. The latter form makes matlab.net.http re-encode the
+% string and wrap it in {"_json": "<string>"} when the Content-Type is
+% application/json, which the IPUMS server then rejects with a 400
+% complaining about the extra "_json" property.
 authH = matlab.net.http.HeaderField('Authorization', api_key);
 ctH   = matlab.net.http.HeaderField('Content-Type',  'application/json');
 accH  = matlab.net.http.HeaderField('Accept',        'application/json');
-req   = matlab.net.http.RequestMessage(method, [authH ctH accH], jsonBody);
-opts  = matlab.net.http.HTTPOptions('ConnectTimeout', timeoutSec);
+
+body = matlab.net.http.MessageBody;
+body.Payload = uint8(jsonBody);
+
+req  = matlab.net.http.RequestMessage(method, [authH ctH accH], body);
+opts = matlab.net.http.HTTPOptions('ConnectTimeout', timeoutSec);
 respMsg = req.send(matlab.net.URI(url), opts);
 resp = parseHttpResponse(respMsg, method, url);
 end

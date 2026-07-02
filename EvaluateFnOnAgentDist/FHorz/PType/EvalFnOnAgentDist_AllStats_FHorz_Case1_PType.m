@@ -293,6 +293,9 @@ for ii=1:N_i
             % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
             restrictedsamplemass(ii,rr)=sum(RestrictedStationaryDistVec);
             RestrictedStationaryDistVec=RestrictedStationaryDistVec./restrictedsamplemass(ii,rr); % Normalize to mass of 1
+            % Note: if the restriction is zero mass for this ptype the restricted stats are NaN (0/0), which is the
+            % correct behaviour: the conditional moment of a group that does not exist is unknown (and the grouped
+            % stats are then also NaN).
             % Store for later
             RestrictionStruct_ii(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec;
 

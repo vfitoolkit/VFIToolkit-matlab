@@ -12,7 +12,7 @@ Policyalt=zeros(4,N_a,N_e,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_e,N_j,'gpuArray');
 
 % e is start-of-period: precompute the expectation of V over e for use as continuation
-Vnext=sum(V.*shiftdim(pi_e_J,-1),2);
+Vnext=sum(V.*shiftdim(pi_e_J(:,[1,1:end-1]),-1),2); % Take expectations over e: Vnext(...,jj+1) is read for current age jj, so weight V at age jj+1 by pi_e_J(:,jj) [same timing as standard ValueFnIter commands]; first column is padding, never read
 
 %%
 if vfoptions.lowmemory>0

@@ -800,11 +800,11 @@ if N_e>0
         if options.fastOLG==1
             % pi_e_J is current (e',j)  [When using options.fastOLG=1 it will get converted later to (j,e')]
             if N_z==0
-                % pi_e_J_sim maps (a,j)-to-e (but only for jj=2:end), is [N_a*(N_j-1),N_e]
-                pi_e_J_sim=repelem(pi_e_J(:,2:end)',N_a,1); % (a,j)-by-e (but only for jj=2:end)
+                % pi_e_J_sim maps (a,j)-to-e: block jj holds pi_e_J(:,jj), the e' distribution when moving jj->jj+1, is [N_a*(N_j-1),N_e] [same timing as standard StationaryDist, and as pi_z_J_sim]
+                pi_e_J_sim=repelem(pi_e_J(:,1:end-1)',N_a,1); % (a,j)-by-e (only for jj=1:end-1)
             else
-                % pi_e_J_sim maps (a,j,z)-to-e (but only for jj=2:end), is [N_a*(N_j-1)*N_z,N_e]
-                pi_e_J_sim=repmat(repelem(pi_e_J(:,2:end)',N_a,1),N_z,1); % (a,j,z)-by-e (but only for jj=2:end)
+                % pi_e_J_sim maps (a,j,z)-to-e: block jj holds pi_e_J(:,jj), the e' distribution when moving jj->jj+1, is [N_a*(N_j-1)*N_z,N_e] [same timing as standard StationaryDist, and as pi_z_J_sim]
+                pi_e_J_sim=repmat(repelem(pi_e_J(:,1:end-1)',N_a,1),N_z,1); % (a,j,z)-by-e (only for jj=1:end-1)
             end
         end
     end
@@ -833,7 +833,7 @@ if N_e>0
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:)));
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(1:end-N_a,:))); % block jj holds pi_e_J(:,jj) [same timing as standard StationaryDist]
                     end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
@@ -854,7 +854,7 @@ if N_e>0
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:)));
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(1:end-N_a,:))); % block jj holds pi_e_J(:,jj) [same timing as standard StationaryDist]
                     end
                 end
             end
@@ -879,7 +879,7 @@ if N_e>0
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:));
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(1:end-N_a,:)); % block jj holds pi_e_J(:,jj) [same timing as standard StationaryDist]
                     end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
@@ -899,7 +899,7 @@ if N_e>0
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:));
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(1:end-N_a,:)); % block jj holds pi_e_J(:,jj) [same timing as standard StationaryDist]
                     end
                 end
             end

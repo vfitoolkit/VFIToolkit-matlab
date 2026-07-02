@@ -249,7 +249,7 @@ end
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,1);
+[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,1);
 
 
 %% Now, a bunch of things to avoid redoing them every parameter vector we want to try
@@ -258,26 +258,63 @@ end
 ReturnFnParamNames=[];
 FnsToEvaluateParamNames=[];
 
-estimoptions.calibrateshocks=0; % set to one if need to redo shocks for each new calib parameter vector
+estimoptions.calibrateshocks=0; % set to one if need to redo shocks for each new estim parameter vector
 if isfield(vfoptions,'ExogShockFn')
     temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-    if ~isempty(intersect(temp,CalibParamNames))
+    % can just leave action space in here as we only use it to see if EstimParamNames is part of it
+    if ~isempty(intersect(temp,EstimParamNames))
         estimoptions.calibrateshocks=1;
     end
-elseif isfield(vfoptions,'EiidShockFn')
-    estimoptions.calibrateshocks=1;
+end
+if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either alone should trigger redoing the shocks
     temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-    if ~isempty(intersect(temp,CalibParamNames))
+    % can just leave action space in here as we only use it to see if EstimParamNames is part of it
+    if ~isempty(intersect(temp,EstimParamNames))
         estimoptions.calibrateshocks=1;
     end
 end
 if estimoptions.calibrateshocks==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
     [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz_PType(n_z,z_grid,pi_z,N_j,Names_i,Parameters,vfoptions,3);
-    vfoptions.alreadygridvals=1;
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
+else
+    % just need some placeholders
+    z_gridvals_J=[];
+    pi_z_J=[];
+end
+% Regardless of whether they are done here or in _objectivefn, they will be
+% precomputed by the time we get to the value fn, stationary dist, etc. So
+vfoptions.alreadygridvals=1;
+simoptions.alreadygridvals=1;
+
+% Same for semi-exogenous shocks
+estimoptions.calibsemiexo=0; % use =0 to also cover models without semi-exogenous shocks
+if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
+        if isfield(vfoptions,'SemiExoStateFn')
+            if isstruct(vfoptions.SemiExoStateFn) % can depend on permanent type
+                temp=[];
+                semiexofnnames=fieldnames(vfoptions.SemiExoStateFn);
+                for ii=1:length(semiexofnnames)
+                    temp=[temp,getAnonymousFnInputNames(vfoptions.SemiExoStateFn.(semiexofnnames{ii}))];
+                end
+            else
+                temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
+            end
+            % can just leave action space in here as we only use it to see if EstimParamNames is part of it
+            if ~isempty(intersect(temp,EstimParamNames))
+                estimoptions.calibsemiexo=1;
+            end
+        end
+        vfoptions=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,vfoptions,3);
+        simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
+        simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
+        % Regardless of whether they are done here or in _objectivefn, they will be precomputed by the time we get to the value fn, stationary dist, etc. So
+        vfoptions.alreadygridvals_semiexo=1;
+        simoptions.alreadygridvals_semiexo=1;
+    end
 end
 
 

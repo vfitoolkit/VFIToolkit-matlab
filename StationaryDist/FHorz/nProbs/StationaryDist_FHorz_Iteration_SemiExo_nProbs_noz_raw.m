@@ -3,6 +3,11 @@ function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_noz_raw(je
 % Policy_aprime has an additional dimension of length 4 which is the four points (and contains only the aprime indexes, no d indexes as would usually be the case).
 % PolicyProbs are the corresponding probabilities of each of these four
 
+% Note: Tried doing creation of semiztransitions, etc., in parallel over jj
+% before the loop. Having it in the loop massively reduces the memory-use which
+% was a bottleneck when parallel over jj, and the runtime is actually if
+% anything faster in the loop version that it was parallel over jj.
+
 %%
 % It is likely that most of the elements in pi_semiz_J are zero, we can
 % take advantage of this to speed things up. Ignore for a moment the
@@ -18,20 +23,13 @@ N_semizshort=max(max(max(sum((pi_semiz_J>0),2))));
 pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
 idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz,1,N_j]);
-semizindex_short=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz,1,N_j]));
+Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_semiz,N_probs,N_j]);
+PolicyProbs=reshape(gather(PolicyProbs),[N_a*N_semiz,N_probs,N_j]);
 pi_semiz_J_short=gather(pi_semiz_J_short);
-% semizindex_short is [N_a*N_semiz,N_semizshort,N_j]
-% used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-% and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-
-% Policy_aprime is currently [N_a,N_semiz,N_probs,N_j]
-Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz,N_probs,N_j]),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_probs,1); % Note: add semiz' index following the semiz' dimension
-% Policy_aprimesemiz is currently [N_a,N_semiz,N_probs*N_semizshort,N_j]
-
-PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz,N_probs,N_j]);
-PolicyProbs=repelem(gather(PolicyProbs),1,N_semizshort,1).*repmat(pi_semiz_J_short(semizindex_short),1,N_probs,1); % is of size [N_a*N_semiz,N_probs*N_semiz,N_j]
-% WHY DONT I CREATE PolicyProbs ON GPU, THEN gather()? UNLESS IT RUNS OUT OF GPU MEMORY THIS SHOULD BE FASTER?
+idxshort=gather(idxshort);
+semizindexbase=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+% semizindex_short_jj (built per age below) is [N_a*N_semiz,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j]
 
 %% Use Tan improvement
 
@@ -43,16 +41,17 @@ StationaryDist_jj=sparse(jequaloneDistKron); % use sparse matrix
 II2=repelem((1:1:N_a*N_semiz)',1,N_semizshort*N_probs); % Index for this period (a,semiz), note the N_semizshort*N_probs-copies
 
 for jj=1:(N_j-1)
+    semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1);
+    Policy_aprimesemiz_jj=repelem(Policy_aprime(:,:,jj),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short_jj)-1),1,N_probs); % Note: add semiz' index following the semiz' dimension
+    PolicyProbs_jj=repelem(PolicyProbs(:,:,jj),1,N_semizshort).*repmat(pi_semiz_J_short(semizindex_short_jj),1,N_probs);
 
-    Gammatranspose=sparse(Policy_aprimesemiz(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_semiz,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
+    Gammatranspose=sparse(Policy_aprimesemiz_jj,II2,PolicyProbs_jj,N_a*N_semiz,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
 
     % No z, so just a single iteration
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
     StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end
-
-
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
 try

@@ -26,68 +26,76 @@ elseif structordim==3
     end
 end
 
-%% z_grid
-if structordim==1
-    if isstruct(z_grid) && isfield(z_grid,iistr)
-        z_grid_temp=z_grid.(iistr);
-    else
-        z_grid_temp=z_grid;
+if isfield(options_temp,'ExogShockFn')
+    if isstruct(options_temp.ExogShockFn) && isfield(options_temp.ExogShockFn,iistr)
+        options_temp.ExogShockFn=options_temp.ExogShockFn.(iistr);
     end
-elseif structordim==2
-    if isstruct(z_grid)
-        z_grid_temp=z_grid;
-    else
-        nn=size(z_grid,ndims(z_grid));
-        if nn==N_i
-            otherdims=repmat({':'},1,ndims(z_grid)-1);
-            z_grid_temp=z_grid(otherdims{:},ii);
+    z_grid_temp=[];
+    pi_z_temp=[];
+else
+    %% z_grid
+    if structordim==1
+        if isstruct(z_grid) && isfield(z_grid,iistr)
+            z_grid_temp=z_grid.(iistr);
         else
             z_grid_temp=z_grid;
         end
-    end
-elseif structordim==3
-    if isstruct(z_grid)
-        z_grid_temp=z_grid.(iistr);
-    else
-        nn=size(z_grid,ndims(z_grid));
-        if nn==N_i
-            otherdims=repmat({':'},1,ndims(z_grid)-1);
-            z_grid_temp=z_grid(otherdims{:},ii);
-        else
+    elseif structordim==2
+        if isstruct(z_grid)
             z_grid_temp=z_grid;
+        else
+            nn=size(z_grid,ndims(z_grid));
+            if nn==N_i
+                otherdims=repmat({':'},1,ndims(z_grid)-1);
+                z_grid_temp=z_grid(otherdims{:},ii);
+            else
+                z_grid_temp=z_grid;
+            end
+        end
+    elseif structordim==3
+        if isstruct(z_grid)
+            z_grid_temp=z_grid.(iistr);
+        else
+            nn=size(z_grid,ndims(z_grid));
+            if nn==N_i
+                otherdims=repmat({':'},1,ndims(z_grid)-1);
+                z_grid_temp=z_grid(otherdims{:},ii);
+            else
+                z_grid_temp=z_grid;
+            end
         end
     end
-end
 
-%% pi_z
-if structordim==1
-    if isstruct(pi_z) && isfield(pi_z,iistr)
-        pi_z_temp=pi_z.(iistr);
-    else
-        pi_z_temp=pi_z;
-    end
-elseif structordim==2
-    if isstruct(pi_z)
-        pi_z_temp=pi_z;
-    else
-        nn=size(pi_z,ndims(pi_z));
-        if nn==N_i
-            otherdims=repmat({':'},1,ndims(pi_z)-1);
-            pi_z_temp=pi_z(otherdims{:},ii);
+    %% pi_z
+    if structordim==1
+        if isstruct(pi_z) && isfield(pi_z,iistr)
+            pi_z_temp=pi_z.(iistr);
         else
             pi_z_temp=pi_z;
         end
-    end
-elseif structordim==3
-    if isstruct(pi_z)
-        pi_z_temp=pi_z.(iistr);
-    else
-        nn=size(pi_z,ndims(pi_z));
-        if nn==N_i
-            otherdims=repmat({':'},1,ndims(pi_z)-1);
-            pi_z_temp=pi_z(otherdims{:},ii);
-        else
+    elseif structordim==2
+        if isstruct(pi_z)
             pi_z_temp=pi_z;
+        else
+            nn=size(pi_z,ndims(pi_z));
+            if nn==N_i
+                otherdims=repmat({':'},1,ndims(pi_z)-1);
+                pi_z_temp=pi_z(otherdims{:},ii);
+            else
+                pi_z_temp=pi_z;
+            end
+        end
+    elseif structordim==3
+        if isstruct(pi_z)
+            pi_z_temp=pi_z.(iistr);
+        else
+            nn=size(pi_z,ndims(pi_z));
+            if nn==N_i
+                otherdims=repmat({':'},1,ndims(pi_z)-1);
+                pi_z_temp=pi_z(otherdims{:},ii);
+            else
+                pi_z_temp=pi_z;
+            end
         end
     end
 end
@@ -97,47 +105,53 @@ end
 % form, so structordim==3 only applies the trailing-dim slice (struct case
 % is a silent passthrough, preserving prior single-level behavior).
 if prod(options_temp.n_e)>0
-    % e_grid
-    if structordim==1
-        if isstruct(options_temp.e_grid) && isfield(options_temp.e_grid,iistr)
-            options_temp.e_grid=options_temp.e_grid.(iistr);
+    if isfield(options_temp,'EiidShockFn')
+        if isstruct(options_temp.EiidShockFn) && isfield(options_temp.EiidShockFn,iistr)
+            options_temp.EiidShockFn=options_temp.EiidShockFn.(iistr);
         end
-    elseif structordim==2
-        if ~isstruct(options_temp.e_grid)
-            nn=size(options_temp.e_grid,ndims(options_temp.e_grid));
-            if nn==N_i
-                otherdims=repmat({':'},1,ndims(options_temp.e_grid)-1);
-                options_temp.e_grid=options_temp.e_grid(otherdims{:},ii);
+    else
+        % e_grid
+        if structordim==1
+            if isstruct(options_temp.e_grid) && isfield(options_temp.e_grid,iistr)
+                options_temp.e_grid=options_temp.e_grid.(iistr);
+            end
+        elseif structordim==2
+            if ~isstruct(options_temp.e_grid)
+                nn=size(options_temp.e_grid,ndims(options_temp.e_grid));
+                if nn==N_i
+                    otherdims=repmat({':'},1,ndims(options_temp.e_grid)-1);
+                    options_temp.e_grid=options_temp.e_grid(otherdims{:},ii);
+                end
+            end
+        elseif structordim==3
+            if ~isstruct(options_temp.e_grid)
+                nn=size(options_temp.e_grid,ndims(options_temp.e_grid));
+                if nn==N_i
+                    otherdims=repmat({':'},1,ndims(options_temp.e_grid)-1);
+                    options_temp.e_grid=options_temp.e_grid(otherdims{:},ii);
+                end
             end
         end
-    elseif structordim==3
-        if ~isstruct(options_temp.e_grid)
-            nn=size(options_temp.e_grid,ndims(options_temp.e_grid));
-            if nn==N_i
-                otherdims=repmat({':'},1,ndims(options_temp.e_grid)-1);
-                options_temp.e_grid=options_temp.e_grid(otherdims{:},ii);
+        % pi_e
+        if structordim==1
+            if isstruct(options_temp.pi_e) && isfield(options_temp.pi_e,iistr)
+                options_temp.pi_e=options_temp.pi_e.(iistr);
             end
-        end
-    end
-    % pi_e
-    if structordim==1
-        if isstruct(options_temp.pi_e) && isfield(options_temp.pi_e,iistr)
-            options_temp.pi_e=options_temp.pi_e.(iistr);
-        end
-    elseif structordim==2
-        if ~isstruct(options_temp.pi_e)
-            nn=size(options_temp.pi_e,ndims(options_temp.pi_e));
-            if nn==N_i
-                otherdims=repmat({':'},1,ndims(options_temp.pi_e)-1);
-                options_temp.pi_e=options_temp.pi_e(otherdims{:},ii);
+        elseif structordim==2
+            if ~isstruct(options_temp.pi_e)
+                nn=size(options_temp.pi_e,ndims(options_temp.pi_e));
+                if nn==N_i
+                    otherdims=repmat({':'},1,ndims(options_temp.pi_e)-1);
+                    options_temp.pi_e=options_temp.pi_e(otherdims{:},ii);
+                end
             end
-        end
-    elseif structordim==3
-        if ~isstruct(options_temp.pi_e)
-            nn=size(options_temp.pi_e,ndims(options_temp.pi_e));
-            if nn==N_i
-                otherdims=repmat({':'},1,ndims(options_temp.pi_e)-1);
-                options_temp.pi_e=options_temp.pi_e(otherdims{:},ii);
+        elseif structordim==3
+            if ~isstruct(options_temp.pi_e)
+                nn=size(options_temp.pi_e,ndims(options_temp.pi_e));
+                if nn==N_i
+                    otherdims=repmat({':'},1,ndims(options_temp.pi_e)-1);
+                    options_temp.pi_e=options_temp.pi_e(otherdims{:},ii);
+                end
             end
         end
     end
@@ -167,30 +181,38 @@ if prod(options_temp.n_semiz)>0
             end
         end
     end
-    % pi_semiz (optional field — only present if model uses an explicit transition rather than SemiExoShockFn)
-    if isfield(options_temp,'pi_semiz')
-        if structordim==1
-            if isstruct(options_temp.pi_semiz) && isfield(options_temp.pi_semiz,iistr)
-                options_temp.pi_semiz=options_temp.pi_semiz.(iistr);
-            end
-        elseif structordim==2
-            if ~isstruct(options_temp.pi_semiz)
-                nn=size(options_temp.pi_semiz,ndims(options_temp.pi_semiz));
-                if nn==N_i
-                    otherdims=repmat({':'},1,ndims(options_temp.pi_semiz)-1);
-                    options_temp.pi_semiz=options_temp.pi_semiz(otherdims{:},ii);
+    if isfield(options_temp,'SemiExoStateFn')
+        if isstruct(options_temp.SemiExoStateFn) && isfield(options_temp.SemiExoStateFn,iistr)
+            options_temp.SemiExoStateFn=options_temp.SemiExoStateFn.(iistr);
+        end
+    else
+        % pi_semiz (optional field — only present if model uses an explicit transition rather than SemiExoShockFn)
+        if isfield(options_temp,'pi_semiz')
+            if structordim==1
+                if isstruct(options_temp.pi_semiz) && isfield(options_temp.pi_semiz,iistr)
+                    options_temp.pi_semiz=options_temp.pi_semiz.(iistr);
                 end
-            end
-        elseif structordim==3
-            if ~isstruct(options_temp.pi_semiz)
-                nn=size(options_temp.pi_semiz,ndims(options_temp.pi_semiz));
-                if nn==N_i
-                    otherdims=repmat({':'},1,ndims(options_temp.pi_semiz)-1);
-                    options_temp.pi_semiz=options_temp.pi_semiz(otherdims{:},ii);
+            elseif structordim==2
+                if ~isstruct(options_temp.pi_semiz)
+                    nn=size(options_temp.pi_semiz,ndims(options_temp.pi_semiz));
+                    if nn==N_i
+                        otherdims=repmat({':'},1,ndims(options_temp.pi_semiz)-1);
+                        options_temp.pi_semiz=options_temp.pi_semiz(otherdims{:},ii);
+                    end
+                end
+            elseif structordim==3
+                if ~isstruct(options_temp.pi_semiz)
+                    nn=size(options_temp.pi_semiz,ndims(options_temp.pi_semiz));
+                    if nn==N_i
+                        otherdims=repmat({':'},1,ndims(options_temp.pi_semiz)-1);
+                        options_temp.pi_semiz=options_temp.pi_semiz(otherdims{:},ii);
+                    end
                 end
             end
         end
     end
 end
+
+
 
 end

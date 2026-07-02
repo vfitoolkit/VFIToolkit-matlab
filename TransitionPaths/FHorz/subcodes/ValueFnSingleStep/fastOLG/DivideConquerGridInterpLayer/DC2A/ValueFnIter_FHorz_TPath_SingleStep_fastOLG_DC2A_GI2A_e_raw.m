@@ -73,7 +73,7 @@ ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames
 % V is (N_a*N_j, N_z, N_e). First integrate over e' using pi_e_J (i.i.d.), then
 % over z' using pi_z_J (Markov). The resulting EV depends on (a',j,z), not on e.
 if vfoptions.EVpre==0
-    EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,:,:),3); zeros(N_a,N_z,'gpuArray')]; % zeros at j=N_j (terminal age has no continuation in TPath)
+    EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(1:end-N_a,:,:),3); zeros(N_a,N_z,'gpuArray')]; % zeros at j=N_j (terminal age has no continuation in TPath)
     EVpre=reshape(EVpre,[N_a,1,N_j,N_z]);
     EV=EVpre.*shiftdim(pi_z_J,-2);
     EV(isnan(EV))=0; % -Inf*0 = NaN, replace with 0 (the 0 comes from transition prob)

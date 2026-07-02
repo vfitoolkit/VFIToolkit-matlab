@@ -103,6 +103,7 @@ if exist('vfoptions','var')==0
     % Model setup
     vfoptions.exoticpreferences='None';
     vfoptions.experienceasset=0;
+    vfoptions.experienceassetz=0;
     % Exogenous shocks
     vfoptions.n_semiz=0;
     vfoptions.n_e=0;
@@ -154,6 +155,9 @@ else
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
     end
+    if ~isfield(vfoptions,'experienceassetz')
+        vfoptions.experienceassetz=0;
+    end
     % Exogenous shocks
     if ~isfield(vfoptions,'n_semiz')
         vfoptions.n_semiz=0;
@@ -177,6 +181,7 @@ if exist('simoptions','var')==0
     simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
+    simoptions.experienceassetz=0;
 else
     % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'verbose')
@@ -191,6 +196,9 @@ else
     % Model setup
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
     end
 end
 
@@ -245,7 +253,7 @@ else
 end
 l_a=length(n_a);
 l_aprime=l_a;
-if vfoptions.experienceasset>=1
+if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
     l_aprime=l_aprime-1;
 end
 if N_z==0
@@ -279,7 +287,10 @@ ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Param
 % transpathoptions.zepathtrivial=0 when either of zpathtrival and epathtrivial both are zero
 
 %% If using any non-standard endogenous states, setup for those
-[vfoptions,simoptions]=SetupNonStandardEndoStates_FHorz_TPath(n_d,n_a,d_grid,a_grid,vfoptions,simoptions);
+[vfoptions,simoptions]=SetupNonStandardEndoStates_FHorz_TPath(n_d,n_a,d_grid,a_grid,vfoptions,simoptions,n_z,z_grid,N_j,Parameters);
+if vfoptions.experienceassetz>=1 && transpathoptions.zpathtrivial==0
+    error('experienceassetz with z varying over the transition path is not yet implemented (email me if you want this)')
+end
 
 %% Setup for V_final
 % Note: I keep Policy as having a first dimension (even if it is just 1)
@@ -493,7 +504,7 @@ end
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 l_daprime=l_d+l_a;
-if vfoptions.experienceasset>=1
+if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
     l_daprime=l_daprime-1;
 end
 

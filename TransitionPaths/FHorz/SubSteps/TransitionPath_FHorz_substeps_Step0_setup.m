@@ -7,7 +7,7 @@ N_probs=1; % Not using N_probs
 if simoptions.gridinterplayer==1
     N_probs=N_probs*2;
 end
-if simoptions.experienceasset>=1
+if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
     N_probs=N_probs*2;
 end
 
