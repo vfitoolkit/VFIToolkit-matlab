@@ -12,13 +12,12 @@ if heteroagentoptions.verbose==2
             fprintf(heteroagentoptions.verboseaccuracy1,GEPriceParamNames{ii},GEpricesvec(ii))
         end
     else
-        numberstr=repmat(' %8.4f',1,PTypeStructure.N_i);
         % Adjust output for the fact there are multiple ptypes
         fprintf(' \n')
         fprintf('Current GE prices: \n')
         for pp=1:nGEprices
             if GEprice_ptype(pp)==1
-                fprintf(['	%s:',numberstr,' \n'],GEPriceParamNames{pp},GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2)))
+                fprintf(['	%s:',heteroagentoptions.verboseaccuracy1ptype,' \n'],GEPriceParamNames{pp},GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2)))
             else
                 fprintf(heteroagentoptions.verboseaccuracy1,GEPriceParamNames{pp},GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2)))
             end
@@ -51,6 +50,9 @@ for ii=1:PTypeStructure.N_i
         [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
         % Convert z and e to age-dependent joint-grids and transtion matrix
         % Note: Ignores which, just redoes both z and e
+        if isfield(PTypeStructure.(iistr).simoptions,'z_grid')
+            PTypeStructure.(iistr).simoptions.z_grid=PTypeStructure.(iistr).z_gridvals_J;
+        end
         PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % if no e, this is just empty anyway
         PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J;
     end
@@ -237,13 +239,12 @@ if heteroagentoptions.verbose==1 % When=2, we report these earlier
             fprintf(heteroagentoptions.verboseaccuracy1,GEPriceParamNames{ii},GEpricesvec(ii))
         end
     else
-        numberstr=repmat(' %8.4f',1,PTypeStructure.N_i);
         % Adjust output for the fact there are multiple ptypes
         fprintf(' \n')
         fprintf('Current GE prices: \n')
         for pp=1:nGEprices
             if GEprice_ptype(pp)==1
-                fprintf(['	%s:',numberstr,' \n'],GEPriceParamNames{pp},GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2)))
+                fprintf(heteroagentoptions.verboseaccuracy1ptype,GEPriceParamNames{pp},GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2)))
             else
                 fprintf(heteroagentoptions.verboseaccuracy1,GEPriceParamNames{pp},GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2)))
             end
@@ -268,7 +269,7 @@ if heteroagentoptions.verbose>=1
         end
         fprintf('Current aggregate variables, conditional on ptype: \n')
         for aa=1:length(AggVarNames)
-            fprintf(['	%s:',numberstr,' \n'],AggVarNames{aa},AggVars_ConditionalOnPType(aa,:)) % Note, this is done differently here because AggVars itself has been set as a matrix
+            fprintf(heteroagentoptions.verboseaccuracy1ptype,AggVarNames{aa},AggVars_ConditionalOnPType(aa,:)) % Note, this is done differently here because AggVars itself has been set as a matrix
         end
         if isfield(heteroagentoptions,'intermediateEqns')
             fprintf('Current intermediateEqns: \n')
@@ -276,7 +277,7 @@ if heteroagentoptions.verbose>=1
             ggindex=[[1; cumsum(ggindex(1:end-1))+1],cumsum(ggindex)];
             for gg=1:length(intEqnnames)
                 if heteroagentoptions.intermediateEqnsptype(gg)==1
-                    fprintf(['	%s:',numberstr,' \n'],intEqnnames{gg},intermediateEqnsVec(ggindex(gg,1):ggindex(gg,2)))
+                    fprintf(heteroagentoptions.verboseaccuracy1ptype,intEqnnames{gg},intermediateEqnsVec(ggindex(gg,1):ggindex(gg,2)))
                 else
                     fprintf(heteroagentoptions.verboseaccuracy1,intEqnnames{gg},intermediateEqnsVec(ggindex(gg,1):ggindex(gg,2)))
                 end
@@ -286,9 +287,10 @@ if heteroagentoptions.verbose>=1
         GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
         ggindex=ones(length(GeneralEqmEqnsNames),1)+heteroagentoptions.GEptype'*(PTypeStructure.N_i-1);
         ggindex=[[1; cumsum(ggindex(1:end-1))+1],cumsum(ggindex)];
+
         for gg=1:length(GeneralEqmEqnsNames)
             if heteroagentoptions.GEptype(gg)==1
-                fprintf(['	%s:',numberstr,' \n'],GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))
+                fprintf(heteroagentoptions.verboseaccuracy2ptype,GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))
             else
                 fprintf(heteroagentoptions.verboseaccuracy2,GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))
             end

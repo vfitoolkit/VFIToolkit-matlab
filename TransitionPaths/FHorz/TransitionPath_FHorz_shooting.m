@@ -1,4 +1,4 @@
-function [PricePathOld,GEcondnPath]=TransitionPath_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_z,n_e,N_j, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,z_gridvals_J,e_gridvals_J,ze_gridvals_J_fastOLG, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptions, simoptions, transpathoptions)
+function [PricePathOld,GEcondnPath]=TransitionPath_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_semiz,n_z,n_e,N_j, N_d,N_a,N_semiz,N_z,N_e, l_d,l_aprime,l_a,l_semiz,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,semiz_gridvals_J,z_gridvals_J,e_gridvals_J,semizze_gridvals_J_fastOLG, pi_semiz_J, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptions, simoptions, transpathoptions)
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
@@ -26,9 +26,17 @@ AggVarsPath=zeros(T-1,length(FnsToEvaluateCell),'gpuArray'); % Note: does not in
 GEcondnPath=zeros(T-1,length(GeneralEqmEqnsCell),'gpuArray');
 
 % Setup, the shapes of various of these objects vary depending on the setting
-[PolicyIndexesPath,N_probs,II1,II2,exceptlastj,exceptfirstj,justfirstj]=TransitionPath_FHorz_substeps_Step0_setup(l_d,l_aprime,N_a,N_z,N_e,N_j,T,transpathoptions,vfoptions,simoptions);
+[PolicyIndexesPath,N_probs,II1,II2,exceptlastj,exceptfirstj,justfirstj]=TransitionPath_FHorz_substeps_Step0_setup(l_d,l_aprime,N_a,N_semiz,N_z,N_e,N_j,T,transpathoptions,vfoptions,simoptions);
 % Note: some of these outputs are empty, depending on the setting
 % PolicyIndexesPath is just pre-allocating matrices of the appropriate size, contains zeros
+
+%% Semi-exogenous state: prepare the value-function-form grids/transitions (the substeps below dispatch to SemiExo variants)
+if N_semiz>0
+    pi_e_J_vf=pi_e_J;
+    if transpathoptions.fastOLG==1 && N_e>0 && N_z==0
+        pi_e_J_vf=reshape(pi_e_J,[N_a*N_j,1,N_e]); % SemiExo value fn keeps the bothz dim, so needs (a,j)-by-1-by-e even when N_z==0
+    end
+end
 
 %%
 PricePathDist=Inf;
@@ -36,10 +44,18 @@ pathcounter=1;
 while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter
 
     %% Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
-    [~,PolicyIndexesPath]=TransitionPath_FHorz_substeps_Step1_ValueFnIter(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_j,N_z,N_e,d_gridvals, a_grid, z_gridvals_J,e_gridvals_J,pi_z_J,pi_e_J,ReturnFn,DiscountFactorParamNames, ReturnFnParamNames, transpathoptions,vfoptions);
+    if N_semiz==0
+        [~,PolicyIndexesPath]=TransitionPath_FHorz_substeps_Step1_ValueFnIter(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_j,N_z,N_e,d_gridvals, a_grid, z_gridvals_J,e_gridvals_J,pi_z_J,pi_e_J,ReturnFn,DiscountFactorParamNames, ReturnFnParamNames, transpathoptions,vfoptions);
+    else
+        [~,PolicyIndexesPath]=TransitionPath_FHorz_substeps_Step1_ValueFnIter_SemiExo(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,simoptions.setup_semiexo.n_d1,simoptions.setup_semiexo.n_d2,n_a,simoptions.n_semiz,n_z,n_e,N_j,N_z,N_e,simoptions.setup_semiexo.d1_gridvals,simoptions.setup_semiexo.d2_gridvals,a_grid,z_gridvals_J,semiz_gridvals_J,e_gridvals_J,pi_z_J,pi_semiz_J,pi_e_J_vf,ReturnFn,DiscountFactorParamNames, ReturnFnParamNames, transpathoptions,vfoptions);
+    end
 
     %% Modify PolicyIndexesPath into forms needed for forward iteration
-    [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath,T,Parameters,n_d,n_a,n_z,n_e,N_j,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+    if N_semiz==0
+        [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath,T,Parameters,n_d,n_a,n_z,n_e,N_j,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+    else
+        [Policy_dsemiexoPath,Policy_aprimePath,PolicyProbsPath,PolicyValuesPath]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy_SemiExo(PolicyIndexesPath,T,n_d,n_a,n_z,n_e,N_j,N_a,N_z,N_e,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+    end
 
     %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
@@ -121,13 +137,17 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             AgeWeights=AgeWeights_T(:,tt);
         end
 
-        AgentDistnext=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(AgentDist,PolicyPath_ForAgentDistIter,PolicyProbsPath,tt,N_a,N_z,N_e,N_j,N_probs,pi_z_J,pi_z_J_sim,pi_e_J,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist,transpathoptions,simoptions);
+        if N_semiz==0
+            AgentDistnext=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(AgentDist,PolicyPath_ForAgentDistIter,PolicyProbsPath,tt,N_a,N_z,N_e,N_j,N_probs,pi_z_J,pi_z_J_sim,pi_e_J,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist,transpathoptions,simoptions);
+        else
+            AgentDistnext=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist_SemiExo(AgentDist,Policy_dsemiexoPath,Policy_aprimePath,PolicyProbsPath,tt,N_a,N_z,N_e,N_j,N_probs,pi_z_J,pi_z_J_sim,pi_e_J,pi_e_J_sim,pi_semiz_J,jequalOneDist,transpathoptions,simoptions);
+        end
 
         %% AggVars
-        if N_z==0 && N_e==0
-            AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,l_e,N_d,N_a,N_z,N_e,a_gridvals,ze_gridvals_J_fastOLG,transpathoptions);
+        if N_z==0 && N_e==0 && N_semiz==0
+            AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions);
         else
-            AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,l_e,N_d,N_a,N_z,N_e,a_gridvals,ze_gridvals_J_fastOLG,transpathoptions);
+            AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions);
         end
 
         for ff=1:length(AggVarNames) % Note: needed for _tminus1 as well as GeneralEqmEqns

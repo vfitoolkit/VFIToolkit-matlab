@@ -236,62 +236,35 @@ StationaryDist=gpuArray(reshape(StationaryDist,[N_a*N_semizze_reshape,N_j]));
 
 
 if simoptions.lowmemory==0
-    %% Per-age transition matrices P_jj (jj=1..N_j-1), via the existing helper
-    disp('Old Version')
-    P_cell=cell(N_j-1,1);
+    %% Per-age transition matrices P_jj (jj=1..N_j-1)
     if N_e==0
         if N_z==0
             if N_semiz==0 % none
-                for jj=1:N_j-1
-                    P_cell{jj}=CreatePTransitionMatrix(Policy(:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],[],[],Parameters,simoptions);
-                end
+                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],[],[],Parameters,simoptions);
             else % semiz
-                for jj=1:N_j-1
-                    P_cell{jj}=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J(:,:,:,jj),[],[],Parameters,simoptions);
-                end
+                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J,[],[],Parameters,simoptions);
             end
         else % z
             if N_semiz==0
-                for jj=1:N_j-1
-                    P_cell{jj}=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],pi_z_J(:,:,jj),[],Parameters,simoptions);
-                end
+                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],pi_z_J,[],Parameters,simoptions);
             else % semiz,z
-                for jj=1:N_j-1
-                    P_cell{jj}=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J(:,:,:,jj),pi_z_J(:,:,jj),[],Parameters,simoptions);
-                end
+                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J,pi_z_J,[],Parameters,simoptions);
             end
         end
     else
         if N_z==0
             if N_semiz==0 % e
-                for jj=1:N_j-1
-                    P_cell{jj}=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],[],simoptions.pi_e_J(:,jj+1),Parameters,simoptions);
-                end
+                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],[],simoptions.pi_e_J,Parameters,simoptions);
             else % semiz,e
-                for jj=1:N_j-1
-                    P_cell{jj}=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J(:,:,:,jj),[],simoptions.pi_e_J(:,jj+1),Parameters,simoptions);
-                end
+                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J,[],simoptions.pi_e_J,Parameters,simoptions);
             end
         else
             if N_semiz==0 % z,e
-                for jj=1:N_j-1
-                    P_cell{jj}=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],pi_z_J(:,:,jj),simoptions.pi_e_J(:,jj+1),Parameters,simoptions);
-                end
+                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
             else % semiz,z,e
-                for jj=1:N_j-1
-                    P_cell{jj}=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J(:,:,:,jj),pi_z_J(:,:,jj),simoptions.pi_e_J(:,jj+1),Parameters,simoptions);
-                end
+                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
             end
         end
-    end
-
-    disp('New Version')
-    P_cell_new=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
-
-
-    disp('Compare')
-    for jj=1:N_j-1
-        max(abs(P_cell{jj}-P_cell_new{jj})) % should all be zero
     end
 
 

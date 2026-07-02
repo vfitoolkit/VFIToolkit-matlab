@@ -83,7 +83,7 @@ vfoptions.parallel=2;
 if N_d==0
     Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
 else
-    Policy=UnKronPolicyIndexes1_z(Policy, [n_d,n_a], n_a, n_z, vfoptions);
+    Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
 end
 
 % OUTPUTs of ValueFnIter_Case1 are V,Policy

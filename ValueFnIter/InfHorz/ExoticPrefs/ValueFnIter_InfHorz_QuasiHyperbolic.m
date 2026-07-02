@@ -142,9 +142,9 @@ if N_d==0
         Policyalt=UnKronPolicyIndexes1_z(Policyalt, n_a, n_a, n_z, vfoptions);
     end
 else
-    Policy=UnKronPolicyIndexes1_z(Policy, [n_d,n_a], n_a, n_z, vfoptions);
+    Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
     if isNaive
-        Policyalt=UnKronPolicyIndexes1_z(Policyalt, [n_d,n_a], n_a, n_z, vfoptions);
+        Policyalt=UnKronPolicyIndexes2_z(Policyalt, n_d, n_a, n_a, n_z, vfoptions);
     end
 end
 

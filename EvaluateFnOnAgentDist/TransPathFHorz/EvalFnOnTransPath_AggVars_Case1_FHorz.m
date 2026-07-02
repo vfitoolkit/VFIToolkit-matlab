@@ -123,7 +123,13 @@ if N_e==0
 else
     l_e=length(n_e);
 end
-l_ze=l_z+l_e;
+% Semi-exogenous state: for AggVars it is just part of the joint exogenous state (semiz is an argument of the FnsToEvaluate, so it counts towards the state-variable offset)
+if prod(simoptions.n_semiz)>0
+    l_semiz=length(simoptions.n_semiz);
+else
+    l_semiz=0;
+end
+l_ze=l_semiz+l_z+l_e;
 
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
@@ -161,6 +167,27 @@ if simoptions.alreadygridvals==0
 elseif simoptions.alreadygridvals==1
     z_gridvals_J=z_grid;
     e_gridvals_J=simoptions.e_gridvals_J;
+end
+
+%% Semi-exogenous state: fold semiz into z (for AggVars the semi-exogenous state is just part of the joint exogenous state; no transition machinery is needed, only the gridvals)
+if prod(simoptions.n_semiz)>0
+    N_semiz=prod(simoptions.n_semiz);
+    if transpathoptions.zpathtrivial==0
+        error('Semi-exogenous states with z varying over the transition path are not yet implemented for EvalFnOnTransPath_AggVars (email me if you want this)')
+    end
+    if ~isfield(simoptions,'d_grid')
+        simoptions.d_grid=d_grid;
+    end
+    simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,1); % builds simoptions.semiz_gridvals_J [N_semiz,l_semiz,N_j]
+    if N_z==0
+        z_gridvals_J=simoptions.semiz_gridvals_J;
+        n_z=simoptions.n_semiz;
+    else
+        z_gridvals_J=[repmat(simoptions.semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)]; % combine, semiz indexes fastest (matches the (semiz,z) ordering of the agent dist and policy)
+        n_z=[simoptions.n_semiz,n_z];
+    end
+    N_z=prod(n_z);
+    simoptions.n_semiz=0; % from now on, semiz is treated purely as part of z
 end
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions

@@ -101,7 +101,7 @@ end
 %%
 for ii=1:N_i
     iistr=PTypeStructure.Names_i{ii};
-    [PTypeStructure.(iistr).PolicyIndexesPath,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj]=TransitionPath_FHorz_substeps_Step0_setup(PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,T,transpathoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    [PTypeStructure.(iistr).PolicyIndexesPath,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj]=TransitionPath_FHorz_substeps_Step0_setup(PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).N_a,0,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,T,transpathoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
 end
 
 %%
@@ -229,9 +229,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
             %% AggVars
             if PTypeStructure.(iistr).N_z==0 && PTypeStructure.(iistr).N_e==0
-                AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PolicyValuesPath_ii(:,:,:,tt),tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+                AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PolicyValuesPath_ii(:,:,:,tt),tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,0,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,0,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
             else
-                AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PolicyValuesPath_ii(:,:,:,:,tt),tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+                AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PolicyValuesPath_ii(:,:,:,:,tt),tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,0,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,0,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
             end
             % Uncommenting this allows you to do _tminus1 for AggVars, but only conditional on ptype [not yet possible without conditioning on ptype]
             % for ff=1:length(AggVarNames)

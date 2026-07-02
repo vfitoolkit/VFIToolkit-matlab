@@ -266,6 +266,11 @@ if N_e==0
 else
     l_e=length(vfoptions.n_e);
 end
+if prod(vfoptions.n_semiz)==0
+    l_semiz=0;
+else
+    l_semiz=length(vfoptions.n_semiz);
+end
 
 %% Implement new way of handling ReturnFn inputs
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
@@ -286,36 +291,144 @@ ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Param
 %
 % transpathoptions.zepathtrivial=0 when either of zpathtrival and epathtrivial both are zero
 
+%% Semi-exogenous states
+% The semi-exogenous transition (semiz->semiz') depends on the decision d2, so semiz is carried as part of the
+% composite exogenous state bothz=(semiz,z) [semiz indexes fastest, e kept separate] in the value function, and
+% bothze=(semiz,z,e) in the agent distribution. Setup is stashed in vfoptions/simoptions; the Step1/Step2/Step3tt/Step4tt
+% substeps dispatch to their SemiExo variants when prod(simoptions.n_semiz)>0.
+N_semiz=prod(vfoptions.n_semiz);
+if N_semiz>0
+    if ~isfield(vfoptions,'l_dsemiz')
+        vfoptions.l_dsemiz=1;
+    end
+    simoptions.l_dsemiz=vfoptions.l_dsemiz;
+    % Split decision variables: d1 (standard) and d2 (drives the semi-exogenous transition)
+    if length(n_d)>vfoptions.l_dsemiz
+        n_d1=n_d(1:end-vfoptions.l_dsemiz); d1_grid=d_grid(1:sum(n_d1));
+    else
+        n_d1=0; d1_grid=[];
+    end
+    n_d2=n_d(end-vfoptions.l_dsemiz+1:end); d2_grid=d_grid(sum(n_d1)+1:end);
+
+    % semizpathtrivial: error if any SemiExoStateFn parameter is on the path (not yet supported)
+    transpathoptions.semizpathtrivial=1;
+    if isfield(vfoptions,'SemiExoStateFn')
+        temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
+        nargsSemiExo=2*length(vfoptions.n_semiz)+vfoptions.l_dsemiz; % inputs are (semiz,semizprime,dsemiz,...)
+        if length(temp)>nargsSemiExo
+            SemiExoStateFnParamNames={temp{nargsSemiExo+1:end}};
+            for kk=1:length(SemiExoStateFnParamNames)
+                if any(strcmp(ParamPathNames,SemiExoStateFnParamNames{kk})) || any(strcmp(PricePathNames,SemiExoStateFnParamNames{kk}))
+                    transpathoptions.semizpathtrivial=0;
+                end
+            end
+        end
+    elseif isfield(vfoptions,'pi_semiz')
+        if ndims(vfoptions.pi_semiz)>4
+            transpathoptions.semizpathtrivial=0;
+        end
+    end
+    if transpathoptions.semizpathtrivial==0
+        error('Parameters of vfoptions.SemiExoStateFn appearing on PricePath/ParamPath are not yet implemented for transition paths (email me if you want this)')
+    end
+    
+    % Build semiz_gridvals_J and pi_semiz_J (d2-dependent)
+    vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,3); % vfoptions.semiz_gridvals_J [N_semiz,l_semiz,N_j], vfoptions.pi_semiz_J [N_semiz,N_semiz',N_dsemiz,N_j]
+    % Stash for the substeps (read by Step1/Step2/Step3tt/Step4tt SemiExo variants)
+    setup_semiexo.n_d1=n_d1; 
+    setup_semiexo.n_d2=n_d2; 
+    setup_semiexo.N_dsemiz=prod(n_d2);
+    setup_semiexo.d1_gridvals=CreateGridvals(n_d1,d1_grid,1);
+    setup_semiexo.d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
+    % store setup_semiexo in vfoptions and simoptions
+    vfoptions.setup_semiexo=setup_semiexo;  
+    simoptions.setup_semiexo=setup_semiexo;
+    % simoptions needs some extra info
+    simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
+    simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
+    simoptions.d_grid=d_grid;
+    % Composite sizes used by the semiz reshape branches below
+    N_asemiz=N_a*N_semiz;
+    if N_z==0
+        N_bothz=N_semiz; 
+    else
+        N_bothz=N_semiz*N_z;
+    end
+    if N_e==0
+        N_bothze=N_bothz; 
+    else
+        N_bothze=N_bothz*N_e;
+    end
+    
+    % Add semiz to ze_gridvals_J_fastOLG -> semizze_gridvals_J_fastOLG (disguise semiz as part of z for AggVars; semiz indexes fastest)
+    semiz_gridvals_J=vfoptions.semiz_gridvals_J; % [N_semiz,l_semiz,N_j]
+    semiz_gridvals_J_fastOLG=shiftdim(permute(semiz_gridvals_J,[3,1,2]),-1); % [1,N_j,N_semiz,l_semiz]
+    if transpathoptions.fastOLG==1
+        semiz_gridvals_J=permute(semiz_gridvals_J,[3,1,2]); % fastOLG form (N_j,N_semiz,l_semiz)
+    end
+    if isempty(ze_gridvals_J_fastOLG) % no z, no e
+        semizze_gridvals_J_fastOLG=semiz_gridvals_J_fastOLG;
+    else
+        N_ze=size(ze_gridvals_J_fastOLG,3);
+        semizze_gridvals_J_fastOLG=cat(4, repmat(semiz_gridvals_J_fastOLG,1,1,N_ze,1), repelem(ze_gridvals_J_fastOLG,1,1,N_semiz,1));
+    end
+
+    pi_semiz_J=vfoptions.pi_semiz_J;
+else
+    % No semiz: pass-through defaults so the shooting inputs are always defined
+    semiz_gridvals_J=[];
+    pi_semiz_J=[];
+    semizze_gridvals_J_fastOLG=ze_gridvals_J_fastOLG;
+end
+
+
 %% If using any non-standard endogenous states, setup for those
 [vfoptions,simoptions]=SetupNonStandardEndoStates_FHorz_TPath(n_d,n_a,d_grid,a_grid,vfoptions,simoptions,n_z,z_grid,N_j,Parameters);
 if vfoptions.experienceassetz>=1 && transpathoptions.zpathtrivial==0
     error('experienceassetz with z varying over the transition path is not yet implemented (email me if you want this)')
 end
 
+
 %% Setup for V_final
 % Note: I keep Policy as having a first dimension (even if it is just 1)
-if N_e==0
-    if N_z==0
-        V_final=reshape(V_final,[N_a,N_j]);
+if N_semiz==0
+    if N_e==0
+        if N_z==0
+            V_final=reshape(V_final,[N_a,N_j]);
+        else
+            if transpathoptions.fastOLG==0
+                V_final=reshape(V_final,[N_a,N_z,N_j]);
+            else % vfoptions.fastOLG==1
+                V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j,N_z]);
+            end
+        end
     else
-        if transpathoptions.fastOLG==0
-            V_final=reshape(V_final,[N_a,N_z,N_j]);
-        else % vfoptions.fastOLG==1
-            V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j,N_z]);
+        if N_z==0
+            if transpathoptions.fastOLG==0
+                V_final=reshape(V_final,[N_a,N_e,N_j]);
+            else % vfoptions.fastOLG==1
+                V_final=reshape(permute(reshape(V_final,[N_a,N_e,N_j]),[1,3,2]),[N_a*N_j,N_e]);
+            end
+        else
+            if transpathoptions.fastOLG==0
+                V_final=reshape(V_final,[N_a,N_z,N_e,N_j]);
+            else % vfoptions.fastOLG==1
+                V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j,N_z,N_e]);
+            end
         end
     end
-else
-    if N_z==0
+else % semiz: V keeps the composite bothz=(semiz,z) dimension (e separate)
+    if N_e==0
         if transpathoptions.fastOLG==0
-            V_final=reshape(V_final,[N_a,N_e,N_j]);
-        else % vfoptions.fastOLG==1
-            V_final=reshape(permute(reshape(V_final,[N_a,N_e,N_j]),[1,3,2]),[N_a*N_j,N_e]);
+            V_final=reshape(V_final,[N_a,N_bothz,N_j]);
+        else % fastOLG==1
+            V_final=reshape(permute(reshape(V_final,[N_a,N_bothz,N_j]),[1,3,2]),[N_a*N_j,N_bothz]);
         end
     else
         if transpathoptions.fastOLG==0
-            V_final=reshape(V_final,[N_a,N_z,N_e,N_j]);
-        else % vfoptions.fastOLG==1
-            V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j,N_z,N_e]);
+            V_final=reshape(V_final,[N_a,N_bothz,N_e,N_j]);
+        else % fastOLG==1
+            V_final=reshape(permute(reshape(V_final,[N_a,N_bothz,N_e,N_j]),[1,4,2,3]),[N_a*N_j,N_bothz,N_e]);
         end
     end
 end
@@ -350,70 +463,106 @@ end
 
 % Turn AgeWeights_T into appropriate size so that we can always just do AgentDist.*AgeWeights
 % Currently it is N_j-by-T
-if simoptions.fastOLG==0
-    if N_e==0
-        if N_z==0
-            AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a,1,1); % [N_a,N_j,T]
-        else
-            AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a*N_z,1,1); % [N_a*N_z,N_j,T]
+if N_semiz==0
+    if simoptions.fastOLG==0
+        if N_e==0
+            if N_z==0
+                AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a,1,1); % [N_a,N_j,T]
+            else
+                AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a*N_z,1,1); % [N_a*N_z,N_j,T]
+            end
+        else % N_e>0
+            if N_z==0
+                AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a*N_e,1,1); % [N_a*N_e,N_j,T]
+            else
+                AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a*N_z*N_e,1,1); % [N_a*N_z*N_e,N_j,T]
+            end
         end
-    else % N_e>0
-        if N_z==0
-            AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a*N_e,1,1); % [N_a*N_e,N_j,T]
-        else
-            AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a*N_z*N_e,1,1); % [N_a*N_z*N_e,N_j,T]
+    elseif simoptions.fastOLG==1
+        if N_e==0
+            if N_z==0
+                AgeWeights_T=repelem(AgeWeights_T,N_a,1); % [N_a*N_j,T]
+            else
+                AgeWeights_T=repmat(repelem(AgeWeights_T,N_a,1),N_z,1); % [N_a*N_j*N_z,T]
+            end
+        else % N_e>0
+            if N_z==0
+                AgeWeights_T=repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,N_e); % [N_a*N_j,N_e,T]
+            else
+                AgeWeights_T=repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1),N_z,N_e); % [N_a*N_j*N_z,N_e,T]
+            end
         end
     end
-elseif simoptions.fastOLG==1
-    if N_e==0
-        if N_z==0
-            AgeWeights_T=repelem(AgeWeights_T,N_a,1); % [N_a*N_j,T]
-        else
-            AgeWeights_T=repmat(repelem(AgeWeights_T,N_a,1),N_z,1); % [N_a*N_j*N_z,T]
-        end
-    else % N_e>0
-        if N_z==0
-            AgeWeights_T=repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,N_e); % [N_a*N_j,N_e,T]
-        else
-            AgeWeights_T=repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1),N_z,N_e); % [N_a*N_j*N_z,N_e,T]
+else % semiz: dist carries the composite bothze=(semiz,z,e); shape with N_asemiz=N_a*N_semiz in place of N_a
+    if simoptions.fastOLG==0
+        AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a*N_bothze,1,1); % [N_a*N_bothze,N_j,T]
+    elseif simoptions.fastOLG==1
+        if N_e==0
+            if N_z==0
+                AgeWeights_T=repelem(AgeWeights_T,N_asemiz,1); % [N_asemiz*N_j,T]
+            else
+                AgeWeights_T=repmat(repelem(AgeWeights_T,N_asemiz,1),N_z,1); % [N_asemiz*N_j*N_z,T]
+            end
+        else % N_e>0
+            if N_z==0
+                AgeWeights_T=repelem(reshape(AgeWeights_T,[N_j,1,T]),N_asemiz,N_e); % [N_asemiz*N_j,N_e,T]
+            else
+                AgeWeights_T=repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_asemiz,1),N_z,N_e); % [N_asemiz*N_j*N_z,N_e,T]
+            end
         end
     end
 end
 
 
 %% Setup for AgentDist_initial (includes a check that if AgeWeights do not change over the transition then they should match the initial agent distribution)
-if N_e==0  % no z, no e
-    if N_z==0
-        AgentDist_initial=reshape(AgentDist_initial,[N_a,N_j]);
-        AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
-        if simoptions.fastOLG==1
-            AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j,1]);
+if N_semiz==0
+    if N_e==0  % no z, no e
+        if N_z==0
+            AgentDist_initial=reshape(AgentDist_initial,[N_a,N_j]);
+            AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
+            if simoptions.fastOLG==1
+                AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j,1]);
+            end
+        else % z, no e
+            AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,N_j]);
+            AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
+            if simoptions.fastOLG==1
+                AgentDist_initial=reshape(AgentDist_initial,[N_a,N_z,N_j]);
+                AgentDist_initial=permute(AgentDist_initial,[1,3,2]);
+                AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j*N_z,1]);
+            end
         end
-    else % z, no e
-        AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,N_j]);
-        AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
-        if simoptions.fastOLG==1
-            AgentDist_initial=reshape(AgentDist_initial,[N_a,N_z,N_j]);
-            AgentDist_initial=permute(AgentDist_initial,[1,3,2]);
-            AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j*N_z,1]);
+    else
+        if N_z==0 % no z, e
+            AgentDist_initial=reshape(AgentDist_initial,[N_a*N_e,N_j]);
+            AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
+            if simoptions.fastOLG==1
+                AgentDist_initial=reshape(AgentDist_initial,[N_a,N_e,N_j]);
+                AgentDist_initial=permute(AgentDist_initial,[1,3,2]);
+                AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j,N_e]);
+            end
+        else % z & e
+            AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z*N_e,N_j]);
+            AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
+            if simoptions.fastOLG==1
+                AgentDist_initial=reshape(AgentDist_initial,[N_a,N_z,N_e,N_j]);
+                AgentDist_initial=permute(AgentDist_initial,[1,4,2,3]);
+                AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j*N_z,N_e]);
+            end
         end
     end
-else
-    if N_z==0 % no z, e
-        AgentDist_initial=reshape(AgentDist_initial,[N_a*N_e,N_j]);
-        AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
-        if simoptions.fastOLG==1
-            AgentDist_initial=reshape(AgentDist_initial,[N_a,N_e,N_j]);
-            AgentDist_initial=permute(AgentDist_initial,[1,3,2]);
-            AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j,N_e]);
-        end
-    else % z & e
-        AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z*N_e,N_j]);
-        AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
-        if simoptions.fastOLG==1
-            AgentDist_initial=reshape(AgentDist_initial,[N_a,N_z,N_e,N_j]);
-            AgentDist_initial=permute(AgentDist_initial,[1,4,2,3]);
-            AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j*N_z,N_e]);
+else % semiz: dist carries the composite bothze=(semiz,z,e); fastOLG uses (a,semiz,j,z) with e trailing (matches the SemiExo dist raws)
+    AgentDist_initial=reshape(AgentDist_initial,[N_a*N_bothze,N_j]);
+    AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
+    if simoptions.fastOLG==1
+        if N_z==0 && N_e==0
+            AgentDist_initial=reshape(AgentDist_initial,[N_asemiz*N_j,1]);
+        elseif N_e==0
+            AgentDist_initial=reshape(permute(reshape(AgentDist_initial,[N_a,N_semiz,N_z,N_j]),[1,2,4,3]),[N_asemiz*N_j*N_z,1]);
+        elseif N_z==0
+            AgentDist_initial=reshape(permute(reshape(AgentDist_initial,[N_a,N_semiz,N_e,N_j]),[1,2,4,3]),[N_asemiz*N_j,N_e]);
+        else
+            AgentDist_initial=reshape(permute(reshape(AgentDist_initial,[N_a,N_semiz,N_z,N_e,N_j]),[1,2,5,3,4]),[N_asemiz*N_j*N_z,N_e]);
         end
     end
 end
@@ -430,32 +579,44 @@ end
 
 %% Remove the age weights and do all the iterations. Only put the age weights back in when performing FnsToEvaluate (faster as saves putting weights in and then removing them T times)
 % Weights are all in AgeWeights_T
-if N_e==0
-    if N_z==0
-        if simoptions.fastOLG==0
-            AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights
-        elseif simoptions.fastOLG==1
-            AgentDist_initial=AgentDist_initial./repelem(AgeWeights_initial',N_a,1); % remove age weights
+if N_semiz==0
+    if N_e==0
+        if N_z==0
+            if simoptions.fastOLG==0
+                AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights
+            elseif simoptions.fastOLG==1
+                AgentDist_initial=AgentDist_initial./repelem(AgeWeights_initial',N_a,1); % remove age weights
+            end
+        else % N_e>0
+            if simoptions.fastOLG==0
+                AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights
+            elseif simoptions.fastOLG==1
+                AgentDist_initial=AgentDist_initial./repmat(repelem(AgeWeights_initial',N_a,1),N_z,1); % remove age weights
+            end
         end
     else % N_e>0
-        if simoptions.fastOLG==0
-            AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights
-        elseif simoptions.fastOLG==1
-            AgentDist_initial=AgentDist_initial./repmat(repelem(AgeWeights_initial',N_a,1),N_z,1); % remove age weights
+        if N_z==0
+            if simoptions.fastOLG==0
+                AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights
+            elseif simoptions.fastOLG==1
+                AgentDist_initial=AgentDist_initial./repelem(AgeWeights_initial',N_a,1); % remove age weights
+            end
+        else % N_e>0
+            if simoptions.fastOLG==0
+                AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights
+            elseif simoptions.fastOLG==1
+                AgentDist_initial=AgentDist_initial./repmat(repelem(AgeWeights_initial',N_a,1),N_z,1); % remove age weights
+            end
         end
     end
-else % N_e>0
-    if N_z==0
-        if simoptions.fastOLG==0
-            AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights
-        elseif simoptions.fastOLG==1
-            AgentDist_initial=AgentDist_initial./repelem(AgeWeights_initial',N_a,1); % remove age weights
-        end
-    else % N_e>0
-        if simoptions.fastOLG==0
-            AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights
-        elseif simoptions.fastOLG==1
-            AgentDist_initial=AgentDist_initial./repmat(repelem(AgeWeights_initial',N_a,1),N_z,1); % remove age weights
+else % semiz
+    if simoptions.fastOLG==0
+        AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights ([N_a*N_bothze,N_j])
+    elseif simoptions.fastOLG==1
+        if N_z==0
+            AgentDist_initial=AgentDist_initial./repelem(AgeWeights_initial',N_asemiz,1); % remove age weights
+        else
+            AgentDist_initial=AgentDist_initial./repmat(repelem(AgeWeights_initial',N_asemiz,1),N_z,1); % remove age weights
         end
     end
 end
@@ -467,6 +628,9 @@ temp=size(jequalOneDist);
 % Note: simoptions.fastOLG is handled via 'justfirstj', rather than via shape of jequalOneDist
 if temp(end)==T % jequalOneDist depends on T
     transpathoptions.trivialjequalonedist=0;
+    if N_semiz>0
+        error('jequalOneDist as a path (depending on t) is not yet implemented for semi-exogenous state transition paths')
+    end
     if N_z==0
         if N_e==0
             jequalOneDist_T=reshape(jequalOneDist,[N_a,T]);
@@ -482,17 +646,33 @@ if temp(end)==T % jequalOneDist depends on T
     end
 else
     transpathoptions.trivialjequalonedist=1;
-    if N_z==0
-        if N_e==0
-            jequalOneDist=reshape(jequalOneDist,[N_a,1]);
+    if N_semiz==0
+        if N_z==0
+            if N_e==0
+                jequalOneDist=reshape(jequalOneDist,[N_a,1]);
+            else
+                jequalOneDist=reshape(jequalOneDist,[N_a*N_e,1]);
+            end
         else
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_e,1]);
+            if N_e==0
+                jequalOneDist=reshape(jequalOneDist,[N_a*N_z,1]);
+            else
+                jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,1]);
+            end
         end
-    else
-        if N_e==0
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_z,1]);
+    else % semiz: age-1 dist over the composite state; fastOLG uses (a,semiz,(z),(e)) at j=1
+        if simoptions.fastOLG==0
+            jequalOneDist=reshape(jequalOneDist,[N_a*N_bothze,1]);
         else
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,1]);
+            if N_z==0 && N_e==0
+                jequalOneDist=reshape(jequalOneDist,[N_asemiz,1]);
+            elseif N_e==0
+                jequalOneDist=reshape(jequalOneDist,[N_asemiz*N_z,1]);
+            elseif N_z==0
+                jequalOneDist=reshape(jequalOneDist,[N_asemiz*N_e,1]);
+            else
+                jequalOneDist=reshape(jequalOneDist,[N_asemiz*N_z*N_e,1]);
+            end
         end
     end
 end
@@ -512,8 +692,8 @@ AggVarNames=fieldnames(FnsToEvaluate);
 FnsToEvaluateCell=cell(1,length(AggVarNames));
 for ff=1:length(AggVarNames)
     temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-    if length(temp)>(l_daprime+l_a+l_z+l_e)
-        FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_daprime+l_a+l_semiz+l_z+l_e)
+        FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_semiz+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,semiz,z,e)
     else
         FnsToEvaluateParamNames(ff).Names={};
     end
@@ -655,7 +835,7 @@ l_p=length(PricePathNames);
 %% Shooting algorithm
 if transpathoptions.GEnewprice~=2
 
-    [PricePath,GEcondnPathmatrix]=TransitionPath_FHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_z,vfoptions.n_e,N_j, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,z_gridvals_J,e_gridvals_J,ze_gridvals_J_fastOLG, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, vfoptions, simoptions, transpathoptions);
+    [PricePath,GEcondnPathmatrix]=TransitionPath_FHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,vfoptions.n_semiz,n_z,vfoptions.n_e,N_j, N_d,N_a,N_semiz,N_z,N_e, l_d,l_aprime,l_a,l_semiz,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,semiz_gridvals_J,z_gridvals_J,e_gridvals_J,semizze_gridvals_J_fastOLG, pi_semiz_J, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, vfoptions, simoptions, transpathoptions);
 
     % Switch the solution into structure for output.
     for pp=1:length(PricePathNames)

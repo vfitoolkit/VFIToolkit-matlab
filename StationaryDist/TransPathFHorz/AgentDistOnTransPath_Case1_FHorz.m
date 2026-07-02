@@ -88,22 +88,6 @@ end
 % Make sure all the relevant inputs are GPU arrays (not standard arrays)
 AgentDist_initial=gpuArray(AgentDist_initial);
 
-
-%% Set up exogenous shock processes
-[~, pi_z_J, pi_z_J_sim, ~, pi_e_J, pi_e_J_sim, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,[],pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,2);
-% Convert z and e to age-dependent joint-grids and transtion matrix
-% output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
-
-% Sets up
-% transpathoptions.zpathtrivial=1; % z_gridvals_J and pi_z_J are not varying over the path
-%                              =0; % they vary over path, so z_gridvals_J_T and pi_z_J_T
-% transpathoptions.epathtrivial=1; % e_gridvals_J and pi_e_J are not varying over the path
-%                              =0; % they vary over path, so e_gridvals_J_T and pi_e_J_T
-% and
-% transpathoptions.gridsinGE=1; % grids depend on a GE parameter and so need to be recomputed every iteration
-%                           =0; % grids are exogenous
-
-
 %%
 if transpathoptions.verbose==1
     transpathoptions
@@ -134,6 +118,28 @@ if any(temp)
     [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
     % Create AgeWeights_T
     AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % N_j-by-T
+end
+
+
+%% Set up exogenous shock processes
+[~, pi_z_J, pi_z_J_sim, ~, pi_e_J, pi_e_J_sim, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,[],pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,2);
+% Convert z and e to age-dependent joint-grids and transtion matrix
+% output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
+
+% Sets up
+% transpathoptions.zpathtrivial=1; % z_gridvals_J and pi_z_J are not varying over the path
+%                              =0; % they vary over path, so z_gridvals_J_T and pi_z_J_T
+% transpathoptions.epathtrivial=1; % e_gridvals_J and pi_e_J are not varying over the path
+%                              =0; % they vary over path, so e_gridvals_J_T and pi_e_J_T
+% and
+% transpathoptions.gridsinGE=1; % grids depend on a GE parameter and so need to be recomputed every iteration
+%                           =0; % grids are exogenous
+
+%% Semi-exogenous states get their own subfunction
+% Note: called before the (non-semiz) reshapes of AgentDist_initial/jequaloneDist/PolicyPath (those do not know about the semiz dimension; the subfunction does its own reshaping)
+if prod(simoptions.n_semiz)>0
+    AgentDistPath=AgentDistOnTransPath_FHorz_SemiExo(AgentDist_initial, jequaloneDist, PolicyPath, AgeWeights, AgeWeights_T, n_d, n_a, n_z, n_e, N_j, pi_z_J, pi_z_J_sim, pi_e_J, pi_e_J_sim, T, Parameters, transpathoptions, simoptions);
+    return
 end
 
 %% Setup for AgentDist_initial (includes a check that if AgeWeights do not change over the transition then they should match the initial agent distribution)
