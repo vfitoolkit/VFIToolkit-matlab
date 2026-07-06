@@ -9,7 +9,7 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
-Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
+Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim (added at the very end) indexes the optimal choice for d and a1prime rest of dimensions a,z
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -95,7 +95,9 @@ else
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2
-    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    EV_l=aprimeProbs.*Vlower; EV_u=(1-aprimeProbs).*Vupper;
+    EV_l(isnan(EV_l))=0; EV_u(isnan(EV_u))=0;
+    EV=EV_l+EV_u; % (d2*a1prime,a2,zprime)
     % Already applied the probabilities from interpolating onto grid
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
@@ -190,26 +192,30 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2], whereas aprimeProbs is [N_d2,N_a2]
 
-    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2]
-    aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z); % [N_d2*N_a1,N_a2,N_z]
+    if vfoptions.lowmemory<3
+        aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2]
+        aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2]
+        aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z); % [N_d2*N_a1,N_a2,N_z]
 
-    EVpre=sum(shiftdim(pi_e_J(:,jj),-2).*V(:,:,:,jj+1),3); % First, switch V_Jplus1 into Kron form
+        EVpre=sum(shiftdim(pi_e_J(:,jj),-2).*V(:,:,:,jj+1),3); % Resolve `e` effects on V_Jplus1
 
-    Vlower=reshape(EVpre(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
-    Vupper=reshape(EVpre(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
-    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
-    skipinterp=(Vlower==Vupper);
-    aprimeProbs(skipinterp)=0; % effectively skips interpolation
-
-    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
-    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
-    % Already applied the probabilities from interpolating onto grid
-
-    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-    EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-    EV=squeeze(sum(EV,3));
-    % EV is over (d2,a1prime,a2,z)
+        Vlower=reshape(EVpre(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
+        Vupper=reshape(EVpre(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
+        % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+        skipinterp=(Vlower==Vupper);
+        aprimeProbs(skipinterp)=0; % effectively skips interpolation
+    
+        % Switch EV from being in terms of a2prime to being in terms of d2 and a2
+        EV_l=aprimeProbs.*Vlower; EV_u=(1-aprimeProbs).*Vupper;
+        EV_l(isnan(EV_l))=0; EV_u(isnan(EV_u))=0;
+        EV=EV_l+EV_u; % (d2*a1prime,a2,zprime)
+        % Already applied the probabilities from interpolating onto grid
+    
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
+        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+        EV=squeeze(sum(EV,3));
+        % EV is over (d2,a1prime,a2,z)
+    end
 
     % DiscountedEV=DiscountFactorParamsVec*repelem(EV,N_d1,N_a1,1);
 
@@ -259,10 +265,31 @@ for reverse_j=1:N_j-1
         end
     elseif vfoptions.lowmemory==3
         for ea_c=1:N_a2
+            aprimeIndex_ea=repelem((1:1:N_a1)',N_d2,1)+N_a1*repmat(squeeze(a2primeIndex(:,ea_c))-1,N_a1,1,1); % [N_d2*N_a1,1]
+            aprimeplus1Index_ea=repelem((1:1:N_a1)',N_d2)+N_a1*repmat(squeeze(a2primeIndex(:,ea_c)),N_a1,1,1); % [N_d2*N_a1,1]
+            aprimeProbs_ea=repmat(squeeze(a2primeProbs(:,ea_c)),N_a1,1,N_z); % [N_d2*N_a1,1,N_z]
+
+            Vlower_ea=reshape(V(aprimeIndex_ea(:),:,jj+1),[N_d2*N_a1,1,N_z]); % (d*a1prime,1,z)
+            Vupper_ea=reshape(V(aprimeplus1Index_ea(:),:,jj+1),[N_d2*N_a1,1,N_z]);
+            % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+            skipinterp_ea=(Vlower_ea==Vupper_ea);
+            aprimeProbs_ea(skipinterp_ea)=0; % effectively skips interpolation
+
+            % Switch EV from being in terms of a2prime to being in terms of d (and the present ea_c, from a2)
+            EV_ea_l=aprimeProbs_ea.*Vlower_ea; EV_ea_u=(1-aprimeProbs_ea).*Vupper_ea;
+            EV_ea_l(isnan(EV_ea_l))=0; EV_ea_u(isnan(EV_ea_u))=0;
+            EV_ea=EV_ea_l+EV_ea_u; % (d2*a1prime,1,z)
+            % Already applied the probabilities from interpolating onto grid
+
+            EV_ea=EV_ea.*shiftdim(pi_z_J(:,:,jj),-1); % shifted pi_z shaped [1,z,zprime] -- no transpose since current z is dim 3
+            EV_ea(isnan(EV_ea))=0; % remove nan created where value fn is -Inf but probability is zero
+            EV_ea=squeeze(sum(EV_ea,3));
+            % EV is over (d2*a1prime,z)
+
             ea_val=a2_gridvals(ea_c);
             for z_c=1:N_z
                 z_val=z_gridvals_J(z_c,:,jj);
-                DiscountedEV_ea_z=DiscountFactorParamsVec*repelem(EV(:,ea_c,z_c),N_d1,N_a1);
+                DiscountedEV_ea_z=DiscountFactorParamsVec*repelem(EV_ea(:,z_c),N_d1,N_a1);
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,jj);
 

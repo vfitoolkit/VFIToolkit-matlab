@@ -103,14 +103,15 @@ for reverse_j=1:N_j-1
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-    entireEV=repelem(EV,N_d,1,1);
+    % Doing the replication here defeats our lowmemory optimizations
+    % entireEV=repelem(EV,N_d,1,1);
 
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
         % (d,aprime,a,z)
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; % autofill a for EV
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d,1,1); % autofill a for EV
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -122,12 +123,11 @@ for reverse_j=1:N_j-1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            entireEV_z=entireEV(:,:,z_c);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec,0);
             % (d,aprime,a)
 
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z; % autofill a for EV
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV(:,:,z_c),N_d,1,1); % autofill a for EV
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
