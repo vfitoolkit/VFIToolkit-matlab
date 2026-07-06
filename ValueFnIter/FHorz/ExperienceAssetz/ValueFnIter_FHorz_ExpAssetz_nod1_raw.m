@@ -134,12 +134,13 @@ for reverse_j=1:N_j-1
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=squeeze(sum(EV,4)); % sum over zprime, leaving current z
 
-    DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+    % This creates a large matrix that defeats the lowmemory ideas, so build case-by-case
+    % DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-        entireRHS=ReturnMatrix+DiscountedEV;
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -151,11 +152,10 @@ for reverse_j=1:N_j-1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            DiscountedEV_z=DiscountedEV(:,:,z_c);
 
             ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-            entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV(:,:,z_c),1,N_a1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
