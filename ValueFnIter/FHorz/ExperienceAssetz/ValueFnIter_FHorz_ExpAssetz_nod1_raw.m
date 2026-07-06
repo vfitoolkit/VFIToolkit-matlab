@@ -7,7 +7,7 @@ N_a=N_a1*N_a2;
 N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
+Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d2 and a1prime rest of dimensions a,z
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -71,12 +71,12 @@ else
     EV=squeeze(sum(EV,4)); % sum over zprime, leaving current z
 
     % This creates a large matrix that defeats the lowmemory ideas, so build case-by-case
-    % DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1);
+    % DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -130,7 +130,7 @@ for reverse_j=1:N_j-1
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terms of a2prime to being in terms of d and a2
+    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
     EV_l=aprimeProbs.*Vlower; EV_u=(1-aprimeProbs).*Vupper;
     EV_l(isnan(EV_l))=0; EV_u(isnan(EV_u))=0;
     EV=EV_l+EV_u; % (d2*a1prime,a2,z,zprime)
