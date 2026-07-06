@@ -55,6 +55,7 @@ if ~exist('heteroagentoptions','var')
     heteroagentoptions.verboseaccuracy1=4; % number of decimal places for GEPrices (among others)
     heteroagentoptions.verboseaccuracy2=6; % number of decimal places for GECondns
     heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    heteroagentoptions.countGEsolves=0; % =1, count GE-condn evaluations (model solves) in the subfn, for benchmarking
     % For internal use only
     % heteroagentoptions.outputGEform=0;
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
@@ -116,6 +117,9 @@ else
     if ~isfield(heteroagentoptions,'pricehistory')
         heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
     end
+    if ~isfield(heteroagentoptions,'countGEsolves')
+        heteroagentoptions.countGEsolves=0; % =1, count GE-condn evaluations (model solves) in the subfn, for benchmarking
+    end
     % For internal use only
     % heteroagentoptions.outputGEform=0;
     if ~isfield(heteroagentoptions,'outputGEstruct')
@@ -148,6 +152,8 @@ if heteroagentoptions.fminalgo==0
 elseif heteroagentoptions.fminalgo==5
     heteroagentoptions.outputGEform=1; % Need to output GE condns as a vector when using fminalgo=5
     heteroagentoptions.outputgather=0; % leave GE condns vector on GPU
+elseif heteroagentoptions.fminalgo==9
+    heteroagentoptions.outputGEform=1; % Anderson Acceleration needs GE condns as a vector (left on CPU: small least-squares solve)
 elseif heteroagentoptions.fminalgo==7
     heteroagentoptions.outputGEform=1; % Need to output GE condns as a vector when using fminalgo=7
 else
@@ -258,7 +264,7 @@ if isstruct(FnsToEvaluate)
     if prod(n_z)==0
         l_z=0;
     end
-    if isfield(simoptions,'SemiExoStateFn') || prod(simoptions.n_semiz)>0
+    if prod(simoptions.n_semiz)>0
         % semiz states count toward the FnsToEvaluate input parse whether they come from a
         % SemiExoStateFn or a pre-built simoptions.pi_semiz
         l_z=l_z+length(simoptions.n_semiz);
@@ -455,6 +461,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     elseif heteroagentoptions.fminalgo==8 % Matlab lsqnonlin()
         minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
         [p_eqm_vec,GeneralEqmConditions]=lsqnonlin(GeneralEqmConditionsFnOpt,GEparamsvec0,[],[],[],[],[],[],[],minoptions);
+    elseif heteroagentoptions.fminalgo==9 % Anderson Acceleration of the shooting fixed-point map
+        [p_eqm_vec,GeneralEqmConditions]=StationaryGeneralEqm_subcode_fminalgo9_AndersonAcceleration(GeneralEqmConditionsFnOpt,GEparamsvec0,GeneralEqmEqns,GEPriceParamNames,nGEParams,heteroagentoptions);
     end
 
     % p_eqm_vec contains the (transformed) unconstrained parameters, not the original (constrained) parameter values.

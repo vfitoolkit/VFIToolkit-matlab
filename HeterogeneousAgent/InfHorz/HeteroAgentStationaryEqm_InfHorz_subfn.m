@@ -146,5 +146,10 @@ if heteroagentoptions.pricehistory==1
     save pricehistory.mat GEpricepath GEcondnpath itercount
 end
 
+% If counting model solves (GE-condn evaluations), do that
+if heteroagentoptions.countGEsolves==1
+    StationaryGeneralEqm_subcode_GEsolvecounter('incr'); % opt-in model-solve counter (benchmarking)
+end
+
 
 end

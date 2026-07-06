@@ -18,11 +18,13 @@ GEeqnNames=fieldnames(GeneralEqmEqns);
 nGeneralEqmEqns=length(GEeqnNames);
 
 %% Set up GEnewprice==3 (if relevant)
-fminalgo5=0;
-if isfield(options,'fminalgo5') % in stationary general eqm, fminalgo5 is shooting
-    fminalgo5=1;
-    % options.GEnewprice=3;
+shootingfield=''; % stationary-eqm shooting field holding howtoupdate: 'fminalgo5' or 'fminalgo9'
+if isfield(options,'fminalgo') && options.fminalgo==5 % fminalgo5 is stationary shooting
+    shootingfield='fminalgo5';
     options.GEnewprice3=options.fminalgo5;
+elseif isfield(options,'fminalgo') && options.fminalgo==9 % fminalgo9 (Anderson accel.) accelerates the same shooting map
+    shootingfield='fminalgo9';
+    options.GEnewprice3=options.fminalgo9;
 elseif options.GEnewprice~=3
     return % Not being used
 end
@@ -187,9 +189,9 @@ else
 end
 
 
-%% If doing stationary general eqm, call output fminalgo5 instead of GEnewprice3
-if fminalgo5==1
-    options.fminalgo5=options.GEnewprice3;
+%% If doing stationary general eqm, write output back into the shooting field (fminalgo5 or fminalgo9) instead of GEnewprice3
+if ~isempty(shootingfield)
+    options.(shootingfield)=options.GEnewprice3;
     options=rmfield(options,'GEnewprice3');
     options=rmfield(options,'oldpathweight');
 end
