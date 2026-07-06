@@ -15,6 +15,8 @@ a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
 if vfoptions.lowmemory==1
     special_n_z=ones(1,length(n_z));
+elseif vfoptions.lowmemory==2
+    error("invalid vfoptions.lowmemory without e")
 elseif vfoptions.lowmemory==3
     special_n_z=ones(1,length(n_z));
     special_n_ea=ones(1,length(n_a2));
@@ -150,7 +152,6 @@ for reverse_j=1:N_j-1
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix(aprimeFn, n_d2, n_a2, n_z, d2_gridvals, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_z], whereas aprimeProbs is [N_d2,N_a2,N_z]   (N_z here is the current z)
-
 
     if vfoptions.lowmemory<3
         aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]

@@ -15,6 +15,8 @@ a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
 if vfoptions.lowmemory==1
     special_n_z=ones(1,length(n_z));
+elseif vfoptions.lowmemory==2
+    error("invalid vfoptions.lowmemory without e");
 elseif vfoptions.lowmemory==3
     special_n_z=ones(1,length(n_z));
     special_n_ea=ones(1,length(n_a2));
