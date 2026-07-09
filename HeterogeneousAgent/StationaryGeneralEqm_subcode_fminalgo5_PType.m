@@ -12,7 +12,7 @@ p_old_unconstrained=GEparamsvec0'; % row orientation, to match the add/factor/ke
 itercounter=0;
 p_change=Inf;
 GeneralEqmConditions=Inf;
-while (any(p_change>heteroagentoptions.toleranceGEprices) || GeneralEqmConditions>heteroagentoptions.toleranceGEcondns) && itercounter<heteroagentoptions.maxiter
+while (any(p_change>heteroagentoptions.toleranceGEprices) || any(GeneralEqmConditions>heteroagentoptions.toleranceGEcondns)) && itercounter<heteroagentoptions.maxiter
 
     % Note: need the unconstrained as input here
     p_i=GeneralEqmConditionsFnOpt(p_old_unconstrained); % using heteroagentoptions.outputGEform=1, so this is a vector (note the transpose)
