@@ -613,7 +613,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                     temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
                 end
             end
-            AllStats.(FnsToEvalNames{ff}).StdDeviation=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+            AllStats.(FnsToEvalNames{ff}).StdDeviation=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*(StdDevVec(ff,:).^2))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
         end
         AllStats.(FnsToEvalNames{ff}).Variance=(AllStats.(FnsToEvalNames{ff}).StdDeviation)^2;
     end

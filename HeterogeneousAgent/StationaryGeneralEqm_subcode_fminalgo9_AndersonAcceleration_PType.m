@@ -1,5 +1,5 @@
-function [p_eqm_vec,GEcondns,output] = StationaryGeneralEqm_subcode_fminalgo9_AndersonAcceleration(GeneralEqmConditionsFnOpt,p0,GeneralEqmEqns,GEPriceParamNames,nGEParams,heteroagentoptions)
-% Solves for stationary general eqm prices using Anderson Acceleration of
+function [p_eqm_vec,GEcondns,output] = StationaryGeneralEqm_subcode_fminalgo9_AndersonAcceleration_PType(GeneralEqmConditionsFnOpt,p0,GeneralEqmEqns,GEPriceParamNames,GEpriceindexesB,heteroagentoptions,N_i,GEpriceindexes)
+% Solves for stationary general eqm prices (permanent types) using Anderson Acceleration of
 % the fixed-point map that underlies the shooting algorithm (fminalgo=5):
 %     p  <--  G(p),  the shooting update built from heteroagentoptions.fminalgo9.howtoupdate
 %                    (same {GEeqnName,PriceName,add,factor} format as fminalgo5.howtoupdate)
@@ -18,9 +18,10 @@ function [p_eqm_vec,GEcondns,output] = StationaryGeneralEqm_subcode_fminalgo9_An
 % Inputs:
 %   GeneralEqmConditionsFnOpt: handle, p (column vector) -> GE conditions (vector)
 %   p0: initial GE parameter vector
-%   GeneralEqmEqns, GEPriceParamNames, nGEParams: as passed to the fminalgo=5
-%      subcode; used to parse .fminalgo9.howtoupdate and to transform prices
-%      between the unconstrained and original (constrained) spaces.
+%   GeneralEqmEqns, GEPriceParamNames, GEpriceindexesB, N_i, GEpriceindexes: as
+%      passed to the fminalgo=5 PType subcode; used to parse .fminalgo9.howtoupdate
+%      (PType form) and to transform prices between the unconstrained and
+%      original (constrained) spaces.
 %   heteroagentoptions: relevant fields (defaults in brackets)
 %      .fminalgo9.howtoupdate  REQUIRED. {GEeqnName,PriceName,add,factor} cell,
 %                                   one row per GE eqn (same format/role as
@@ -88,7 +89,7 @@ if ~isfield(andersonoptions,'safeguard_eps'); andersonoptions.safeguard_eps=1e-6
 if ~isfield(heteroagentoptions,'fminalgo9') || ~isfield(heteroagentoptions.fminalgo9,'howtoupdate')
     error('fminalgo=9 (Anderson acceleration) requires heteroagentoptions.fminalgo9.howtoupdate (same format as fminalgo5.howtoupdate)')
 end
-heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames);
+heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames,N_i,GEpriceindexes');
 permute=heteroagentoptions.fminalgo9.permute(:);   % reorder GEcondns into GEPriceParamNames order
 add=heteroagentoptions.fminalgo9.add(:);           % 1 -> add factor*condn, 0 -> subtract
 factor=heteroagentoptions.fminalgo9.factor(:);     % step size per price
@@ -104,7 +105,7 @@ if strcmp(andersonoptions.type,'I')
     thetabar=andersonoptions.powell_theta; tau=andersonoptions.restart_tau;
     alpha=andersonoptions.alpha; Dsafe=andersonoptions.safeguard_D;
     epssafe=andersonoptions.safeguard_eps; mmax=andersonoptions.memory;
-    transformindex=0:1:nGEParams;
+    transformindex=GEpriceindexesB;
     residualpath=nan(andersonoptions.maxiter,1); nKMsteps=0; converged=0;
 
     % Initialization (line 2): residual g0=x0-Phi(x0); x^1=f_alpha(x^0)
@@ -217,11 +218,11 @@ for iter=1:andersonoptions.maxiter
     % Plain shooting step g=G(p): apply the howtoupdate rule in original
     % (constrained) price space, then map back to unconstrained space, so the
     % base map is identical to fminalgo=5's shooting update.
-    [p_orig,~]=ParameterConstraints_TransformParamsToOriginal(p',0:1:nGEParams,GEPriceParamNames,heteroagentoptions);
+    [p_orig,~]=ParameterConstraints_TransformParamsToOriginal(p',GEpriceindexesB,GEPriceParamNames,heteroagentoptions);
     p_i=GEcondns(permute);                       % reorder GEcondns into price order
     p_i=(abs(p_i)>updateaccuracycutoff).*p_i;    % accuracy cutoff (per shooting)
     p_orig_new=keepold.*p_orig'+signedfactor.*p_i;
-    g=ParameterConstraints_TransformParamsToUnconstrained(p_orig_new',0:1:nGEParams,GEPriceParamNames,heteroagentoptions,0)'; % g = G(p)
+    g=ParameterConstraints_TransformParamsToUnconstrained(p_orig_new',GEpriceindexesB,GEPriceParamNames,heteroagentoptions,0)'; % g = G(p)
     f=g-p;                 % f = G(p)-p, the fixed-point residual
 
     % Update the history of differences

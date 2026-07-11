@@ -122,7 +122,7 @@ else
         end
     elseif simoptions.gridinterplayer==1
         if l_a==1
-            Policy_aprime=reshape(Policy_aprime,[2,N_a,N_bothze]);
+            Policy_aprime=reshape(Policy_aprime,[3,N_a,N_bothze]); % aprimeIndex, L2index and L2flag
         else %l_a>1
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
             temp2=gpuArray(cumprod(n_a')); % column vector

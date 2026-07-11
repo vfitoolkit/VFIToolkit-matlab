@@ -74,6 +74,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.verboseaccuracy1=4; % number of decimal places for GEPrices (among others)
     heteroagentoptions.verboseaccuracy2=6; % number of decimal places for GECondns
     heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    heteroagentoptions.countGEsolves=0; % =1, count GE-condn evaluations (model solves) in the subfn, for benchmarking
     % For internal use only
     % heteroagentoptions.outputGEform=0;
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
@@ -138,6 +139,9 @@ else
     if ~isfield(heteroagentoptions,'pricehistory')
         heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
     end
+    if ~isfield(heteroagentoptions,'countGEsolves')
+        heteroagentoptions.countGEsolves=0; % =1, count GE-condn evaluations (model solves) in the subfn, for benchmarking
+    end
     % For internal use only
     % heteroagentoptions.outputGEform=0;
     if ~isfield(heteroagentoptions,'outputGEstruct')
@@ -177,6 +181,8 @@ elseif heteroagentoptions.fminalgo==5
     heteroagentoptions.outputgather=0; % leave GE condns vector on GPU
 elseif heteroagentoptions.fminalgo==7
     heteroagentoptions.outputGEform=1; % Need to output GE condns as a vector when using fminalgo=7
+elseif heteroagentoptions.fminalgo==9
+    heteroagentoptions.outputGEform=1; % Anderson Acceleration needs GE condns as a vector
 else
     heteroagentoptions.outputGEform=0;
 end
@@ -193,6 +199,10 @@ heteroagentoptions.verboseaccuracy1=['	%s: %8.',num2str(heteroagentoptions.verbo
 heteroagentoptions.verboseaccuracy2=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy2),'f \n']; % set up a string
 
 AggVarNames=fieldnames(FnsToEvaluate);
+if heteroagentoptions.countGEsolves==1
+    StationaryGeneralEqm_subcode_GEsolvecounter('reset'); % set up the iteration counter and initialize value
+end
+
 nGEprices=length(GEPriceParamNames);
 
 PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate)); % Total number of functions to evaluate
@@ -676,6 +686,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     elseif heteroagentoptions.fminalgo==8 % Matlab lsqnonlin()
         minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
         [p_eqm_vec,GeneralEqmConditions]=lsqnonlin(GeneralEqmConditionsFnOpt,GEparamsvec0,[],[],[],[],[],[],[],minoptions);
+    elseif heteroagentoptions.fminalgo==9 % Anderson Acceleration of the shooting fixed-point map
+        [p_eqm_vec,GeneralEqmConditions]=StationaryGeneralEqm_subcode_fminalgo9_AndersonAcceleration_PType(GeneralEqmConditionsFnOpt,GEparamsvec0,GeneralEqmEqns,GEPriceParamNames,GEpriceindexesB,heteroagentoptions,N_i,GEpriceindexes);
     end
 
     % p_eqm_vec contains the (transformed) unconstrained parameters, not the original (constrained) parameter values.

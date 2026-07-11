@@ -33,7 +33,7 @@ if N_d==0 && isscalar(n_a) && vfoptions.gridinterplayer==0
 else
     l_daprime=size(Policy,1);
     if vfoptions.gridinterplayer==1
-        l_daprime=l_daprime-1;
+        l_daprime=l_daprime-2; % L2index and L2flag
     end
 end
 a_gridvals=CreateGridvals(n_a,a_grid,1);

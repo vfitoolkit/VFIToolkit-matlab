@@ -457,7 +457,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                     temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(kk,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
                 end
             end
-            AllStats.(FnsToEvalNames{kk}).StdDev=sqrt(sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*StdDevVec(kk,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+            AllStats.(FnsToEvalNames{kk}).StdDev=sqrt(sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*(StdDevVec(kk,:).^2))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
         end
         AllStats.(FnsToEvalNames{kk}).Variance=(AllStats.(FnsToEvalNames{kk}).StdDev)^2;
     end
