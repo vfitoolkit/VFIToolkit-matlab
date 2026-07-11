@@ -70,7 +70,7 @@ if recursiveeqmoptions.verbose>=1
     fprintf('Solving preliminary stationary eqm problem \n')
     tic;
 end
-[PricePath,VPath,AgentDistPath,AggVarsPath,GEcheck]=MEP_CreateInitialGuess(T,ss_ind_T,0,n_a,n_z,n_S,N_a,N_z,N_S,[],a_grid,initialguessobjects,AggShockNames,AggVarNames,ReturnFn,FnsToEvaluate,GeneralEqmEqnsStruct,Parameters,DiscountFactorParamNames, GEPriceParamNames,GEeqnNames,recursiveeqmoptions,vfoptions,simoptions);
+[PricePath,VPath,AgentDistPath,AggVarsPath,GEcheck]=MEP_CreateInitialGuess(T,ss_ind_T,0,n_a,n_z,n_S,N_a,N_z,N_S,[],a_grid,initialguessobjects,AggShockNames,AggShocksPath,AggVarNames,ReturnFn,ReturnFnParamNames,FnsToEvaluate,FnsToEvaluateCell,FnsToEvaluateParamNames,GeneralEqmEqnsStruct,Parameters,DiscountFactorParamNames, GEPriceParamNames,GEeqnNames,recursiveeqmoptions,vfoptions,simoptions);
 % And create a version of PricePath as the matrix
 [PricePathOld,~,PricePathNames,~,PricePathSizeVec,~]=PricePathParamPath_StructToMatrix(PricePath,struct(),T);
 if recursiveeqmoptions.verbose>=1

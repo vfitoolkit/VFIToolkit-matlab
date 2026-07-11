@@ -485,9 +485,7 @@ else
             end
         end
     end
-
 end
-
 
 %% Unkron to get into the shape for output
 if transpathoptions.fastOLG==1
@@ -502,6 +500,13 @@ if transpathoptions.fastOLG==1
         if N_z==0
             PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,e,t), now (daprime,a,e,j,t)
         else
+            if numel(PolicyPath)*8>3.5*2^30 % PolicyPath is double (8 bytes/element); 3.5*2^30 = 3.5 GiB
+                error(['About to permute() a gpuArray larger than 3.5GB across more than two dimensions. ' ...
+                    'As of 2026, MATLAB silently corrupts the output of a high-dimensional permute() of a ' ...
+                    'large gpuArray (many elements are replaced with zeros). Reduce the grid sizes so that ' ...
+                    'the policy path stays under ~3.5GB. See: ' ...
+                    'https://au.mathworks.com/matlabcentral/answers/2184092-likely-error-when-doing-high-dimensional-permute-of-big-gpu-array'])
+            end
             PolicyPath=permute(PolicyPath,[1,2,4,5,3,6]); % was (daprime,a,j,z,e,t), now (daprime,a,z,e,j,t)
         end
     end

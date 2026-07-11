@@ -759,6 +759,7 @@ if simoptions.lowmemory==0
     if isstruct(simoptions.whichstats)
         simoptions.whichstats=simoptions.whichstats.(Names_i{1}); % just use the first one
     end
+    if simoptions.groupptypesforstats==1 % These grouped top-level fields are only ever filled when grouping (see below); if we don't group, skip preallocating them so they are not left as NaN placeholders next to the per-ptype fields
     for ff=1:numFnsToEvaluate
         if simoptions.whichstats(1)==1
             AgeConditionalStats.(FnsToEvalNames{ff}).Mean=nan(1,N_j_max2,'gpuArray'); % Note: N_j_max2=length(simoptions.agegroupings) in basic setup, will be different when N_j or agejshifter varies by PType
@@ -838,6 +839,7 @@ if simoptions.lowmemory==0
                 end
             end
         end
+    end
     end
 
     %% Now compute the grouped stats
@@ -934,7 +936,7 @@ if simoptions.lowmemory==0
                                 temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
                             end
                         end
-                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:,jj))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*(StdDevVec(ff,:,jj).^2))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
                     end
                     AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj))^2;
                 end
@@ -1315,6 +1317,7 @@ elseif simoptions.lowmemory==1
         %% Now we compute the grouped stats
         % Preallocate various things for the stats (as many will have jj as a dimension)
         % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
+        if simoptions.groupptypesforstats==1 % Only preallocate grouped top-level fields when grouping (else they would be left as NaN placeholders); per-ptype fields are stored separately above
         if simoptions.whichstats(1)==1
             AgeConditionalStats.(FnsToEvalNames{ff}).Mean=nan(1,length(simoptions.agegroupings),'gpuArray');
         end
@@ -1351,6 +1354,7 @@ elseif simoptions.lowmemory==1
             AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,length(simoptions.agegroupings),'gpuArray');
             AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,length(simoptions.agegroupings),'gpuArray');
             AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,length(simoptions.agegroupings),'gpuArray');
+        end
         end
 
 
@@ -1438,7 +1442,7 @@ elseif simoptions.lowmemory==1
                                 temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
                             end
                         end
-                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:,jj))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*(StdDevVec(ff,:,jj).^2))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
                     end
                     AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj))^2;
                 end

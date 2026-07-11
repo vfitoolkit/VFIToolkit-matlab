@@ -1,10 +1,12 @@
-function [PricePath,VPath,AgentDistPath,AggVarsPath,GEcheck]=MEP_CreateInitialGuess(T,ss_ind_T,n_d,n_a,n_z,n_S,N_a,N_z,N_S,d_grid,a_grid,initialguessobjects,AggShockNames,AggVarNames,ReturnFn,FnsToEvaluate,GeneralEqmEqnsStruct,Parameters,DiscountFactorParamNames, GEPriceParamNames,GEeqnNames,recursiveeqmoptions,vfoptions,simoptions)
+function [PricePath,VPath,AgentDistPath,AggVarsPath,GEcheck]=MEP_CreateInitialGuess(T,ss_ind_T,n_d,n_a,n_z,n_S,N_a,N_z,N_S,d_grid,a_grid,initialguessobjects,AggShockNames,AggShocksPath,AggVarNames,ReturnFn,ReturnFnParamNames,FnsToEvaluate,FnsToEvaluateCell,FnsToEvaluateParamNames,GeneralEqmEqnsStruct,Parameters,DiscountFactorParamNames, GEPriceParamNames,GEeqnNames,recursiveeqmoptions,vfoptions,simoptions)
 % initialguessobjects.methodforguess
 % =1: replace S with E[S]
 % =2: treat S as idiosyncratic shock
+% =3: replace S with E[S] to solve the stationary eqm (as for =1), then use SSJ (sequence-space Jacobian) to build a linearized initial guess for the path
 
-if initialguessobjects.methodforguess==1
+if initialguessobjects.methodforguess==1 || initialguessobjects.methodforguess==3
     % Replace all instances of S with E[S], both in agent problem and everywhere else
+    % Note: methodforguess==3 (SSJ) uses this same stationary eqm solve, and then overwrites the flat guess below
 
     % General eqm should be able use S as an input, so I need to put in some kind of value of S into Parameters that can be used for the general eqm eqns
     for SS_c=1:length(n_S)
@@ -71,6 +73,20 @@ elseif initialguessobjects.methodforguess==2
         PricePath.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp})*ones(1,T);
     end
 
+end
+
+
+if initialguessobjects.methodforguess==3
+    % The stationary eqm was just solved in the branch above (methodforguess==1||3), leaving in scope:
+    %   p_eqm, V, Policy, StationaryDist, AggVars (all at S=E[S]), plus the flat PricePath/VPath/AgentDistPath/AggVarsPath guess.
+    % Now build the sequence-space Jacobians (fake-news algorithm) around that steady state, linearize the
+    % general eqm conditions, and solve for a linearized price path in response to the realized aggregate-shock
+    % path AggShocksPath. This overwrites the flat guess with a much better one.
+    [PricePath,VPath,AgentDistPath,AggVarsPath]=MEP_SSJ_InitialGuess(p_eqm,V,Policy,StationaryDist,AggVars,...
+        T,ss_ind_T,n_d,n_a,n_z,n_S,N_a,N_z,N_S,d_grid,a_grid,initialguessobjects,AggShockNames,AggShocksPath,...
+        AggVarNames,ReturnFn,ReturnFnParamNames,FnsToEvaluate,FnsToEvaluateCell,FnsToEvaluateParamNames,...
+        GeneralEqmEqnsStruct,Parameters,DiscountFactorParamNames,...
+        GEPriceParamNames,GEeqnNames,recursiveeqmoptions,vfoptions,simoptions);
 end
 
 

@@ -24,7 +24,11 @@ if ~exist('simoptions','var')
     simoptions.lowmemory=0;
     % Model setup
     simoptions.experienceasset=0;
+    simoptions.experienceassetz=0;
+    simoptions.experienceassete=0;
+    simoptions.experienceassetze=0;
     simoptions.experienceassetu=0;
+    simoptions.riskyasset=0;
     simoptions.inheritanceasset=0;
     simoptions.n_semiz=0;
     simoptions.n_e=0;
@@ -63,8 +67,20 @@ else
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
     end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
+    end
+    if ~isfield(simoptions,'experienceassete')
+        simoptions.experienceassete=0;
+    end
+    if ~isfield(simoptions,'experienceassetze')
+        simoptions.experienceassetze=0;
+    end
     if ~isfield(simoptions,'experienceassetu')
         simoptions.experienceassetu=0;
+    end
+    if ~isfield(simoptions,'riskyasset')
+        simoptions.riskyasset=0;
     end
     if ~isfield(simoptions,'inheritanceasset')
         simoptions.inheritanceasset=0;
@@ -122,7 +138,7 @@ end
 % Figure out l_daprime from Policy
 l_daprime=size(Policy,1);
 if simoptions.gridinterplayer==1
-    l_daprime=l_daprime-1;
+    l_daprime=l_daprime-2; % L2index and L2flag
 end
 
 

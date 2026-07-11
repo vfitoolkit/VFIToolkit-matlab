@@ -33,6 +33,12 @@ end
 if ~isfield(recursiveeqmoptions,'graphGEcondns')
     recursiveeqmoptions.graphGEcondns=0;
 end
+if ~isfield(recursiveeqmoptions,'initialguessmethod')
+    recursiveeqmoptions.initialguessmethod=1; % how MEP_CreateInitialGuess builds the initial guess for the path: =1 replace S with E[S] (flat guess), =2 treat S as idiosyncratic shock, =3 SSJ (solve stationary eqm as for =1, then use sequence-space Jacobian to build a linearized guess)
+end
+if ~isfield(recursiveeqmoptions,'SSJmethod')
+    recursiveeqmoptions.SSJmethod=1; % Only relevant when initialguessmethod==3. =1 fake-news algorithm (efficient; the intended production method), =2 brute-force oracle (slow, O(T^2), kept permanently as a validation reference)
+end
 if ~isfield(recursiveeqmoptions,'historyofpricepath')
     recursiveeqmoptions.historyofpricepath=0;
 end
@@ -343,11 +349,12 @@ else
     initialguessobjects.heteroagentoptions.verbose=0;
 end
 
-initialguessobjects.methodforguess=1; % =1 is the default
+initialguessobjects.methodforguess=recursiveeqmoptions.initialguessmethod; % =1 is the default (set above)
 % =1: replace S with E[S]
 % =2: treat S as idiosyncratic shock (this is probably a better idea?, but the initial guess becomes a memory bottleneck, which seems a bit silly)
+% =3: replace S with E[S] to solve the stationary eqm (as for =1), then use SSJ to build a linearized initial guess for the path
 
-if initialguessobjects.methodforguess==1 % Replace S with E[S]
+if initialguessobjects.methodforguess==1 || initialguessobjects.methodforguess==3 % Replace S with E[S] (methodforguess==3 SSJ uses this same stationary setup)
     % Put things for the initial guess into a structure
     if ndims(pi_z)==2 % Does not depend on S
         initialguessobjects.pi_z=pi_z; % note, reverse order

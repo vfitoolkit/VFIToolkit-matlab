@@ -116,6 +116,16 @@ ii=1;
 while ii<=nPSIDvariables
     if ~isempty(strfind(tline,PSIDsummary.name{ii}))
         temp=strfind(tline,PSIDsummary.name{ii}); % Find the name of the variable
+        % Filter substring hits down to whole-token matches so that a
+        % short name (S117) doesn't false-positive inside a longer one
+        % (S117A) on the same line -- .sps packs many decls per line.
+        % PSIDsummary.name{ii} is stored as a 1x1 cell (see line 56's
+        % `name{:}` idiom), so unwrap with char() to get the true string length.
+        nameLen = length(char(PSIDsummary.name{ii}));
+        prevOk  = (temp == 1)                       | ~isstrprop(tline(max(temp-1,1)),                  'alphanum');
+        afterOk = (temp+nameLen-1 == length(tline)) | ~isstrprop(tline(min(temp+nameLen, length(tline))), 'alphanum');
+        temp    = temp(prevOk & afterOk);
+        if isempty(temp), tline = fgetl(fid); continue, end   % no real match on this line
         tempstr=tline(temp+7:min(temp+7+25,length(tline)));  % Grab a bunch of the characters that come after the variable name
         temp2=strfind(tempstr,'-'); % Find the '-' in the middle of tempstr
         % Figure out the length of this variable (in number of characters)
@@ -179,7 +189,14 @@ fclose(fid);
 % %     end
 % % end
 if ii~=nPSIDvariables+1
-    disp('ERROR: ImportPSIDdata does not find number of variables expected (A)')
+    if ii<=nPSIDvariables
+        stalledOn = char(PSIDsummary.name{ii});
+    else
+        stalledOn = '(past end)';
+    end
+    fprintf(['ImportPSIDdata warning: step 2 processed %d of %d variables. ', ...
+             'First unprocessed variable: %s\n'], ...
+             ii-1, nPSIDvariables, stalledOn);
 end
 
 %% Now we do the actual importing of the data
