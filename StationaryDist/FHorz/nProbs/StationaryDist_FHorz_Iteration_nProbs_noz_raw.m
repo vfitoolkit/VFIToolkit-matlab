@@ -23,6 +23,23 @@ for jj=1:(N_j-1)
     % No z, so just a single step
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
+    % Clean up Gaussian diffusion from Gamma step
+    nnz_gamma=nnz(StationaryDist_jj);
+    if nnz_gamma>4
+        [epsilons, e_idx] = mink(nonzeros(StationaryDist_jj), nnz_gamma-4);
+        e_idx=e_idx(epsilons<2e-4);
+        epsilons=epsilons(epsilons<2e-4);
+        if nnz(epsilons)>0
+            nonzero_idx=find(StationaryDist_jj);
+            % zero out likely error artifacts
+            StationaryDist_jj(nonzero_idx(e_idx))=0;
+            keep_nonzero=true(size(nonzero_idx));
+            keep_nonzero(e_idx)=false;
+            % redistribute values zeroed out equally among remaining nonzero terms
+            % QUESTION: should we redistribute pro-rata instead of equally?
+            StationaryDist_jj(nonzero_idx(keep_nonzero))=StationaryDist_jj(nonzero_idx(keep_nonzero))+sum(epsilons)/(nnz_gamma-length(epsilons));
+        end
+    end
     StationaryDist(:,jj+1)=gather(full(StationaryDist_jj));
 end
 
