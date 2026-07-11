@@ -13,6 +13,7 @@ PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,N_probs,N_j])); % sparse() requi
 StationaryDist=zeros(N_a*N_z,N_j,'gpuArray');
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse matrix
+epsilon_z=1e-3*full(sum(reshape(StationaryDist_jj,[N_a,N_z]),1)); % A suitably small value, scaled by the probability sum of this z slice
 
 % Precompute
 II2=repmat((1:1:N_a*N_z)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
@@ -28,10 +29,10 @@ for jj=1:(N_j-1)
     % Clean up Gaussian diffusion from Gamma step
     nnz_gamma=sum(StationaryDist_jj~=0,1);
     for z_c=1:length(nnz_gamma)
-        if nnz_gamma(z_c)>4
-            [epsilons, e_idx] = mink(nonzeros(StationaryDist_jj(:,z_c)), nnz_gamma(z_c)-4);
-            e_idx=e_idx(epsilons<2e-4);
-            epsilons=epsilons(epsilons<2e-4);
+        if nnz_gamma(z_c)>6
+            [epsilons, e_idx] = mink(nonzeros(StationaryDist_jj(:,z_c)), nnz_gamma(z_c)-6);
+            e_idx=e_idx(epsilons<epsilon_z(z_c));
+            epsilons=epsilons(epsilons<epsilon_z(z_c));
             if nnz(epsilons)>0
                 nonzero_idx=find(StationaryDist_jj(:,z_c));
                 % zero out likely error artifacts
