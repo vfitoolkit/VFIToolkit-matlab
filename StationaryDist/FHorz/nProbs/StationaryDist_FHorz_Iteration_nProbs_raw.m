@@ -13,14 +13,12 @@ PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,N_probs,N_j])); % sparse() requi
 StationaryDist=zeros(N_a*N_z,N_j,'gpuArray');
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse matrix
-epsilon=1e-4;  % A suitably small value...
-epsilon_z=full(sum(reshape(StationaryDist_jj,[N_a,N_z]),1)); % ...that may be scaled by the probability sum of this z slice
+epsilon=1e-4;  % A suitably small value...that may be scaled by the probability sum of each z slice
 
 % Precompute
 II2=repmat((1:1:N_a*N_z)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
 
 for jj=1:(N_j-1)
-
     % First, get Gamma
     Gammatranspose=sparse(Policy_aprimez(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_z,N_a*N_z); % Note: sparse() will accumulate at repeated indices
 
@@ -28,12 +26,13 @@ for jj=1:(N_j-1)
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_z]);
 
     % Clean up Gaussian diffusion from Gamma step
-    nnz_gamma=sum(StationaryDist_jj~=0,1);
+    nnz_gamma=full(sum(StationaryDist_jj~=0,1));
     for z_c=1:length(nnz_gamma)
-        if nnz_gamma(z_c)>6
+        if nnz_gamma(z_c)>8
+            epsilon_z=sum(StationaryDist_jj(:,z_c),1); % The sum of the z probs evolve as pi_z moves things around
             [epsilons, e_idx] = mink(nonzeros(StationaryDist_jj(:,z_c)), nnz_gamma(z_c)-4);
-            e_idx=e_idx(epsilons<epsilon*epsilon_z(z_c));
-            epsilons=epsilons(epsilons<epsilon*epsilon_z(z_c));
+            e_idx=e_idx(epsilons<epsilon*epsilon_z);
+            epsilons=epsilons(epsilons<epsilon*epsilon_z);
             if nnz(epsilons)>0
                 nonzero_idx=find(StationaryDist_jj(:,z_c));
                 % zero out likely error artifacts
@@ -43,9 +42,8 @@ for jj=1:(N_j-1)
                 % Redistribute values zeroed out equally among remaining nonzero terms
                 % By subtracting the largest zeroed epsilon, we return some
                 % weight from the edges to the center of the distribution
-                % By multiplying by epsilon_z(z_c), we limit drift in our normalized averages
                 newdist_jj=StationaryDist_jj(nonzero_idx(keep_nonzero),z_c)-epsilons(end);
-                StationaryDist_jj(nonzero_idx(keep_nonzero),z_c)=epsilon_z(z_c)*newdist_jj./sum(newdist_jj);
+                StationaryDist_jj(nonzero_idx(keep_nonzero),z_c)=epsilon_z*newdist_jj./sum(newdist_jj);
             end
         end
     end
