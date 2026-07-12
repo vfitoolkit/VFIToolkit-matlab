@@ -110,6 +110,7 @@ elseif vfoptions.gridinterplayer==1
         VKron=FofPolicy+DiscountFactorParamsVec*EVKrontemp;
 
         currdist=max(max(abs(VKron-VKronold)));
+        itercount=itercount+1;
     end
 end
 
