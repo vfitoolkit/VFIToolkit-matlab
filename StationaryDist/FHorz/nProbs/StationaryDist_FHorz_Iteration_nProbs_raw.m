@@ -19,6 +19,7 @@ epsilon=2e-5;  % A suitably small value...that may be scaled by the probability 
 II2=repmat((1:1:N_a*N_z)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
 
 for jj=1:(N_j-1)
+
     % First, get Gamma
     Gammatranspose=sparse(Policy_aprimez(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_z,N_a*N_z); % Note: sparse() will accumulate at repeated indices
 
