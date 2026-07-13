@@ -12,7 +12,7 @@ PolicyProbs=gather(PolicyProbs);
 StationaryDist=zeros(N_a,N_j,'gpuArray');
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % sparse() creates a matrix of zeros
-epsilon=1e-4; % A suitably small value; SD probabilities sum to 1
+epsilon=2e-5; % A suitably small value; SD probabilities sum to 1
 
 % Precompute
 II2=repmat((1:1:N_a)',1,N_probs); % Note the N_probs-copies
@@ -26,23 +26,26 @@ for jj=1:(N_j-1)
 
     % Clean up Gaussian diffusion from Gamma step
     nnz_gamma=nnz(StationaryDist_jj);
-    if nnz_gamma>6
+    while nnz_gamma>8
         [epsilons, e_idx] = mink(nonzeros(StationaryDist_jj), nnz_gamma-4);
         e_idx=e_idx(epsilons<epsilon);
         epsilons=epsilons(epsilons<epsilon);
-        if nnz(epsilons)>0
-            nonzero_idx=find(StationaryDist_jj);
-            % zero out likely error artifacts
-            StationaryDist_jj(nonzero_idx(e_idx))=0;
-            keep_nonzero=true(size(nonzero_idx));
-            keep_nonzero(e_idx)=false;
-            % Redistribute values zeroed out equally among remaining nonzero terms
-            % By subtracting the largest zeroed epsilon, we return some
-            % weight from the edges to the center of the distribution
-            % By multiplying by epsilon, we limit drift in our normalized averages
-            newdist_jj=StationaryDist_jj(nonzero_idx(keep_nonzero))-epsilons(end);
-            StationaryDist_jj(nonzero_idx(keep_nonzero))=epsilon*newdist_jj./sum(newdist_jj);
+        if nnz(epsilons)==0
+            break
         end
+        nonzero_idx=find(StationaryDist_jj);
+        % zero out likely error artifacts
+        StationaryDist_jj(nonzero_idx(e_idx))=0;
+        keep_nonzero=true(size(nonzero_idx));
+        keep_nonzero(e_idx)=false;
+        % Redistribute values zeroed out equally among remaining nonzero terms
+        % By subtracting the largest zeroed epsilon, we return some
+        % weight from the edges to the center of the distribution
+        newdist_jj=StationaryDist_jj(nonzero_idx(keep_nonzero))-epsilons(end);
+        StationaryDist_jj(nonzero_idx(keep_nonzero))=epsilon*newdist_jj./sum(newdist_jj);
+        % Slicing out the epsilons and reallocating their probs may
+        % expose other marginal probs that can be trimmed
+        nnz_gamma=sum(StationaryDist_jj~=0,1);
     end
     StationaryDist(:,jj+1)=gather(full(StationaryDist_jj));
 end

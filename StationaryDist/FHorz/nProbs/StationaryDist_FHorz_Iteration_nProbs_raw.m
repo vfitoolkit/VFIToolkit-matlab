@@ -13,7 +13,7 @@ PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,N_probs,N_j])); % sparse() requi
 StationaryDist=zeros(N_a*N_z,N_j,'gpuArray');
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse matrix
-epsilon=1e-4;  % A suitably small value...that may be scaled by the probability sum of each z slice
+epsilon=2e-5;  % A suitably small value...that may be scaled by the probability sum of each z slice
 
 % Precompute
 II2=repmat((1:1:N_a*N_z)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
@@ -28,23 +28,27 @@ for jj=1:(N_j-1)
     % Clean up Gaussian diffusion from Gamma step
     nnz_gamma=full(sum(StationaryDist_jj~=0,1));
     for z_c=1:length(nnz_gamma)
-        if nnz_gamma(z_c)>8
+        while nnz_gamma(z_c)>8
             epsilon_z=sum(StationaryDist_jj(:,z_c),1); % The sum of the z probs evolve as pi_z moves things around
             [epsilons, e_idx] = mink(nonzeros(StationaryDist_jj(:,z_c)), nnz_gamma(z_c)-4);
             e_idx=e_idx(epsilons<epsilon*epsilon_z);
             epsilons=epsilons(epsilons<epsilon*epsilon_z);
-            if nnz(epsilons)>0
-                nonzero_idx=find(StationaryDist_jj(:,z_c));
-                % zero out likely error artifacts
-                StationaryDist_jj(nonzero_idx(e_idx),z_c)=0;
-                keep_nonzero=true(size(nonzero_idx));
-                keep_nonzero(e_idx)=false;
-                % Redistribute values zeroed out equally among remaining nonzero terms
-                % By subtracting the largest zeroed epsilon, we return some
-                % weight from the edges to the center of the distribution
-                newdist_jj=StationaryDist_jj(nonzero_idx(keep_nonzero),z_c)-epsilons(end);
-                StationaryDist_jj(nonzero_idx(keep_nonzero),z_c)=epsilon_z*newdist_jj./sum(newdist_jj);
+            if nnz(epsilons)==0
+                break
             end
+            nonzero_idx=find(StationaryDist_jj(:,z_c));
+            % zero out likely error artifacts
+            StationaryDist_jj(nonzero_idx(e_idx),z_c)=0;
+            keep_nonzero=true(size(nonzero_idx));
+            keep_nonzero(e_idx)=false;
+            % Redistribute values zeroed out equally among remaining nonzero terms
+            % By subtracting the largest zeroed epsilon, we return some
+            % weight from the edges to the center of the distribution
+            newdist_jj=StationaryDist_jj(nonzero_idx(keep_nonzero),z_c)-epsilons(end);
+            StationaryDist_jj(nonzero_idx(keep_nonzero),z_c)=epsilon_z*newdist_jj./sum(newdist_jj);
+            % Slicing out the epsilons and reallocating their probs may
+            % expose other marginal probs that can be trimmed
+            nnz_gamma(z_c)=sum(StationaryDist_jj(:,z_c)~=0,1);
         end
     end
 
