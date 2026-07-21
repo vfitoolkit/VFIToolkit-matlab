@@ -91,7 +91,7 @@ end
 
 if simoptions.gridinterplayer==0
 
-    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,Kaprimepts,N_a,N_j,Parameters);
+    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,Kaprimepts,n_a1,n_a2,N_j,Parameters);
 
 elseif simoptions.gridinterplayer==1
     if l_a2>1
@@ -107,7 +107,7 @@ elseif simoptions.gridinterplayer==1
     PolicyProbs(:,1:2,:)=PolicyProbs(:,1:2,:).*(1-aprimeProbs_upper); % lower a1
     PolicyProbs(:,3:4,:)=PolicyProbs(:,3:4,:).*aprimeProbs_upper; % upper a1
 
-    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,4,N_a,N_j,Parameters);
+    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,4,n_a1,n_a2,N_j,Parameters);
 end
 
 
