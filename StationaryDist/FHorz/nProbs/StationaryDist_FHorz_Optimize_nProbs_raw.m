@@ -1,5 +1,5 @@
-function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,N_z_input,jj, epsilon,total_zeros_created,jj_at_max_a2)
- 
+function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,N_z_input,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2)
+
 epsilon_round=7;
 
 age_zeros_created=total_zeros_created;
@@ -9,6 +9,8 @@ if N_z_input==0
 else
     N_z=N_z_input;
 end
+
+assert(N_e==0); % haven't implemented N_e of any kind yet
 
 for z_c=1:N_z
     if N_z_input==0

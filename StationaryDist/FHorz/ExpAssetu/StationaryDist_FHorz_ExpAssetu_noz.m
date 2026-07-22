@@ -70,7 +70,7 @@ PolicyProbs=reshape(PolicyProbs,[N_a,N_u*2,N_j]);
 %%
 
 if simoptions.gridinterplayer==0
-    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_j,Parameters);
+    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,n_a1,n_a2,N_j,Parameters,simoptions);
 
 elseif simoptions.gridinterplayer==1
     % (a,u,2,j)
@@ -83,7 +83,7 @@ elseif simoptions.gridinterplayer==1
     PolicyProbs(:,1:2*N_u,:)=PolicyProbs(:,1:2*N_u,:).*(1-aprimeProbs_upper); % lower a1
     PolicyProbs(:,2*N_u+1:end,:)=PolicyProbs(:,2*N_u+1:end,:).*aprimeProbs_upper; % upper a1
 
-    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,2*N_u*2,N_a,N_j,Parameters);
+    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,2*N_u*2,n_a1,n_a2,N_j,Parameters,simoptions);
 end
 
 

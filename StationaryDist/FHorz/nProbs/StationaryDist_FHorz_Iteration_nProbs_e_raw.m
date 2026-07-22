@@ -1,8 +1,29 @@
-function StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_probs,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,Parameters)
+function StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_probs,n_a1,n_a2,N_z,N_e,N_j,pi_z_J,pi_e_J,Parameters,simoptions)
 % 'nProbs' refers to N_probs probabilities.
 % Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case).
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
+if exist('simpoptions','var')==0
+    simoptions=struct();
+    simoptions.optimize_nProbs=0;
+elseif ~isfield(simoptions,'optimize_nProbs')
+    simoptions.optimize_nProbs=0;
+end
+
+epsilon=1e-7;
+total_zeros_created=0;
+jj_at_max_a2=Inf;
+
+N_a1=prod(n_a1);
+N_a2=prod(n_a2);
+if N_a2==0
+    N_a=N_a1;
+elseif N_a1==0
+    N_a1=1;
+    N_a=N_a2;
+else
+    N_a=N_a1*N_a2;
+end
 % Policy_aprime and PolicyProbs are currently [N_a,N_z*N_e,N_probs,N_j]
 Policy_aprimez=Policy_aprime+repmat(N_a*(0:1:N_z-1),1,N_e);  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
 Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z*N_e,N_probs,N_j])); % sparse() requires inputs to be 2-D
@@ -29,6 +50,10 @@ for jj=1:(N_j-1)
     pi_z=sparse(gather(pi_z_J(:,:,jj)));
     StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
 
+    if simoptions.optimize_nProbs==1
+        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,N_z,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2);
+    end
+
     % Put e back into dist
     pi_e=sparse(gather(pi_e_J(:,jj)));
     StationaryDist_jj=kron(pi_e,StationaryDist_jj);
@@ -48,5 +73,18 @@ if size(AgeWeights,2)==1 % If it seems to be a column vector, then transpose it
 end
 
 StationaryDist=StationaryDist.*AgeWeights;
+
+if total_zeros_created>0
+    fprintf("With epsilon = %.2e, total zeros created = %d \n", epsilon, total_zeros_created);
+    if isfinite(jj_at_max_a2)
+        fprintf("Max ExpAsset value first observed at age %3d \n", jj_at_max_a2);
+    else
+        temp=reshape(StationaryDist,[N_a1,N_a2,N_z*N_e,N_j]);
+        [a1,a2,ze_c,age_j]=ind2sub(size(temp),find(temp~=0));
+        max_a2=max(a2);
+        jj_at_max_a2=min(age_j(find(a2==max_a2)));
+        fprintf("Max ExpAsset index reached = %3d (of %3d) at age %3d \n", max_a2, N_a2, jj_at_max_a2);
+    end
+end
 
 end
