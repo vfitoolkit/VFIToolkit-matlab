@@ -86,7 +86,7 @@ else
     temp=reshape(StationaryDist,[N_a1,N_a2,N_z,N_j]);
     [a1,a2,z_c,age_j]=ind2sub(size(temp),find(temp~=0));
     max_a2=max(a2);
-    jj_at_max_a2=age_j(find(a2==max_a2));
+    jj_at_max_a2=min(age_j(find(a2==max_a2)));
     fprintf("Max ExpAsset index reached = %3d (of %3d) at age %3d \n", max_a2, N_a2, jj_at_max_a2);
 end
 
