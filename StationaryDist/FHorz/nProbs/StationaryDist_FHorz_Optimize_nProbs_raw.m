@@ -2,7 +2,7 @@ function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHo
 
 epsilon_round=7;
 
-age_zeros_created=total_zeros_created;
+new_zeros_created=zeros(1,N_z_input);
 
 if N_z_input==0
     N_z=1;
@@ -12,19 +12,15 @@ end
 
 assert(N_e==0); % haven't implemented N_e of any kind yet
 
+% For large N_z, this loop can be changed to `parfor` for greater CPU parallelism
 for z_c=1:N_z
-    if N_z_input==0
-        StationaryDist_row_jj=reshape(StationaryDist_jj,[N_a1,N_a2]);
-    else
-        StationaryDist_row_jj=reshape(StationaryDist_jj(:,z_c),[N_a1,N_a2]);
-    end
+    % When N_z=1, the index z_c is only every 1, which does nothing
+    StationaryDist_row_jj=reshape(StationaryDist_jj(:,z_c),[N_a1,N_a2]);
+
     row_prob_sum=full(sum(StationaryDist_row_jj,'all'));
     if row_prob_sum==0 || all(arrayfun(@(r) nnz(StationaryDist_row_jj(r,:)), 1:size(StationaryDist_row_jj,1))<3)
         % Sometimes nobody chooses the path less taken
         continue
-    end
-    if jj<jj_at_max_a2 && any(StationaryDist_row_jj(:,N_a2)~=0)
-        jj_at_max_a2=jj;
     end
 
     [rows,~]=find(StationaryDist_row_jj~=0);
@@ -189,17 +185,20 @@ for z_c=1:N_z
             end
             temp=sparse(row,all_idx,vals,N_a1,N_a2);
             temp_cols=all_idx(1):all_idx(end);
-            if N_z_input==0
-                StationaryDist_jj(sub2ind([N_a1,N_a2],row,temp_cols))=temp(row,temp_cols);
-            else
-                StationaryDist_jj(sub2ind([N_a1,N_a2,N_z],row,temp_cols,z_c))=temp(row,temp_cols);
-            end
-            total_zeros_created=total_zeros_created+sum(vals==0)-starting_zeros;
+            StationaryDist_row_jj(sub2ind([N_a1,N_a2],row,temp_cols))=temp(row,temp_cols);
+            new_zeros_created(z_c)=new_zeros_created(z_c)+sum(vals==0)-starting_zeros;
         end
     end
+    StationaryDist_jj(:,z_c)=reshape(StationaryDist_row_jj,[N_a1*N_a2,1]);
 end
 
-fprintf("Age %3d: zeros created = %d \n", jj, total_zeros_created-age_zeros_created);
+temp=reshape(full(StationaryDist_jj),[N_a1,N_a2,N_z]);
+if jj<jj_at_max_a2 && any(temp(:,N_a2,:)~=0,'all')
+    jj_at_max_a2=jj;
+end
+
+total_zeros_created=total_zeros_created+sum(new_zeros_created);
+fprintf("Age %3d: zeros created = %d \n", jj, sum(new_zeros_created));
 
 
 end
