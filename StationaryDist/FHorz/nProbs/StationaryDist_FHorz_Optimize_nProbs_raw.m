@@ -34,7 +34,6 @@ for z_c=1:N_z
     [rows,~]=find(StationaryDist_row_jj~=0);
     for row=unique(rows')
         % Process agents' ExpAssets row by row (i.e., each N_a1 asset mixture)
-        row_prob_sum=full(sum(StationaryDist_row_jj(row,:),2));
 
         % We have two strategies for dealing with gaps.  The first is
         % to see whether the gap disappears when we look at the whole
@@ -139,6 +138,7 @@ for z_c=1:N_z
         for ll=1:length(group_idx)-1
             all_idx=ea_all_idx(group_idx(ll)+1:group_idx(ll+1));
             vals=all_vals_jj(group_idx(ll)+1:group_idx(ll+1));
+            run_prob_sum=sum(vals);
 
             multiplier=all_idx-all_idx(1)+1;
             assert(allunique(multiplier));
@@ -153,8 +153,8 @@ for z_c=1:N_z
                 zero_candidate(cidx)=1;
                 while nnz(vals)>2
                     % Aggressively try to zero out largest indices
-                    new_vals=linsolve([multiplier;ones(1,length(vals));zero_candidate],[sum(vals.*multiplier); row_prob_sum; 0])';
-                    new_vals=round(new_vals,epsilon_round+abs(fix(log10(row_prob_sum))));
+                    new_vals=linsolve([multiplier;ones(1,length(vals));zero_candidate],[sum(vals.*multiplier); run_prob_sum; 0])';
+                    new_vals=round(new_vals,epsilon_round+abs(fix(log10(run_prob_sum))));
                     if all(new_vals==vals) || any(new_vals<0)
                         zero_candidate(cidx)=0;
                         break
@@ -171,8 +171,8 @@ for z_c=1:N_z
                 zero_candidate(cidx)=1;
                 while nnz(vals)>1
                     % Try to zero out least index
-                    new_vals=linsolve([multiplier;ones(1,length(vals));zero_candidate],[sum(vals.*multiplier); row_prob_sum; 0])';
-                    new_vals=round(new_vals,epsilon_round+abs(fix(log10(row_prob_sum))));
+                    new_vals=linsolve([multiplier;ones(1,length(vals));zero_candidate],[sum(vals.*multiplier); run_prob_sum; 0])';
+                    new_vals=round(new_vals,epsilon_round+abs(fix(log10(run_prob_sum))));
                     if all(new_vals==vals) || any(new_vals<0) || any(isnan(new_vals))
                         break
                     end
@@ -182,9 +182,9 @@ for z_c=1:N_z
                     zero_candidate(cidx)=1;
                 end
             end
-            if ~zero_created
+            if false && ~zero_created
                 % Just re-balance the indices (possibly creating a zero in the middle we cannot move to either end of vals
-                new_vals=linsolve([multiplier;ones(1,length(vals))],[sum(vals.*multiplier); row_prob_sum])';
+                new_vals=linsolve([multiplier;ones(1,length(vals))],[sum(vals.*multiplier); run_prob_sum])';
                 new_vals=round(new_vals,epsilon_round);
                 if any(new_vals<0)
                     break
