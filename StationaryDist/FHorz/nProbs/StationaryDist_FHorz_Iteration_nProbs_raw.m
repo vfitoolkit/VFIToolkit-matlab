@@ -90,11 +90,19 @@ if total_zeros_created>0
     if isfinite(jj_at_max_a2)
         fprintf("Max ExpAsset value first observed at age %3d \n", jj_at_max_a2);
     else
-        temp=reshape(StationaryDist,[N_a1,N_a2,N_z,N_j]);
-        [a1,a2,z_c,age_j]=ind2sub(size(temp),find(temp~=0));
-        max_a2=max(a2);
-        jj_at_max_a2=min(age_j(find(a2==max_a2)));
-        fprintf("Max ExpAsset index reached = %3d (of %3d) at age %3d \n", max_a2, N_a2, jj_at_max_a2);
+        if N_a2==0
+            temp=reshape(StationaryDist,[N_a1,N_z,N_j]);
+            [a1,z_c,age_j]=ind2sub(size(temp),find(temp~=0));
+            max_a1=max(a1);
+            jj_at_max_a2=min(age_j(find(a1==max_a1)));
+            fprintf("Max (interpolated) Asset index reached = %3d (of %3d) at age %3d \n", max_a1, N_a1, jj_at_max_a2);
+        else
+            temp=reshape(StationaryDist,[N_a1,N_a2,N_z,N_j]);
+            [a1,a2,z_c,age_j]=ind2sub(size(temp),find(temp~=0));
+            max_a2=max(a2);
+            jj_at_max_a2=min(age_j(find(a2==max_a2)));
+            fprintf("Max ExpAsset index reached = %3d (of %3d) at age %3d \n", max_a2, N_a2, jj_at_max_a2);
+        end
     end
 end
 

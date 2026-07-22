@@ -1,8 +1,16 @@
-function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,N_z_input,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2)
+function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1_input,N_a2_input,N_z_input,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2)
 
 epsilon_round=7;
 
 new_zeros_created=zeros(1,N_z_input);
+
+if N_a2_input==0
+    N_a2=N_a1_input;
+    N_a1=1;
+else
+    N_a1=N_a1_input;
+    N_a2=N_a2_input;
+end
 
 if N_z_input==0
     N_z=1;

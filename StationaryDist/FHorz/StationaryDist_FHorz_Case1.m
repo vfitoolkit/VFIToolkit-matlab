@@ -335,7 +335,7 @@ if N_z==0 && N_e==0
         PolicyProbs(:,1,:)=PolicyProbs(:,1,:).*(1-aprimeProbs_upper); % lower a1
         PolicyProbs(:,2,:)=PolicyProbs(:,2,:).*aprimeProbs_upper; % upper a1
 
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_j,Parameters);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,n_a,0,N_j,Parameters,simoptions);
     end
 else
     if N_z==0
@@ -391,13 +391,13 @@ else
         PolicyProbs(:,:,2,:)=PolicyProbs(:,:,2,:).*aprimeProbs_upper; % upper a1
 
         if N_z==0 && N_e==0 % handled separately above
-            % StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_j,Parameters);
+            % StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,n_a,0,N_j,Parameters,simoptions);
         elseif N_e==0 % just z
-            StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_z,N_j,pi_z_J,Parameters);
+            StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,n_a,0,N_z,N_j,pi_z_J,Parameters,simoptions);
         elseif N_z==0 % just e
-            StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_e,N_j,simoptions.pi_e_J,Parameters);
+            StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,n_a,0,N_e,N_j,simoptions.pi_e_J,Parameters,simoptions);
         else % both z and e
-            StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+            StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,n_a,0,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
         end
     end
 end
