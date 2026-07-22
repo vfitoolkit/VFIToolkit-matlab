@@ -58,7 +58,7 @@ for z_c=1:N_z
                 if N_z_input==0
                     StationaryDist_jj(sub2ind([N_a1,N_a2],row,ea_lower_idx))=temp(row,ea_lower_idx);
                 else
-                    StationaryDist_jj(sub2ind([N_a1,N_a2,N_z],row,ea_lower_idx,z_c),z_c)=temp(row,ea_lower_idx);
+                    StationaryDist_jj(sub2ind([N_a1,N_a2,N_z],row,ea_lower_idx,z_c))=temp(row,ea_lower_idx);
                 end
                 continue
             elseif length(ea_lower_idx)<3
@@ -218,10 +218,10 @@ for z_c=1:N_z
                             lower_vals(ii)=sum(lower_vals(ii:end).*multiplier_lower(ii:end))/multiplier_lower(1);
                             temp=sparse(row,lower_idx(1:ii),lower_vals(1:ii),N_a1,N_a2);
                             temp_cols=lower_idx(1):lower_idx(end);
-                            if N_z_input
+                            if N_z_input==0
                                 StationaryDist_jj(sub2ind([N_a1,N_a2],row,temp_cols))=temp(row,temp_cols);
                             else
-                                StationaryDist_jj(sub2ind([N_a1,N_a2,N_z],row,temp_cols,z_c),z_c)=temp(row,temp_cols);
+                                StationaryDist_jj(sub2ind([N_a1,N_a2,N_z],row,temp_cols,z_c))=temp(row,temp_cols);
                             end
                             break
                         end
@@ -303,10 +303,10 @@ for z_c=1:N_z
                 end
                 temp=sparse(row,lower_idx,lower_vals,N_a1,N_a2);
                 temp_cols=lower_idx(1):upper_idx(end);
-                if N_z_input
+                if N_z_input==0
                     StationaryDist_jj(sub2ind([N_a1,N_a2],row,temp_cols))=temp(row,temp_cols);
                 else
-                    StationaryDist_jj(sub2ind([N_a1,N_a2,N_z],row,temp_cols,z_c),z_c)=temp(row,temp_cols);
+                    StationaryDist_jj(sub2ind([N_a1,N_a2,N_z],row,temp_cols,z_c))=temp(row,temp_cols);
                 end
                 total_zeros_created=total_zeros_created+sum(lower_vals==0)+length(upper_vals)-starting_zeros;
                 continue
@@ -368,10 +368,10 @@ for z_c=1:N_z
                 end
                 temp=sparse(row,upper_idx,upper_vals,N_a1,N_a2);
                 temp_cols=lower_idx(1):upper_idx(end);
-                if N_z_input
+                if N_z_input==0
                     StationaryDist_jj(sub2ind([N_a1,N_a2],row,temp_cols))=temp(row,temp_cols);
                 else
-                    StationaryDist_jj(sub2ind([N_a1,N_a2,N_z],row,temp_cols,z_c),z_c)=temp(row,temp_cols);
+                    StationaryDist_jj(sub2ind([N_a1,N_a2,N_z],row,temp_cols,z_c))=temp(row,temp_cols);
                 end
                 total_zeros_created=total_zeros_created+sum(upper_vals==0)+length(lower_vals)-starting_zeros;
                 continue
