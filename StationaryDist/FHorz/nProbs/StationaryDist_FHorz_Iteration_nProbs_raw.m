@@ -22,7 +22,9 @@ Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z,N_probs,N_j])); % sparse()
 needs_rounding=(PolicyProbs<epsilon | PolicyProbs>1-epsilon);
 needs_rounding(PolicyProbs==0)=0;
 needs_rounding(PolicyProbs==1)=0;
-PolicyProbs(needs_rounding)=round(PolicyProbs(needs_rounding));
+if false
+    PolicyProbs(needs_rounding)=round(PolicyProbs(needs_rounding));
+end
 PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,N_probs,N_j])); % sparse() requires inputs to be 2-D
 
 %% Use Tan improvement
@@ -32,32 +34,27 @@ StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse matrix
 
 % Precompute
-II1=(1:1:N_a*N_z)';
 II2=repmat((1:1:N_a*N_z)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
 
 for jj=1:(N_j-1)
 
     % First, get Gamma
     Gammatranspose=sparse(Policy_aprimez(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_z,N_a*N_z); % Note: sparse() will accumulate at repeated indices
-    Gammatranspose_lower=sparse(Policy_aprimez(:,1,jj),II1,PolicyProbs(:,1,jj),N_a*N_z,N_a*N_z);
-    Gammatranspose_upper=sparse(Policy_aprimez(:,2,jj),II1,PolicyProbs(:,2,jj),N_a*N_z,N_a*N_z);
 
     % First step of Tan improvement
     needs_rounding=full(StationaryDist_jj<epsilon | StationaryDist_jj>1-epsilon);
     needs_rounding(StationaryDist_jj==0)=0;
     needs_rounding(StationaryDist_jj==1)=0;
-    StationaryDist_jj(needs_rounding)=round(StationaryDist_jj(needs_rounding));
-    StationaryDist_lower_jj=reshape(Gammatranspose_lower*StationaryDist_jj,[N_a,N_z]);
-    StationaryDist_upper_jj=reshape(Gammatranspose_upper*StationaryDist_jj,[N_a,N_z]);
+    if false
+        StationaryDist_jj(needs_rounding)=round(StationaryDist_jj(needs_rounding));
+    end
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_z]);
 
     % Second step of Tan improvement
     pi_z=sparse(gather(pi_z_J(:,:,jj)));
     StationaryDist_jj=StationaryDist_jj*pi_z;
-    StationaryDist_lower_jj=StationaryDist_lower_jj*pi_z;
-    StationaryDist_upper_jj=StationaryDist_upper_jj*pi_z;
 
-    [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj,StationaryDist_lower_jj,StationaryDist_upper_jj, N_a1,N_a2,N_z,jj, epsilon,total_zeros_created,jj_at_max_a2);
+    [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,N_z,jj, epsilon,total_zeros_created,jj_at_max_a2);
 
     StationaryDist_jj=reshape(StationaryDist_jj,[N_a*N_z,1]);
     assert(all(StationaryDist_jj>=0));
