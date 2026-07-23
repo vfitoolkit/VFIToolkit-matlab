@@ -35,104 +35,49 @@ for z_c=1:N_z
     for row=unique(rows')
         % Process agents' ExpAssets row by row (i.e., each N_a1 asset mixture)
 
-        % We have two strategies for dealing with gaps.  The first is
-        % to see whether the gap disappears when we look at the whole
-        % picture.  It can happen that lower/upper columns are
-        % disjoint like this: [2 4] [3 5] which gives 4-in-a-row.
-        % If we see we have [2 3 4 5] we have to reconstruct
-        % lower/upper columns somehow.  In this case, it is possible
-        % for a singleton upper to have a lower index than a lower,
-        % so we take care to fix that.
-
-        % The second strategy is to fill in a single hole if that
-        % allows us to connect lower and upper columns.  In the above
-        % case we get [2 3* 4] [3 4* 5] where * means inserted zero.
-        % This is simpler because lower/upper are already split.
+        % Find and join up runs that are reasonably close together
         [~,ea_all_idx,all_vals_jj]=find(StationaryDist_row_jj(row,:));
-        p=find(diff(ea_all_idx)>1); % p columns are start and end of consecutive elements
+        p=find(diff(ea_all_idx)>2); % p columns are start and end of mostly consecutive elements
         runs=[ea_all_idx(1),ea_all_idx(p+1);ea_all_idx(p),ea_all_idx(end)];
 
         if size(runs,2)>1
-            single_gaps=ea_all_idx(p+1)-ea_all_idx(p)==2;
-            if any(single_gaps)
-                % A zero logically bubbled in...so make space for it for now
-                s=p(single_gaps);
-                z = zeros(1,length(ea_all_idx)+length(s));  %initialise a new vector of the appropriate size
-                z(s+(1:length(s))) = ea_all_idx(s)+1; % set locations in 's' to s+1, which will have the value zero
-                z(z==0) = ea_all_idx; %insert the original values in ea_all_idx into the new vector at their new positions.
-                ea_all_idx=z;
-                z = nan(1,length(all_vals_jj)+length(s));  %initialise a new vector of the appropriate size
-                z(s+(1:length(s))) = 0; % set value locations in 'p' to zero
-                z(isnan(z)) = all_vals_jj; %insert the original values in all_vals_jj into the new vector at their new positions.
-                p=find(diff(ea_all_idx)>1); % p columns are start and end of consecutive elements
-                runs=[ea_all_idx(1),ea_all_idx(p+1);ea_all_idx(p),ea_all_idx(end)];
-                gap_idx=ea_all_idx(s)';
-                single_gaps=sum(gap_idx>=runs(1,:) & gap_idx<=runs(2,:),1);
-                all_vals_jj=z;
-            else
-                single_gaps=zeros(1,size(runs,2));
-            end
+            ea_1=1;
             for ridx=1:size(runs,2)
                 if runs(2,ridx)-runs(1,ridx)<2
                     % Remove traces of any short sequences
                     temp=ea_all_idx<runs(1,ridx) | ea_all_idx>runs(2,ridx);
                     ea_all_idx=ea_all_idx(temp);
                     all_vals_jj=all_vals_jj(temp);
-                else
-                    % Fill in zeros for everything we track
-                    valid_ridx=ea_all_idx>=runs(1,ridx) & ea_all_idx<=runs(2,ridx);
-                    if ~any(valid_ridx)
-                        continue
-                    end
-                    ea_1=find(valid_ridx,1,'first');
-                    ea_end=find(valid_ridx,1,'last');
-                    if ~any(single_gaps(ridx))
-                        % Check for single gaps intra lower/upper
-                        if any(diff(ea_all_idx(ea_1:ea_end))==2)
-                            single_gaps(ridx)=true;
-                        end
-                    end
-                    if ea_end>ea_1 || any(single_gaps(ridx))
-                        % Non-singleton, so maybe insert zeros; note ea_lower_idx is continuous, so ea_lower_idx(ea_lower_end)-ea_lower_idx(ea_lower_1)==ea_lower_end-ea_lower_1
-                        new_vals=zeros(1,ea_end-ea_1+1); % pick up the new zeros
-                        temp=ea_all_idx>=runs(1,ridx) & ea_all_idx<=runs(2,ridx);
-                        new_vals(ea_all_idx(temp)-ea_all_idx(ea_1)+1)=all_vals_jj(temp);
-                        all_vals_jj=[all_vals_jj(1:ea_1-1), new_vals, all_vals_jj(ea_end+1:end)];
-                        ea_all_idx=[ea_all_idx(1:ea_1-1), ea_all_idx(ea_1):ea_all_idx(ea_end), ea_all_idx(ea_end+1:end)];
-                    end
+                    % ea_1 doesn't move
+                    continue
                 end
+                % Fill in zeros for everything we track
+                valid_ridx=ea_all_idx>=runs(1,ridx) & ea_all_idx<=runs(2,ridx);
+                if sum(valid_ridx)==runs(2,ridx)-runs(1,ridx)+1
+                    % We have a full run with no gaps to fill
+                    ea_1=ea_1+runs(2,ridx)-runs(1,ridx)+1;
+                    continue
+                end
+                ea_end_plus1=ea_1+length(all_vals_jj(valid_ridx));
+                new_idx=runs(1,ridx):runs(2,ridx);
+                new_ridx=ismember(new_idx, ea_all_idx(valid_ridx));
+                new_vals=zeros(1,length(new_idx));
+                new_vals(new_ridx)=all_vals_jj(valid_ridx);
+                all_vals_jj=[all_vals_jj(1:ea_1-1), new_vals, all_vals_jj(ea_end_plus1:end)];
+                ea_all_idx=[ea_all_idx(1:ea_1-1), new_idx, ea_all_idx(ea_end_plus1:end)];
+                ea_1=ea_1+length(new_idx);
             end
+            % Remove runs ignored above (but used to cut down idx and vals)
             runs=runs(:,runs(2,:)-runs(1,:)>1);
             if isempty(runs)
                 % We have disqualified all merging opportunities
                 continue
-            else
-                ea_gaps_isempty=size(runs,2)==1;
             end
-        else
-            if ea_all_idx(end)-ea_all_idx(1)>=length(ea_all_idx)
-                % We have no gaps in the big picture, but lower gaps
-                p=find(diff(ea_all_idx)>1); % p columns are start and end of consecutive elements
-                runs=[ea_all_idx(1),ea_all_idx(p+1);ea_all_idx(p),ea_all_idx(end)];
-                z = zeros(1,length(ea_all_idx)+length(p));  %initialise a new vector of the appropriate size
-                z(p+(1:length(p))) = ea_all_idx(p)+1; % set locations in 'p' to p+1, which will have the value zero
-                z(z==0) = ea_all_idx; %insert the original values in ea_lower_idx into the new vector at their new positions.
-                ea_all_idx=z;
-                z = nan(1,length(all_vals_jj)+length(p));  %initialise a new vector of the appropriate size
-                z(p+(1:length(p))) = 0; % set value locations in 'p' to zero
-                z(isnan(z)) = all_vals_jj; %insert the original values in ea_lower_vals into the new vector at their new positions.
-                ea_lower_vals=z;
-            end
-            ea_gaps_isempty=true;
         end
 
         [ea_all_idx,sort_idx]=sort(ea_all_idx);
         all_vals_jj=all_vals_jj(sort_idx);
-        if ea_gaps_isempty
-            ea_gaps=[];
-        else
-            ea_gaps=find(diff(ea_all_idx)>1);
-        end
+        ea_gaps=find(diff(ea_all_idx)>1);
 
         group_idx=[0,ea_gaps,length(ea_all_idx)];
         for ll=1:length(group_idx)-1
@@ -177,19 +122,9 @@ for z_c=1:N_z
                         break
                     end
                     vals=new_vals;
-                    zero_created=true;
                     cidx=find(zero_candidate==0,1,'first');
                     zero_candidate(cidx)=1;
                 end
-            end
-            if false && ~zero_created
-                % Just re-balance the indices (possibly creating a zero in the middle we cannot move to either end of vals
-                new_vals=linsolve([multiplier;ones(1,length(vals))],[sum(vals.*multiplier); run_prob_sum])';
-                new_vals=round(new_vals,epsilon_round);
-                if any(new_vals<0)
-                    break
-                end
-                vals=new_vals;
             end
             temp=sparse(row,all_idx,vals,N_a1,N_a2);
             temp_cols=all_idx(1):all_idx(end);
