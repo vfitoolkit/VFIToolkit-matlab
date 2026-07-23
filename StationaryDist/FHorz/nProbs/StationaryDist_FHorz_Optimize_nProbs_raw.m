@@ -1,4 +1,4 @@
-function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1_input,N_a2_input,N_z_input,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2)
+function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1_input,N_a2_input,N_z_input,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2, simoptions)
 
 epsilon_round=7;
 
@@ -205,8 +205,13 @@ if jj<jj_at_max_a2 && any(temp(:,N_a2,:)~=0,'all')
     jj_at_max_a2=jj;
 end
 
-total_zeros_created=total_zeros_created+sum(new_zeros_created);
-fprintf("Age %3d: zeros created = %d \n", jj, sum(new_zeros_created));
+sum_new_zeros=sum(new_zeros_created);
+total_zeros_created=total_zeros_created+sum_new_zeros;
+if simoptions.verbose>=1
+    if sum_new_zeros || simoptions.verbose==2
+        fprintf("Age %3d: zeros created = %d \n", jj, sum_new_zeros);
+    end
+end
 
 
 end

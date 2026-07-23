@@ -3,11 +3,17 @@ function StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDis
 % Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case).
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
-if exist('simpoptions','var')==0
+if exist('simoptions','var')==0
     simoptions=struct();
     simoptions.optimize_nProbs=0;
-elseif ~isfield(simoptions,'optimize_nProbs')
-    simoptions.optimize_nProbs=0;
+    simoptions.verbosed=0;
+else
+    if ~isfield(simoptions,'verbose')
+        simoptions.verbose=0;
+    end
+    if ~isfield(simoptions,'optimize_nProbs')
+        simoptions.optimize_nProbs=0;
+    end
 end
 
 epsilon=1e-7;
@@ -51,7 +57,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
 
     if simoptions.optimize_nProbs==1
-        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,N_z,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2);
+        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,N_z,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2,simoptions);
     end
 
     % Put e back into dist
@@ -74,16 +80,36 @@ end
 
 StationaryDist=StationaryDist.*AgeWeights;
 
-if total_zeros_created>0
-    fprintf("With epsilon = %.2e, total zeros created = %d \n", epsilon, total_zeros_created);
-    if isfinite(jj_at_max_a2)
-        fprintf("Max ExpAsset value first observed at age %3d \n", jj_at_max_a2);
+if isfinite(jj_at_max_a2)
+    if N_a2>0
+        warning("Max ExpAsset index %3d first reached at age %3d \n", N_a2, jj_at_max_a2);
     else
-        temp=reshape(StationaryDist,[N_a1,N_a2,N_z*N_e,N_j]);
-        [a1,a2,ze_c,age_j]=ind2sub(size(temp),find(temp~=0));
-        max_a2=max(a2);
-        jj_at_max_a2=min(age_j(find(a2==max_a2)));
-        fprintf("Max ExpAsset index reached = %3d (of %3d) at age %3d \n", max_a2, N_a2, jj_at_max_a2);
+        warning("Max grid-interpolated asset index %3d first reached at age %3d \n", N_a1, jj_at_max_a2);
+    end
+end
+
+if simoptions.verbose
+    if total_zeros_created>0
+        fprintf("With epsilon = %.2e, total zeros created = %d \n", epsilon, total_zeros_created);
+        if ~isfinite(jj_at_max_a2)
+            max_a=nan;
+            if N_a2==0
+                temp=reshape(StationaryDist,[N_a1,N_z*N_e,N_j]);
+                [a1,~,age_j]=ind2sub(size(temp),find(temp~=0));
+                max_a=max(a1);
+                jj_at_max_a2=min(age_j(a1==max_a));
+            else
+                temp=reshape(StationaryDist,[N_a1,N_a2,N_z*N_e,N_j]);
+                [~,a2,~,age_j]=ind2sub(size(temp),find(temp~=0));
+                max_a=max(a2);
+                jj_at_max_a2=min(age_j(a2==max_a));
+            end
+            if N_a2>0
+                fprintf("Max ExpAsset index reached: %3d (of %3d) at age %3d \n", max_a, N_a2, jj_at_max_a2);
+            else
+                fprintf("Max grid-interpolated asset index reached: %3d (of %3d) at age %3d \n", max_a, N_a1, jj_at_max_a2);
+            end
+        end
     end
 end
 
