@@ -57,7 +57,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
 
     if simoptions.optimize_nProbs==1
-        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,N_z,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2,simoptions);
+        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,N_z,jj, epsilon,total_zeros_created,jj_at_max_a2,simoptions);
     end
 
     % Put e back into dist

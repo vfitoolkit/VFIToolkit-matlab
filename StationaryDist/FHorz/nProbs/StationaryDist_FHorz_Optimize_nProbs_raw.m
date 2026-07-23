@@ -1,9 +1,9 @@
-function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1_input,N_a2_input,N_z_input,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2, simoptions)
+function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1_input,N_a2_input,N_z_input,jj, epsilon,total_zeros_created,jj_at_max_a2, simoptions)
 
 epsilon_round=7;
 
-new_zeros_created=zeros(1,N_z_input);
-
+% For grid interpolation, N_a2 arrives as zero.  We simplify the implementation
+% by treating this N_a1x1 grid as an 1xN_a1 grid (with N_a1 spelled N_a2 below).
 if N_a2_input==0
     N_a2=N_a1_input;
     N_a1=1;
@@ -12,13 +12,20 @@ else
     N_a2=N_a2_input;
 end
 
+% Remember whether we want to return [N_a*N_z,1] or [N_a,N_z]
+StationaryDist_jj_size=size(StationaryDist_jj);
+
 if N_z_input==0
     N_z=1;
 else
     N_z=N_z_input;
+    if StationaryDist_jj_size(2)==1 && N_z>1
+        % For our purposes, we need to unmix N_z from N_a
+        StationaryDist_jj=reshape(StationaryDist_jj,[N_a1*N_a2,N_z]);
+    end
 end
 
-assert(N_e==0); % haven't implemented N_e of any kind yet
+new_zeros_created=zeros(1,N_z);
 
 % For large N_z, this loop can be changed to `parfor` for greater CPU parallelism
 for z_c=1:N_z
@@ -147,6 +154,9 @@ if simoptions.verbose>=1
         fprintf("Age %3d: zeros created = %d \n", jj, sum_new_zeros);
     end
 end
+
+% Re-mix N_a and N_z if necessary
+StationaryDist_jj=reshape(StationaryDist_jj,StationaryDist_jj_size);
 
 
 end

@@ -52,7 +52,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
     if simoptions.optimize_nProbs==1
-        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,0,N_e,jj, epsilon,total_zeros_created,jj_at_max_a2,simoptions);
+        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,0,jj, epsilon,total_zeros_created,jj_at_max_a2,simoptions);
     end
 
     % Put e back into dist
