@@ -45,22 +45,17 @@ StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % sparse() creates a matrix of zeros
 
 % Precompute
-II1=(1:1:N_a)';
 II2=repmat((1:1:N_a)',1,N_probs); % Note the N_probs-copies
 
 for jj=1:(N_j-1)
     % First, get Gamma
     Gammatranspose=sparse(Policy_aprime(:,:,jj),II2,PolicyProbs(:,:,jj),N_a,N_a);  % Note: sparse() will accumulate at repeated indices
-    Gammatranspose_lower=sparse(Policy_aprime(:,1,jj),II1,PolicyProbs(:,1,jj),N_a,N_a);
-    Gammatranspose_upper=sparse(Policy_aprime(:,2,jj),II1,PolicyProbs(:,2,jj),N_a,N_a);
 
     % No z, so just a single step
-    StationaryDist_lower_jj=Gammatranspose_lower*StationaryDist_jj;
-    StationaryDist_upper_jj=Gammatranspose_upper*StationaryDist_jj;
-    StationaryDist_jj=Gammatranspose*StationaryDist_jj; % =StationaryDist_lower_jj+StationaryDist_upper_jj;
+    StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
     if simoptions.optimize_nProbs==1
-        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj,StationaryDist_lower_jj,StationaryDist_upper_jj, N_a1,N_a2,0,0,jj, epsilon,total_zeros_created,jj_at_max_a2,simoptions);
+        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, N_a1,N_a2,0,0,jj, epsilon,total_zeros_created,jj_at_max_a2,simoptions);
     end
 
     StationaryDist(:,jj+1)=gather(full(StationaryDist_jj));
