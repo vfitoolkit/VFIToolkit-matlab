@@ -22,6 +22,7 @@ if exist('vfoptions','var')==0
     vfoptions.experienceassete=0;
     vfoptions.experienceassetz=0;
     vfoptions.experienceassetze=0;
+    vfoptions.experienceassetsemiz=0;
     vfoptions.riskyasset=0;
     vfoptions.residualasset=0;
     vfoptions.n_ambiguity=0;
@@ -75,6 +76,9 @@ else
     end
     if ~isfield(vfoptions,'experienceassetze')
         vfoptions.experienceassetze=0;
+    end
+    if ~isfield(vfoptions,'experienceassetsemiz')
+        vfoptions.experienceassetsemiz=0;
     end
     if ~isfield(vfoptions,'riskyasset')
         vfoptions.riskyasset=0;
@@ -144,7 +148,7 @@ if vfoptions.parallel<2
     if ~strcmp(vfoptions.exoticpreferences,'None')
         error('Sorry but exoticpreferences are not implemented for cpu, you will need a gpu to use them')
     end
-    if ~vfoptions.experienceasset==0 || ~vfoptions.experienceassetu==0  || ~vfoptions.experienceassetz==0  || ~vfoptions.experienceassete==0  || ~vfoptions.experienceassetze==0
+    if ~vfoptions.experienceasset==0 || ~vfoptions.experienceassetu==0  || ~vfoptions.experienceassetz==0  || ~vfoptions.experienceassete==0  || ~vfoptions.experienceassetze==0  || ~vfoptions.experienceassetsemiz==0
         error('Sorry but experience assets are not implemented for cpu, you will need a gpu to use them')
     end
     if ~vfoptions.riskyasset==0
@@ -253,7 +257,7 @@ end
 %% Deal with Exotic preferences if need to do that.
 if strcmp(vfoptions.exoticpreferences,'None')
     % Just ignore and will then continue on.
-elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic') && vfoptions.experienceasset==0 && vfoptions.experienceassetu==0 && vfoptions.experienceassetz==0 && vfoptions.experienceassete==0 && vfoptions.experienceassetze==0
+elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic') && vfoptions.experienceasset==0 && vfoptions.experienceassetu==0 && vfoptions.experienceassetz==0 && vfoptions.experienceassete==0 && vfoptions.experienceassetze==0 && vfoptions.experienceassetsemiz==0
     % QH composed with experienceasset variants is handled in the experience-asset
     % block below, so it can reuse the n_d / n_a splitting there.
     [V,Policy, Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -285,7 +289,7 @@ end
 % experienceassete: aprime(d,a,e)
 % experienceassetze: aprime(d,a,z,e)
 
-if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1
+if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1 || vfoptions.experienceassetsemiz>=1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     % When using both semiexo and experience asset, the last decision variable influences semi-exo and the second last decision variable influences the experience asset
 
@@ -309,6 +313,10 @@ if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.ex
         if ~isfield(vfoptions,'l_dexperienceassetze')
             vfoptions.l_dexperienceassetze=1; % by default, only one decision variable influences the experienceassetze
         end
+    elseif vfoptions.experienceassetsemiz>=1
+        if ~isfield(vfoptions,'l_dexperienceassetsemiz')
+            vfoptions.l_dexperienceassetsemiz=1; % by default, only one decision variable influences the experienceassetsemiz
+        end
     end
     
     if vfoptions.experienceasset>=1
@@ -326,6 +334,9 @@ if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.ex
     elseif vfoptions.experienceassetze>=1
         vfoptions.l_d2=vfoptions.l_dexperienceassetze;
         vfoptions.l_a2=vfoptions.experienceassetze;
+    elseif vfoptions.experienceassetsemiz>=1
+        vfoptions.l_d2=vfoptions.l_dexperienceassetsemiz;
+        vfoptions.l_a2=vfoptions.experienceassetsemiz;
     end
 
     if prod(vfoptions.n_semiz)>0
@@ -422,6 +433,12 @@ if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.ex
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAssetze(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
+    elseif vfoptions.experienceassetsemiz>=1
+        % semiz is always present (it drives the experience asset); aprimeFn=aprimeFn(d2,a2,semiz)
+        if prod(vfoptions.n_semiz)==0
+            error('When using experienceassetsemiz you must set vfoptions.n_semiz (the semi-exogenous state drives the experience asset)')
+        end
+        [V,Policy]=ValueFnIter_FHorz_ExpAssetsemiz(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 
     varargout={V, Policy};

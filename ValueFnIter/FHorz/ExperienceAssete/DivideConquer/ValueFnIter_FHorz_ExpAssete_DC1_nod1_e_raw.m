@@ -136,10 +136,10 @@ if ~isfield(vfoptions,'V_Jplus1')
             end
         end
     elseif vfoptions.lowmemory==2
-        for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,N_j);
-            for z_c=1:N_z
-                z_val=z_gridvals_J(z_c,:,N_j);
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,N_j);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
                 % n-Monotonicity
                 ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d2,n_a1,vfoptions.level1n,n_a2,special_n_z,special_n_e, d2_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, e_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
 
@@ -330,10 +330,10 @@ else
         end
     elseif vfoptions.lowmemory==2
 
-        for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,N_j);
-            for z_c=1:N_z
-                z_val=z_gridvals_J(z_c,:,N_j);
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,N_j);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
                 DiscountedEV_ze=DiscountedEV(:,:,:,:,z_c,e_c);
 
                 % n-Monotonicity
@@ -544,10 +544,10 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==2
 
-        for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,jj);
-            for z_c=1:N_z
-                z_val=z_gridvals_J(z_c,:,jj);
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,jj);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,jj);
                 DiscountedEV_ze=DiscountedEV(:,:,:,:,z_c,e_c);
 
                 % n-Monotonicity

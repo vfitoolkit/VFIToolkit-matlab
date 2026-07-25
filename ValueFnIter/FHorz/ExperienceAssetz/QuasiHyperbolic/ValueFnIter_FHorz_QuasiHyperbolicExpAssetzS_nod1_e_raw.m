@@ -15,7 +15,10 @@ Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
 if vfoptions.lowmemory==1
+    special_n_e=ones(1,length(n_e));
+elseif vfoptions.lowmemory==2
     special_n_z=ones(1,length(n_z));
+    special_n_e=ones(1,length(n_e));
 end
 
 %% j=N_j (terminal)
@@ -28,12 +31,23 @@ if ~isfield(vfoptions,'V_Jplus1')
         Vhat(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
     elseif vfoptions.lowmemory==1
+        for e_c=1:N_e
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z, special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,0,0);
+            [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
+            Vhat(:,:,e_c,N_j)=shiftdim(Vtemp,1);
+            Policy(:,:,e_c,N_j)=shiftdim(maxindex,1);
+        end
+    elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
-            [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
-            Vhat(:,z_c,N_j)=Vtemp;
-            Policy(:,z_c,N_j)=maxindex;
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
+                [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
+                Vhat(:,z_c,e_c,N_j)=Vtemp;
+                Policy(:,z_c,e_c,N_j)=maxindex;
+            end
         end
     end
     Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j);
@@ -75,18 +89,34 @@ else
         maxindexfull=maxindex+N_d2*N_a1*(0:1:N_a-1)+shiftdim(N_d2*N_a1*N_a*(0:1:N_z-1),-1)+shiftdim(N_d2*N_a1*N_a*N_z*(0:1:N_e-1),-2);
         Vunderbar(:,:,:,N_j)=shiftdim(entireRHS_std(maxindexfull),1);
     elseif vfoptions.lowmemory==1
+        for e_c=1:N_e
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z, special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,0,0);
+
+            entireRHS_hat=ReturnMatrix_e+beta0beta*entireEV;
+            [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+            Vhat(:,:,e_c,N_j)=shiftdim(Vtemp,1);
+            Policy(:,:,e_c,N_j)=shiftdim(maxindex,1);
+            entireRHS_std=ReturnMatrix_e+beta*entireEV;
+            maxindexfull=maxindex+N_d2*N_a1*(0:1:N_a-1)+shiftdim(N_d2*N_a1*N_a*(0:1:N_z-1),-1);
+            Vunderbar(:,:,e_c,N_j)=shiftdim(entireRHS_std(maxindexfull),1);
+        end
+    elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             entireEV_z=entireEV(:,:,z_c);
-            ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
 
-            entireRHS_hat=ReturnMatrix_z+beta0beta*entireEV_z;
-            [Vtemp,maxindex]=max(entireRHS_hat,[],1);
-            Vhat(:,z_c,N_j)=Vtemp;
-            Policy(:,z_c,N_j)=maxindex;
-            entireRHS_std=ReturnMatrix_z+beta*entireEV_z;
-            maxindexfull=maxindex+N_d2*N_a1*(0:1:N_a-1);
-            Vunderbar(:,z_c,N_j)=entireRHS_std(maxindexfull);
+                entireRHS_hat=ReturnMatrix_ze+beta0beta*entireEV_z;
+                [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+                Vhat(:,z_c,e_c,N_j)=Vtemp;
+                Policy(:,z_c,e_c,N_j)=maxindex;
+                entireRHS_std=ReturnMatrix_ze+beta*entireEV_z;
+                maxindexfull=maxindex+N_d2*N_a1*(0:1:N_a-1);
+                Vunderbar(:,z_c,e_c,N_j)=entireRHS_std(maxindexfull);
+            end
         end
     end
 end
@@ -136,18 +166,34 @@ for reverse_j=1:N_j-1
         maxindexfull=maxindex+N_d2*N_a1*(0:1:N_a-1)+shiftdim(N_d2*N_a1*N_a*(0:1:N_z-1),-1)+shiftdim(N_d2*N_a1*N_a*N_z*(0:1:N_e-1),-2);
         Vunderbar(:,:,:,jj)=shiftdim(entireRHS_std(maxindexfull),1);
     elseif vfoptions.lowmemory==1
+        for e_c=1:N_e
+            e_val=e_gridvals_J(e_c,:,jj);
+            ReturnMatrix_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z, special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,0,0);
+
+            entireRHS_hat=ReturnMatrix_e+beta0beta*entireEV;
+            [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+            Vhat(:,:,e_c,jj)=shiftdim(Vtemp,1);
+            Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
+            entireRHS_std=ReturnMatrix_e+beta*entireEV;
+            maxindexfull=maxindex+N_d2*N_a1*(0:1:N_a-1)+shiftdim(N_d2*N_a1*N_a*(0:1:N_z-1),-1);
+            Vunderbar(:,:,e_c,jj)=shiftdim(entireRHS_std(maxindexfull),1);
+        end
+    elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             entireEV_z=entireEV(:,:,z_c);
-            ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,jj);
+                ReturnMatrix_ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
 
-            entireRHS_hat=ReturnMatrix_z+beta0beta*entireEV_z;
-            [Vtemp,maxindex]=max(entireRHS_hat,[],1);
-            Vhat(:,z_c,jj)=Vtemp;
-            Policy(:,z_c,jj)=maxindex;
-            entireRHS_std=ReturnMatrix_z+beta*entireEV_z;
-            maxindexfull=maxindex+N_d2*N_a1*(0:1:N_a-1);
-            Vunderbar(:,z_c,jj)=entireRHS_std(maxindexfull);
+                entireRHS_hat=ReturnMatrix_ze+beta0beta*entireEV_z;
+                [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+                Vhat(:,z_c,e_c,jj)=Vtemp;
+                Policy(:,z_c,e_c,jj)=maxindex;
+                entireRHS_std=ReturnMatrix_ze+beta*entireEV_z;
+                maxindexfull=maxindex+N_d2*N_a1*(0:1:N_a-1);
+                Vunderbar(:,z_c,e_c,jj)=entireRHS_std(maxindexfull);
+            end
         end
     end
 end

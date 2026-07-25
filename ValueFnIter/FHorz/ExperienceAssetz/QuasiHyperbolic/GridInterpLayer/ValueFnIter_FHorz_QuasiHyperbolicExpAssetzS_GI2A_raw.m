@@ -2,7 +2,7 @@ function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_GI2
 % Sophisticated QH + ExpAssetz, GI2A pattern (with d1).
 % Single argmax with beta0*beta -> Vhat, Policy; Vunderbar is the same policy's value under beta.
 % Policy channels: 1=d (joint), 2=a1prime lower coarse, 3=a2prime, 4=L2 fine, plus L2flag concatenated.
-% lowmemory=0 full vectorization; lowmemory=1 loops z; lowmemory=2 errors (no e dim to nest).
+% lowmemory=0 full vectorization; lowmemory=1 loops z.
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -80,8 +80,6 @@ if ~isfield(vfoptions,'V_Jplus1')
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
             PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
         end
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not supported in QH+ExpAssetz _raw (no e dim to nest); use _e_raw variant')
     end
 
     Vunderbar(:,:,N_j)=Vhat(:,:,N_j);
@@ -183,8 +181,6 @@ else
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
             PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
         end
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not supported in QH+ExpAssetz _raw (no e dim to nest); use _e_raw variant')
     end
 end
 
@@ -294,8 +290,6 @@ for reverse_j=1:N_j-1
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
             PolicyL2flag(1,:,z_c,jj)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
         end
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not supported in QH+ExpAssetz _raw (no e dim to nest); use _e_raw variant')
     end
 end
 
