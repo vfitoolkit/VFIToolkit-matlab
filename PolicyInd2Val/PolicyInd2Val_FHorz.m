@@ -61,6 +61,11 @@ else
         aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetze)));
         n_aprime=n_a(1:end-vfoptions.experienceassetze);
     end
+    if isfield(vfoptions,'experienceassetsemiz') && vfoptions.experienceassetsemiz>0
+        l_aprime=l_a-vfoptions.experienceassetsemiz;
+        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetsemiz)));
+        n_aprime=n_a(1:end-vfoptions.experienceassetsemiz);
+    end
     if isfield(vfoptions,'riskyasset') && vfoptions.riskyasset>0
         l_aprime=l_a-1;
         aprime_grid=a_grid(1:sum(n_a(1:end-1)));

@@ -56,7 +56,7 @@ elseif l_d==4
     d1vals=shiftdim(repmat(d_grid(1:n_d(1)),n_d(2)*n_d(3)*n_d(4),1),-2);
     d2vals=shiftdim(repmat(repelem(d_grid(n_d(1)+1:n_d(1)+n_d(2)),n_d(1),1),n_d(3)*n_d(4)),-2);
     d3vals=shiftdim(repmat(repelem(d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3)),n_d(1)*n_d(2),1),n_d(4)),-2);
-    d4vals=shiftdim(replem(d_grid(n_d(1)+n_d(2)+n_d(3)+1:n_d(1)+n_d(2)+n_d(3)+n_d(4)),n_d(1)*n_d(2)*n_d(3),1),-2);
+    d4vals=shiftdim(repelem(d_grid(n_d(1)+n_d(2)+n_d(3)+1:n_d(1)+n_d(2)+n_d(3)+n_d(4)),n_d(1)*n_d(2)*n_d(3),1),-2);
 end
 
 
