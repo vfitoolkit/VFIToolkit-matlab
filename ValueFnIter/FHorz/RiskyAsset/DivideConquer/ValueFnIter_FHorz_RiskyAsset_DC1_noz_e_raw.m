@@ -179,10 +179,10 @@ else % V_Jplus1
     if vfoptions.lowmemory==0
         % Layer 1
         ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d3,n_a1,vfoptions.level1n,n_a2,n_e, d13_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1,0);
-        RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,vfoptions.level1n,N_a1,N_a2,N_e]);
-        DEV=reshape(DiscountedEV,[1,N_d3,1,N_a1,1,1]);
+        RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2,N_e]);
+        DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1,1]);
         entireRHS_ii=RM+DEV;
-        entireRHS_ii=reshape(entireRHS_ii,[N_d13,vfoptions.level1n,N_a1,N_a2,N_e]);
+        entireRHS_ii=reshape(entireRHS_ii,[N_d13,N_a1,vfoptions.level1n,N_a2,N_e]);
 
         [~,maxindex1]=max(entireRHS_ii,[],2);
         [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d13*N_a1,vfoptions.level1n*N_a2,N_e]),[],1);
@@ -253,10 +253,10 @@ else % V_Jplus1
             e_val=e_gridvals_J(e_c,:,N_j);
             % Layer 1
             ReturnMatrix_ii_e=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d3,n_a1,vfoptions.level1n,n_a2,special_n_e, d13_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, e_val, ReturnFnParamsVec,1,0);
-            RM=reshape(ReturnMatrix_ii_e,[N_d1,N_d3,vfoptions.level1n,N_a1,N_a2]);
-            DEV=reshape(DiscountedEV,[1,N_d3,1,N_a1,1]);
+            RM=reshape(ReturnMatrix_ii_e,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2]);
+            DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1]);
             entireRHS_ii_e=RM+DEV;
-            entireRHS_ii_e=reshape(entireRHS_ii_e,[N_d13,vfoptions.level1n,N_a1,N_a2]);
+            entireRHS_ii_e=reshape(entireRHS_ii_e,[N_d13,N_a1,vfoptions.level1n,N_a2]);
 
             [~,maxindex1]=max(entireRHS_ii_e,[],2);
             [Vtempii,maxindex2]=max(reshape(entireRHS_ii_e,[N_d13*N_a1,vfoptions.level1n*N_a2]),[],1);
@@ -364,10 +364,10 @@ for reverse_j=1:N_j-1
     if vfoptions.lowmemory==0
         % Layer 1
         ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d3,n_a1,vfoptions.level1n,n_a2,n_e, d13_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, e_gridvals_J(:,:,jj), ReturnFnParamsVec,1,0);
-        RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,vfoptions.level1n,N_a1,N_a2,N_e]);
-        DEV=reshape(DiscountedEV,[1,N_d3,1,N_a1,1,1]);
+        RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2,N_e]);
+        DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1,1]);
         entireRHS_ii=RM+DEV;
-        entireRHS_ii=reshape(entireRHS_ii,[N_d13,vfoptions.level1n,N_a1,N_a2,N_e]);
+        entireRHS_ii=reshape(entireRHS_ii,[N_d13,N_a1,vfoptions.level1n,N_a2,N_e]);
 
         [~,maxindex1]=max(entireRHS_ii,[],2);
         [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d13*N_a1,vfoptions.level1n*N_a2,N_e]),[],1);
@@ -438,10 +438,10 @@ for reverse_j=1:N_j-1
             e_val=e_gridvals_J(e_c,:,jj);
             % Layer 1
             ReturnMatrix_ii_e=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d3,n_a1,vfoptions.level1n,n_a2,special_n_e, d13_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, e_val, ReturnFnParamsVec,1,0);
-            RM=reshape(ReturnMatrix_ii_e,[N_d1,N_d3,vfoptions.level1n,N_a1,N_a2]);
-            DEV=reshape(DiscountedEV,[1,N_d3,1,N_a1,1]);
+            RM=reshape(ReturnMatrix_ii_e,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2]);
+            DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1]);
             entireRHS_ii_e=RM+DEV;
-            entireRHS_ii_e=reshape(entireRHS_ii_e,[N_d13,vfoptions.level1n,N_a1,N_a2]);
+            entireRHS_ii_e=reshape(entireRHS_ii_e,[N_d13,N_a1,vfoptions.level1n,N_a2]);
 
             [~,maxindex1]=max(entireRHS_ii_e,[],2);
             [Vtempii,maxindex2]=max(reshape(entireRHS_ii_e,[N_d13*N_a1,vfoptions.level1n*N_a2]),[],1);

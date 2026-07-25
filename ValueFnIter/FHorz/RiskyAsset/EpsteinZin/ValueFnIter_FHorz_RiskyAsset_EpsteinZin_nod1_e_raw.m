@@ -644,9 +644,9 @@ for reverse_j=1:N_j-1
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
             V(:,:,e_c,jj)=shiftdim(Vtemp,1);
-            Policy(2,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
-            Policy(3,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
-            Policy(1,:,:,e_c,N_j)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
+            Policy(2,:,:,e_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+            Policy(3,:,:,e_c,jj)=shiftdim(ceil(maxindex/N_d3),1);
+            Policy(1,:,:,e_c,jj)=shiftdim(d2index(maxindex+N_d3*N_a1*zind),1); % note: no a in temp4
         end
 
     elseif vfoptions.lowmemory==2

@@ -4,6 +4,7 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAssetSemiExo_DC1_noz_e_raw(n_d1,n_d2,
 % d3: both ReturnFn and aprimeFn
 % d4: ReturnFn but not aprimeFn, and determines semiz transitions
 % No z (only semiz); e is iid
+% Policy output has the choices on the first dimension: (d1,d2,d3,d4,a1prime).
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -27,7 +28,7 @@ N_d23=N_d2*N_d3;
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
-Policy=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_semiz,N_e,N_j,'gpuArray'); % d1, d2, d3, d4, a1prime
 
 %%
 u_grid=gpuArray(u_grid);
@@ -57,8 +58,12 @@ zBind=shiftdim(gpuArray(0:1:N_semiz-1),-1);
 eBind=shiftdim(gpuArray(0:1:N_e-1),-2);
 d3ind=repelem((1:1:N_d3)',N_d1,1);
 
+% Accumulators for the choice of d4 (max is taken across d4 at the end of each period)
 V_ford4_jj=zeros(N_a,N_semiz,N_e,N_d4,'gpuArray');
-Policy_ford4_jj=zeros(N_a,N_semiz,N_e,N_d4,'gpuArray');
+d1_ford4_jj=zeros(N_a,N_semiz,N_e,N_d4,'gpuArray');
+d2_ford4_jj=zeros(N_a,N_semiz,N_e,N_d4,'gpuArray');
+d3_ford4_jj=zeros(N_a,N_semiz,N_e,N_d4,'gpuArray');
+a1prime_ford4_jj=zeros(N_a,N_semiz,N_e,N_d4,'gpuArray');
 
 
 %% j=N_j
@@ -76,7 +81,11 @@ if ~isfield(vfoptions,'V_Jplus1')
         d3part=ceil(d1d3_ind/N_d1);
         d4part=ceil(dindex/N_d13);
         a1primepart=ceil(maxindex/(N_d1*N_d3*N_d4));
-        Policy(:,:,:,N_j)=shiftdim(d1part+N_d1*(1-1)+N_d1*N_d2*(d3part-1)+N_d1*N_d2*N_d3*(d4part-1)+N_d1*N_d2*N_d3*N_d4*(a1primepart-1),1);
+        Policy(1,:,:,:,N_j)=d1part;
+        Policy(2,:,:,:,N_j)=1; % d2 is meaningless in the terminal period
+        Policy(3,:,:,:,N_j)=d3part;
+        Policy(4,:,:,:,N_j)=d4part;
+        Policy(5,:,:,:,N_j)=a1primepart;
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -89,7 +98,11 @@ if ~isfield(vfoptions,'V_Jplus1')
             d3part=ceil(d1d3_ind/N_d1);
             d4part=ceil(dindex/N_d13);
             a1primepart=ceil(maxindex/(N_d1*N_d3*N_d4));
-            Policy(:,:,e_c,N_j)=shiftdim(d1part+N_d1*(1-1)+N_d1*N_d2*(d3part-1)+N_d1*N_d2*N_d3*(d4part-1)+N_d1*N_d2*N_d3*N_d4*(a1primepart-1),1);
+            Policy(1,:,:,e_c,N_j)=d1part;
+            Policy(2,:,:,e_c,N_j)=1; % d2 is meaningless in the terminal period
+            Policy(3,:,:,e_c,N_j)=d3part;
+            Policy(4,:,:,e_c,N_j)=d4part;
+            Policy(5,:,:,e_c,N_j)=a1primepart;
         end
     elseif vfoptions.lowmemory==2
         for e_c=1:N_e
@@ -105,7 +118,11 @@ if ~isfield(vfoptions,'V_Jplus1')
                 d3part=ceil(d1d3_ind/N_d1);
                 d4part=ceil(dindex/N_d13);
                 a1primepart=ceil(maxindex/(N_d1*N_d3*N_d4));
-                Policy(:,z_c,e_c,N_j)=shiftdim(d1part+N_d1*(1-1)+N_d1*N_d2*(d3part-1)+N_d1*N_d2*N_d3*(d4part-1)+N_d1*N_d2*N_d3*N_d4*(a1primepart-1),1);
+                Policy(1,:,z_c,e_c,N_j)=d1part;
+                Policy(2,:,z_c,e_c,N_j)=1; % d2 is meaningless in the terminal period
+                Policy(3,:,z_c,e_c,N_j)=d3part;
+                Policy(4,:,z_c,e_c,N_j)=d4part;
+                Policy(5,:,z_c,e_c,N_j)=a1primepart;
             end
         end
     end
@@ -113,7 +130,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_e]);
-    EVpre=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j),-2),3); % [N_a,N_semiz]
+    EVnext=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j),-2),3); % [N_a,N_semiz]
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2);
 
@@ -123,10 +140,220 @@ else
         pi_semiz=pi_semiz_J(:,:,:,N_j);
     end
 
-    [V(:,:,:,N_j),Policy(:,:,:,N_j)]=internal_per_j_e(EVpre,a2primeIndex,a2primeProbs,ReturnFn,DiscountFactorParamsVec,ReturnFnParamsVec,...
-        n_d1,n_d3,n_d4,n_a1,n_a2,n_semiz,n_e,N_d1,N_d2,N_d3,N_d4,N_d13,N_d23,N_d1d2d3,N_a1,N_a2,N_a,N_semiz,N_e,N_u,...
-        d13_gridvals,d4_grid,d4_gridvals,special_n_d4,a1_gridvals,a2_gridvals,semiz_gridvals_J(:,:,N_j),e_gridvals_J(:,:,N_j),pi_semiz,pi_u_col,...
-        level1ii,level1iidiff,a2Bind,zBind,eBind,d3ind,V_ford4_jj,Policy_ford4_jj,vfoptions);
+    aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1);
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1);
+
+    if vfoptions.lowmemory==0
+        for d4_c=1:N_d4
+            pi_semizd4=pi_semiz(:,:,d4_c); % no kron in noz case
+            d13_with_d4=[d13_gridvals,repmat(d4_gridvals(d4_c,:),N_d13,1)];
+
+            EV=EVnext.*shiftdim(pi_semizd4',-1);
+            EV(isnan(EV))=0;
+            EV=sum(EV,2);
+            EV=reshape(EV,[N_a,N_semiz]);
+
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_semiz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz)-1)));
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_semiz);
+            aprimeProbs(skipinterp)=0;
+            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_semiz]);
+
+            EV1=reshape(EV(aprimeIndex(:)+N_a*((1:1:N_semiz)-1)),[N_d23*N_a1,N_u,N_semiz]).*aprimeProbs;
+            EV2=reshape(EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz)-1)),[N_d23*N_a1,N_u,N_semiz]).*(1-aprimeProbs);
+            EV=sum(EV1.*pi_u_col',2)+sum(EV2.*pi_u_col',2);
+            EV=reshape(EV,[N_d23*N_a1,N_semiz]);
+
+            EVres=reshape(EV,[N_d2,N_d3*N_a1,N_semiz]);
+            [EV_onlyd3,d2index]=max(EVres,[],1);
+            EV_onlyd3=reshape(EV_onlyd3,[N_d3*N_a1,N_semiz]);
+            d2index_resh=reshape(d2index,[N_d3,N_a1,N_semiz]);
+
+            DiscountedEV=DiscountFactorParamsVec*reshape(EV_onlyd3,[N_d3,N_a1,1,1,N_semiz]);
+
+            ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],n_a1,vfoptions.level1n,n_a2,n_semiz,n_e, d13_with_d4, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1,0);
+            % [N_d13, level1n, N_a1, N_a2, N_semiz, N_e]
+            RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2,N_semiz,N_e]);
+            DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1,N_semiz,1]);
+            entireRHS_ii=RM+DEV;
+            entireRHS_ii=reshape(entireRHS_ii,[N_d13,N_a1,vfoptions.level1n,N_a2,N_semiz,N_e]);
+
+            [~,maxindex1]=max(entireRHS_ii,[],2);
+            [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d13*N_a1,vfoptions.level1n*N_a2,N_semiz,N_e]),[],1);
+            curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
+            V_ford4_jj(curraindex,:,:,d4_c)=shiftdim(Vtempii,1);
+            pol_d13_a1=shiftdim(maxindex2,1);
+            d1part=rem(pol_d13_a1-1,N_d1)+1;
+            d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+            a1primepart=ceil(pol_d13_a1/N_d13);
+            [npts,nz,ne]=size(pol_d13_a1);
+            zidx=repmat(gpuArray(reshape(1:nz,[1,nz,1])),npts,1,ne);
+            lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+            d1_ford4_jj(curraindex,:,:,d4_c)=d1part;
+            d3_ford4_jj(curraindex,:,:,d4_c)=d3part;
+            a1prime_ford4_jj(curraindex,:,:,d4_c)=a1primepart;
+            d2_ford4_jj(curraindex,:,:,d4_c)=d2index_resh(lin);
+
+            maxgap=squeeze(max(max(max(max(maxindex1(:,1,2:end,:,:,:)-maxindex1(:,1,1:end-1,:,:,:),[],6),[],5),[],4),[],1));
+            for ii=1:(vfoptions.level1n-1)
+                curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
+                if maxgap(ii)>0
+                    loweredge=min(maxindex1(:,1,ii,:,:,:),N_a1-maxgap(ii));
+                    a1primeindexes=loweredge+(0:1:maxgap(ii));
+                    ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],maxgap(ii)+1,level1iidiff(ii),n_a2,n_semiz,n_e, d13_with_d4, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,3,0);
+                    d3aprimez=d3ind+N_d3*(a1primeindexes-1)+N_d3*N_a1*shiftdim(zBind,-2);
+                    entireRHS_ii=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz,N_e]);
+                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                    V_ford4_jj(curraindex,:,:,d4_c)=shiftdim(Vtempii,1);
+                    dind=(rem(maxindex-1,N_d13)+1);
+                    allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind+N_d13*N_a2*N_semiz*eBind;
+                    pol_d13_a1=shiftdim(maxindex+N_d13*(loweredge(allind)-1),1);
+                    d1part=rem(pol_d13_a1-1,N_d1)+1;
+                    d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                    a1primepart=ceil(pol_d13_a1/N_d13);
+                    [npts,nz,ne]=size(pol_d13_a1);
+                    zidx=repmat(gpuArray(reshape(1:nz,[1,nz,1])),npts,1,ne);
+                    lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                    d1_ford4_jj(curraindex,:,:,d4_c)=d1part;
+                    d3_ford4_jj(curraindex,:,:,d4_c)=d3part;
+                    a1prime_ford4_jj(curraindex,:,:,d4_c)=a1primepart;
+                    d2_ford4_jj(curraindex,:,:,d4_c)=d2index_resh(lin);
+                else
+                    loweredge=maxindex1(:,1,ii,:,:,:);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],1,level1iidiff(ii),n_a2,n_semiz,n_e, d13_with_d4, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,3,0);
+                    d3aprimez=d3ind+N_d3*(loweredge-1)+N_d3*N_a1*shiftdim(zBind,-2);
+                    entireRHS_ii=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13,level1iidiff(ii)*N_a2,N_semiz,N_e]);
+                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                    V_ford4_jj(curraindex,:,:,d4_c)=shiftdim(Vtempii,1);
+                    dind=(rem(maxindex-1,N_d13)+1);
+                    allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind+N_d13*N_a2*N_semiz*eBind;
+                    pol_d13_a1=shiftdim(maxindex+N_d13*(loweredge(allind)-1),1);
+                    d1part=rem(pol_d13_a1-1,N_d1)+1;
+                    d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                    a1primepart=ceil(pol_d13_a1/N_d13);
+                    [npts,nz,ne]=size(pol_d13_a1);
+                    zidx=repmat(gpuArray(reshape(1:nz,[1,nz,1])),npts,1,ne);
+                    lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                    d1_ford4_jj(curraindex,:,:,d4_c)=d1part;
+                    d3_ford4_jj(curraindex,:,:,d4_c)=d3part;
+                    a1prime_ford4_jj(curraindex,:,:,d4_c)=a1primepart;
+                    d2_ford4_jj(curraindex,:,:,d4_c)=d2index_resh(lin);
+                end
+            end
+        end
+
+    elseif vfoptions.lowmemory>=1
+        % Loop over e inside d4
+        for d4_c=1:N_d4
+            pi_semizd4=pi_semiz(:,:,d4_c);
+            d13_with_d4=[d13_gridvals,repmat(d4_gridvals(d4_c,:),N_d13,1)];
+
+            % Compute d2-refined EV once for this d4 (independent of e)
+            EV=EVnext.*shiftdim(pi_semizd4',-1);
+            EV(isnan(EV))=0;
+            EV=sum(EV,2);
+            EV=reshape(EV,[N_a,N_semiz]);
+
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_semiz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz)-1)));
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_semiz);
+            aprimeProbs(skipinterp)=0;
+            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_semiz]);
+
+            EV1=reshape(EV(aprimeIndex(:)+N_a*((1:1:N_semiz)-1)),[N_d23*N_a1,N_u,N_semiz]).*aprimeProbs;
+            EV2=reshape(EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz)-1)),[N_d23*N_a1,N_u,N_semiz]).*(1-aprimeProbs);
+            EV=sum(EV1.*pi_u_col',2)+sum(EV2.*pi_u_col',2);
+            EV=reshape(EV,[N_d23*N_a1,N_semiz]);
+
+            EVres=reshape(EV,[N_d2,N_d3*N_a1,N_semiz]);
+            [EV_onlyd3,d2index]=max(EVres,[],1);
+            EV_onlyd3=reshape(EV_onlyd3,[N_d3*N_a1,N_semiz]);
+            d2index_resh=reshape(d2index,[N_d3,N_a1,N_semiz]);
+
+            DiscountedEV=DiscountFactorParamsVec*reshape(EV_onlyd3,[N_d3,N_a1,1,1,N_semiz]);
+
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ii_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],n_a1,vfoptions.level1n,n_a2,n_semiz,ones(1,length(n_e)), d13_with_d4, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1,0);
+                RM=reshape(ReturnMatrix_ii_e,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2,N_semiz]);
+                DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1,N_semiz]);
+                entireRHS_ii_e=RM+DEV;
+                entireRHS_ii_e=reshape(entireRHS_ii_e,[N_d13,N_a1,vfoptions.level1n,N_a2,N_semiz]);
+
+                [~,maxindex1]=max(entireRHS_ii_e,[],2);
+                [Vtempii,maxindex2]=max(reshape(entireRHS_ii_e,[N_d13*N_a1,vfoptions.level1n*N_a2,N_semiz]),[],1);
+                curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
+                V_ford4_jj(curraindex,:,e_c,d4_c)=shiftdim(Vtempii,1);
+                pol_d13_a1=shiftdim(maxindex2,1);
+                d1part=rem(pol_d13_a1-1,N_d1)+1;
+                d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                a1primepart=ceil(pol_d13_a1/N_d13);
+                [npts,nz]=size(pol_d13_a1);
+                zidx=repmat(gpuArray(1:nz),npts,1);
+                lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                d1_ford4_jj(curraindex,:,e_c,d4_c)=d1part;
+                d3_ford4_jj(curraindex,:,e_c,d4_c)=d3part;
+                a1prime_ford4_jj(curraindex,:,e_c,d4_c)=a1primepart;
+                d2_ford4_jj(curraindex,:,e_c,d4_c)=d2index_resh(lin);
+
+                maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
+                for ii=1:(vfoptions.level1n-1)
+                    curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
+                    if maxgap(ii)>0
+                        loweredge=min(maxindex1(:,1,ii,:,:),N_a1-maxgap(ii));
+                        a1primeindexes=loweredge+(0:1:maxgap(ii));
+                        ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],maxgap(ii)+1,level1iidiff(ii),n_a2,n_semiz,ones(1,length(n_e)), d13_with_d4, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,3,0);
+                        d3aprimez=d3ind+N_d3*(a1primeindexes-1)+N_d3*N_a1*shiftdim(zBind,-2);
+                        entireRHS_ii_e=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz]);
+                        [Vtempii,maxindex]=max(entireRHS_ii_e,[],1);
+                        V_ford4_jj(curraindex,:,e_c,d4_c)=shiftdim(Vtempii,1);
+                        dind=(rem(maxindex-1,N_d13)+1);
+                        allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind;
+                        pol_d13_a1=shiftdim(maxindex+N_d13*(loweredge(allind)-1),1);
+                        d1part=rem(pol_d13_a1-1,N_d1)+1;
+                        d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                        a1primepart=ceil(pol_d13_a1/N_d13);
+                        [npts,nz]=size(pol_d13_a1);
+                        zidx=repmat(gpuArray(1:nz),npts,1);
+                        lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                        d1_ford4_jj(curraindex,:,e_c,d4_c)=d1part;
+                        d3_ford4_jj(curraindex,:,e_c,d4_c)=d3part;
+                        a1prime_ford4_jj(curraindex,:,e_c,d4_c)=a1primepart;
+                        d2_ford4_jj(curraindex,:,e_c,d4_c)=d2index_resh(lin);
+                    else
+                        loweredge=maxindex1(:,1,ii,:,:);
+                        ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],1,level1iidiff(ii),n_a2,n_semiz,ones(1,length(n_e)), d13_with_d4, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,3,0);
+                        d3aprimez=d3ind+N_d3*(loweredge-1)+N_d3*N_a1*shiftdim(zBind,-2);
+                        entireRHS_ii_e=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13,level1iidiff(ii)*N_a2,N_semiz]);
+                        [Vtempii,maxindex]=max(entireRHS_ii_e,[],1);
+                        V_ford4_jj(curraindex,:,e_c,d4_c)=shiftdim(Vtempii,1);
+                        dind=(rem(maxindex-1,N_d13)+1);
+                        allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind;
+                        pol_d13_a1=shiftdim(maxindex+N_d13*(loweredge(allind)-1),1);
+                        d1part=rem(pol_d13_a1-1,N_d1)+1;
+                        d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                        a1primepart=ceil(pol_d13_a1/N_d13);
+                        [npts,nz]=size(pol_d13_a1);
+                        zidx=repmat(gpuArray(1:nz),npts,1);
+                        lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                        d1_ford4_jj(curraindex,:,e_c,d4_c)=d1part;
+                        d3_ford4_jj(curraindex,:,e_c,d4_c)=d3part;
+                        a1prime_ford4_jj(curraindex,:,e_c,d4_c)=a1primepart;
+                        d2_ford4_jj(curraindex,:,e_c,d4_c)=d2index_resh(lin);
+                    end
+                end
+            end
+        end
+    end
+
+    % Cross-d4 max (max over dim 4 since shape is [N_a,N_semiz,N_e,N_d4])
+    [Vbest,d4winner]=max(V_ford4_jj,[],4);
+    V(:,:,:,N_j)=Vbest;
+    N=N_a*N_semiz*N_e;
+    linidx_d4=(1:1:N)'+N*(reshape(d4winner,[N,1])-1);
+    Policy(1,:,:,:,N_j)=reshape(d1_ford4_jj(linidx_d4),[1,N_a,N_semiz,N_e]);
+    Policy(2,:,:,:,N_j)=reshape(d2_ford4_jj(linidx_d4),[1,N_a,N_semiz,N_e]);
+    Policy(3,:,:,:,N_j)=reshape(d3_ford4_jj(linidx_d4),[1,N_a,N_semiz,N_e]);
+    Policy(4,:,:,:,N_j)=reshape(d4winner,[1,N_a,N_semiz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(a1prime_ford4_jj(linidx_d4),[1,N_a,N_semiz,N_e]);
 end
 
 
@@ -151,203 +378,221 @@ for reverse_j=1:N_j-1
         pi_semiz=pi_semiz_J(:,:,:,jj);
     end
 
-    [V(:,:,:,jj),Policy(:,:,:,jj)]=internal_per_j_e(EVnext,a2primeIndex,a2primeProbs,ReturnFn,DiscountFactorParamsVec,ReturnFnParamsVec,...
-        n_d1,n_d3,n_d4,n_a1,n_a2,n_semiz,n_e,N_d1,N_d2,N_d3,N_d4,N_d13,N_d23,N_d1d2d3,N_a1,N_a2,N_a,N_semiz,N_e,N_u,...
-        d13_gridvals,d4_grid,d4_gridvals,special_n_d4,a1_gridvals,a2_gridvals,semiz_gridvals_J(:,:,jj),e_gridvals_J(:,:,jj),pi_semiz,pi_u_col,...
-        level1ii,level1iidiff,a2Bind,zBind,eBind,d3ind,V_ford4_jj,Policy_ford4_jj,vfoptions);
-end
+    aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1);
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1);
 
+    if vfoptions.lowmemory==0
+        for d4_c=1:N_d4
+            pi_semizd4=pi_semiz(:,:,d4_c); % no kron in noz case
+            d13_with_d4=[d13_gridvals,repmat(d4_gridvals(d4_c,:),N_d13,1)];
 
-end
+            EV=EVnext.*shiftdim(pi_semizd4',-1);
+            EV(isnan(EV))=0;
+            EV=sum(EV,2);
+            EV=reshape(EV,[N_a,N_semiz]);
 
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_semiz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz)-1)));
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_semiz);
+            aprimeProbs(skipinterp)=0;
+            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_semiz]);
 
-%% Per-period inner (with e, no z). EVnext has shape [N_a,N_semiz] (e already integrated out)
-function [V_jj,Policy_jj]=internal_per_j_e(EVnext,a2primeIndex,a2primeProbs,ReturnFn,DiscountFactorParamsVec,ReturnFnParamsVec,...
-    n_d1,n_d3,n_d4,n_a1,n_a2,n_semiz,n_e,N_d1,N_d2,N_d3,N_d4,N_d13,N_d23,N_d1d2d3,N_a1,N_a2,N_a,N_semiz_count,N_e_count,N_u,...
-    d13_gridvals,d4_grid,d4_gridvals,special_n_d4,a1_gridvals,a2_gridvals,semiz_gridvals,e_gridvals,pi_semiz,pi_u_col,...
-    level1ii,level1iidiff,a2Bind,zBind,eBind,d3ind,V_ford4_jj,Policy_ford4_jj,vfoptions)
+            EV1=reshape(EV(aprimeIndex(:)+N_a*((1:1:N_semiz)-1)),[N_d23*N_a1,N_u,N_semiz]).*aprimeProbs;
+            EV2=reshape(EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz)-1)),[N_d23*N_a1,N_u,N_semiz]).*(1-aprimeProbs);
+            EV=sum(EV1.*pi_u_col',2)+sum(EV2.*pi_u_col',2);
+            EV=reshape(EV,[N_d23*N_a1,N_semiz]);
 
-aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1);
-aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1);
+            EVres=reshape(EV,[N_d2,N_d3*N_a1,N_semiz]);
+            [EV_onlyd3,d2index]=max(EVres,[],1);
+            EV_onlyd3=reshape(EV_onlyd3,[N_d3*N_a1,N_semiz]);
+            d2index_resh=reshape(d2index,[N_d3,N_a1,N_semiz]);
 
-if vfoptions.lowmemory==0
-    for d4_c=1:N_d4
-        pi_semizd4=pi_semiz(:,:,d4_c); % no kron in noz case
-        d13_with_d4=[d13_gridvals,repmat(d4_gridvals(d4_c,:),N_d13,1)];
+            DiscountedEV=DiscountFactorParamsVec*reshape(EV_onlyd3,[N_d3,N_a1,1,1,N_semiz]);
 
-        EV=EVnext.*shiftdim(pi_semizd4',-1);
-        EV(isnan(EV))=0;
-        EV=sum(EV,2);
-        EV=reshape(EV,[N_a,N_semiz_count]);
+            ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],n_a1,vfoptions.level1n,n_a2,n_semiz,n_e, d13_with_d4, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1,0);
+            % [N_d13, level1n, N_a1, N_a2, N_semiz, N_e]
+            RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2,N_semiz,N_e]);
+            DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1,N_semiz,1]);
+            entireRHS_ii=RM+DEV;
+            entireRHS_ii=reshape(entireRHS_ii,[N_d13,N_a1,vfoptions.level1n,N_a2,N_semiz,N_e]);
 
-        skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_semiz_count)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz_count)-1)));
-        aprimeProbs=repmat(a2primeProbs,N_a1,N_semiz_count);
-        aprimeProbs(skipinterp)=0;
-        aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_semiz_count]);
-
-        EV1=reshape(EV(aprimeIndex(:)+N_a*((1:1:N_semiz_count)-1)),[N_d23*N_a1,N_u,N_semiz_count]).*aprimeProbs;
-        EV2=reshape(EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz_count)-1)),[N_d23*N_a1,N_u,N_semiz_count]).*(1-aprimeProbs);
-        EV=sum(EV1.*pi_u_col',2)+sum(EV2.*pi_u_col',2);
-        EV=reshape(EV,[N_d23*N_a1,N_semiz_count]);
-
-        EVres=reshape(EV,[N_d2,N_d3*N_a1,N_semiz_count]);
-        [EV_onlyd3,d2index]=max(EVres,[],1);
-        EV_onlyd3=reshape(EV_onlyd3,[N_d3*N_a1,N_semiz_count]);
-        d2index_resh=reshape(d2index,[N_d3,N_a1,N_semiz_count]);
-
-        DiscountedEV=DiscountFactorParamsVec*reshape(EV_onlyd3,[N_d3,N_a1,1,1,N_semiz_count]);
-
-        ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d3,n_a1,vfoptions.level1n,n_a2,n_semiz,n_e, d13_with_d4, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, semiz_gridvals, e_gridvals, ReturnFnParamsVec,1,0);
-        % [N_d13, level1n, N_a1, N_a2, N_semiz, N_e]
-        RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,vfoptions.level1n,N_a1,N_a2,N_semiz_count,N_e_count]);
-        DEV=reshape(DiscountedEV,[1,N_d3,1,N_a1,1,N_semiz_count,1]);
-        entireRHS_ii=RM+DEV;
-        entireRHS_ii=reshape(entireRHS_ii,[N_d13,vfoptions.level1n,N_a1,N_a2,N_semiz_count,N_e_count]);
-
-        [~,maxindex1]=max(entireRHS_ii,[],2);
-        [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d13*N_a1,vfoptions.level1n*N_a2,N_semiz_count,N_e_count]),[],1);
-        curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
-        V_ford4_jj(curraindex,:,:,d4_c)=shiftdim(Vtempii,1);
-        Policy_ford4_jj(curraindex,:,:,d4_c)=encodePolicy_with_d2lookup_e(shiftdim(maxindex2,1),N_d1,N_d2,N_d3,N_d13,d2index_resh,N_a1,N_semiz_count,N_e_count);
-
-        maxgap=squeeze(max(max(max(max(maxindex1(:,1,2:end,:,:,:)-maxindex1(:,1,1:end-1,:,:,:),[],6),[],5),[],4),[],1));
-        for ii=1:(vfoptions.level1n-1)
-            curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
-            if maxgap(ii)>0
-                loweredge=min(maxindex1(:,1,ii,:,:,:),N_a1-maxgap(ii));
-                a1primeindexes=loweredge+(0:1:maxgap(ii));
-                ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d3,maxgap(ii)+1,level1iidiff(ii),n_a2,n_semiz,n_e, d13_with_d4, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals, e_gridvals, ReturnFnParamsVec,3,0);
-                d3aprimez=d3ind+N_d3*(a1primeindexes-1)+N_d3*N_a1*zBind;
-                entireRHS_ii=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz_count,N_e_count]);
-                [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                V_ford4_jj(curraindex,:,:,d4_c)=shiftdim(Vtempii,1);
-                dind=(rem(maxindex-1,N_d13)+1);
-                allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind+N_d13*N_a2*N_semiz_count*eBind;
-                pol_d13_a1=maxindex+N_d13*(loweredge(allind)-1);
-                Policy_ford4_jj(curraindex,:,:,d4_c)=encodePolicy_with_d2lookup_e(shiftdim(pol_d13_a1,1),N_d1,N_d2,N_d3,N_d13,d2index_resh,N_a1,N_semiz_count,N_e_count);
-            else
-                loweredge=maxindex1(:,1,ii,:,:,:);
-                ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d3,1,level1iidiff(ii),n_a2,n_semiz,n_e, d13_with_d4, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals, e_gridvals, ReturnFnParamsVec,3,0);
-                d3aprimez=d3ind+N_d3*(loweredge-1)+N_d3*N_a1*zBind;
-                entireRHS_ii=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13,level1iidiff(ii)*N_a2,N_semiz_count,N_e_count]);
-                [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                V_ford4_jj(curraindex,:,:,d4_c)=shiftdim(Vtempii,1);
-                dind=(rem(maxindex-1,N_d13)+1);
-                allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind+N_d13*N_a2*N_semiz_count*eBind;
-                pol_d13_a1=maxindex+N_d13*(loweredge(allind)-1);
-                Policy_ford4_jj(curraindex,:,:,d4_c)=encodePolicy_with_d2lookup_e(shiftdim(pol_d13_a1,1),N_d1,N_d2,N_d3,N_d13,d2index_resh,N_a1,N_semiz_count,N_e_count);
-            end
-        end
-    end
-
-elseif vfoptions.lowmemory>=1
-    % Loop over e inside d4
-    for d4_c=1:N_d4
-        pi_semizd4=pi_semiz(:,:,d4_c);
-        d13_with_d4=[d13_gridvals,repmat(d4_gridvals(d4_c,:),N_d13,1)];
-
-        % Compute d2-refined EV once for this d4 (independent of e)
-        EV=EVnext.*shiftdim(pi_semizd4',-1);
-        EV(isnan(EV))=0;
-        EV=sum(EV,2);
-        EV=reshape(EV,[N_a,N_semiz_count]);
-
-        skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_semiz_count)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz_count)-1)));
-        aprimeProbs=repmat(a2primeProbs,N_a1,N_semiz_count);
-        aprimeProbs(skipinterp)=0;
-        aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_semiz_count]);
-
-        EV1=reshape(EV(aprimeIndex(:)+N_a*((1:1:N_semiz_count)-1)),[N_d23*N_a1,N_u,N_semiz_count]).*aprimeProbs;
-        EV2=reshape(EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz_count)-1)),[N_d23*N_a1,N_u,N_semiz_count]).*(1-aprimeProbs);
-        EV=sum(EV1.*pi_u_col',2)+sum(EV2.*pi_u_col',2);
-        EV=reshape(EV,[N_d23*N_a1,N_semiz_count]);
-
-        EVres=reshape(EV,[N_d2,N_d3*N_a1,N_semiz_count]);
-        [EV_onlyd3,d2index]=max(EVres,[],1);
-        EV_onlyd3=reshape(EV_onlyd3,[N_d3*N_a1,N_semiz_count]);
-        d2index_resh=reshape(d2index,[N_d3,N_a1,N_semiz_count]);
-
-        DiscountedEV=DiscountFactorParamsVec*reshape(EV_onlyd3,[N_d3,N_a1,1,1,N_semiz_count]);
-
-        for e_c=1:N_e_count
-            e_val=e_gridvals(e_c,:);
-            ReturnMatrix_ii_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d3,n_a1,vfoptions.level1n,n_a2,n_semiz,ones(1,length(n_e)), d13_with_d4, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, semiz_gridvals, e_val, ReturnFnParamsVec,1,0);
-            RM=reshape(ReturnMatrix_ii_e,[N_d1,N_d3,vfoptions.level1n,N_a1,N_a2,N_semiz_count]);
-            DEV=reshape(DiscountedEV,[1,N_d3,1,N_a1,1,N_semiz_count]);
-            entireRHS_ii_e=RM+DEV;
-            entireRHS_ii_e=reshape(entireRHS_ii_e,[N_d13,vfoptions.level1n,N_a1,N_a2,N_semiz_count]);
-
-            [~,maxindex1]=max(entireRHS_ii_e,[],2);
-            [Vtempii,maxindex2]=max(reshape(entireRHS_ii_e,[N_d13*N_a1,vfoptions.level1n*N_a2,N_semiz_count]),[],1);
+            [~,maxindex1]=max(entireRHS_ii,[],2);
+            [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d13*N_a1,vfoptions.level1n*N_a2,N_semiz,N_e]),[],1);
             curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
-            V_ford4_jj(curraindex,:,e_c,d4_c)=shiftdim(Vtempii,1);
-            Policy_ford4_jj(curraindex,:,e_c,d4_c)=encodePolicy_with_d2lookup(shiftdim(maxindex2,1),N_d1,N_d2,N_d3,N_d13,d2index_resh,N_a1,N_semiz_count);
+            V_ford4_jj(curraindex,:,:,d4_c)=shiftdim(Vtempii,1);
+            pol_d13_a1=shiftdim(maxindex2,1);
+            d1part=rem(pol_d13_a1-1,N_d1)+1;
+            d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+            a1primepart=ceil(pol_d13_a1/N_d13);
+            [npts,nz,ne]=size(pol_d13_a1);
+            zidx=repmat(gpuArray(reshape(1:nz,[1,nz,1])),npts,1,ne);
+            lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+            d1_ford4_jj(curraindex,:,:,d4_c)=d1part;
+            d3_ford4_jj(curraindex,:,:,d4_c)=d3part;
+            a1prime_ford4_jj(curraindex,:,:,d4_c)=a1primepart;
+            d2_ford4_jj(curraindex,:,:,d4_c)=d2index_resh(lin);
 
-            maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
+            maxgap=squeeze(max(max(max(max(maxindex1(:,1,2:end,:,:,:)-maxindex1(:,1,1:end-1,:,:,:),[],6),[],5),[],4),[],1));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
                 if maxgap(ii)>0
-                    loweredge=min(maxindex1(:,1,ii,:,:),N_a1-maxgap(ii));
+                    loweredge=min(maxindex1(:,1,ii,:,:,:),N_a1-maxgap(ii));
                     a1primeindexes=loweredge+(0:1:maxgap(ii));
-                    ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d3,maxgap(ii)+1,level1iidiff(ii),n_a2,n_semiz,ones(1,length(n_e)), d13_with_d4, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals, e_val, ReturnFnParamsVec,3,0);
-                    d3aprimez=d3ind+N_d3*(a1primeindexes-1)+N_d3*N_a1*zBind;
-                    entireRHS_ii_e=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz_count]);
-                    [Vtempii,maxindex]=max(entireRHS_ii_e,[],1);
-                    V_ford4_jj(curraindex,:,e_c,d4_c)=shiftdim(Vtempii,1);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],maxgap(ii)+1,level1iidiff(ii),n_a2,n_semiz,n_e, d13_with_d4, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,3,0);
+                    d3aprimez=d3ind+N_d3*(a1primeindexes-1)+N_d3*N_a1*shiftdim(zBind,-2);
+                    entireRHS_ii=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz,N_e]);
+                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                    V_ford4_jj(curraindex,:,:,d4_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d13)+1);
-                    allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind;
-                    pol_d13_a1=maxindex+N_d13*(loweredge(allind)-1);
-                    Policy_ford4_jj(curraindex,:,e_c,d4_c)=encodePolicy_with_d2lookup(shiftdim(pol_d13_a1,1),N_d1,N_d2,N_d3,N_d13,d2index_resh,N_a1,N_semiz_count);
+                    allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind+N_d13*N_a2*N_semiz*eBind;
+                    pol_d13_a1=shiftdim(maxindex+N_d13*(loweredge(allind)-1),1);
+                    d1part=rem(pol_d13_a1-1,N_d1)+1;
+                    d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                    a1primepart=ceil(pol_d13_a1/N_d13);
+                    [npts,nz,ne]=size(pol_d13_a1);
+                    zidx=repmat(gpuArray(reshape(1:nz,[1,nz,1])),npts,1,ne);
+                    lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                    d1_ford4_jj(curraindex,:,:,d4_c)=d1part;
+                    d3_ford4_jj(curraindex,:,:,d4_c)=d3part;
+                    a1prime_ford4_jj(curraindex,:,:,d4_c)=a1primepart;
+                    d2_ford4_jj(curraindex,:,:,d4_c)=d2index_resh(lin);
                 else
-                    loweredge=maxindex1(:,1,ii,:,:);
-                    ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d3,1,level1iidiff(ii),n_a2,n_semiz,ones(1,length(n_e)), d13_with_d4, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals, e_val, ReturnFnParamsVec,3,0);
-                    d3aprimez=d3ind+N_d3*(loweredge-1)+N_d3*N_a1*zBind;
-                    entireRHS_ii_e=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13,level1iidiff(ii)*N_a2,N_semiz_count]);
-                    [Vtempii,maxindex]=max(entireRHS_ii_e,[],1);
-                    V_ford4_jj(curraindex,:,e_c,d4_c)=shiftdim(Vtempii,1);
+                    loweredge=maxindex1(:,1,ii,:,:,:);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],1,level1iidiff(ii),n_a2,n_semiz,n_e, d13_with_d4, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,3,0);
+                    d3aprimez=d3ind+N_d3*(loweredge-1)+N_d3*N_a1*shiftdim(zBind,-2);
+                    entireRHS_ii=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13,level1iidiff(ii)*N_a2,N_semiz,N_e]);
+                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                    V_ford4_jj(curraindex,:,:,d4_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d13)+1);
-                    allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind;
-                    pol_d13_a1=maxindex+N_d13*(loweredge(allind)-1);
-                    Policy_ford4_jj(curraindex,:,e_c,d4_c)=encodePolicy_with_d2lookup(shiftdim(pol_d13_a1,1),N_d1,N_d2,N_d3,N_d13,d2index_resh,N_a1,N_semiz_count);
+                    allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind+N_d13*N_a2*N_semiz*eBind;
+                    pol_d13_a1=shiftdim(maxindex+N_d13*(loweredge(allind)-1),1);
+                    d1part=rem(pol_d13_a1-1,N_d1)+1;
+                    d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                    a1primepart=ceil(pol_d13_a1/N_d13);
+                    [npts,nz,ne]=size(pol_d13_a1);
+                    zidx=repmat(gpuArray(reshape(1:nz,[1,nz,1])),npts,1,ne);
+                    lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                    d1_ford4_jj(curraindex,:,:,d4_c)=d1part;
+                    d3_ford4_jj(curraindex,:,:,d4_c)=d3part;
+                    a1prime_ford4_jj(curraindex,:,:,d4_c)=a1primepart;
+                    d2_ford4_jj(curraindex,:,:,d4_c)=d2index_resh(lin);
+                end
+            end
+        end
+
+    elseif vfoptions.lowmemory>=1
+        % Loop over e inside d4
+        for d4_c=1:N_d4
+            pi_semizd4=pi_semiz(:,:,d4_c);
+            d13_with_d4=[d13_gridvals,repmat(d4_gridvals(d4_c,:),N_d13,1)];
+
+            % Compute d2-refined EV once for this d4 (independent of e)
+            EV=EVnext.*shiftdim(pi_semizd4',-1);
+            EV(isnan(EV))=0;
+            EV=sum(EV,2);
+            EV=reshape(EV,[N_a,N_semiz]);
+
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_semiz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz)-1)));
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_semiz);
+            aprimeProbs(skipinterp)=0;
+            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_semiz]);
+
+            EV1=reshape(EV(aprimeIndex(:)+N_a*((1:1:N_semiz)-1)),[N_d23*N_a1,N_u,N_semiz]).*aprimeProbs;
+            EV2=reshape(EV(aprimeplus1Index(:)+N_a*((1:1:N_semiz)-1)),[N_d23*N_a1,N_u,N_semiz]).*(1-aprimeProbs);
+            EV=sum(EV1.*pi_u_col',2)+sum(EV2.*pi_u_col',2);
+            EV=reshape(EV,[N_d23*N_a1,N_semiz]);
+
+            EVres=reshape(EV,[N_d2,N_d3*N_a1,N_semiz]);
+            [EV_onlyd3,d2index]=max(EVres,[],1);
+            EV_onlyd3=reshape(EV_onlyd3,[N_d3*N_a1,N_semiz]);
+            d2index_resh=reshape(d2index,[N_d3,N_a1,N_semiz]);
+
+            DiscountedEV=DiscountFactorParamsVec*reshape(EV_onlyd3,[N_d3,N_a1,1,1,N_semiz]);
+
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,jj);
+                ReturnMatrix_ii_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],n_a1,vfoptions.level1n,n_a2,n_semiz,ones(1,length(n_e)), d13_with_d4, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,1,0);
+                RM=reshape(ReturnMatrix_ii_e,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2,N_semiz]);
+                DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1,N_semiz]);
+                entireRHS_ii_e=RM+DEV;
+                entireRHS_ii_e=reshape(entireRHS_ii_e,[N_d13,N_a1,vfoptions.level1n,N_a2,N_semiz]);
+
+                [~,maxindex1]=max(entireRHS_ii_e,[],2);
+                [Vtempii,maxindex2]=max(reshape(entireRHS_ii_e,[N_d13*N_a1,vfoptions.level1n*N_a2,N_semiz]),[],1);
+                curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
+                V_ford4_jj(curraindex,:,e_c,d4_c)=shiftdim(Vtempii,1);
+                pol_d13_a1=shiftdim(maxindex2,1);
+                d1part=rem(pol_d13_a1-1,N_d1)+1;
+                d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                a1primepart=ceil(pol_d13_a1/N_d13);
+                [npts,nz]=size(pol_d13_a1);
+                zidx=repmat(gpuArray(1:nz),npts,1);
+                lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                d1_ford4_jj(curraindex,:,e_c,d4_c)=d1part;
+                d3_ford4_jj(curraindex,:,e_c,d4_c)=d3part;
+                a1prime_ford4_jj(curraindex,:,e_c,d4_c)=a1primepart;
+                d2_ford4_jj(curraindex,:,e_c,d4_c)=d2index_resh(lin);
+
+                maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
+                for ii=1:(vfoptions.level1n-1)
+                    curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
+                    if maxgap(ii)>0
+                        loweredge=min(maxindex1(:,1,ii,:,:),N_a1-maxgap(ii));
+                        a1primeindexes=loweredge+(0:1:maxgap(ii));
+                        ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],maxgap(ii)+1,level1iidiff(ii),n_a2,n_semiz,ones(1,length(n_e)), d13_with_d4, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,3,0);
+                        d3aprimez=d3ind+N_d3*(a1primeindexes-1)+N_d3*N_a1*shiftdim(zBind,-2);
+                        entireRHS_ii_e=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz]);
+                        [Vtempii,maxindex]=max(entireRHS_ii_e,[],1);
+                        V_ford4_jj(curraindex,:,e_c,d4_c)=shiftdim(Vtempii,1);
+                        dind=(rem(maxindex-1,N_d13)+1);
+                        allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind;
+                        pol_d13_a1=shiftdim(maxindex+N_d13*(loweredge(allind)-1),1);
+                        d1part=rem(pol_d13_a1-1,N_d1)+1;
+                        d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                        a1primepart=ceil(pol_d13_a1/N_d13);
+                        [npts,nz]=size(pol_d13_a1);
+                        zidx=repmat(gpuArray(1:nz),npts,1);
+                        lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                        d1_ford4_jj(curraindex,:,e_c,d4_c)=d1part;
+                        d3_ford4_jj(curraindex,:,e_c,d4_c)=d3part;
+                        a1prime_ford4_jj(curraindex,:,e_c,d4_c)=a1primepart;
+                        d2_ford4_jj(curraindex,:,e_c,d4_c)=d2index_resh(lin);
+                    else
+                        loweredge=maxindex1(:,1,ii,:,:);
+                        ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,[n_d3,special_n_d4],1,level1iidiff(ii),n_a2,n_semiz,ones(1,length(n_e)), d13_with_d4, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,3,0);
+                        d3aprimez=d3ind+N_d3*(loweredge-1)+N_d3*N_a1*shiftdim(zBind,-2);
+                        entireRHS_ii_e=reshape(ReturnMatrix_ii+DiscountedEV(d3aprimez),[N_d13,level1iidiff(ii)*N_a2,N_semiz]);
+                        [Vtempii,maxindex]=max(entireRHS_ii_e,[],1);
+                        V_ford4_jj(curraindex,:,e_c,d4_c)=shiftdim(Vtempii,1);
+                        dind=(rem(maxindex-1,N_d13)+1);
+                        allind=dind+N_d13*repelem(a2Bind,1,level1iidiff(ii))+N_d13*N_a2*zBind;
+                        pol_d13_a1=shiftdim(maxindex+N_d13*(loweredge(allind)-1),1);
+                        d1part=rem(pol_d13_a1-1,N_d1)+1;
+                        d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
+                        a1primepart=ceil(pol_d13_a1/N_d13);
+                        [npts,nz]=size(pol_d13_a1);
+                        zidx=repmat(gpuArray(1:nz),npts,1);
+                        lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
+                        d1_ford4_jj(curraindex,:,e_c,d4_c)=d1part;
+                        d3_ford4_jj(curraindex,:,e_c,d4_c)=d3part;
+                        a1prime_ford4_jj(curraindex,:,e_c,d4_c)=a1primepart;
+                        d2_ford4_jj(curraindex,:,e_c,d4_c)=d2index_resh(lin);
+                    end
                 end
             end
         end
     end
+
+    % Cross-d4 max (max over dim 4 since shape is [N_a,N_semiz,N_e,N_d4])
+    [Vbest,d4winner]=max(V_ford4_jj,[],4);
+    V(:,:,:,jj)=Vbest;
+    N=N_a*N_semiz*N_e;
+    linidx_d4=(1:1:N)'+N*(reshape(d4winner,[N,1])-1);
+    Policy(1,:,:,:,jj)=reshape(d1_ford4_jj(linidx_d4),[1,N_a,N_semiz,N_e]);
+    Policy(2,:,:,:,jj)=reshape(d2_ford4_jj(linidx_d4),[1,N_a,N_semiz,N_e]);
+    Policy(3,:,:,:,jj)=reshape(d3_ford4_jj(linidx_d4),[1,N_a,N_semiz,N_e]);
+    Policy(4,:,:,:,jj)=reshape(d4winner,[1,N_a,N_semiz,N_e]);
+    Policy(5,:,:,:,jj)=reshape(a1prime_ford4_jj(linidx_d4),[1,N_a,N_semiz,N_e]);
 end
 
-% Cross-d4 max (max over dim 4 since shape is [N_a,N_semiz,N_e,N_d4])
-[V_jj,d4winner]=max(V_ford4_jj,[],4);
-N=N_a*N_semiz_count*N_e_count;
-linidx_d4=(1:1:N)'+N*(reshape(d4winner,[N,1])-1);
-pol_no_d4=reshape(Policy_ford4_jj(linidx_d4),[N_a,N_semiz_count,N_e_count]);
-d1d2d3_part=rem(pol_no_d4-1,N_d1d2d3)+1;
-a1primepart=ceil(pol_no_d4/N_d1d2d3);
-Policy_jj=d1d2d3_part+N_d1d2d3*(d4winner-1)+N_d1d2d3*N_d4*(a1primepart-1);
 
-end
-
-
-%% Helpers
-function pol=encodePolicy_with_d2lookup(pol_d13_a1,N_d1,N_d2,N_d3,N_d13,d2index_resh,N_a1,N_bothz_count)
-% pol_d13_a1: [npts,N_bothz]
-d1part=rem(pol_d13_a1-1,N_d1)+1;
-d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
-a1primepart=ceil(pol_d13_a1/N_d13);
-[npts,nz]=size(pol_d13_a1);
-zidx=repmat(gpuArray(1:nz),npts,1);
-lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
-d2part=d2index_resh(lin);
-pol=d1part+N_d1*(d2part-1)+N_d1*N_d2*(d3part-1)+N_d1*N_d2*N_d3*(a1primepart-1);
-end
-
-function pol=encodePolicy_with_d2lookup_e(pol_d13_a1,N_d1,N_d2,N_d3,N_d13,d2index_resh,N_a1,N_bothz_count,N_e_count)
-% pol_d13_a1: [npts,N_bothz,N_e]; d2index_resh: [N_d3,N_a1,N_bothz]  (no e dep)
-d1part=rem(pol_d13_a1-1,N_d1)+1;
-d3part=rem(ceil(pol_d13_a1/N_d1)-1,N_d3)+1;
-a1primepart=ceil(pol_d13_a1/N_d13);
-[npts,nz,ne]=size(pol_d13_a1);
-zidx=repmat(gpuArray(reshape(1:nz,[1,nz,1])),npts,1,ne);
-lin=d3part+N_d3*(a1primepart-1)+N_d3*N_a1*(zidx-1);
-d2part=d2index_resh(lin);
-pol=d1part+N_d1*(d2part-1)+N_d1*N_d2*(d3part-1)+N_d1*N_d2*N_d3*(a1primepart-1);
 end

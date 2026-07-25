@@ -121,10 +121,10 @@ else % V_Jplus1
 
     % Layer 1
     ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, n_d1,n_d3,n_a1,vfoptions.level1n,n_a2, d13_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, ReturnFnParamsVec,1,0);
-    RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,vfoptions.level1n,N_a1,N_a2]);
-    DEV=reshape(DiscountedEV,[1,N_d3,1,N_a1,1]);
+    RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2]);
+    DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1]);
     entireRHS_ii=RM+DEV;
-    entireRHS_ii=reshape(entireRHS_ii,[N_d13,vfoptions.level1n,N_a1,N_a2]);
+    entireRHS_ii=reshape(entireRHS_ii,[N_d13,N_a1,vfoptions.level1n,N_a2]);
 
     [~,maxindex1]=max(entireRHS_ii,[],2);
     [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d13*N_a1,vfoptions.level1n*N_a2]),[],1);
@@ -229,10 +229,10 @@ for reverse_j=1:N_j-1
 
     % Layer 1
     ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, n_d1,n_d3,n_a1,vfoptions.level1n,n_a2, d13_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, ReturnFnParamsVec,1,0);
-    RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,vfoptions.level1n,N_a1,N_a2]);
-    DEV=reshape(DiscountedEV,[1,N_d3,1,N_a1,1]);
+    RM=reshape(ReturnMatrix_ii,[N_d1,N_d3,N_a1,vfoptions.level1n,N_a2]);
+    DEV=reshape(DiscountedEV,[1,N_d3,N_a1,1,1]);
     entireRHS_ii=RM+DEV;
-    entireRHS_ii=reshape(entireRHS_ii,[N_d13,vfoptions.level1n,N_a1,N_a2]);
+    entireRHS_ii=reshape(entireRHS_ii,[N_d13,N_a1,vfoptions.level1n,N_a2]);
 
     [~,maxindex1]=max(entireRHS_ii,[],2);
     [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d13*N_a1,vfoptions.level1n*N_a2]),[],1);

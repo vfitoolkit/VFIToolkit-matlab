@@ -125,7 +125,7 @@ else
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex_d4-1)),[1,N_a,N_semiz]);
         Policy(3,:,:,N_j)=d3_ind;
         Policy(2,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
-        d1_lookup=d3_ind+N_d3*shiftdim(aind,-1)+N_d3*N_a*semizind+N_d3*N_a*N_semiz*shiftdim(maxindex-1,-1);
+        d1_lookup=d3_ind+N_d3*aind+N_d3*N_a*semizind+N_d3*N_a*N_semiz*shiftdim(maxindex-1,-1);
         Policy(1,:,:,N_j)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
 
     elseif vfoptions.lowmemory==1
@@ -166,7 +166,7 @@ else
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex_d4-1)),[1,N_a,N_semiz]);
         Policy(3,:,:,N_j)=d3_ind;
         Policy(2,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
-        d1_lookup=d3_ind+N_d3*shiftdim(aind,-1)+N_d3*N_a*semizind+N_d3*N_a*N_semiz*shiftdim(maxindex-1,-1);
+        d1_lookup=d3_ind+N_d3*aind+N_d3*N_a*semizind+N_d3*N_a*N_semiz*shiftdim(maxindex-1,-1);
         Policy(1,:,:,N_j)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
     end
 end
@@ -202,7 +202,7 @@ for reverse_j=1:N_j-1
             d1_d3_special_d4_gridvals=gpuArray(CreateGridvals([n_d1,n_d3,special_n_d4], [d1_grid; d3_grid; d4_gridvals(d4_c,:)'], 1));
             ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d3,special_n_d4], n_a, n_semiz, d1_d3_special_d4_gridvals, a_gridvals, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
-            EV=EV.*shiftdim(pi_semizd4',-1);
+            EV=V(:,:,jj+1).*shiftdim(pi_semizd4',-1);
             EV(isnan(EV))=0;
             EV=sum(EV,2);
 
@@ -234,7 +234,7 @@ for reverse_j=1:N_j-1
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex_d4-1)),[1,N_a,N_semiz]);
         Policy(3,:,:,jj)=d3_ind;
         Policy(2,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
-        d1_lookup=d3_ind+N_d3*shiftdim(aind,-1)+N_d3*N_a*semizind+N_d3*N_a*N_semiz*shiftdim(maxindex-1,-1);
+        d1_lookup=d3_ind+N_d3*aind+N_d3*N_a*semizind+N_d3*N_a*N_semiz*shiftdim(maxindex-1,-1);
         Policy(1,:,:,jj)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
 
     elseif vfoptions.lowmemory==1
@@ -275,7 +275,7 @@ for reverse_j=1:N_j-1
         d3_ind=reshape(Policy_ford4_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex_d4-1)),[1,N_a,N_semiz]);
         Policy(3,:,:,jj)=d3_ind;
         Policy(2,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*semizind+N_d3*N_semiz*shiftdim(maxindex-1,-1)),-1);
-        d1_lookup=d3_ind+N_d3*shiftdim(aind,-1)+N_d3*N_a*semizind+N_d3*N_a*N_semiz*shiftdim(maxindex-1,-1);
+        d1_lookup=d3_ind+N_d3*aind+N_d3*N_a*semizind+N_d3*N_a*N_semiz*shiftdim(maxindex-1,-1);
         Policy(1,:,:,jj)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
     end
 end

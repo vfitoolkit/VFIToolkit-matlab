@@ -4,6 +4,7 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_nod1_noa1_raw(n_d2,n_d3,n_a,n_z
 
 N_d2=prod(n_d2);
 N_d3=prod(n_d3);
+N_d=N_d2*N_d3; % aprime d-space (d2,d3); d1 is refined out separately
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_u=prod(n_u);

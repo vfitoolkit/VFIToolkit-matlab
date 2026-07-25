@@ -160,7 +160,7 @@ else % V_Jplus1
     a1primeindexesfine=(midpoint_jj+(midpoint_jj-1)*n2short)+(-n2short-1:1:1+n2short);
     ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, 0,n_d3,n2long,n_a1,n_a2, d3_gridvals, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, ReturnFnParamsVec,2,0);
     da1prime=d3ind+N_d3*(a1primeindexesfine-1);
-    entireRHS_ii=reshape(ReturnMatrix_ii+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2]),[N_d3*n2long,N_a1*N_a2]);
+    entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d3,n2long,N_a1,N_a2])+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2]),[N_d3*n2long,N_a1*N_a2]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
     V(:,N_j)=shiftdim(Vtempii,1);
     d3_ind=rem(maxindexL2-1,N_d3)+1;
@@ -182,7 +182,7 @@ else % V_Jplus1
 
     % Get the d2Policy
     a1mid=squeeze(midpoint_jj(allind));
-    linlookup=shiftdim(d3_ind,1)+N_d3*(a1mid-1);
+    linlookup=d3_ind+N_d3*(a1mid-1);
     Policy(1,:,N_j)=shiftdim(d2index_resh(linlookup),-1);
 end
 
@@ -256,7 +256,7 @@ for reverse_j=1:N_j-1
     a1primeindexesfine=(midpoint_jj+(midpoint_jj-1)*n2short)+(-n2short-1:1:1+n2short);
     ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_noz(ReturnFn, 0,n_d3,n2long,n_a1,n_a2, d3_gridvals, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, ReturnFnParamsVec,2,0);
     da1prime=d3ind+N_d3*(a1primeindexesfine-1);
-    entireRHS_ii=reshape(ReturnMatrix_ii+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2]),[N_d3*n2long,N_a1*N_a2]);
+    entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d3,n2long,N_a1,N_a2])+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2]),[N_d3*n2long,N_a1*N_a2]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
     V(:,jj)=shiftdim(Vtempii,1);
     d3_ind=rem(maxindexL2-1,N_d3)+1;
@@ -278,16 +278,16 @@ for reverse_j=1:N_j-1
 
     % Get the d2Policy
     a1mid=squeeze(midpoint_jj(allind));
-    linlookup=shiftdim(d3_ind,1)+N_d3*(a1mid-1);
+    linlookup=d3_ind+N_d3*(a1mid-1);
     Policy(1,:,jj)=shiftdim(d2index_resh(linlookup),-1);
 
 end
 
 
 %% Switch Policy(3,:) from 'midpoint' to 'lower grid index'
-adjust=(Policy(4,:,)<1+n2short+1);
-Policy(3,:,)=Policy(3,:,)-adjust;
-Policy(4,:,)=adjust.*Policy(4,:,)+(1-adjust).*(Policy(4,:,)-n2short-1);
+adjust=(Policy(4,:,:)<1+n2short+1);
+Policy(3,:,:)=Policy(3,:,:)-adjust;
+Policy(4,:,:)=adjust.*Policy(4,:,:)+(1-adjust).*(Policy(4,:,:)-n2short-1);
 
 Policy=[Policy; PolicyL2flag];
 

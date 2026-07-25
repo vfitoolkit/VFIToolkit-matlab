@@ -105,7 +105,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
-    [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
     aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
@@ -125,13 +125,14 @@ else
 
         % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
         % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-        skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
-        aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+        skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
+        aprimeProbs=repmat(a2primeProbs,N_a1,N_z);  % [N_d*N_a1,N_u]
         aprimeProbs(skipinterp)=0;
+        aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_z]);
 
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-        EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the lower aprime
-        EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the upper aprime
+        EV1=EV(aprimeIndex(:)+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the lower aprime
+        EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the upper aprime
 
         % Apply the aprimeProbs
         EV1=reshape(EV1,[N_d23*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
@@ -155,7 +156,7 @@ else
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(3,:,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy(4,:,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
-        Policy(1,:,:,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind+N_d3*N_a*N_z*eind),1);
+        Policy(1,:,:,:,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind+N_d3*N_a1*N_a*N_z*eind),1);
         Policy(2,:,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
 
     elseif vfoptions.lowmemory==1
@@ -165,13 +166,14 @@ else
 
         % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
         % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-        skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
-        aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+        skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
+        aprimeProbs=repmat(a2primeProbs,N_a1,N_z);  % [N_d*N_a1,N_u]
         aprimeProbs(skipinterp)=0;
+        aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_z]);
 
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-        EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the lower aprime
-        EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the upper aprime
+        EV1=EV(aprimeIndex(:)+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the lower aprime
+        EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the upper aprime
 
         % Apply the aprimeProbs
         EV1=reshape(EV1,[N_d23*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
@@ -181,7 +183,7 @@ else
         EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d&a1prime,u,z), sum over u
         % EV is over (d&a1prime,1,z)
 
-        betaEV=DiscountFactorParamsVec*EV.*ones(1,N_a,1);
+        betaEV=DiscountFactorParamsVec*EV;
 
         % Time to refine
         % Second (out of order): EV, we can refine out d2
@@ -204,7 +206,7 @@ else
             V(:,:,e_c,N_j)=shiftdim(Vtemp,1);
             Policy(3,:,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
             Policy(4,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
-            Policy(1,:,:,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
+            Policy(1,:,:,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind),1);
             Policy(2,:,:,e_c,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
         end
 
@@ -232,7 +234,7 @@ else
             EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d&a1prime,u), sum over u
             % EV is over (d&a1prime,1)
 
-            betaEV_z=DiscountFactorParamsVec*EV_z.*ones(1,N_a,1);
+            betaEV_z=DiscountFactorParamsVec*EV_z;
 
             % Time to refine
             % Second (out of order): EV, we can refine out d2
@@ -255,7 +257,7 @@ else
                 V(:,z_c,e_c,N_j)=Vtemp;
                 Policy(3,:,z_c,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
                 Policy(4,:,z_c,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
-                Policy(1,:,z_c,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*aind),1);
+                Policy(1,:,z_c,e_c,N_j)=shiftdim(d1index(maxindex+N_d3*N_a1*aind),1);
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(d2index(maxindex),1);
             end
         end
@@ -281,7 +283,7 @@ for reverse_j=1:N_j-1
     EV=sum(EV.*pi_e_J(1,1,:,jj),3);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
     aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
@@ -299,13 +301,14 @@ for reverse_j=1:N_j-1
 
         % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
         % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-        skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
-        aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+        skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
+        aprimeProbs=repmat(a2primeProbs,N_a1,N_z);  % [N_d*N_a1,N_u]
         aprimeProbs(skipinterp)=0;
+        aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_z]);
 
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-        EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the lower aprime
-        EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the upper aprime
+        EV1=EV(aprimeIndex(:)+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the lower aprime
+        EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1)); % (d&a1prime,u,z), the upper aprime
 
         % Apply the aprimeProbs
         EV1=reshape(EV1,[N_d23*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
@@ -330,7 +333,7 @@ for reverse_j=1:N_j-1
         V(:,:,:,jj)=shiftdim(Vtemp,1);
         Policy(3,:,:,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy(4,:,:,:,jj)=shiftdim(ceil(maxindex/N_d3),-1);
-        Policy(1,:,:,:,jj)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind+N_d3*N_a*N_z*eind),1);
+        Policy(1,:,:,:,jj)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind+N_d3*N_a1*N_a*N_z*eind),1);
         Policy(2,:,:,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
 
     elseif vfoptions.lowmemory==1
@@ -341,13 +344,14 @@ for reverse_j=1:N_j-1
 
         % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
         % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-        skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
-        aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+        skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
+        aprimeProbs=repmat(a2primeProbs,N_a1,N_z);  % [N_d*N_a1,N_u]
         aprimeProbs(skipinterp)=0;
+        aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_z]);
 
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-        EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
-        EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
+        EV1=EV(aprimeIndex(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
+        EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
 
         % Apply the aprimeProbs
         EV1=reshape(EV1,[N_d23*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
@@ -357,7 +361,7 @@ for reverse_j=1:N_j-1
         EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d&a1prime,u,z), sum over u
         % EV is over (d&a1prime,1,z)
 
-        betaEV=DiscountFactorParamsVec*EV.*ones(1,N_a,1);
+        betaEV=DiscountFactorParamsVec*EV;
 
         % Time to refine
         % Second (out of order): EV, we can refine out d2
@@ -379,7 +383,7 @@ for reverse_j=1:N_j-1
             V(:,:,e_c,jj)=shiftdim(Vtemp,1);
             Policy(3,:,:,e_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
             Policy(4,:,:,e_c,jj)=shiftdim(ceil(maxindex/N_d3),-1);
-            Policy(1,:,:,e_c,jj)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
+            Policy(1,:,:,e_c,jj)=shiftdim(d1index(maxindex+N_d3*N_a1*aind+N_d3*N_a1*N_a*zind),1);
             Policy(2,:,:,e_c,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
         end
 
@@ -408,7 +412,7 @@ for reverse_j=1:N_j-1
             EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d&a1prime,u), sum over u
             % EV_z is over (d&a1prime,1)
 
-            betaEV_z=DiscountFactorParamsVec*EV_z.*ones(1,N_a,1);
+            betaEV_z=DiscountFactorParamsVec*EV_z;
 
             % Time to refine
             % Second (out of order): EV, we can refine out d2
@@ -431,7 +435,7 @@ for reverse_j=1:N_j-1
                 V(:,z_c,e_c,jj)=Vtemp;
                 Policy(3,:,z_c,e_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
                 Policy(4,:,z_c,e_c,jj)=shiftdim(ceil(maxindex/N_d3),-1);
-                Policy(1,:,z_c,e_c,jj)=shiftdim(d1index(maxindex+N_d3*aind),1);
+                Policy(1,:,z_c,e_c,jj)=shiftdim(d1index(maxindex+N_d3*N_a1*aind),1);
                 Policy(2,:,z_c,e_c,jj)=shiftdim(d2index(maxindex),1);
             end
         end

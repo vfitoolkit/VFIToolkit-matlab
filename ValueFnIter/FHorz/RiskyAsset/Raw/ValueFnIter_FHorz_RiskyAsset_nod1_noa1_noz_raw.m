@@ -120,8 +120,8 @@ for reverse_j=1:N_j-1
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,jj)=Vtemp;
-    Policy(2,:,N_j)=shiftdim(maxindex,1); % d3
-    Policy(1,:,N_j)=shiftdim(d2index(maxindex),1); % d2
+    Policy(2,:,jj)=shiftdim(maxindex,1); % d3
+    Policy(1,:,jj)=shiftdim(d2index(maxindex),1); % d2
 end
 
 

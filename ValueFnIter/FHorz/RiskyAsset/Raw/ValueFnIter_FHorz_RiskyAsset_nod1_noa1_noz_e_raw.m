@@ -4,6 +4,7 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_nod1_noa1_noz_e_raw(n_d2,n_d3,n
 
 N_d2=prod(n_d2);
 N_d3=prod(n_d3);
+N_d=N_d2*N_d3; % aprime d-space (d2,d3); d1 is refined out separately
 N_a=prod(n_a);
 N_e=prod(n_e);
 N_u=prod(n_u);
@@ -39,7 +40,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d3, n_a,n_e, d3_gridvals, a_gridvals,e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d3, n_a,n_e, d3_gridvals, a_gridvals,e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -49,8 +50,8 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            e_val=e_gridvals_J(a_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d3, n_a, special_n_e, d3_gridvals, a_gridvals, e_val, ReturnFnParamsVec,0);
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d3, n_a, special_n_e, d3_gridvals, a_gridvals, e_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,e_c,N_j)=Vtemp;
@@ -169,10 +170,9 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==1
 
-       betaEV=DiscountFactorParamsVec*EV.*ones(1,N_a,1);
        % Time to refine
        % Second (out of order): EV, we can refine out d2
-       [EV_onlyd3,d2index]=max(reshape(betaEV,[N_d2,N_d3,1]),[],1);
+       [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3,1]),[],1);
 
        for e_c=1:N_e
            e_val=e_gridvals_J(e_c,:,jj);
@@ -187,8 +187,8 @@ for reverse_j=1:N_j-1
            %Calc the max and it's index
            [Vtemp,maxindex]=max(entireRHS_e,[],1);
            V(:,e_c,jj)=Vtemp;
-           Policy(2,:,e_c,N_j)=shiftdim(maxindex,1);
-           Policy(1,:,e_c,N_j)=shiftdim(d2index(maxindex),1);
+           Policy(2,:,e_c,jj)=shiftdim(maxindex,1);
+           Policy(1,:,e_c,jj)=shiftdim(d2index(maxindex),1);
         end
 
     end

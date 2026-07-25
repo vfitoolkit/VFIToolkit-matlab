@@ -6,6 +6,7 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_noa1_noz_raw(n_d1,n_d2,n_d3,n_a
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 N_d3=prod(n_d3);
+N_d=N_d2*N_d3; % aprime d-space (d2,d3); d1 is refined out separately
 N_a=prod(n_a);
 N_u=prod(n_u);
 
@@ -123,9 +124,9 @@ for reverse_j=1:N_j-1
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
     V(:,jj)=Vtemp;
-    Policy(3,:,N_j)=shiftdim(maxindex,1);
-    Policy(1,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind),1);
-    Policy(2,:,N_j)=shiftdim(d2index(maxindex),1);
+    Policy(3,:,jj)=shiftdim(maxindex,1);
+    Policy(1,:,jj)=shiftdim(d1index(maxindex+N_d3*aind),1);
+    Policy(2,:,jj)=shiftdim(d2index(maxindex),1);
 end
 
 
