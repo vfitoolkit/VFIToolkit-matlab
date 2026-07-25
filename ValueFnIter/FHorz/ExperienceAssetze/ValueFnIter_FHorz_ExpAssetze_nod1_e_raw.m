@@ -13,10 +13,10 @@ Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
-if vfoptions.lowmemory>=1
+if vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e));
-end
-if vfoptions.lowmemory==2
+elseif vfoptions.lowmemory==2
+    special_n_e=ones(1,length(n_e));
     special_n_z=ones(1,length(n_z));
 end
 
@@ -84,7 +84,9 @@ else
         aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
         % Switch EV from being in terms of a2prime to being in terms of d2 and a2
-        EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2*a1prime,a2,z_cur,e_cur,zprime)
+        EV_l=aprimeProbs.*Vlower; EV_u=(1-aprimeProbs).*Vupper;
+        EV_l(isnan(EV_l))=0; EV_u(isnan(EV_u))=0;
+        EV=EV_l+EV_u; % (d2*a1prime,a2,z_cur,e_cur,zprime)
     else
         % l_a2==2: bilinear nested 2-corner interp with per-contribution NaN cleanup
         n_a2_1=n_a2(1);
@@ -124,13 +126,14 @@ else
     EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
     EV=reshape(sum(EV,5),[N_d2*N_a1,N_a2,N_z,N_e]); % sum zprime -> (d2*a1prime,a2,z_cur,e_cur)
 
-    DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1,1);
+    % This creates a large matrix that defeats the lowmemory ideas, so build case-by-case
+    % DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1,1);
 
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-        entireRHS=ReturnMatrix+DiscountedEV;
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1,1);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -144,7 +147,7 @@ else
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-            entireRHS_e=ReturnMatrix_e+DiscountedEV(:,:,:,e_c);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV(:,:,:,e_c),1,N_a1,1,1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -157,10 +160,9 @@ else
             z_val=z_gridvals_J(z_c,:,N_j);
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
-                DiscountedEV_ze=DiscountedEV(:,:,z_c,e_c); % DiscountedEV is 4D [N_d2*N_a1, N_a2, N_z, N_e]
                 ReturnMatrix_ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-                entireRHS_ze=ReturnMatrix_ze+DiscountedEV_ze;
+                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*repelem(EV(:,:,z_c,e_c),1,N_a1,1,1); % EV is 4D [N_d2*N_a1, N_a2, N_z, N_e]
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
@@ -204,7 +206,9 @@ for reverse_j=1:N_j-1
         aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
         % Switch EV from being in terms of a2prime to being in terms of d2 and a2
-        EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2*a1prime,a2,z_cur,e_cur,zprime)
+        EV_l=aprimeProbs.*Vlower; EV_u=(1-aprimeProbs).*Vupper;
+        EV_l(isnan(EV_l))=0; EV_u(isnan(EV_u))=0;
+        EV=EV_l+EV_u; % (d2*a1prime,a2,z_cur,e_cur,zprime)
     else
         % l_a2==2: bilinear nested 2-corner interp with per-contribution NaN cleanup
         n_a2_1=n_a2(1);
@@ -244,12 +248,12 @@ for reverse_j=1:N_j-1
     EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
     EV=reshape(sum(EV,5),[N_d2*N_a1,N_a2,N_z,N_e]); % sum zprime -> (d2*a1prime,a2,z_cur,e_cur)
 
-    DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1,1);
+    % DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1,1);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-        entireRHS=ReturnMatrix+DiscountedEV;
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1,1);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -263,7 +267,7 @@ for reverse_j=1:N_j-1
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-            entireRHS_e=ReturnMatrix_e+DiscountedEV(:,:,:,e_c);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV(:,:,:,e_c),1,N_a1,1,1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -276,10 +280,9 @@ for reverse_j=1:N_j-1
             z_val=z_gridvals_J(z_c,:,jj);
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
-                DiscountedEV_ze=DiscountedEV(:,:,z_c,e_c); % DiscountedEV is 4D [N_d2*N_a1, N_a2, N_z, N_e]
                 ReturnMatrix_ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
-                entireRHS_ze=ReturnMatrix_ze+DiscountedEV_ze;
+                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*repelem(EV(:,:,z_c,e_c),1,N_a1,1,1); % EV is 4D [N_d2*N_a1, N_a2, N_z, N_e]
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
