@@ -50,6 +50,10 @@ if isfield(vfoptions,'experienceassetu')
     % One of the endogenous states should only be counted once.
     l_aprime=l_aprime-vfoptions.experienceassetu;
 end
+if isfield(vfoptions,'experienceassetsemiz')
+    % One of the endogenous states should only be counted once.
+    l_aprime=l_aprime-vfoptions.experienceassetsemiz;
+end
 if isfield(vfoptions,'riskyasset')
     % One of the endogenous states should only be counted once.
     l_aprime=l_aprime-vfoptions.riskyasset;
