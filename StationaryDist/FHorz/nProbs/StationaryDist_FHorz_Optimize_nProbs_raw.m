@@ -88,54 +88,65 @@ for z_c=1:N_z
 
         group_idx=[0,ea_gaps,length(ea_all_idx)];
         for ll=1:length(group_idx)-1
-            all_idx=ea_all_idx(group_idx(ll)+1:group_idx(ll+1));
             vals=all_vals_jj(group_idx(ll)+1:group_idx(ll+1));
+            if length(vals)<3
+                continue
+            end
+            all_idx=ea_all_idx(group_idx(ll)+1:group_idx(ll+1));
             run_prob_sum=sum(vals);
 
             multiplier=all_idx-all_idx(1)+1;
             assert(allunique(multiplier));
 
             % Attempt to consolidate min and max values to the middle
+            % Don't take credit for zeros we created to make runs longer
             starting_zeros=sum(vals==0);
 
             zero_created=false;
-            if length(vals)>2
-                cidx=length(vals);
-                zero_candidate=zeros(1,cidx);
-                zero_candidate(cidx)=1;
-                while nnz(vals)>2
-                    % Aggressively try to zero out largest indices
-                    new_vals=linsolve([multiplier;ones(1,length(vals));zero_candidate],[sum(vals.*multiplier); run_prob_sum; 0])';
-                    new_vals=round(new_vals,epsilon_round+abs(fix(log10(run_prob_sum))));
-                    if all(new_vals==vals) || any(new_vals<0)
-                        zero_candidate(cidx)=0;
-                        break
-                    end
-                    vals=new_vals;
-                    zero_created=true;
-                    cidx=find(zero_candidate==0,1,'last');
-                    zero_candidate(cidx)=1;
-                end
-                if zero_created
+            cidx=length(vals);
+            zero_candidate=zeros(1,cidx);
+            nonzeros=true(1,cidx);
+            zero_candidate(cidx)=1;
+            while nnz(vals)>1
+                % Aggressively try to zero out largest indices
+                SystemOfEquations=[multiplier(nonzeros);ones(1,nnz(nonzeros));zero_candidate(nonzeros)];
+                GoalValues=[sum(vals(nonzeros).*multiplier(nonzeros)); run_prob_sum; 0];
+                new_vals=linsolve(SystemOfEquations,GoalValues);
+                res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
+                new_vals=round(new_vals,epsilon_round)';
+                if res_vec_mag/norm(new_vals)>1e-5 || all(new_vals==vals(nonzeros)) || any(new_vals<0)
                     zero_candidate(cidx)=0;
+                    break
                 end
-                cidx=1;
+                vals=paddata(new_vals,length(vals));
+                nonzeros(cidx)=false;
+                zero_created=true;
+                cidx=cidx-1;
                 zero_candidate(cidx)=1;
-                while nnz(vals)>1
-                    % Try to zero out least index
-                    new_vals=linsolve([multiplier;ones(1,length(vals));zero_candidate],[sum(vals.*multiplier); run_prob_sum; 0])';
-                    new_vals=round(new_vals,epsilon_round+abs(fix(log10(run_prob_sum))));
-                    if all(new_vals==vals) || any(new_vals<0) || any(isnan(new_vals))
-                        break
-                    end
-                    vals=new_vals;
-                    cidx=find(zero_candidate==0,1,'first');
-                    zero_candidate(cidx)=1;
+            end
+            if zero_created
+                zero_candidate(cidx)=0;
+            end
+            cidx=1;
+            zero_candidate(cidx)=1;
+            while nnz(vals)>1
+                % Try to zero out least index
+                SystemOfEquations=[multiplier(nonzeros);ones(1,nnz(nonzeros));zero_candidate(nonzeros)];
+                GoalValues=[sum(vals(nonzeros).*multiplier(nonzeros)); run_prob_sum; 0];
+                new_vals=linsolve(SystemOfEquations,GoalValues);
+                res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
+                new_vals=round(new_vals,epsilon_round)';
+                if res_vec_mag/norm(new_vals)>1e-5 || all(new_vals==vals(nonzeros)) || any(new_vals<0)
+                    break
                 end
+                vals=paddata([zeros(1,cidx-1), new_vals],length(vals));
+                nonzeros(cidx)=false;
+                cidx=cidx+1;
+                zero_candidate(cidx)=1;
             end
             temp=sparse(row,all_idx,vals,N_a1,N_a2);
             temp_cols=all_idx(1):all_idx(end);
-            StationaryDist_row_jj(sub2ind([N_a1,N_a2],row,temp_cols))=temp(row,temp_cols);
+            StationaryDist_row_jj(row,temp_cols)=temp(row,temp_cols);
             new_zeros_created(z_c)=new_zeros_created(z_c)+sum(vals==0)-starting_zeros;
         end
     end
