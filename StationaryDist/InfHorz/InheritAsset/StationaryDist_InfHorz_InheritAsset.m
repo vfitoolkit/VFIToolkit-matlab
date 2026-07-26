@@ -89,7 +89,7 @@ end
 
 %%
 % Policy depends on zprime
-StationaryDist=StationaryDist_InfHorz_Iteration_zprime_nProbs_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,N_a,N_z,pi_z,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+StationaryDist=StationaryDist_InfHorz_Iteration_zprime_nProbs_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,n_a1,n_a2,N_z,pi_z,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 
 StationaryDist=gpuArray(StationaryDist); % move output to gpu
 

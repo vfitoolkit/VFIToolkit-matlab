@@ -36,6 +36,6 @@ L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid po
 PolicyProbs(:,:,2)=shiftdim((L2index-1)/(simoptions.ngridinterp+1),1); % probability of upper grid point
 PolicyProbs(:,:,1)=1-PolicyProbs(:,:,2); % probability of lower grid point
 
-StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_noz_e_raw(StationaryDist,Policy_aprime,PolicyProbs,2,N_a,N_e,pi_e,simoptions);
+StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_noz_e_raw(StationaryDist,Policy_aprime,PolicyProbs,2,n_a,0,N_e,pi_e,simoptions);
 
 end

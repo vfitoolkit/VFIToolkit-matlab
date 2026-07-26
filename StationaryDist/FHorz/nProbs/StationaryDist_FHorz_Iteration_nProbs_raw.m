@@ -20,7 +20,6 @@ epsilon=1e-7;
 total_zeros_created=0;
 jj_at_max_a2=Inf;
 
-% Policy_aprime and PolicyProbs are currently [N_a,N_z,N_probs,N_j]
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 if N_a2==0
@@ -30,6 +29,7 @@ elseif N_a1==0
 else
     N_a=N_a1*N_a2;
 end
+% Policy_aprime and PolicyProbs are currently [N_a,N_z,N_probs,N_j]
 Policy_aprimez=Policy_aprime+N_a*gpuArray(0:1:N_z-1);  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
 Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z,N_probs,N_j])); % sparse() requires inputs to be 2-D
 needs_rounding=(PolicyProbs<epsilon | PolicyProbs>1-epsilon);
@@ -110,7 +110,11 @@ if simoptions.verbose
                 max_a=max(a1);
                 jj_at_max_a2=min(age_j(a1==max_a));
             else
-                temp=reshape(StationaryDist,[N_a1,N_a2,N_z,N_j]);
+                if N_a1>0
+                    temp=reshape(StationaryDist,[N_a1,N_a2,N_z,N_j]);
+                else
+                    temp=reshape(StationaryDist,[1,N_a2,N_z,N_j]);
+                end
                 [~,a2,~,age_j]=ind2sub(size(temp),find(temp~=0));
                 max_a=max(a2);
                 jj_at_max_a2=min(age_j(a2==max_a));

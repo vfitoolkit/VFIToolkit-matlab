@@ -8,7 +8,7 @@ if n_a2==0
     N_a1=1;
     n_a2=n_a1;
 else
-    N_a1=prod(n_a1);
+    N_a1=max(prod(n_a1),1);
 end
 N_a2=prod(n_a2);
 if isfield(simoptions, 'a_grid')

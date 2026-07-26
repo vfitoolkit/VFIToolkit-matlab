@@ -20,7 +20,6 @@ epsilon=1e-7;
 total_zeros_created=0;
 jj_at_max_a2=Inf;
 
-% Policy_aprime and PolicyProbs are currently [N_a,N_probs,N_j]
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 if N_a2==0
@@ -31,6 +30,7 @@ elseif N_a1==0
 else
     N_a=N_a1*N_a2;
 end
+% Policy_aprime and PolicyProbs are currently [N_a,N_probs,N_j]
 Policy_aprime=gather(Policy_aprime);
 needs_rounding=(PolicyProbs<epsilon | PolicyProbs>1-epsilon);
 needs_rounding(PolicyProbs==0)=0;
