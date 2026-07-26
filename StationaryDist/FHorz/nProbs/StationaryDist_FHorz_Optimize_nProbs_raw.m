@@ -1,6 +1,6 @@
 function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, n_a1,n_a2,N_z_input,jj, epsilon,total_zeros_created,jj_at_max_a2, simoptions)
 
-epsilon_round=7;
+epsilon_round=10;
 
 % For grid interpolation, N_a2 arrives as zero.  We simplify the implementation
 % by treating this N_a1x1 grid as an 1xN_a1 grid (with N_a1 spelled N_a2 below).
@@ -11,7 +11,11 @@ else
     N_a1=prod(n_a1);
 end
 N_a2=prod(n_a2);
-a2_grid_T=gather(double(simoptions.a_grid(sum(n_a1)+1:end)))';
+if isfield(simoptions, 'a_grid')
+    a2_grid_T=gather(double(simoptions.a_grid(sum(n_a1)+1:end)))';
+else
+    a2_grid_T=1:N_a2;
+end
 
 % Remember whether we want to return [N_a*N_z,1] or [N_a,N_z]
 StationaryDist_jj_size=size(StationaryDist_jj);
@@ -82,7 +86,7 @@ for z_c=1:N_z
                     res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
                 end
                 new_vals=round(new_vals,epsilon_round)';
-                if isnan(res_vec_mag) || res_vec_mag/norm(new_vals)>1e-5 || all(abs(new_vals-vals)<1e-6) || any(new_vals<0)
+                if isnan(res_vec_mag) || res_vec_mag/norm(new_vals)>epsilon || all(abs(new_vals-vals)<epsilon) || any(new_vals<0)
                     % zero_candidate(cidx)=0;
                 else
                     vals=new_vals;
@@ -114,7 +118,7 @@ for z_c=1:N_z
                     res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
                 end
                 new_vals=round(new_vals,epsilon_round)';
-                if isnan(res_vec_mag) || res_vec_mag/norm(new_vals)>1e-5 || all(abs(new_vals-vals(nonzeros))<1e-6) || any(new_vals<0)
+                if isnan(res_vec_mag) || res_vec_mag/norm(new_vals)>epsilon || all(abs(new_vals-vals(nonzeros))<epsilon) || any(new_vals<0)
                     zero_candidate(cidx)=0;
                     break
                 end
@@ -143,7 +147,7 @@ for z_c=1:N_z
                     res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
                 end
                 new_vals=round(new_vals,epsilon_round)';
-                if isnan(res_vec_mag) || res_vec_mag/norm(new_vals)>1e-5 || all(abs(new_vals-vals(nonzeros))<1e-6) || any(new_vals<0)
+                if isnan(res_vec_mag) || res_vec_mag/norm(new_vals)>epsilon || all(abs(new_vals-vals(nonzeros))<epsilon) || any(new_vals<0)
                     break
                 end
                 vals(nonzeros)=new_vals;
