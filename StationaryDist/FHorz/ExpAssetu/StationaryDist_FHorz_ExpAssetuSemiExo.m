@@ -3,8 +3,8 @@ function StationaryDist=StationaryDist_FHorz_ExpAssetuSemiExo(jequaloneDist,AgeW
 %% Experience asset and semi-exogenous state
 n_d3=n_d(end-simoptions.l_dsemiz+1:end); % decision variable that controls semi-exogenous state
 n_d2=n_d(end-simoptions.l_dexperienceassetu-simoptions.l_dsemiz+1:end-simoptions.l_dsemiz); % decision variables that controls experience asset
-if length(n_d)>2
-    n_d1=n_d(1:end-2);
+if length(n_d)>simoptions.l_dexperienceassetu+simoptions.l_dsemiz
+    n_d1=n_d(1:end-simoptions.l_dexperienceassetu-simoptions.l_dsemiz); % everything before the (experienceasset, semiz) decision block
     l_d1=length(n_d1);
 else
     % n_d1=0;

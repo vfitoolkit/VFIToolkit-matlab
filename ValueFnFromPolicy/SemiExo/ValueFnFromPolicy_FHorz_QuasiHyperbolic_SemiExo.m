@@ -24,6 +24,18 @@ if isNaive
     Policyalt=gpuArray(vfoptions.Policyalt);
 end
 
+%% Dispatch to experienceasset+SemiExo QH subfns (semiz combined with the experience asset)
+if isfield(vfoptions,'experienceassetz') && vfoptions.experienceassetz>=1
+    if ~isNaive, Policyalt=[]; end
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetz_SemiExo(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+if isfield(vfoptions,'experienceassetze') && vfoptions.experienceassetze>=1
+    if ~isNaive, Policyalt=[]; end
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze_SemiExo(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
 %% Setup (mirrors ValueFnFromPolicy_FHorz_SemiExo)
 if ~isfield(vfoptions,'pi_semiz_J')
     vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,3);
