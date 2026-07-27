@@ -75,10 +75,8 @@ else
 end
 
 
-%%
-if N_z==0
-    error('Have not yet impelmented N_z=0 in StationaryDist_FHorz_Case1_RiskyAssetSemiExo (contact me)')
-end
+%% Note: N_z=0 (semiz but no z-markov) is handled by the branches below
+% (the n_bothze setup and the '..._noz_raw'/'..._noz_e_raw' iteration dispatch).
 
 %%
 if ~isfield(simoptions,'aprimedependsonage')

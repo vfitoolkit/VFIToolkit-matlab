@@ -114,8 +114,6 @@ if ~isfield(vfoptions,'V_Jplus1')
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
             PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
         end
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not supported in QH+ExpAssetz _raw (no e dim to nest); use _e_raw variant')
     end
 
     Vunderbar(:,:,N_j)=Vhat(:,:,N_j);
@@ -209,8 +207,6 @@ else
     PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
     elseif vfoptions.lowmemory==1
         error('lowmem=1 for QH+ExpAssetz S DC2A_GI2A V_Jplus1 init not yet implemented; use lowmem=0 for terminal')
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not supported in QH+ExpAssetz _raw (no e dim to nest); use _e_raw variant')
     end
 end
 
@@ -365,8 +361,6 @@ for reverse_j=1:N_j-1
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
             PolicyL2flag(1,:,z_c,jj)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
         end
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not supported in QH+ExpAssetz _raw (no e dim to nest); use _e_raw variant')
     end
 end
 

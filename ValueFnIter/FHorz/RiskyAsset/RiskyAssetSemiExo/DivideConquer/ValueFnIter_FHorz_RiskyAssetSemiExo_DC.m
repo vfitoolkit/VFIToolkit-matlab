@@ -59,29 +59,39 @@ end
 
 %%
 if vfoptions.outputkron==0
-    if N_d1>0
-        n_d=[n_d1,n_d2,n_d3,n_d4];
-    else
-        n_d=[n_d2,n_d3,n_d4];
-    end
     n_a=[n_a1,n_a2];
-    n_dForUnKron=[n_d,n_a1]; % a1prime added as final channel
-    % Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+    % Policy from the raw has the choices on the first dimension: (d2,d3,d4,a1prime), or (d1,d2,d3,d4,a1prime) when there is a d1
     if N_e==0
         if N_z==0
             V=reshape(VKron,[n_a,n_semiz,N_j]);
-            Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_dForUnKron, n_a, n_semiz, N_j, vfoptions);
+            if N_d1==0
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, N_j, vfoptions);
+            else
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, N_j, vfoptions);
+            end
         else
             V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
-            Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_dForUnKron, n_a, [n_semiz,n_z], N_j, vfoptions);
+            if N_d1==0
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], N_j, vfoptions);
+            else
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], N_j, vfoptions);
+            end
         end
     else
         if N_z==0
             V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_dForUnKron, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            if N_d1==0
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            end
         else
             V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_dForUnKron, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            if N_d1==0
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            else
+                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            end
         end
     end
 else

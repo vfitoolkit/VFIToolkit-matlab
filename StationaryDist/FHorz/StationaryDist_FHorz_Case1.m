@@ -10,6 +10,7 @@ if exist('simoptions','var')==0
     simoptions.experienceassete=0;
     simoptions.experienceassetz=0;
     simoptions.experienceassetze=0;
+    simoptions.experienceassetsemiz=0;
     simoptions.riskyasset=0;
     simoptions.residualasset=0;
     % Exogenous shocks
@@ -45,6 +46,9 @@ else
     if ~isfield(simoptions,'experienceassetze')
         simoptions.experienceassetze=0;
     end
+    if ~isfield(simoptions,'experienceassetsemiz')
+        simoptions.experienceassetsemiz=0;
+    end
     if ~isfield(simoptions,'riskyasset')
         simoptions.riskyasset=0;
     end
@@ -74,14 +78,14 @@ else
     % Some options require certain other inputs, and these have to be on the GPU
     if isfield(simoptions,'d_grid')
         simoptions.d_grid=gpuArray(simoptions.d_grid);
-    elseif simoptions.experienceasset>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassetu>=1
+    elseif simoptions.experienceasset>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassetu>=1 || simoptions.experienceassetsemiz>=1
         error('When using any kind of experience asset you must set simoptions.d_grid')
     elseif simoptions.riskyasset==1
         error('When using a risky asset you must set simoptions.d_grid')
     end
     if isfield(simoptions,'a_grid')
         simoptions.a_grid=gpuArray(simoptions.a_grid);
-    elseif simoptions.experienceasset>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassetu>=1
+    elseif simoptions.experienceasset>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassetu>=1 || simoptions.experienceassetsemiz>=1
         error('When using any kind of experience asset you must set simoptions.a_grid')
     end
     if isfield(simoptions,'z_grid')
@@ -146,7 +150,14 @@ N_semiz=prod(simoptions.n_semiz);
 if simoptions.alreadygridvals_semiexo==0
     if N_semiz>0
         % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-        simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,2);
+        if simoptions.experienceassetsemiz>=1
+            % experienceassetsemiz drives the asset off semiz, so the agent-dist side needs semiz_gridvals_J (flag=3 builds it);
+            % gather pi_semiz_J back to cpu (as flag=2 would) since the dist iteration runs on cpu
+            simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,3);
+            simoptions.pi_semiz_J=gather(simoptions.pi_semiz_J);
+        else
+            simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,2);
+        end
         % output: simoptions.semiz_gridvals_J, simoptions.pi_semiz_J
         % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
         % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
@@ -242,6 +253,14 @@ if simoptions.experienceassetz>=1
         StationaryDist=StationaryDist_FHorz_ExpAssetzSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,z_gridvals_J,pi_z_J,Parameters,simoptions);
         return
     end
+end
+if simoptions.experienceassetsemiz>=1
+    % semiz is always present (it drives the experience asset)
+    if ~isfield(simoptions,'l_dexperienceassetsemiz')
+        simoptions.l_dexperienceassetsemiz=1; % by default, only one decision variable influences the experienceassetsemiz
+    end
+    StationaryDist=StationaryDist_FHorz_ExpAssetsemiz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,simoptions.semiz_gridvals_J,pi_z_J,Parameters,simoptions);
+    return
 end
 if simoptions.experienceassetze>=1
     if ~isfield(simoptions,'l_dexperienceassetze')

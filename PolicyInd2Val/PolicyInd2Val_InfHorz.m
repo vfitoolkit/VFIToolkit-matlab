@@ -7,10 +7,14 @@ if ~exist('outputkron','var')
     outputkron=0; % outputkron=1 is just for internal use
 end
 
-if isgpuarray(Policy)
-    Parallel=2;
-else
-    Parallel=1;
+if ~isgpuarray(Policy)
+    if gpuDeviceCount==0
+        % CPU version, much more limited functionality
+        PolicyValues=PolicyInd2Val_InfHorz_cpu(Policy,n_d,n_a,n_z,d_grid,a_grid,vfoptions,outputkron);
+        return
+    else
+        Policy=gpuArray(Policy);
+    end
 end
 
 if n_d(1)==0
@@ -28,75 +32,56 @@ if ~exist('vfoptions','var')
     aprime_grid=a_grid;
     n_aprime=n_a;
 else
-    ordinary=1;
+    l_aprime=l_a;
+    aprime_grid=a_grid;
+    n_aprime=n_a;
     % If using a specific asset type, then remove from aprime
-    if isfield(vfoptions,'experienceasset')
-        if vfoptions.experienceasset>0
-            l_aprime=l_a-vfoptions.experienceasset;
-            aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceasset)));
-            n_aprime=n_a(1:end-vfoptions.experienceasset);
-            ordinary=0;
-        end
+    if isfield(vfoptions,'experienceasset') && vfoptions.experienceasset>0
+        l_aprime=l_a-vfoptions.experienceasset;
+        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceasset)));
+        n_aprime=n_a(1:end-vfoptions.experienceasset);
     end
-    if isfield(vfoptions,'experienceassetu')
-        if vfoptions.experienceassetu>0
-            l_aprime=l_a-vfoptions.experienceassetu;
-            aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetu)));
-            n_aprime=n_a(1:end-vfoptions.experienceassetu);
-            ordinary=0;
-        end
+    if isfield(vfoptions,'experienceassetu') && vfoptions.experienceassetu>0
+        l_aprime=l_a-vfoptions.experienceassetu;
+        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetu)));
+        n_aprime=n_a(1:end-vfoptions.experienceassetu);
     end
-    if isfield(vfoptions,'riskyasset')
-        if vfoptions.riskyasset>0
-            l_aprime=l_a-1;
-            aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-            n_aprime=n_a(1:end-1);
-            ordinary=0;
-        end
+    if isfield(vfoptions,'riskyasset') && vfoptions.riskyasset>0
+        l_aprime=l_a-1;
+        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
+        n_aprime=n_a(1:end-1);
     end
-    if isfield(vfoptions,'residualasset')
-        if vfoptions.residualasset>0
-            l_aprime=l_a-1;
-            aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-            n_aprime=n_a(1:end-1);
-            ordinary=0;
-        end
+    if isfield(vfoptions,'residualasset') && vfoptions.residualasset>0
+        l_aprime=l_a-1;
+        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
+        n_aprime=n_a(1:end-1);
     end
-    if isfield(vfoptions,'inheritanceasset')
-        if vfoptions.inheritanceasset>0
-            l_aprime=l_a-1;
-            aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-            n_aprime=n_a(1:end-1);
-            ordinary=0;
-        end
+    if isfield(vfoptions,'inheritanceasset') && vfoptions.inheritanceasset>0
+        l_aprime=l_a-1;
+        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
+        n_aprime=n_a(1:end-1);
     end
-
 
     if isfield(vfoptions,'gridinterplayer')
         if vfoptions.gridinterplayer==1
-            ordinary=0;
-            l_aprime=l_a;
-            if l_a==1
-                aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,linspace(1,N_a,N_a+(N_a-1)*vfoptions.ngridinterp)');
-                n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp; % =length(aprime_grid)
+            % Strip trailing PolicyL2flag channel (PolicyInd2Val doesn't need it; only sim does)
+            tempsize=size(Policy);
+            Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
+            Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
+            a1prime_grid=interp1(gpuArray(1:1:n_aprime(1))',aprime_grid(1:n_aprime(1)),linspace(1,n_aprime(1),n_aprime(1)+(n_aprime(1)-1)*vfoptions.ngridinterp))';
+            if isscalar(n_aprime)
+                aprime_grid=a1prime_grid;
             else
-                a1prime_grid=interp1(gpuArray(1:1:n_a(1))',a_grid(1:n_a(1)),linspace(1,n_a(1),n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp)');
-                aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
-                n_a1prime=n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp; % =length(aprime_grid)
-                n_aprime=[n_a1prime,n_a(2:end)];
+                aprime_grid=[a1prime_grid; aprime_grid(n_aprime(1)+1:end)];
             end
+            n_aprime(1)=n_aprime(1)+(n_aprime(1)-1)*vfoptions.ngridinterp; % =length(a1prime_grid)
             % Put the last two parts of Policy together to get the aprime index
             tempsize=size(Policy);
-            Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(Policy)
-            Policy(l_d+1,:)=(vfoptions.ngridinterp+1)*(Policy(l_d+1,:)-1)+Policy(end-1,:); % combine first asset index with L2 index (end-1 because end is now L2flag) to get aprime index
-            tempsize(1)=tempsize(1)-2; % we put two policies together (L1+L2) and also drop the L2flag, so two channels go
-            Policy=reshape(Policy(1:end-2,:),tempsize); % drop L2 (now redundant after merge) and L2flag
+            Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(tempsize)
+            Policy(end-l_aprime,:)=(vfoptions.ngridinterp+1)*(Policy(end-l_aprime,:)-1)+Policy(end,:); % combine (lower grid point and 2nd layer point) to get aprime index [lower grid point is in the first n_a, it is NOT end-l_a+1 because we then have another -1 for the 2nd layer index]
+            tempsize(1)=tempsize(1)-1; % put last two policies together (lower grid point, and the second layer grid index; get aprime grid index)
+            Policy=reshape(Policy(1:end-1,:),tempsize); % get rid of last policy entry
         end
-    end
-    if ordinary==1 % not using any specific asset type
-        l_aprime=l_a;
-        aprime_grid=a_grid;
-        n_aprime=n_a;
     end
 end
 
@@ -134,195 +119,137 @@ end
 
 
 %%
-if Parallel==2
-    if N_z==0
-        if l_d==0
-            Policy=reshape(Policy,[l_aprime,N_a]);
-            PolicyValues=zeros(l_aprime,N_a,'gpuArray');
+if N_z==0
+    if l_d==0
+        Policy=reshape(Policy,[l_aprime,N_a]);
+        PolicyValues=zeros(l_aprime,N_a,'gpuArray');
 
-            temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
-            PolicyValues(1,:)=temp_aprime_grid(Policy(1,:));
-            if l_aprime>1
-                if l_aprime>2
-                    for ii=2:(l_aprime-1)
-                        temp_aprime_grid=aprime_grid(1+cumsum_n_aprime(ii-1):cumsum_n_aprime(ii));
-                        PolicyValues(ii,:)=temp_aprime_grid(Policy(ii,:));
-                    end
+        temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
+        PolicyValues(1,:)=temp_aprime_grid(Policy(1,:));
+        if l_aprime>1
+            if l_aprime>2
+                for ii=2:(l_aprime-1)
+                    temp_aprime_grid=aprime_grid(1+cumsum_n_aprime(ii-1):cumsum_n_aprime(ii));
+                    PolicyValues(ii,:)=temp_aprime_grid(Policy(ii,:));
                 end
-                temp_aprime_grid=aprime_grid(cumsum_n_aprime(end-1)+1:end);
-                PolicyValues(end,:)=temp_aprime_grid(Policy(end,:));
             end
+            temp_aprime_grid=aprime_grid(cumsum_n_aprime(end-1)+1:end);
+            PolicyValues(end,:)=temp_aprime_grid(Policy(end,:));
+        end
 
-            if outputkron==0
-                PolicyValues=reshape(PolicyValues,[l_aprime,n_a]);
-            else
-                PolicyValues=reshape(PolicyValues,[l_aprime,N_a]);
-            end
+        if outputkron==0
+            PolicyValues=reshape(PolicyValues,[l_aprime,n_a]);
         else
-            Policy=reshape(Policy,[l_d+l_aprime,N_a]);
-            PolicyValues=zeros(l_d+l_aprime,N_a,'gpuArray');
+            PolicyValues=reshape(PolicyValues,[l_aprime,N_a]);
+        end
+    else
+        Policy=reshape(Policy,[l_d+l_aprime,N_a]);
+        PolicyValues=zeros(l_d+l_aprime,N_a,'gpuArray');
 
-            if size(d_grid,2)==1
-                PolicyValues(1,:)=d_grid(Policy(1,:));
-                if l_d>1
-                    if l_d>2
-                        for ii=2:l_d-1
-                            PolicyValues(ii,:)=d_grid(sum(n_d(1:ii-1))+Policy(ii,:));
-                        end
+        if size(d_grid,2)==1
+            PolicyValues(1,:)=d_grid(Policy(1,:));
+            if l_d>1
+                if l_d>2
+                    for ii=2:l_d-1
+                        PolicyValues(ii,:)=d_grid(sum(n_d(1:ii-1))+Policy(ii,:));
                     end
-                    PolicyValues(l_d,:)=d_grid(sum(n_d(1:end-1))+Policy(l_d,:));
                 end
-            else % using d_gridvals (and must be that l_d>1)
-                d_gridvals=gpuArray(d_grid);
-                n_d_cumprod=cumprod(n_d);
-                djointindex=shiftdim(sum([1;n_d_cumprod(1:end-1)'].*(Policy-[0;ones(l_d-1,1)]),1),1);
-                for ii=1:l_d
-                    PolicyValues(ii,:)=d_gridvals(djointindex,ii);
-                end
+                PolicyValues(l_d,:)=d_grid(sum(n_d(1:end-1))+Policy(l_d,:));
             end
-
-            if l_aprime>0
-                temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
-                PolicyValues(l_d+1,:)=temp_aprime_grid(Policy(l_d+1,:));
-                if l_aprime>1
-                    if l_aprime>2
-                        for ii=2:(l_aprime-1)
-                            temp_aprime_grid=aprime_grid(1+cumsum_n_aprime(ii-1):cumsum_n_aprime(ii));
-                            PolicyValues(l_d+ii,:)=temp_aprime_grid(Policy(l_d+ii,:));
-                        end
-                    end
-                    temp_aprime_grid=aprime_grid(cumsum_n_aprime(end-1)+1:end);
-                    PolicyValues(l_d+l_aprime,:)=temp_aprime_grid(Policy(l_d+l_aprime,:));
-                end
-            end
-
-            if outputkron==0
-                PolicyValues=reshape(PolicyValues,[l_d+l_aprime,n_a]);
-            else
-                PolicyValues=reshape(PolicyValues,[l_d+l_aprime,N_a]);
+        else % using d_gridvals (and must be that l_d>1)
+            d_gridvals=gpuArray(d_grid);
+            n_d_cumprod=cumprod(n_d);
+            djointindex=shiftdim(sum([1;n_d_cumprod(1:end-1)'].*(Policy-[0;ones(l_d-1,1)]),1),1);
+            for ii=1:l_d
+                PolicyValues(ii,:)=d_gridvals(djointindex,ii);
             end
         end
-    else % N_z>0
-        if l_d==0
-            Policy=reshape(Policy,[l_aprime,N_a*N_z]);
-            PolicyValues=zeros(l_aprime,N_a*N_z,'gpuArray');
 
+        if l_aprime>0
             temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
-            PolicyValues(1,:)=temp_aprime_grid(Policy(1,:));
+            PolicyValues(l_d+1,:)=temp_aprime_grid(Policy(l_d+1,:));
             if l_aprime>1
                 if l_aprime>2
                     for ii=2:(l_aprime-1)
                         temp_aprime_grid=aprime_grid(1+cumsum_n_aprime(ii-1):cumsum_n_aprime(ii));
-                        PolicyValues(ii,:)=temp_aprime_grid(Policy(ii,:));
+                        PolicyValues(l_d+ii,:)=temp_aprime_grid(Policy(l_d+ii,:));
                     end
                 end
                 temp_aprime_grid=aprime_grid(cumsum_n_aprime(end-1)+1:end);
-                PolicyValues(end,:)=temp_aprime_grid(Policy(end,:));
+                PolicyValues(l_d+l_aprime,:)=temp_aprime_grid(Policy(l_d+l_aprime,:));
             end
+        end
 
-            if outputkron==0
-                PolicyValues=reshape(PolicyValues,[l_aprime,n_a,n_z]);
-            else
-                PolicyValues=reshape(PolicyValues,[l_aprime,N_a,N_z]);
-            end
+        if outputkron==0
+            PolicyValues=reshape(PolicyValues,[l_d+l_aprime,n_a]);
         else
-            Policy=reshape(Policy,[l_d+l_aprime,N_a*N_z]);
-            PolicyValues=zeros(l_d+l_aprime,N_a*N_z,'gpuArray');
-
-            if size(d_grid,2)==1
-                PolicyValues(1,:)=d_grid(Policy(1,:));
-                if l_d>1
-                    if l_d>2
-                        for ii=2:l_d-1
-                            PolicyValues(ii,:)=d_grid(sum(n_d(1:ii-1))+Policy(ii,:));
-                        end
-                    end
-                    PolicyValues(l_d,:)=d_grid(sum(n_d(1:end-1))+Policy(l_d,:));
-                end
-            else % using d_gridvals (and must be that l_d>1)
-                d_gridvals=gpuArray(d_grid);
-                for ii=1:l_d
-                    PolicyValues(ii,:)=d_gridvals(Policy(1,:),ii);
-                end
-            end
-
-            if l_aprime>0
-                temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
-                PolicyValues(l_d+1,:)=temp_aprime_grid(Policy(l_d+1,:));
-                if l_aprime>1
-                    if l_aprime>2
-                        for ii=2:(l_aprime-1)
-                            temp_aprime_grid=aprime_grid(1+cumsum_n_aprime(ii-1):cumsum_n_aprime(ii));
-                            PolicyValues(l_d+ii,:)=temp_aprime_grid(Policy(l_d+ii,:));
-                        end
-                    end
-                    temp_aprime_grid=aprime_grid(cumsum_n_aprime(end-1)+1:end);
-                    PolicyValues(l_d+l_aprime,:)=temp_aprime_grid(Policy(l_d+l_aprime,:));
-                end
-            end
-
-            if outputkron==0
-                PolicyValues=reshape(PolicyValues,[l_d+l_aprime,n_a,n_z]);
-            else
-                PolicyValues=reshape(PolicyValues,[l_d+l_aprime,N_a,N_z]);
-            end
+            PolicyValues=reshape(PolicyValues,[l_d+l_aprime,N_a]);
         end
     end
-
-end
-
-
-%% On cpu, limited to just the most basic setup (cannot handle no z)
-if Parallel~=2
+else % N_z>0
     if l_d==0
-        Policy=reshape(Policy,[l_a,N_a*N_z]);
-        PolicyValues=zeros(l_a,N_a*N_z);
+        Policy=reshape(Policy,[l_aprime,N_a*N_z]);
+        PolicyValues=zeros(l_aprime,N_a*N_z,'gpuArray');
 
-        temp_a_grid=a_grid(1:n_a(1));
-        PolicyValues(1,:)=temp_a_grid(Policy(1,:));
-        if l_a>1
-            if l_a>2
-                for ii=2:l_a-1
-                    temp_a_grid=a_grid((1+cumsum_n_a(ii-1)):cumsum_n_a(ii));
-                    PolicyValues(ii,:)=temp_a_grid(Policy(ii,:));
+        temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
+        PolicyValues(1,:)=temp_aprime_grid(Policy(1,:));
+        if l_aprime>1
+            if l_aprime>2
+                for ii=2:(l_aprime-1)
+                    temp_aprime_grid=aprime_grid(1+cumsum_n_aprime(ii-1):cumsum_n_aprime(ii));
+                    PolicyValues(ii,:)=temp_aprime_grid(Policy(ii,:));
                 end
             end
-            temp_a_grid=a_grid((1+cumsum_n_a(end-1)):end);
-            PolicyValues(end,:)=temp_a_grid(Policy(end,:));
+            temp_aprime_grid=aprime_grid(cumsum_n_aprime(end-1)+1:end);
+            PolicyValues(end,:)=temp_aprime_grid(Policy(end,:));
         end
-        PolicyValues=reshape(PolicyValues,[l_a,n_a,n_z]);
 
+        if outputkron==0
+            PolicyValues=reshape(PolicyValues,[l_aprime,n_a,n_z]);
+        else
+            PolicyValues=reshape(PolicyValues,[l_aprime,N_a,N_z]);
+        end
     else
-        Policy=reshape(Policy,[l_d+l_a,N_a*N_z]);
-        PolicyValues=zeros(l_d+l_a,N_a*N_z);
+        Policy=reshape(Policy,[l_d+l_aprime,N_a*N_z]);
+        PolicyValues=zeros(l_d+l_aprime,N_a*N_z,'gpuArray');
 
-        temp_d_grid=d_grid(1:n_d(1));
-        PolicyValues(1,:)=temp_d_grid(Policy(1,:));
-        if l_d>1
-            if l_d>2
-                for ii=2:l_d-1
-                    temp_d_grid=d_grid((1+cumsum_n_d(ii-1)):cumsum_n_d(ii));
-                    PolicyValues(ii,:)=temp_d_grid(Policy(ii,:));
+        if size(d_grid,2)==1
+            PolicyValues(1,:)=d_grid(Policy(1,:));
+            if l_d>1
+                if l_d>2
+                    for ii=2:l_d-1
+                        PolicyValues(ii,:)=d_grid(cumsum_n_d(ii-1)+Policy(ii,:));
+                    end
                 end
+                PolicyValues(l_d,:)=d_grid(cumsum_n_d(end-1)+Policy(l_d,:));
             end
-            temp_d_grid=d_grid((1+cumsum_n_d(l_d-1)):end);
-            PolicyValues(l_d,:)=temp_d_grid(Policy(l_d,:));
+        else % using d_gridvals (and must be that l_d>1)
+            d_gridvals=gpuArray(d_grid);
+            for ii=1:l_d
+                PolicyValues(ii,:)=d_gridvals(Policy(1,:),ii);
+            end
+        end
+        
+        if l_aprime>0
+            temp_aprime_grid=aprime_grid(1:cumsum_n_aprime(1));
+            PolicyValues(l_d+1,:)=temp_aprime_grid(Policy(l_d+1,:));
+            if l_aprime>1
+                if l_aprime>2
+                    for ii=2:(l_aprime-1)
+                        temp_aprime_grid=aprime_grid(1+cumsum_n_aprime(ii-1):cumsum_n_aprime(ii));
+                        PolicyValues(l_d+ii,:)=temp_aprime_grid(Policy(l_d+ii,:));
+                    end
+                end
+                temp_aprime_grid=aprime_grid(cumsum_n_aprime(end-1)+1:end);
+                PolicyValues(l_d+l_aprime,:)=temp_aprime_grid(Policy(l_d+l_aprime,:));
+            end
         end
 
-        temp_a_grid=a_grid(1:n_a(1));
-        PolicyValues(l_d+1,:)=temp_a_grid(Policy(l_d+1,:));
-        if l_a>1
-            if l_a>2
-                for ii=2:l_a-1
-                    temp_a_grid=a_grid((1+cumsum_n_a(ii-1)):cumsum_n_a(ii));
-                    PolicyValues(l_d+ii,:)=temp_a_grid(Policy(l_d+ii,:));
-                end
-            end
-            temp_a_grid=a_grid((1+cumsum_n_a(l_a-1)):end);
-            PolicyValues(end,:)=temp_a_grid(Policy(end,:));
+        if outputkron==0
+            PolicyValues=reshape(PolicyValues,[l_d+l_aprime,n_a,n_z]);
+        else
+            PolicyValues=reshape(PolicyValues,[l_d+l_aprime,N_a,N_z]);
         end
-
-        PolicyValues=reshape(PolicyValues,[l_d+l_a,n_a,n_z]);
     end
 end
 

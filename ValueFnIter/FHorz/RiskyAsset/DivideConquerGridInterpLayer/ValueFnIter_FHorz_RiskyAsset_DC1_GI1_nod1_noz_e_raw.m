@@ -192,8 +192,8 @@ else % V_Jplus1
         % Layer 1
         ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d3,n_a1,vfoptions.level1n,n_a2,n_e, d3_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1,0);
         % [N_d3, level1n, N_a1, N_a2, N_e]; broadcast DiscountedEV across a2, e
-        RM=reshape(ReturnMatrix_ii,[N_d3,vfoptions.level1n,N_a1,N_a2,N_e]);
-        DEV=reshape(DiscountedEV,[N_d3,1,N_a1,1,1]);
+        RM=reshape(ReturnMatrix_ii,[N_d3,N_a1,vfoptions.level1n,N_a2,N_e]);
+        DEV=reshape(DiscountedEV,[N_d3,N_a1,1,1,1]);
         entireRHS_ii=RM+DEV;
 
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -222,7 +222,7 @@ else % V_Jplus1
         a1primeindexesfine=(midpoint_jj+(midpoint_jj-1)*n2short)+(-n2short-1:1:1+n2short);
         ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d3,n2long,n_a1,n_a2,n_e, d3_gridvals, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2,0);
         da1prime=d3ind+N_d3*(a1primeindexesfine-1); % [N_d3,n2long,N_a1,N_a2,N_e]
-        entireRHS_ii=reshape(ReturnMatrix_ii+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2,N_e]),[N_d3*n2long,N_a1*N_a2,N_e]);
+        entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d3,n2long,N_a1,N_a2,N_e])+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2,N_e]),[N_d3*n2long,N_a1*N_a2,N_e]);
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,:,N_j)=shiftdim(Vtempii,1);
         d3_ind=rem(maxindexL2-1,N_d3)+1;
@@ -255,8 +255,8 @@ else % V_Jplus1
             e_val=e_gridvals_J(e_c,:,N_j);
             % Layer 1
             ReturnMatrix_ii_e=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d3,n_a1,vfoptions.level1n,n_a2,special_n_e, d3_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, e_val, ReturnFnParamsVec,1,0);
-            RM=reshape(ReturnMatrix_ii_e,[N_d3,vfoptions.level1n,N_a1,N_a2]);
-            DEV=reshape(DiscountedEV,[N_d3,1,N_a1,1]);
+            RM=reshape(ReturnMatrix_ii_e,[N_d3,N_a1,vfoptions.level1n,N_a2]);
+            DEV=reshape(DiscountedEV,[N_d3,N_a1,1,1]);
             entireRHS_ii_e=RM+DEV;
 
             [~,maxindex1]=max(entireRHS_ii_e,[],2);
@@ -285,7 +285,7 @@ else % V_Jplus1
             a1primeindexesfine=(midpoint_jj+(midpoint_jj-1)*n2short)+(-n2short-1:1:1+n2short);
             ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d3,n2long,n_a1,n_a2,special_n_e, d3_gridvals, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, e_val, ReturnFnParamsVec,2,0);
             da1prime=d3ind+N_d3*(a1primeindexesfine-1);
-            entireRHS_ii=reshape(ReturnMatrix_ii+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2]),[N_d3*n2long,N_a1*N_a2]);
+            entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d3,n2long,N_a1,N_a2])+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2]),[N_d3*n2long,N_a1*N_a2]);
             [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
             V(:,e_c,N_j)=shiftdim(Vtempii,1);
             d3_ind=rem(maxindexL2-1,N_d3)+1;
@@ -307,7 +307,7 @@ else % V_Jplus1
 
             % Get the d2Policy
             a1mid=squeeze(midpoint_jj(allind));
-            linlookup=shiftdim(d3_ind,1)+N_d3*(a1mid-1);
+            linlookup=d3_ind+N_d3*(a1mid-1);
             Policy(1,:,e_c,N_j)=shiftdim(d2index_resh(linlookup),-1);
         end
     end
@@ -357,8 +357,8 @@ for reverse_j=1:N_j-1
         % Layer 1
         ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d3,n_a1,vfoptions.level1n,n_a2,n_e, d3_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, e_gridvals_J(:,:,jj), ReturnFnParamsVec,1,0);
         % [N_d3, level1n, N_a1, N_a2, N_e]; broadcast DiscountedEV across a2, e
-        RM=reshape(ReturnMatrix_ii,[N_d3,vfoptions.level1n,N_a1,N_a2,N_e]);
-        DEV=reshape(DiscountedEV,[N_d3,1,N_a1,1,1]);
+        RM=reshape(ReturnMatrix_ii,[N_d3,N_a1,vfoptions.level1n,N_a2,N_e]);
+        DEV=reshape(DiscountedEV,[N_d3,N_a1,1,1,1]);
         entireRHS_ii=RM+DEV;
 
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -387,7 +387,7 @@ for reverse_j=1:N_j-1
         a1primeindexesfine=(midpoint_jj+(midpoint_jj-1)*n2short)+(-n2short-1:1:1+n2short);
         ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d3,n2long,n_a1,n_a2,n_e, d3_gridvals, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, e_gridvals_J(:,:,jj), ReturnFnParamsVec,2,0);
         da1prime=d3ind+N_d3*(a1primeindexesfine-1); % [N_d3,n2long,N_a1,N_a2,N_e]
-        entireRHS_ii=reshape(ReturnMatrix_ii+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2,N_e]),[N_d3*n2long,N_a1*N_a2,N_e]);
+        entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d3,n2long,N_a1,N_a2,N_e])+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2,N_e]),[N_d3*n2long,N_a1*N_a2,N_e]);
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,:,jj)=shiftdim(Vtempii,1);
         d3_ind=rem(maxindexL2-1,N_d3)+1;
@@ -420,8 +420,8 @@ for reverse_j=1:N_j-1
             e_val=e_gridvals_J(e_c,:,jj);
             % Layer 1
             ReturnMatrix_ii_e=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d3,n_a1,vfoptions.level1n,n_a2,special_n_e, d3_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, e_val, ReturnFnParamsVec,1,0);
-            RM=reshape(ReturnMatrix_ii_e,[N_d3,vfoptions.level1n,N_a1,N_a2]);
-            DEV=reshape(DiscountedEV,[N_d3,1,N_a1,1]);
+            RM=reshape(ReturnMatrix_ii_e,[N_d3,N_a1,vfoptions.level1n,N_a2]);
+            DEV=reshape(DiscountedEV,[N_d3,N_a1,1,1]);
             entireRHS_ii_e=RM+DEV;
 
             [~,maxindex1]=max(entireRHS_ii_e,[],2);
@@ -450,7 +450,7 @@ for reverse_j=1:N_j-1
             a1primeindexesfine=(midpoint_jj+(midpoint_jj-1)*n2short)+(-n2short-1:1:1+n2short);
             ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d3,n2long,n_a1,n_a2,special_n_e, d3_gridvals, a1prime_grid(a1primeindexesfine), a1_gridvals, a2_gridvals, e_val, ReturnFnParamsVec,2,0);
             da1prime=d3ind+N_d3*(a1primeindexesfine-1);
-            entireRHS_ii=reshape(ReturnMatrix_ii+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2]),[N_d3*n2long,N_a1*N_a2]);
+            entireRHS_ii=reshape(reshape(ReturnMatrix_ii,[N_d3,n2long,N_a1,N_a2])+reshape(DiscountedEVinterp(da1prime),[N_d3,n2long,N_a1,N_a2]),[N_d3*n2long,N_a1*N_a2]);
             [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
             V(:,e_c,jj)=shiftdim(Vtempii,1);
             d3_ind=rem(maxindexL2-1,N_d3)+1;
@@ -472,7 +472,7 @@ for reverse_j=1:N_j-1
 
             % Get the d2Policy
             a1mid=squeeze(midpoint_jj(allind));
-            linlookup=shiftdim(d3_ind,1)+N_d3*(a1mid-1);
+            linlookup=d3_ind+N_d3*(a1mid-1);
             Policy(1,:,e_c,jj)=shiftdim(d2index_resh(linlookup),-1);
         end
     end
@@ -480,9 +480,9 @@ end
 
 
 %% Switch Policy(3,:) from 'midpoint' to 'lower grid index'
-adjust=(Policy(4,:,:,)<1+n2short+1);
-Policy(3,:,:,)=Policy(3,:,:,)-adjust;
-Policy(4,:,:,)=adjust.*Policy(4,:,:,)+(1-adjust).*(Policy(4,:,:,)-n2short-1);
+adjust=(Policy(4,:,:,:)<1+n2short+1);
+Policy(3,:,:,:)=Policy(3,:,:,:)-adjust;
+Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1);
 
 Policy=[Policy; PolicyL2flag];
 

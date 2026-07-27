@@ -10,6 +10,7 @@ if ~exist('vfoptions','var')
     vfoptions.experienceassetz=0;
     vfoptions.experienceassete=0;
     vfoptions.experienceassetze=0;
+    vfoptions.experienceassetsemiz=0;
     vfoptions.riskyasset=0;
     vfoptions.gridinterplayer=0;
     % divide-and-conquer is not relevant for ValueFnFromPolicy
@@ -37,6 +38,9 @@ else
     end
     if ~isfield(vfoptions,'experienceassetze')
         vfoptions.experienceassetze=0;
+    end
+    if ~isfield(vfoptions,'experienceassetsemiz')
+        vfoptions.experienceassetsemiz=0;
     end
     if ~isfield(vfoptions,'riskyasset')
         vfoptions.riskyasset=0;
@@ -98,6 +102,11 @@ end
 %% Dispatch to ExpAssetze subfn if experienceassetze==1
 if vfoptions.experienceassetze>=1
     V=ValueFnFromPolicy_FHorz_ExpAssetze(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
+    return
+end
+if vfoptions.experienceassetsemiz>=1
+    V=ValueFnFromPolicy_FHorz_ExpAssetsemiz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     varargout={V};
     return
 end

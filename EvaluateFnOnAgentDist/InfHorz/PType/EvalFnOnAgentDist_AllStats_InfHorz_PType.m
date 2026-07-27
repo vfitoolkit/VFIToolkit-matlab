@@ -173,7 +173,6 @@ for ii=1:N_i
     iistr=Names_i{ii};
 
     tic;
-
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,iistr); % Note: already check for existence of simoptions and created it if it was not inputted
 

@@ -2,7 +2,7 @@ function [Vtilde,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAsse
 % Naive QH + ExpAssetz, DC2A pattern (nod1).
 % Two argmaxes per period: one with beta (long-run -> Valt, Policyalt); one with beta0*beta (current-self -> Vtilde, Policy).
 % Policy/Policyalt channels: 1=d2, 2=a1prime, 3=a2prime. a3prime via aprimeFn downstream.
-% lowmemory=0 full vectorization; lowmemory=1 loops z; lowmemory=2 errors (no e dim to nest).
+% lowmemory=0 full vectorization; lowmemory=1 loops z.
 
 N_d2=prod(n_d2);
 N_a1=prod(n_a1);
@@ -135,8 +135,6 @@ if ~isfield(vfoptions,'V_Jplus1')
                 end
             end
         end
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not supported in QH+ExpAssetz _raw (no e dim to nest); use _e_raw variant')
     end
 
     Vtilde(:,:,N_j)=Valt(:,:,N_j);
@@ -389,8 +387,6 @@ else
                 end
             end
         end
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not supported in QH+ExpAssetz _raw (no e dim to nest); use _e_raw variant')
     end
 end
 
@@ -649,8 +645,6 @@ for reverse_j=1:N_j-1
                 end
             end
         end
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not supported in QH+ExpAssetz _raw (no e dim to nest); use _e_raw variant')
     end
 end
 

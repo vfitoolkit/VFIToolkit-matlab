@@ -41,25 +41,25 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, d3a1_gridvals, a1a2_gridvals,e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, d3a1_gridvals, a1a2_gridvals,e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-        V(:,N_j)=Vtemp;
+        V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy(1,:,:,N_j)=1; % is meaningless anyway
-        Policy(2,:,:,N_j)=shiftdim(rem(maxindex-1,N_d)+1,-1);
-        Policy(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+        Policy(2,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+        Policy(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec,0);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,e_c,N_j)=Vtemp;
             Policy(1,:,e_c,N_j)=1; % is meaningless anyway
-            Policy(2,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d)+1,-1);
-            Policy(3,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+            Policy(2,:,e_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
+            Policy(3,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
         end
     end
 else
@@ -69,7 +69,7 @@ else
     EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(:,N_j)',2); % Using V_Jplus1
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
-    [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
     aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
@@ -151,7 +151,7 @@ for reverse_j=1:N_j-1
     EV=sum(V(:,:,jj+1).*pi_e_J(:,jj)',2); % Expectation over e
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
 
@@ -206,7 +206,7 @@ for reverse_j=1:N_j-1
            % no d1 here
 
            % Now put together entireRHS, which just depends on d3
-           entireRHS=ReturnMatrix+DiscountedEV_onlyd3;
+           entireRHS_e=ReturnMatrix_e+DiscountedEV_onlyd3;
 
            %Calc the max and it's index
            [Vtemp,maxindex]=max(entireRHS_e,[],1);
