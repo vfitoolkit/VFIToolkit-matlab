@@ -66,98 +66,48 @@ for z_c=1:N_z
             % Attempt to consolidate min and max values to the middle
             % Don't take credit for zeros we created to make runs longer
             starting_zeros=sum(vals==0);
-
-            zero_created=false;
             cidx=length(this_run);
-            zero_candidate=zeros(1,cidx);
-            nonzeros=true(1,cidx);
 
-            if cidx>3
-                % Just once, try to zero out both max and min in one shot
-                if any(a2_grid_T(this_run)==0)
-                    SystemOfEquations=[this_run;ones(1,cidx);[1,zeros(1,cidx-1)];[zeros(1,cidx-1),1]];
-                    GoalValues=[sum(vals.*this_run); run_prob_sum; 0; 0];
-                    new_vals=linsolve(SystemOfEquations,GoalValues);
-                    res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
-                else
-                    SystemOfEquations=[a2_grid_T(this_run);ones(1,cidx);[1,zeros(1,cidx-1)];[zeros(1,cidx-1),1]];
-                    GoalValues=[sum(vals.*a2_grid_T(this_run)); run_prob_sum; 0; 0];
-                    new_vals=linsolve(SystemOfEquations,GoalValues);
-                    res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
-                end
-                new_vals=round(new_vals,epsilon_round)';
-                if isnan(res_vec_mag) || res_vec_mag/norm(new_vals)>epsilon || all(abs(new_vals-vals)<epsilon) || any(new_vals<0)
-                    % zero_candidate(cidx)=0;
-                else
-                    vals=new_vals;
-                    if cidx<5
-                        % Early out if we collapsed 4 values into 2
-                        temp=sparse(row,this_run,vals,N_a1,N_a2);
-                        StationaryDist_row(row,this_run)=temp(row,this_run);
-                        new_zeros_created(z_c)=new_zeros_created(z_c)+sum(vals==0)-starting_zeros;
-                        continue
-                    end
-                    zero_created=true;
-                    nonzeros(1)=false; nonzeros(cidx)=false;
-                    zero_candidate(1)=1; zero_candidate(cidx)=1;
-                    cidx=cidx-1;
-                end
+            % See if we can collapse this system down to two or three basis elements
+            % gridvals and the sums are indexed into `this_run`, not values of `this_run`
+            gridvals=vals.*a2_grid_T(this_run);
+            lower_sums=cumsum(gridvals,'forward');
+            lower_sums=[vals(1)*(a2_grid_T(this_run(1))~=0),lower_sums(2:end)./a2_grid_T(this_run(2:end))];
+            lower_sums(isinf(lower_sums))=lower_sums(circshift(isinf(lower_sums),-1));
+            upper_sums=cumsum(gridvals,'reverse');
+            upper_sums=[upper_sums(1:end-1)./a2_grid_T(this_run(1:end-1)),vals(end)*(a2_grid_T(this_run(end))~=0)];
+            upper_sums(isinf(upper_sums))=upper_sums(circshift(isinf(upper_sums),1)); % grids should have only a single zero value
+            % Where lower_sums(1:end-1)+upper_sums(2:end)<=run_prob_sum we have room to redistribute probabilities
+            valid_crossover=run_prob_sum-(lower_sums(1:end-1)+upper_sums(2:end))>=0;
+            lower_idx=find(valid_crossover,1,'first');
+            if isempty(lower_idx)
+                % Maybe we need a span of 3...it happens
+                valid_crossover=run_prob_sum-(lower_sums(1:end-2)+upper_sums(3:end))>=0;
+                lower_idx=find(valid_crossover,1,'first');
+                assert(~isempty(lower_idx));
+                upper_idx=lower_idx+2;
+            else
+                upper_idx=lower_idx+1;
             end
-            zero_candidate(cidx)=1;
-            while nnz(vals)>1
-                % Try to zero out largest indices, perhaps squeezing zero from middle
-                if any(a2_grid_T(this_run(nonzeros))==0)
-                    SystemOfEquations=[this_run(nonzeros);ones(1,nnz(nonzeros));zero_candidate(nonzeros)];
-                    GoalValues=[sum(vals(nonzeros).*this_run(nonzeros)); run_prob_sum; 0];
-                    new_vals=linsolve(SystemOfEquations,GoalValues);
-                    res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
-                else
-                    SystemOfEquations=[a2_grid_T(this_run(nonzeros));ones(1,nnz(nonzeros));zero_candidate(nonzeros)];
-                    GoalValues=[sum(vals(nonzeros).*a2_grid_T(this_run(nonzeros))); run_prob_sum; 0];
-                    new_vals=linsolve(SystemOfEquations,GoalValues);
-                    res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
-                end
-                new_vals=round(new_vals,epsilon_round)';
-                if isnan(res_vec_mag) || res_vec_mag/norm(new_vals)>epsilon || all(abs(new_vals-vals(nonzeros))<epsilon) || any(new_vals<0)
-                    zero_candidate(cidx)=0;
-                    break
-                end
-                vals(nonzeros)=new_vals;
-                nonzeros(cidx)=false;
-                zero_created=true;
-                cidx=cidx-1;
-                zero_candidate(cidx)=1;
+            SystemOfEquations=[a2_grid_T(this_run(lower_idx:upper_idx));ones(1,upper_idx-lower_idx+1)];
+            GoalValues=[sum(gridvals); run_prob_sum];
+            new_vals=linsolve(SystemOfEquations,GoalValues);
+            if any(new_vals<0)
+                % Maybe we need a span of 3...it happens
+                lower_idx=lower_idx-(new_vals(2)<0);
+                upper_idx=upper_idx+(new_vals(1)<0);
+                SystemOfEquations=[a2_grid_T(this_run(lower_idx:upper_idx));ones(1,upper_idx-lower_idx+1)];
+                new_vals=linsolve(SystemOfEquations,GoalValues);
+                assert(all(new_vals>=0));
             end
-            if zero_created
-                zero_candidate(cidx)=0;
+            res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
+            new_vals=round(new_vals,epsilon_round)';
+            if res_vec_mag==0 || (~isnan(res_vec_mag) && res_vec_mag/norm(new_vals)<=epsilon)
+                % Put this valid redistribution into the Stationary Dist, finishing this run
+                temp=sparse(row,this_run(lower_idx:upper_idx),new_vals,N_a1,N_a2);
+                StationaryDist_row(row,this_run)=temp(row,this_run);
+                new_zeros_created(z_c)=new_zeros_created(z_c)+cidx-2-starting_zeros;
             end
-            cidx=find(zero_candidate==0,1,'first');
-            zero_candidate(cidx)=1;
-            while nnz(vals)>1
-                % Try to zero out least index, perhaps squeezing zero from middle
-                if any(a2_grid_T(this_run(nonzeros))==0)
-                    SystemOfEquations=[this_run(nonzeros);ones(1,nnz(nonzeros));zero_candidate(nonzeros)];
-                    GoalValues=[sum(vals(nonzeros).*this_run(nonzeros)); run_prob_sum; 0];
-                    new_vals=linsolve(SystemOfEquations,GoalValues);
-                    res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
-                else
-                    SystemOfEquations=[a2_grid_T(this_run(nonzeros));ones(1,nnz(nonzeros));zero_candidate(nonzeros)];
-                    GoalValues=[sum(vals(nonzeros).*a2_grid_T(this_run(nonzeros))); run_prob_sum; 0];
-                    new_vals=linsolve(SystemOfEquations,GoalValues);
-                    res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
-                end
-                new_vals=round(new_vals,epsilon_round)';
-                if isnan(res_vec_mag) || res_vec_mag/norm(new_vals)>epsilon || all(abs(new_vals-vals(nonzeros))<epsilon) || any(new_vals<0)
-                    break
-                end
-                vals(nonzeros)=new_vals;
-                nonzeros(cidx)=false;
-                cidx=cidx+1;
-                zero_candidate(cidx)=1;
-            end
-            temp=sparse(row,this_run,vals,N_a1,N_a2);
-            StationaryDist_row(row,this_run)=temp(row,this_run);
-            new_zeros_created(z_c)=new_zeros_created(z_c)+sum(vals==0)-starting_zeros;
         end
     end
     StationaryDist(:,z_c)=reshape(StationaryDist_row,[N_a1*N_a2,1]);
