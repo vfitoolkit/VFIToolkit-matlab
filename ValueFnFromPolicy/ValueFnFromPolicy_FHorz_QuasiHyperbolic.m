@@ -15,6 +15,7 @@ if ~isNaive && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
 end
 
 %% Naive requires Policyalt
+Policyalt=[]; % only used for Naive; kept defined so subfns can be called uniformly under Sophisticated
 if isNaive
     if ~isfield(vfoptions,'Policyalt')
         error('ValueFnFromPolicy_FHorz_QuasiHyperbolic (Naive): vfoptions.Policyalt is required. Naive QH stores Policy at the QH (beta0*beta) argmax but V is the exponential-discounter value at the std argmax. To reconstruct V from policies alone, pass the exponential-discounter argmax (Policyalt) via vfoptions.Policyalt. It is returned as the 4th output of ValueFnIter_FHorz_QuasiHyperbolic for Naive.')
@@ -36,13 +37,15 @@ if vfoptions.experienceassetu>=1
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassetu')
 end
 if vfoptions.experienceassetz>=1
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassetz')
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetz(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
 if vfoptions.experienceassete>=1
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassete')
 end
 if vfoptions.experienceassetze>=1
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassetze')
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
 if vfoptions.gridinterplayer==1 && length(n_a)>=2
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: gridinterplayer with l_a>=2 (GI2A) and dual {V,Valt} output is not yet implemented.')

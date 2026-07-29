@@ -300,6 +300,10 @@ if isstruct(FnsToEvaluate)
         % One of the endogenous states should only be counted once
         l_aprime=l_aprime-simoptions.experienceassetze;
     end
+    if isfield(simoptions,'experienceassetsemiz')
+        % One of the endogenous states should only be counted once
+        l_aprime=l_aprime-simoptions.experienceassetsemiz;
+    end
     if isfield(simoptions,'riskyasset')
         % One of the endogenous states should only be counted once
         l_aprime=l_aprime-simoptions.riskyasset;

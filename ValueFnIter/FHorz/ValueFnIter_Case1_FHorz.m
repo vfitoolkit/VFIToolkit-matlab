@@ -420,7 +420,15 @@ if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.ex
             [V,Policy]=ValueFnIter_FHorz_ExpAssetz(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     elseif vfoptions.experienceassetze>=1
-        if prod(vfoptions.n_semiz)>0
+        if prod(vfoptions.n_semiz)>0 && strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+            [V,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzeSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+                varargout={V, Policy, Valt, Policyalt};
+            else
+                varargout={V, Policy, Valt};
+            end
+            return
+        elseif prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetzeSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
             [V,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetze(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
