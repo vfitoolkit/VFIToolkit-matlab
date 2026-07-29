@@ -117,12 +117,12 @@ if simoptions.verbose
         if ~isfinite(jj_at_max_a2)
             max_a=nan;
             if N_a2==0
-                temp=reshape(StationaryDist,[N_a1,N_e,N_j]);
+                temp=reshape(StationaryDist,[N_a1,N_semiz*N_e,N_j]);
                 [a1,~,age_j]=ind2sub(size(temp),find(temp~=0));
                 max_a=max(a1);
                 jj_at_max_a2=min(age_j(a1==max_a));
             else
-                temp=reshape(StationaryDist,[N_a1,N_a2,N_e,N_j]);
+                temp=reshape(StationaryDist,[N_a1,N_a2,N_semiz*N_e,N_j]);
                 [~,a2,~,age_j]=ind2sub(size(temp),find(temp~=0));
                 max_a=max(a2);
                 jj_at_max_a2=min(age_j(a2==max_a));

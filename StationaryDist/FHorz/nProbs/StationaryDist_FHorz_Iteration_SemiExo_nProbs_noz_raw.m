@@ -79,7 +79,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
     if simoptions.optimize_nProbs==1
-        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj,n_a1,n_a2,0,jj, epsilon,total_zeros_created,jj_at_max_a2,simoptions);
+        [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj,n_a1,n_a2,N_semiz,jj, epsilon,total_zeros_created,jj_at_max_a2,simoptions);
     end
 
     StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
@@ -112,17 +112,17 @@ if simoptions.verbose
         if ~isfinite(jj_at_max_a2)
             max_a=nan;
             if N_a2==0
-                temp=reshape(StationaryDist,[N_a1,N_j]);
-                [a1,age_j]=ind2sub(size(temp),find(temp~=0));
+                temp=reshape(StationaryDist,[N_a1,N_semiz,N_j]);
+                [a1,~,age_j]=ind2sub(size(temp),find(temp~=0));
                 max_a=max(a1);
                 jj_at_max_a2=min(age_j(a1==max_a));
             else
                 if N_a1>0
-                    temp=reshape(StationaryDist,[N_a1,N_a2,N_j]);
+                    temp=reshape(StationaryDist,[N_a1,N_a2,N_semiz,N_j]);
                 else
-                    temp=reshape(StationaryDist,[1,N_a2,N_j]);
+                    temp=reshape(StationaryDist,[1,N_a2,N_semiz,N_j]);
                 end
-                [~,a2,age_j]=ind2sub(size(temp),find(temp~=0));
+                [~,a2,~,age_j]=ind2sub(size(temp),find(temp~=0));
                 max_a=max(a2);
                 jj_at_max_a2=min(age_j(a2==max_a));
             end

@@ -17,6 +17,9 @@ else
     a2_grid_T=1:N_a2;
 end
 
+% Gather so we can round; it will be placed back into gpuArray by caller
+StationaryDist_jj=gather(StationaryDist_jj);
+
 % Remember whether we want to return [N_a*N_z,1] or [N_a,N_z]
 StationaryDist_jj_size=size(StationaryDist_jj);
 
