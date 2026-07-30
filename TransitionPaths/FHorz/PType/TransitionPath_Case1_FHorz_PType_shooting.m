@@ -531,6 +531,13 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                     Parameters_ii.(iistr).(FullAggVarNames{ff})=AggVarsFullPath(ff,tt,ii);
                 end
             end
+            % Expose per-type AggVars with _name suffix in global Parameters (as the stationary
+            % GEptype solver does), so global intermediateEqns / GE eqns can reference LT_L, LT_H, ...
+            for ff=1:length(FullAggVarNames)
+                for ii=1:N_i
+                    Parameters.([FullAggVarNames{ff},'_',PTypeStructure.Names_i{ii}])=AggVarsFullPath(ff,tt,ii);
+                end
+            end
 
 
             % Get t+1 PricePath
@@ -553,6 +560,18 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 end
             end
 
+
+            % intermediateEqns: these have not been implemented in a manner that allows them to depend on per-ptype parameters, nor that lets them take different values for each ptype [NOTE: SHOULD be improved to allow this]
+            if transpathoptions.useintermediateEqns==1
+                intEqnnames=fieldnames(transpathoptions.intermediateEqns);
+                for gg=1:length(intEqnnames)
+                    temp=real(GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters));
+                    Parameters.(intEqnnames{gg})=temp;
+                    for ii=1:N_i
+                        Parameters_ii.(PTypeStructure.Names_i{ii}).(intEqnnames{gg})=temp;
+                    end
+                end
+            end
 
             if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
                 % Loop over the general eqm conditions, so we can deal seperately with those that depend on ptype and those that do not

@@ -131,37 +131,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_tt(Parameters,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PricePathOld(tt,:),transpathoptions);
         PricePathNew(tt,:)=PricePathNew_tt;
         GEcondnPath(tt,:)=GEcondnPath_tt;
-
-        % if tt<=2
-        %     disp('HERE')
-        %     tt
-        %     % Check GDebt_tminus1 is as intended
-        %     if tt==1
-        %         [Parameters.GDebt_tminus1,transpathoptions.initialvalues.GDebt]
-        %     else
-        %         [Parameters.GDebt_tminus1,PricePathNew(tt-1,3)]
-        %     end
-        %     % Check GDebt is as intended
-        %     [Parameters.GDebt,PricePathOld(tt,3)]
-        % 
-        %     % Now, the GEcondn comes out like
-        %     GEcondnPath(tt,2)
-        %     % So the new value should be
-        %     PricePathOld(tt,3)-GEcondnPath(tt,2)
-        %     % While the actual new value is 
-        %     PricePathNew(tt,3)
-        %     disp('END')
-        % 
-        %     PricePathNames
-        % 
-        %     transpathoptions.GEnewprice3.add
-        %     transpathoptions.GEnewprice3.factor
-        %     transpathoptions.GEnewprice3.permute
-        % 
-        %     if tt==2
-        %         return
-        %     end
-        % end
         
         % Sometimes, want to keep the AggVars to plot them
         if transpathoptions.graphaggvarspath==1
@@ -172,7 +141,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         AgentDist=AgentDistnext;
     end
-
+    
 
     %% Now update prices, give verbose feedback, and check for convergence
 
