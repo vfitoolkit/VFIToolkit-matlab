@@ -38,6 +38,11 @@ semizind=gpuArray(0:1:N_semiz-1);
 semizBind=shiftdim(gpuArray(0:1:N_semiz-1),-4);
 a12ind=gpuArray(0:1:N_a1*N_a2-1)';
 
+% lowmemory: which shocks are looped vs vectorised ({semiz} spec: =1 loop semiz)
+if vfoptions.lowmemory==1
+    special_n_semiz=ones(1,length(n_semiz));
+end
+
 %% Preallocate per-d2 storage
 V_ford2=zeros(N_a,N_semiz,N_d2,'gpuArray');
 d1_ford2=zeros(N_a,N_semiz,N_d2,'gpuArray');
@@ -50,6 +55,8 @@ flag_ford2=2*ones(N_a,N_semiz,N_d2,'gpuArray');
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
+
+  if vfoptions.lowmemory==0
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
 
@@ -86,6 +93,47 @@ if ~isfield(vfoptions,'V_Jplus1')
         L2a2_ford2(:,:,d2_c)=shiftdim(maxindexL2a2,1);
     end
 
+  elseif vfoptions.lowmemory==1 % loop semiz
+    for d2_c=1:N_d2
+        d12c_gridvals=d12_gridvals(:,:,d2_c);
+        for semiz_c=1:N_semiz
+            semiz_val=semiz_gridvals_J(semiz_c,:,N_j);
+
+            % Coarse grid
+            ReturnMatrix=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, special_n_d, special_n_semiz, d12c_gridvals, a1_grid, a2_grid, a1_grid, a2_grid, semiz_val, ReturnFnParamsVec, 1, 0);
+            [~,maxindex]=max(ReturnMatrix,[],2);
+            midpoint=max(min(maxindex,n_a1-1),2);
+
+            % Fine grid
+            a1primeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, special_n_d, special_n_semiz, d12c_gridvals, a1prime_grid(a1primeindexes), a2_grid, a1_grid, a2_grid, semiz_val, ReturnFnParamsVec, 2, 0);
+            [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
+            maxindexL2d1=rem(maxindexL2-1,N_d1)+1;
+            maxindexL2a=ceil(maxindexL2/N_d1);
+            maxindexL2a1=rem(maxindexL2a-1,n2long)+1;
+            maxindexL2a2=ceil(maxindexL2a/n2long);
+
+            % L2 flag (per d2,semiz): detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d1, a2prime)
+            mL2d1 = shiftdim(maxindexL2d1,1);
+            mL2a1 = shiftdim(maxindexL2a1,1);
+            mL2a2 = shiftdim(maxindexL2a2,1);
+            linidx_lower  = mL2d1                  + N_d1*n2long*(mL2a2-1) + N_d1*n2long*N_a2*a12ind;
+            linidx_upper  = mL2d1 + N_d1*(n2long-1) + N_d1*n2long*(mL2a2-1) + N_d1*n2long*N_a2*a12ind;
+            isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
+            isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
+            inLowerStrict = (mL2a1 >= 2)         & (mL2a1 <= n2short+1);
+            inUpperStrict = (mL2a1 >= n2short+3) & (mL2a1 <= n2long-1);
+            flag_ford2(:,semiz_c,d2_c) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
+            V_ford2(:,semiz_c,d2_c)=shiftdim(Vtempii,1);
+            d1_ford2(:,semiz_c,d2_c)=shiftdim(maxindexL2d1,1);
+            mid_ford2(:,semiz_c,d2_c)=midpoint(shiftdim(maxindexL2d1,1)+N_d1*(shiftdim(maxindexL2a2,1)-1)+N_d1*N_a2*a12ind);
+            L2a1_ford2(:,semiz_c,d2_c)=shiftdim(maxindexL2a1,1);
+            L2a2_ford2(:,semiz_c,d2_c)=shiftdim(maxindexL2a2,1);
+        end
+    end
+  end
+
     [V_jj,d2_max]=max(V_ford2,[],3);
     V(:,:,N_j)=V_jj;
     Policy(2,:,:,N_j)=shiftdim(d2_max,-1);
@@ -101,6 +149,7 @@ else
     DiscountFactorParamsVec=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames, N_j));
     V_next=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);
 
+  if vfoptions.lowmemory==0
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
         pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
@@ -147,6 +196,57 @@ else
         L2a2_ford2(:,:,d2_c)=shiftdim(maxindexL2a2,1);
     end
 
+  elseif vfoptions.lowmemory==1 % loop semiz
+    for d2_c=1:N_d2
+        d12c_gridvals=d12_gridvals(:,:,d2_c);
+        pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
+        for semiz_c=1:N_semiz
+            semiz_val=semiz_gridvals_J(semiz_c,:,N_j);
+
+            EV=V_next.*shiftdim(pi_semiz(semiz_c,:)',-1);
+            EV(isnan(EV))=0;
+            EV=sum(EV,2);
+            EV=reshape(EV,[N_a1,N_a2,1,1,1]);
+            EVinterp=interp1(a1_grid,EV,a1prime_grid);
+
+            % Coarse grid
+            ReturnMatrix=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, special_n_d, special_n_semiz, d12c_gridvals, a1_grid, a2_grid, a1_grid, a2_grid, semiz_val, ReturnFnParamsVec, 1, 0);
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
+            [~,maxindex]=max(entireRHS,[],2);
+            midpoint=max(min(maxindex,n_a1-1),2);
+
+            % Fine grid
+            a1primeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, special_n_d, special_n_semiz, d12c_gridvals, a1prime_grid(a1primeindexes), a2_grid, a1_grid, a2_grid, semiz_val, ReturnFnParamsVec, 2, 0);
+            aprime=a1primeindexes+N_a1fine*a2ind;
+            entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprime),[N_d1*n2long*N_a2,N_a]);
+            [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+            maxindexL2d1=rem(maxindexL2-1,N_d1)+1;
+            maxindexL2a=ceil(maxindexL2/N_d1);
+            maxindexL2a1=rem(maxindexL2a-1,n2long)+1;
+            maxindexL2a2=ceil(maxindexL2a/n2long);
+
+            % L2 flag (per d2,semiz): detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d1, a2prime)
+            mL2d1 = shiftdim(maxindexL2d1,1);
+            mL2a1 = shiftdim(maxindexL2a1,1);
+            mL2a2 = shiftdim(maxindexL2a2,1);
+            linidx_lower  = mL2d1                  + N_d1*n2long*(mL2a2-1) + N_d1*n2long*N_a2*a12ind;
+            linidx_upper  = mL2d1 + N_d1*(n2long-1) + N_d1*n2long*(mL2a2-1) + N_d1*n2long*N_a2*a12ind;
+            isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
+            isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
+            inLowerStrict = (mL2a1 >= 2)         & (mL2a1 <= n2short+1);
+            inUpperStrict = (mL2a1 >= n2short+3) & (mL2a1 <= n2long-1);
+            flag_ford2(:,semiz_c,d2_c) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
+            V_ford2(:,semiz_c,d2_c)=shiftdim(Vtempii,1);
+            d1_ford2(:,semiz_c,d2_c)=shiftdim(maxindexL2d1,1);
+            mid_ford2(:,semiz_c,d2_c)=midpoint(shiftdim(maxindexL2d1,1)+N_d1*(shiftdim(maxindexL2a2,1)-1)+N_d1*N_a2*a12ind);
+            L2a1_ford2(:,semiz_c,d2_c)=shiftdim(maxindexL2a1,1);
+            L2a2_ford2(:,semiz_c,d2_c)=shiftdim(maxindexL2a2,1);
+        end
+    end
+  end
+
     [V_jj,d2_max]=max(V_ford2,[],3);
     V(:,:,N_j)=V_jj;
     Policy(2,:,:,N_j)=shiftdim(d2_max,-1);
@@ -173,6 +273,7 @@ for reverse_j=1:N_j-1
 
     V_next=V(:,:,jj+1);
 
+  if vfoptions.lowmemory==0
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
         pi_semiz=pi_semiz_J(:,:,d2_c,jj);
@@ -218,6 +319,57 @@ for reverse_j=1:N_j-1
         L2a1_ford2(:,:,d2_c)=shiftdim(maxindexL2a1,1);
         L2a2_ford2(:,:,d2_c)=shiftdim(maxindexL2a2,1);
     end
+
+  elseif vfoptions.lowmemory==1 % loop semiz
+    for d2_c=1:N_d2
+        d12c_gridvals=d12_gridvals(:,:,d2_c);
+        pi_semiz=pi_semiz_J(:,:,d2_c,jj);
+        for semiz_c=1:N_semiz
+            semiz_val=semiz_gridvals_J(semiz_c,:,jj);
+
+            EV=V_next.*shiftdim(pi_semiz(semiz_c,:)',-1);
+            EV(isnan(EV))=0;
+            EV=sum(EV,2);
+            EV=reshape(EV,[N_a1,N_a2,1,1,1]);
+            EVinterp=interp1(a1_grid,EV,a1prime_grid);
+
+            % Coarse grid
+            ReturnMatrix=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, special_n_d, special_n_semiz, d12c_gridvals, a1_grid, a2_grid, a1_grid, a2_grid, semiz_val, ReturnFnParamsVec, 1, 0);
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
+            [~,maxindex]=max(entireRHS,[],2);
+            midpoint=max(min(maxindex,n_a1-1),2);
+
+            % Fine grid
+            a1primeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, special_n_d, special_n_semiz, d12c_gridvals, a1prime_grid(a1primeindexes), a2_grid, a1_grid, a2_grid, semiz_val, ReturnFnParamsVec, 2, 0);
+            aprime=a1primeindexes+N_a1fine*a2ind;
+            entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprime),[N_d1*n2long*N_a2,N_a]);
+            [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+            maxindexL2d1=rem(maxindexL2-1,N_d1)+1;
+            maxindexL2a=ceil(maxindexL2/N_d1);
+            maxindexL2a1=rem(maxindexL2a-1,n2long)+1;
+            maxindexL2a2=ceil(maxindexL2a/n2long);
+
+            % L2 flag (per d2,semiz): detect -Inf on the coarse a1 neighbour we'd put weight on (at chosen d1, a2prime)
+            mL2d1 = shiftdim(maxindexL2d1,1);
+            mL2a1 = shiftdim(maxindexL2a1,1);
+            mL2a2 = shiftdim(maxindexL2a2,1);
+            linidx_lower  = mL2d1                  + N_d1*n2long*(mL2a2-1) + N_d1*n2long*N_a2*a12ind;
+            linidx_upper  = mL2d1 + N_d1*(n2long-1) + N_d1*n2long*(mL2a2-1) + N_d1*n2long*N_a2*a12ind;
+            isInfLower    = (ReturnMatrix_ii(linidx_lower) == -Inf);
+            isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
+            inLowerStrict = (mL2a1 >= 2)         & (mL2a1 <= n2short+1);
+            inUpperStrict = (mL2a1 >= n2short+3) & (mL2a1 <= n2long-1);
+            flag_ford2(:,semiz_c,d2_c) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
+            V_ford2(:,semiz_c,d2_c)=shiftdim(Vtempii,1);
+            d1_ford2(:,semiz_c,d2_c)=shiftdim(maxindexL2d1,1);
+            mid_ford2(:,semiz_c,d2_c)=midpoint(shiftdim(maxindexL2d1,1)+N_d1*(shiftdim(maxindexL2a2,1)-1)+N_d1*N_a2*a12ind);
+            L2a1_ford2(:,semiz_c,d2_c)=shiftdim(maxindexL2a1,1);
+            L2a2_ford2(:,semiz_c,d2_c)=shiftdim(maxindexL2a2,1);
+        end
+    end
+  end
 
     [V_jj,d2_max]=max(V_ford2,[],3);
     V(:,:,jj)=V_jj;

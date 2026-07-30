@@ -230,6 +230,12 @@ for ii=1:PTypeStructure.N_i
     if ~isfield(PTypeStructure.(iistr).simoptions,'experienceasset')
         PTypeStructure.(iistr).simoptions.experienceasset=0;
     end
+    if ~isfield(PTypeStructure.(iistr).vfoptions,'experienceassetz')
+        PTypeStructure.(iistr).vfoptions.experienceassetz=0;
+    end
+    if ~isfield(PTypeStructure.(iistr).simoptions,'experienceassetz')
+        PTypeStructure.(iistr).simoptions.experienceassetz=0;
+    end
 
     %%
     %% Go through everything which might be dependent on fixed type (PType)

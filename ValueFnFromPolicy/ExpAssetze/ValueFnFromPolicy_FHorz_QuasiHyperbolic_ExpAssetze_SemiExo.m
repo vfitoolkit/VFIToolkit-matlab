@@ -18,7 +18,8 @@ function [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze_SemiExo(Pol
 
 %% Scope
 if vfoptions.gridinterplayer==1
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze_SemiExo: gridinterplayer not yet implemented')
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze_SemiExo_GI(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
 
 %% Setup (mirrors ValueFnFromPolicy_FHorz_ExpAssetze_SemiExo)

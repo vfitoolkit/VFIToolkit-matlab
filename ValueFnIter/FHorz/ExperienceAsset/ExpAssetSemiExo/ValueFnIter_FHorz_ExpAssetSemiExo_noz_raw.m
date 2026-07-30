@@ -276,8 +276,6 @@ for reverse_j=1:N_j-1
             end
         end
 
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not yet implemented (email me if you want/need it)')
     end
 
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
