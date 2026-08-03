@@ -101,9 +101,9 @@ end
 %%
 % Note: N_z=0 is a different code
 if N_e>0
-    StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_e_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,N_a,N_z,N_e,pi_z,pi_e,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_e_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,n_a1,n_a2,N_z,N_e,pi_z,pi_e,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 else % no e
-    StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,N_a,N_z,pi_z,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,n_a1,n_a2,N_z,pi_z,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
 if simoptions.parallel==2
