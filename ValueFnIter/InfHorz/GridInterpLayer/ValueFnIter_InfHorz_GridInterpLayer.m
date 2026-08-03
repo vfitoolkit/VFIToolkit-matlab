@@ -18,24 +18,29 @@ if ~isfield(vfoptions,'multigridswitch')
     end
 end
 
+% postGI looks locally for the optimal grid interpolation point, in the area around the point that was optimal on the coarse grid. 
+% By considering the nearest 'maxaprimediff' points on the original coarse grid the hope is that we set the 'local' sweep wide enough to ensure we catch the global optimum. By repeating this process 'postGIrepeat' times, we can hopefully take steps towards the global optimum of the fine grid problem.
 if ~isfield(vfoptions,'postGIrepeat')
     vfoptions.postGIrepeat=1; % Do multiple post-GI layers (this is the number of additional layers)
+    % In practice, the local optima appears to get stuck in a 'local basin', and so setting postGIrepeat>1 fails to achieve anything because each repeat remains stuck in the basin and does not get any closer to the global.
+    % We therefore set a default of postGIrepeat=1. This can be increased but in tests ran there was little to nothing to be gained from doing so in actual applications.
 end
 
 % Set the maximum 'rough grid' change in aprime allowed when solving fine problem, in terms of moving from what was optimal when only solving the rough grid problem.
 if ~isfield(vfoptions,'maxaprimediff')
-    if n_d(1)==0
-        if vfoptions.postGIrepeat==0
-            vfoptions.maxaprimediff=5; % only used for postGI (for vfoptions.preGI=0)
-        elseif vfoptions.postGIrepeat>0
-            vfoptions.maxaprimediff=3; % only used for postGI (for vfoptions.preGI=0)
-        end
+    if prod(n_d)==0
+        vfoptions.maxaprimediff=5; % only used for postGI (for vfoptions.preGI=0)
     else
-        if vfoptions.postGIrepeat==0
-            vfoptions.maxaprimediff=10; % only used for postGI (for vfoptions.preGI=0)
-        elseif vfoptions.postGIrepeat>0
-            vfoptions.maxaprimediff=5; % only used for postGI (for vfoptions.preGI=0)
+        if n_a(1)<300
+            vfoptions.maxaprimediff=ceil(n_a(1)/5);
+        else
+            vfoptions.maxaprimediff=ceil(n_a(1)/10);
         end
+        if vfoptions.verbose_advice==1
+            warning('vfoptions.postGI=1 is not guaranteed to converge globally. The default of vfoptions.maxaprimediff is set to a conservatively large value to hopefully achieve global convergence. You can try higher/lower values, and see if the solution is sensitive.')
+        end
+        % Based on testing models, the default vfoptions.maxaprimediff values set here were sufficient to always acheive global convergence. But this does not guarantee they are for all other models.
+        % These defaults are also so conservative that the 'post' step takes more memory than the original coarse grid step. The vast majority of models will solve just fine for the global solution with lower values of vfoptions.maxaprimediff, and will be faster and use less memory.
     end
 end
 

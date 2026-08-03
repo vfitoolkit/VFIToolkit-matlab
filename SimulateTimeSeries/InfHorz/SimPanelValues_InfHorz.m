@@ -28,6 +28,7 @@ if ~exist('simoptions','var')
     simoptions.experienceassete=0;
     simoptions.experienceassetze=0;
     simoptions.experienceassetu=0;
+    simoptions.experienceassetsemiz=0;
     simoptions.riskyasset=0;
     simoptions.inheritanceasset=0;
     simoptions.n_semiz=0;
@@ -78,6 +79,9 @@ else
     end
     if ~isfield(simoptions,'experienceassetu')
         simoptions.experienceassetu=0;
+    end
+    if ~isfield(simoptions,'experienceassetsemiz')
+        simoptions.experienceassetsemiz=0;
     end
     if ~isfield(simoptions,'riskyasset')
         simoptions.riskyasset=0;

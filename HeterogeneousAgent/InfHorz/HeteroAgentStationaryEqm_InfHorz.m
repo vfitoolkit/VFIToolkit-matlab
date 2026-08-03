@@ -53,6 +53,7 @@ if ~exist('vfoptions','var')
     %commands and the like, so no need to set them here except for a few.
     vfoptions.n_e=0;
     vfoptions.n_semiz=0;
+    vfoptions.verbose_advice=0; % silence advisory warnings (e.g. the postGI maxaprimediff advice) during the repeated VFI solves of the GE loop
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'parallel')
@@ -63,6 +64,9 @@ else
     end
     if ~isfield(vfoptions,'n_semiz')
         vfoptions.n_semiz=0;
+    end
+    if ~isfield(vfoptions,'verbose_advice')
+        vfoptions.verbose_advice=0;
     end
 end
 

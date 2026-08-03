@@ -13,6 +13,7 @@ if ~exist('vfoptions','var')
     disp('No vfoptions given, using defaults')
     % If vfoptions is not given, just use all the defaults
     vfoptions.verbose=0;
+    vfoptions.verbose_advice=1; % =1 sounds advisory warnings (e.g. the postGI maxaprimediff advice); set =0 to silence them (e.g. inside general-eqm / transition-path loops)
     vfoptions.tolerance=10^(-9); % Convergence tolerance (for ||V_n - V_{n-1}|| )
     vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     vfoptions.maxiter=10^4; % Can be used to stop the VFI after a finite number of iterations
@@ -53,6 +54,9 @@ else
     % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
+    end
+    if ~isfield(vfoptions,'verbose_advice')
+        vfoptions.verbose_advice=1;
     end
     if ~isfield(vfoptions,'tolerance')
         vfoptions.tolerance=10^(-9);
@@ -276,7 +280,6 @@ end
 % But this changes if you have e, semiz, or just multiple d, and if you use riskyasset, expasset, etc.
 % So figure out which setup we have, and get the relevant ReturnFnParamNames
 
-
 %% Entry and Exit
 if vfoptions.endogenousexit==1
     % ExitPolicy is binary decision to exit (1 is exit, 0 is 'not exit').
@@ -305,9 +308,6 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
 end
-
-
-
 
 
 %% Exotic Preferences

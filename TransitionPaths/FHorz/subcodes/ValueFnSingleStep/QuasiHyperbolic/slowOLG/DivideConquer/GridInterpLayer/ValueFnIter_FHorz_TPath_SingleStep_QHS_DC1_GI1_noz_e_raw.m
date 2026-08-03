@@ -53,7 +53,7 @@ if vfoptions.lowmemory==0
             aprimeindexes=loweredge+(0:1:maxgap(ii));
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,3);
             [~,maxindex]=max(ReturnMatrix_ii,[],2);
-            midpoints_jj(:,1,curraindex,:)=shiftdim(maxindex+(loweredge-1),1);
+            midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
         else
             loweredge=maxindex1(:,1,ii,:);
             midpoints_jj(:,1,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1);
@@ -95,7 +95,7 @@ elseif vfoptions.lowmemory==1
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_val, ReturnFnParamsVec,3);
                 [~,maxindex]=max(ReturnMatrix_ii,[],2);
-                midpoints_jj(:,1,curraindex)=shiftdim(maxindex+(loweredge-1),1);
+                midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(:,1,ii,:);
                 midpoints_jj(:,1,curraindex)=repelem(loweredge,1,1,length(curraindex),1);

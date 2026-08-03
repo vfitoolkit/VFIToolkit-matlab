@@ -88,7 +88,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         % aprimeL2ind from 1 to 3+2*n2short
         Policy(2,:,z_c) = maxindexL2;
         ReturnMatrixind=maxindexL2+n2long*aind;
-        Ftemp(:, z_c)   = ReturnMatrix_ii_z(ReturnMatrixind);
+        Ftemp(:, z_c)   = ReturnMatrix_fine(ReturnMatrixind);
     end
 
     %---------------------------------------------------------------------%
