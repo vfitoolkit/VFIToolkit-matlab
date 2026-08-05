@@ -36,6 +36,7 @@ d_gridvals=[repmat(d12_gridvals,N_d3,1),repelem(CreateGridvals(n_d3,d3_grid,1),N
 
 if vfoptions.lowmemory>0
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
+    special_n_semiz=[n_semiz,ones(1,length(n_z))]; % semiz vectorised, z scalar (lowmemory=1 split over z)
 else
     % precompute
     bothzind=shiftdim((0:1:N_bothz-1),-1); % already includes -1
@@ -119,6 +120,69 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
 
     elseif vfoptions.lowmemory==1
+        % split: parallelise over semiz, loop over z
+        semizind=shiftdim((0:1:N_semiz-1),-1); % already includes -1
+        for z_c=1:N_z
+            zind=(1:1:N_semiz)+N_semiz*(z_c-1);
+            z_val=bothz_gridvals_J(zind,:,N_j);
+
+            % n-Monotonicity
+            ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,n_d3],n_a1,vfoptions.level1n,n_a2,special_n_semiz, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
+
+            % First, we want a1prime conditional on (d,1,a)
+            [~,maxindex1]=max(ReturnMatrix_ii_z,[],2);
+
+            % Now, get and store the full (d,aprime)
+            [Vtempii,maxindex2]=max(reshape(ReturnMatrix_ii_z,[N_d*N_a1,vfoptions.level1n*N_a2,N_semiz]),[],1);
+
+            % Store
+            curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
+            V(curraindex,zind,N_j)=shiftdim(Vtempii,1);
+            dind=rem(maxindex2-1,N_d)+1;
+            d12_ind=rem(dind-1,N_d12)+1;
+            Policy3(1,curraindex,zind,N_j)=rem(d12_ind-1,N_d1)+1; % d1
+            Policy3(2,curraindex,zind,N_j)=ceil(d12_ind/N_d1); % d2
+            Policy3(3,curraindex,zind,N_j)=ceil(dind/N_d12); % d3
+            Policy3(4,curraindex,zind,N_j)=ceil(maxindex2/N_d); % d4
+
+            % Attempt for improved version
+            maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
+            for ii=1:(vfoptions.level1n-1)
+                curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
+                if maxgap(ii)>0
+                    loweredge=min(maxindex1(:,1,ii,:,:),N_a1-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                    % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_semiz
+                    a1primeindexes=loweredge+(0:1:maxgap(ii));
+                    % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_semiz
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,n_d3],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_semiz, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2,0); % Level=2, Refine=0
+                    [Vtempii,maxindex]=max(ReturnMatrix_ii_z,[],1);
+                    V(curraindex,zind,N_j)=shiftdim(Vtempii,1);
+                    dind=(rem(maxindex-1,N_d)+1);
+                    a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
+                    allind=dind+N_d*a2ind+N_d*N_a2*semizind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_a2-by-n_semiz
+                    d12_ind=rem(dind-1,N_d12)+1;
+                    Policy3(1,curraindex,zind,N_j)=rem(d12_ind-1,N_d1)+1; % d1
+                    Policy3(2,curraindex,zind,N_j)=ceil(d12_ind/N_d1); % d2
+                    Policy3(3,curraindex,zind,N_j)=ceil(dind/N_d12); % d3
+                    Policy3(4,curraindex,zind,N_j)=ceil(maxindex/N_d+loweredge(allind)-1); % d4
+                else
+                    loweredge=maxindex1(:,1,ii,:,:);
+                    % Just use aprime(ii) for everything
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,n_d3],1,level1iidiff(ii),n_a2,special_n_semiz, d_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2,0); % Level=2, Refine=0
+                    [Vtempii,maxindex]=max(ReturnMatrix_ii_z,[],1);
+                    V(curraindex,zind,N_j)=shiftdim(Vtempii,1);
+                    dind=(rem(maxindex-1,N_d)+1);
+                    a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
+                    allind=dind+N_d*a2ind+N_d*N_a2*semizind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_semiz
+                    d12_ind=rem(dind-1,N_d12)+1;
+                    Policy3(1,curraindex,zind,N_j)=rem(d12_ind-1,N_d1)+1; % d1
+                    Policy3(2,curraindex,zind,N_j)=ceil(d12_ind/N_d1); % d2
+                    Policy3(3,curraindex,zind,N_j)=ceil(dind/N_d12); % d3
+                    Policy3(4,curraindex,zind,N_j)=ceil(maxindex/N_d+loweredge(allind)-1); % d4
+                end
+            end
+        end
+    elseif vfoptions.lowmemory==2
 
         for z_c=1:N_bothz
             z_val=bothz_gridvals_J(z_c,:,N_j);
@@ -191,10 +255,10 @@ else
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2,N_u]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2,N_u]
-    if vfoptions.lowmemory==0
-        aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_u,N_bothz]
-    else
+    if vfoptions.lowmemory>0
         aprimeProbs=repmat(a2primeProbs,N_a1,1,1); % [N_d2*N_a1,N_a2,N_u]
+    else % lowmemory=0
+        aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_u,N_bothz]
     end
 
     EVpre=reshape(vfoptions.V_Jplus1,[N_a,N_bothz]);
@@ -261,7 +325,7 @@ else
                     %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
                     dind=(rem(maxindex-1,N_d1*N_d2)+1);
                     a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
-                    allind=dind+N_d1*N_d2*a2ind+N_d2*N_a2*bothzind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_a2-by-n_z
+                    allind=dind+N_d1*N_d2*a2ind+N_d1*N_d2*N_a2*bothzind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_a2-by-n_z
                     Policy_ford3_jj(curraindex,:,d3_c)=shiftdim(maxindex+N_d1*N_d2*(loweredge(allind)-1),1);
                 else
                     loweredge=maxindex1(:,1,ii,:,:);
@@ -282,6 +346,82 @@ else
         end
 
     elseif vfoptions.lowmemory==1
+        % split: parallelise over semiz, loop over z
+        semizind=shiftdim((0:1:N_semiz-1),-1); % already includes -1
+        for d3_c=1:N_d3
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
+            % Note: By definition V_Jplus1 does not depend on d (only aprime)
+            pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
+
+            EV=EVpre.*shiftdim(pi_bothz',-1);
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_u,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
+            EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_u,N_bothz]); % (d2,a1prime,a2,z), the upper aprime
+            aprimeProbs_full=repmat(a2primeProbs,N_a1,1,1,N_bothz); % [N_d2*N_a1,N_a2,N_u,N_bothz]; local 4-D probs so joint's 3-D aprimeProbs stays untouched
+            skipinterp=(EV1==EV2);
+            aprimeProbs_full(skipinterp)=0; % effectively skips interpolation
+            EV=EV1.*aprimeProbs_full+EV2.*(1-aprimeProbs_full);
+            EV=squeeze(sum((EV.*pi_u),3)); % reduce over u -> (d2,a1prime,a2,bothz)
+            DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_bothz]); % (d2,a1prime,1,a2,zprime); d1-dim is implicit singleton, broadcasts at use sites
+
+            for z_c=1:N_z
+                zind=(1:1:N_semiz)+N_semiz*(z_c-1);
+                z_val=bothz_gridvals_J(zind,:,N_j);
+                DiscountedEV_z=DiscountedEV(:,:,:,:,zind); % (d2,a1prime,1,a2,semiz)
+
+                % n-Monotonicity
+                ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,vfoptions.level1n,n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
+
+                entireRHS_ii_d3=ReturnMatrix_ii_d3+repelem(DiscountedEV_z,N_d1,1,1,1,1);
+
+                % First, we want a1prime conditional on (d,1,a)
+                [~,maxindex1]=max(entireRHS_ii_d3,[],2);
+
+                % Now, get and store the full (d,aprime)
+                [Vtempii,maxindex2]=max(reshape(entireRHS_ii_d3,[N_d1*N_d2*N_a1,vfoptions.level1n*N_a2,N_semiz]),[],1);
+
+                % Store
+                curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
+                V_ford3_jj(curraindex,zind,d3_c)=shiftdim(Vtempii,1);
+                Policy_ford3_jj(curraindex,zind,d3_c)=shiftdim(maxindex2,1);
+
+                % a1-dim stays singleton in DiscountedEV_z; broadcasts at use sites
+                % Attempt for improved version
+                maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
+                for ii=1:(vfoptions.level1n-1)
+                    curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
+                    if maxgap(ii)>0
+                        loweredge=min(maxindex1(:,1,ii,:,:),N_a1-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                        % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_semiz
+                        a1primeindexes=loweredge+(0:1:maxgap(ii));
+                        % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_semiz
+                        ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,3,0); % Level=2, Refine=0
+                        d2aprimez=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_semiz-1),-3); % [N_d12,maxgap+1,1,N_a2,N_semiz]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2,N_semiz]
+                        entireRHS_ii=reshape(ReturnMatrix_ii_d3+DiscountedEV_z(d2aprimez),[N_d12*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz]);
+                        [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                        V_ford3_jj(curraindex,zind,d3_c)=shiftdim(Vtempii,1);
+                        dind=(rem(maxindex-1,N_d1*N_d2)+1);
+                        a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
+                        allind=dind+N_d1*N_d2*a2ind+N_d1*N_d2*N_a2*semizind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_a2-by-n_semiz
+                        Policy_ford3_jj(curraindex,zind,d3_c)=shiftdim(maxindex+N_d1*N_d2*(loweredge(allind)-1),1);
+                    else
+                        loweredge=maxindex1(:,1,ii,:,:);
+                        % Just use aprime(ii) for everything
+                        ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],1,level1iidiff(ii),n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,3,0); % Level=2, Refine=0
+                        d2aprimez=d2ind+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_semiz-1),-3); % [N_d12,1,1,N_a2,N_semiz]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2,N_semiz]
+                        entireRHS_ii=reshape(ReturnMatrix_ii_d3+DiscountedEV_z(d2aprimez),[N_d12,level1iidiff(ii)*N_a2,N_semiz]);
+                        [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                        V_ford3_jj(curraindex,zind,d3_c)=shiftdim(Vtempii,1);
+                        dind=(rem(maxindex-1,N_d1*N_d2)+1);
+                        a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
+                        allind=dind+N_d1*N_d2*a2ind+N_d1*N_d2*N_a2*semizind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_semiz
+                        Policy_ford3_jj(curraindex,zind,d3_c)=shiftdim(maxindex+N_d1*N_d2*(loweredge(allind)-1),1);
+                    end
+                end
+            end
+        end
+    elseif vfoptions.lowmemory==2
         for d3_c=1:N_d3
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
@@ -398,10 +538,10 @@ for reverse_j=1:N_j-1
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2,N_u]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2,N_u]
-    if vfoptions.lowmemory==0
-        aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_u,N_bothz]
-    else
+    if vfoptions.lowmemory>0
         aprimeProbs=repmat(a2primeProbs,N_a1,1,1); % [N_d2*N_a1,N_a2,N_u]
+    else % lowmemory=0
+        aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_u,N_bothz]
     end
 
     EVpre=V(:,:,jj+1);
@@ -487,6 +627,82 @@ for reverse_j=1:N_j-1
         end
 
     elseif vfoptions.lowmemory==1
+        % split: parallelise over semiz, loop over z
+        semizind=shiftdim((0:1:N_semiz-1),-1); % already includes -1
+        for d3_c=1:N_d3
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
+            % Note: By definition V_Jplus1 does not depend on d (only aprime)
+            pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz_J(:,:,d3_c,jj));
+
+            EV=EVpre.*shiftdim(pi_bothz',-1);
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_u,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
+            EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_u,N_bothz]); % (d2,a1prime,a2,z), the upper aprime
+            aprimeProbs_full=repmat(a2primeProbs,N_a1,1,1,N_bothz); % [N_d2*N_a1,N_a2,N_u,N_bothz]; local 4-D probs so joint's 3-D aprimeProbs stays untouched
+            skipinterp=(EV1==EV2);
+            aprimeProbs_full(skipinterp)=0; % effectively skips interpolation
+            EV=EV1.*aprimeProbs_full+EV2.*(1-aprimeProbs_full);
+            EV=squeeze(sum((EV.*pi_u),3)); % reduce over u -> (d2,a1prime,a2,bothz)
+            DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_bothz]); % (d2,a1prime,1,a2,zprime); d1-dim is implicit singleton, broadcasts at use sites
+
+            for z_c=1:N_z
+                zind=(1:1:N_semiz)+N_semiz*(z_c-1);
+                z_val=bothz_gridvals_J(zind,:,jj);
+                DiscountedEV_z=DiscountedEV(:,:,:,:,zind); % (d2,a1prime,1,a2,semiz)
+
+                % n-Monotonicity
+                ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,vfoptions.level1n,n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1,0); % Level=1, Refine=0
+
+                entireRHS_ii_d3=ReturnMatrix_ii_d3+repelem(DiscountedEV_z,N_d1,1,1,1,1);
+
+                % First, we want a1prime conditional on (d,1,a)
+                [~,maxindex1]=max(entireRHS_ii_d3,[],2);
+
+                % Now, get and store the full (d,aprime)
+                [Vtempii,maxindex2]=max(reshape(entireRHS_ii_d3,[N_d1*N_d2*N_a1,vfoptions.level1n*N_a2,N_semiz]),[],1);
+
+                % Store
+                curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
+                V_ford3_jj(curraindex,zind,d3_c)=shiftdim(Vtempii,1);
+                Policy_ford3_jj(curraindex,zind,d3_c)=shiftdim(maxindex2,1);
+
+                % a1-dim stays singleton in DiscountedEV_z; broadcasts at use sites
+                % Attempt for improved version
+                maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
+                for ii=1:(vfoptions.level1n-1)
+                    curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
+                    if maxgap(ii)>0
+                        loweredge=min(maxindex1(:,1,ii,:,:),N_a1-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                        % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_semiz
+                        a1primeindexes=loweredge+(0:1:maxgap(ii));
+                        % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_semiz
+                        ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,3,0); % Level=2, Refine=0
+                        d2aprimez=d2ind+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_semiz-1),-3); % [N_d12,maxgap+1,1,N_a2,N_semiz]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2,N_semiz]
+                        entireRHS_ii=reshape(ReturnMatrix_ii_d3+DiscountedEV_z(d2aprimez),[N_d12*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz]);
+                        [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                        V_ford3_jj(curraindex,zind,d3_c)=shiftdim(Vtempii,1);
+                        dind=(rem(maxindex-1,N_d1*N_d2)+1);
+                        a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
+                        allind=dind+N_d1*N_d2*a2ind+N_d1*N_d2*N_a2*semizind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_a2-by-n_semiz
+                        Policy_ford3_jj(curraindex,zind,d3_c)=shiftdim(maxindex+N_d1*N_d2*(loweredge(allind)-1),1);
+                    else
+                        loweredge=maxindex1(:,1,ii,:,:);
+                        % Just use aprime(ii) for everything
+                        ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],1,level1iidiff(ii),n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,3,0); % Level=2, Refine=0
+                        d2aprimez=d2ind+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_semiz-1),-3); % [N_d12,1,1,N_a2,N_semiz]; linear index into DiscountedEV_z [N_d2,N_a1,1,N_a2,N_semiz]
+                        entireRHS_ii=reshape(ReturnMatrix_ii_d3+DiscountedEV_z(d2aprimez),[N_d12,level1iidiff(ii)*N_a2,N_semiz]);
+                        [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+                        V_ford3_jj(curraindex,zind,d3_c)=shiftdim(Vtempii,1);
+                        dind=(rem(maxindex-1,N_d1*N_d2)+1);
+                        a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
+                        allind=dind+N_d1*N_d2*a2ind+N_d1*N_d2*N_a2*semizind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_semiz
+                        Policy_ford3_jj(curraindex,zind,d3_c)=shiftdim(maxindex+N_d1*N_d2*(loweredge(allind)-1),1);
+                    end
+                end
+            end
+        end
+    elseif vfoptions.lowmemory==2
         for d3_c=1:N_d3
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)

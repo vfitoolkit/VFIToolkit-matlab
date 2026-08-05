@@ -335,10 +335,10 @@ else
                 [~,maxindex1]=max(entireRHS_d2iie,[],1); % no d1
 
                 % Just keep the 'midpoint' version of maxindex1 [as GI]
-                midpoints_jj(1,level1ii,:)=maxindex1;
+                midpoints_jj(1,level1ii,:,:)=maxindex1;
 
                 % Second level based on monotonicity
-                maxgap=squeeze(max(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],3)));
+                maxgap=squeeze(max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                     if maxgap(ii)>0
@@ -350,10 +350,10 @@ else
                         aprimez=aprimeindexes+N_a*semizind;
                         entireRHS_ii=ReturnMatrix_iie+DiscountFactorParamsVec*reshape(EV_d2(aprimez),[(maxgap(ii)+1),1,N_semiz]); % autoexpand level1iidiff(ii) in 2nd-dim
                         [~,maxindex]=max(entireRHS_ii,[],1);
-                        midpoints_jj(1,curraindex,:,:)=maxindex+(loweredge-1);
+                        midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
                     else
                         loweredge=maxindex1(1,ii,:);
-                        midpoints_jj(1,curraindex,:,:)=repelem(loweredge,1,length(curraindex),1); % unfortunately doesn't autofill
+                        midpoints_jj(1,curraindex,:,:)=repelem(loweredge,length(curraindex),1); % unfortunately doesn't autofill
                     end
                 end
 
@@ -368,7 +368,7 @@ else
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
                 V_ford2_jj(:,:,e_c,d2_c)=shiftdim(Vtemp,1);
-                Policy_ford2_jj(:,:,e_c,d2_c)=shiftdim(midpoints_jj,1);
+                Policy_ford2_jj(:,:,e_c,d2_c)=shiftdim(maxindex,1);
 
                 midpoint_ford2_jj(:,:,e_c,d2_c)=squeeze(midpoints_jj);  % no d1
 
@@ -417,7 +417,7 @@ else
                     midpoints_jj(1,level1ii,semiz_c,e_c)=maxindex1;
 
                     % Second level based on monotonicity
-                    maxgap=squeeze(max(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],3)));
+                    maxgap=squeeze(max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3));
                     for ii=1:(vfoptions.level1n-1)
                         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                         if maxgap(ii)>0
@@ -431,7 +431,7 @@ else
                             midpoints_jj(1,curraindex,semiz_c,e_c)=maxindex+(loweredge-1);
                         else
                             loweredge=maxindex1(1,ii,:);
-                            midpoints_jj(1,curraindex,semiz_c,e_c)=repelem(loweredge,1,length(curraindex),1); % unfortunately doesn't autofill
+                            midpoints_jj(1,curraindex,semiz_c,e_c)=repelem(loweredge,length(curraindex),1); % unfortunately doesn't autofill
                         end
                     end
 
@@ -445,7 +445,7 @@ else
                     [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
                     V_ford2_jj(:,semiz_c,e_c,d2_c)=shiftdim(Vtemp,1);
-                    Policy_ford2_jj(:,semiz_c,e_c,d2_c)=shiftdim(midpoints_semize,1);
+                    Policy_ford2_jj(:,semiz_c,e_c,d2_c)=shiftdim(maxindex,1);
 
                     midpoint_ford2_jj(:,semiz_c,e_c,d2_c)=shiftdim(midpoints_semize,1); % no d1
 

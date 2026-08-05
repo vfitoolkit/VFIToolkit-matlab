@@ -34,7 +34,9 @@ d23_gridvals=[repmat(d2_gridvals,N_d3,1),repelem(CreateGridvals(n_d3,d3_grid,1),
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
 end
-if vfoptions.lowmemory>1
+if vfoptions.lowmemory==2
+    special_n_semiz=[n_semiz,ones(1,length(n_z))];
+elseif vfoptions.lowmemory==3
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
 end
 
@@ -74,6 +76,24 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
 
     elseif vfoptions.lowmemory==2
+
+        for z_c=1:N_z
+            semizblock=(z_c-1)*N_semiz+(1:N_semiz);
+            z_val=bothz_gridvals_J(semizblock,:,N_j);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d23,n_a1,n_a1,n_a2,special_n_semiz,special_n_e, d23_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val,e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
+                %Calc the max and it's index
+                [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
+                V(:,semizblock,e_c,N_j)=Vtemp;
+                d_ind=rem(maxindex-1,N_d23)+1;
+                Policy3(1,:,semizblock,e_c,N_j)=rem(d_ind-1,N_d2)+1;
+                Policy3(2,:,semizblock,e_c,N_j)=ceil(d_ind/N_d2);
+                Policy3(3,:,semizblock,e_c,N_j)=ceil(maxindex/N_d23);
+            end
+        end
+
+    elseif vfoptions.lowmemory==3
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -207,11 +227,58 @@ else
 
             DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
-            for e_c=1:N_e
-                e_val=e_gridvals_J(e_c,:,N_j);
-                for z_c=1:N_bothz
-                    z_val=bothz_gridvals_J(z_c,:,N_j);
-                    DiscountedEV_z=DiscountedEV(:,:,z_c);
+            for z_c=1:N_z
+                semizblock=(z_c-1)*N_semiz+(1:N_semiz);
+                z_val=bothz_gridvals_J(semizblock,:,N_j);
+                DiscountedEV_z=DiscountedEV(:,:,semizblock);
+
+                for e_c=1:N_e
+                    e_val=e_gridvals_J(e_c,:,N_j);
+
+                    ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz, special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val,e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
+
+                    entireRHS_d3z=ReturnMatrix_d3z+DiscountedEV_z;
+
+                    %Calc the max and it's index
+                    [Vtemp,maxindex]=max(entireRHS_d3z,[],1);
+                    V_ford3_jj(:,semizblock,e_c,d3_c)=shiftdim(Vtemp,1);
+                    Policy_ford3_jj(:,semizblock,e_c,d3_c)=shiftdim(maxindex,1);
+                end
+            end
+        end
+
+    elseif vfoptions.lowmemory==3
+        for d3_c=1:N_d3
+            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
+            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
+            pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
+
+            EV=EVpre.*shiftdim(pi_bothz',-1);
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+
+            % Switch EV from being in terms of aprime to being in terms of d and a
+            EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_u,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
+            EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_u,N_bothz]); % (d2,a1prime,a2,z), the upper aprime
+
+            % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+            skipinterp=(EV1==EV2);
+            aprimeProbs(skipinterp)=0; % effectively skips interpolation
+
+            % Apply the aprimeProbs
+            EV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+            % Already applied the probabilities from interpolating onto grid
+            EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,both)
+            EV(isnan(EV))=0; % NaN from 0*(-Inf) at skipinterp positions; treat as zero contribution
+
+            DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+
+            for z_c=1:N_bothz
+                z_val=bothz_gridvals_J(z_c,:,N_j);
+                DiscountedEV_z=DiscountedEV(:,:,z_c);
+
+                for e_c=1:N_e
+                    e_val=e_gridvals_J(e_c,:,N_j);
 
                     ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz, special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val,e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
@@ -365,12 +432,59 @@ for reverse_j=1:N_j-1
 
             DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
-            for e_c=1:N_e
-                e_val=e_gridvals_J(e_c,:,jj);
+            for z_c=1:N_z
+                semizblock=(z_c-1)*N_semiz+(1:N_semiz);
+                z_val=bothz_gridvals_J(semizblock,:,jj);
+                DiscountedEV_z=DiscountedEV(:,:,semizblock);
 
-                for z_c=1:N_bothz
-                    z_val=bothz_gridvals_J(z_c,:,jj);
-                    DiscountedEV_z=DiscountedEV(:,:,z_c);
+                for e_c=1:N_e
+                    e_val=e_gridvals_J(e_c,:,jj);
+
+                    ReturnMatrix_d3ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz,special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
+
+                    entireRHS_ze=ReturnMatrix_d3ze+DiscountedEV_z;
+
+                    %Calc the max and it's index
+                    [Vtemp,maxindex]=max(entireRHS_ze,[],1);
+
+                    V_ford3_jj(:,semizblock,e_c,d3_c)=shiftdim(Vtemp,1);
+                    Policy_ford3_jj(:,semizblock,e_c,d3_c)=shiftdim(maxindex,1);
+                end
+            end
+        end
+
+    elseif vfoptions.lowmemory==3
+        for d3_c=1:N_d3
+            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
+            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
+            pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz_J(:,:,d3_c,jj));
+
+            EV=EVpre.*shiftdim(pi_bothz',-1);
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+
+            % Switch EV from being in terms of aprime to being in terms of d and a
+            EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_u,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
+            EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_u,N_bothz]); % (d2,a1prime,a2,z), the upper aprime
+
+            % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+            skipinterp=(EV1==EV2);
+            aprimeProbs(skipinterp)=0; % effectively skips interpolation
+
+            % Apply the aprimeProbs
+            EV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+            % Already applied the probabilities from interpolating onto grid
+            EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,both)
+            EV(isnan(EV))=0; % NaN from 0*(-Inf) at skipinterp positions; treat as zero contribution
+
+            DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+
+            for z_c=1:N_bothz
+                z_val=bothz_gridvals_J(z_c,:,jj);
+                DiscountedEV_z=DiscountedEV(:,:,z_c);
+
+                for e_c=1:N_e
+                    e_val=e_gridvals_J(e_c,:,jj);
 
                     ReturnMatrix_d3ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz,special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 

@@ -13,6 +13,88 @@ if N_a1==0
     error('Cannot use grid interpolation layer if there is no standard endogenous state')
 end
 
+%% GI2A path: multi-dim n_a1 (first standard endo state is GI, remaining N-2 are folded; n_a2 is expasset)
+if length(n_a1)>1
+    n_a1DC=n_a1(1);
+    n_a1fold=n_a1(2:end);
+    N_a1DC=prod(n_a1DC);
+    a1DC_grid=a1_gridvals(1:N_a1DC,1);
+    a1fold_gridvals=a1_gridvals(1:N_a1DC:end,2:end);
+
+    % noz_e: dedicated _noz_e raw files (no z, i.i.d. e)
+    if N_z==0 && N_e>0
+        if N_d1==0
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetu_GI2A_nod1_noz_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, vfoptions.n_e, n_u, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, vfoptions.e_gridvals_J, u_gridvals, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            nDPolicyChannel=n_d2;
+        else
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetu_GI2A_noz_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, vfoptions.n_e, n_u, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, vfoptions.e_gridvals_J, u_gridvals, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            nDPolicyChannel=[n_d1,n_d2];
+        end
+        if vfoptions.outputkron==1
+            V=VKron;
+            Policy=PolicyKron;
+            return
+        end
+        n_a=[n_a1,n_a2];
+        V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, vfoptions.n_e, N_j, vfoptions);
+        return
+    end
+
+    % z+e: both Markov z and i.i.d. e present — route to dedicated _e raw files
+    if N_z>0 && N_e>0
+        if N_d1==0
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetu_GI2A_nod1_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, n_u, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_gridvals, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            nDPolicyChannel=n_d2;
+        else
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetu_GI2A_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, n_u, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_gridvals, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            nDPolicyChannel=[n_d1,n_d2];
+        end
+        if vfoptions.outputkron==1
+            V=VKron;
+            Policy=PolicyKron;
+            return
+        end
+        n_a=[n_a1,n_a2];
+        V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+        return
+    end
+
+    if N_z==0
+        if N_d1==0
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetu_GI2A_nod1_noz_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_u, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, u_gridvals, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            nDPolicyChannel=n_d2;
+        else
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetu_GI2A_noz_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_u, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, u_gridvals, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            nDPolicyChannel=[n_d1,n_d2];
+        end
+    else
+        if N_d1==0
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetu_GI2A_nod1_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, n_u, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, u_gridvals, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            nDPolicyChannel=n_d2;
+        else
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetu_GI2A_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, n_u, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, u_gridvals, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            nDPolicyChannel=[n_d1,n_d2];
+        end
+    end
+
+    if vfoptions.outputkron==1
+        V=VKron;
+        Policy=PolicyKron;
+        return
+    end
+    n_a=[n_a1,n_a2];
+    if N_z==0
+        V=reshape(VKron,[n_a,N_j]);
+        Policy=UnKronPolicyIndexes3_FHorz_noz(PolicyKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, N_j, vfoptions);
+    else
+        V=reshape(VKron,[n_a,n_z,N_j]);
+        Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, n_z, N_j, vfoptions);
+    end
+    return
+end
+
 if N_e==0 % no e variable
     if N_d1==0
         if N_z==0
