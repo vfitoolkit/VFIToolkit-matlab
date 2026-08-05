@@ -109,7 +109,7 @@ elseif simoptions.experienceasset>=1
     end
 
     if isfield(simoptions,'a_grid')
-        a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
+        a2_grid=gpuArray(simoptions.a_grid(sum(n_a1)+1:end));
     else
         error('To use an experience asset you must define simoptions.a_grid')
     end
@@ -168,8 +168,9 @@ elseif simoptions.experienceasset>=1
                 Policy_aprime(:,:,2)=reshape(Policy(l_d+1,:,:),[N_a,N_z,1])+n_a1*Policy_a2prime(:,:,1); % Note: upper grid point minus 1 is anyway just lower grid point
             end
             PolicyaprimezPath=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
+            PolicyProbsPath=reshape(PolicyProbs+N_a*(0:1:N_z-1),[N_a*N_z,2]);
 
-            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs_raw(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs_raw(AgentDist,PolicyaprimezPath,II2,PolicyProbsPath,N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
 

@@ -29,8 +29,10 @@ elseif ~isempty(Names_i)
             FnInputNames={FnInputNames{:},temp{:}}; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
         else % FnsToEvaluate.(AggVarNames{ff}) is a structure, which denotes dependence on Names_i
             for ii=1:length(Names_i)
-                temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}).(Names_i{ii}));
-                FnInputNames={FnInputNames{:},temp{:}}; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
+                if isfield(FnsToEvaluate.(AggVarNames{ff}),Names_i{ii})
+                    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}).(Names_i{ii}));
+                    FnInputNames={FnInputNames{:},temp{:}}; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
+                end
             end
         end
     end
