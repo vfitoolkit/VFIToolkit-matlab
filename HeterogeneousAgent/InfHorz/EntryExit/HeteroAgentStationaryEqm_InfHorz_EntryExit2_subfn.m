@@ -54,7 +54,9 @@ AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDistKron, Policy, FnsToEvalu
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 % GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-GeneralEqmConditionsVec=gather(real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel)));
+% use of real() has been disabled, see how it goes without
+% GeneralEqmConditionsVec=gather(real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel)));
+GeneralEqmConditionsVec=gather(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
 
 if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price
     GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));

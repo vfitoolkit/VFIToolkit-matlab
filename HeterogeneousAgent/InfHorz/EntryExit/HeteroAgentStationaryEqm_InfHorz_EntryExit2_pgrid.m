@@ -80,7 +80,9 @@ for p_c=1:N_p
     %    SSvalues_AggVars
 
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
+    % use of real() has been disabled, see how it goes without
+    % GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
+    GeneralEqmConditionsKron(p_c,:)=GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel);
 end
 
 multiGEweightsKron=ones(N_p,1)*heteroagentoptions.multiGEweights;

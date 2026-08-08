@@ -105,7 +105,9 @@ for p_c=1:N_p
 
     if standardgeneqmcondnsused==1
         % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-        GeneralEqmConditionsKron(p_c,standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
+        % use of real() has been disabled, see how it goes without
+        % GeneralEqmConditionsKron(p_c,standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
+        GeneralEqmConditionsKron(p_c,standardgeneqmcondnindex)=GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel);
     end
     % Now fill in the 'non-standard' cases
     if specialgeneqmcondnsused==1
@@ -126,7 +128,8 @@ for p_c=1:N_p
                 EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[numel(V),1]));
                 % @(EValueFn,ce)
                 % And use entrants distribution, not the stationary distn
-                GeneralEqmConditionsKron(p_c,entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+                % GeneralEqmConditionsKron(p_c,entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+                GeneralEqmConditionsKron(p_c,entrygeneqmcondnindex)=GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel);
             end
         else
             if entrycondnexists==1
@@ -134,7 +137,8 @@ for p_c=1:N_p
                 EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
                 % @(EValueFn,ce)
                 % And use entrants distribution, not the stationary distn
-                GeneralEqmConditionsKron(p_c,entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+                % GeneralEqmConditionsKron(p_c,entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+                GeneralEqmConditionsKron(p_c,entrygeneqmcondnindex)=GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel);
             end
         end
     end

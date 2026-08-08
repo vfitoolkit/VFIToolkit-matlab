@@ -155,6 +155,7 @@ end
 
 %% Step 4.2: Evaluate the general equilibrium conditions.
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+% use of real() has been disabled, see how it goes without
 if standardgeneqmcondnsused==1
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
     if isstruct(GeneralEqmEqns)
@@ -165,9 +166,11 @@ if standardgeneqmcondnsused==1
             eqnParamNames=getAnonymousFnInputNames(eqn);
             StdGEVec(gg)=GeneralEqmConditions_Case1_v3(eqn, eqnParamNames, Parameters);
         end
-        GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(StdGEVec);
+        % GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(StdGEVec);
+        GeneralEqmConditionsVec(standardgeneqmcondnindex)=StdGEVec;
     else
-        GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames));
+        % GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames));
+        GeneralEqmConditionsVec(standardgeneqmcondnindex)=GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames);
     end
     %     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
     %     GeneralEqmConditionsVec(standardgeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames)));
@@ -189,12 +192,14 @@ if specialgeneqmcondnsused==1
                     eqnParamNames=getAnonymousFnInputNames(eqn);
                     EntGEVec(gg)=GeneralEqmConditions_Case1_v3(eqn, eqnParamNames, Parameters);
                 end
-                GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(EntGEVec);
+                % GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(EntGEVec);
+                GeneralEqmConditionsVec(entrygeneqmcondnindex)=EntGEVec;
             else
                 % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
                 EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[numel(V),1]));
                 % And use entrants distribution, not the stationary distn
-                GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames)));
+                % GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames)));
+                GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames));
             end
         end
     else
@@ -210,12 +215,14 @@ if specialgeneqmcondnsused==1
                     eqnParamNames=getAnonymousFnInputNames(eqn);
                     EntGEVec(gg)=GeneralEqmConditions_Case1_v3(eqn, eqnParamNames, Parameters);
                 end
-                GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(EntGEVec);
+                % GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(EntGEVec);
+                GeneralEqmConditionsVec(entrygeneqmcondnindex)=EntGEVec;
             else
                 % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
                 EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
                 % And use entrants distribution, not the stationary distn
-                GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames)));
+                % GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames)));
+                GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames));
             end
         end
     end
