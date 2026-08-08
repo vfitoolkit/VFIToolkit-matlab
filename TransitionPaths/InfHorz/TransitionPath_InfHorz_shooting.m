@@ -21,7 +21,7 @@ GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
 %%
 PricePathDist=Inf;
-pathcounter=0;
+pathcounter=1;
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiter
 
     %% Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.

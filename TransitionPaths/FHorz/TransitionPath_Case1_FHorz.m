@@ -732,6 +732,7 @@ elseif vfoptions.gridinterplayer==1
         aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
         aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
     end
+    vfoptions.policyind2val_finegridinput=1; % aprime_gridvals contains the fine grid for the first asset (tells PolicyInd2Val_FHorz_TPath)
 end
 
 %% GE eqns, switch from structure to cell setup

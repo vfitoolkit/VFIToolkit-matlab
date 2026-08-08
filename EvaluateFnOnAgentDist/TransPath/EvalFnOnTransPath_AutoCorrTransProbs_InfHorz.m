@@ -137,6 +137,7 @@ if simoptions.experienceasset==0
             % n_aprime=[N_a1prime,n_a(2:end)];
         end
         % aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+        simoptions.policyind2val_finegridinput=1; % aprime_grid contains the fine grid for the first asset (tells PolicyInd2Val_InfHorz_TPath)
     else
         aprime_grid=a_grid;
         % aprime_gridvals=a_gridvals;
@@ -154,6 +155,7 @@ elseif simoptions.experienceasset>=1
             % n_aprime=[N_a1prime,n_a(2:end-1)];
         end
         % aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+        simoptions.policyind2val_finegridinput=1; % aprime_grid contains the fine grid for the first asset (tells PolicyInd2Val_InfHorz_TPath)
     else
         aprime_grid=a_grid;
         % aprime_gridvals=CreateGridvals(n_a(1:end-1),a_grid(1:sum(n_a(1:end-1))),1); % omit a2

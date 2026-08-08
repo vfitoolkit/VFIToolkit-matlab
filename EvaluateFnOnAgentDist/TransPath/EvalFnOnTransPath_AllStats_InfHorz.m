@@ -94,7 +94,7 @@ simoptions.AggVarNames=FnsToEvaluateNames;
 % Omit tminus1AggVarsNames as AggVars are anyway not allowed to take AggVars as inputs
 
 %%
-if size(d_grid=[prod(n_d),length(n_d)])
+if all(size(d_grid)==[prod(n_d),length(n_d)])
     d_gridvals=d_grid; % already joint-grid
 else
     d_gridvals=CreateGridvals(n_d,d_grid,1); % convert stacked-column to joint-grid
@@ -106,7 +106,7 @@ if simoptions.experienceasset==0
             N_aprime=N_a+(N_a-1)*simoptions.ngridinterp;
             temp=interp1(linspace(1,N_a,N_a)',a_grid(1:n_a(1)),linspace(1,N_a,N_aprime)');
             aprime_grid=temp;
-            n_aprime=n_a;
+            n_aprime=N_aprime;
         else
             N_a1prime=n_a(1)+(n_a(1)-1)*simoptions.ngridinterp;
             temp=interp1(linspace(1,n_a(1),n_a(1))',a_grid(1:n_a(1)),linspace(1,n_a(1),N_a1prime)');
@@ -114,6 +114,7 @@ if simoptions.experienceasset==0
             n_aprime=[N_a1prime,n_a(2:end)];
         end
         aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+        simoptions.policyind2val_finegridinput=1; % aprime_gridvals contains the fine grid for the first asset (tells PolicyInd2Val_InfHorz_TPath)
     else
         aprime_gridvals=a_gridvals;
     end
@@ -130,6 +131,7 @@ elseif simoptions.experienceasset>=1
             n_aprime=[N_a1prime,n_a(2:end-1)];
         end
         aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+        simoptions.policyind2val_finegridinput=1; % aprime_gridvals contains the fine grid for the first asset (tells PolicyInd2Val_InfHorz_TPath)
     else
         aprime_gridvals=CreateGridvals(n_a(1:end-1),a_grid(1:sum(n_a(1:end-1))),1); % omit a2
     end

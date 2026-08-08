@@ -1,7 +1,9 @@
 function PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,outputkron)
-% Can use simoptions or vfoptions. If user is calling it, will probably be
-% vfoptions. But internally it gets used with simoptions. The options that
-% it checks are all things that will be common to both.
+% vfoptions is a required input (can pass simoptions instead; the fields
+% used are common to both).
+% a_grid input is the (coarse) stacked grid. If vfoptions.policyind2val_finegridinput=1
+% then a_grid input instead contains the fine grid for the first asset, stacked as
+% [fine a1; rest of coarse stacked grid] (only relevant to vfoptions.gridinterplayer=1).
 
 if ~exist('outputkron','var')
     outputkron=0; % outputkron=1 is just for internal use
@@ -27,62 +29,71 @@ l_a=length(n_a);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if ~exist('vfoptions','var')
-    l_aprime=l_a;
-    aprime_grid=a_grid;
-    n_aprime=n_a;
-else
-    l_aprime=l_a;
-    aprime_grid=a_grid;
-    n_aprime=n_a;
-    % If using a specific asset type, then remove from aprime
-    if isfield(vfoptions,'experienceasset') && vfoptions.experienceasset>0
-        l_aprime=l_a-vfoptions.experienceasset;
-        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceasset)));
-        n_aprime=n_a(1:end-vfoptions.experienceasset);
-    end
-    if isfield(vfoptions,'experienceassetu') && vfoptions.experienceassetu>0
-        l_aprime=l_a-vfoptions.experienceassetu;
-        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetu)));
-        n_aprime=n_a(1:end-vfoptions.experienceassetu);
-    end
-    if isfield(vfoptions,'experienceassetz') && vfoptions.experienceassetz>0
-        l_aprime=l_a-vfoptions.experienceassetz;
-        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetz)));
-        n_aprime=n_a(1:end-vfoptions.experienceassetz);
-    end
-    if isfield(vfoptions,'experienceassete') && vfoptions.experienceassete>0
-        l_aprime=l_a-vfoptions.experienceassete;
-        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassete)));
-        n_aprime=n_a(1:end-vfoptions.experienceassete);
-    end
-    if isfield(vfoptions,'experienceassetze') && vfoptions.experienceassetze>0
-        l_aprime=l_a-vfoptions.experienceassetze;
-        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetze)));
-        n_aprime=n_a(1:end-vfoptions.experienceassetze);
-    end
-    if isfield(vfoptions,'experienceassetsemiz') && vfoptions.experienceassetsemiz>0
-        l_aprime=l_a-vfoptions.experienceassetsemiz;
-        aprime_grid=a_grid(1:sum(n_a(1:end-vfoptions.experienceassetsemiz)));
-        n_aprime=n_a(1:end-vfoptions.experienceassetsemiz);
-    end
-    if isfield(vfoptions,'riskyasset') && vfoptions.riskyasset>0
-        l_aprime=l_a-1;
-        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-        n_aprime=n_a(1:end-1);
-    end
-    if isfield(vfoptions,'residualasset') && vfoptions.residualasset>0
-        l_aprime=l_a-1;
-        aprime_grid=a_grid(1:sum(n_a(1:end-1)));
-        n_aprime=n_a(1:end-1);
-    end
 
-    if isfield(vfoptions,'gridinterplayer')
-        if vfoptions.gridinterplayer==1
-            % Strip trailing PolicyL2flag channel (PolicyInd2Val doesn't need it; only sim does)
-            tempsize=size(Policy);
-            Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
-            Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
+l_aprime=l_a;
+aprime_grid=a_grid;
+n_aprime=n_a;
+% These get modified below if using grid interpolation layer
+
+% Note: we have to modify n_aprime for vfoptions.policyind2val_finegridinput=1 before we strip out alternative asset types. So do that now.
+if ~isfield(vfoptions,'policyind2val_finegridinput')
+    vfoptions.policyind2val_finegridinput=0; % =1 means a_grid input contains the fine grid for the first asset
+end
+if vfoptions.policyind2val_finegridinput==1
+    % a_grid input contains the fine grid for the first asset, so aprime_grid is already based on the fine grid
+    n_aprime(1)=n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp; % Set n_aprime(1) accordingly
+end
+
+% If using a specific asset type, then remove from aprime
+if isfield(vfoptions,'experienceasset') && vfoptions.experienceasset>0
+    l_aprime=l_a-vfoptions.experienceasset;
+    aprime_grid=a_grid(1:sum(n_aprime(1:end-vfoptions.experienceasset)));
+    n_aprime=n_aprime(1:end-vfoptions.experienceasset);
+end
+if isfield(vfoptions,'experienceassetu') && vfoptions.experienceassetu>0
+    l_aprime=l_a-vfoptions.experienceassetu;
+    aprime_grid=a_grid(1:sum(n_aprime(1:end-vfoptions.experienceassetu)));
+    n_aprime=n_aprime(1:end-vfoptions.experienceassetu);
+end
+if isfield(vfoptions,'experienceassetz') && vfoptions.experienceassetz>0
+    l_aprime=l_a-vfoptions.experienceassetz;
+    aprime_grid=a_grid(1:sum(n_aprime(1:end-vfoptions.experienceassetz)));
+    n_aprime=n_aprime(1:end-vfoptions.experienceassetz);
+end
+if isfield(vfoptions,'experienceassete') && vfoptions.experienceassete>0
+    l_aprime=l_a-vfoptions.experienceassete;
+    aprime_grid=a_grid(1:sum(n_aprime(1:end-vfoptions.experienceassete)));
+    n_aprime=n_aprime(1:end-vfoptions.experienceassete);
+end
+if isfield(vfoptions,'experienceassetze') && vfoptions.experienceassetze>0
+    l_aprime=l_a-vfoptions.experienceassetze;
+    aprime_grid=a_grid(1:sum(n_aprime(1:end-vfoptions.experienceassetze)));
+    n_aprime=n_aprime(1:end-vfoptions.experienceassetze);
+end
+if isfield(vfoptions,'experienceassetsemiz') && vfoptions.experienceassetsemiz>0
+    l_aprime=l_a-vfoptions.experienceassetsemiz;
+    aprime_grid=a_grid(1:sum(n_aprime(1:end-vfoptions.experienceassetsemiz)));
+    n_aprime=n_aprime(1:end-vfoptions.experienceassetsemiz);
+end
+if isfield(vfoptions,'riskyasset') && vfoptions.riskyasset>0
+    l_aprime=l_a-1;
+    aprime_grid=a_grid(1:sum(n_aprime(1:end-1)));
+    n_aprime=n_aprime(1:end-1);
+end
+if isfield(vfoptions,'residualasset') && vfoptions.residualasset>0
+    l_aprime=l_a-1;
+    aprime_grid=a_grid(1:sum(n_aprime(1:end-1)));
+    n_aprime=n_aprime(1:end-1);
+end
+
+if isfield(vfoptions,'gridinterplayer')
+    if vfoptions.gridinterplayer==1
+        % Strip trailing PolicyL2flag channel (PolicyInd2Val doesn't need it; only sim does)
+        tempsize=size(Policy);
+        Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
+        Policy=reshape(Policy(1:end-1,:), [tempsize(1)-1, tempsize(2:end)]);
+        if vfoptions.policyind2val_finegridinput==0
+            % Need to modify aprime_grid and n_aprime to be based on the fine grid (as that is what Policy indexes)
             a1prime_grid=interp1(gpuArray(1:1:n_aprime(1))',aprime_grid(1:n_aprime(1)),linspace(1,n_aprime(1),n_aprime(1)+(n_aprime(1)-1)*vfoptions.ngridinterp))';
             if isscalar(n_aprime)
                 aprime_grid=a1prime_grid;
@@ -90,13 +101,13 @@ else
                 aprime_grid=[a1prime_grid; aprime_grid(n_aprime(1)+1:end)];
             end
             n_aprime(1)=n_aprime(1)+(n_aprime(1)-1)*vfoptions.ngridinterp; % =length(a1prime_grid)
-            % Put the last two parts of Policy together to get the aprime index
-            tempsize=size(Policy);
-            Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(tempsize)
-            Policy(end-l_aprime,:)=(vfoptions.ngridinterp+1)*(Policy(end-l_aprime,:)-1)+Policy(end,:); % combine (lower grid point and 2nd layer point) to get aprime index [lower grid point is in the first n_a, it is NOT end-l_a+1 because we then have another -1 for the 2nd layer index]
-            tempsize(1)=tempsize(1)-1; % put last two policies together (lower grid point, and the second layer grid index; get aprime grid index)
-            Policy=reshape(Policy(1:end-1,:),tempsize); % get rid of last policy entry
         end
+        % Put the last two parts of Policy together to get the aprime index
+        tempsize=size(Policy);
+        Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(tempsize)
+        Policy(end-l_aprime,:)=(vfoptions.ngridinterp+1)*(Policy(end-l_aprime,:)-1)+Policy(end,:); % combine (lower grid point and 2nd layer point) to get aprime index [lower grid point is in the first n_a, it is NOT end-l_a+1 because we then have another -1 for the 2nd layer index]
+        tempsize(1)=tempsize(1)-1; % put last two policies together (lower grid point, and the second layer grid index; get aprime grid index)
+        Policy=reshape(Policy(1:end-1,:),tempsize); % get rid of last policy entry
     end
 end
 
