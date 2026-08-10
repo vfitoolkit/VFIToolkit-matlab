@@ -52,6 +52,10 @@ function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Para
 %     []                        if gridpiboth==1 or no e variable
 
 %% Check basic setup
+if isempty(n_z)
+    error('If you have no z (exogenous markov) variables, set n_z=0 (not n_z=[])')
+end
+
 if ~isfield(options,'n_e')
     n_e=0;
 else

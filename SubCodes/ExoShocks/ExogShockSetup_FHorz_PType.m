@@ -97,6 +97,18 @@ function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz_PType(n_z,z_grid,p
 %
 % Timing conventions are documented in docs/ExogenousShocks.md (section 'Timing').
 
+%% Check basic setup
+if isstruct(n_z)
+    n_z_fields=fieldnames(n_z);
+    for ii=1:length(n_z_fields)
+        if isempty(n_z.(n_z_fields{ii}))
+            error('If permanent type %s has no z (exogenous markov) variables, set n_z.%s=0 (not [])',n_z_fields{ii},n_z_fields{ii})
+        end
+    end
+elseif isempty(n_z)
+    error('If you have no z (exogenous markov) variables, set n_z=0 (not n_z=[])')
+end
+
 %% Check what we are doing in terms of dependence on permanent type for z
 zdependsonptype=0;
 if isstruct(z_grid) || isstruct(pi_z)

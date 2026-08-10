@@ -155,6 +155,10 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 % Timing conventions are documented in docs/ExogenousShocks.md (section 'Timing').
 
 %% Check basic setup
+if isempty(n_z)
+    error('If you have no z (exogenous markov) variables, set n_z=0 (not n_z=[])')
+end
+
 N_z=prod(n_z);
 
 if ~isfield(options,'n_e')

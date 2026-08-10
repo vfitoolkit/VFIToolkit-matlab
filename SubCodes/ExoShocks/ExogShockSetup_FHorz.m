@@ -69,6 +69,10 @@ function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_
 % Timing conventions are documented in docs/ExogenousShocks.md (section 'Timing').
 
 %% Check basic setup
+if isempty(n_z)
+    error('If you have no z (exogenous markov) variables, set n_z=0 (not n_z=[])')
+end
+
 if ~isfield(options,'n_e')
     n_e=0;
 else

@@ -108,6 +108,10 @@ function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridv
 % T is inferred from the trailing dimension of whichever time-varying input is supplied.
 
 %% Check basic setup
+if isempty(n_z)
+    error('If you have no z (exogenous markov) variables, set n_z=0 (not n_z=[])')
+end
+
 N_z=prod(n_z);
 
 if ~isfield(options,'n_e')

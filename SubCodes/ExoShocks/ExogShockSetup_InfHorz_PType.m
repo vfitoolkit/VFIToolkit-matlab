@@ -73,6 +73,18 @@ function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz_PType(n_z,z_grid,pi_
 % struct), n_z_i / n_e_i is just n_z / n_e — i.e. all per-ptype fields share
 % one common shape.
 
+%% Check basic setup
+if isstruct(n_z)
+    n_z_fields=fieldnames(n_z);
+    for ii=1:length(n_z_fields)
+        if isempty(n_z.(n_z_fields{ii}))
+            error('If permanent type %s has no z (exogenous markov) variables, set n_z.%s=0 (not [])',n_z_fields{ii},n_z_fields{ii})
+        end
+    end
+elseif isempty(n_z)
+    error('If you have no z (exogenous markov) variables, set n_z=0 (not n_z=[])')
+end
+
 %% Check what we are doing in terms of dependence on permanent type for z
 zdependsonptype=0;
 if isstruct(z_grid) || isstruct(pi_z)

@@ -1,5 +1,9 @@
 function [V,Policy]=ValueFnIter_FHorz_CPU(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 
+if isempty(n_z)
+    error('If you have no z (exogenous markov) variables, set n_z=0 (not n_z=[])')
+end
+
 N_d=prod(n_d);
 % N_a=prod(n_a);
 N_z=prod(n_z);

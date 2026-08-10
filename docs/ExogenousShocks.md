@@ -16,7 +16,7 @@ All three are "start-of-period" states that the agent sees before choosing, so `
 
 ## z — markov shock
 
-A persistent shock with a Markov transition matrix. You provide `n_z`, `z_grid`, and `pi_z`. For what the age index `j` means in age-dependent inputs, see [Timing](#timing).
+A persistent shock with a Markov transition matrix. You provide `n_z`, `z_grid`, and `pi_z`. To have no markov shock, set `n_z=0` and pass `z_grid=[]`, `pi_z=[]`. For what the age index `j` means in age-dependent inputs, see [Timing](#timing).
 
 ### `z_grid`: stacked column vs joint
 
