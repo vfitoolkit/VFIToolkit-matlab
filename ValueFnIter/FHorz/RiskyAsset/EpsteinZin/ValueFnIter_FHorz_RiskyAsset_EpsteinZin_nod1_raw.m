@@ -386,10 +386,8 @@ for reverse_j=1:N_j-1
         WGmatrix=sum((WG1.*pi_u'),2)+sum((WG2.*pi_u'),2); % (d,1), sum over u
         % WGmatrix is over (d,1)
         % Now just make it the right shape (currently has aprime, needs the d,a,z dimensions)
-        if vfoptions.lowmemory==0 && vfoptions.paroverz==1
+        if vfoptions.lowmemory==0
             WGmatrix=WGmatrix.*ones(1,1,N_z);
-        else % (vfoptions.lowmemory==0 && vfoptions.paroverz==0) || vfoptions.lowmemory==1 || vfoptions.lowmemory==2
-            % WGmatrix=WGmatrix;
         end
     end
 
