@@ -89,7 +89,6 @@ else
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec,2);
     aprimeIndex=a2primeIndex;
     aprimeplus1Index=a2primeIndex+1;
-    aprimeProbs=repmat(a2primeProbs,1,1,N_bothz);
 
     EVpre=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*shiftdim(pi_e_J(:,N_j),-2),3);
 
@@ -108,10 +107,11 @@ else
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
 
+            aprimeProbs_d3=repmat(a2primeProbs,1,1,N_bothz);
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0;
+            aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs);
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             ReturnMatrix_d3=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, [n_d2,1], n_a2, n_bothz, n_e, d23_gridvals_val, a2_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
@@ -133,10 +133,11 @@ else
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
 
+            aprimeProbs_d3=repmat(a2primeProbs,1,1,N_bothz);
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0;
+            aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs);
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
@@ -161,10 +162,11 @@ else
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
 
+            aprimeProbs_d3=repmat(a2primeProbs,1,1,N_bothz);
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0;
+            aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs);
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             for z_c=1:N_z
                 semizblock=(z_c-1)*N_semiz+(1:N_semiz);
@@ -194,10 +196,11 @@ else
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
 
+            aprimeProbs_d3=repmat(a2primeProbs,1,1,N_bothz);
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0;
+            aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs);
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
@@ -241,7 +244,6 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec,2);
     aprimeIndex=a2primeIndex;
     aprimeplus1Index=a2primeIndex+1;
-    aprimeProbs=repmat(a2primeProbs,1,1,N_bothz);
 
     EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3);
 
@@ -257,10 +259,11 @@ for reverse_j=1:N_j-1
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
 
+            aprimeProbs_d3=repmat(a2primeProbs,1,1,N_bothz);
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0;
+            aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs);
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             ReturnMatrix_d3=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, [n_d2,1], n_a2, n_bothz, n_e, d23_gridvals_val, a2_grid, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
@@ -282,10 +285,11 @@ for reverse_j=1:N_j-1
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
 
+            aprimeProbs_d3=repmat(a2primeProbs,1,1,N_bothz);
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0;
+            aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs);
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
@@ -310,10 +314,11 @@ for reverse_j=1:N_j-1
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
 
+            aprimeProbs_d3=repmat(a2primeProbs,1,1,N_bothz);
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0;
+            aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs);
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             for z_c=1:N_z
                 semizblock=(z_c-1)*N_semiz+(1:N_semiz);
@@ -343,10 +348,11 @@ for reverse_j=1:N_j-1
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
 
+            aprimeProbs_d3=repmat(a2primeProbs,1,1,N_bothz);
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0;
+            aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs);
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);

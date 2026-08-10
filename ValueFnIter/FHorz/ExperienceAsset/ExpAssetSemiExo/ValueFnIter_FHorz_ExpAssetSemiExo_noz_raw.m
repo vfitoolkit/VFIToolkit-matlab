@@ -77,11 +77,6 @@ else
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
-    if vfoptions.lowmemory>0
-        aprimeProbs=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
-    else % lowmemory=0
-        aprimeProbs=repmat(a2primeProbs,N_a1,1,N_semiz);  % [N_d2*N_a1,N_a2,N_semiz]
-    end
 
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
@@ -108,11 +103,12 @@ else
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the upper aprime
 
             % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+            aprimeProbs_d3=repmat(a2primeProbs,N_a1,1,N_semiz); % [N_d2*N_a1,N_a2,N_semiz]
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0; % effectively skips interpolation
+            aprimeProbs_d3(skipinterp)=0; % effectively skips interpolation
 
             % Apply the aprimeProbs
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3); % probability of lower grid point+ probability of upper grid point
             % entireEV is (d2,a1prime, a2,z)
 
             entireRHS_d3=ReturnMatrix_d3+DiscountFactorParamsVec*repelem(entireEV,N_d1,N_a1,1);
@@ -146,11 +142,12 @@ else
                 EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
 
                 % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                aprimeProbs_d3z=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
                 skipinterp=(EV1==EV2);
-                aprimeProbs(skipinterp)=0; % effectively skips interpolation
+                aprimeProbs_d3z(skipinterp)=0; % effectively skips interpolation
 
                 % Apply the aprimeProbs
-                entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+                entireEV_z=EV1.*aprimeProbs_d3z+EV2.*(1-aprimeProbs_d3z); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d2,a1prime, a2)
 
                 entireRHS_d3z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,N_d1,N_a1);
@@ -195,11 +192,6 @@ for reverse_j=1:N_j-1
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
-    if vfoptions.lowmemory>0
-        aprimeProbs=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
-    else % lowmemory=0
-        aprimeProbs=repmat(a2primeProbs,N_a1,1,N_semiz);  % [N_d2*N_a1,N_a2,N_semiz]
-    end
 
     EVpre=V(:,:,jj+1);
 
@@ -222,11 +214,12 @@ for reverse_j=1:N_j-1
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the upper aprime
 
             % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+            aprimeProbs_d3=repmat(a2primeProbs,N_a1,1,N_semiz); % [N_d2*N_a1,N_a2,N_semiz]
             skipinterp=(EV1==EV2);
-            aprimeProbs(skipinterp)=0; % effectively skips interpolation
+            aprimeProbs_d3(skipinterp)=0; % effectively skips interpolation
 
             % Apply the aprimeProbs
-            entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3); % probability of lower grid point+ probability of upper grid point
             % entireEV is (d2,a1prime, a2,z)
 
             entireRHS=ReturnMatrix_d3+DiscountFactorParamsVec*repelem(entireEV,N_d1,N_a1,1);
@@ -259,11 +252,12 @@ for reverse_j=1:N_j-1
                 EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
 
                 % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                aprimeProbs_d3z=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
                 skipinterp=(EV1==EV2);
-                aprimeProbs(skipinterp)=0; % effectively skips interpolation
+                aprimeProbs_d3z(skipinterp)=0; % effectively skips interpolation
 
                 % Apply the aprimeProbs
-                entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+                entireEV_z=EV1.*aprimeProbs_d3z+EV2.*(1-aprimeProbs_d3z); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d,a1prime, a2)
 
                 entireRHS_z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,N_d1,N_a1);
