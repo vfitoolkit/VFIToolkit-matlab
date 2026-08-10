@@ -143,7 +143,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
+    EV=sum(V_Jplus1.*pi_e_J(1,1,:,N_j+1),3);
     % (aprime,zprime)
 
     if vfoptions.lowmemory==0
@@ -273,7 +273,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,:,:,jj+1);
 
-    EV=sum(EV.*pi_e_J(1,1,:,jj),3);
+    EV=sum(EV.*pi_e_J(1,1,:,jj+1),3);
     % (aprime,zprime)
 
     if vfoptions.lowmemory==0

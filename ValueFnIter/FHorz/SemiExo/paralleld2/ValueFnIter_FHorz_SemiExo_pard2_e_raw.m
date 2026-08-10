@@ -79,7 +79,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z,N_e]); % Using V_Jplus1
-    EV=sum(EV.*pi_e_J(1,1,:,N_j),3);
+    EV=sum(EV.*pi_e_J(1,1,:,N_j+1),3);
 
     pi_bothz=repmat(pi_semiz_J_permute(:,:,:,N_j),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,N_j),1,N_semiz,N_semiz);
     % pi_bothz=pi_bothz_J(:,:,:,N_j);
@@ -155,7 +155,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     EV=V(:,:,:,jj+1);
-    EV=sum(EV.*pi_e_J(1,1,:,jj),3);
+    EV=sum(EV.*pi_e_J(1,1,:,jj+1),3);
     % (aprime,zprime)
 
     pi_bothz=repmat(pi_semiz_J_permute(:,:,:,jj),1,N_z,N_z).*repelem(pi_z_J_permute(1,:,:,jj),1,N_semiz,N_semiz);

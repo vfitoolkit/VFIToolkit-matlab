@@ -104,7 +104,7 @@ else
     aprimeProbs_full=aprimeProbs_d2a1a2semiz;
 
     % Integrate over e' first (e is i.i.d. start-of-period); EVpre is [N_a, N_bothz]
-    EVpre=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*shiftdim(pi_e_J(:,N_j),-2),3);
+    EVpre=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*shiftdim(pi_e_J(:,N_j+1),-2),3);
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
@@ -246,7 +246,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index_full=aprimeplus1Index;
     aprimeProbs_full=aprimeProbs_d2a1a2semiz;
 
-    EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3); % [N_a, N_bothz]
+    EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj+1),-2),3); % [N_a, N_bothz]
 
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3

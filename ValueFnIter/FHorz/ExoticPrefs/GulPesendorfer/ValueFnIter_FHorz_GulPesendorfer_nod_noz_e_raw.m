@@ -36,7 +36,7 @@ if vfoptions.lowmemory==0
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        V_Jplus1=sum(V_Jplus1.*pi_e_J(1,:,N_j),2);
+        V_Jplus1=sum(V_Jplus1.*pi_e_J(1,:,N_j+1),2);
 
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
 
@@ -68,7 +68,7 @@ if vfoptions.lowmemory==0
 
         EV=V(:,:,jj+1);
 
-        EV=sum(EV.*pi_e_J(1,:,jj),2);
+        EV=sum(EV.*pi_e_J(1,:,jj+1),2);
 
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
 
@@ -115,7 +115,7 @@ elseif vfoptions.lowmemory==1
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        V_Jplus1=sum(V_Jplus1.*pi_e_J(1,:,N_j),2);
+        V_Jplus1=sum(V_Jplus1.*pi_e_J(1,:,N_j+1),2);
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec,0);
@@ -148,7 +148,7 @@ elseif vfoptions.lowmemory==1
 
         EV=V(:,:,jj+1);
 
-        EV=sum(EV.*pi_e_J(1,:,jj),2);
+        EV=sum(EV.*pi_e_J(1,:,jj+1),2);
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);

@@ -2,7 +2,7 @@ function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_GI2A_nod_e_raw(V,
 % fastOLG GI2A (no d, has z+e): parallelize over "age" (j), grid-interpolation
 % layer on the first endogenous state a1, iterate (via broadcasting) over a2.
 % fastOLG layout: V is (a*j)-by-z-by-e, Policy is (channels, a, j, z, e)
-% pi_z_J is (j,z',z) for fastOLG
+% pi_z_J is (j,z',z) for fastOLG; it arrives with N_j-1 slices (the transitions from periods 1..N_j-1) and a j=N_j slot of zeros is appended below
 % pi_e_J is (a*j, z, e) for fastOLG (i.i.d. e, broadcast across a/j/z)
 % z_gridvals_J is (j,N_z,l_z) and e_gridvals_J is (j,N_e,l_e) for fastOLG
 
@@ -69,13 +69,15 @@ ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames
 % V is (N_a*N_j, N_z, N_e). First integrate over e' using pi_e_J (i.i.d.), then
 % over z' using pi_z_J (Markov). The resulting EV depends on (a',j,z), not on e.
 if vfoptions.EVpre==0
-    EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(1:end-N_a,:,:),3); zeros(N_a,N_z,'gpuArray')]; % zeros at j=N_j (terminal age has no continuation in TPath)
+    pi_z_J=cat(1,pi_z_J,zeros(1,N_z,N_z,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_z_J has N_j-1 slices, the transitions from periods 1..N_j-1)
+    EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,:,:),3); zeros(N_a,N_z,'gpuArray')]; % zeros at j=N_j (terminal age has no continuation in TPath)
     EVpre=reshape(EVpre,[N_a,1,N_j,N_z]);
     EV=EVpre.*shiftdim(pi_z_J,-2);
     EV(isnan(EV))=0; % -Inf*0 = NaN, replace with 0 (the 0 comes from transition prob)
     EV=reshape(sum(EV,4),[N_a1,N_a2,1,1,N_j,N_z]); % (a1prime,a2prime,1,1,j,z); singletons broadcast against (a1,a2,e)
 elseif vfoptions.EVpre==1
     % 'Matched Expectations Path': input V is already E[V'|.] across z' and e'
+    % EVpre==1 is the Matched Expectations Path: the age axis is time along the path and the caller supplies the pi arrays with all N_j slices genuine (the final slice is the transition into the continuing future), so nothing is appended to them
     EV=reshape(V,[N_a1,N_a2,1,1,N_j,N_z]);
 end
 

@@ -98,7 +98,7 @@ else
     [aprimeIndex,aprimeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a, n_u, d23_grid, a_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
 
-    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
+    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j+1),3);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a, n_z, n_e, d13_gridvals, a_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
@@ -239,7 +239,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,:,:,jj+1);
 
-    EV=sum(EV.*pi_e_J(1,1,:,jj),3);
+    EV=sum(EV.*pi_e_J(1,1,:,jj+1),3);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [aprimeIndex,aprimeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a, n_u, d23_grid, a_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)

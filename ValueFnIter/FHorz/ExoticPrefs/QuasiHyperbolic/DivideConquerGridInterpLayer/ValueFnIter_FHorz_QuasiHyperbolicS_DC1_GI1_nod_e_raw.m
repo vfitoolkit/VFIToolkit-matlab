@@ -157,7 +157,7 @@ else
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta;
 
-    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]).*pi_e_J(1,1,:,N_j),3);
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]).*pi_e_J(1,1,:,N_j+1),3);
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
     EV(isnan(EV))=0;
     EV=sum(EV,2);   % N_a-by-1-by-N_z
@@ -324,7 +324,7 @@ for reverse_j=1:N_j-1
     beta0beta=beta0*beta;
 
     EVsource=Vunderbar(:,:,:,jj+1);
-    EV=sum(EVsource.*pi_e_J(1,1,:,jj),3);
+    EV=sum(EVsource.*pi_e_J(1,1,:,jj+1),3);
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0;
     EV=sum(EV,2);   % N_a-by-1-by-N_z

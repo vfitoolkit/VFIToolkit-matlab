@@ -24,7 +24,7 @@ AgentDist_tt=reshape(Gammatranspose*AgentDist_tt,[N_a,(N_j-1)*N_z]);
 % Tan improvement Step 2
 
 % NOTE: Following four lines are precomputed and passed as inputs
-% pi_z_J_sim=gather(reshape(permute(pi_z_J(:,:,1:end-1),[3,1,2]),[(N_j-1)*N_z,N_z]));
+% pi_z_J_sim=gather(reshape(permute(pi_z_J,[3,1,2]),[(N_j-1)*N_z,N_z])); % pi_z_J has N_j-1 slices (slice jj is the transition from period jj to jj+1)
 % II3=repmat(1:1:(N_j-1)*N_z,1,N_z);
 % II4=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
 % pi_z_J_sim=sparse(II3,II4,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);

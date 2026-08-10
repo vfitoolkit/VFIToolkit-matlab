@@ -213,7 +213,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
+    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j+1),3);
     EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
@@ -417,7 +417,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
+    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj+1),3);
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension

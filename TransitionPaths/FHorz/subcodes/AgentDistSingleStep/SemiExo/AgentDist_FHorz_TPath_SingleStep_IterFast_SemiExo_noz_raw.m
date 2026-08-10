@@ -17,7 +17,7 @@ idxshort=gather(idx(:,end-N_semizshort+1:end,:,:));
 Policy_dsemiexo=gather(reshape(Policy_dsemiexo(:,1:N_j-1),[N_asemiz*(N_j-1),1]));
 Policy_aprime=gather(reshape(Policy_aprime(:,1:N_j-1),[N_asemiz*(N_j-1),1]));
 
-% semizindex_short indexes pi_semiz_J_short and idxshort, which are [N_semiz,N_semizshort,N_dsemiz,N_j]
+% semizindex_short indexes pi_semiz_J_short and idxshort, which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_j-1,1)+N_semiz*(0:1:N_semizshort-1); % [N_asemiz*(N_j-1),N_semizshort]
 jtermsemiz=(N_semiz*N_semizshort*N_dsemiz)*repelem((0:1:N_j-2)',N_asemiz,1); % age term for indexing pi_semiz [N_asemiz*(N_j-1),1]
 destjblock=repelem(N_asemiz*(0:1:N_j-2)',N_asemiz,1); % dest age-block offset (j preserved; the j->j+1 shift is done by writing to exceptfirstj)

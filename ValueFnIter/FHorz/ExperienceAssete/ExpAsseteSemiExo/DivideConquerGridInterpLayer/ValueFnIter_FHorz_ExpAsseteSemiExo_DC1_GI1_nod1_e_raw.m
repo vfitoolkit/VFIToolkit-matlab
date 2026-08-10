@@ -296,7 +296,7 @@ else
     aprimeplus1Index=reshape(aprimeplus1Index,[N_d2*N_a1,N_a2,1,N_e]);
     aprimeProbs_d2a1a2e=reshape(aprimeProbs_d2a1a2e,[N_d2*N_a1,N_a2,1,N_e]);
 
-    EVpre=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*shiftdim(pi_e_J(:,N_j),-2),3);
+    EVpre=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*shiftdim(pi_e_J(:,N_j+1),-2),3);
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
@@ -649,7 +649,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=reshape(aprimeplus1Index,[N_d2*N_a1,N_a2,1,N_e]);
     aprimeProbs_d2a1a2e=reshape(aprimeProbs_d2a1a2e,[N_d2*N_a1,N_a2,1,N_e]);
 
-    EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3);
+    EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj+1),-2),3);
 
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3

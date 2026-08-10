@@ -85,7 +85,7 @@ if l_a==1
                 V(:,:,jj)=FofPolicy_jj;
             else
                 beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
-                EVnext=sum(V(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-1),2); % (N_a,1) integrate over iid e
+                EVnext=sum(V(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-1),2); % (N_a,1) integrate over iid e
                 % Look up at lower & upper aprime: result shape (N_a, N_e)
                 EVlower=reshape(EVnext(alower(:,:,jj)),[N_a,N_e]);
                 EVupper=reshape(EVnext(alower(:,:,jj)+1),[N_a,N_e]);
@@ -162,7 +162,7 @@ if l_a==1
             else
                 beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
                 % Integrate over iid e then over zprime|z
-                EVnext=sum(V(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-2),3); % (N_a, N_z)
+                EVnext=sum(V(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-2),3); % (N_a, N_z)
                 EVnext=EVnext*pi_z_J(:,:,jj)'; % (N_a, N_z)
                 EVnext(isnan(EVnext))=0;
                 % For each (a, z, e), look up EVnext at (alower(a,z,e), z) and (alower+1, z)
@@ -247,7 +247,7 @@ elseif l_a>=2
                 V(:,:,jj)=FofPolicy_jj;
             else
                 beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
-                EVnext=sum(V(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-1),2); % (N_a,1) integrate over iid e
+                EVnext=sum(V(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-1),2); % (N_a,1) integrate over iid e
                 % Lookup at (alower(a,e), a2prime(a,e)) and (alower+1, a2prime)
                 lower_lin=alower(:,:,jj)+n_a1*(a2prime(:,:,jj)-1); % (N_a, N_e)
                 EVlower=reshape(EVnext(lower_lin),  [N_a,N_e]);
@@ -329,7 +329,7 @@ elseif l_a>=2
             else
                 beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
                 % Integrate over iid e then over zprime|z
-                EVnext=sum(V(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-2),3); % (N_a, N_z)
+                EVnext=sum(V(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-2),3); % (N_a, N_z)
                 EVnext=EVnext*pi_z_J(:,:,jj)'; % (N_a, N_z)
                 EVnext(isnan(EVnext))=0;
                 zidxoffset=N_a*gpuArray(0:N_z-1); % (1, N_z)

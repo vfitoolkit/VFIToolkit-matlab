@@ -2,7 +2,7 @@ function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC2A_GI2A_raw(V,n
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z
-% pi_z_J is (j,z',z) for fastOLG
+% pi_z_J is (j,z',z) for fastOLG; it arrives with N_j-1 slices (the transitions from periods 1..N_j-1) and a j=N_j slot of zeros is appended below
 % z_gridvals_J is (j,N_z,l_z) for fastOLG
 % DC2A_GI2A: divide-and-conquer in a1 (iterate a2), grid interpolation on a1
 
@@ -67,6 +67,7 @@ DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamN
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if vfoptions.EVpre==0
+    pi_z_J=cat(1,pi_z_J,zeros(1,N_z,N_z,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_z_J has N_j-1 slices, the transitions from periods 1..N_j-1)
     % V input is (N_a*N_j, N_z); shift one age to the left (next-period continuation)
     EVpre=zeros(N_a,1,N_j,N_z,'gpuArray');
     EVpre(:,1,1:N_j-1,:)=reshape(V(N_a+1:end,:),[N_a,1,N_j-1,N_z]); % zeros at j=N_j so pi_z_J builds the expectation
@@ -75,6 +76,7 @@ if vfoptions.EVpre==0
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (a,1,j,z)
 elseif vfoptions.EVpre==1
     % 'Matched Expectations Path': input V is already of size [N_a,N_j,N_z]
+    % EVpre==1 is the Matched Expectations Path: the age axis is time along the path and the caller supplies the pi arrays with all N_j slices genuine (the final slice is the transition into the continuing future), so nothing is appended to them
     EV=reshape(V,[N_a,1,N_j,N_z]).*shiftdim(pi_z_J,-2);
     EV(isnan(EV))=0;
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]);

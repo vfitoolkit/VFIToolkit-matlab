@@ -32,8 +32,13 @@ l_a=length(n_a);
 l_z=length(n_z);
 l_e=length(vfoptions.n_e);
 
+% noa1 case (n_a is scalar -- experience asset is the only endogenous state): GI refines a1, which
+% doesn't apply when there's no a1. Fall back to non-GI version (which handles noa1 correctly).
+% Matches the upstream VFI convention (noa1 has no GI/DC/DC+GI raw files).
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze_GI: case with no a1 (experience asset as only asset) not yet implemented')
+    vfoptions.gridinterplayer=0;
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
 n_a1=n_a(1:end-1);
 N_a1=prod(n_a1);
@@ -173,7 +178,7 @@ for reverse_j=0:N_j-1
         beta0beta=beta0*beta;
 
         % EVnext from the recursion-driver value: integrate e' (iid) then z' (markov) -> [N_a,N_z]
-        EVnext=sum(Vdrive(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+        EVnext=sum(Vdrive(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
         EVnext=reshape(EVnext,[N_a,N_z]) * pi_z_J(:,:,jj)';
         EVnext(isnan(EVnext))=0;
 

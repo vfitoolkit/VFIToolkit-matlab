@@ -55,15 +55,20 @@ end
 l_d=length(n_d);
 l_e=length(vfoptions.n_e);
 
-% Split a into a1 (standard) and a2 (experience asset)
+% Split a into a1 (standard) and a2 (experience asset).
+% noa1 case (n_a is scalar): use n_a1=0, N_a1=0 (toolkit convention). Override l_a1=0 explicitly
+% since length(0)=1. Downstream lookup has explicit `if N_a1==0` branches.
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_ExpAssete_SemiExo: case with no a1 (experience asset as only asset) not yet implemented')
+    n_a1=0;
+    N_a1=0;
+    l_a1=0;
+else
+    n_a1=n_a(1:end-1);
+    N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
-n_a1=n_a(1:end-1);
-N_a1=prod(n_a1);
 n_a2=n_a(end);
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
 
 % Which d drives the experience asset. With semiz, d ordering is [...other, d_expasset, d_semiz];
@@ -162,7 +167,7 @@ for reverse_j=0:N_j-1
 
         % Step 3a: integrate next-period V over e' (iid)
         V_next=V(:,:,:,jj+1);
-        V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3); % [N_a, N_shocks]
+        V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3); % [N_a, N_shocks]
         V_next=reshape(V_next, [N_a, N_shocks]);
 
         % Step 3b: integrate over z' (markov, does not depend on d_semiz) if N_z>0
@@ -200,12 +205,17 @@ for reverse_j=0:N_j-1
             EVnext_atpolicy=zeros(N_a, N_semiz, N_e, 'gpuArray');
             for e_c=1:N_e
                 block=(e_c-1)*N_shocks + (1:N_shocks);
-                a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz]);
                 d2_e =reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz]);
                 a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz]);
                 a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz]);
-                aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                if N_a1==0
+                    aprime_low_e=a2pIdx_e;
+                    aprime_up_e =a2pIdx_e+1;
+                else
+                    a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz]);
+                    aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
+                    aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                end
                 base_off=reshape(N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_e(:)-1), [N_a, N_semiz]);
                 lo_idx=aprime_low_e+base_off;
                 up_idx=aprime_up_e +base_off;
@@ -218,12 +228,17 @@ for reverse_j=0:N_j-1
             EVnext_atpolicy=zeros(N_a, N_semiz, N_z, N_e, 'gpuArray');
             for e_c=1:N_e
                 block=(e_c-1)*N_shocks + (1:N_shocks);
-                a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                 d2_e =reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                 a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_z]);
                 a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_z]);
-                aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                if N_a1==0
+                    aprime_low_e=a2pIdx_e;
+                    aprime_up_e =a2pIdx_e+1;
+                else
+                    a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
+                    aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
+                    aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                end
                 base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1), [N_a, N_semiz, N_z]);
                 lo_idx=aprime_low_e+base_off;
                 up_idx=aprime_up_e +base_off;

@@ -239,7 +239,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_e]).*pi_e_J(1,1,:,N_j),3);    % First, switch V_Jplus1 into Kron form
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_e]).*pi_e_J(1,1,:,N_j+1),3);    % First, switch V_Jplus1 into Kron form
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
@@ -485,7 +485,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
+    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj+1),3);
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2

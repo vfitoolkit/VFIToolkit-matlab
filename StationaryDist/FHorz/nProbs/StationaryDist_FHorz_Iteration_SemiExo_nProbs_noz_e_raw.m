@@ -32,7 +32,7 @@ PolicyProbs=reshape(gather(PolicyProbs),[N_a*N_semiz*N_e,N_probs,N_j]);
 pi_semiz_J_short=gather(pi_semiz_J_short);
 idxshort=gather(idxshort);
 semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
-% semizindex_short_jj (built per age below) is [N_a*N_semiz*N_e,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j]
+% semizindex_short_jj (built per age below) is [N_a*N_semiz*N_e,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
 %% Use Tan improvement
 
@@ -54,7 +54,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
     % Put e back into dist
-    StationaryDist_jj=kron(pi_e_J(:,jj),StationaryDist_jj);
+    StationaryDist_jj=kron(pi_e_J(:,jj+1),StationaryDist_jj); % pi_e_J(:,jj+1) is the distribution of the e realized in period jj+1
 
     StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end

@@ -62,13 +62,17 @@ l_e=length(vfoptions.n_e);
 
 % Split a into a1 (standard) and a2 (experience asset)
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze_SemiExo: case with no a1 (experience asset as only asset) not yet implemented')
+    % noa1: the experience asset is the only endogenous state
+    n_a1=0;
+    N_a1=1; % so aprime_low=a1p+N_a1*(a2pIdx-1) reduces to the a2primeIndex lookup (a1p stays 1)
+    l_a1=0; % Policy contains only the d channels
+else
+    n_a1=n_a(1:end-1);
+    N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
-n_a1=n_a(1:end-1);
-N_a1=prod(n_a1);
 n_a2=n_a(end);
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
 
 % Which d drives the experience asset. With semiz, d ordering is [...other, d_expasset, d_semiz];
@@ -186,7 +190,7 @@ for reverse_j=0:N_j-1
         % EVnext from the recursion-driver value (Vdrive):
         % Step a: integrate next-period value over e' (iid)
         V_next=Vdrive(:,:,:,jj+1);
-        V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+        V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
         V_next=reshape(V_next, [N_a, N_shocks]);
 
         % Step b: integrate over z' (markov, does not depend on d_semiz)

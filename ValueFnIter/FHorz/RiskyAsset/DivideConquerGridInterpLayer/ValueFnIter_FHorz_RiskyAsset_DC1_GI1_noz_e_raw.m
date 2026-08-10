@@ -173,7 +173,7 @@ else % V_Jplus1
 
     % Get EV in terms of next period endogenous states
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);
-    EV=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j),-1),2); % [N_a,1]
+    EV=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j+1),-1),2); % [N_a,1]
     % Interpolate EV onto aprime, use skipinterp to avoid numerical errors where the lower and upper points are identical
     skipinterp=logical(EV(aprimeIndex(:))==EV(aprimeplus1Index(:)));
     aprimeProbs=repmat(a2primeProbs,N_a1,1);
@@ -344,7 +344,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1);
 
     % Get EV in terms of next period endogenous states
-    EV=sum(V(:,:,jj+1).*shiftdim(pi_e_J(:,jj),-1),2);
+    EV=sum(V(:,:,jj+1).*shiftdim(pi_e_J(:,jj+1),-1),2);
     % Interpolate EV onto aprime, use skipinterp to avoid numerical errors where the lower and upper points are identical
     skipinterp=logical(EV(aprimeIndex(:))==EV(aprimeplus1Index(:)));
     aprimeProbs=repmat(a2primeProbs,N_a1,1);

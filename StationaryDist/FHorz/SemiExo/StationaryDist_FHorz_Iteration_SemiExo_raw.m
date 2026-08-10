@@ -33,7 +33,7 @@ idxshort=gather(idxshort);
 pi_z_J=gather(pi_z_J);
 semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
 zprimeoffset=repelem(N_a*N_semiz*(0:1:N_z-1)',N_a*N_semiz,1);
-% semizindex_short_jj (built per age below) is [N_a*N_bothz,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j]
+% semizindex_short_jj (built per age below) is [N_a*N_bothz,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
 %% Tan improvement version
 % To do Tan improvement with semiz shocks we treat the first step as

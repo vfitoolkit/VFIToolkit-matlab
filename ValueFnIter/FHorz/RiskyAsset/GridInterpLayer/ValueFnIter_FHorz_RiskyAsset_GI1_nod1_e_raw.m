@@ -153,7 +153,7 @@ else % V_Jplus1
 
     DiscountFactorParamsVec=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j));
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);
-    EVnext=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j),-2),3);
+    EVnext=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j+1),-2),3);
 
     % Build a2primeIndex and a2primeProbs for RisykAsset
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -285,7 +285,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1);
 
     % Get EV in terms of next period endogenous states
-    EVnext=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3);
+    EVnext=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj+1),-2),3);
     EV=EVnext.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0;
     EV=sum(EV,2);

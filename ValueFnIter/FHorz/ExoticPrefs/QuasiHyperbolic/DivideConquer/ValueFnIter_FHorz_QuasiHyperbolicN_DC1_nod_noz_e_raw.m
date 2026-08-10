@@ -85,7 +85,7 @@ else
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta;
 
-    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j),2);
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j+1),2);
 
     Vtilde=zeros(N_a,N_e,N_j,'gpuArray');
 
@@ -210,7 +210,7 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta;
 
-    EV=sum(Valt(:,:,jj+1).*pi_e_J(1,:,jj),2);
+    EV=sum(Valt(:,:,jj+1).*pi_e_J(1,:,jj+1),2);
 
     if vfoptions.lowmemory==0
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);

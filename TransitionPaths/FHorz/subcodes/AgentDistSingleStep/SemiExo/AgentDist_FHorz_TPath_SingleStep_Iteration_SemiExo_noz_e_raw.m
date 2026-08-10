@@ -36,7 +36,7 @@ for jjr=1:(N_j-1)
     AgentDist_jj=Gammatranspose*AgentDist_jj;
 
     % Add e back into the distribution
-    pi_e=sparse(gather(pi_e_J(:,jj)));
+    pi_e=sparse(gather(pi_e_J(:,jj+1))); % pi_e_J(:,jj+1) is the distribution of the e realized in period jj+1
     AgentDist_jj=kron(pi_e,AgentDist_jj);
 
     AgentDist(:,jj+1)=full(AgentDist_jj);

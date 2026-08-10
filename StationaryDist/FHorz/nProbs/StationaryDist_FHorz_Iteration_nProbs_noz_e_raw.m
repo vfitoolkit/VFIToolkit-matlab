@@ -25,7 +25,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
     % Put e back into dist
-    pi_e=sparse(gather(pi_e_J(:,jj)));
+    pi_e=sparse(gather(pi_e_J(:,jj+1))); % pi_e_J(:,jj+1) is the distribution of the e realized in period jj+1
     StationaryDist_jj=kron(pi_e,StationaryDist_jj);
 
     StationaryDist(:,jj+1)=gather(full(StationaryDist_jj));

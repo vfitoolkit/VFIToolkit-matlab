@@ -128,7 +128,7 @@ else
     temp(V_Jplus1==0)=0;
 
     % Take expectation over e
-    temp=sum(temp.*pi_e_J(1,1,:,N_j),3);
+    temp=sum(temp.*pi_e_J(1,1,:,N_j+1),3);
 
     if vfoptions.lowmemory==0
 
@@ -292,7 +292,7 @@ for reverse_j=1:N_j-1
     temp(EVpre==0)=0;
 
     % Take expectations over e
-    temp=sum(temp.*pi_e_J(1,1,:,jj),3);
+    temp=sum(temp.*pi_e_J(1,1,:,jj+1),3);
 
     if vfoptions.lowmemory==0
 

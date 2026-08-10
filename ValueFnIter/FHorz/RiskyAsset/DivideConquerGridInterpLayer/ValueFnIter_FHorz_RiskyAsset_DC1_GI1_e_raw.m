@@ -244,7 +244,7 @@ else % V_Jplus1
 
     % Get EV in terms of next period endogenous states; integrate out e first, then zprime
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);
-    EV=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j),-2),3); % [N_a,N_z]
+    EV=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j+1),-2),3); % [N_a,N_z]
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
     EV(isnan(EV))=0;
     EV=sum(EV,2);
@@ -493,7 +493,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1);
 
     % Get EV in terms of next period endogenous states; integrate out e first, then zprime
-    EV=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3); % [N_a,N_z]
+    EV=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj+1),-2),3); % [N_a,N_z]
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0;
     EV=sum(EV,2);

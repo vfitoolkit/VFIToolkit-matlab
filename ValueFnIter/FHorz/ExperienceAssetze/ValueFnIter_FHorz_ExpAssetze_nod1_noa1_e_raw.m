@@ -62,7 +62,7 @@ else
     % l_a2==1: a2primeIndex is [N_d2*N_a2*N_z*N_e,1], a2primeProbs is [N_d2,N_a2,N_z,N_e]
     % l_a2==2: a2primeIndex/a2primeProbs are [l_a2, N_d2*N_a2*N_z*N_e] (per-dim factored, raveled)
 
-    EVpre=sum(shiftdim(pi_e_J(:,N_j),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),3); % Integrate out eprime first
+    EVpre=sum(shiftdim(pi_e_J(:,N_j+1),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),3); % Integrate out eprime first
 
     if length(n_a2)==1
         a2primeProbs=repmat(a2primeProbs,1,1,1,1,N_z);  % [N_d2,N_a2,N_z,N_e,N_z]   (replicate over zprime)
@@ -173,7 +173,7 @@ for reverse_j=1:N_j-1
     % l_a2==1: a2primeIndex is [N_d2*N_a2*N_z*N_e,1], a2primeProbs is [N_d2,N_a2,N_z,N_e]
     % l_a2==2: a2primeIndex/a2primeProbs are [l_a2, N_d2*N_a2*N_z*N_e] (per-dim factored, raveled)
 
-    EVpre=sum(shiftdim(pi_e_J(:,jj),-2).*V(:,:,:,jj+1),3); % Integrate out eprime first
+    EVpre=sum(shiftdim(pi_e_J(:,jj+1),-2).*V(:,:,:,jj+1),3); % Integrate out eprime first
 
     if length(n_a2)==1
         a2primeProbs=repmat(a2primeProbs,1,1,1,1,N_z);  % [N_d2,N_a2,N_z,N_e,N_z]   (replicate over zprime)

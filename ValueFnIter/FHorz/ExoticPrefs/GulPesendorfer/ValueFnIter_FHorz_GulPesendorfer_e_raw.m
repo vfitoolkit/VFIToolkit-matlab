@@ -79,7 +79,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
+    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j+1),3);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
@@ -169,7 +169,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,:,:,jj+1);
 
-    EV=sum(EV.*pi_e_J(1,1,:,jj),3);
+    EV=sum(EV.*pi_e_J(1,1,:,jj+1),3);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Disc_e(ReturnFn, n_d, n_a, n_z, n_e, d_gridvals, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);

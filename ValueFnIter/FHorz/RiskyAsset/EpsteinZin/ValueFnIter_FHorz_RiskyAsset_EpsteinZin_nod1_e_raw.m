@@ -238,7 +238,7 @@ else
     temp(V_Jplus1==0)=0; % otherwise zero to negative power is set to infinity
 
     % Take expectation over e
-    temp=sum(temp.*pi_e_J(1,1,:,N_j),3);
+    temp=sum(temp.*pi_e_J(1,1,:,N_j+1),3);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_z, n_e, [d3_grid; a1_grid], [a1_grid; a2_grid], z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
@@ -513,7 +513,7 @@ for reverse_j=1:N_j-1
     temp(EVpre==0)=0; % otherwise zero to negative power is set to infinity
 
     % Take expectation over e
-    temp=sum(temp.*pi_e_J(1,1,:,jj),3);
+    temp=sum(temp.*pi_e_J(1,1,:,jj+1),3);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_z, n_e, [d3_grid; a1_grid], [a1_grid; a2_grid], z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);

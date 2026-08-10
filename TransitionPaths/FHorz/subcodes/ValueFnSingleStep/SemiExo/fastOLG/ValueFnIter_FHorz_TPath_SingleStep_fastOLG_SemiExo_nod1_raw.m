@@ -34,10 +34,13 @@ DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamN
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
 if vfoptions.EVpre==0
+    pi_z_J=cat(1,pi_z_J,zeros(1,N_z,N_z,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_z_J has N_j-1 slices, the transitions from periods 1..N_j-1)
+    pi_semiz_J=cat(1,pi_semiz_J,zeros(1,N_semiz,N_semiz,N_d2,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_semiz_J has N_j-1 slices in its 4th dim, the transitions from periods 1..N_j-1)
     EVpre=zeros(N_a,1,N_j,N_bothz);
     EVpre(:,1,1:N_j-1,:)=reshape(V(N_a+1:end,:),[N_a,1,N_j-1,N_bothz]); % I use zeros in j=N_j so that can just use the transition probabilities to create expectations
 elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
+    % EVpre==1 is the Matched Expectations Path: the age axis is time along the path and the caller supplies the pi arrays with all N_j slices genuine (the final slice is the transition into the continuing future), so nothing is appended to them
     EVpre=reshape(V,[N_a,1,N_j,N_bothz]); % input V is already of size [N_a*N_j,N_bothz] and we want to use the whole thing
 end
 

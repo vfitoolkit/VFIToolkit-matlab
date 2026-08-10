@@ -56,14 +56,21 @@ l_d=length(n_d);
 l_z=length(n_z);
 
 % Split a into a1 (standard) and a2 (experience asset)
+% noa1 case: when n_a is scalar (experience asset is the only endogenous state) use n_a1=0, N_a1=0
+% (toolkit convention; matches StationaryDist_FHorz_ExpAssetzSemiExo). Note we have to override l_a1=0
+% because length(0)=1, not 0. Downstream, N_a1kron=1 makes the kron-index lookup reduce to a2primeIndex.
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_ExpAssetz_SemiExo: case with no a1 (experience asset as only asset) not yet implemented')
+    n_a1=0;
+    N_a1=0;
+    l_a1=0;
+else
+    n_a1=n_a(1:end-1);
+    N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
-n_a1=n_a(1:end-1);
-N_a1=prod(n_a1);
+N_a1kron=max(N_a1,1); % effective a1 stride in the joint aprime index (1 in the noa1 case)
 n_a2=n_a(end);
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
 
 % Which d drives the experience asset. With semiz, d ordering is [...other, d_expasset, d_semiz];
@@ -184,7 +191,7 @@ for reverse_j=0:N_j-1
             V_next=V(:,:,jj+1);
         else
             V_next=V(:,:,:,jj+1);
-            V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+            V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
             V_next=reshape(V_next, [N_a, N_shocks]);
         end
 
@@ -212,8 +219,8 @@ for reverse_j=0:N_j-1
             d2_r =reshape(d2_jj,[N_a, N_semiz, N_z]);
             a2pIdx=reshape(a2primeIndex,[N_a, N_semiz, N_z]);
             a2pPrb=reshape(a2primeProbs,[N_a, N_semiz, N_z]);
-            aprime_low=a1p_r+N_a1*(a2pIdx-1);
-            aprime_up =a1p_r+N_a1*(a2pIdx);
+            aprime_low=a1p_r+N_a1kron*(a2pIdx-1); % (a1p_r all ones in the noa1 case)
+            aprime_up =a1p_r+N_a1kron*(a2pIdx);
             base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_r(:)-1), [N_a, N_semiz, N_z]);
             lo_idx=aprime_low+base_off;
             up_idx=aprime_up +base_off;
@@ -229,8 +236,8 @@ for reverse_j=0:N_j-1
                 d2_e =reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                 a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_z]);
                 a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_z]);
-                aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                aprime_low_e=a1p_e+N_a1kron*(a2pIdx_e-1); % (a1p_e all ones in the noa1 case)
+                aprime_up_e =a1p_e+N_a1kron*(a2pIdx_e);
                 base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1), [N_a, N_semiz, N_z]);
                 lo_idx=aprime_low_e+base_off;
                 up_idx=aprime_up_e +base_off;

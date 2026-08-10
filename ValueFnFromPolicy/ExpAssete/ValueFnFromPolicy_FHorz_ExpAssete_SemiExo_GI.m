@@ -45,8 +45,14 @@ end
 l_d=length(n_d);
 l_e=length(vfoptions.n_e);
 
+% noa1 case (n_a is scalar -- experience asset is the only endogenous state): GI refines a1, which
+% doesn't apply when there's no a1. Fall back to non-GI version (which handles noa1 correctly).
+% Matches the upstream VFI convention (noa1 has no GI/DC/DC+GI raw files).
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_ExpAssete_SemiExo_GI: case with no a1 (experience asset as only asset) not yet implemented')
+    vfoptions.gridinterplayer=0;
+    V=ValueFnFromPolicy_FHorz_ExpAssete_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
+    return
 end
 n_a1=n_a(1:end-1);
 N_a1=prod(n_a1);
@@ -163,7 +169,7 @@ for reverse_j=0:N_j-1
 
         % Step 3a: integrate next-period V over e' (iid)
         V_next=V(:,:,:,jj+1);
-        V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+        V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
         V_next=reshape(V_next, [N_a, N_shocks]);
 
         % Step 3b: integrate over z' (markov) if N_z>0

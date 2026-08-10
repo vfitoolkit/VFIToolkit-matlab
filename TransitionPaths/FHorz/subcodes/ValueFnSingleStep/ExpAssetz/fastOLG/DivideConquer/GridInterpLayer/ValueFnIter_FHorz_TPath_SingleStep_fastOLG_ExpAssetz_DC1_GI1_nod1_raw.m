@@ -2,7 +2,7 @@ function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAssetz_DC1_GI
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z
-% pi_z_J is (j,z',z) for fastOLG
+% pi_z_J is (j,z',z) for fastOLG; it arrives with N_j-1 slices (the transitions from periods 1..N_j-1) and a j=N_j slot of zeros is appended below
 % z_gridvals_J is (j,N_z,l_z) for fastOLG
 
 N_d2=prod(n_d2);
@@ -55,6 +55,7 @@ DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-4);
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
 if vfoptions.EVpre==0
+    pi_z_J=cat(1,pi_z_J,zeros(1,N_z,N_z,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_z_J has N_j-1 slices, the transitions from periods 1..N_j-1)
     aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix_J(aprimeFn, n_d2, n_a2, n_z, N_j, d2_gridvals, a2_grid, z_gridvals_J_zlj, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_z,N_j], whereas aprimeProbs is [N_d2,N_a2,N_z,N_j]   (N_z here is the current z)
@@ -83,6 +84,7 @@ if vfoptions.EVpre==0
     EV=reshape(sum(EV,5),[N_d2*N_a1,N_a2,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
+    % EVpre==1 is the Matched Expectations Path: the age axis is time along the path and the caller supplies the pi arrays with all N_j slices genuine (the final slice is the transition into the continuing future), so nothing is appended to them
     aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix_J(aprimeFn, n_d2, n_a2, n_z, N_j, d2_gridvals, a2_grid, z_gridvals_J_zlj, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_z,N_j], whereas aprimeProbs is [N_d2,N_a2,N_z,N_j]   (N_z here is the current z)

@@ -35,13 +35,17 @@ l_e=length(vfoptions.n_e);
 
 % Split a into a1 (standard) and a2 (experience asset)
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic (experienceassetze): case with no a1 not yet implemented')
+    % noa1: the experience asset is the only endogenous state
+    n_a1=0;
+    N_a1=1; % so EV_low=EVnext(a1p+N_a1*(a2primeIndex-1)+...) reduces to the a2primeIndex lookup (a1p stays 1)
+    l_a1=0; % Policy contains only the d channels
+else
+    n_a1=n_a(1:end-1);
+    N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
-n_a1=n_a(1:end-1);
-N_a1=prod(n_a1);
 n_a2=n_a(end);
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
 
 % Which d affects the experience asset (default: last d only)
@@ -130,7 +134,7 @@ for reverse_j=0:N_j-1
         beta0beta=beta0*beta;
 
         % EVnext from the recursion-driver value: integrate e' (iid) then z' (markov) -> [N_a,N_z]
-        EVnext=sum(Vdrive(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+        EVnext=sum(Vdrive(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
         EVnext=reshape(EVnext,[N_a,N_z]) * pi_z_J(:,:,jj)';
         EVnext(isnan(EVnext))=0;
 

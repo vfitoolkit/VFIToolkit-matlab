@@ -38,19 +38,23 @@ l_d=length(n_d);
 l_z=length(n_z);
 
 % Split a into a1 (standard) and a2 (experience asset)
+% noa1 case: when n_a is scalar (experience asset is the only endogenous state) use n_a1=0, N_a1=0
+% (toolkit convention; matches StationaryDist_FHorz_ExpAssetz). Note we have to override l_a1=0
+% because length(0)=1, not 0. Downstream, N_a1kron=1 makes the kron-index lookup reduce to a2primeIndex.
 if isscalar(n_a)
     n_a1=0;
     N_a1=0;
-    error('ValueFnFromPolicy_FHorz_ExpAssetz: case with no a1 (experience asset as only asset) not yet implemented')
+    l_a1=0;
 else
     n_a1=n_a(1:end-1);
     N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
+N_a1kron=max(N_a1,1); % effective a1 stride in the joint aprime index (1 in the noa1 case)
 n_a2=n_a(end);
 % N_a2=prod(n_a2);
 % a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
 
 % Which d affects the experience asset (default: last d only)
@@ -158,16 +162,16 @@ for reverse_j=0:N_j-1
             EVnext=V(:,:,jj+1)*pi_z_J(:,:,jj)'; % [N_a, N_z]
             EVnext(isnan(EVnext))=0;
         else
-            EVnext=sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3); % [N_a, N_z, 1]
+            EVnext=sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3); % [N_a, N_z, 1]
             EVnext=reshape(EVnext,[N_a,N_z]) * pi_z_J(:,:,jj)'; % [N_a, N_z]
             EVnext(isnan(EVnext))=0;
         end
 
         % Step 4: interpolated lookup
         if N_e==0
-            a1p=Policy_a1prime(:,:,jj); % [N_a, N_z]
-            aprime_low=a1p+N_a1*(a2primeIndex-1);
-            aprime_up =a1p+N_a1*(a2primeIndex);
+            a1p=Policy_a1prime(:,:,jj); % [N_a, N_z] (all ones in the noa1 case)
+            aprime_low=a1p+N_a1kron*(a2primeIndex-1);
+            aprime_up =a1p+N_a1kron*(a2primeIndex);
             zidxoffset=N_a*gpuArray(0:N_z-1); % [1, N_z]
             lin_low=aprime_low+zidxoffset;
             lin_up =aprime_up +zidxoffset;
@@ -176,9 +180,9 @@ for reverse_j=0:N_j-1
             EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         else
-            a1p=reshape(Policy_a1prime(:,:,jj),[N_a, N_z, N_e]);
-            aprime_low=a1p+N_a1*(a2primeIndex-1);
-            aprime_up =a1p+N_a1*(a2primeIndex);
+            a1p=reshape(Policy_a1prime(:,:,jj),[N_a, N_z, N_e]); % (all ones in the noa1 case)
+            aprime_low=a1p+N_a1kron*(a2primeIndex-1);
+            aprime_up =a1p+N_a1kron*(a2primeIndex);
             zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1]);
             lin_low=aprime_low+zidxoffset;
             lin_up =aprime_up +zidxoffset;

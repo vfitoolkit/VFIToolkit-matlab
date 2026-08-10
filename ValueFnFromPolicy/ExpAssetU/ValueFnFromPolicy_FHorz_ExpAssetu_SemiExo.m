@@ -213,7 +213,7 @@ for reverse_j=0:N_j-1
             V_next=V(:,:,jj+1);
         else
             V_next=V(:,:,:,jj+1);
-            V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+            V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
             V_next=reshape(V_next, [N_a, N_shocks]);
         end
 

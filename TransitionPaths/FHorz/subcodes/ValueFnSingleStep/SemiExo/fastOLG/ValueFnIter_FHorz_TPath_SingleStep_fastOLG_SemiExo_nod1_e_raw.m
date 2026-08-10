@@ -16,6 +16,7 @@ N_d2=prod(n_d2);
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);
 N_z=prod(n_z);
+pi_z_J=cat(1,pi_z_J,zeros(1,N_z,N_z,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_z_J has N_j-1 slices, the transitions from periods 1..N_j-1)
 N_bothz=N_semiz*N_z;
 N_e=prod(n_e);
 
@@ -26,6 +27,7 @@ bothz_gridvals_J=shiftdim(bothz_gridvals_J,-3); % [1,1,1,N_j,N_bothz,l_bothz]
 e_gridvals_J=reshape(e_gridvals_J,[1,1,1,N_j,1,N_e,length(n_e)]);
 
 pi_semiz_J=permute(pi_semiz_J,[4,2,1,3]); % (j,semiz',semiz,d2)
+pi_semiz_J=cat(1,pi_semiz_J,zeros(1,N_semiz,N_semiz,N_d2,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_semiz_J has N_j-1 slices in its 4th dim, the transitions from periods 1..N_j-1)
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_bothz (note: N_aprime is just equal to N_a)
@@ -37,7 +39,7 @@ DiscountFactor_J=prod(CreateAgeMatrixFromParams(Parameters, DiscountFactorParamN
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
 % Take expectations over e (Vnext for age jj is V at age jj+1 weighted by pi_e_J at age jj)
-EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(1:end-N_a,:,:),3); zeros(N_a,N_bothz,'gpuArray')]; % I use zeros in j=N_j so that can just use the transition probabilities to create expectations
+EVpre=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,:,:),3); zeros(N_a,N_bothz,'gpuArray')]; % I use zeros in j=N_j so that can just use the transition probabilities to create expectations
 EVpre=reshape(EVpre,[N_a,1,N_j,N_bothz]);
 
 % Expectations over the semi-exogenous state depend on d2: compute them for each d2 and stack over d2 (d2 indexes fastest, then aprime)

@@ -272,7 +272,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*pi_e_J(1,1,:,N_j),3); % First, switch V_Jplus1 into Kron form and integrate over e'
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*pi_e_J(1,1,:,N_j+1),3); % First, switch V_Jplus1 into Kron form and integrate over e'
 
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
@@ -520,7 +520,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3); % integrate over e'
+    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj+1),3); % integrate over e'
 
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);

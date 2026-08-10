@@ -130,7 +130,7 @@ else
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1);
 
     % Integrate over e' first (e is iid)
-    EVpre=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j),-2),3);
+    EVpre=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j+1),-2),3);
 
     if isstruct(pi_semiz_J)
         pi_semiz=gpuArray(reshape(full(pi_semiz_J.(['j',num2str(N_j)])),[N_semiz,N_semiz,N_d4]));
@@ -248,7 +248,7 @@ for reverse_j=1:N_j-1
     aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1);
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1);
 
-    EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3);
+    EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj+1),-2),3);
 
     if isstruct(pi_semiz_J)
         pi_semiz=gpuArray(reshape(full(pi_semiz_J.(['j',num2str(jj)])),[N_semiz,N_semiz,N_d4]));

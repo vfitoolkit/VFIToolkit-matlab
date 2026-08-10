@@ -47,10 +47,6 @@ if vfoptions.experienceassetze>=1
     [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     return
 end
-if vfoptions.gridinterplayer==1 && length(n_a)>=2
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: gridinterplayer with l_a>=2 (GI2A) and dual {V,Valt} output is not yet implemented.')
-end
-
 %% Setup (mirrors ValueFnFromPolicy_FHorz)
 % Caller already moved grids and Policy to GPU and ran ExogShockSetup_FHorz.
 % Re-run shock setup here to get z_gridvals_J / pi_z_J locally.
@@ -65,12 +61,18 @@ ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Param
 
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
-%% GI1 variant: replace integer-aprime lookup with L2-interpolated lookup.
+%% GI1/GI2A variant: replace integer-aprime lookup with L2-interpolated lookup.
 % Mirrors the non-GI structure below, but EVnext is read at (alower, alower+1)
 % with weights from L2: PolicyProbs(:,...,2) = (L2-1)/(n2short+1).
+% GI2A (l_a>=2): interpolation is applied to the first endogenous state only, so
+% PolicyIndexesKron carries a separate a2prime row (index_a1+1). We fold the a2prime
+% offset straight into alower, turning it into a linear index into (N_a1*N_a2); alower+1
+% then still steps a1 by one, so every lookup below is identical to the l_a==1 case.
 if vfoptions.gridinterplayer==1
     n2short=vfoptions.ngridinterp;
     index_a1=1+(N_d>0);
+    l_a=length(n_a);
+    n_a1=n_a(1);
 
     if N_z==0 && N_e==0
 
@@ -80,6 +82,10 @@ if vfoptions.gridinterplayer==1
         PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, 1, N_j, vfoptions);
         alower=reshape(PolicyIndexesKron(index_a1,:,:),[N_a,N_j]);
         L2    =reshape(PolicyIndexesKron(end,      :,:),[N_a,N_j]);
+        if l_a>=2 % GI2A: fold a2prime into the linear index
+            a2prime=reshape(PolicyIndexesKron(index_a1+1,:,:),[N_a,N_j]);
+            alower=alower+n_a1*(a2prime-1);
+        end
         PolicyProbs=zeros(N_a,N_j,2,'gpuArray');
         PolicyProbs(:,:,2)=(L2-1)/(n2short+1);
         PolicyProbs(:,:,1)=1-PolicyProbs(:,:,2);
@@ -90,6 +96,10 @@ if vfoptions.gridinterplayer==1
             PolicyIndexesKronAlt=KronPolicyIndexes_forValueFnFromPolicy(Policyalt, n_d, n_a, 1, N_j, vfoptions);
             alower_alt=reshape(PolicyIndexesKronAlt(index_a1,:,:),[N_a,N_j]);
             L2_alt    =reshape(PolicyIndexesKronAlt(end,      :,:),[N_a,N_j]);
+            if l_a>=2 % GI2A: fold a2prime into the linear index
+                a2prime_alt=reshape(PolicyIndexesKronAlt(index_a1+1,:,:),[N_a,N_j]);
+                alower_alt=alower_alt+n_a1*(a2prime_alt-1);
+            end
             PolicyProbs_alt=zeros(N_a,N_j,2,'gpuArray');
             PolicyProbs_alt(:,:,2)=(L2_alt-1)/(n2short+1);
             PolicyProbs_alt(:,:,1)=1-PolicyProbs_alt(:,:,2);
@@ -156,6 +166,10 @@ if vfoptions.gridinterplayer==1
         PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, vfoptions.n_e, N_j, vfoptions);
         alower=reshape(PolicyIndexesKron(index_a1,:,:,:),[N_a,N_e,N_j]);
         L2    =reshape(PolicyIndexesKron(end,      :,:,:),[N_a,N_e,N_j]);
+        if l_a>=2 % GI2A: fold a2prime into the linear index
+            a2prime=reshape(PolicyIndexesKron(index_a1+1,:,:,:),[N_a,N_e,N_j]);
+            alower=alower+n_a1*(a2prime-1);
+        end
         PolicyProbs=zeros(N_a,N_e,N_j,2,'gpuArray');
         PolicyProbs(:,:,:,2)=(L2-1)/(n2short+1);
         PolicyProbs(:,:,:,1)=1-PolicyProbs(:,:,:,2);
@@ -166,6 +180,10 @@ if vfoptions.gridinterplayer==1
             PolicyIndexesKronAlt=KronPolicyIndexes_forValueFnFromPolicy(Policyalt, n_d, n_a, vfoptions.n_e, N_j, vfoptions);
             alower_alt=reshape(PolicyIndexesKronAlt(index_a1,:,:,:),[N_a,N_e,N_j]);
             L2_alt    =reshape(PolicyIndexesKronAlt(end,      :,:,:),[N_a,N_e,N_j]);
+            if l_a>=2 % GI2A: fold a2prime into the linear index
+                a2prime_alt=reshape(PolicyIndexesKronAlt(index_a1+1,:,:,:),[N_a,N_e,N_j]);
+                alower_alt=alower_alt+n_a1*(a2prime_alt-1);
+            end
             PolicyProbs_alt=zeros(N_a,N_e,N_j,2,'gpuArray');
             PolicyProbs_alt(:,:,:,2)=(L2_alt-1)/(n2short+1);
             PolicyProbs_alt(:,:,:,1)=1-PolicyProbs_alt(:,:,:,2);
@@ -199,7 +217,7 @@ if vfoptions.gridinterplayer==1
                 beta0beta=beta0*beta;
 
                 if isNaive
-                    EVnext=sum(Valt(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-1),2); % integrate over iid e -> (N_a,1)
+                    EVnext=sum(Valt(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-1),2); % integrate over iid e -> (N_a,1)
                     bL =alower(:,:,jj);
                     bLa=alower_alt(:,:,jj);
                     EVlower    =reshape(EVnext(bL ),  [N_a,N_e]);
@@ -211,7 +229,7 @@ if vfoptions.gridinterplayer==1
                     Valt(:,:,jj)  =FofPolicyalt_jj+beta    *EVnextAtPolicyalt;
                     Vtilde(:,:,jj)=FofPolicy_jj   +beta0beta*EVnextAtPolicy;
                 else
-                    EVnext=sum(Vunderbar(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-1),2);
+                    EVnext=sum(Vunderbar(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-1),2);
                     bL=alower(:,:,jj);
                     EVlower=reshape(EVnext(bL ),  [N_a,N_e]);
                     EVupper=reshape(EVnext(bL +1),[N_a,N_e]);
@@ -238,6 +256,10 @@ if vfoptions.gridinterplayer==1
         PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, n_z, N_j, vfoptions);
         alower=reshape(PolicyIndexesKron(index_a1,:,:,:),[N_a,N_z,N_j]);
         L2    =reshape(PolicyIndexesKron(end,      :,:,:),[N_a,N_z,N_j]);
+        if l_a>=2 % GI2A: fold a2prime into the linear index
+            a2prime=reshape(PolicyIndexesKron(index_a1+1,:,:,:),[N_a,N_z,N_j]);
+            alower=alower+n_a1*(a2prime-1);
+        end
         PolicyProbs=zeros(N_a,N_z,N_j,2,'gpuArray');
         PolicyProbs(:,:,:,2)=(L2-1)/(n2short+1);
         PolicyProbs(:,:,:,1)=1-PolicyProbs(:,:,:,2);
@@ -248,6 +270,10 @@ if vfoptions.gridinterplayer==1
             PolicyIndexesKronAlt=KronPolicyIndexes_forValueFnFromPolicy(Policyalt, n_d, n_a, n_z, N_j, vfoptions);
             alower_alt=reshape(PolicyIndexesKronAlt(index_a1,:,:,:),[N_a,N_z,N_j]);
             L2_alt    =reshape(PolicyIndexesKronAlt(end,      :,:,:),[N_a,N_z,N_j]);
+            if l_a>=2 % GI2A: fold a2prime into the linear index
+                a2prime_alt=reshape(PolicyIndexesKronAlt(index_a1+1,:,:,:),[N_a,N_z,N_j]);
+                alower_alt=alower_alt+n_a1*(a2prime_alt-1);
+            end
             PolicyProbs_alt=zeros(N_a,N_z,N_j,2,'gpuArray');
             PolicyProbs_alt(:,:,:,2)=(L2_alt-1)/(n2short+1);
             PolicyProbs_alt(:,:,:,1)=1-PolicyProbs_alt(:,:,:,2);
@@ -317,6 +343,10 @@ if vfoptions.gridinterplayer==1
         PolicyIndexesKron=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, [n_z,vfoptions.n_e], N_j, vfoptions);
         alower=reshape(PolicyIndexesKron(index_a1,:,:,:),[N_a,N_z,N_e,N_j]);
         L2    =reshape(PolicyIndexesKron(end,      :,:,:),[N_a,N_z,N_e,N_j]);
+        if l_a>=2 % GI2A: fold a2prime into the linear index
+            a2prime=reshape(PolicyIndexesKron(index_a1+1,:,:,:),[N_a,N_z,N_e,N_j]);
+            alower=alower+n_a1*(a2prime-1);
+        end
         PolicyProbs=zeros(N_a,N_z,N_e,N_j,2,'gpuArray');
         PolicyProbs(:,:,:,:,2)=(L2-1)/(n2short+1);
         PolicyProbs(:,:,:,:,1)=1-PolicyProbs(:,:,:,:,2);
@@ -327,6 +357,10 @@ if vfoptions.gridinterplayer==1
             PolicyIndexesKronAlt=KronPolicyIndexes_forValueFnFromPolicy(Policyalt, n_d, n_a, [n_z,vfoptions.n_e], N_j, vfoptions);
             alower_alt=reshape(PolicyIndexesKronAlt(index_a1,:,:,:),[N_a,N_z,N_e,N_j]);
             L2_alt    =reshape(PolicyIndexesKronAlt(end,      :,:,:),[N_a,N_z,N_e,N_j]);
+            if l_a>=2 % GI2A: fold a2prime into the linear index
+                a2prime_alt=reshape(PolicyIndexesKronAlt(index_a1+1,:,:,:),[N_a,N_z,N_e,N_j]);
+                alower_alt=alower_alt+n_a1*(a2prime_alt-1);
+            end
             PolicyProbs_alt=zeros(N_a,N_z,N_e,N_j,2,'gpuArray');
             PolicyProbs_alt(:,:,:,:,2)=(L2_alt-1)/(n2short+1);
             PolicyProbs_alt(:,:,:,:,1)=1-PolicyProbs_alt(:,:,:,:,2);
@@ -361,7 +395,7 @@ if vfoptions.gridinterplayer==1
                 beta0beta=beta0*beta;
 
                 if isNaive
-                    EVnext=sum(Valt(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-2),3); % integrate over iid e -> (N_a,N_z)
+                    EVnext=sum(Valt(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-2),3); % integrate over iid e -> (N_a,N_z)
                     EVnext=EVnext*pi_z_J(:,:,jj)'; % (N_a, N_z)
                     EVnext(isnan(EVnext))=0;
                     lower_lin    =alower(:,:,:,jj)    +zidxoffset; % (N_a, N_z, N_e) — broadcasting
@@ -371,7 +405,7 @@ if vfoptions.gridinterplayer==1
                     Valt(:,:,:,jj)  =FofPolicyalt_jj+beta    *EVnextAtPolicyalt;
                     Vtilde(:,:,:,jj)=FofPolicy_jj   +beta0beta*EVnextAtPolicy;
                 else
-                    EVnext=sum(Vunderbar(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-2),3); % integrate over iid e -> (N_a,N_z)
+                    EVnext=sum(Vunderbar(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-2),3); % integrate over iid e -> (N_a,N_z)
                     EVnext=EVnext*pi_z_J(:,:,jj)'; % (N_a, N_z)
                     EVnext(isnan(EVnext))=0;
                     lower_lin=alower(:,:,:,jj)+zidxoffset;
@@ -518,7 +552,7 @@ elseif N_z==0 && N_e>0
             beta0beta=beta0*beta;
 
             if isNaive
-                EVnext=sum(Valt(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-1),2); % expectation over iid e
+                EVnext=sum(Valt(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-1),2); % expectation over iid e
                 if N_d==0
                     optaprime=PolicyIndexesKron(1,:,:,jj);
                     optaprime_alt=PolicyIndexesKronAlt(1,:,:,jj);
@@ -532,7 +566,7 @@ elseif N_z==0 && N_e>0
                 Valt(:,:,jj) =FofPolicyalt_jj+beta    *EVnextOfPolicyalt;
                 Vtilde(:,:,jj)=FofPolicy_jj   +beta0beta*EVnextOfPolicy;
             else
-                EVnext=sum(Vunderbar(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-1),2); % expectation over iid e
+                EVnext=sum(Vunderbar(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-1),2); % expectation over iid e
 
                 if N_d==0
                     optaprime=PolicyIndexesKron(1,:,:,jj);
@@ -683,7 +717,7 @@ elseif N_z>0 && N_e>0
             beta0beta=beta0*beta;
 
             if isNaive
-                EVnext=sum(Valt(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-2),3);
+                EVnext=sum(Valt(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-2),3);
                 EVnext=EVnext.*shiftdim(pi_z_J(:,:,jj)',-1);
                 EVnext(isnan(EVnext))=0;
                 EVnext=sum(EVnext,2);
@@ -703,7 +737,7 @@ elseif N_z>0 && N_e>0
                 Valt(:,:,:,jj) =FofPolicyalt_jj+beta    *EVnextOfPolicyalt;
                 Vtilde(:,:,:,jj)=FofPolicy_jj   +beta0beta*EVnextOfPolicy;
             else
-                EVnext=sum(Vunderbar(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-2),3); % expectation over iid e
+                EVnext=sum(Vunderbar(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-2),3); % expectation over iid e
                 EVnext=EVnext.*shiftdim(pi_z_J(:,:,jj)',-1);
                 EVnext(isnan(EVnext))=0;
                 EVnext=sum(EVnext,2);

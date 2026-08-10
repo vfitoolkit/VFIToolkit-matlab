@@ -88,7 +88,7 @@ else
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta;
 
-    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j),2);
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j+1),2);
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
     if vfoptions.lowmemory==0
@@ -204,7 +204,7 @@ for reverse_j=1:N_j-1
     beta0beta=beta0*beta;
 
     EVsource=Valt(:,:,jj+1);
-    EV=sum(EVsource.*pi_e_J(1,:,jj),2);
+    EV=sum(EVsource.*pi_e_J(1,:,jj+1),2);
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
     if vfoptions.lowmemory==0

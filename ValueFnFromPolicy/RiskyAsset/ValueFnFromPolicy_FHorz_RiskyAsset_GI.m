@@ -201,12 +201,12 @@ for reverse_j=0:N_j-1
         if N_z==0 && N_e==0
             EVnext=V(:,jj+1);
         elseif N_z==0 && N_e>0
-            EVnext=sum(V(:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj), -1), 2);
+            EVnext=sum(V(:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -1), 2);
         elseif N_z>0 && N_e==0
             EVnext=V(:,:,jj+1)*pi_z_J(:,:,jj)';
             EVnext(isnan(EVnext))=0;
         else
-            EVnext=sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+            EVnext=sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
             EVnext=reshape(EVnext,[N_a,N_z]) * pi_z_J(:,:,jj)';
             EVnext(isnan(EVnext))=0;
         end

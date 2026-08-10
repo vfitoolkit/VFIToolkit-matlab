@@ -15,12 +15,14 @@ for jj=0:periods
     SimLifeCycleKron(3,jj+initialage)=currstate(3); % z_c
     SimLifeCycleKron(4,jj+initialage)=currstate(4); % e
 
-    d2ind=Policy_dsemiexo(currstate(1),currstate(2),currstate(3),currstate(4),jj+initialage);
-    currstate(1)=PolicyKron(currstate(1),currstate(2),currstate(3),currstate(4),jj+initialage);
+    if jj<periods % the final recorded period needs no further transition (nothing after it is ever recorded)
+        d2ind=Policy_dsemiexo(currstate(1),currstate(2),currstate(3),currstate(4),jj+initialage);
+        currstate(1)=PolicyKron(currstate(1),currstate(2),currstate(3),currstate(4),jj+initialage);
 
-    [~,currstate(2)]=max(cumsumpi_semiz_J(currstate(2),:,d2ind,jj+initialage)>rand(1,1));
-    [~,currstate(3)]=max(cumsumpi_z_J(currstate(3),:,jj+initialage)>rand(1,1));
-    [~,currstate(4)]=max(cumsumpi_e_J(:,jj+initialage)>rand(1,1));
+        [~,currstate(2)]=max(cumsumpi_semiz_J(currstate(2),:,d2ind,jj+initialage)>rand(1,1));
+        [~,currstate(3)]=max(cumsumpi_z_J(currstate(3),:,jj+initialage)>rand(1,1));
+        [~,currstate(4)]=max(cumsumpi_e_J(:,jj+initialage+1)>rand(1,1)); % the e realized in period jj+initialage+1
+    end
 end
 SimLifeCycleKron(5,initialage:(initialage+periods))=initialage:1:(initialage+periods);
 

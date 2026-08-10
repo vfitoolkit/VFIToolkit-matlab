@@ -211,7 +211,7 @@ elseif N_z==0 && N_e>0
             V(:,:,jj)=FofPolicy_jj;
         else
             beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
-            EVnext=sum(V(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-1),2); % expectation over iid
+            EVnext=sum(V(:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-1),2); % expectation over iid
 
             if N_d==0
                 optaprime=PolicyIndexesKron(1,:,:,jj);
@@ -295,7 +295,7 @@ elseif N_z>0 && N_e>0
             V(:,:,:,jj)=FofPolicy_jj;
         else
             beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
-            EVnext=sum(V(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj),-2),3); % expectation over iid
+            EVnext=sum(V(:,:,:,jj+1).*shiftdim(vfoptions.pi_e_J(:,jj+1),-2),3); % expectation over iid
             EVnext=EVnext.*shiftdim(pi_z_J(:,:,jj)',-1); % size N_z-by-1
             EVnext(isnan(EVnext))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EVnext=sum(EVnext,2); % sum over z', leaving a singular second dimension

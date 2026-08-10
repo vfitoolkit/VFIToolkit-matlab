@@ -64,7 +64,7 @@ else
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix(aprimeFn, n_d2, n_a2, n_z, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2*N_z,1], whereas aprimeProbs is [N_d2,N_a2,N_z]   (N_z here is the current z)
 
-    EV=sum(shiftdim(pi_e_J(:,N_j),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),3); % First, switch V_Jplus1 into Kron form
+    EV=sum(shiftdim(pi_e_J(:,N_j+1),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),3); % First, switch V_Jplus1 into Kron form
 
     Vlower=reshape(EV(a2primeIndex,:),[N_d2,N_a2,N_z,N_z]); % (d2,a2,z,zprime)
     Vupper=reshape(EV(a2primeIndex+1,:),[N_d2,N_a2,N_z,N_z]);
@@ -145,7 +145,7 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix(aprimeFn, n_d2, n_a2, n_z, d2_gridvals, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2*N_z,1], whereas aprimeProbs is [N_d2,N_a2,N_z]   (N_z here is the current z)
 
-    EV=sum(shiftdim(pi_e_J(:,jj),-2).*V(:,:,:,jj+1),3);
+    EV=sum(shiftdim(pi_e_J(:,jj+1),-2).*V(:,:,:,jj+1),3);
 
     Vlower=reshape(EV(a2primeIndex,:),[N_d2,N_a2,N_z,N_z]); % (d2,a2,z,zprime)
     Vupper=reshape(EV(a2primeIndex+1,:),[N_d2,N_a2,N_z,N_z]);

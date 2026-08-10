@@ -62,7 +62,7 @@ else
     % Note: aprimeIndex is [N_d2*N_a2*N_e,1], whereas aprimeProbs is [N_d2,N_a2,N_e]   (N_e here is the current e)
     a2primeProbs=repmat(a2primeProbs,1,1,1,N_z);  % [N_d2,N_a2,N_e,N_z]   (replicate over zprime)
 
-    EVpre=sum(shiftdim(pi_e_J(:,N_j),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),3); % Integrate out eprime first
+    EVpre=sum(shiftdim(pi_e_J(:,N_j+1),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),3); % Integrate out eprime first
 
     Vlower=reshape(EVpre(a2primeIndex,:),[N_d2,N_a2,N_e,N_z]); % (d2,a2,e_cur,zprime)
     Vupper=reshape(EVpre(a2primeIndex+1,:),[N_d2,N_a2,N_e,N_z]);
@@ -143,7 +143,7 @@ for reverse_j=1:N_j-1
     % Note: aprimeIndex is [N_d2*N_a2*N_e,1], whereas aprimeProbs is [N_d2,N_a2,N_e]   (N_e here is the current e)
     a2primeProbs=repmat(a2primeProbs,1,1,1,N_z);  % [N_d2,N_a2,N_e,N_z]   (replicate over zprime)
 
-    EVpre=sum(shiftdim(pi_e_J(:,jj),-2).*V(:,:,:,jj+1),3); % Integrate out eprime first
+    EVpre=sum(shiftdim(pi_e_J(:,jj+1),-2).*V(:,:,:,jj+1),3); % Integrate out eprime first
 
     Vlower=reshape(EVpre(a2primeIndex,:),[N_d2,N_a2,N_e,N_z]); % (d2,a2,e_cur,zprime)
     Vupper=reshape(EVpre(a2primeIndex+1,:),[N_d2,N_a2,N_e,N_z]);

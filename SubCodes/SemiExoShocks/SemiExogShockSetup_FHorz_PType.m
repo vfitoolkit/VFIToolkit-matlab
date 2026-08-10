@@ -1,7 +1,17 @@
 function options=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,options,gridpiboth)
 % Convert semiz to age-dependent joint-grids and transtion matrix
 % options will either be options or simoptions
-% output: options.semiz_gridvals_J, options.pi_semiz_J
+% output: options.semiz_gridvals_J, options.pi_semiz_J (structs keyed by Names_i)
+%
+% Each ptype's options.pi_semiz_J field is [prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j-1]: slice jj
+% (4th dim) is the transition from period jj to jj+1, given the period-jj value of the semi-exogenous
+% decision -- there is no final-period slice as nothing can ever be read from it. If options.V_Jplus1 is
+% being used it is [prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j] (the final slice is the transition
+% into the V_Jplus1 period).
+% options.pi_semiz input (per ptype) is accepted as [N_semiz,N_semiz,N_dsemiz] (age-independent,
+% broadcast), [N_semiz,N_semiz,N_dsemiz,N_j] (final slice dropped internally unless options.V_Jplus1 is
+% being used), or [N_semiz,N_semiz,N_dsemiz,N_j-1] (not valid together with options.V_Jplus1).
+% Timing conventions are documented in docs/ExogenousShocks.md (section 'Timing').
 
 % gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilities
 % gridpiboth=2: sometimes (agent dist)    we want just transition probabilities
@@ -13,6 +23,12 @@ if ~isfield(options,'n_semiz')
 end
 if ~isfield(options,'l_dsemiz')
     options.l_dsemiz=1; % by default, only one decision variable influences the semi-exogenous state
+end
+
+if isfield(options,'V_Jplus1')
+    N_jpisemiz=N_j; % final slice is the transition from period N_j into the V_Jplus1 period
+else
+    N_jpisemiz=N_j-1; % slice jj is the transition from period jj to jj+1; nothing is ever read from a final-period slice, so pi_semiz_J does not contain one
 end
 
 N_i=length(Names_i);
@@ -161,8 +177,8 @@ for ii=1:N_i
                         SemiExoStateFnParamNames={};
                     end
                     % Create pi_semiz_J
-                    pi_semiz_J=zeros(N_semiz,N_semiz,N_dsemiz,N_j,'gpuArray');
-                    for jj=1:N_j
+                    pi_semiz_J=zeros(N_semiz,N_semiz,N_dsemiz,N_jpisemiz,'gpuArray');
+                    for jj=1:N_jpisemiz
                         SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
                         pi_semiz_J(:,:,:,jj)=gpuArray(CreatePiSemiZ(n_dsemiz,n_semiz_ii,dsemiz_grid,semiz_gridvals_J(:,:,jj),SemiExoStateFn_ii,SemiExoStateFnParamValues));
                     end
@@ -171,13 +187,18 @@ for ii=1:N_i
                     % So just check it is the right size
                     if ndims(pi_semiz_ii)==4
                         if all(size(pi_semiz_ii)==[N_semiz,N_semiz,N_dsemiz,N_j])
+                            pi_semiz_J=gpuArray(pi_semiz_ii(:,:,:,1:N_jpisemiz)); % if a (never-read) final-period slice was given, it is dropped here
+                        elseif all(size(pi_semiz_ii)==[N_semiz,N_semiz,N_dsemiz,N_j-1])
+                            if isfield(options,'V_Jplus1')
+                                error('When using vfoptions.V_Jplus1 you must give pi_semiz with N_j slices in the fourth dimension (the final slice is the transition from period N_j into the V_Jplus1 period)')
+                            end
                             pi_semiz_J=gpuArray(pi_semiz_ii);
                         else
                             error('options.pi_semiz matrix is the wrong size')
                         end
                     elseif ndims(pi_semiz_ii)==3
                         if all(size(pi_semiz_ii)==[N_semiz,N_semiz,N_dsemiz])
-                            pi_semiz_J=repelem(gpuArray(pi_semiz_ii),1,1,1,N_j);
+                            pi_semiz_J=repelem(gpuArray(pi_semiz_ii),1,1,1,N_jpisemiz);
                         else
                             error('options.pi_semiz matrix is the wrong size')
                         end
@@ -188,7 +209,7 @@ for ii=1:N_i
 
                 %% Check that pi_semiz_J has rows summing to one
                 % Check that pi_semiz_J has rows summing to one, if not, print a warning
-                for jj=1:N_j
+                for jj=1:N_jpisemiz
                     temp=abs(sum(pi_semiz_J(:,:,:,jj),2)-1);
                     if any(temp(:)>1e-14)
                         warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)

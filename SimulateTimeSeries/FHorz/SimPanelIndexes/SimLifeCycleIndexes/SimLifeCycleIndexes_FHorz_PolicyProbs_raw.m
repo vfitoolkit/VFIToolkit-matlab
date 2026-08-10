@@ -13,11 +13,13 @@ for jj=0:periods
     SimLifeCycleKron(1,jj+initialage)=currstate(1); % a_c
     SimLifeCycleKron(2,jj+initialage)=currstate(2); % z_c
 
-    alowerProbs=CumPolicyProbs(currstate(1),currstate(2),:,jj+initialage);
-    [~,probindex]=max(alowerProbs>rand(1));
-    currstate(1)=Policy_aprime(currstate(1),currstate(2),probindex,jj+initialage);
+    if jj<periods % the final recorded period needs no further transition (nothing after it is ever recorded)
+        alowerProbs=CumPolicyProbs(currstate(1),currstate(2),:,jj+initialage);
+        [~,probindex]=max(alowerProbs>rand(1));
+        currstate(1)=Policy_aprime(currstate(1),currstate(2),probindex,jj+initialage);
 
-    [~,currstate(2)]=max(cumsumpi_z_J(currstate(2),:,jj+initialage)>rand(1,1));
+        [~,currstate(2)]=max(cumsumpi_z_J(currstate(2),:,jj+initialage)>rand(1,1));
+    end
 end
 SimLifeCycleKron(3,initialage:(initialage+periods))=initialage:1:(initialage+periods);
 

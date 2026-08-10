@@ -48,7 +48,7 @@ else
     % Note: aprimeIndex is [N_d2*N_a2*N_e,1], whereas aprimeProbs is [N_d2,N_a2,N_e]   (N_e here is the current e)
 
     % Using V_Jplus1
-    EVpre=sum(pi_e_J(:,N_j)'.*reshape(vfoptions.V_Jplus1,[N_a,N_e]),2);    % Integrate out eprime: [N_a,1]
+    EVpre=sum(pi_e_J(:,N_j+1)'.*reshape(vfoptions.V_Jplus1,[N_a,N_e]),2);    % Integrate out eprime: [N_a,1]
 
     Vlower=reshape(EVpre(a2primeIndex),[N_d2,N_a2,N_e]); % (d2,a2,e_cur)
     Vupper=reshape(EVpre(a2primeIndex+1),[N_d2,N_a2,N_e]);
@@ -107,7 +107,7 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAsseteFnMatrix(aprimeFn, n_d2, n_a2, n_e, d2_gridvals, a2_grid, e_gridvals_J(:,:,jj), aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2*N_e,1], whereas aprimeProbs is [N_d2,N_a2,N_e]   (N_e here is the current e)
 
-    EVpre=sum(pi_e_J(:,jj)'.*V(:,:,jj+1),2); % Integrate out eprime: [N_a,1]
+    EVpre=sum(pi_e_J(:,jj+1)'.*V(:,:,jj+1),2); % Integrate out eprime: [N_a,1]
 
     Vlower=reshape(EVpre(a2primeIndex),[N_d2,N_a2,N_e]); % (d2,a2,e_cur)
     Vupper=reshape(EVpre(a2primeIndex+1),[N_d2,N_a2,N_e]);

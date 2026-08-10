@@ -30,7 +30,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
 
     % Put e back into dist
-    pi_e=sparse(gather(pi_e_J(:,jj)));
+    pi_e=sparse(gather(pi_e_J(:,jj+1))); % pi_e_J(:,jj+1) is the distribution of the e realized in period jj+1
     StationaryDist_jj=kron(pi_e,StationaryDist_jj);
 
     StationaryDist(:,jj+1)=full(StationaryDist_jj);

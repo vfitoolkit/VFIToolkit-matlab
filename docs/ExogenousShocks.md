@@ -16,7 +16,7 @@ All three are "start-of-period" states that the agent sees before choosing, so `
 
 ## z — markov shock
 
-A persistent shock with a Markov transition matrix. You provide `n_z`, `z_grid`, and `pi_z`.
+A persistent shock with a Markov transition matrix. You provide `n_z`, `z_grid`, and `pi_z`. For what the age index `j` means in age-dependent inputs, see [Timing](#timing).
 
 ### `z_grid`: stacked column vs joint
 
@@ -48,13 +48,13 @@ The toolkit ships discretization routines that return a `(grid, pi)` pair ready 
 - **Age-dependent (life-cycle) AR(1):** `discretizeLifeCycleAR1_FellaGallipoliPan`, `discretizeLifeCycleAR1_FellaGallipoliPanTauchen`, `discretizeLifeCycleAR1_KFTT`, `discretizeLifeCycleAR1wGM_KFTT`.
 - **VAR(1):** `discretizeVAR1_FarmerToda`, `discretizeVAR1_Tauchen`, `discretizeLifeCycleVAR1_Tauchen`.
 
-VAR / life-cycle routines naturally produce the multivariate / age-dependent grids described above.
+VAR / life-cycle routines naturally produce the multivariate / age-dependent grids described above. The life-cycle routines return outputs already in the toolkit's [Timing](#timing) convention: `z_grid_J(:,j)` is the period-`j` grid and `pi_z_J(:,:,j)` the period-`j`-to-`j+1` transition. Their final slice `pi_z_J(:,:,N_j)` is meaningless padding — if you use `vfoptions.V_Jplus1`, overwrite it with the true final-period transition.
 
 ---
 
 ## e — iid shock
 
-An iid shock drawn fresh each period (within-period). Because it has no persistence, its "transition" is just a distribution.
+An iid shock drawn fresh each period (within-period). Because it has no persistence, its "transition" is just a distribution. For what the age index `j` means in age-dependent inputs — note e differs from the markov shocks — see [Timing](#timing).
 
 Set on `vfoptions` (and `simoptions`):
 
@@ -69,7 +69,7 @@ Use `e` (rather than `z`) when a shock genuinely has no persistence — it is ch
 
 ## semiz — semi-exogenous shock
 
-A persistent state whose transition probabilities **depend on a decision variable** (the "semi-exogenous decision"). Its transition is built from a user function rather than a fixed matrix.
+A persistent state whose transition probabilities **depend on a decision variable** (the "semi-exogenous decision"). Its transition is built from a user function rather than a fixed matrix. Timing follows the markov shock `z` — see [Timing](#timing).
 
 Set on `vfoptions` (and `simoptions`):
 
@@ -79,7 +79,7 @@ Set on `vfoptions` (and `simoptions`):
   - or a precomputed `pi_semiz` directly.
 - `l_dsemiz` (default `1`) — how many decision variables drive the semiz transition. These are the **last** `l_dsemiz` decision variables in `n_d`.
 
-The setup routine `SemiExogShockSetup_FHorz` produces `options.semiz_gridvals_J` and `options.pi_semiz_J` (shape `[prod(n_semiz), prod(n_semiz), prod(n_dsemiz), N_j]`).
+The setup routine `SemiExogShockSetup_FHorz` produces `options.semiz_gridvals_J` and `options.pi_semiz_J` (shape `[prod(n_semiz), prod(n_semiz), prod(n_dsemiz), N_j-1]` — slice `j` of the last dimension is the transition from period `j` to `j+1`, and there is no final-period slice; with `vfoptions.V_Jplus1` the shape is `[..., N_j]`, the final slice being the transition into the `V_Jplus1` period).
 
 For asset types that split `d` by role (e.g. `riskyasset` with `vfoptions.refine_d`), the semiz decision is category `d4` — the last block of `d`.
 
@@ -96,6 +96,39 @@ pi_bothz = kron(pi_z, pi_semiz)
 ```
 
 so **semiz is the inner (fast) index and z is the outer (slow) index**: `N_bothz = N_semiz * N_z`, and the semiz block belonging to a given `z_c` is `(z_c-1)*N_semiz + (1:N_semiz)`. `e`, being iid, is layered on top of whatever markov/semiz structure exists.
+
+---
+
+## Timing
+
+The age/period index `j` runs 1..N_j. Age-dependent shock inputs use `j` as follows.
+
+### Grids — same rule for all three shock types
+
+Slice `j` of a grid holds the values the shock takes **in period `j`**: `z_gridvals_J(:,:,j)`, `e_gridvals_J(:,:,j)`, `semiz_gridvals_J(:,j)` (and the raw input forms `z_grid(:,j)`, `e_grid(:,j)`, …) are all the period-`j` realizations. These are the values the return function sees at age `j`.
+
+### Markov transitions (`z`, and `semiz` likewise)
+
+`pi_z_J(:,:,j)` is the transition **from period `j` to period `j+1`**: rows index `z` on the period-`j` grid, columns index `z'` on the period-`j+1` grid.
+
+`semiz` follows the same timing: `pi_semiz_J(:,:,:,j)` is the transition from `j` to `j+1`, given the period-`j` value of the semi-exogenous decision (`SemiExoStateFn` is evaluated with age-`j` parameters).
+
+Consequently a final-period slice `pi_z_J(:,:,N_j)` (and the semiz analogue) can never be read — *unless* `vfoptions.V_Jplus1` is supplied, in which case it is the transition into the `V_Jplus1` period and is used to take expectations of `V_Jplus1`. `pi_z` is accepted both with and without the final-period slice (`[N_z,N_z,N_j]` or `[N_z,N_z,N_j-1]`); internally the toolkit stores only the slices that can be read (`N_j-1` of them, or `N_j` when `V_Jplus1` is used), so there is no padding.
+
+### iid distribution (`e`) — different timing from markov
+
+`pi_e_J(:,j)` is the distribution of the e realized **in period `j`** itself (on the period-`j` grid) — column `j` is "about" period `j`, not about the transition out of it. Two consequences:
+
+- `pi_e_J(:,1)` is typically ignored: the period-1 e is part of `jequaloneDist`, which supplies the entire period-1 joint distribution (see below).
+- When `vfoptions.V_Jplus1` is supplied, an extra column is needed — `pi_e_J` is then `[prod(n_e), N_j+1]` — since solving period `N_j` requires the distribution of the period-`N_j+1` e inside `V_Jplus1`. (Without `V_Jplus1`, an `[prod(n_e), N_j+1]` input is still accepted; its never-read final column is dropped internally.)
+
+### Period 1
+
+`jequaloneDist` supplies the entire period-1 joint distribution over `(a, semiz, z, e)`. The transition/distribution inputs above only govern how the distribution evolves *after* period 1.
+
+### `ExogShockFn` / `EiidShockFn`
+
+Both are called once per age `j` with age-`j` parameter values. `ExogShockFn` returns the period-`j` grid and the period-`j`-to-`j+1` transition; `EiidShockFn` returns the period-`j` grid and the period-`j` distribution.
 
 ---
 

@@ -323,7 +323,7 @@ else
     aprimeplus1Index_full=repelem(aprimeplus1Index,1,1,N_semiz,1);
     aprimeProbs_full=repelem(aprimeProbs_d2a1a2ze,1,1,N_semiz,1);
 
-    EVpre=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*shiftdim(pi_e_J(:,N_j),-2),3);
+    EVpre=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*shiftdim(pi_e_J(:,N_j+1),-2),3);
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
@@ -841,7 +841,7 @@ for reverse_j=1:N_j-1
     aprimeProbs_full=repelem(aprimeProbs_d2a1a2ze,1,1,N_semiz,1);
 
     % Continuation value is the exponential value (Valt), integrated over e'
-    EVpre=sum(Valt(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3);
+    EVpre=sum(Valt(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj+1),-2),3);
 
     bothz_offset=N_a*reshape(0:N_bothz-1,[1,1,N_bothz]);
 

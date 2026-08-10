@@ -15,7 +15,7 @@ for jjr=1:(N_j-1)
     Gammatranspose=sparse(Policy_aprimez(:,jj),II1,II2,N_a*N_z,N_a*N_z*N_e);
 
     pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
-    pi_e=sparse(gather(pi_e_J(:,jj)));
+    pi_e=sparse(gather(pi_e_J(:,jj+1))); % pi_e_J(:,jj+1) is the distribution of the e realized in period jj+1
 
     % Two steps of the Tan improvement
     AgentDist_jj=reshape(Gammatranspose*AgentDist_jj,[N_a,N_z]);

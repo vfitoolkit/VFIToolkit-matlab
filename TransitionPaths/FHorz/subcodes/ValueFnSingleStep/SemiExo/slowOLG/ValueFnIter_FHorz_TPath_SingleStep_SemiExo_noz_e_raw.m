@@ -31,7 +31,7 @@ Policy_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
 pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 
 
-Vnext=sum(V.*pi_e_J(1,1,:,[1,1:end-1]),3); % Take expectations over e: Vnext(:,:,1,jj+1) is read for current age jj, so weight V at age jj+1 by pi_e_J(:,jj) [same timing as standard ValueFnIter commands]; first column is padding, never read
+Vnext=sum(V.*pi_e_J,3); % Take expectations over e: Vnext(:,:,1,jj+1) is read for current age jj, so weight V at age jj+1 by pi_e_J(:,jj+1), the distribution of the e realized in period jj+1; first column is never read
 
 %% j=N_j
 

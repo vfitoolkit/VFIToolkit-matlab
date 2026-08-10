@@ -2,7 +2,7 @@ function [V, Policy, Vhat]=ValueFnIter_FHorz_TPath_SingleStep_QHS_fastOLG_nod_ra
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z (V carries Vunderbar for Sophisticated); Vhat is agent's-perspective (beta0*beta) value
-% pi_z_J is (j,z',z) for fastOLG
+% pi_z_J is (j,z',z) for fastOLG; it arrives with N_j-1 slices (the transitions from periods 1..N_j-1) and a j=N_j slot of zeros is appended below
 % z_gridvals_J is (j,N_z,l_z) for fastOLG
 
 N_a=prod(n_a);
@@ -22,6 +22,7 @@ beta0beta_J=beta0_J.*beta_J; % Discount factor between today and tomorrow.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
 if vfoptions.EVpre==0
+    pi_z_J=cat(1,pi_z_J,zeros(1,N_z,N_z,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_z_J has N_j-1 slices, the transitions from periods 1..N_j-1)
     EVpre=zeros(N_a,1,N_j,N_z);
     EVpre(:,1,1:N_j-1,:)=reshape(V(N_a+1:end,:),[N_a,1,N_j-1,N_z]); % I use zeros in j=N_j so that can just use pi_z_J to create expectations
     EV=EVpre.*shiftdim(pi_z_J,-2);
@@ -29,6 +30,7 @@ if vfoptions.EVpre==0
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
+    % EVpre==1 is the Matched Expectations Path: the age axis is time along the path and the caller supplies the pi arrays with all N_j slices genuine (the final slice is the transition into the continuing future), so nothing is appended to them
     EV=reshape(V,[N_a,1,N_j,N_z]).*shiftdim(pi_z_J,-2); % input V is already of size [N_a,N_j,N_z] and we want to use the whole thing
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a

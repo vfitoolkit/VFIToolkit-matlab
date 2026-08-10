@@ -190,9 +190,9 @@ if vfoptions.alreadygridvals==0
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     %
     % size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
-    % size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
+    % size(pi_z_J)=[prod(n_z),prod(n_z),N_j-1], last dim is N_j if vfoptions.V_Jplus1 is used
     % size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
-    % size(pi_e_J)=[prod(n_e),N_j]
+    % size(pi_e_J)=[prod(n_e),N_j], last dim is N_j+1 if vfoptions.V_Jplus1 is used
     % If no z, then z_gridvals_J=[] and pi_z_J=[]
     % If no e, then e_gridvals_J=[] and pi_e_J=[]
     %

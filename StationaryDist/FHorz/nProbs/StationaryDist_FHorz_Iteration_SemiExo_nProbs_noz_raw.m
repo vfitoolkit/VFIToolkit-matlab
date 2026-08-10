@@ -29,7 +29,7 @@ PolicyProbs=reshape(gather(PolicyProbs),[N_a*N_semiz,N_probs,N_j]);
 pi_semiz_J_short=gather(pi_semiz_J_short);
 idxshort=gather(idxshort);
 semizindexbase=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
-% semizindex_short_jj (built per age below) is [N_a*N_semiz,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j]
+% semizindex_short_jj (built per age below) is [N_a*N_semiz,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
 %% Use Tan improvement
 

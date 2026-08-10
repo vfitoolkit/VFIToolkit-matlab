@@ -253,7 +253,7 @@ else
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta;
 
-    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z,N_e]).*pi_e_J(1,1,:,N_j),3);
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz*N_z,N_e]).*pi_e_J(1,1,:,N_j+1),3);
     EV=reshape(EV,[N_a,N_semiz*N_z]);
 
     if vfoptions.lowmemory==0
@@ -694,7 +694,7 @@ for reverse_j=1:N_j-1
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
     beta0beta=beta0*beta;
 
-    EV=sum(Valt(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
+    EV=sum(Valt(:,:,:,jj+1).*pi_e_J(1,1,:,jj+1),3);
     EV=reshape(EV,[N_a,N_semiz*N_z]);
 
     if vfoptions.lowmemory==0

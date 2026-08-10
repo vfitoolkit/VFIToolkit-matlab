@@ -33,9 +33,11 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 %     [prod(n_z), length(n_z), N_j, T]    joint grid for markov z, age-dependent and time-varying
 %   pi_z:
 %     [prod(n_z), prod(n_z)]              transition matrix for markov z (age-independent, time-invariant)
-%     [prod(n_z), prod(n_z), N_j]         transition matrix for markov z, age-dependent
+%     [prod(n_z), prod(n_z), N_j]         transition matrix for markov z, age-dependent (slice j = transition from period j to j+1; the never-read final-period slice is dropped internally)
+%     [prod(n_z), prod(n_z), N_j-1]       transition matrix for markov z, age-dependent with the final-period slice omitted
 %     [prod(n_z), prod(n_z), T]           transition matrix for markov z, time-varying (no age, last dim is T)
-%     [prod(n_z), prod(n_z), N_j, T]      transition matrix for markov z, age-dependent and time-varying
+%     [prod(n_z), prod(n_z), N_j, T]      transition matrix for markov z, age-dependent and time-varying (slice N_j dropped internally)
+%     [prod(n_z), prod(n_z), N_j-1, T]    transition matrix for markov z, age-dependent and time-varying, final-period slice omitted
 %   options.e_grid:
 %     [sum(n_e), 1]                       stacked column grid for iid e (age-independent, time-invariant)
 %     [prod(n_e), length(n_e)]            joint grid for iid e (age-independent, time-invariant)
@@ -47,7 +49,7 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 %     [prod(n_e), length(n_e), N_j, T]    joint grid for iid e, age-dependent and time-varying
 %   options.pi_e:
 %     [prod(n_e), 1]                      iid distribution (age-independent, time-invariant)
-%     [prod(n_e), N_j]                    iid distribution, age-dependent
+%     [prod(n_e), N_j]                    iid distribution, age-dependent (column j = distribution of the e realized in period j)
 %     [prod(n_e), T]                      iid distribution, time-varying (no age, last dim is T)
 %     [prod(n_e), N_j, T]                 iid distribution, age-dependent and time-varying
 %
@@ -80,6 +82,10 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 % (age-dependent, time-invariant). To get unambiguous time-varying
 % behaviour when N_j == T, supply the fully-explicit shape with both axes
 % present, e.g. [sum(n_z), N_j, T].
+% A 3D pi_z whose third dimension is N_j-1 is likewise resolved as
+% age-dependent (final-period slice omitted), NOT as time-varying with
+% T=N_j-1; a warning states this interpretation. To get time-varying
+% behaviour with T=N_j-1, use the 4D form [N_z, N_z, N_j-1, T].
 %
 % Stacked column grid: each of the underlying univariate grids written one
 % beneath the next in a single column of length sum(n_z). Compact, but the
@@ -100,23 +106,30 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 %     [N_z, l_z, N_j]                       if transpathoptions.fastOLG=0
 %     [N_j, N_z, l_z]                       if transpathoptions.fastOLG=1
 %   pi_z_J:
-%     [N_z, N_z, N_j]                       if transpathoptions.fastOLG=0  (z, z', j)
-%     [N_j, N_z, N_z]                       if transpathoptions.fastOLG=1  (j, z', z)
+%     [N_z, N_z, N_j-1]                     if transpathoptions.fastOLG=0  (z, z', j); slice jj is the transition
+%                                           from period jj to jj+1 -- there is no final-period slice as nothing
+%                                           can ever be read from it
+%     [N_j-1, N_z, N_z]                     if transpathoptions.fastOLG=1  (j, z', z)
 %   pi_z_J_sim:
 %     sparse [(N_j-1)*N_z, (N_j-1)*N_z]     if gridpiboth in {2,4} and options.fastOLG=1
-%                                           (block-sparse transition over the joint (j,z) state, jj=1..N_j-1)
+%                                           (block-sparse transition over the joint (j,z) state, jj=1..N_j-1;
+%                                           built directly from the trimmed pi_z_J)
 %     []                                    otherwise
 %   e_gridvals_J:
 %     [N_e, l_e, N_j]                       if transpathoptions.fastOLG=0
 %     [N_j, 1, N_e, l_e]                    if transpathoptions.fastOLG=1 and N_z>0
 %     [N_j, N_e, l_e]                       if transpathoptions.fastOLG=1 and N_z=0
 %   pi_e_J:
-%     [N_e, N_j]                            if transpathoptions.fastOLG=0  (e, j)
-%     [N_a*N_j, 1, N_e]                     if transpathoptions.fastOLG=1 and N_z>0  (a-j, 1, e)
-%     [N_a*N_j, N_e]                        if transpathoptions.fastOLG=1 and N_z=0  (a-j, e)
+%     [N_e, N_j]                            if transpathoptions.fastOLG=0  (e, j); column jj is the distribution
+%                                           of the e realized in period jj -- column 1 is never read (the
+%                                           period-1 e comes from the initial distribution)
+%     [N_a*N_j, 1, N_e]                     if transpathoptions.fastOLG=1 and N_z>0  (a-j, 1, e); the j=1 block is never read
+%     [N_a*N_j, N_e]                        if transpathoptions.fastOLG=1 and N_z=0  (a-j, e); the j=1 block is never read
 %   pi_e_J_sim:
 %     [N_a*(N_j-1)*N_z, N_e]                if gridpiboth in {2,4}, options.fastOLG=1, N_z>0
 %     [N_a*(N_j-1), N_e]                    if gridpiboth in {2,4}, options.fastOLG=1, N_z=0
+%                                           (block jj holds pi_e_J(:,jj+1), the distribution of the e realized
+%                                           in period jj+1, used when moving jj->jj+1)
 %     []                                    otherwise
 %   ze_gridvals_J_fastOLG:
 %     [1, N_j, N_ze, l_ze]                  if gridpiboth in {1,4} and N_z>0 and N_e>0
@@ -128,16 +141,18 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 %   .zpathtrivial / .epathtrivial            0 if the corresponding path varies over t, else 1
 %   .zepathtrivial                           0 if either z or e path varies over t (i.e. zpathtrivial==0 or epathtrivial==0), else 1
 %   .z_gridvals_J_T                          [N_z, l_z, N_j, T]    if fastOLG=0;  [N_j, N_z, l_z, T]    if fastOLG=1   (when zpathtrivial=0)
-%   .pi_z_J_T                                [N_z, N_z, N_j, T] (z, z', j, t) if fastOLG=0;  [N_j, N_z, N_z, T] (j, z', z, t) if fastOLG=1   (when zpathtrivial=0)
-%   .pi_z_J_alt                              [N_j, N_z, N_z]                                                              (j, z, z'; when options.fastOLG=1 and gridpiboth in {2,3,4})
-%   .pi_z_J_T_alt                            [N_j, N_z, N_z, T]                                                           (j, z, z', t; when options.fastOLG=1 and zpathtrivial=0)
+%   .pi_z_J_T                                [N_z, N_z, N_j-1, T] (z, z', j, t) if fastOLG=0;  [N_j-1, N_z, N_z, T] (j, z', z, t) if fastOLG=1   (when zpathtrivial=0)
+%   .pi_z_J_alt                              [N_j-1, N_z, N_z]                                                            (j, z, z'; when options.fastOLG=1 and gridpiboth in {2,3,4})
+%   .pi_z_J_T_alt                            [N_j-1, N_z, N_z, T]                                                         (j, z, z', t; when options.fastOLG=1 and zpathtrivial=0)
 %   .e_gridvals_J_T                          [N_e, l_e, N_j, T]    if fastOLG=0;  [N_j, 1, N_e, l_e, T] if fastOLG=1 & z; [N_j, N_e, l_e, T] if fastOLG=1 & no z   (when epathtrivial=0)
 %   .pi_e_J_T                                [N_e, N_j, T]         if fastOLG=0;  [N_a*N_j, 1, N_e, T]  if fastOLG=1 & z; [N_a*N_j, N_e, T]  if fastOLG=1 & no z   (when epathtrivial=0)
-%   .pi_e_J_sim_T                            [N_a*(N_j-1)*N_z, N_e, T] if N_z>0; [N_a*(N_j-1), N_e, T] if N_z=0   (when epathtrivial=0, fastOLG=1, gridpiboth in {2,4})
+%   .pi_e_J_sim_T                            [N_a*(N_j-1)*N_z, N_e, T] if N_z>0; [N_a*(N_j-1), N_e, T] if N_z=0   (when epathtrivial=0, fastOLG=1, gridpiboth in {2,4}; block jj holds pi_e_J(:,jj+1))
 %   .ze_gridvals_J_T_fastOLG                 [1, N_j, N_ze, l_ze, T] (or only-z / only-e variants as for ze_gridvals_J_fastOLG; when zepathtrivial=0 and gridpiboth in {1,4})
 %
 % options fields populated:
 %   .e_gridvals_J, .pi_e_J — same shapes as the function outputs of the same names.
+%
+% Timing conventions are documented in docs/ExogenousShocks.md (section 'Timing').
 
 %% Check basic setup
 N_z=prod(n_z);
@@ -187,7 +202,7 @@ if N_z>0
                 end
             end
             if overlap2==0
-                pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
+                pi_z_J=zeros(N_z,N_z,N_j-1,'gpuArray');
                 z_grid_J=zeros(N_z,N_j,'gpuArray');
                 for jj=1:N_j
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames,jj);
@@ -196,14 +211,16 @@ if N_z>0
                         ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                     end
                     [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
-                    pi_z_J(:,:,jj)=gpuArray(pi_z);
+                    if jj<=N_j-1
+                        pi_z_J(:,:,jj)=gpuArray(pi_z);
+                    end
                     z_grid_J(:,jj)=gpuArray(z_grid);
                 end
             elseif overlap2==1 % ExogShockFn depends on a ParamPath parameter
                 transpathoptions.zpathtrivial=0; % z_grid_J and pi_z_J vary over the path
-                transpathoptions.pi_z_J_T=zeros(N_z,N_z,N_j,T,'gpuArray');
+                transpathoptions.pi_z_J_T=zeros(N_z,N_z,N_j-1,T,'gpuArray');
                 transpathoptions.z_grid_J_T=zeros(sum(n_z),N_j,T,'gpuArray');
-                pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
+                pi_z_J=zeros(N_z,N_z,N_j-1,'gpuArray');
                 z_grid_J=zeros(sum(n_z),N_j,'gpuArray');
                 for tt=1:T
                     for ii=1:length(ParamPathNames)
@@ -217,7 +234,9 @@ if N_z>0
                             ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                         end
                         [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
-                        pi_z_J(:,:,jj)=gpuArray(pi_z);
+                        if jj<=N_j-1
+                            pi_z_J(:,:,jj)=gpuArray(pi_z);
+                        end
                         z_grid_J(:,jj)=gpuArray(z_grid);
                     end
                     transpathoptions.pi_z_J_T(:,:,:,tt)=pi_z_J;
@@ -251,10 +270,13 @@ if N_z>0
         end
         pi_z_timevarying=false;
         if ndims(pi_z)==4
-            pi_z_timevarying=true; % [N_z, N_z, N_j, T]
+            pi_z_timevarying=true; % [N_z, N_z, N_j, T] or [N_z, N_z, N_j-1, T]
         elseif ndims(pi_z)==3
             if all(size(pi_z)==[N_z,N_z,N_j])
                 pi_z_timevarying=false; % age-dep time-inv
+            elseif all(size(pi_z)==[N_z,N_z,N_j-1])
+                pi_z_timevarying=false; % age-dep time-inv, final-period slice omitted
+                warning('pi_z has N_j-1 slices in its third dimension: interpreting it as age-dependent with the (never-read) final-period slice omitted, NOT as time-varying with T=N_j-1. For time-varying behaviour use the 4D form [N_z,N_z,N_j-1,T].')
             else
                 pi_z_timevarying=true;  % [N_z, N_z, T] time-var no age
             end
@@ -320,17 +342,19 @@ if N_z>0
                 transpathoptions.z_gridvals_J_T=repmat(z_gridvals_J_static,1,1,1,T);
             end
 
-            % Build transpathoptions.pi_z_J_T as [prod(n_z), prod(n_z), N_j, T]
+            % Build transpathoptions.pi_z_J_T as [prod(n_z), prod(n_z), N_j-1, T] (slice jj is the transition from period jj to jj+1; there is no final-period slice)
             if pi_z_timevarying
                 if ndims(pi_z)==4
                     if all(size(pi_z)==[N_z,N_z,N_j,T])
+                        transpathoptions.pi_z_J_T=gpuArray(pi_z(:,:,1:N_j-1,:)); % the never-read final-period slice is dropped here
+                    elseif all(size(pi_z)==[N_z,N_z,N_j-1,T])
                         transpathoptions.pi_z_J_T=gpuArray(pi_z);
                     else
-                        error('pi_z is 4D but size does not match [N_z, N_z, N_j, T]')
+                        error('pi_z is 4D but size does not match [N_z, N_z, N_j, T] or [N_z, N_z, N_j-1, T]')
                     end
                 else % ndims==3 time-var no age
                     if all(size(pi_z)==[N_z,N_z,T])
-                        transpathoptions.pi_z_J_T=repmat(reshape(gpuArray(pi_z),[N_z,N_z,1,T]),1,1,N_j,1);
+                        transpathoptions.pi_z_J_T=repmat(reshape(gpuArray(pi_z),[N_z,N_z,1,T]),1,1,N_j-1,1);
                     else
                         error('pi_z is 3D time-varying but size does not match [N_z, N_z, T]')
                     end
@@ -338,9 +362,11 @@ if N_z>0
             else
                 % pi_z time-invariant
                 if ndims(pi_z)==3 && all(size(pi_z)==[N_z,N_z,N_j])
+                    pi_z_J_static=gpuArray(pi_z(:,:,1:N_j-1)); % the never-read final-period slice is dropped here
+                elseif ndims(pi_z)==3 && all(size(pi_z)==[N_z,N_z,N_j-1])
                     pi_z_J_static=gpuArray(pi_z);
                 elseif ndims(pi_z)==2 && all(size(pi_z)==[N_z,N_z])
-                    pi_z_J_static=repmat(gpuArray(pi_z),1,1,N_j);
+                    pi_z_J_static=repmat(gpuArray(pi_z),1,1,N_j-1);
                 else
                     error('pi_z time-invariant but size does not match any expected shape')
                 end
@@ -385,37 +411,47 @@ if N_z>0
                 z_gridvals_J=[];
                 % Now just do pi_z_J
                 if ndims(pi_z)==3
-                    if all(size(pi_z)==[N_z,N_z,N_j]) % age-dependent grid
+                    if all(size(pi_z)==[N_z,N_z,N_j]) % age-dependent
+                        pi_z_J=pi_z(:,:,1:N_j-1); % the never-read final-period slice is dropped here
+                    elseif all(size(pi_z)==[N_z,N_z,N_j-1]) % age-dependent, final-period slice omitted
                         pi_z_J=pi_z;
                     else
-                        error('pi_z is 3D but its size does not match [N_z, N_z, N_j]')
+                        error('pi_z is 3D but its size does not match [N_z, N_z, N_j] or [N_z, N_z, N_j-1]')
                     end
                 elseif all(size(pi_z)==[N_z,N_z])
-                    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+                    pi_z_J=pi_z.*ones(1,1,N_j-1,'gpuArray');
                 else
                     error('pi_z size does not match any expected shape')
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
                 z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
-                pi_z_J=zeros(prod(n_z),prod(n_z),N_j,'gpuArray');
+                if ndims(pi_z)==3
+                    if all(size(pi_z)==[N_z,N_z,N_j]) % age-dependent
+                        pi_z_J=pi_z(:,:,1:N_j-1); % the never-read final-period slice is dropped here
+                    elseif all(size(pi_z)==[N_z,N_z,N_j-1]) % age-dependent, final-period slice omitted
+                        pi_z_J=pi_z;
+                    else
+                        error('pi_z is 3D but its size does not match [N_z, N_z, N_j] or [N_z, N_z, N_j-1]')
+                    end
+                elseif all(size(pi_z)==[N_z,N_z])
+                    pi_z_J=pi_z.*ones(1,1,N_j-1,'gpuArray');
+                else
+                    error('pi_z size does not match any expected shape')
+                end
                 if ndims(z_grid)==3 % already an age-dependent joint-grid
                     if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
                         z_gridvals_J=z_grid;
                     else
                         error('z_grid is 3D but its size does not match [prod(n_z), length(n_z), N_j]')
                     end
-                    pi_z_J=pi_z;
                 elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
                     for jj=1:N_j
                         z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
                     end
-                    pi_z_J=pi_z;
                 elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
                     z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
-                    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
                 elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
                     z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
-                    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
                 else
                     error('z_grid size does not match any expected shape')
                 end
@@ -437,9 +473,9 @@ if N_z>0
     % When using fastOLG we want an alternative version of pi_z_J that we use for the agent distribution, call it pi_z_J_sim
     if gridpiboth==2 || gridpiboth==4
         if options.fastOLG==1
-            % pi_z_J is currently (z,z',j) [When using options.fastOLG=1 it will get converted later to (j,z',z)]
+            % pi_z_J is currently (z,z',j) with N_j-1 slices [When using options.fastOLG=1 it will get converted later to (j,z',z)]
             % We want pi_z_J_sim to map (j,z)-to-z', specifically [(N_j-1)*N_z,N_z]
-            pi_z_J_sim=gather(reshape(permute(pi_z_J(:,:,1:N_j-1),[3,1,2]),[(N_j-1)*N_z,N_z]));
+            pi_z_J_sim=gather(reshape(permute(pi_z_J,[3,1,2]),[(N_j-1)*N_z,N_z]));
             % Now extend it to map (j,z)-to-(j+1,z')
             II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
             II2=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
@@ -496,8 +532,8 @@ if N_z>0
     pi_z_J=gpuArray(pi_z_J);
     % z_gridvals_J is [N_z,l_z,N_j] if transpathoptions.fastOLG=0
     %              is [N_j,N_z,l_z] if transpathoptions.fastOLG=1
-    % pi_z_J is [N_z,N_z,N_j]       if transpathoptions.fastOLG=0 (j,z,z')
-    % pi_z_J is [N_j,N_z,N_z]       if transpathoptions.fastOLG=1 (j,z',z)
+    % pi_z_J is [N_z,N_z,N_j-1]     if transpathoptions.fastOLG=0 (z,z',j); slice jj is the transition from period jj to jj+1, there is no final-period slice
+    % pi_z_J is [N_j-1,N_z,N_z]     if transpathoptions.fastOLG=1 (j,z',z)
     % pi_z_J and z_gridvals_J are both gpuArrays
 
 end
@@ -800,11 +836,11 @@ if N_e>0
         if options.fastOLG==1
             % pi_e_J is current (e',j)  [When using options.fastOLG=1 it will get converted later to (j,e')]
             if N_z==0
-                % pi_e_J_sim maps (a,j)-to-e: block jj holds pi_e_J(:,jj), the e' distribution when moving jj->jj+1, is [N_a*(N_j-1),N_e] [same timing as standard StationaryDist, and as pi_z_J_sim]
-                pi_e_J_sim=repelem(pi_e_J(:,1:end-1)',N_a,1); % (a,j)-by-e (only for jj=1:end-1)
+                % pi_e_J_sim maps (a,j)-to-e: block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1, used when moving jj->jj+1; is [N_a*(N_j-1),N_e]
+                pi_e_J_sim=repelem(pi_e_J(:,2:end)',N_a,1); % (a,j)-by-e (blocks jj=1:N_j-1 hold columns 2:N_j)
             else
-                % pi_e_J_sim maps (a,j,z)-to-e: block jj holds pi_e_J(:,jj), the e' distribution when moving jj->jj+1, is [N_a*(N_j-1)*N_z,N_e] [same timing as standard StationaryDist, and as pi_z_J_sim]
-                pi_e_J_sim=repmat(repelem(pi_e_J(:,1:end-1)',N_a,1),N_z,1); % (a,j,z)-by-e (only for jj=1:end-1)
+                % pi_e_J_sim maps (a,j,z)-to-e: block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1, used when moving jj->jj+1; is [N_a*(N_j-1)*N_z,N_e]
+                pi_e_J_sim=repmat(repelem(pi_e_J(:,2:end)',N_a,1),N_z,1); % (a,j,z)-by-e (blocks jj=1:N_j-1 hold columns 2:N_j)
             end
         end
     end
@@ -833,7 +869,7 @@ if N_e>0
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(1:end-N_a,:))); % block jj holds pi_e_J(:,jj) [same timing as standard StationaryDist]
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:))); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
                     end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
@@ -854,7 +890,7 @@ if N_e>0
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(1:end-N_a,:))); % block jj holds pi_e_J(:,jj) [same timing as standard StationaryDist]
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:))); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
                     end
                 end
             end
@@ -879,7 +915,7 @@ if N_e>0
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(1:end-N_a,:)); % block jj holds pi_e_J(:,jj) [same timing as standard StationaryDist]
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:)); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
                     end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
@@ -899,7 +935,7 @@ if N_e>0
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(1:end-N_a,:)); % block jj holds pi_e_J(:,jj) [same timing as standard StationaryDist]
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:)); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
                     end
                 end
             end
@@ -918,6 +954,7 @@ if N_e>0
     % pi_e_J is [N_e,N_j]             if transpathoptions.fastOLG=0 (e,j)
     % pi_e_J is [N_a*N_j,1,N_e]       if transpathoptions.fastOLG=1 & z (a-j,1,e)
     % pi_e_J is [N_a*N_j,N_e]       if transpathoptions.fastOLG=1 & no z (a-j,1,e)
+    % Column jj of pi_e_J (the j=jj block in the fastOLG forms) is the distribution of the e realized in period jj; column 1 (j=1 block) is never read, the period-1 e comes from the initial distribution
     % pi_e_J and e_gridvals_J are both gpuArrays
 
     % vfoptions.e_grid_J=e_gridvals_J;

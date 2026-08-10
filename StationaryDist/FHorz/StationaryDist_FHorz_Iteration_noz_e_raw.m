@@ -22,7 +22,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
     % Add e back into the distribution
-    pi_e=sparse(gather(pi_e_J(:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+    pi_e=sparse(gather(pi_e_J(:,jj+1))); % pi_e_J(:,jj+1) is the distribution of the e realized in period jj+1. Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
 
     StationaryDist_jj=kron(pi_e,StationaryDist_jj);
 

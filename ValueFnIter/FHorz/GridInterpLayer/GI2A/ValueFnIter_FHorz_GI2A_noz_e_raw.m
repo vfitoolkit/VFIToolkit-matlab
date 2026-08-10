@@ -74,7 +74,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j),2);
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j+1),2);
 
     EV=reshape(EV,[N_a1,N_a2]);
     % Interpolate EV over aprime_grid
@@ -131,7 +131,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(V(:,:,jj+1).*pi_e_J(1,:,jj),2);
+    EV=sum(V(:,:,jj+1).*pi_e_J(1,:,jj+1),2);
 
     EV=reshape(EV,[N_a1,N_a2]);
     % Interpolate EV over aprime_grid

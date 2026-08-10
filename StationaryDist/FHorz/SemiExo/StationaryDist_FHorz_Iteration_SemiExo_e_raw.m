@@ -33,7 +33,7 @@ idxshort=gather(idxshort);
 pi_z_J=gather(pi_z_J);
 semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_z*N_e,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
 zprimeoffset=repmat(repelem(N_a*N_semiz*(0:1:N_z-1)',N_a*N_semiz,1),N_e,1);
-% semizindex_short_jj (built per age below) is [N_a*N_semiz*N_z*N_e,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j]
+% semizindex_short_jj (built per age below) is [N_a*N_semiz*N_z*N_e,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
 %% Tan improvement version
 % To do Tan improvement with semiz shocks we treat the first step as
@@ -61,7 +61,7 @@ for jj=1:(N_j-1)
     StationaryDistKron_jj=reshape(StationaryDistKron_jj*pi_z,[N_a*N_bothz,1]);
 
     % Now do e variable transitions
-    pi_e=sparse(gather(pi_e_J(:,jj)));
+    pi_e=sparse(gather(pi_e_J(:,jj+1))); % pi_e_J(:,jj+1) is the distribution of the e realized in period jj+1
     StationaryDistKron_jj=kron(pi_e,StationaryDistKron_jj);
 
     StationaryDist(:,jj+1)=gpuArray(full(StationaryDistKron_jj));

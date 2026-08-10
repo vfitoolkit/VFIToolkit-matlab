@@ -251,7 +251,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z); % [N_d2*N_a1,N_a2,N_z]
 
-    EVpre=sum(shiftdim(pi_e_J(:,jj),-2).*VKronNext_j,3);
+    EVpre=sum(shiftdim(pi_e_J(:,jj+1),-2).*VKronNext_j,3);
 
     Vlower=reshape(EVpre(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
     Vupper=reshape(EVpre(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);

@@ -194,7 +194,7 @@ else % V_Jplus1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);
     % Integrate out e first (e is iid start-of-period)
-    EV=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j),-2),3); % [N_a,N_z]
+    EV=sum(V_Jplus1.*shiftdim(pi_e_J(:,N_j+1),-2),3); % [N_a,N_z]
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2);
@@ -453,7 +453,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1);
 
     % Integrate out e (iid start-of-period)
-    EV=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3); % [N_a,N_z]
+    EV=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj+1),-2),3); % [N_a,N_z]
     % Now sum over zprime
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0;

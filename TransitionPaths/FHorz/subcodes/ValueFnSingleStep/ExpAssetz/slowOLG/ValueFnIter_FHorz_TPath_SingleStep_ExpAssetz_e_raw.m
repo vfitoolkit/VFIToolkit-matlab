@@ -82,7 +82,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z); % [N_d2*N_a1,N_a2,N_z]    (z dim already present, no repmat over z; but need to add zprime)
 
-    EVpre=sum(shiftdim(pi_e_J(:,jj),-2).*VKronNext_j,3); % Expectations over e [pi_e_J(:,jj): same timing as standard ValueFnIter commands]
+    EVpre=sum(shiftdim(pi_e_J(:,jj+1),-2).*VKronNext_j,3); % Expectations over e [pi_e_J(:,jj+1) is the distribution of the e realized in period jj+1]
 
     Vlower=reshape(EVpre(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z,N_z]); % (d2*a1prime,a2,z,zprime)
     Vupper=reshape(EVpre(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z,N_z]);

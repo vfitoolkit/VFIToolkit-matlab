@@ -27,8 +27,14 @@ l_a=length(n_a);
 l_z=length(n_z);
 l_e=length(vfoptions.n_e);
 
+% noa1 case (n_a is scalar -- experience asset is the only endogenous state): GI refines a1, which
+% doesn't apply when there's no a1. Fall back to non-GI version (which handles noa1 correctly).
+% Matches the upstream VFI convention (noa1 has no GI/DC/DC+GI raw files).
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_ExpAssetze_GI: case with no a1 (experience asset as only asset) not yet implemented')
+    vfoptions.gridinterplayer=0;
+    V=ValueFnFromPolicy_FHorz_ExpAssetze(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
+    return
 end
 n_a1=n_a(1:end-1);
 N_a1=prod(n_a1);
@@ -125,7 +131,7 @@ for reverse_j=0:N_j-1
         beta=prod(gpuArray(CreateVectorFromParams(Parameters,DiscountFactorParamNames,jj)));
 
         % Step 3: EVnext -- integrate e' (iid) then z' (markov)
-        EVnext=sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3); % [N_a, N_z, 1]
+        EVnext=sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3); % [N_a, N_z, 1]
         EVnext=reshape(EVnext,[N_a,N_z]) * pi_z_J(:,:,jj)';
         EVnext(isnan(EVnext))=0;
 

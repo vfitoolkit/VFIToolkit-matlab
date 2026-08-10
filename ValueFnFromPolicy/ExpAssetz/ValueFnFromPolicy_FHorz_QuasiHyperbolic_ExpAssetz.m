@@ -33,13 +33,17 @@ l_d=length(n_d);
 l_z=length(n_z);
 
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic (experienceassetz): case with no a1 not yet implemented')
+    % noa1: the experience asset is the only endogenous state
+    n_a1=0;
+    N_a1=1; % so EV_low=EVnext(a1p+N_a1*(a2pi-1)+...) reduces to the a2primeIndex lookup (a1p stays 1)
+    l_a1=0; % Policy contains only the d channels
+else
+    n_a1=n_a(1:end-1);
+    N_a1=prod(n_a1);
+    l_a1=length(n_a1);
 end
-n_a1=n_a(1:end-1);
-N_a1=prod(n_a1);
 n_a2=n_a(end);
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
 
 if isfield(vfoptions,'l_dexperienceassetz')
@@ -153,7 +157,7 @@ for reverse_j=0:N_j-1
         if N_e==0
             EVnext=Vdrive(:,:,jj+1)*pi_z_J(:,:,jj)';
         else
-            EVnext=sum(Vdrive(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+            EVnext=sum(Vdrive(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
             EVnext=reshape(EVnext,[N_a,N_z]) * pi_z_J(:,:,jj)';
         end
         EVnext(isnan(EVnext))=0;

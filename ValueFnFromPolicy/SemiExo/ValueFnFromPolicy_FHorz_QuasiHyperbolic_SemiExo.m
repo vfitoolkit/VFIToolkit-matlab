@@ -97,11 +97,11 @@ else
     end
 end
 
-%% GI1 dispatch (l_a==1 only; GI2A deferred)
+%% GI1/GI2A dispatch
+% GI2A (l_a>=2): the interpolation layer is applied to the first endogenous state only, so
+% extract_gi_indices folds the a2prime offset into a1_lower/a1_upper, making them linear indices
+% into (N_a1*N_a2). Everything downstream (lookup_EVnext_GI) is then identical to the l_a==1 case.
 if vfoptions.gridinterplayer==1
-    if l_a>=2
-        error('ValueFnFromPolicy_FHorz_QuasiHyperbolic_SemiExo: GI2A (l_a>=2) not yet implemented for semiz QH dual {V,Valt}')
-    end
     n2short=vfoptions.ngridinterp;
 
     % Extract GI indices (a1_lower, a1_upper, a1_weight) AND d_semiz_idx from raw Policy (Naive: also from Policyalt)
@@ -178,7 +178,7 @@ if vfoptions.gridinterplayer==1
             end
 
             if N_e>0
-                V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+                V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
                 V_next=reshape(V_next, [N_a, N_shocks]);
             end
 
@@ -309,7 +309,7 @@ for reverse_j=0:N_j-1
 
         % Integrate out e' (if present)
         if N_e>0
-            V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3);
+            V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
             V_next=reshape(V_next, [N_a, N_shocks]);
         end
 
@@ -392,8 +392,11 @@ end
 
 
 function [a1_lower, a1_upper, a1_weight, d_semiz_idx]=extract_gi_indices(Policy, l_d, l_dsemiz, l_aprime, n_a, n_dsemiz, n2short, N_a, N_shocks, N_e, N_j)
-% Decompose GI1 Policy: a1 (midpoint) + L2 (fine-grid index) → lower/upper indices + interpolation weight.
-% Also returns d_semiz_idx (joint index into n_dsemiz). Assumes l_a==1.
+% Decompose GI1/GI2A Policy: a1 (midpoint) + L2 (fine-grid index) → lower/upper indices + interpolation weight.
+% Also returns d_semiz_idx (joint index into n_dsemiz).
+% l_a==1: a1_lower/a1_upper are indices into n_a(1)==N_a.
+% l_a>=2 (GI2A): interpolation is on a1 only, so the a2prime channel (l_d+2) is folded in as
+%   a1_lower + n_a(1)*(a2prime-1), giving linear indices into N_a=N_a1*N_a2. Callers are unchanged.
 % Strips trailing L2flag channel if Policy has more than (l_d+l_aprime+1) channels.
 if size(Policy,1) > (l_d+l_aprime+1)
     tempsize=size(Policy);
@@ -425,6 +428,12 @@ a1_weight=a1_frac-a1_lower; % weight on upper
 a1_upper=min(a1_lower+1, n_a(1));
 a1_upper(a1_lower>=n_a(1))=n_a(1);
 a1_lower(a1_lower<1)=1;
+
+if length(n_a)>=2 % GI2A: fold a2prime into the linear index (clamping above stays on the a1 index)
+    a2prime=shiftdim(Policy_k(l_d+2, :, :, :, :), 1);
+    a1_lower=a1_lower+n_a(1)*(a2prime-1);
+    a1_upper=a1_upper+n_a(1)*(a2prime-1);
+end
 end
 
 

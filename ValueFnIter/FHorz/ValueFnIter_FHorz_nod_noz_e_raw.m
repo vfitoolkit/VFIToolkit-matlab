@@ -29,7 +29,7 @@ if vfoptions.lowmemory==0
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
         EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]); % Using V_Jplus1
-        EV=sum(EV.*pi_e_J(1,:,N_j),2);
+        EV=sum(EV.*pi_e_J(1,:,N_j+1),2);
 
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
 
@@ -57,7 +57,7 @@ if vfoptions.lowmemory==0
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
         EV=V(:,:,jj+1);
-        EV=sum(EV.*pi_e_J(1,:,jj),2);
+        EV=sum(EV.*pi_e_J(1,:,jj+1),2);
 
         ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
 
@@ -93,7 +93,7 @@ elseif vfoptions.lowmemory==1
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
         EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
-        EV=sum(EV.*pi_e_J(:,:,N_j),2);
+        EV=sum(EV.*pi_e_J(:,:,N_j+1),2);
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -123,7 +123,7 @@ elseif vfoptions.lowmemory==1
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
         EV=V(:,:,jj+1);
-        EV=sum(EV.*pi_e_J(:,:,jj),2);
+        EV=sum(EV.*pi_e_J(:,:,jj+1),2);
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);

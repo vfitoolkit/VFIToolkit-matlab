@@ -113,7 +113,7 @@ else
     % aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
 
-    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
+    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j+1),3);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, [n_d13,n_a1], [n_a1,n_a2], n_z, n_e, d13a1_gridvals, a12_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
@@ -280,7 +280,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,:,:,jj+1);
 
-    EV=sum(EV.*pi_e_J(1,1,:,jj),3);
+    EV=sum(EV.*pi_e_J(1,1,:,jj+1),3);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)

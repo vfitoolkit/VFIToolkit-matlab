@@ -327,8 +327,8 @@ else
             semizindex_short=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
             pi_semiz_J_short=gather(pi_semiz_J_short);
             % semizindex_short is [N_a*N_semiz,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
+            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Policy_aprime is currently [N_a,N_semiz,1,N_j]
             Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz,1,N_j]),1,N_semizshort)+N_a*(idxshort(semizindex_short)-1); % Note: add semiz' index following the semiz' dimension
@@ -365,8 +365,8 @@ else
             semizindex_short=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
             pi_semiz_J_short=gather(pi_semiz_J_short);
             % semizindex_short is [N_a*N_semiz,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
+            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Policy_aprime is currently [N_a,N_semiz,N_probs,N_j]
             Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz,N_probs,N_j]),1,N_semizshort,1)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_probs,1); % Note: add semiz' index following the semiz' dimension
@@ -422,8 +422,8 @@ else
             semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
             pi_semiz_J_short=gather(pi_semiz_J_short);
             % semizindex_short is [N_a*N_semiz*N_e,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
+            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Policy_aprime is currently [N_a,N_semiz*N_e,1,N_j]
             Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_e,1,N_j]),1,N_semizshort)+N_a*(idxshort(semizindex_short)-1); % Note: add semiz' index following the semiz' dimension
@@ -462,8 +462,8 @@ else
             semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
             pi_semiz_J_short=gather(pi_semiz_J_short);
             % semizindex_short is [N_a*N_semiz*N_e,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
+            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Policy_aprime is currently [N_a,N_semiz*N_e,N_probs,N_j]
             Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_e,N_probs,N_j]),1,N_semizshort,1)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_probs); % Note: add semiz' index following the semiz' dimension
@@ -521,8 +521,8 @@ else
             semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
             pi_semiz_J_short=gather(pi_semiz_J_short);
             % semizindex_short is [N_a*N_semiz*N_z,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
+            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Policy_aprime is currently [N_a,N_semiz*N_z,1,N_j]
             Policy_aprimesemizzprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,1,N_j])+N_a*repmat((idxshort(semizindex_short)-1),1,N_z)+repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort); % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
@@ -559,8 +559,8 @@ else
             semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
             pi_semiz_J_short=gather(pi_semiz_J_short);
             % semizindex_short is [N_a*N_semiz*N_z,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
+            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Policy_aprime is currently [N_a,N_semiz*N_z,N_probs,N_j]
             Policy_aprimesemizzprime=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,N_probs,N_j]),1,N_semiz*N_z,1)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_z*N_probs)+repmat(repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort),1,N_probs); % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
@@ -619,8 +619,8 @@ else
             semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z*N_e,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
             pi_semiz_J_short=gather(pi_semiz_J_short);
             % semizindex_short is [N_a*N_semiz*N_z*N_e,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
+            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Policy_aprime is currently [N_a,N_semiz*N_z*N_e,1,N_j]
             Policy_aprimesemizzprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_z*N_e,1,N_j])+N_a*repmat((idxshort(semizindex_short)-1),1,N_z)+repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort); % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
@@ -659,8 +659,8 @@ else
             semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z*N_e,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
             pi_semiz_J_short=gather(pi_semiz_J_short);
             % semizindex_short is [N_a*N_semiz*N_z*N_e,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
+            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Policy_aprime is currently [N_a,N_semiz*N_z*N_e,N_probs,N_j]
             Policy_aprimesemizzprime=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z*N_e,N_probs,N_j]),1,N_semiz*N_z,1)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_z*N_probs)+repmat(repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort),1,N_probs); % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension

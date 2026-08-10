@@ -65,7 +65,7 @@ else
     beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
     beta0beta=beta0*beta; % Discount factor between today and tomorrow.
 
-    EV=sum(V_Jplus1.*pi_e_J(1,:,N_j),2); % Note: The V_Jplus1 input should be Valt for naive
+    EV=sum(V_Jplus1.*pi_e_J(1,:,N_j+1),2); % Note: The V_Jplus1 input should be Valt for naive
 
     if vfoptions.lowmemory==0
 
@@ -135,7 +135,7 @@ for reverse_j=1:N_j-1
 
     EV=Valt(:,:,jj+1); % Use Valt (goes into the equation to determine Valt)
 
-    EV=sum(EV.*pi_e_J(1,:,jj),2);
+    EV=sum(EV.*pi_e_J(1,:,jj+1),2);
 
     if vfoptions.lowmemory==0
 

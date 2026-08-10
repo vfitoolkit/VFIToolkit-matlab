@@ -192,14 +192,14 @@ for reverse_j=0:N_j-1
             EVnext=V(:,jj+1); % [N_a]
         elseif N_z==0 && N_e>0
             % e iid: integrate over e' to collapse to EVnext indexed by anext only
-            EVnext=sum(V(:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj), -1), 2); % [N_a, 1]
+            EVnext=sum(V(:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -1), 2); % [N_a, 1]
         elseif N_z>0 && N_e==0
             % EVnext(anext, z_from) = sum_{z_to} pi(z_from, z_to) * V(anext, z_to)
             EVnext=V(:,:,jj+1)*pi_z_J(:,:,jj)'; % [N_a, N_z]
             EVnext(isnan(EVnext))=0;
         else
             % Integrate over e' then over z'
-            EVnext=sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj), -2), 3); % [N_a, N_z, 1]
+            EVnext=sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3); % [N_a, N_z, 1]
             EVnext=reshape(EVnext,[N_a,N_z]) * pi_z_J(:,:,jj)'; % [N_a, N_z]
             EVnext(isnan(EVnext))=0;
         end
