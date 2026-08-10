@@ -107,8 +107,78 @@ if isscalar(n_a)
         end
     end
 
+elseif length(n_a)==2 % DC2A_GI2A: divide-and-conquer in the first endogenous state (a2 enumerated in full), plus grid interpolation layer
+    if length(vfoptions.level1n)>1
+        if vfoptions.level1n(2)>=n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
+            vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2A
+        else
+            error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')
+        end
+    end
+
+    if isNaive % Output: [V=Vtilde, Policy, Valt=V_std, Policyalt]
+        if N_e==0
+            if N_z==0
+                if N_d==0
+                    [VtildeKron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC2A_GI2A_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VtildeKron, PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC2A_GI2A_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            else
+                if N_d==0
+                    [VtildeKron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC2A_GI2A_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VtildeKron, PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC2A_GI2A_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            end
+        else
+            if N_z==0
+                if N_d==0
+                    [VtildeKron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC2A_GI2A_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VtildeKron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC2A_GI2A_noz_e_raw(n_d,n_a, vfoptions.n_e, N_j, d_gridvals, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            else
+                if N_d==0
+                    [VtildeKron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC2A_GI2A_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VtildeKron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicN_DC2A_GI2A_e_raw(n_d,n_a, n_z, vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            end
+        end
+    else % Sophisticated. Output: [V=Vhat, Policy, Valt=Vunderbar]
+        if N_e==0
+            if N_z==0
+                if N_d==0
+                    [VhatKron,PolicyKron,VunderbarKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC2A_GI2A_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VhatKron, PolicyKron,VunderbarKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC2A_GI2A_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            else
+                if N_d==0
+                    [VhatKron,PolicyKron,VunderbarKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC2A_GI2A_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VhatKron, PolicyKron,VunderbarKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC2A_GI2A_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            end
+        else
+            if N_z==0
+                if N_d==0
+                    [VhatKron,PolicyKron,VunderbarKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC2A_GI2A_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VhatKron,PolicyKron,VunderbarKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC2A_GI2A_noz_e_raw(n_d,n_a, vfoptions.n_e, N_j, d_gridvals, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            else
+                if N_d==0
+                    [VhatKron,PolicyKron,VunderbarKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC2A_GI2A_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VhatKron,PolicyKron,VunderbarKron]=ValueFnIter_FHorz_QuasiHyperbolicS_DC2A_GI2A_e_raw(n_d,n_a, n_z, vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            end
+        end
+    end
 else
-    error('ValueFnIter_FHorz_QuasiHyperbolic_DC_GI currently only supports scalar n_a (one endogenous state)')
+    error('ValueFnIter_FHorz_QuasiHyperbolic_DC_GI only supports 1 or 2 endogenous states')
 end
 
 
@@ -129,55 +199,113 @@ if vfoptions.outputkron==1
         Policyalt=PolicyaltKron;
     end
 else
-    if N_d==0
-        if N_e==0
-            if N_z==0
-                Policy=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_a,n_a,N_j,vfoptions);
-                if isNaive
-                    Policyalt=UnKronPolicyIndexes1_FHorz_noz(PolicyaltKron,n_a,n_a,N_j,vfoptions);
+    if isscalar(n_a)
+        if N_d==0
+            if N_e==0
+                if N_z==0
+                    Policy=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_a,n_a,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes1_FHorz_noz(PolicyaltKron,n_a,n_a,N_j,vfoptions);
+                    end
+                else
+                    Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_a,n_a,n_z,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes1_FHorz_z(PolicyaltKron,n_a,n_a,n_z,N_j,vfoptions);
+                    end
                 end
             else
-                Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_a,n_a,n_z,N_j,vfoptions);
-                if isNaive
-                    Policyalt=UnKronPolicyIndexes1_FHorz_z(PolicyaltKron,n_a,n_a,n_z,N_j,vfoptions);
+                if N_z==0
+                    Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes1_FHorz_z(PolicyaltKron,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
+                    end
+                else
+                    Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes1_FHorz_z_e(PolicyaltKron,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                    end
                 end
             end
         else
-            if N_z==0
-                Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
-                if isNaive
-                    Policyalt=UnKronPolicyIndexes1_FHorz_z(PolicyaltKron,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
+            if N_e==0
+                if N_z==0
+                    Policy=UnKronPolicyIndexes2_FHorz_noz(PolicyKron,n_d,n_a,n_a,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes2_FHorz_noz(PolicyaltKron,n_d,n_a,n_a,N_j,vfoptions);
+                    end
+                else
+                    Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d,n_a,n_a,n_z,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes2_FHorz_z(PolicyaltKron,n_d,n_a,n_a,n_z,N_j,vfoptions);
+                    end
                 end
             else
-                Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
-                if isNaive
-                    Policyalt=UnKronPolicyIndexes1_FHorz_z_e(PolicyaltKron,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                if N_z==0
+                    Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes2_FHorz_z(PolicyaltKron,n_d,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
+                    end
+                else
+                    Policy=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron,n_d,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes2_FHorz_z_e(PolicyaltKron,n_d,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                    end
                 end
             end
         end
-    else
-        if N_e==0
-            if N_z==0
-                Policy=UnKronPolicyIndexes2_FHorz_noz(PolicyKron,n_d,n_a,n_a,N_j,vfoptions);
-                if isNaive
-                    Policyalt=UnKronPolicyIndexes2_FHorz_noz(PolicyaltKron,n_d,n_a,n_a,N_j,vfoptions);
+    else % length(n_a)==2
+        n_a1=n_a(1);
+        n_a2=n_a(2:end);
+        if N_d==0
+            if N_e==0
+                if N_z==0
+                    Policy=UnKronPolicyIndexes2_FHorz_noz(PolicyKron,n_a1,n_a2,n_a,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes2_FHorz_noz(PolicyaltKron,n_a1,n_a2,n_a,N_j,vfoptions);
+                    end
+                else
+                    Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_a1,n_a2,n_a,n_z,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes2_FHorz_z(PolicyaltKron,n_a1,n_a2,n_a,n_z,N_j,vfoptions);
+                    end
                 end
             else
-                Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d,n_a,n_a,n_z,N_j,vfoptions);
-                if isNaive
-                    Policyalt=UnKronPolicyIndexes2_FHorz_z(PolicyaltKron,n_d,n_a,n_a,n_z,N_j,vfoptions);
+                if N_z==0
+                    Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_a1,n_a2,n_a,vfoptions.n_e,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes2_FHorz_z(PolicyaltKron,n_a1,n_a2,n_a,vfoptions.n_e,N_j,vfoptions);
+                    end
+                else
+                    Policy=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron,n_a1,n_a2,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes2_FHorz_z_e(PolicyaltKron,n_a1,n_a2,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                    end
                 end
             end
         else
-            if N_z==0
-                Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
-                if isNaive
-                    Policyalt=UnKronPolicyIndexes2_FHorz_z(PolicyaltKron,n_d,n_a,n_a,vfoptions.n_e,N_j,vfoptions);
+            if N_e==0
+                if N_z==0
+                    Policy=UnKronPolicyIndexes3_FHorz_noz(PolicyKron,n_d,n_a1,n_a2,n_a,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes3_FHorz_noz(PolicyaltKron,n_d,n_a1,n_a2,n_a,N_j,vfoptions);
+                    end
+                else
+                    Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron,n_d,n_a1,n_a2,n_a,n_z,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes3_FHorz_z(PolicyaltKron,n_d,n_a1,n_a2,n_a,n_z,N_j,vfoptions);
+                    end
                 end
             else
-                Policy=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron,n_d,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
-                if isNaive
-                    Policyalt=UnKronPolicyIndexes2_FHorz_z_e(PolicyaltKron,n_d,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                if N_z==0
+                    Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron,n_d,n_a1,n_a2,n_a,vfoptions.n_e,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes3_FHorz_z(PolicyaltKron,n_d,n_a1,n_a2,n_a,vfoptions.n_e,N_j,vfoptions);
+                    end
+                else
+                    Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron,n_d,n_a1,n_a2,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                    if isNaive
+                        Policyalt=UnKronPolicyIndexes3_FHorz_z_e(PolicyaltKron,n_d,n_a1,n_a2,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+                    end
                 end
             end
         end
