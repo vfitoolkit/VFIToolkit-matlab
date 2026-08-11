@@ -1,4 +1,4 @@
-function AgentDistPath=AgentDistOnTransPath_FHorz_SemiExo(AgentDist_initial, jequaloneDist, PolicyPath, AgeWeights, AgeWeights_T, n_d, n_a, n_z, n_e, N_j, pi_z_J, pi_z_J_sim, pi_e_J, pi_e_J_sim, T, Parameters, transpathoptions, simoptions)
+function AgentDistPath=AgentDistOnTransPath_FHorz_SemiExo(AgentDist_initial, jequaloneDist, PolicyPath, AgeWeights, AgeWeights_T, n_d, n_a, n_z, n_e, N_j, pi_z_J, pi_z_J_sim, pi_e_J, pi_e_J_sim, T, Parameters, PricePathNames, ParamPath, ParamPathNames, ParamPathSizeVec, transpathoptions, simoptions)
 % Agent distribution along the transition path, with a semi-exogenous state.
 % The semi-exogenous transition (semiz->semiz') depends on the decision d2, so it is folded into the
 % single-step iteration (cannot be a fixed markov step). semiz and z are treated as the composite
@@ -37,20 +37,18 @@ else
     end
 end
 
-%% Decision variables: split into d1 (standard) and d2 (those determining the semi-exogenous transition)
-if ~isfield(simoptions,'l_dsemiz')
-    simoptions.l_dsemiz=1;
-end
-l_d=length(n_d);
-l_d1=l_d-simoptions.l_dsemiz;
-N_dsemiz=prod(n_d(l_d1+1:end));
-
-%% Build pi_semiz_J (transition probabilities for the semi-exogenous state; depend on d2)
+%% Set up the semi-exogenous state (transition probabilities depend on d2)
 if ~isfield(simoptions,'d_grid')
     error('To use a semi-exogenous state in AgentDistOnTransPath you must provide simoptions.d_grid')
 end
-simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,2);
-pi_semiz_J=simoptions.pi_semiz_J; % [N_semiz,N_semiz',N_dsemiz,N_j]
+[~,pi_semiz_J,~,transpathoptions,simoptions]=SemiExogShockSetup_FHorz_TPath(n_d,N_j,simoptions.d_grid,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,simoptions,struct(),2);
+% pi_semiz_J is [N_semiz,N_semiz',N_dsemiz,N_j-1] standard form (on cpu); when
+% transpathoptions.semizpathtrivial=0 the per-period transpathoptions.pi_semiz_J_sim_T is also built
+
+% Decision variables: split into d1 (standard) and d2 (those determining the semi-exogenous transition), as made by the setup
+l_d=length(n_d);
+l_d1=l_d-simoptions.l_dsemiz;
+N_dsemiz=simoptions.setup_semiexo.N_dsemiz;
 
 
 %% pi_e_J [N_e,N_j] is used by the slowOLG raws; pi_e_J_sim (with N_asemiz) by the fastOLG raws.
@@ -114,6 +112,9 @@ if simoptions.fastOLG==0
     AgentDist=AgentDist_initial./AgeWeights_initial; % remove age weights
     AgentDistPath(:,:,1)=AgentDist;
     for tt=1:T-1
+        if transpathoptions.semizpathtrivial==0
+            pi_semiz_J=transpathoptions.pi_semiz_J_sim_T(:,:,:,:,tt); % standard form (semiz,semiz',d2,j)
+        end
         Policy_dsemiexo_tt=Policy_dsemiexo(:,:,tt);
         Policy_aprime_tt=Policy_aprime(:,:,tt);
         if simoptions.gridinterplayer==0
@@ -174,6 +175,9 @@ else
     end
 
     for tt=1:T-1
+        if transpathoptions.semizpathtrivial==0
+            pi_semiz_J=transpathoptions.pi_semiz_J_sim_T(:,:,:,:,tt); % standard form (semiz,semiz',d2,j)
+        end
         Policy_dsemiexo_tt=Policy_dsemiexo(:,:,tt);
         if simoptions.gridinterplayer==0
             Policy_aprime_tt=Policy_aprime(:,:,tt);

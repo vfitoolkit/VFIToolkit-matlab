@@ -19,59 +19,29 @@ if ~isscalar(n_a)
 end
 
 
-%% Split the decision variables into d1 (standard) and d2 (those influencing the semi-exogenous state)
-if ~isfield(vfoptions,'l_dsemiz')
-    vfoptions.l_dsemiz=1; % by default, only one decision variable influences the semi-exogenous state
-end
-if length(n_d)>vfoptions.l_dsemiz
-    n_d1=n_d(1:end-vfoptions.l_dsemiz);
-    d1_grid=d_grid(1:sum(n_d1));
-else
-    n_d1=0; d1_grid=[];
-end
-n_d2=n_d(end-vfoptions.l_dsemiz+1:end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
-d2_grid=d_grid(sum(n_d1)+1:end);
+%% Set up the semi-exogenous state
+[semiz_gridvals_J, pi_semiz_J, ~, transpathoptions, vfoptions, ~]=SemiExogShockSetup_FHorz_TPath(n_d,N_j,d_grid,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,vfoptions,struct(),3);
+% semiz_gridvals_J and pi_semiz_J are value-fn-oriented: for transpathoptions.fastOLG=1, pi_semiz_J is
+% (j,semiz',semiz,d2) with an appended j=N_j zero row (and transpathoptions.pi_semiz_J_T/semiz_gridvals_J_T
+% likewise when transpathoptions.semizpathtrivial=0)
 
-d1_gridvals=CreateGridvals(n_d1,d1_grid,1);
-d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
+% The split of the decision variables into d1 (standard) and d2 (those influencing the semi-exogenous state), as made by the setup
+n_d1=vfoptions.setup_semiexo.n_d1;
+n_d2=vfoptions.setup_semiexo.n_d2;
+d1_gridvals=vfoptions.setup_semiexo.d1_gridvals;
+d2_gridvals=vfoptions.setup_semiexo.d2_gridvals;
 
 l_d=length(n_d);
 l_aprime=1; % semiz only allows scalar n_a
 
-%% Set up the semi-exogenous state
-% Check whether any of the parameters of SemiExoStateFn are on the path (in which case pi_semiz_J varies over the transition)
-transpathoptions.semizpathtrivial=1;
-if isfield(vfoptions,'SemiExoStateFn')
-    temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
-    nargsSemiExo=2*length(n_semiz)+vfoptions.l_dsemiz; % first inputs are (semiz,semizprime,dsemiz)
-    if length(temp)>nargsSemiExo
-        SemiExoStateFnParamNames={temp{nargsSemiExo+1:end}};
-    else
-        SemiExoStateFnParamNames={};
+if transpathoptions.fastOLG==1 && N_z>0
+    % The fastOLG SemiExo value fn raws form joint bothz=(semiz,z) expectations over all N_j slices, so
+    % pi_z_J needs the same appended j=N_j zero row as pi_semiz_J (no continuation value in the final
+    % period; vfoptions.EVpre=0)
+    pi_z_J=cat(1,pi_z_J,zeros(1,N_z,N_z,'gpuArray'));
+    if transpathoptions.zpathtrivial==0
+        transpathoptions.pi_z_J_T=cat(1,transpathoptions.pi_z_J_T,zeros(1,N_z,N_z,T,'gpuArray')); % so the per-period overrides below arrive pre-appended
     end
-    for kk=1:length(SemiExoStateFnParamNames)
-        if any(strcmp(ParamPathNames,SemiExoStateFnParamNames{kk})) || any(strcmp(PricePathNames,SemiExoStateFnParamNames{kk}))
-            transpathoptions.semizpathtrivial=0;
-        end
-    end
-elseif isfield(vfoptions,'pi_semiz')
-    if ndims(vfoptions.pi_semiz)>4
-        error('Have not yet implemented that semi-exogenous shocks can vary over the transition path')
-    end
-else
-    error('When using semi-exogenous state you must declare either vfoptions.SemiExoStateFn or vfoptions.pi_semiz')
-end
-if transpathoptions.semizpathtrivial==0
-    error('Parameters of vfoptions.SemiExoStateFn appearing on PricePath/ParamPath are not yet implemented for transition paths (the semi-exogenous transition probabilities would need to vary over the transition path) - email me if you want this')
-end
-
-vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,3);
-% output: vfoptions.semiz_gridvals_J [N_semiz,l_semiz,N_j], vfoptions.pi_semiz_J [N_semiz,N_semiz',N_d2,N_j]
-semiz_gridvals_J=vfoptions.semiz_gridvals_J;
-pi_semiz_J=vfoptions.pi_semiz_J;
-if transpathoptions.fastOLG==1
-    semiz_gridvals_J=permute(semiz_gridvals_J,[3,1,2]); % fastOLG form: (N_j,N_semiz,l_semiz)
-    % pi_semiz_J stays in standard form (semiz,semiz',d2,j); the fastOLG codes handle it internally
 end
 
 
@@ -163,13 +133,13 @@ if N_e==0
 
             if N_z>0
                 if transpathoptions.zpathtrivial==0
-                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z); the j=N_j zero row is already appended by the TPath setup
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
             end
             if transpathoptions.semizpathtrivial==0
                 semiz_gridvals_J=transpathoptions.semiz_gridvals_J_T(:,:,:,T-ttr); % fastOLG: (N_j,N_semiz,l_semiz)
-                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % standard form (semiz,semiz',d2,j)
+                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % fastOLG: (j,semiz',semiz,d2), the j=N_j zero row already appended by the TPath setup
             end
 
             if N_z==0
@@ -258,13 +228,13 @@ else % N_e>0
             end
             if N_z>0
                 if transpathoptions.zpathtrivial==0
-                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z); the j=N_j zero row is already appended by the TPath setup
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
             end
             if transpathoptions.semizpathtrivial==0
                 semiz_gridvals_J=transpathoptions.semiz_gridvals_J_T(:,:,:,T-ttr); % fastOLG: (N_j,N_semiz,l_semiz)
-                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % standard form (semiz,semiz',d2,j)
+                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % fastOLG: (j,semiz',semiz,d2), the j=N_j zero row already appended by the TPath setup
             end
 
             if N_z==0

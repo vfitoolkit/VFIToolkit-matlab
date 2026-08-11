@@ -5,7 +5,7 @@ function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_SemiExo_
 % semiz_gridvals_J is (j,N_semiz,l_semiz) [fastOLG form]
 % pi_e_J is (a,j)-by-1-by-e [fastOLG form]
 % vfoptions.EVpre is needed (=0 for standard transition paths)
-% pi_semiz_J is (semiz,semiz',d2,j) [standard form, transition probabilities depend on d2]
+% pi_semiz_J is (j,semiz',semiz,d2) [fastOLG form, transition probabilities depend on d2], with N_j slices (the j=N_j zero row is appended by the TPath setup)
 
 N_d1=prod(n_d1);
 N_a=prod(n_a);

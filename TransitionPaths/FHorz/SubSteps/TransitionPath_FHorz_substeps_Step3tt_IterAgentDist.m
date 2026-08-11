@@ -4,7 +4,7 @@ if N_z>0 && transpathoptions.zpathtrivial==0
     if simoptions.fastOLG==0
         pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
     else
-        pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
+        pi_z_J_sim=transpathoptions.pi_z_J_sim_T{tt};
     end
 end
 if N_e>0 && transpathoptions.epathtrivial==0

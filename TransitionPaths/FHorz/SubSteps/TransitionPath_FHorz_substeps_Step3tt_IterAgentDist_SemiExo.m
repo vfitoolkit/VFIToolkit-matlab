@@ -8,6 +8,25 @@ N_semiz=prod(n_semiz);
 N_asemiz=N_a*N_semiz;
 N_dsemiz=simoptions.setup_semiexo.N_dsemiz;
 
+if transpathoptions.semizpathtrivial==0
+    pi_semiz_J=transpathoptions.pi_semiz_J_sim_T(:,:,:,:,tt); % standard form (semiz,semiz',d2,j); both dist raw families use the standard form regardless of fastOLG
+end
+if N_z>0 && transpathoptions.zpathtrivial==0
+    if simoptions.fastOLG==0
+        pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt); % (z,z',j) standard form [fastOLG=0, so no appended row]
+    else
+        pi_z_J_sim=transpathoptions.pi_z_J_sim_T{tt};
+    end
+end
+if N_e>0 && transpathoptions.epathtrivial==0
+    % This must come before the pi_e_J gather / pi_e_J_sim repelem below, which act on the per-period arrays
+    if simoptions.fastOLG==0
+        pi_e_J=transpathoptions.pi_e_J_T(:,:,tt); % [N_e,N_j]
+    else
+        pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt); % generic N_a-sized version, expanded to N_asemiz below
+    end
+end
+
 % pi_e_J [N_e,N_j] is used by the slowOLG raws; pi_e_J_sim (with N_asemiz) by the fastOLG raws.
 % The passed-in pi_e_J_sim is the generic N_a-sized version; rebuild with N_asemiz via repelem.
 % (repelem by N_semiz preserves correctness because pi_e is constant within each age block.)

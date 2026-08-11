@@ -172,17 +172,19 @@ end
 %% Semi-exogenous state: fold semiz into z (for AggVars the semi-exogenous state is just part of the joint exogenous state; no transition machinery is needed, only the gridvals)
 if prod(simoptions.n_semiz)>0
     N_semiz=prod(simoptions.n_semiz);
-    if transpathoptions.zpathtrivial==0
-        error('Semi-exogenous states with z varying over the transition path are not yet implemented for EvalFnOnTransPath_AggVars (email me if you want this)')
-    end
     if ~isfield(simoptions,'d_grid')
         simoptions.d_grid=d_grid;
     end
-    simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,1); % builds simoptions.semiz_gridvals_J [N_semiz,l_semiz,N_j]
+    [~,~,~,transpathoptions,simoptions]=SemiExogShockSetup_FHorz_TPath(n_d,N_j,simoptions.d_grid,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,simoptions,struct(),1); % builds simoptions.semiz_gridvals_J [N_semiz,l_semiz,N_j] (standard form, since this command sets transpathoptions.fastOLG=0)
     if N_z==0
         z_gridvals_J=simoptions.semiz_gridvals_J;
         n_z=simoptions.n_semiz;
     else
+        if transpathoptions.zpathtrivial==0
+            % z varies over the path: combine semiz into every period's slice of z_gridvals_J_T too (the
+            % semiz grid itself cannot vary over the path), so the per-period overrides below stay correct
+            transpathoptions.z_gridvals_J_T=[repmat(simoptions.semiz_gridvals_J,N_z,1,1,T),repelem(transpathoptions.z_gridvals_J_T,N_semiz,1,1)]; % combine, semiz indexes fastest
+        end
         z_gridvals_J=[repmat(simoptions.semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)]; % combine, semiz indexes fastest (matches the (semiz,z) ordering of the agent dist and policy)
         n_z=[simoptions.n_semiz,n_z];
     end

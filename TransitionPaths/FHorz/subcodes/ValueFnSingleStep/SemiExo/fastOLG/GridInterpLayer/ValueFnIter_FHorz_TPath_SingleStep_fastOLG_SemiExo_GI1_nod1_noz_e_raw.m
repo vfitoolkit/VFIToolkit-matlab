@@ -2,6 +2,7 @@ function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_SemiExo_GI1_nod1_
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z-by-e
+% pi_semiz_J is (j,semiz',semiz,d2) for fastOLG [transitions depend on d2], with N_j slices: the j=N_j slice is the zero 'no continuation value in the final period' row appended by the TPath setup
 
 n_d=n_d2;
 N_d2=prod(n_d2);
@@ -16,8 +17,6 @@ Policy=zeros(4,N_a,N_j,N_bothz,N_e,'gpuArray'); %first dim indexes the optimal c
 
 d_gridvals=d2_gridvals;
 bothz_gridvals_J=shiftdim(semiz_gridvals_J,-3); % [1,1,1,N_j,N_semiz,l_semiz]
-pi_semiz_J=permute(pi_semiz_J,[4,2,1,3]); % (j,semiz',semiz,d2)
-pi_semiz_J=cat(1,pi_semiz_J,zeros(1,N_semiz,N_semiz,N_d2,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_semiz_J has N_j-1 slices in its 4th dim, the transitions from periods 1..N_j-1)
 e_gridvals_J=reshape(e_gridvals_J,[1,1,1,N_j,1,N_e,length(n_e)]);
 
 

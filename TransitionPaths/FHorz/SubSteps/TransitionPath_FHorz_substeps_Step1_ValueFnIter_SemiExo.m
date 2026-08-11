@@ -127,7 +127,7 @@ elseif transpathoptions.fastOLG==1
 
             if transpathoptions.semizpathtrivial==0
                 semiz_gridvals_J=transpathoptions.semiz_gridvals_J_T(:,:,:,T-ttr); % fastOLG: (N_j,N_semiz,l_semiz)
-                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % standard form (semiz,semiz',d2,j)
+                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % fastOLG: (j,semiz',semiz,d2), the j=N_j zero row already appended by the TPath setup
             end
 
             [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_SemiExo_noz(V,n_d1,n_d2,n_a,n_semiz,N_j,d1_gridvals,d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -147,11 +147,11 @@ elseif transpathoptions.fastOLG==1
 
             if transpathoptions.zpathtrivial==0
                 z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
-                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
+                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z); with semiz the j=N_j zero row is already appended by the TPath setup
             end
             if transpathoptions.semizpathtrivial==0
                 semiz_gridvals_J=transpathoptions.semiz_gridvals_J_T(:,:,:,T-ttr); % fastOLG: (N_j,N_semiz,l_semiz)
-                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % standard form (semiz,semiz',d2,j)
+                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % fastOLG: (j,semiz',semiz,d2), the j=N_j zero row already appended by the TPath setup
             end
 
             [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_SemiExo(V,n_d1,n_d2,n_a,n_z,n_semiz,N_j,d1_gridvals,d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -175,7 +175,7 @@ elseif transpathoptions.fastOLG==1
             end
             if transpathoptions.semizpathtrivial==0
                 semiz_gridvals_J=transpathoptions.semiz_gridvals_J_T(:,:,:,T-ttr); % fastOLG: (N_j,N_semiz,l_semiz)
-                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % standard form (semiz,semiz',d2,j)
+                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % fastOLG: (j,semiz',semiz,d2), the j=N_j zero row already appended by the TPath setup
             end
 
             [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_SemiExo_noz_e(V,n_d1,n_d2,n_a,n_semiz,n_e,N_j,d1_gridvals,d2_gridvals, a_grid, semiz_gridvals_J, e_gridvals_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -194,7 +194,7 @@ elseif transpathoptions.fastOLG==1
             end
 
             if transpathoptions.zpathtrivial==0
-                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
+                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z); with semiz the j=N_j zero row is already appended by the TPath setup
                 z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
             end
             if transpathoptions.epathtrivial==0
@@ -203,7 +203,7 @@ elseif transpathoptions.fastOLG==1
             end
             if transpathoptions.semizpathtrivial==0
                 semiz_gridvals_J=transpathoptions.semiz_gridvals_J_T(:,:,:,T-ttr); % fastOLG: (N_j,N_semiz,l_semiz)
-                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % standard form (semiz,semiz',d2,j)
+                pi_semiz_J=transpathoptions.pi_semiz_J_T(:,:,:,:,T-ttr); % fastOLG: (j,semiz',semiz,d2), the j=N_j zero row already appended by the TPath setup
             end
 
             [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_SemiExo_e(V,n_d1,n_d2,n_a,n_z,n_semiz,n_e,N_j,d1_gridvals,d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J, pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);

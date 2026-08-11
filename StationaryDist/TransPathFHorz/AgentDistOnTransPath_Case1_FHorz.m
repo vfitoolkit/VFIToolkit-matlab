@@ -138,7 +138,7 @@ end
 %% Semi-exogenous states get their own subfunction
 % Note: called before the (non-semiz) reshapes of AgentDist_initial/jequaloneDist/PolicyPath (those do not know about the semiz dimension; the subfunction does its own reshaping)
 if prod(simoptions.n_semiz)>0
-    AgentDistPath=AgentDistOnTransPath_FHorz_SemiExo(AgentDist_initial, jequaloneDist, PolicyPath, AgeWeights, AgeWeights_T, n_d, n_a, n_z, n_e, N_j, pi_z_J, pi_z_J_sim, pi_e_J, pi_e_J_sim, T, Parameters, transpathoptions, simoptions);
+    AgentDistPath=AgentDistOnTransPath_FHorz_SemiExo(AgentDist_initial, jequaloneDist, PolicyPath, AgeWeights, AgeWeights_T, n_d, n_a, n_z, n_e, N_j, pi_z_J, pi_z_J_sim, pi_e_J, pi_e_J_sim, T, Parameters, PricePathNames, ParamPath, ParamPathNames, ParamPathSizeVec, transpathoptions, simoptions);
     return
 end
 
@@ -622,7 +622,7 @@ if N_probs==1 % Not using N_probs
                 AgentDistPath(:,1)=AgentDist;
                 for tt=1:T-1
                     if transpathoptions.zpathtrivial==0
-                        pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
+                        pi_z_J_sim=transpathoptions.pi_z_J_sim_T{tt};
                     end
                     if transpathoptions.trivialjequalonedist==0
                         jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
@@ -719,7 +719,7 @@ if N_probs==1 % Not using N_probs
                 AgentDistPath(:,:,1)=AgentDist;
                 for tt=1:T-1
                     if transpathoptions.zpathtrivial==0
-                        pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
+                        pi_z_J_sim=transpathoptions.pi_z_J_sim_T{tt};
                     end
                     if transpathoptions.epathtrivial==0
                         pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt);
@@ -811,7 +811,7 @@ else
                 AgentDistPath(:,1)=AgentDist;
                 for tt=1:T-1
                     if transpathoptions.zpathtrivial==0
-                        pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
+                        pi_z_J_sim=transpathoptions.pi_z_J_sim_T{tt};
                     end
                     if transpathoptions.trivialjequalonedist==0
                         jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
@@ -908,7 +908,7 @@ else
                 AgentDistPath(:,:,1)=AgentDist;
                 for tt=1:T-1
                     if transpathoptions.zpathtrivial==0
-                        pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
+                        pi_z_J_sim=transpathoptions.pi_z_J_sim_T{tt};
                     end
                     if transpathoptions.epathtrivial==0
                         pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt);

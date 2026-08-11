@@ -144,6 +144,7 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 %   .pi_z_J_T                                [N_z, N_z, N_j-1, T] (z, z', j, t) if fastOLG=0;  [N_j-1, N_z, N_z, T] (j, z', z, t) if fastOLG=1   (when zpathtrivial=0)
 %   .pi_z_J_alt                              [N_j-1, N_z, N_z]                                                            (j, z, z'; when options.fastOLG=1 and gridpiboth in {2,3,4})
 %   .pi_z_J_T_alt                            [N_j-1, N_z, N_z, T]                                                         (j, z, z', t; when options.fastOLG=1 and zpathtrivial=0)
+%   .pi_z_J_sim_T                            {T} cell of sparse [(N_j-1)*N_z, (N_j-1)*N_z]   per-period pi_z_J_sim (when options.fastOLG=1, gridpiboth in {2,4}, zpathtrivial=0; cell because there is no N-D sparse)
 %   .e_gridvals_J_T                          [N_e, l_e, N_j, T]    if fastOLG=0;  [N_j, 1, N_e, l_e, T] if fastOLG=1 & z; [N_j, N_e, l_e, T] if fastOLG=1 & no z   (when epathtrivial=0)
 %   .pi_e_J_T                                [N_e, N_j, T]         if fastOLG=0;  [N_a*N_j, 1, N_e, T]  if fastOLG=1 & z; [N_a*N_j, N_e, T]  if fastOLG=1 & no z   (when epathtrivial=0)
 %   .pi_e_J_sim_T                            [N_a*(N_j-1)*N_z, N_e, T] if N_z>0; [N_a*(N_j-1), N_e, T] if N_z=0   (when epathtrivial=0, fastOLG=1, gridpiboth in {2,4}; block jj holds pi_e_J(:,jj+1))
@@ -484,6 +485,16 @@ if N_z>0
             II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
             II2=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
             pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
+            if transpathoptions.zpathtrivial==0
+                % Same construction for each path period: stored as a cell of sparse matrices (MATLAB has no
+                % N-D sparse array; a sparse cell means we can easily access the tt index for the sparse
+                % transition matrix, while keeping the sparse form the dist iteration multiplies by)
+                transpathoptions.pi_z_J_sim_T=cell(T,1);
+                for tt=1:T
+                    temp=gather(reshape(permute(transpathoptions.pi_z_J_T(:,:,:,tt),[3,1,2]),[(N_j-1)*N_z,N_z]));
+                    transpathoptions.pi_z_J_sim_T{tt}=sparse(II1,II2,temp,(N_j-1)*N_z,(N_j-1)*N_z);
+                end
+            end
         end
     end
 

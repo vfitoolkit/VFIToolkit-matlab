@@ -296,57 +296,12 @@ ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Param
 % composite exogenous state bothz=(semiz,z) [semiz indexes fastest, e kept separate] in the value function, and
 % bothze=(semiz,z,e) in the agent distribution. Setup is stashed in vfoptions/simoptions; the Step1/Step2/Step3tt/Step4tt
 % substeps dispatch to their SemiExo variants when prod(simoptions.n_semiz)>0.
+[semiz_gridvals_J, pi_semiz_J, pi_semiz_J_sim, transpathoptions, vfoptions, simoptions]=SemiExogShockSetup_FHorz_TPath(n_d,N_j,d_grid,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,vfoptions,simoptions,4);
+% semiz_gridvals_J and pi_semiz_J are value-fn-oriented: for transpathoptions.fastOLG=1, pi_semiz_J is
+% (j,semiz',semiz,d2) with an appended j=N_j zero row (and transpathoptions.pi_semiz_J_T likewise when
+% semizpathtrivial=0). pi_semiz_J_sim is the standard form for the agent distribution. All [] if no semiz.
 N_semiz=prod(vfoptions.n_semiz);
 if N_semiz>0
-    if ~isfield(vfoptions,'l_dsemiz')
-        vfoptions.l_dsemiz=1;
-    end
-    simoptions.l_dsemiz=vfoptions.l_dsemiz;
-    % Split decision variables: d1 (standard) and d2 (drives the semi-exogenous transition)
-    if length(n_d)>vfoptions.l_dsemiz
-        n_d1=n_d(1:end-vfoptions.l_dsemiz); d1_grid=d_grid(1:sum(n_d1));
-    else
-        n_d1=0; d1_grid=[];
-    end
-    n_d2=n_d(end-vfoptions.l_dsemiz+1:end); d2_grid=d_grid(sum(n_d1)+1:end);
-
-    % semizpathtrivial: error if any SemiExoStateFn parameter is on the path (not yet supported)
-    transpathoptions.semizpathtrivial=1;
-    if isfield(vfoptions,'SemiExoStateFn')
-        temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
-        nargsSemiExo=2*length(vfoptions.n_semiz)+vfoptions.l_dsemiz; % inputs are (semiz,semizprime,dsemiz,...)
-        if length(temp)>nargsSemiExo
-            SemiExoStateFnParamNames={temp{nargsSemiExo+1:end}};
-            for kk=1:length(SemiExoStateFnParamNames)
-                if any(strcmp(ParamPathNames,SemiExoStateFnParamNames{kk})) || any(strcmp(PricePathNames,SemiExoStateFnParamNames{kk}))
-                    transpathoptions.semizpathtrivial=0;
-                end
-            end
-        end
-    elseif isfield(vfoptions,'pi_semiz')
-        if ndims(vfoptions.pi_semiz)>4
-            transpathoptions.semizpathtrivial=0;
-        end
-    end
-    if transpathoptions.semizpathtrivial==0
-        error('Parameters of vfoptions.SemiExoStateFn appearing on PricePath/ParamPath are not yet implemented for transition paths (email me if you want this)')
-    end
-    
-    % Build semiz_gridvals_J and pi_semiz_J (d2-dependent)
-    vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,3); % vfoptions.semiz_gridvals_J [N_semiz,l_semiz,N_j], vfoptions.pi_semiz_J [N_semiz,N_semiz',N_dsemiz,N_j]
-    % Stash for the substeps (read by Step1/Step2/Step3tt/Step4tt SemiExo variants)
-    setup_semiexo.n_d1=n_d1; 
-    setup_semiexo.n_d2=n_d2; 
-    setup_semiexo.N_dsemiz=prod(n_d2);
-    setup_semiexo.d1_gridvals=CreateGridvals(n_d1,d1_grid,1);
-    setup_semiexo.d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
-    % store setup_semiexo in vfoptions and simoptions
-    vfoptions.setup_semiexo=setup_semiexo;  
-    simoptions.setup_semiexo=setup_semiexo;
-    % simoptions needs some extra info
-    simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
-    simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
-    simoptions.d_grid=d_grid;
     % Composite sizes used by the semiz reshape branches below
     N_asemiz=N_a*N_semiz;
     if N_z==0
@@ -361,11 +316,7 @@ if N_semiz>0
     end
     
     % Add semiz to ze_gridvals_J_fastOLG -> semizze_gridvals_J_fastOLG (disguise semiz as part of z for AggVars; semiz indexes fastest)
-    semiz_gridvals_J=vfoptions.semiz_gridvals_J; % [N_semiz,l_semiz,N_j]
-    semiz_gridvals_J_fastOLG=shiftdim(permute(semiz_gridvals_J,[3,1,2]),-1); % [1,N_j,N_semiz,l_semiz]
-    if transpathoptions.fastOLG==1
-        semiz_gridvals_J=permute(semiz_gridvals_J,[3,1,2]); % fastOLG form (N_j,N_semiz,l_semiz)
-    end
+    semiz_gridvals_J_fastOLG=shiftdim(permute(vfoptions.semiz_gridvals_J,[3,1,2]),-1); % [1,N_j,N_semiz,l_semiz]
     if isempty(ze_gridvals_J_fastOLG) % no z, no e
         semizze_gridvals_J_fastOLG=semiz_gridvals_J_fastOLG;
     else
@@ -373,11 +324,16 @@ if N_semiz>0
         semizze_gridvals_J_fastOLG=cat(4, repmat(semiz_gridvals_J_fastOLG,1,1,N_ze,1), repelem(ze_gridvals_J_fastOLG,1,1,N_semiz,1));
     end
 
-    pi_semiz_J=vfoptions.pi_semiz_J;
+    if transpathoptions.fastOLG==1 && N_z>0
+        % The fastOLG SemiExo value fn raws form joint bothz=(semiz,z) expectations over all N_j slices, so
+        % pi_z_J needs the same appended j=N_j zero row as pi_semiz_J (no continuation value in the final
+        % period; the plain no-semiz fastOLG raws instead receive N_j-1 slices and append in-file)
+        pi_z_J=cat(1,pi_z_J,zeros(1,N_z,N_z,'gpuArray'));
+        if transpathoptions.zpathtrivial==0
+            transpathoptions.pi_z_J_T=cat(1,transpathoptions.pi_z_J_T,zeros(1,N_z,N_z,T,'gpuArray')); % so the per-period overrides in Step1 arrive pre-appended
+        end
+    end
 else
-    % No semiz: pass-through defaults so the shooting inputs are always defined
-    semiz_gridvals_J=[];
-    pi_semiz_J=[];
     semizze_gridvals_J_fastOLG=ze_gridvals_J_fastOLG;
 end
 
@@ -836,7 +792,7 @@ l_p=length(PricePathNames);
 %% Shooting algorithm
 if transpathoptions.GEnewprice~=2
 
-    [PricePath,GEcondnPathmatrix]=TransitionPath_FHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,vfoptions.n_semiz,n_z,vfoptions.n_e,N_j, N_d,N_a,N_semiz,N_z,N_e, l_d,l_aprime,l_a,l_semiz,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,semiz_gridvals_J,z_gridvals_J,e_gridvals_J,semizze_gridvals_J_fastOLG, pi_semiz_J, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, vfoptions, simoptions, transpathoptions);
+    [PricePath,GEcondnPathmatrix]=TransitionPath_FHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,vfoptions.n_semiz,n_z,vfoptions.n_e,N_j, N_d,N_a,N_semiz,N_z,N_e, l_d,l_aprime,l_a,l_semiz,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,semiz_gridvals_J,z_gridvals_J,e_gridvals_J,semizze_gridvals_J_fastOLG, pi_semiz_J, pi_z_J,pi_e_J,pi_semiz_J_sim,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, vfoptions, simoptions, transpathoptions);
 
     % Switch the solution into structure for output.
     for pp=1:length(PricePathNames)

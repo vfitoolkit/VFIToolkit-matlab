@@ -4,7 +4,7 @@ function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_SemiExo_nod1_noz_
 % V is (a,j)-by-semiz-by-e
 % Policy is (a,j,semiz,e)
 % semiz_gridvals_J is (j,N_semiz,l_semiz) for fastOLG
-% pi_semiz_J is (semiz,semiz',d2,j) [standard form, transitions depend on d2]
+% pi_semiz_J is (j,semiz',semiz,d2) for fastOLG [transitions depend on d2], with N_j slices: the j=N_j slice is the zero 'no continuation value in the final period' row appended by the TPath setup
 % pi_e_J is (a,j)-by-1-by-e for fastOLG
 
 n_d=n_d2;
@@ -21,8 +21,6 @@ d_gridvals=d2_gridvals;
 bothz_gridvals_J=shiftdim(semiz_gridvals_J,-3); % [1,1,1,N_j,N_semiz,l_semiz]
 e_gridvals_J=reshape(e_gridvals_J,[1,1,1,N_j,1,N_e,length(n_e)]);
 
-pi_semiz_J=permute(pi_semiz_J,[4,2,1,3]); % (j,semiz',semiz,d2)
-pi_semiz_J=cat(1,pi_semiz_J,zeros(1,N_semiz,N_semiz,N_d2,'gpuArray')); % append a j=N_j slot of zeros: there is no continuation value in the final period (input pi_semiz_J has N_j-1 slices in its 4th dim, the transitions from periods 1..N_j-1)
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_bothz (note: N_aprime is just equal to N_a)
