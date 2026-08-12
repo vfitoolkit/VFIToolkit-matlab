@@ -71,6 +71,13 @@ if isfield(vfoptions,'exoticpreferences') && strcmp(vfoptions.exoticpreferences,
     return
 end
 
+%% Dispatch to EpsteinZin subfn if exoticpreferences=='EpsteinZin'
+if isfield(vfoptions,'exoticpreferences') && strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+    V=ValueFnFromPolicy_FHorz_EpsteinZin(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
+    return
+end
+
 %% Dispatch to ExpAsset subfn if experienceasset==1
 if vfoptions.experienceasset>=1
     V=ValueFnFromPolicy_FHorz_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);

@@ -99,7 +99,7 @@ else
     % midpoint is 1-by-n_a
     aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a
-    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn, a_grid,aprime_grid(aprimeindexes),ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod_noz(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
     % aprime=aprimeindexes;
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);

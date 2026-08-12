@@ -166,10 +166,25 @@ end
 
 
 
-%% Just do the standard case
-if N_e==0
+%% Warn if no shocks at all (allowed, but only makes sense as a no-shocks reference version of a model)
+if N_e==0 && N_z==0
+    warning('Epstein-Zin preferences do not make much sense without any shocks (the certainty-equivalent is just the identity), unless all you want is a reference for what happens in your model without shocks; solving anyway')
+end
+
+%% Solve: divide-and-conquer and/or grid-interpolation route to their own subfns, otherwise just do the standard case
+if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
+    [VKron,PolicyKron]=ValueFnIter_FHorz_EpsteinZin_DC_GI(n_d,n_a,n_z,N_j,d_gridvals,a_grid,z_gridvals_J,pi_z_J,ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions,sj,warmglow,ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+elseif vfoptions.divideandconquer==1
+    [VKron,PolicyKron]=ValueFnIter_FHorz_EpsteinZin_DC(n_d,n_a,n_z,N_j,d_gridvals,a_grid,z_gridvals_J,pi_z_J,ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions,sj,warmglow,ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+elseif vfoptions.gridinterplayer==1
+    [VKron,PolicyKron]=ValueFnIter_FHorz_EpsteinZin_GI(n_d,n_a,n_z,N_j,d_gridvals,a_grid,z_gridvals_J,pi_z_J,ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions,sj,warmglow,ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+elseif N_e==0
     if N_z==0
-        error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
+        if N_d==0
+            [VKron,PolicyKron]=ValueFnIter_FHorz_EpsteinZin_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+        else
+            [VKron,PolicyKron]=ValueFnIter_FHorz_EpsteinZin_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+        end
     else
         if N_d==0
             [VKron,PolicyKron]=ValueFnIter_FHorz_EpsteinZin_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
@@ -207,7 +222,27 @@ else
     n_daprime=[n_d,n_a];
 end
 
-if N_e==0
+if vfoptions.gridinterplayer==1 && N_d>0
+    % The with-d GI raws return Policy rows (d, aprime-lower, L2, L2flag) separately (not as a
+    % single Kron index), so use the UnKron2 family (mirrors ValueFnIter_FHorz_GI)
+    if N_e==0
+        if N_z==0
+            V=reshape(VKron,[n_a,N_j]);
+            Policy=UnKronPolicyIndexes2_FHorz_noz(PolicyKron,n_d,n_a,n_a,N_j,vfoptions);
+        else
+            V=reshape(VKron,[n_a,n_z,N_j]);
+            Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d,n_a,n_a,n_z,N_j,vfoptions);
+        end
+    else
+        if N_z==0
+            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d,n_a,n_a,vfoptions.n_e,N_j,vfoptions);  % Treat e as z (because no z)
+        else
+            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron,n_d,n_a,n_a,n_z,vfoptions.n_e,N_j,vfoptions);
+        end
+    end
+elseif N_e==0
     if N_z==0
         V=reshape(VKron,[n_a,N_j]);
         Policy=UnKronPolicyIndexes1_FHorz_noz(PolicyKron,n_daprime,n_a,N_j,vfoptions);

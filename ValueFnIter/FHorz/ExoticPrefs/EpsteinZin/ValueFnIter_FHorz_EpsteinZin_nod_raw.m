@@ -7,6 +7,11 @@ V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
+if vfoptions.lowmemory>0
+    l_z=length(n_z);
+    special_n_z=ones(1,l_z);
+end
+
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
@@ -114,7 +119,7 @@ else
         entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1);
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
-        entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS(temp5)=entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf;
 
         %Calc the max and it's index
@@ -151,7 +156,7 @@ else
             entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1);
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
-            entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS_z(temp5)=entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
             entireRHS_z(entireRHS_z==0)=-Inf;
 
             %Calc the max and it's index
@@ -229,7 +234,7 @@ for reverse_j=1:N_j-1
         entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1);
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
-        entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS(temp5)=entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf;
 
         %Calc the max and it's index
@@ -266,7 +271,7 @@ for reverse_j=1:N_j-1
             entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1);
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
-            entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS_z(temp5)=entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
             entireRHS_z(entireRHS_z==0)=-Inf;
 
             %Calc the max and it's index

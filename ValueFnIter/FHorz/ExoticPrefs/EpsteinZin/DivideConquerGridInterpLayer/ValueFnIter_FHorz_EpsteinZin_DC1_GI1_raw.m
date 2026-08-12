@@ -1,4 +1,14 @@
-function [V,Policy]=ValueFnIter_FHorz_DC1_GI1_raw(n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_EpsteinZin_DC1_GI1_raw(n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7, ezc8)
+% Divide-and-conquer plus grid-interpolation-layer version of
+% ValueFnIter_FHorz_EpsteinZin_raw. Grafts the Epstein-Zin transforms onto
+% ValueFnIter_FHorz_DC1_GI1_raw. The interpolation acts on
+% EV=E[(ezc4*V')^ezc5] (the expectations object, exactly where the vNM GI layer
+% interpolates its EV); the certainty-equivalent power ^ezc6 and the rest of the
+% transform chain are applied pointwise AFTER the interpolation. The return
+% transform and the final ^ezc7 wrap each entireRHS before its max (a monotone
+% transform, so the divide-and-conquer monotonicity logic is unaffected). The
+% warm-glow fn is evaluated exactly on the fine grid (no interpolation needed);
+% the coarse passes use its strided subset.
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -46,14 +56,46 @@ n2aprime=length(aprime_grid);
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
+DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+if vfoptions.EZoneminusbeta==1
+    ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
+elseif vfoptions.EZoneminusbeta==2
+    ezc1=1-sj(N_j)*DiscountFactorParamsVec;
+end
+
+% If there is a warm-glow at end of the final period, evaluate the warmglowfn
+% (evaluated exactly on the fine grid; coarse passes use the strided subset)
+if warmglow==1
+    WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,N_j);
+    WGmatrixfineraw=CreateWarmGlowFnMatrix_Case1_Disc_Par2(vfoptions.WarmGlowBequestsFn, n2aprime, aprime_grid, WGParamsVec);
+    WGmatrixfine=WGmatrixfineraw;
+    WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(N_j);
+    WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+    if ~isfield(vfoptions,'V_Jplus1')
+        becareful=(WGmatrixfine==0);
+        WGmatrixfine(isfinite(WGmatrixfine))=ezc3*DiscountFactorParamsVec*(((1-sj(N_j))*WGmatrixfine(isfinite(WGmatrixfine)).^ezc8(N_j)).^ezc6(N_j));
+        WGmatrixfine(becareful)=0;
+    end
+    WGmatrix=WGmatrixfine(1:(n2short+1):end); % coarse-grid subset
+    WGmatrix=WGmatrix(:); % column over the coarse aprime grid
+else
+    WGmatrixfine=zeros(n2aprime,1,'gpuArray');
+    WGmatrix=zeros(N_a,1,'gpuArray');
+end
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        % Modify the Return Function appropriately for Epstein-Zin Preferences
+        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        ReturnMatrix_ii(becareful)=(ezc1*ReturnMatrix_ii(becareful).^ezc2(N_j)).^ezc7(N_j);
+        ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
+        entireRHS_ii=ReturnMatrix_ii+shiftdim(WGmatrix,-1); % warm-glow (zero if not using)
 
         % First, we want aprime conditional on (d,1,a,z)
-        [~,maxindex1]=max(ReturnMatrix_ii,[],2);
+        [~,maxindex1]=max(entireRHS_ii,[],2);
 
         % Just keep the 'midpoint' version of maxindex1 [as GI]
         midpoints_jj(:,1,level1ii,:)=maxindex1;
@@ -68,7 +110,11 @@ if ~isfield(vfoptions,'V_Jplus1')
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,3);
-                [~,maxindex]=max(ReturnMatrix_ii,[],2);
+                becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                ReturnMatrix_ii(becareful)=(ezc1*ReturnMatrix_ii(becareful).^ezc2(N_j)).^ezc7(N_j);
+                ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
+                entireRHS_ii=ReturnMatrix_ii+WGmatrix(aprimeindexes); % warm-glow (zero if not using)
+                [~,maxindex]=max(entireRHS_ii,[],2);
                 midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(:,1,ii,:);
@@ -82,7 +128,12 @@ if ~isfield(vfoptions,'V_Jplus1')
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
-        [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
+        % Modify the Return Function appropriately for Epstein-Zin Preferences
+        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        ReturnMatrix_ii(becareful)=(ezc1*ReturnMatrix_ii(becareful).^ezc2(N_j)).^ezc7(N_j);
+        ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
+        entireRHS_ii=ReturnMatrix_ii+reshape(WGmatrixfine(aprimeindexes),[N_d*n2long,N_a,N_z]);
+        [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d)+1;
         allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
@@ -105,9 +156,14 @@ if ~isfield(vfoptions,'V_Jplus1')
             z_val=z_gridvals_J(z_c,:,N_j);
             % n-Monotonicity
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid, a_grid(level1ii), z_val, ReturnFnParamsVec,1);
+            % Modify the Return Function appropriately for Epstein-Zin Preferences
+            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+            ReturnMatrix_ii(becareful)=(ezc1*ReturnMatrix_ii(becareful).^ezc2(N_j)).^ezc7(N_j);
+            ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
+            entireRHS_ii=ReturnMatrix_ii+shiftdim(WGmatrix,-1); % warm-glow (zero if not using)
 
             % First, we want aprime conditional on (d,1,a,z)
-            [~,maxindex1]=max(ReturnMatrix_ii,[],2);
+            [~,maxindex1]=max(entireRHS_ii,[],2);
 
             % Just keep the 'midpoint' version of maxindex1 [as GI]
             midpoints_jj(:,1,level1ii)=maxindex1;
@@ -122,7 +178,11 @@ if ~isfield(vfoptions,'V_Jplus1')
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,3);
-                    [~,maxindex]=max(ReturnMatrix_ii,[],2);
+                    becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                    ReturnMatrix_ii(becareful)=(ezc1*ReturnMatrix_ii(becareful).^ezc2(N_j)).^ezc7(N_j);
+                    ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
+                    entireRHS_ii=ReturnMatrix_ii+WGmatrix(aprimeindexes); % warm-glow (zero if not using)
+                    [~,maxindex]=max(entireRHS_ii,[],2);
                     midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
                 else
                     loweredge=maxindex1(:,1,ii);
@@ -136,7 +196,12 @@ if ~isfield(vfoptions,'V_Jplus1')
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,special_n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
-            [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
+            % Modify the Return Function appropriately for Epstein-Zin Preferences
+            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+            ReturnMatrix_ii(becareful)=(ezc1*ReturnMatrix_ii(becareful).^ezc2(N_j)).^ezc7(N_j);
+            ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
+            entireRHS_ii=ReturnMatrix_ii+reshape(WGmatrixfine(aprimeindexes),[N_d*n2long,N_a]);
+            [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;
             allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
@@ -156,23 +221,51 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
-    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % First, switch V_Jplus1 into Kron form
 
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % First, switch V_Jplus1 into Kron form
+    % Part of Epstein-Zin is before taking expectation
+    temp=V_Jplus1;
+    temp(isfinite(V_Jplus1))=(ezc4*V_Jplus1(isfinite(V_Jplus1))).^ezc5(N_j);
+    temp(V_Jplus1==0)=0;
 
-    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
+    %Calc the expectation term (except beta)
+    EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-    % Interpolate EV over aprime_grid
+    % Interpolate EV over aprime_grid (BEFORE the certainty-equivalent power ^ezc6)
     EVinterp=interp1(a_grid,EV,aprime_grid);
+
+    % Certainty-equivalent (and mortality-risk/warm-glow) transform, pointwise over (aprime,z)
+    temp4=EV;
+    temp4interp=EVinterp;
+    if warmglow==1
+        WGmatrixbig=WGmatrix.*ones(1,1,N_z);
+        becareful=logical(isfinite(temp4).*isfinite(WGmatrixbig)); % both are finite
+        temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrixbig(becareful).^ezc8(N_j)).^ezc6(N_j);
+        temp4((EV==0)&(WGmatrixbig==0))=0; % Is actually zero
+        WGmatrixfinebig=WGmatrixfine.*ones(1,1,N_z);
+        becareful=logical(isfinite(temp4interp).*isfinite(WGmatrixfinebig)); % both are finite
+        temp4interp(becareful)=(sj(N_j)*temp4interp(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrixfinebig(becareful).^ezc8(N_j)).^ezc6(N_j);
+        temp4interp((EVinterp==0)&(WGmatrixfinebig==0))=0; % Is actually zero
+    else % not using warmglow
+        temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
+        temp4(EV==0)=0;
+        temp4interp(isfinite(temp4interp))=(sj(N_j)*temp4interp(isfinite(temp4interp)).^ezc8(N_j)).^ezc6(N_j);
+        temp4interp(EVinterp==0)=0;
+    end
 
     if vfoptions.lowmemory==0
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
-
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*shiftdim(EV,-1);
+        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        temp2_ii=ReturnMatrix_ii;
+        temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
+        temp2_ii(ReturnMatrix_ii==0)=-Inf;
+        entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*shiftdim(temp4,-1);
+        temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+        entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS_ii(entireRHS_ii==0)=-Inf;
 
         % First, we want aprime conditional on (d,1,a,z)
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -190,8 +283,15 @@ else
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,3);
+                becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                temp2_ii=ReturnMatrix_ii;
+                temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
+                temp2_ii(ReturnMatrix_ii==0)=-Inf;
                 aprimez=aprimeindexes+N_a*zBind;
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[N_d,(maxgap(ii)+1),1,N_z]));  % autoexpand the level1iidiff(ii) in 3rd-dim
+                entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4(reshape(aprimez,[N_d,(maxgap(ii)+1),1,N_z]));  % autoexpand the level1iidiff(ii) in 3rd-dim
+                temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+                entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);
+                entireRHS_ii(entireRHS_ii==0)=-Inf;
                 [~,maxindex]=max(entireRHS_ii,[],2);
                 midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
             else
@@ -206,8 +306,15 @@ else
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
+        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        temp2_ii=ReturnMatrix_ii;
+        temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
+        temp2_ii(ReturnMatrix_ii==0)=-Inf;
         aprimez=aprimeindexes+n2aprime*zBind;
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[N_d*n2long,N_a,N_z]);
+        entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4interp(aprimez(:)),[N_d*n2long,N_a,N_z]);
+        temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+        entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);
+        entireRHS_ii(entireRHS_ii==0)=-Inf;
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d)+1;
@@ -226,17 +333,21 @@ else
         PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
-        DiscountedEV=DiscountFactorParamsVec*EV;
-        DiscountedEVinterp=DiscountFactorParamsVec*EVinterp;
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            DiscountedEV_z=DiscountedEV(:,:,z_c);
-            DiscountedEVinterp_z=DiscountedEVinterp(:,:,z_c);
+            temp4_z=temp4(:,:,z_c);
+            temp4interp_z=temp4interp(:,:,z_c);
 
             % n-Monotonicity
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid, a_grid(level1ii), z_val, ReturnFnParamsVec,1);
-
-            entireRHS_ii=ReturnMatrix_ii+shiftdim(DiscountedEV_z,-1);
+            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+            temp2_ii=ReturnMatrix_ii;
+            temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
+            temp2_ii(ReturnMatrix_ii==0)=-Inf;
+            entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*shiftdim(temp4_z,-1);
+            temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+            entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);
+            entireRHS_ii(entireRHS_ii==0)=-Inf;
 
             % First, we want aprime conditional on (d,1,a,z)
             [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -254,7 +365,14 @@ else
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,3);
-                    entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1]));  % autoexpand the level1iidiff(ii) in 3rd-dim
+                    becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                    temp2_ii=ReturnMatrix_ii;
+                    temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
+                    temp2_ii(ReturnMatrix_ii==0)=-Inf;
+                    entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4_z(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1]));  % autoexpand the level1iidiff(ii) in 3rd-dim
+                    temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+                    entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);
+                    entireRHS_ii(entireRHS_ii==0)=-Inf;
                     [~,maxindex]=max(entireRHS_ii,[],2);
                     midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
                 else
@@ -269,7 +387,14 @@ else
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,special_n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
-            entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp_z(aprimeindexes(:)),[N_d*n2long,N_a]);
+            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+            temp2_ii=ReturnMatrix_ii;
+            temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
+            temp2_ii(ReturnMatrix_ii==0)=-Inf;
+            entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4interp_z(aprimeindexes(:)),[N_d*n2long,N_a]);
+            temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+            entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);
+            entireRHS_ii(entireRHS_ii==0)=-Inf;
             [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;
@@ -303,21 +428,67 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    if vfoptions.EZoneminusbeta==1
+        ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
+    elseif vfoptions.EZoneminusbeta==2
+        ezc1=1-sj(jj)*DiscountFactorParamsVec;
+    end
 
-    EV=V(:,:,jj+1);
+    % If there is a warm-glow, evaluate the warmglowfn (exactly on the fine grid; coarse passes use the strided subset)
+    if warmglow==1
+        WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,jj);
+        WGmatrixfineraw=CreateWarmGlowFnMatrix_Case1_Disc_Par2(vfoptions.WarmGlowBequestsFn, n2aprime, aprime_grid, WGParamsVec);
+        WGmatrixfine=WGmatrixfineraw;
+        WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(jj);
+        WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+        WGmatrix=WGmatrixfine(1:(n2short+1):end); % coarse-grid subset
+        WGmatrix=WGmatrix(:); % column over the coarse aprime grid
+    end
 
-    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
+    EVpre=V(:,:,jj+1);
+    % Part of Epstein-Zin is before taking expectation
+    temp=EVpre;
+    temp(isfinite(EVpre))=(ezc4*EVpre(isfinite(EVpre))).^ezc5(jj);
+    temp(EVpre==0)=0;
+
+    %Calc the expectation term (except beta)
+    EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-    % Interpolate EV over aprime_grid
+    % Interpolate EV over aprime_grid (BEFORE the certainty-equivalent power ^ezc6)
     EVinterp=interp1(a_grid,EV,aprime_grid);
+
+    % Certainty-equivalent (and mortality-risk/warm-glow) transform, pointwise over (aprime,z)
+    temp4=EV;
+    temp4interp=EVinterp;
+    if warmglow==1
+        WGmatrixbig=WGmatrix.*ones(1,1,N_z);
+        becareful=logical(isfinite(temp4).*isfinite(WGmatrixbig)); % both are finite
+        temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrixbig(becareful).^ezc8(jj)).^ezc6(jj);
+        temp4((EV==0)&(WGmatrixbig==0))=0; % Is actually zero
+        WGmatrixfinebig=WGmatrixfine.*ones(1,1,N_z);
+        becareful=logical(isfinite(temp4interp).*isfinite(WGmatrixfinebig)); % both are finite
+        temp4interp(becareful)=(sj(jj)*temp4interp(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrixfinebig(becareful).^ezc8(jj)).^ezc6(jj);
+        temp4interp((EVinterp==0)&(WGmatrixfinebig==0))=0; % Is actually zero
+    else % not using warmglow
+        temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+        temp4(EV==0)=0;
+        temp4interp(isfinite(temp4interp))=(sj(jj)*temp4interp(isfinite(temp4interp)).^ezc8(jj)).^ezc6(jj);
+        temp4interp(EVinterp==0)=0;
+    end
 
     if vfoptions.lowmemory==0
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
-
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*shiftdim(EV,-1);
+        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        temp2_ii=ReturnMatrix_ii;
+        temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
+        temp2_ii(ReturnMatrix_ii==0)=-Inf;
+        entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*shiftdim(temp4,-1);
+        temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+        entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS_ii(entireRHS_ii==0)=-Inf;
 
         % First, we want aprime conditional on (d,1,a,z)
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -335,8 +506,15 @@ for reverse_j=1:N_j-1
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), ReturnFnParamsVec,3);
+                becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                temp2_ii=ReturnMatrix_ii;
+                temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
+                temp2_ii(ReturnMatrix_ii==0)=-Inf;
                 aprimez=aprimeindexes+N_a*zBind;
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[N_d,(maxgap(ii)+1),1,N_z]));  % autoexpand the level1iidiff(ii) in 3rd-dim
+                entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4(reshape(aprimez,[N_d,(maxgap(ii)+1),1,N_z]));  % autoexpand the level1iidiff(ii) in 3rd-dim
+                temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+                entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
+                entireRHS_ii(entireRHS_ii==0)=-Inf;
                 [~,maxindex]=max(entireRHS_ii,[],2);
                 midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
             else
@@ -351,8 +529,15 @@ for reverse_j=1:N_j-1
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,jj),ReturnFnParamsVec,2);
+        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        temp2_ii=ReturnMatrix_ii;
+        temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
+        temp2_ii(ReturnMatrix_ii==0)=-Inf;
         aprimez=aprimeindexes+n2aprime*zBind;
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[N_d*n2long,N_a,N_z]);
+        entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4interp(aprimez(:)),[N_d*n2long,N_a,N_z]);
+        temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+        entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
+        entireRHS_ii(entireRHS_ii==0)=-Inf;
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,:,jj)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d)+1;
@@ -371,17 +556,21 @@ for reverse_j=1:N_j-1
         PolicyL2flag(1,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
-        DiscountedEV=DiscountFactorParamsVec*EV;
-        DiscountedEVinterp=DiscountFactorParamsVec*EVinterp;
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            DiscountedEV_z=DiscountedEV(:,:,z_c);
-            DiscountedEVinterp_z=DiscountedEVinterp(:,:,z_c);
+            temp4_z=temp4(:,:,z_c);
+            temp4interp_z=temp4interp(:,:,z_c);
 
             % n-Monotonicity
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid, a_grid(level1ii), z_val, ReturnFnParamsVec,1);
-
-            entireRHS_ii=ReturnMatrix_ii+shiftdim(DiscountedEV_z,-1);
+            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+            temp2_ii=ReturnMatrix_ii;
+            temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
+            temp2_ii(ReturnMatrix_ii==0)=-Inf;
+            entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*shiftdim(temp4_z,-1);
+            temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+            entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
+            entireRHS_ii(entireRHS_ii==0)=-Inf;
 
             % First, we want aprime conditional on (d,1,a,z)
             [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -399,7 +588,14 @@ for reverse_j=1:N_j-1
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,3);
-                    entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1]));  % autoexpand the level1iidiff(ii) in 3rd-dim
+                    becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                    temp2_ii=ReturnMatrix_ii;
+                    temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
+                    temp2_ii(ReturnMatrix_ii==0)=-Inf;
+                    entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4_z(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1]));  % autoexpand the level1iidiff(ii) in 3rd-dim
+                    temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+                    entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
+                    entireRHS_ii(entireRHS_ii==0)=-Inf;
                     [~,maxindex]=max(entireRHS_ii,[],2);
                     midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
                 else
@@ -414,7 +610,14 @@ for reverse_j=1:N_j-1
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,special_n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
-            entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp_z(aprimeindexes(:)),[N_d*n2long,N_a]);
+            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+            temp2_ii=ReturnMatrix_ii;
+            temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
+            temp2_ii(ReturnMatrix_ii==0)=-Inf;
+            entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4interp_z(aprimeindexes(:)),[N_d*n2long,N_a]);
+            temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+            entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
+            entireRHS_ii(entireRHS_ii==0)=-Inf;
             [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
             V(:,z_c,jj)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;

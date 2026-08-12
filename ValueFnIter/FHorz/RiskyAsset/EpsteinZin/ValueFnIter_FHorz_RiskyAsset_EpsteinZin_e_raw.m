@@ -301,7 +301,7 @@ else
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
-        entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS(temp5)=entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf;
 
         % Calc the max and it's index
@@ -370,7 +370,7 @@ else
             % entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
             temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
-            entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS_e(temp5)=entireRHS_e(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
             entireRHS_e(entireRHS_e==0)=-Inf;
 
             % Calc the max and it's index
@@ -440,7 +440,7 @@ else
                 % entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
                 temp5=logical(isfinite(entireRHS_ze).*(entireRHS_ze~=0));
-                entireRHS_ze(temp5)=ezc1*entireRHS_ze(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
+                entireRHS_ze(temp5)=entireRHS_ze(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
                 entireRHS_ze(entireRHS_ze==0)=-Inf;
 
                 %Calc the max and it's index
@@ -575,7 +575,7 @@ for reverse_j=1:N_j-1
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
-        entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS(temp5)=entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf;
 
         % Calc the max and it's index
@@ -645,7 +645,7 @@ for reverse_j=1:N_j-1
             % entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
             temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
-            entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS_e(temp5)=entireRHS_e(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
             entireRHS_e(entireRHS_e==0)=-Inf;
 
             % Calc the max and it's index
@@ -669,7 +669,7 @@ for reverse_j=1:N_j-1
 
             % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
             % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-            skipinterp=logical(EV_z(aprimeIndex)==EV_z(aprimeplus1Index); % Note, probably just do this off of a2prime values
+            skipinterp=logical(EV_z(aprimeIndex)==EV_z(aprimeplus1Index)); % Note, probably just do this off of a2prime values
             aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
             aprimeProbs(skipinterp)=0;
 
@@ -716,7 +716,7 @@ for reverse_j=1:N_j-1
                 % entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
                 temp5=logical(isfinite(entireRHS_ze).*(entireRHS_ze~=0));
-                entireRHS_ze(temp5)=ezc1*entireRHS_ze(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
+                entireRHS_ze(temp5)=entireRHS_ze(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
                 entireRHS_ze(entireRHS_ze==0)=-Inf;
 
                 %Calc the max and it's index

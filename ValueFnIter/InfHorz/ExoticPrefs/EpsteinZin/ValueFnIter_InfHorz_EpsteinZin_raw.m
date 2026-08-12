@@ -54,7 +54,7 @@ while currdist>Tolerance
         entireRHS_z=ezc1*temp2_z+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a,1);
 
         temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
-        entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS_z(temp5)=entireRHS_z(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
         entireRHS_z(entireRHS_z==0)=-Inf; % Dont want to consider these
 
         %Calc the max and it's index
@@ -91,7 +91,7 @@ while currdist>Tolerance
             VKron=ezc1*Ftemp+ezc3*DiscountFactorParamsVec*temp4;
 
             temp5=logical(isfinite(VKron).*(VKron~=0));
-            VKron(temp5)=ezc1*VKron(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+            VKron(temp5)=VKron(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
             VKron(VKron==0)=-Inf;
         end
     end

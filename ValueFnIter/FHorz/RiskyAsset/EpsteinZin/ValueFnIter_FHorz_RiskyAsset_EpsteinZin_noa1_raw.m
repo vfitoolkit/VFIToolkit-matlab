@@ -219,7 +219,7 @@ else
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
-        entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS(temp5)=entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -275,7 +275,7 @@ else
             entireRHS_z=shiftdim(ezc1*ezc9*temp2_onlyd3+DiscountFactorParamsVec*ezc9*temp4_onlyd3,1);
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
-            entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS_z(temp5)=entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -391,7 +391,7 @@ for reverse_j=1:N_j-1
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
-        entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS(temp5)=entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -447,7 +447,7 @@ for reverse_j=1:N_j-1
             % entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
-            entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS_z(temp5)=entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);

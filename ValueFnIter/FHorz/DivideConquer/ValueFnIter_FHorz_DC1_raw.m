@@ -173,7 +173,7 @@ else
             EV_z=EV(:,:,z_c);
 
             % n-Monotonicity
-            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid, a_grid(level1ii), z_val, ReturnFnParamsVec,1);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid, a_grid(level1ii), z_val, ReturnFnParamsVec,1);
 
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*shiftdim(EV_z,-1);
 
@@ -196,9 +196,8 @@ else
                     % loweredge is n_d-by-1-by-1
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,2);
-                    aprimez=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1); % the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_z(aprimez),[N_d*(maxgap(ii)+1),1]); % autoexpand level1iidiff(ii) in 2nd-dim
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,2);
+                    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_z(aprimeindexes),[N_d*(maxgap(ii)+1),1]); % autoexpand level1iidiff(ii) in 2nd-dim
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d)+1);
@@ -207,7 +206,7 @@ else
                 else
                     loweredge=maxindex1(:,1,ii);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,2);
                     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_z(loweredge),[N_d*1,1]); % autoexpand level1iidiff(ii) in 2nd-dim
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);

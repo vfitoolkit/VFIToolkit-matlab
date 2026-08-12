@@ -1,8 +1,10 @@
 function P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,pi_semiz_J,pi_z_J,pi_e_J,Parameters,simoptions)
-% Age-stacked version of CreatePTransitionMatrix. Does all the index
-% arithmetic for every age at once (parallel over j, single gather), then
-% just builds the per-age sparse matrices in a thin loop [sparse() is 2-D
-% so the per-age sparse() calls cannot be avoided].
+% Age-stacked version of CreatePTransitionMatrix. Does the index arithmetic
+% for every age at once (parallel over j, single gather), then just builds
+% the per-age sparse matrices in a thin loop [sparse() is 2-D so the per-age
+% sparse() calls cannot be avoided]. Exception: with semiz the semiz index
+% is built per age inside the loop (as in the StationaryDist SemiExo raws),
+% which keeps the temporaries a factor N_j smaller.
 %
 % Output: P_cell is cell(N_j-1,1); P_cell{jj} is the transition matrix for
 % the transition from age jj to age jj+1, identical to calling
@@ -10,8 +12,10 @@ function P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz
 %
 % Policy has a trailing age dimension: (size1,N_a,N_j) when there are no
 % exogenous shocks, otherwise (size1,N_a,N_semiz*N_z*N_e,N_j).
-% pi_semiz_J is (N_semiz,N_semiz,N_dsemiz,N_j), pi_z_J is (N_z,N_z,N_j),
-% pi_e_J is (N_e,N_j); they are [] for shocks that are not used.
+% pi_semiz_J is (N_semiz,N_semiz,N_dsemiz,N_j-1), pi_z_J is (N_z,N_z,N_j-1),
+% pi_e_J is (N_e,N_j); they are [] for shocks that are not used. Slice jj of
+% pi_semiz_J/pi_z_J is the transition from age jj to age jj+1, so only
+% slices 1:N_j-1 exist (nothing is ever read from a final-period slice).
 % Note: e is iid at the start of next period, so the transition from age jj
 % to jj+1 uses pi_e_J(:,jj+1).
 
@@ -323,25 +327,24 @@ else
             pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
             idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-            Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz,1,N_j]);
-            semizindex_short=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
-            pi_semiz_J_short=gather(pi_semiz_J_short);
-            % semizindex_short is [N_a*N_semiz,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-
             % Policy_aprime is currently [N_a,N_semiz,1,N_j]
-            Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz,1,N_j]),1,N_semizshort)+N_a*(idxshort(semizindex_short)-1); % Note: add semiz' index following the semiz' dimension
-            % Policy_aprimesemiz is currently [N_a*N_semiz,N_semizshort,N_j]
-
-            semiztransitions=gather(pi_semiz_J_short(semizindex_short));
+            Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz,1,N_j]));
+            Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_semiz,1,N_j]);
+            pi_semiz_J_short=gather(pi_semiz_J_short);
+            idxshort=gather(idxshort);
+            semizindexbase=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+            % semizindex_short_jj (built per age below) is [N_a*N_semiz,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Precompute
             II2=repmat((1:1:N_a*N_semiz)',1,N_semizshort); %  Index for this period (a,z)
 
             for jj=1:N_j-1
+                semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
+                Policy_aprimesemiz_jj=repelem(Policy_aprime(:,1,jj),1,N_semizshort)+N_a*(idxshort(semizindex_short_jj)-1); % Note: add semiz' index following the semiz' dimension
+                semiztransitions_jj=pi_semiz_J_short(semizindex_short_jj);
+
                 % P: full transition matrix on (a,z)
-                P_cell{jj}=sparse(II2,Policy_aprimesemiz(:,:,jj),semiztransitions(:,:,jj),N_a*N_semiz,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices
+                P_cell{jj}=sparse(II2,Policy_aprimesemiz_jj,semiztransitions_jj,N_a*N_semiz,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices
             end
 
         elseif simoptions.gridinterplayer==1
@@ -361,26 +364,25 @@ else
             pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
             idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-            Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz,1,N_j]);
-            semizindex_short=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
-            pi_semiz_J_short=gather(pi_semiz_J_short);
-            % semizindex_short is [N_a*N_semiz,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-
             % Policy_aprime is currently [N_a,N_semiz,N_probs,N_j]
-            Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz,N_probs,N_j]),1,N_semizshort,1)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_probs,1); % Note: add semiz' index following the semiz' dimension
-            % Policy_aprimesemiz is currently [N_a*N_semiz,N_probs*N_semizshort,N_j]
-
-            PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz,N_probs,N_j]);
-            PolicyProbs=repelem(gather(PolicyProbs),1,N_semizshort,1).*repmat(pi_semiz_J_short(semizindex_short),1,N_probs,1); % is of size [N_a*N_semiz,N_probs*N_semizshort,N_j]
+            Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz,1,N_j]));
+            Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_semiz,N_probs,N_j]);
+            PolicyProbs=reshape(gather(PolicyProbs),[N_a*N_semiz,N_probs,N_j]);
+            pi_semiz_J_short=gather(pi_semiz_J_short);
+            idxshort=gather(idxshort);
+            semizindexbase=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+            % semizindex_short_jj (built per age below) is [N_a*N_semiz,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Precompute
             II2=repmat((1:1:N_a*N_semiz)',1,N_semizshort*N_probs); % Index for this period (a,semiz), note the N_semizshort*N_probs-copies
 
             for jj=1:N_j-1
+                semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
+                Policy_aprimesemiz_jj=repelem(Policy_aprime(:,:,jj),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short_jj)-1),1,N_probs); % Note: add semiz' index following the semiz' dimension
+                PolicyProbs_jj=repelem(PolicyProbs(:,:,jj),1,N_semizshort).*repmat(pi_semiz_J_short(semizindex_short_jj),1,N_probs); % is of size [N_a*N_semiz,N_probs*N_semizshort]
+
                 % P: full transition matrix on (a,z)
-                P_cell{jj}=sparse(II2,Policy_aprimesemiz(:,:,jj),PolicyProbs(:,:,jj),N_a*N_semiz,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices
+                P_cell{jj}=sparse(II2,Policy_aprimesemiz_jj,PolicyProbs_jj,N_a*N_semiz,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices
             end
         end
 
@@ -418,25 +420,24 @@ else
             pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
             idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-            Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_e,1,N_j]);
-            semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
-            pi_semiz_J_short=gather(pi_semiz_J_short);
-            % semizindex_short is [N_a*N_semiz*N_e,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-
             % Policy_aprime is currently [N_a,N_semiz*N_e,1,N_j]
-            Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_e,1,N_j]),1,N_semizshort)+N_a*(idxshort(semizindex_short)-1); % Note: add semiz' index following the semiz' dimension
-            % Policy_aprimesemiz is currently [N_a*N_semiz*N_e,N_semizshort,N_j]
-
-            semiztransitions=gather(pi_semiz_J_short(semizindex_short));
+            Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz*N_e,1,N_j]));
+            Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_e,1,N_j]);
+            pi_semiz_J_short=gather(pi_semiz_J_short);
+            idxshort=gather(idxshort);
+            semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+            % semizindex_short_jj (built per age below) is [N_a*N_semiz*N_e,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Precompute
             II2=repmat((1:1:N_a*N_semiz*N_e)',1,N_semizshort); %  Index for this period (a,z)
 
             for jj=1:N_j-1
+                semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
+                Policy_aprimesemiz_jj=repelem(Policy_aprime(:,1,jj),1,N_semizshort)+N_a*(idxshort(semizindex_short_jj)-1); % Note: add semiz' index following the semiz' dimension
+                semiztransitions_jj=pi_semiz_J_short(semizindex_short_jj);
+
                 % P: full transition matrix on (a,z)
-                P=sparse(II2,Policy_aprimesemiz(:,:,jj),semiztransitions(:,:,jj),N_a*N_semiz*N_e,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices
+                P=sparse(II2,Policy_aprimesemiz_jj,semiztransitions_jj,N_a*N_semiz*N_e,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices
                 % Now put the pi_e shocks into next period
                 P_cell{jj}=kron(sparse(gather(pi_e_J(:,jj+1)')),P); % note, reverse order
             end
@@ -458,26 +459,25 @@ else
             pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
             idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-            Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_e,1,N_j]);
-            semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
-            pi_semiz_J_short=gather(pi_semiz_J_short);
-            % semizindex_short is [N_a*N_semiz*N_e,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-
             % Policy_aprime is currently [N_a,N_semiz*N_e,N_probs,N_j]
-            Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_e,N_probs,N_j]),1,N_semizshort,1)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_probs); % Note: add semiz' index following the semiz' dimension
-            % Policy_aprimesemiz is currently [N_a*N_semiz*N_e,N_probs*N_semizshort,N_j]
-
-            PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_e,N_probs,N_j]);
-            PolicyProbs=repelem(gather(PolicyProbs),1,N_semizshort,1).*repmat(pi_semiz_J_short(semizindex_short),1,N_probs,1); % is of size [N_a*N_semiz*N_e,N_probs*N_semizshort,N_j]
+            Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz*N_e,1,N_j]));
+            Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_e,N_probs,N_j]);
+            PolicyProbs=reshape(gather(PolicyProbs),[N_a*N_semiz*N_e,N_probs,N_j]);
+            pi_semiz_J_short=gather(pi_semiz_J_short);
+            idxshort=gather(idxshort);
+            semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+            % semizindex_short_jj (built per age below) is [N_a*N_semiz*N_e,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Precompute
             II2=repmat((1:1:N_a*N_semiz*N_e)',1,N_semizshort*N_probs); % Index for this period (a,semiz), note the N_semizshort*N_probs-copies
 
             for jj=1:N_j-1
+                semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
+                Policy_aprimesemiz_jj=repelem(Policy_aprime(:,:,jj),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short_jj)-1),1,N_probs); % Note: add semiz' index following the semiz' dimension
+                PolicyProbs_jj=repelem(PolicyProbs(:,:,jj),1,N_semizshort).*repmat(pi_semiz_J_short(semizindex_short_jj),1,N_probs); % is of size [N_a*N_semiz*N_e,N_probs*N_semizshort]
+
                 % P: full transition matrix on (a,z)
-                P=sparse(II2,Policy_aprimesemiz(:,:,jj),PolicyProbs(:,:,jj),N_a*N_semiz*N_e,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices
+                P=sparse(II2,Policy_aprimesemiz_jj,PolicyProbs_jj,N_a*N_semiz*N_e,N_a*N_semiz); % Note: sparse() will accumulate at repeated indices
                 % Now put the pi_e shocks into next period
                 P_cell{jj}=kron(sparse(gather(pi_e_J(:,jj+1)')),P); % note, reverse order
             end
@@ -517,25 +517,25 @@ else
             pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
             idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-            Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_z,1,N_j]);
-            semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
-            pi_semiz_J_short=gather(pi_semiz_J_short);
-            % semizindex_short is [N_a*N_semiz*N_z,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-
             % Policy_aprime is currently [N_a,N_semiz*N_z,1,N_j]
-            Policy_aprimesemizzprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,1,N_j])+N_a*repmat((idxshort(semizindex_short)-1),1,N_z)+repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort); % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
-            % Policy_aprimesemizzprime is currently [N_a*N_semiz*N_z,N_semizshort*N_z,N_j]
-
-            semiztransitions=gather(pi_semiz_J_short(semizindex_short));
+            Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz*N_z,1,N_j]));
+            Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,1,N_j]);
+            pi_semiz_J_short=gather(pi_semiz_J_short);
+            idxshort=gather(idxshort);
+            semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+            zprimeoffset=repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort); % z' index following the z' dimension
+            % semizindex_short_jj (built per age below) is [N_a*N_semiz*N_z,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Precompute
             II2=repmat((1:1:N_a*N_semiz*N_z)',1,N_semizshort*N_z); %  Index for this period (a,z)
 
             for jj=1:N_j-1
+                semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
+                Policy_aprimesemizzprime_jj=Policy_aprime(:,1,jj)+N_a*repmat((idxshort(semizindex_short_jj)-1),1,N_z)+zprimeoffset; % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
+                semiztransitions_jj=pi_semiz_J_short(semizindex_short_jj);
+
                 % P: full transition matrix on (a,z)
-                P_cell{jj}=sparse(II2,Policy_aprimesemizzprime(:,:,jj),repmat(semiztransitions(:,:,jj),1,N_z).*repelem(pi_z_J(:,:,jj),N_a*N_semiz,N_semizshort),N_a*N_semiz*N_z,N_a*N_semiz*N_z); % Note: sparse() will accumulate at repeated indices
+                P_cell{jj}=sparse(II2,Policy_aprimesemizzprime_jj,repmat(semiztransitions_jj,1,N_z).*repelem(pi_z_J(:,:,jj),N_a*N_semiz,N_semizshort),N_a*N_semiz*N_z,N_a*N_semiz*N_z); % Note: sparse() will accumulate at repeated indices
             end
 
         elseif simoptions.gridinterplayer==1
@@ -555,30 +555,30 @@ else
             pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
             idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-            Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_z,1,N_j]);
-            semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
-            pi_semiz_J_short=gather(pi_semiz_J_short);
-            % semizindex_short is [N_a*N_semiz*N_z,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-
             % Policy_aprime is currently [N_a,N_semiz*N_z,N_probs,N_j]
-            Policy_aprimesemizzprime=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,N_probs,N_j]),1,N_semiz*N_z,1)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_z*N_probs)+repmat(repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort),1,N_probs); % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
-            % Policy_aprimesemizzprime is currently [N_a*N_semiz*N_z,N_semizshort*N_z*N_probs,N_j]
-
-            semiztransitions=pi_semiz_J_short(semizindex_short);
-
+            Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz*N_z,1,N_j]));
+            Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,N_probs,N_j]);
             PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_z,N_probs,N_j]);
+            pi_semiz_J_short=gather(pi_semiz_J_short);
+            idxshort=gather(idxshort);
+            semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+            zprimeoffset=repmat(repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort),1,N_probs); % z' index following the z' dimension
+            % semizindex_short_jj (built per age below) is [N_a*N_semiz*N_z,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Precompute
-            II2=repmat((1:1:N_a*N_semiz*N_z)',1,2*N_semiz*N_z); %  Index for this period (a,z), note the N_probs-copies
+            II2=repmat((1:1:N_a*N_semiz*N_z)',1,N_semizshort*N_z*N_probs); %  Index for this period (a,z), note the N_probs-copies
+            % Columns are ordered (semiz',z',prob): semiz' fastest, then z', then the two grid-interp points
 
             for jj=1:N_j-1
-                PolicyProbs_jj=repelem(PolicyProbs(:,:,jj),1,N_semizshort*N_z).*repelem(repmat(semiztransitions(:,:,jj),1,N_z),1,N_probs).*repelem(repmat(pi_z_J(:,:,jj),1,N_probs),N_a*N_semizshort,N_semiz); % is of size [N_a*N_semiz*N_z,N_semiz*N_z*N_probs]
+                semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
+                Policy_aprimesemizzprime_jj=repelem(Policy_aprime(:,:,jj),1,N_semizshort*N_z)+repmat(N_a*(idxshort(semizindex_short_jj)-1),1,N_z*N_probs)+zprimeoffset; % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
+                semiztransitions_jj=pi_semiz_J_short(semizindex_short_jj);
+
+                PolicyProbs_jj=repelem(PolicyProbs(:,:,jj),1,N_semizshort*N_z).*repmat(semiztransitions_jj,1,N_z*N_probs).*repmat(repelem(pi_z_J(:,:,jj),N_a*N_semiz,N_semizshort),1,N_probs); % is of size [N_a*N_semiz*N_z,N_semizshort*N_z*N_probs]
                 PolicyProbs_jj=gather(PolicyProbs_jj);
 
                 % P: full transition matrix on (a,z)
-                P_cell{jj}=sparse(II2,Policy_aprimesemizzprime(:,:,jj),PolicyProbs_jj,N_a*N_semiz*N_z,N_a*N_semiz*N_z); % Note: sparse() will accumulate at repeated indices
+                P_cell{jj}=sparse(II2,Policy_aprimesemizzprime_jj,PolicyProbs_jj,N_a*N_semiz*N_z,N_a*N_semiz*N_z); % Note: sparse() will accumulate at repeated indices
             end
         end
 
@@ -615,25 +615,25 @@ else
             pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
             idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-            Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_z*N_e,1,N_j]);
-            semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z*N_e,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
-            pi_semiz_J_short=gather(pi_semiz_J_short);
-            % semizindex_short is [N_a*N_semiz*N_z*N_e,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-
             % Policy_aprime is currently [N_a,N_semiz*N_z*N_e,1,N_j]
-            Policy_aprimesemizzprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_z*N_e,1,N_j])+N_a*repmat((idxshort(semizindex_short)-1),1,N_z)+repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort); % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
-            % Policy_aprimesemizzprime is currently [N_a*N_semiz*N_z*N_e,N_semizshort*N_z,N_j]
-
-            semiztransitions=gather(pi_semiz_J_short(semizindex_short));
+            Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz*N_z*N_e,1,N_j]));
+            Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_z*N_e,1,N_j]);
+            pi_semiz_J_short=gather(pi_semiz_J_short);
+            idxshort=gather(idxshort);
+            semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_z*N_e,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+            zprimeoffset=repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort); % z' index following the z' dimension
+            % semizindex_short_jj (built per age below) is [N_a*N_semiz*N_z*N_e,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Precompute
             II2=repmat((1:1:N_a*N_semiz*N_z*N_e)',1,N_semizshort*N_z); %  Index for this period (a,z)
 
             for jj=1:N_j-1
+                semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
+                Policy_aprimesemizzprime_jj=Policy_aprime(:,1,jj)+N_a*repmat((idxshort(semizindex_short_jj)-1),1,N_z)+zprimeoffset; % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
+                semiztransitions_jj=pi_semiz_J_short(semizindex_short_jj);
+
                 % P: full transition matrix on (a,z)
-                P=sparse(II2,Policy_aprimesemizzprime(:,:,jj),repmat(semiztransitions(:,:,jj),1,N_z).*repmat(repelem(pi_z_J(:,:,jj),N_a*N_semiz,N_semizshort),N_e,1),N_a*N_semiz*N_z*N_e,N_a*N_semiz*N_z); % Note: sparse() will accumulate at repeated indices
+                P=sparse(II2,Policy_aprimesemizzprime_jj,repmat(semiztransitions_jj,1,N_z).*repmat(repelem(pi_z_J(:,:,jj),N_a*N_semiz,N_semizshort),N_e,1),N_a*N_semiz*N_z*N_e,N_a*N_semiz*N_z); % Note: sparse() will accumulate at repeated indices
                 % Now put the pi_e shocks into next period
                 P_cell{jj}=kron(sparse(gather(pi_e_J(:,jj+1)')),P); % note, reverse order
             end
@@ -655,30 +655,30 @@ else
             pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
             idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
-            Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_z*N_e,1,N_j]);
-            semizindex_short=repmat(repelem((1:1:N_semiz)',N_a,1),N_z*N_e,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
-            pi_semiz_J_short=gather(pi_semiz_J_short);
-            % semizindex_short is [N_a*N_semiz*N_z*N_e,N_semizshort,N_j]
-            % used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-            % and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j-1]
-
             % Policy_aprime is currently [N_a,N_semiz*N_z*N_e,N_probs,N_j]
-            Policy_aprimesemizzprime=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z*N_e,N_probs,N_j]),1,N_semiz*N_z,1)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_z*N_probs)+repmat(repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort),1,N_probs); % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
-            % Policy_aprimesemizzprime is currently [N_a*N_semiz*N_z*N_e,N_semizshort*N_z*N_probs,N_j]
-
-            semiztransitions=pi_semiz_J_short(semizindex_short);
-
+            Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz*N_z*N_e,1,N_j]));
+            Policy_aprime=reshape(gather(Policy_aprime),[N_a*N_semiz*N_z*N_e,N_probs,N_j]);
             PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_z*N_e,N_probs,N_j]);
+            pi_semiz_J_short=gather(pi_semiz_J_short);
+            idxshort=gather(idxshort);
+            semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_z*N_e,1)+N_semiz*(0:1:N_semizshort-1); % age-independent part of semizindex_short
+            zprimeoffset=repmat(repelem(N_a*N_semiz*(0:1:N_z-1),1,N_semizshort),1,N_probs); % z' index following the z' dimension
+            % semizindex_short_jj (built per age below) is [N_a*N_semiz*N_z*N_e,N_semizshort], used to index pi_semiz_J_short and idxshort which are [N_semiz,N_semizshort,N_dsemiz,N_j-1]
 
             % Precompute
-            II2=repmat((1:1:N_a*N_semiz*N_z*N_e)',1,2*N_semiz*N_z); %  Index for this period (a,z), note the N_probs-copies
+            II2=repmat((1:1:N_a*N_semiz*N_z*N_e)',1,N_semizshort*N_z*N_probs); %  Index for this period (a,z), note the N_probs-copies
+            % Columns are ordered (semiz',z',prob): semiz' fastest, then z', then the two grid-interp points
 
             for jj=1:N_j-1
-                PolicyProbs_jj=repelem(PolicyProbs(:,:,jj),1,N_semizshort*N_z).*repelem(repmat(semiztransitions(:,:,jj),1,N_z),1,N_probs).*repelem(repmat(pi_z_J(:,:,jj),N_e,N_probs),N_a*N_semizshort,N_semiz); % is of size [N_a*N_semiz*N_z,N_semiz*N_z*N_probs]
+                semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % index for semiz, plus that for semiz' (in the semiz' dim), dsemiexo and j; their indexes in pi_semiz_J
+                Policy_aprimesemizzprime_jj=repelem(Policy_aprime(:,:,jj),1,N_semizshort*N_z)+repmat(N_a*(idxshort(semizindex_short_jj)-1),1,N_z*N_probs)+zprimeoffset; % Note: add semiz' index following the semiz' dimension, add z' index following the z' dimension
+                semiztransitions_jj=pi_semiz_J_short(semizindex_short_jj);
+
+                PolicyProbs_jj=repelem(PolicyProbs(:,:,jj),1,N_semizshort*N_z).*repmat(semiztransitions_jj,1,N_z*N_probs).*repmat(repelem(pi_z_J(:,:,jj),N_a*N_semiz,N_semizshort),N_e,N_probs); % is of size [N_a*N_semiz*N_z*N_e,N_semizshort*N_z*N_probs]
                 PolicyProbs_jj=gather(PolicyProbs_jj);
 
                 % P: full transition matrix on (a,z)
-                P=sparse(II2,Policy_aprimesemizzprime(:,:,jj),PolicyProbs_jj,N_a*N_semiz*N_z*N_e,N_a*N_semiz*N_z); % Note: sparse() will accumulate at repeated indices
+                P=sparse(II2,Policy_aprimesemizzprime_jj,PolicyProbs_jj,N_a*N_semiz*N_z*N_e,N_a*N_semiz*N_z); % Note: sparse() will accumulate at repeated indices
                 % Now put the pi_e shocks into next period
                 P_cell{jj}=kron(sparse(gather(pi_e_J(:,jj+1)')),P); % note, reverse order
             end

@@ -180,36 +180,74 @@ else
 end
 
 % First dimension of PolicyKron is (d1,d2,aprime), or if no d1, then (d2,aprime)
-if N_d1==0
-    if N_e==0
-        V1=reshape(V1Kron,[n_a,n_bothz,N_j]);
-        Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
-        Valt=reshape(ValtKron,[n_a,n_bothz,N_j]);
-        if isNaive
-            Policyalt=UnKronPolicyIndexes2_FHorz_z(PolicyaltKron,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
+if isscalar(n_a)
+    if N_d1==0
+        if N_e==0
+            V1=reshape(V1Kron,[n_a,n_bothz,N_j]);
+            Policy=UnKronPolicyIndexes2_FHorz_z(PolicyKron,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_bothz,N_j]);
+            if isNaive
+                Policyalt=UnKronPolicyIndexes2_FHorz_z(PolicyaltKron,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
+            end
+        else
+            V1=reshape(V1Kron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+            if isNaive
+                Policyalt=UnKronPolicyIndexes2_FHorz_z_e(PolicyaltKron,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+            end
         end
     else
-        V1=reshape(V1Kron,[n_a,n_bothz,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes2_FHorz_z_e(PolicyKron,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
-        Valt=reshape(ValtKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
-        if isNaive
-            Policyalt=UnKronPolicyIndexes2_FHorz_z_e(PolicyaltKron,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+        if N_e==0
+            V1=reshape(V1Kron,[n_a,n_bothz,N_j]);
+            Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron,n_d1,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_bothz,N_j]);
+            if isNaive
+                Policyalt=UnKronPolicyIndexes3_FHorz_z(PolicyaltKron,n_d1,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
+            end
+        else
+            V1=reshape(V1Kron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron,n_d1,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+            if isNaive
+                Policyalt=UnKronPolicyIndexes3_FHorz_z_e(PolicyaltKron,n_d1,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+            end
         end
     end
-else
-    if N_e==0
-        V1=reshape(V1Kron,[n_a,n_bothz,N_j]);
-        Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron,n_d1,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
-        Valt=reshape(ValtKron,[n_a,n_bothz,N_j]);
-        if isNaive
-            Policyalt=UnKronPolicyIndexes3_FHorz_z(PolicyaltKron,n_d1,n_d2,n_a,n_a,n_bothz,N_j,vfoptions);
+else % length(n_a)==2: GI keeps a1prime and a2prime as separate Policy channels, so UnKron needs n_a1/n_a2
+    n_a1=n_a(1);
+    n_a2=n_a(2:end);
+    if N_d1==0
+        if N_e==0
+            V1=reshape(V1Kron,[n_a,n_bothz,N_j]);
+            Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron,n_d2,n_a1,n_a2,n_a,n_bothz,N_j,vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_bothz,N_j]);
+            if isNaive
+                Policyalt=UnKronPolicyIndexes3_FHorz_z(PolicyaltKron,n_d2,n_a1,n_a2,n_a,n_bothz,N_j,vfoptions);
+            end
+        else
+            V1=reshape(V1Kron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron,n_d2,n_a1,n_a2,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+            if isNaive
+                Policyalt=UnKronPolicyIndexes3_FHorz_z_e(PolicyaltKron,n_d2,n_a1,n_a2,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+            end
         end
     else
-        V1=reshape(V1Kron,[n_a,n_bothz,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron,n_d1,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
-        Valt=reshape(ValtKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
-        if isNaive
-            Policyalt=UnKronPolicyIndexes3_FHorz_z_e(PolicyaltKron,n_d1,n_d2,n_a,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+        if N_e==0
+            V1=reshape(V1Kron,[n_a,n_bothz,N_j]);
+            Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron,n_d1,n_d2,n_a1,n_a2,n_a,n_bothz,N_j,vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_bothz,N_j]);
+            if isNaive
+                Policyalt=UnKronPolicyIndexes4_FHorz_z(PolicyaltKron,n_d1,n_d2,n_a1,n_a2,n_a,n_bothz,N_j,vfoptions);
+            end
+        else
+            V1=reshape(V1Kron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron,n_d1,n_d2,n_a1,n_a2,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+            Valt=reshape(ValtKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
+            if isNaive
+                Policyalt=UnKronPolicyIndexes4_FHorz_z_e(PolicyaltKron,n_d1,n_d2,n_a1,n_a2,n_a,n_bothz,vfoptions.n_e,N_j,vfoptions);
+            end
         end
     end
 end
