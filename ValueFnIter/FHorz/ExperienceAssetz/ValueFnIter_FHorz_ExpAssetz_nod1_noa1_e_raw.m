@@ -14,7 +14,7 @@ d2_gridvals=gpuArray(d2_gridvals);
 a2_grid=gpuArray(a2_grid);
 
 
-if vfoptions.lowmemory>1
+if vfoptions.lowmemory>=1
     special_n_e=ones(1,length(n_e));
 end
 if vfoptions.lowmemory==2
@@ -66,6 +66,7 @@ else
     Vlower=reshape(EVpre(a2primeIndex(:),:),[N_d2,N_a2,N_z,N_z]); % (d2,a2,z,zprime)
     Vupper=reshape(EVpre(a2primeIndex(:)+1,:),[N_d2,N_a2,N_z,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    a2primeProbs=repmat(a2primeProbs,1,1,1,N_z);  % [N_d2,N_a2,N_z,N_zprime]   (replicate over zprime)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
 
@@ -147,6 +148,7 @@ for reverse_j=1:N_j-1
     Vlower=reshape(EVpre(a2primeIndex(:),:),[N_d2,N_a2,N_z,N_z]); % (d2,a2,z,zprime)
     Vupper=reshape(EVpre(a2primeIndex(:)+1,:),[N_d2,N_a2,N_z,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    a2primeProbs=repmat(a2primeProbs,1,1,1,N_z);  % [N_d2,N_a2,N_z,N_zprime]   (replicate over zprime)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
 
