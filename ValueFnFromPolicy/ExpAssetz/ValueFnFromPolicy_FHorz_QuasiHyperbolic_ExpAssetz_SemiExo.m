@@ -17,9 +17,10 @@ function [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetz_SemiExo(Poli
 % Convention on d ordering with semiz: d = [...other d..., d_expasset, d_semiz]. d_semiz is the last
 % l_dsemiz components; d_expasset is the l_d2 components immediately before them.
 
-%% Scope guard
+%% Dispatch to GI subfn if gridinterplayer==1
 if vfoptions.gridinterplayer==1
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetz_SemiExo: gridinterplayer not yet implemented for experienceassetz+SemiExo QH')
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetz_SemiExo_GI(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
 
 %% Setup (mirrors ValueFnFromPolicy_FHorz_ExpAssetz_SemiExo)

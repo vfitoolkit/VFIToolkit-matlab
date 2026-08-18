@@ -282,6 +282,8 @@ else
             EVbase_qh=reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz]);
             DiscountedEV_alt=beta*EVbase_qh;
             DiscountedEVinterp_alt=permute(interp1(a1_gridvals,permute(DiscountedEV_alt,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
+            % n-Monotonicity
             DiscountedEV_tilde=beta0beta*EVbase_qh;
             DiscountedEVinterp_tilde=permute(interp1(a1_gridvals,permute(DiscountedEV_tilde,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
@@ -409,6 +411,8 @@ else
                 EVbase_qh=reshape(entireEV_z,[N_d2,N_a1,1,N_a2,N_semiz]);
                 DiscountedEV_alt=beta*EVbase_qh;
                 DiscountedEVinterp_alt=permute(interp1(a1_gridvals,permute(DiscountedEV_alt,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
+                % n-Monotonicity
                 DiscountedEV_tilde=beta0beta*EVbase_qh;
                 DiscountedEVinterp_tilde=permute(interp1(a1_gridvals,permute(DiscountedEV_tilde,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
@@ -535,6 +539,7 @@ else
             EVbase_qh=reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz]);
             DiscountedEV_alt=beta*EVbase_qh;
             DiscountedEVinterp_alt=permute(interp1(a1_gridvals,permute(DiscountedEV_alt,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
             DiscountedEV_tilde=beta0beta*EVbase_qh;
             DiscountedEVinterp_tilde=permute(interp1(a1_gridvals,permute(DiscountedEV_tilde,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
@@ -720,6 +725,7 @@ for reverse_j=1:N_j-1
             EVbase_qh=reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz]);
             DiscountedEV_alt=beta*EVbase_qh;
             DiscountedEVinterp_alt=permute(interp1(a1_gridvals,permute(DiscountedEV_alt,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
             DiscountedEV_tilde=beta0beta*EVbase_qh;
             DiscountedEVinterp_tilde=permute(interp1(a1_gridvals,permute(DiscountedEV_tilde,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
@@ -846,6 +852,8 @@ for reverse_j=1:N_j-1
                 EVbase_qh=reshape(entireEV_z,[N_d2,N_a1,1,N_a2,N_semiz]);
                 DiscountedEV_alt=beta*EVbase_qh;
                 DiscountedEVinterp_alt=permute(interp1(a1_gridvals,permute(DiscountedEV_alt,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
+                % n-Monotonicity
                 DiscountedEV_tilde=beta0beta*EVbase_qh;
                 DiscountedEVinterp_tilde=permute(interp1(a1_gridvals,permute(DiscountedEV_tilde,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
@@ -972,6 +980,7 @@ for reverse_j=1:N_j-1
             EVbase_qh=reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz]);
             DiscountedEV_alt=beta*EVbase_qh;
             DiscountedEVinterp_alt=permute(interp1(a1_gridvals,permute(DiscountedEV_alt,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
             DiscountedEV_tilde=beta0beta*EVbase_qh;
             DiscountedEVinterp_tilde=permute(interp1(a1_gridvals,permute(DiscountedEV_tilde,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 

@@ -274,6 +274,8 @@ else
             DiscountedEV_under=beta*EVbase_qh;
             DiscountedEV_hat=beta0beta*EVbase_qh;
             DiscountedEVinterp_under=permute(interp1(a1_gridvals,permute(DiscountedEV_under,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
+            % n-Monotonicity
             DiscountedEVinterp_hat=permute(interp1(a1_gridvals,permute(DiscountedEV_hat,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
             % n-Monotonicity
@@ -356,6 +358,8 @@ else
                 DiscountedEV_under=beta*EVbase_qh;
                 DiscountedEV_hat=beta0beta*EVbase_qh;
                 DiscountedEVinterp_under=permute(interp1(a1_gridvals,permute(DiscountedEV_under,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
+                % n-Monotonicity
                 DiscountedEVinterp_hat=permute(interp1(a1_gridvals,permute(DiscountedEV_hat,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
                 % n-Monotonicity
@@ -437,6 +441,7 @@ else
             DiscountedEV_under=beta*EVbase_qh;
             DiscountedEV_hat=beta0beta*EVbase_qh;
             DiscountedEVinterp_under=permute(interp1(a1_gridvals,permute(DiscountedEV_under,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
             DiscountedEVinterp_hat=permute(interp1(a1_gridvals,permute(DiscountedEV_hat,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
             for z_c=1:N_bothz
@@ -567,6 +572,7 @@ for reverse_j=1:N_j-1
             DiscountedEV_under=beta*EVbase_qh;
             DiscountedEV_hat=beta0beta*EVbase_qh;
             DiscountedEVinterp_under=permute(interp1(a1_gridvals,permute(DiscountedEV_under,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
             DiscountedEVinterp_hat=permute(interp1(a1_gridvals,permute(DiscountedEV_hat,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
             ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,[n_d2,1],n_a1,vfoptions.level1n,n_a2,n_bothz, d23_gridvals_val, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1,0);
@@ -648,6 +654,8 @@ for reverse_j=1:N_j-1
                 DiscountedEV_under=beta*EVbase_qh;
                 DiscountedEV_hat=beta0beta*EVbase_qh;
                 DiscountedEVinterp_under=permute(interp1(a1_gridvals,permute(DiscountedEV_under,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
+                % n-Monotonicity
                 DiscountedEVinterp_hat=permute(interp1(a1_gridvals,permute(DiscountedEV_hat,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
                 % n-Monotonicity
@@ -729,6 +737,7 @@ for reverse_j=1:N_j-1
             DiscountedEV_under=beta*EVbase_qh;
             DiscountedEV_hat=beta0beta*EVbase_qh;
             DiscountedEVinterp_under=permute(interp1(a1_gridvals,permute(DiscountedEV_under,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
+
             DiscountedEVinterp_hat=permute(interp1(a1_gridvals,permute(DiscountedEV_hat,[2,1,3,4,5]),a1prime_grid),[2,1,3,4,5]);
 
             for z_c=1:N_bothz

@@ -1,5 +1,5 @@
-function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzSemiExoS_nod1_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,N_j, d2_gridvals, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
-% d2 determines experience asset, d3 determines semi-exog state (no d1)
+function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzSemiExoS_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,N_j, d12_gridvals, d2_gridvals, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+% d1 is any other decision, d2 determines experience asset, d3 determines semi-exog state
 % a1 is standard endogenous state, a2 is experience asset
 % z is exogenous markov state (required), semiz is semi-exog state
 % aprimeFn = aprimeFn(d2, a2, z, ...)
@@ -7,7 +7,9 @@ function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzSemiE
 
 n_bothz=[n_semiz,n_z];
 
+N_d1=prod(n_d1);
 N_d2=prod(n_d2);
+N_d12=N_d1*N_d2;
 N_d3=prod(n_d3);
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
@@ -18,16 +20,17 @@ N_bothz=N_semiz*N_z;
 
 Vhat=zeros(N_a,N_bothz,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_bothz,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_bothz,N_j,'gpuArray');
+Policy=zeros(4,N_a,N_bothz,N_j,'gpuArray');
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
+n_d23=[n_d2,n_d3];
 
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
-n_d23=[n_d2,n_d3];
-N_d23=prod(n_d23);
-d23_gridvals=[repmat(d2_gridvals,N_d3,1),repelem(CreateGridvals(n_d3,d3_grid,1),N_d2,1)];
+n_d=[n_d1,n_d2,n_d3];
+N_d=prod(n_d);
+d123_gridvals=[repmat(d12_gridvals,N_d3,1),repelem(CreateGridvals(n_d3,d3_grid,1),N_d12,1)];
 
 if vfoptions.lowmemory>0
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
@@ -48,35 +51,41 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d23,n_a1,n_a1,n_a2,n_bothz, d23_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0);
+        ReturnMatrix=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d23,n_a1,n_a1,n_a2,n_bothz, d123_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0);
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         Vhat(:,:,N_j)=Vtemp;
-        d_ind=rem(maxindex-1,N_d23)+1;
-        Policy(1,:,:,N_j)=rem(d_ind-1,N_d2)+1; % d2
-        Policy(2,:,:,N_j)=ceil(d_ind/N_d2); % d3
-        Policy(3,:,:,N_j)=ceil(maxindex/N_d23); % a1prime
+        d_ind=rem(maxindex-1,N_d)+1;
+        d12_ind=rem(d_ind-1,N_d12)+1;
+        Policy(1,:,:,N_j)=rem(d12_ind-1,N_d1)+1; % d1
+        Policy(2,:,:,N_j)=ceil(d12_ind/N_d1); % d2
+        Policy(3,:,:,N_j)=ceil(d_ind/N_d12); % d3
+        Policy(4,:,:,N_j)=ceil(maxindex/N_d); % a1prime
     elseif vfoptions.lowmemory==1 % split: loop z (markov), vectorize semiz
         for z_c=1:N_z
             semizblock=(z_c-1)*N_semiz+(1:1:N_semiz);
             z_valblock=bothz_gridvals_J(semizblock,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d23,n_a1,n_a1,n_a2,[n_semiz,ones(1,length(n_z))], d23_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_valblock, ReturnFnParamsVec,0,0);
+            ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d23,n_a1,n_a1,n_a2,[n_semiz,ones(1,length(n_z))], d123_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_valblock, ReturnFnParamsVec,0,0);
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             Vhat(:,semizblock,N_j)=Vtemp;
-            d_ind=rem(maxindex-1,N_d23)+1;
-            Policy(1,:,semizblock,N_j)=rem(d_ind-1,N_d2)+1;
-            Policy(2,:,semizblock,N_j)=ceil(d_ind/N_d2);
-            Policy(3,:,semizblock,N_j)=ceil(maxindex/N_d23);
+            d_ind=rem(maxindex-1,N_d)+1;
+            d12_ind=rem(d_ind-1,N_d12)+1;
+            Policy(1,:,semizblock,N_j)=rem(d12_ind-1,N_d1)+1;
+            Policy(2,:,semizblock,N_j)=ceil(d12_ind/N_d1);
+            Policy(3,:,semizblock,N_j)=ceil(d_ind/N_d12);
+            Policy(4,:,semizblock,N_j)=ceil(maxindex/N_d);
         end
     elseif vfoptions.lowmemory==2 % joint loop over bothz
         for z_c=1:N_bothz
             z_val=bothz_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,n_d23,n_a1,n_a1,n_a2,special_n_bothz, d23_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
+            ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d23,n_a1,n_a1,n_a2,special_n_bothz, d123_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             Vhat(:,z_c,N_j)=Vtemp;
-            d_ind=rem(maxindex-1,N_d23)+1;
-            Policy(1,:,z_c,N_j)=rem(d_ind-1,N_d2)+1;
-            Policy(2,:,z_c,N_j)=ceil(d_ind/N_d2);
-            Policy(3,:,z_c,N_j)=ceil(maxindex/N_d23);
+            d_ind=rem(maxindex-1,N_d)+1;
+            d12_ind=rem(d_ind-1,N_d12)+1;
+            Policy(1,:,z_c,N_j)=rem(d12_ind-1,N_d1)+1;
+            Policy(2,:,z_c,N_j)=ceil(d12_ind/N_d1);
+            Policy(3,:,z_c,N_j)=ceil(d_ind/N_d12);
+            Policy(4,:,z_c,N_j)=ceil(maxindex/N_d);
         end
     end
     % Terminal period: no continuation, so Vunderbar equals Vhat
@@ -89,7 +98,8 @@ else
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1, N_a2, N_z]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex,N_a1,1,1);
-    aprimeProbs_d2a1a2z=repmat(a2primeProbs,N_a1,1,1);
+    aprimeProbs_d2a1a2z=repmat(a2primeProbs,N_a1,1,1); % [N_d2*N_a1, N_a2, N_z]
+    % Expand to current_bothz = (semiz, z) with semiz fastest
     aprimeIndex_full=repelem(aprimeIndex,1,1,N_semiz); % [N_d2*N_a1, N_a2, N_bothz]
     aprimeplus1Index_full=repelem(aprimeplus1Index,1,1,N_semiz);
     aprimeProbs_full=repelem(aprimeProbs_d2a1a2z,1,1,N_semiz);
@@ -103,17 +113,19 @@ else
 
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
-            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
-            pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
+            pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j)); % [current_bothz, bothz_prime]
 
-            ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,n_bothz, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0);
+            ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_bothz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0);
 
-            EV=V_Jplus1.*shiftdim(pi_bothz',-1);
+            % EV[a, current_bothz] = E[V_Jplus1(a, next) | current_bothz]
+            EV=V_Jplus1.*shiftdim(pi_bothz',-1); % [N_a, N_bothz_next, N_bothz_current]
             EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EV=sum(EV,2); % [N_a, 1, N_bothz_current]
             EV_2D=reshape(EV,[N_a,N_bothz]);
 
-            lin_lower=aprimeIndex_full+bothz_offset;
+            % Lookup at aprime positions using linear indexing into EV_2D
+            lin_lower=aprimeIndex_full+bothz_offset; % [N_d2*N_a1, N_a2, N_bothz]
             lin_upper=aprimeplus1Index_full+bothz_offset;
             EV1=EV_2D(lin_lower);
             EV2=EV_2D(lin_upper);
@@ -125,25 +137,25 @@ else
             entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             % hat (QH-perceived): argmax of F + beta0*beta*EV over dim 1
-            entireRHS_hat=ReturnMatrix_d3+beta0beta*repelem(entireEV,1,N_a1,1);
+            entireRHS_hat=ReturnMatrix_d3+beta0beta*repelem(entireEV,N_d1,N_a1,1);
             [Vtemp,maxindex]=max(entireRHS_hat,[],1);
             V_ford3_hat(:,:,d3_c)=shiftdim(Vtemp,1);
             Policy_ford3_hat(:,:,d3_c)=shiftdim(maxindex,1);
 
             % under: F + beta*EV GATHERED at the hat-argmax (not re-maximised)
-            entireRHS_under=ReturnMatrix_d3+beta*repelem(entireEV,1,N_a1,1);
-            maxindexfull=maxindex+(N_d2*N_a1)*(0:1:N_a-1)+shiftdim((N_d2*N_a1)*N_a*(0:1:N_bothz-1),-1);
+            entireRHS_under=ReturnMatrix_d3+beta*repelem(entireEV,N_d1,N_a1,1);
+            maxindexfull=maxindex+(N_d12*N_a1)*(0:1:N_a-1)+shiftdim((N_d12*N_a1)*N_a*(0:1:N_bothz-1),-1);
             V_ford3_under(:,:,d3_c)=shiftdim(entireRHS_under(maxindexfull),1);
 
         end
     elseif vfoptions.lowmemory==1 % split: loop z (markov), vectorize semiz
         for d3_c=1:N_d3
-            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
             for z_c=1:N_z
                 semizblock=(z_c-1)*N_semiz+(1:1:N_semiz);
                 z_valblock=bothz_gridvals_J(semizblock,:,N_j);
-                ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,[n_semiz,ones(1,length(n_z))], d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_valblock, ReturnFnParamsVec,0,0);
+                ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,[n_semiz,ones(1,length(n_z))], d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_valblock, ReturnFnParamsVec,0,0);
 
                 EV=V_Jplus1.*shiftdim(pi_bothz(semizblock,:)',-1); % [N_a, N_bothz_next, N_semiz]
                 EV(isnan(EV))=0;
@@ -160,32 +172,32 @@ else
                 entireEV_z=EV1.*aprimeProbs_z+EV2.*(1-aprimeProbs_z);
 
                 % hat (QH-perceived): argmax of F + beta0*beta*EV over dim 1
-                entireRHS_hat=ReturnMatrix_d3z+beta0beta*repelem(entireEV_z,1,N_a1,1);
+                entireRHS_hat=ReturnMatrix_d3z+beta0beta*repelem(entireEV_z,N_d1,N_a1,1);
                 [Vtemp,maxindex]=max(entireRHS_hat,[],1);
                 V_ford3_hat(:,semizblock,d3_c)=shiftdim(Vtemp,1);
                 Policy_ford3_hat(:,semizblock,d3_c)=shiftdim(maxindex,1);
 
                 % under: F + beta*EV GATHERED at the hat-argmax (not re-maximised)
-                entireRHS_under=ReturnMatrix_d3z+beta*repelem(entireEV_z,1,N_a1,1);
-                maxindexfull=maxindex+(N_d2*N_a1)*(0:1:N_a-1)+shiftdim((N_d2*N_a1)*N_a*(0:1:N_semiz-1),-1);
+                entireRHS_under=ReturnMatrix_d3z+beta*repelem(entireEV_z,N_d1,N_a1,1);
+                maxindexfull=maxindex+(N_d12*N_a1)*(0:1:N_a-1)+shiftdim((N_d12*N_a1)*N_a*(0:1:N_semiz-1),-1);
                 V_ford3_under(:,semizblock,d3_c)=shiftdim(entireRHS_under(maxindexfull),1);
 
             end
         end
     elseif vfoptions.lowmemory==2 % joint loop over bothz
         for d3_c=1:N_d3
-            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
+                ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
 
-                EV_z=V_Jplus1.*pi_bothz(z_c,:);
+                EV_z=V_Jplus1.*pi_bothz(z_c,:); % [N_a, N_bothz_next]
                 EV_z(isnan(EV_z))=0;
-                EV_z=sum(EV_z,2);
+                EV_z=sum(EV_z,2); % [N_a, 1]
 
-                z_part=ceil(z_c/N_semiz);
+                z_part=ceil(z_c/N_semiz); % current z index (bothz = semiz + N_semiz*(z-1))
                 aprime_slice=aprimeIndex(:,:,z_part);
                 aprimeplus1_slice=aprimeplus1Index(:,:,z_part);
                 aprimeProbs_slice=aprimeProbs_d2a1a2z(:,:,z_part);
@@ -200,14 +212,14 @@ else
                 entireEV_z=EV1.*aprimeProbs_z+EV2.*(1-aprimeProbs_z);
 
                 % hat (QH-perceived): argmax of F + beta0*beta*EV over dim 1
-                entireRHS_hat=ReturnMatrix_d3z+beta0beta*repelem(entireEV_z,1,N_a1);
+                entireRHS_hat=ReturnMatrix_d3z+beta0beta*repelem(entireEV_z,N_d1,N_a1);
                 [Vtemp,maxindex]=max(entireRHS_hat,[],1);
                 V_ford3_hat(:,z_c,d3_c)=Vtemp;
                 Policy_ford3_hat(:,z_c,d3_c)=maxindex;
 
                 % under: F + beta*EV GATHERED at the hat-argmax (not re-maximised)
-                entireRHS_under=ReturnMatrix_d3z+beta*repelem(entireEV_z,1,N_a1);
-                maxindexfull=maxindex+(N_d2*N_a1)*(0:1:N_a-1);
+                entireRHS_under=ReturnMatrix_d3z+beta*repelem(entireEV_z,N_d1,N_a1);
+                maxindexfull=maxindex+(N_d12*N_a1)*(0:1:N_a-1);
                 V_ford3_under(:,z_c,d3_c)=entireRHS_under(maxindexfull);
 
             end
@@ -218,11 +230,13 @@ else
     % Max over d3 using the hat (QH-perceived) values
     [V_jj,maxindex]=max(V_ford3_hat,[],3);
     Vhat(:,:,N_j)=V_jj;
-    Policy(2,:,:,N_j)=shiftdim(maxindex,-1); % d3
+    Policy(3,:,:,N_j)=shiftdim(maxindex,-1); % d3
     maxindex=reshape(maxindex,[N_a*N_bothz,1]);
-    d2a1prime_ind=reshape(Policy_ford3_hat((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
-    Policy(1,:,:,N_j)=rem(d2a1prime_ind-1,N_d2)+1; % d2
-    Policy(3,:,:,N_j)=ceil(d2a1prime_ind/N_d2); % a1prime
+    d12a1prime_ind=reshape(Policy_ford3_hat((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+    d12_ind=rem(d12a1prime_ind-1,N_d12)+1;
+    Policy(1,:,:,N_j)=rem(d12_ind-1,N_d1)+1; % d1
+    Policy(2,:,:,N_j)=ceil(d12_ind/N_d1); % d2
+    Policy(4,:,:,N_j)=ceil(d12a1prime_ind/N_d12); % a1prime
 
     % Vunderbar: gather the beta-RHS (already inner-gathered) at the same chosen d3
     d3lin=reshape(maxindex,[N_a*N_bothz,1]);
@@ -257,10 +271,10 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
-            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,n_bothz, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0);
+            ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_bothz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0);
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0;
@@ -279,25 +293,25 @@ for reverse_j=1:N_j-1
             entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
 
             % hat (QH-perceived): argmax of F + beta0*beta*EV over dim 1
-            entireRHS_hat=ReturnMatrix_d3+beta0beta*repelem(entireEV,1,N_a1,1);
+            entireRHS_hat=ReturnMatrix_d3+beta0beta*repelem(entireEV,N_d1,N_a1,1);
             [Vtemp,maxindex]=max(entireRHS_hat,[],1);
             V_ford3_hat(:,:,d3_c)=shiftdim(Vtemp,1);
             Policy_ford3_hat(:,:,d3_c)=shiftdim(maxindex,1);
 
             % under: F + beta*EV GATHERED at the hat-argmax (not re-maximised)
-            entireRHS_under=ReturnMatrix_d3+beta*repelem(entireEV,1,N_a1,1);
-            maxindexfull=maxindex+(N_d2*N_a1)*(0:1:N_a-1)+shiftdim((N_d2*N_a1)*N_a*(0:1:N_bothz-1),-1);
+            entireRHS_under=ReturnMatrix_d3+beta*repelem(entireEV,N_d1,N_a1,1);
+            maxindexfull=maxindex+(N_d12*N_a1)*(0:1:N_a-1)+shiftdim((N_d12*N_a1)*N_a*(0:1:N_bothz-1),-1);
             V_ford3_under(:,:,d3_c)=shiftdim(entireRHS_under(maxindexfull),1);
 
         end
     elseif vfoptions.lowmemory==1 % split: loop z (markov), vectorize semiz
         for d3_c=1:N_d3
-            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
             for z_c=1:N_z
                 semizblock=(z_c-1)*N_semiz+(1:1:N_semiz);
                 z_valblock=bothz_gridvals_J(semizblock,:,jj);
-                ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,[n_semiz,ones(1,length(n_z))], d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_valblock, ReturnFnParamsVec,0,0);
+                ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,[n_semiz,ones(1,length(n_z))], d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_valblock, ReturnFnParamsVec,0,0);
 
                 EV=EVpre.*shiftdim(pi_bothz(semizblock,:)',-1); % [N_a, N_bothz_next, N_semiz]
                 EV(isnan(EV))=0;
@@ -314,26 +328,26 @@ for reverse_j=1:N_j-1
                 entireEV_z=EV1.*aprimeProbs_z+EV2.*(1-aprimeProbs_z);
 
                 % hat (QH-perceived): argmax of F + beta0*beta*EV over dim 1
-                entireRHS_hat=ReturnMatrix_d3z+beta0beta*repelem(entireEV_z,1,N_a1,1);
+                entireRHS_hat=ReturnMatrix_d3z+beta0beta*repelem(entireEV_z,N_d1,N_a1,1);
                 [Vtemp,maxindex]=max(entireRHS_hat,[],1);
                 V_ford3_hat(:,semizblock,d3_c)=shiftdim(Vtemp,1);
                 Policy_ford3_hat(:,semizblock,d3_c)=shiftdim(maxindex,1);
 
                 % under: F + beta*EV GATHERED at the hat-argmax (not re-maximised)
-                entireRHS_under=ReturnMatrix_d3z+beta*repelem(entireEV_z,1,N_a1,1);
-                maxindexfull=maxindex+(N_d2*N_a1)*(0:1:N_a-1)+shiftdim((N_d2*N_a1)*N_a*(0:1:N_semiz-1),-1);
+                entireRHS_under=ReturnMatrix_d3z+beta*repelem(entireEV_z,N_d1,N_a1,1);
+                maxindexfull=maxindex+(N_d12*N_a1)*(0:1:N_a-1)+shiftdim((N_d12*N_a1)*N_a*(0:1:N_semiz-1),-1);
                 V_ford3_under(:,semizblock,d3_c)=shiftdim(entireRHS_under(maxindexfull),1);
 
             end
         end
     elseif vfoptions.lowmemory==2 % joint loop over bothz
         for d3_c=1:N_d3
-            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
-                ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
+                ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
 
                 EV_z=EVpre.*pi_bothz(z_c,:);
                 EV_z(isnan(EV_z))=0;
@@ -354,14 +368,14 @@ for reverse_j=1:N_j-1
                 entireEV_z=EV1.*aprimeProbs_z+EV2.*(1-aprimeProbs_z);
 
                 % hat (QH-perceived): argmax of F + beta0*beta*EV over dim 1
-                entireRHS_hat=ReturnMatrix_d3z+beta0beta*repelem(entireEV_z,1,N_a1);
+                entireRHS_hat=ReturnMatrix_d3z+beta0beta*repelem(entireEV_z,N_d1,N_a1);
                 [Vtemp,maxindex]=max(entireRHS_hat,[],1);
                 V_ford3_hat(:,z_c,d3_c)=Vtemp;
                 Policy_ford3_hat(:,z_c,d3_c)=maxindex;
 
                 % under: F + beta*EV GATHERED at the hat-argmax (not re-maximised)
-                entireRHS_under=ReturnMatrix_d3z+beta*repelem(entireEV_z,1,N_a1);
-                maxindexfull=maxindex+(N_d2*N_a1)*(0:1:N_a-1);
+                entireRHS_under=ReturnMatrix_d3z+beta*repelem(entireEV_z,N_d1,N_a1);
+                maxindexfull=maxindex+(N_d12*N_a1)*(0:1:N_a-1);
                 V_ford3_under(:,z_c,d3_c)=entireRHS_under(maxindexfull);
 
             end
@@ -371,11 +385,13 @@ for reverse_j=1:N_j-1
     % Max over d3 using the hat (QH-perceived) values
     [V_jj,maxindex]=max(V_ford3_hat,[],3);
     Vhat(:,:,jj)=V_jj;
-    Policy(2,:,:,jj)=shiftdim(maxindex,-1);
+    Policy(3,:,:,jj)=shiftdim(maxindex,-1);
     maxindex=reshape(maxindex,[N_a*N_bothz,1]);
-    d2a1prime_ind=reshape(Policy_ford3_hat((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
-    Policy(1,:,:,jj)=rem(d2a1prime_ind-1,N_d2)+1;
-    Policy(3,:,:,jj)=ceil(d2a1prime_ind/N_d2);
+    d12a1prime_ind=reshape(Policy_ford3_hat((1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+    d12_ind=rem(d12a1prime_ind-1,N_d12)+1;
+    Policy(1,:,:,jj)=rem(d12_ind-1,N_d1)+1;
+    Policy(2,:,:,jj)=ceil(d12_ind/N_d1);
+    Policy(4,:,:,jj)=ceil(d12a1prime_ind/N_d12);
 
     % Vunderbar: gather the beta-RHS (already inner-gathered) at the same chosen d3
     d3lin=reshape(maxindex,[N_a*N_bothz,1]);
