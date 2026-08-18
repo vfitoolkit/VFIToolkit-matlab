@@ -96,12 +96,12 @@ else
             % d3_val=d3_grid(d3_c);
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,N_j);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
             ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0); % Level=0, Refine=0
             % (d,aprime,a,z)
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -134,14 +134,14 @@ else
             % d3_val=d3_grid(d3_c);
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,N_j);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,N_j);
                 ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=EVpre.*(ones(N_a,1,'gpuArray')*pi_semi_d3(z_c,:));
+                EV_z=EVpre.*(ones(N_a,1,'gpuArray')*pi_semiz_d3(z_c,:));
                 EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                 EV_z=sum(EV_z,2);
 
@@ -214,12 +214,12 @@ for reverse_j=1:N_j-1
             % d3_val=d3_grid(d3_c);
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,jj);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
             ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0); % Level=0, Refine=0
             % (d,aprime,a,z)
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -251,14 +251,14 @@ for reverse_j=1:N_j-1
             % d3_val=d3_grid(d3_c);
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,jj);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,jj);
                 ReturnMatrix_d3z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=EVpre.*(ones(N_a,1,'gpuArray')*pi_semi_d3(z_c,:));
+                EV_z=EVpre.*(ones(N_a,1,'gpuArray')*pi_semiz_d3(z_c,:));
                 EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
                 EV_z=sum(EV_z,2);
 

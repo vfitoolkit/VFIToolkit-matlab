@@ -55,14 +55,7 @@ N_z=prod(n_z);
 
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,N_j,T]);
 
-if N_d==0 && isscalar(n_a) && vfoptions.gridinterplayer==0
-    l_daprime=1;
-else
-    l_daprime=size(PolicyPath,1);
-    if vfoptions.gridinterplayer==1
-        l_daprime=l_daprime-1;
-    end
-end
+l_daprime=size(PolicyPath,1)-2*vfoptions.gridinterplayer; % gridinterplayer=1 carries an extra L2 index and L2flag
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 %% Implement new way of handling ReturnFn inputs

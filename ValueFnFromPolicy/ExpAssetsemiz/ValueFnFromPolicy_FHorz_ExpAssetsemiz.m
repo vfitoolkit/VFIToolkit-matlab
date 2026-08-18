@@ -56,13 +56,21 @@ end
 
 % Split a into a1 (standard) and a2 (experience asset)
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_ExpAssetsemiz: case with no a1 (experience asset as only asset) not yet implemented')
+    % noa1: the experience asset is the only endogenous state.
+    % n_a1=0 is the convention CreateaprimePolicyExperienceAssetsemiz tests for (prod(n_a1)==0),
+    % but the aprime index arithmetic further below needs an a1 stride of one, so they differ here.
+    n_a1=0;
+    N_a1=1;
+    l_a1=0;
+    n_a2=n_a;
+    a2_grid=a_grid;
+else
+    n_a1=n_a(1:end-1);
+    N_a1=prod(n_a1);
+    l_a1=length(n_a1);
+    n_a2=n_a(end);
+    a2_grid=a_grid(sum(n_a1)+1:end);
 end
-n_a1=n_a(1:end-1);
-N_a1=prod(n_a1);
-n_a2=n_a(end);
-a2_grid=a_grid(sum(n_a1)+1:end);
-l_a1=length(n_a1);
 l_a2=length(n_a2);
 
 % Which d drives the experience asset. d ordering is [...other, d_expasset, d_semiz];

@@ -188,11 +188,9 @@ end
 
 
 %% Implement new way of handling FnsToEvaluate
-% Figure out l_daprime from Policy
-l_daprime=size(PolicyPath,1);
-if simoptions.gridinterplayer==1
-    l_daprime=l_daprime-1;
-end
+% Figure out l_daprime and l_aprime
+l_daprime=size(PolicyPath,1)-2*simoptions.gridinterplayer; % gridinterplayer=1 carries an extra L2 index and L2flag
+l_aprime=l_daprime-l_d;
 
 % Note: l_semizze
 if isstruct(FnsToEvaluate)
@@ -229,10 +227,6 @@ else
 end
 
 % Note that dPolicy and aprimePolicy will depend on age
-l_aprime=l_a;
-if simoptions.experienceasset>=1 || simoptions.experienceassetu>=1
-    l_aprime=l_aprime-1;
-end
 if N_d==0
     if N_semizze==0
         daprimePolicy_gridvals=zeros(N_a,l_aprime,T);

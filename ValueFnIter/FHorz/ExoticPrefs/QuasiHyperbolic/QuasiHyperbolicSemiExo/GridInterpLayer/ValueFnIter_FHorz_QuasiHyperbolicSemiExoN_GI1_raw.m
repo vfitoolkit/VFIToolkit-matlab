@@ -212,7 +212,74 @@ else
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
             flag_ford2_jj(:,:,d2_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
         end
-    elseif vfoptions.lowmemory>=1 % warm-start (V_Jplus1) path: joint bothz loop serves both lm=1 and lm=2 (untested; not split-laddered here)
+    elseif vfoptions.lowmemory==1 % parallel over semiz, loop over z
+        for d2_c=1:N_d2
+            pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d2_c,N_j));
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
+
+            for z_c=1:N_z
+                semizblock=(z_c-1)*N_semiz+(1:1:N_semiz);
+                z_valblock=bothz_gridvals_J(semizblock,:,N_j);
+
+                EV_d2z=EVpre.*shiftdim(pi_bothz(semizblock,:)',-1); % [N_a,N_bothz,N_semiz]
+                EV_d2z(isnan(EV_d2z))=0;
+                EV_d2z=sum(EV_d2z,2); % [N_a,1,N_semiz]
+
+                EVinterp_z=interp1(a_grid,EV_d2z,aprime_grid); % [n2aprime,1,N_semiz]
+
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d, n_a, [n_semiz,special_n_z], d12c_gridvals, a_grid, z_valblock, ReturnFnParamsVec,1);
+
+                %% Valt (beta)
+                entireRHS_z=ReturnMatrix_d2z+beta*shiftdim(EV_d2z,-1);
+                [~,maxindex]=max(entireRHS_z,[],2);
+                midpointV=max(min(maxindex,n_a-1),2);
+                aprimeindexesV=(midpointV+(midpointV-1)*n2short)+(-n2short-1:1:1+n2short);
+                ReturnMatrix_d2iiV=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d, [n_semiz,special_n_z], d12c_gridvals, aprime_grid(aprimeindexesV), a_grid, z_valblock, ReturnFnParamsVec,2);
+                aprimezV=aprimeindexesV+n2aprime*semizBind;
+                entireRHS_iiV=ReturnMatrix_d2iiV+beta*reshape(EVinterp_z(aprimezV),[N_d1*n2long,N_a,N_semiz]);
+                [Vtemp,maxindexL2alt]=max(entireRHS_iiV,[],1);
+                V_ford2_jj(:,semizblock,d2_c)=shiftdim(Vtemp,1);
+                Policy_V_ford2_jj(:,semizblock,d2_c)=shiftdim(maxindexL2alt,1);
+                d1_indalt=rem(maxindexL2alt-1,N_d1)+1;
+                allindalt=d1_indalt+N_d1*aind+N_d1*N_a*semizind;
+                midpointV_ford2_jj(:,semizblock,d2_c)=squeeze(midpointV(allindalt));
+                L2offsetalt   = ceil(maxindexL2alt/N_d1);
+                linidx_loweralt = d1_indalt                   + N_d1*n2long*aind + N_d1*n2long*N_a*semizind;
+                linidx_upperalt = d1_indalt + N_d1*(n2long-1) + N_d1*n2long*aind + N_d1*n2long*N_a*semizind;
+                isInfLoweralt    = (ReturnMatrix_d2iiV(linidx_loweralt) == -Inf);
+                isInfUpperalt    = (ReturnMatrix_d2iiV(linidx_upperalt) == -Inf);
+                inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
+                inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
+                flagV_ford2_jj(:,semizblock,d2_c) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), 1);
+
+                %% Vtilde (beta0beta)
+                entireRHS_z=ReturnMatrix_d2z+beta0beta*shiftdim(EV_d2z,-1);
+                [~,maxindex]=max(entireRHS_z,[],2);
+                midpoint=max(min(maxindex,n_a-1),2);
+                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short);
+                ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d, [n_semiz,special_n_z], d12c_gridvals, aprime_grid(aprimeindexes), a_grid, z_valblock, ReturnFnParamsVec,2);
+                aprimez=aprimeindexes+n2aprime*semizBind;
+                entireRHS_ii=ReturnMatrix_d2ii+beta0beta*reshape(EVinterp_z(aprimez),[N_d1*n2long,N_a,N_semiz]);
+                [Vtemp,maxindex]=max(entireRHS_ii,[],1);
+
+                Valt_ford2_jj(:,semizblock,d2_c)=shiftdim(Vtemp,1);
+                Policy_ford2_jj(:,semizblock,d2_c)=shiftdim(maxindex,1);
+
+                d1_ind=rem(maxindex-1,N_d1)+1;
+                allind=d1_ind+N_d1*aind+N_d1*N_a*semizind;
+                midpoint_ford2_jj(:,semizblock,d2_c)=squeeze(midpoint(allind));
+
+                L2offset      = ceil(maxindex/N_d1);
+                linidx_lower  = d1_ind                   + N_d1*n2long*aind + N_d1*n2long*N_a*semizind;
+                linidx_upper  = d1_ind + N_d1*(n2long-1) + N_d1*n2long*aind + N_d1*n2long*N_a*semizind;
+                isInfLower    = (ReturnMatrix_d2ii(linidx_lower) == -Inf);
+                isInfUpper    = (ReturnMatrix_d2ii(linidx_upper) == -Inf);
+                inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+                inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+                flag_ford2_jj(:,semizblock,d2_c) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), 1);
+            end
+        end
+    elseif vfoptions.lowmemory==2 % joint loop over bothz
         for d2_c=1:N_d2
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d2_c,N_j));
             d12c_gridvals=d12_gridvals(:,:,d2_c);

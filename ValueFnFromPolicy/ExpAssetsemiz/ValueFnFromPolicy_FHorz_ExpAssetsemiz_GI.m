@@ -51,7 +51,7 @@ else
 end
 
 if isscalar(n_a)
-    error('ValueFnFromPolicy_FHorz_ExpAssetsemiz_GI: case with no a1 (experience asset as only asset) not yet implemented')
+    error('ValueFnFromPolicy_FHorz_ExpAssetsemiz_GI: with noa1 there is no standard endogenous asset to interpolate (turn off vfoptions.gridinterplayer)')
 end
 n_a1=n_a(1:end-1);
 N_a1=prod(n_a1);

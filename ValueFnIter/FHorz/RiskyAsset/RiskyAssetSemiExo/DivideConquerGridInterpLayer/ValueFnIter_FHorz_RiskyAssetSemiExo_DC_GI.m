@@ -15,6 +15,9 @@ N_e=prod(vfoptions.n_e);
 if N_a1==0
     error('Cannot use vfoptions.divideandconquer with riskyasset+semiz DC_GI if there is no standard endogenous state (N_a1==0)')
 end
+if length(n_a1)>1
+    error('riskyasset with two standard endogenous assets: divideandconquer+gridinterplayer (DC2A_GI2A) is not yet implemented (no 2A raws for this family)')
+end
 if ~isfield(vfoptions,'level1n')
     vfoptions.level1n=floor(sqrt(n_a1(1)));
     if n_a1(1)<5
@@ -24,7 +27,7 @@ if ~isfield(vfoptions,'level1n')
         fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
     end
 end
-vfoptions.level1n=min(vfoptions.level1n,n_a1);
+vfoptions.level1n=min(vfoptions.level1n,n_a1(1)); % n_a1(1): level1n is scalar, and with two standard assets it is a1_1 that is divide-conquered
 if ~isfield(vfoptions,'ngridinterp')
     vfoptions.ngridinterp=9;
 end

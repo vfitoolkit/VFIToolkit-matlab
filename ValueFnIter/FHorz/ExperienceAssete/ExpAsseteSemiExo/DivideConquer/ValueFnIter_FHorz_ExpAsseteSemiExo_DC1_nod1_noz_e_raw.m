@@ -196,9 +196,9 @@ else
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,N_j);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_byzcur=reshape(EV,[N_a,N_semiz]);
@@ -255,9 +255,9 @@ else
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,N_j);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_byzcur=reshape(EV,[N_a,N_semiz]);
@@ -319,9 +319,9 @@ else
     elseif vfoptions.lowmemory==2
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,N_j);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_byzcur=reshape(EV,[N_a,N_semiz]);
@@ -418,9 +418,9 @@ for reverse_j=1:N_j-1
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,jj);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_byzcur=reshape(EV,[N_a,N_semiz]);
@@ -477,9 +477,9 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,jj);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_byzcur=reshape(EV,[N_a,N_semiz]);
@@ -541,9 +541,9 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==2
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,jj);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_byzcur=reshape(EV,[N_a,N_semiz]);

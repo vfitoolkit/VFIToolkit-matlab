@@ -175,7 +175,7 @@ else
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
-            EVinterp_d2=interp1(a_grid,EV,aprime_grid);
+            EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
 
             ReturnMatrix_d2=CreateReturnFnMatrix_Disc(ReturnFn, special_n_d2, n_a, n_bothz, d2_val, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2;

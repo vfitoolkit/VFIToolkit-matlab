@@ -532,7 +532,7 @@ for reverse_j=1:N_j-1
             % d3_val=d3_grid(d3_c);
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_bothz=pi_semiz_J(:,:,d3_c,N_j);
+            pi_bothz=pi_semiz_J(:,:,d3_c,jj);
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
@@ -610,7 +610,7 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_bothz=pi_semiz_J(:,:,d3_c,N_j);
+            pi_bothz=pi_semiz_J(:,:,d3_c,jj);
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
@@ -692,7 +692,7 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_bothz=pi_semiz_J(:,:,d3_c,N_j);
+            pi_bothz=pi_semiz_J(:,:,d3_c,jj);
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)

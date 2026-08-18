@@ -167,7 +167,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_z]);    % First, switch V_Jplus1 into Kron form
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
 
     if vfoptions.lowmemory==0
     for d2_c=1:N_d2
@@ -200,7 +200,7 @@ else
                 % loweredge is 1-by-1-by-n_semiz
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are maxgap(ii)+1-by-1-by-n_semiz
-                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d2, n_semiz, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d2, n_semiz, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
                 aprimez=aprimeindexes+N_a*semizind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez),[(maxgap(ii)+1),1,N_semiz]); % autoexpand level1iidiff(ii) in 2nd-dim
                 [~,maxindex]=max(entireRHS_ii,[],1);
@@ -217,14 +217,14 @@ else
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         % aprime possibilities are n2long-by-n_a-by-n_semiz
         ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d2, n_semiz, d2_val, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
-        aprimez=aprimeindexes+N_a*semizind; % the current aprime
+        aprimez=aprimeindexes+n2aprime*semizind; % the current aprime
         entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez),[n2long,N_a,N_semiz]);
         [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
         V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
         Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
 
-        allind=aind2+n2aprime*semizind; % loweredge is n_d-by-1-by-n_a-by-n_semiz
+        allind=aind2+N_a*semizind; % loweredge is 1-by-n_a-by-n_semiz
         midpoint_ford2_jj(:,:,d2_c)=squeeze(midpoints_jj(allind));
 
         % L2 flag for this d2
@@ -270,7 +270,7 @@ else
                         % loweredge is 1-by-1
                         aprimeindexes=loweredge+(0:1:maxgap(ii))';
                         % aprime possibilities are maxgap(ii)+1-by-1
-                        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d2, special_n_semiz, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_val, ReturnFnParamsVec,2);
+                        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, special_n_d2, special_n_semiz, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_val, ReturnFnParamsVec,5);
                         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2z(aprimeindexes),[(maxgap(ii)+1),1]); % autoexpand level1iidiff(ii) in 2nd-dim
                         [~,maxindex]=max(entireRHS_ii,[],1);
                         midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);

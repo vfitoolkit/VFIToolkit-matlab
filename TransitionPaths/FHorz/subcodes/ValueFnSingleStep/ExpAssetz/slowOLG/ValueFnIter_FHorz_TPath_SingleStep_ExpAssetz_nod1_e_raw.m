@@ -119,7 +119,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,N_j);
+            e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
             entireRHS_e=ReturnMatrix_e+DiscountedEV;
@@ -132,10 +132,10 @@ for reverse_j=1:N_j-1
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
-            z_val=z_gridvals_J(z_c,:,N_j);
+            z_val=z_gridvals_J(z_c,:,jj);
             DiscountedEV_z=DiscountedEV(:,:,z_c);
             for e_c=1:N_e
-                e_val=e_gridvals_J(e_c,:,N_j);
+                e_val=e_gridvals_J(e_c,:,jj);
                 ReturnMatrix_ze=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0); % Level=0, Refine=0
 
                 entireRHS_ze=ReturnMatrix_ze+DiscountedEV_z;

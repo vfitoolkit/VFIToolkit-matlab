@@ -21,8 +21,27 @@ else
     l_d=length(n_d);
 end
 l_aprime=length(n_aprime);
-if simoptions.experienceasset>=1 || simoptions.experienceassetu>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassete>=1 || simoptions.riskyasset==1 || simoptions.experienceassetsemiz>=1
-    l_aprime=l_aprime-1;
+% Note: the experienceasset options are counts of how many trailing assets are not chosen directly (matches PolicyInd2Val); riskyasset is always just one
+if isfield(simoptions,'experienceasset') && simoptions.experienceasset>0
+    l_aprime=length(n_aprime)-simoptions.experienceasset;
+end
+if isfield(simoptions,'experienceassetu') && simoptions.experienceassetu>0
+    l_aprime=length(n_aprime)-simoptions.experienceassetu;
+end
+if isfield(simoptions,'experienceassetz') && simoptions.experienceassetz>0
+    l_aprime=length(n_aprime)-simoptions.experienceassetz;
+end
+if isfield(simoptions,'experienceassetze') && simoptions.experienceassetze>0
+    l_aprime=length(n_aprime)-simoptions.experienceassetze;
+end
+if isfield(simoptions,'experienceassete') && simoptions.experienceassete>0
+    l_aprime=length(n_aprime)-simoptions.experienceassete;
+end
+if isfield(simoptions,'experienceassetsemiz') && simoptions.experienceassetsemiz>0
+    l_aprime=length(n_aprime)-simoptions.experienceassetsemiz;
+end
+if isfield(simoptions,'riskyasset') && simoptions.riskyasset>0
+    l_aprime=length(n_aprime)-1;
 end
 
 N_a=prod(n_a);

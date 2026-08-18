@@ -41,91 +41,25 @@ end
 isNaive=strcmp(vfoptions.quasi_hyperbolic,'Naive');
 
 %% _e branch: i.i.d. e shock present
+%% Dispatch to the method sub-dispatchers (each UnKrons its own results)
+if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
+    [V1,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetz_DC_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    varargout={V1, Policy, Valt, Policyalt};
+    return
+elseif vfoptions.divideandconquer==1
+    [V1,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetz_DC(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    varargout={V1, Policy, Valt, Policyalt};
+    return
+elseif vfoptions.gridinterplayer==1
+    [V1,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetz_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    varargout={V1, Policy, Valt, Policyalt};
+    return
+end
+
+%% _e branch: i.i.d. e shock present
 if N_e>0
     e_gridvals_J=vfoptions.e_gridvals_J;
     pi_e_J=vfoptions.pi_e_J;
-
-    if length(n_a1)>1 && (vfoptions.divideandconquer==1 || vfoptions.gridinterplayer==1)
-        n_a1DC=n_a1(1);
-        n_a1fold=n_a1(2:end);
-        N_a1DC=prod(n_a1DC);
-        a1DC_grid=a1_gridvals(1:N_a1DC,1);
-        a1fold_gridvals=a1_gridvals(1:N_a1DC:end,2:end);
-
-        if ~isfield(vfoptions,'level1n')
-            vfoptions.level1n=floor(sqrt(n_a1DC));
-        end
-        vfoptions.level1n=min(vfoptions.level1n,n_a1DC);
-
-        if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==0
-            if isNaive
-                if N_d1==0
-                    [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_DC2A_nod1_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_DC2A_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            else
-                if N_d1==0
-                    [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_DC2A_nod1_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_DC2A_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            end
-        elseif vfoptions.divideandconquer==0 && vfoptions.gridinterplayer==1
-            if isNaive
-                if N_d1==0
-                    [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_GI2A_nod1_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_GI2A_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            else
-                if N_d1==0
-                    [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_GI2A_nod1_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_GI2A_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            end
-        elseif vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
-            if isNaive
-                if N_d1==0
-                    [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_DC2A_GI2A_nod1_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_DC2A_GI2A_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            else
-                if N_d1==0
-                    [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_DC2A_GI2A_nod1_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_DC2A_GI2A_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            end
-        end
-
-        % Unkron (DC2A+e)
-        n_a=[n_a1,n_a2];
-        if N_d1==0
-            nDPolicyChannel=n_d2;
-        else
-            nDPolicyChannel=[n_d1,n_d2];
-        end
-        if vfoptions.outputkron==1
-            V1=V1Kron; Policy=PolicyKron; Valt=ValtKron;
-            if isNaive, Policyalt=PolicyaltKron; end
-        else
-            V1=reshape(V1Kron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-            Valt=reshape(ValtKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            if isNaive
-                Policyalt=UnKronPolicyIndexes3_FHorz_z_e(PolicyaltKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-            end
-        end
-        if isNaive
-            varargout={V1, Policy, Valt, Policyalt};
-        else
-            varargout={V1, Policy, Valt, []};
-        end
-        return
-    end
 
     %% Baseline _e (no DC, no GI)
     if vfoptions.divideandconquer==1 || vfoptions.gridinterplayer==1
@@ -133,7 +67,11 @@ if N_e>0
     end
     if isNaive
         if N_a1==0
-            error('noa1 _e variant not yet implemented')
+            if N_d1==0
+                [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_nod1_noa1_e_raw(n_d2,n_a2,n_z,vfoptions.n_e,N_j, d2_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_noa1_e_raw(n_d1,n_d2,n_a2,n_z,vfoptions.n_e,N_j, d_gridvals, d2_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
         elseif N_d1==0
             [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_nod1_e_raw(n_d2,n_a1,n_a2,n_z,vfoptions.n_e,N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         else
@@ -141,7 +79,11 @@ if N_e>0
         end
     else
         if N_a1==0
-            error('noa1 _e variant not yet implemented')
+            if N_d1==0
+                [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_nod1_noa1_e_raw(n_d2,n_a2,n_z,vfoptions.n_e,N_j, d2_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_noa1_e_raw(n_d1,n_d2,n_a2,n_z,vfoptions.n_e,N_j, d_gridvals, d2_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
         elseif N_d1==0
             [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_nod1_e_raw(n_d2,n_a1,n_a2,n_z,vfoptions.n_e,N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         else
@@ -150,7 +92,11 @@ if N_e>0
     end
 
     % Unkron (baseline+e)
-    n_a=[n_a1,n_a2];
+    if N_a1>0
+        n_a=[n_a1,n_a2];
+    else
+        n_a=n_a2; % noa1: the experience asset is the only endogenous state
+    end
     if N_d1==0
         n_d=n_d2;
     else
@@ -162,6 +108,8 @@ if N_e>0
     else
         if prod(n_d)==0
             n_daprime=n_a;
+        elseif N_a1==0
+            n_daprime=n_d; % noa1: Policy carries no a1prime channel
         else
             n_daprime=[n_d,n_a1];
         end
@@ -180,96 +128,6 @@ if N_e>0
     return
 end
 
-%% DC2A / GI2A / DC2A_GI2A branch (multi-dim n_a1 + DC or GI requested)
-% Raw signature: (..., n_a1=n_a1DC, n_a2=n_a1fold, n_a3=user's n_a2 expasset, ...)
-if length(n_a1)>1 && (vfoptions.divideandconquer==1 || vfoptions.gridinterplayer==1)
-    n_a1DC=n_a1(1);
-    n_a1fold=n_a1(2:end);
-    N_a1DC=prod(n_a1DC);
-    a1DC_grid=a1_gridvals(1:N_a1DC,1);
-    a1fold_gridvals=a1_gridvals(1:N_a1DC:end,2:end);
-
-    if ~isfield(vfoptions,'level1n')
-        vfoptions.level1n=floor(sqrt(n_a1DC));
-    end
-    vfoptions.level1n=min(vfoptions.level1n,n_a1DC);
-
-    if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==0
-        if isNaive
-            if N_d1==0
-                [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_DC2A_nod1_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            else
-                [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_DC2A_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            end
-        else
-            if N_d1==0
-                [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_DC2A_nod1_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            else
-                [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_DC2A_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            end
-        end
-    elseif vfoptions.divideandconquer==0 && vfoptions.gridinterplayer==1
-        if isNaive
-            if N_d1==0
-                [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_GI2A_nod1_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            else
-                [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_GI2A_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            end
-        else
-            if N_d1==0
-                [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_GI2A_nod1_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            else
-                [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_GI2A_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            end
-        end
-    elseif vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
-        if isNaive
-            if N_d1==0
-                [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_DC2A_GI2A_nod1_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            else
-                [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_DC2A_GI2A_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            end
-        else
-            if N_d1==0
-                [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_DC2A_GI2A_nod1_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            else
-                [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_DC2A_GI2A_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            end
-        end
-    end
-
-    %% Unkron (DC2A path)
-    n_a=[n_a1,n_a2];
-    if N_d1==0
-        nDPolicyChannel=n_d2;
-    else
-        nDPolicyChannel=[n_d1,n_d2];
-    end
-
-    if vfoptions.outputkron==1
-        V1=V1Kron;
-        Policy=PolicyKron;
-        Valt=ValtKron;
-        if isNaive
-            Policyalt=PolicyaltKron;
-        end
-    else
-        V1=reshape(V1Kron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, n_z, N_j, vfoptions);
-        Valt=reshape(ValtKron,[n_a,n_z,N_j]);
-        if isNaive
-            Policyalt=UnKronPolicyIndexes3_FHorz_z(PolicyaltKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, n_z, N_j, vfoptions);
-        end
-    end
-
-    if isNaive
-        varargout={V1, Policy, Valt, Policyalt};
-    else
-        varargout={V1, Policy, Valt, []};
-    end
-    return
-end
-
 
 %% Baseline dispatch (no DC, no GI; n_a1 may be scalar or multi-dim — collapsed via prod inside raws)
 if vfoptions.divideandconquer==1 || vfoptions.gridinterplayer==1
@@ -278,7 +136,11 @@ end
 
 if isNaive
     if N_a1==0
-        error('noa1 variant not yet implemented')
+        if N_d1==0
+            [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_nod1_noa1_raw(n_d2,n_a2,n_z,N_j, d2_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        else
+            [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_noa1_raw(n_d1,n_d2,n_a2,n_z,N_j, d_gridvals, d2_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        end
     elseif N_d1==0
         [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzN_nod1_raw(n_d2,n_a1,n_a2,n_z,N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
     else
@@ -286,7 +148,11 @@ if isNaive
     end
 else
     if N_a1==0
-        error('noa1 variant not yet implemented')
+        if N_d1==0
+            [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_nod1_noa1_raw(n_d2,n_a2,n_z,N_j, d2_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        else
+            [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_noa1_raw(n_d1,n_d2,n_a2,n_z,N_j, d_gridvals, d2_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        end
     elseif N_d1==0
         [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_nod1_raw(n_d2,n_a1,n_a2,n_z,N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
     else
@@ -295,7 +161,11 @@ else
 end
 
 %% Unkron (baseline)
-n_a=[n_a1,n_a2];
+if N_a1>0
+    n_a=[n_a1,n_a2];
+else
+    n_a=n_a2; % noa1: the experience asset is the only endogenous state
+end
 N_a=prod(n_a);
 if N_d1==0
     n_d=n_d2;
@@ -314,6 +184,8 @@ if vfoptions.outputkron==1
 else
     if N_d==0
         n_daprime=n_a;
+    elseif N_a1==0
+        n_daprime=n_d; % noa1: Policy carries no a1prime channel
     else
         n_daprime=[n_d,n_a1];
     end

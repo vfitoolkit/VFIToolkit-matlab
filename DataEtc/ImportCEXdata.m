@@ -25,6 +25,11 @@ function output=ImportCEXdata(directory,yearfromstr,yeartostr)
 %     locates it case-insensitively
 %   - 1984-1989 interview folders contain only FMLI files (MTBI/MEMI/ITBI
 %     not released); the loader skips missing files with a warning
+%   - Q1 interview files ship in the previous year's folder for 1980-81 and
+%     1996+ (e.g. fmli961 in intrvw95) but in the year's own folder for
+%     1990-95 (e.g. fmli901 in intrvw90); both locations are checked
+%   - a year whose own interview folder is absent (1982/1983) still gets its
+%     Q1 file loaded from the previous year's folder when present
 %   - 2017 and 2019 wrap their contents inside a same-named subfolder
 
 output=struct();
@@ -51,9 +56,18 @@ for ii_year=yearfrom:yearto
     interviewfolder         = descendIfNested(interviewfolder,         ['intrvw', yy]);
     interviewfolder_tminus1 = descendIfNested(interviewfolder_tminus1, ['intrvw', yy_prev]);
 
-    if isempty(interviewfolder)
+    if isempty(interviewfolder) && isempty(interviewfolder_tminus1)
         warning('ImportCEXdata: interview folder for %s not found; skipping year', ii_yearstr);
     else
+        if isempty(interviewfolder)
+            % Own folder missing (e.g. 1982/1983, which BLS never released)
+            % but the previous year's folder exists and may still hold this
+            % year's Q1 file (e.g. mtbi821.csv sits in intrvw81). Proceed so
+            % the Q1 lookup below can pick it up; Q2-Q4 will simply not be
+            % found.
+            warning('ImportCEXdata: interview folder for %s not found; only Q1 (from the previous year''s folder) can be loaded', ii_yearstr);
+        end
+
         % File set depends on year (BLS added ITII in 2004 and NTAXI in 2013 Q2)
         if ii_year>=2013
             interviewfiles      ={'fmli','mtbi','memi','itbi','itii','ntaxi'};
@@ -78,15 +92,20 @@ for ii_year=yearfrom:yearto
                 end
             end
 
-            % Q1 lives in the previous year's folder (except for the very
-            % first year on disk: 1980)
+            % Q1: the BLS folder convention changed over time.
+            %   1980-81 and 1996+ : Q1 of year Y ships in year Y-1's folder
+            %                       (e.g. fmli961 in intrvw95, fmli971 in
+            %                       intrvw96; 1996+ also carry a same-year
+            %                       revised 'x' variant, e.g. fmli961x).
+            %   1990-1995         : Q1 of year Y ships in year Y's own folder
+            %                       (e.g. fmli901 in intrvw90).
+            % So: try the previous year's folder first, then fall back to
+            % this year's own folder. (1980 itself is covered by the
+            % fallback: intrvw79 does not exist, fmli801 is in intrvw80.)
             qq=1;
-            if ii_year==1980
+            fpath = locateCsvFile(interviewfolder_tminus1, [stub, yy, num2str(qq)]);
+            if isempty(fpath)
                 fpath = locateCsvFile(interviewfolder, [stub, yy, num2str(qq)]);
-            elseif ~isempty(interviewfolder_tminus1)
-                fpath = locateCsvFile(interviewfolder_tminus1, [stub, yy, num2str(qq)]);
-            else
-                fpath = '';
             end
             if ~isempty(fpath)
                 output.(fieldname).(['Y',ii_yearstr,'Q',num2str(qq)]) = importCEX_interviewfile(fpath);

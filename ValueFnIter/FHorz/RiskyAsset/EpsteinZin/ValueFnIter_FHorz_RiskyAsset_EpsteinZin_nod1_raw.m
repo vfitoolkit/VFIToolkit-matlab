@@ -72,19 +72,22 @@ if warmglow==1
 
     % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
     % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-    skipinterp=logical(WGmatrix(aprimeIndex)==WGmatrix(aprimeplus1Index)); % Note, probably just do this off of a2prime values
-    aprimeProbs(skipinterp)=0;
+    % WG depends only on a2prime (which depends on (d,u), not on a1prime), so use the a2-only indices
+    skipinterp=logical(WGmatrix(a2primeIndex)==WGmatrix(a2primeIndex+1)); % Note, probably just do this off of a2prime values
+    a2primeProbsWG=a2primeProbs;
+    a2primeProbsWG(skipinterp)=0;
 
-    WG1=WGmatrix(aprimeIndex); % (d,u), the lower aprime
-    WG2=WGmatrix(aprimeplus1Index); % (d,u), the upper aprime
-    % Apply the aprimeProbs
-    WG1=reshape(WG1,[N_d23*N_a1,N_u]).*aprimeProbs; % probability of lower grid point
-    WG2=reshape(WG2,[N_d23*N_a1,N_u]).*(1-aprimeProbs); % probability of upper grid point
+    WG1=WGmatrix(a2primeIndex); % (d,u), the lower a2prime
+    WG2=WGmatrix(a2primeIndex+1); % (d,u), the upper a2prime
+    % Apply the a2primeProbs
+    WG1=reshape(WG1,[N_d23,N_u]).*a2primeProbsWG; % probability of lower grid point
+    WG2=reshape(WG2,[N_d23,N_u]).*(1-a2primeProbsWG); % probability of upper grid point
     % If WG1 or WG2 is infinite, and probability is zero, we will get a nan, so get rid of these
     WG1(isnan(WG1))=0;
     WG2(isnan(WG2))=0;
     % Expectation over u (using pi_u), and then add the lower and upper
-    WGmatrix=sum((WG1.*pi_u'),2)+sum((WG2.*pi_u'),2); % (d-a1prime,1), sum over u
+    WGmatrix=sum((WG1.*pi_u'),2)+sum((WG2.*pi_u'),2); % (d,1), sum over u
+    WGmatrix=repmat(WGmatrix,N_a1,1); % (d-a1prime,1): WG does not depend on a1prime, expand to the (d,a1prime) rows
 
     % WGmatrix is over (d-a1prime,1)
     if ~isfield(vfoptions,'V_Jplus1')
@@ -95,9 +98,7 @@ if warmglow==1
     % Now just make it the right shape (currently has d-a1prime, needs the a,z dimensions)
     if isfield(vfoptions,'V_Jplus1')
         if vfoptions.lowmemory==0
-            WGmatrix=repmat(WGmatrix,1,N_a,N_z);
-        elseif vfoptions.lowmemory==1
-            WGmatrix=repmat(WGmatrix,1,N_a);
+            WGmatrix=WGmatrix.*ones(1,1,N_z); % (d-a1prime,1,z), matching temp4 (same shaping as the main loop; lowmemory==1 keeps the column)
         end
     end
 else
@@ -182,7 +183,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a2,N_z]);    % First, switch V_Jplus1 into Kron form
+    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
 
     if warmglow==0 % if warmglow==1 these were already created above
         aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -217,13 +218,14 @@ else
 
         % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
         % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-        skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
-        aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+        skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
+        aprimeProbs=repmat(a2primeProbs,N_a1,N_z);  % [N_d*N_a1,N_u]
         aprimeProbs(skipinterp)=0;
+        aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_z]);
 
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-        EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
-        EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
+        EV1=EV(aprimeIndex(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
+        EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
 
         % Apply the aprimeProbs
         EV1=reshape(EV1,[N_d23*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
@@ -325,7 +327,7 @@ else
             V(:,z_c,N_j)=Vtemp;
             Policy(2,:,z_c,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
             Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d3),1);
-            Policy(1,:,:,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in temp4
+            Policy(1,:,z_c,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in temp4
         end
 
     end
@@ -369,22 +371,22 @@ for reverse_j=1:N_j-1
 
         % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
         % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-        skipinterp=logical(WGmatrix(aprimeIndex)==WGmatrix(aprimeplus1Index)); % Note, probably just do this off of a2prime values
-        aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
-        aprimeProbs(skipinterp)=0;
+        % WG depends only on a2prime (which depends on (d,u), not on a1prime), so use the a2-only indices
+        skipinterp=logical(WGmatrix(a2primeIndex)==WGmatrix(a2primeIndex+1)); % Note, probably just do this off of a2prime values
+        a2primeProbsWG=a2primeProbs;
+        a2primeProbsWG(skipinterp)=0;
 
-        % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
-        WG1=WGmatrix(aprimeIndex); % (d,u), the lower aprime
-        WG2=WGmatrix(aprimeplus1Index); % (d,u), the upper aprime
-        % Apply the aprimeProbs
-        WG1=reshape(WG1,[N_d23*N_a1,N_u]).*aprimeProbs; % probability of lower grid point
-        WG2=reshape(WG2,[N_d23*N_a1,N_u]).*(1-aprimeProbs); % probability of upper grid point
+        WG1=WGmatrix(a2primeIndex); % (d,u), the lower a2prime
+        WG2=WGmatrix(a2primeIndex+1); % (d,u), the upper a2prime
+        % Apply the a2primeProbs
+        WG1=reshape(WG1,[N_d23,N_u]).*a2primeProbsWG; % probability of lower grid point
+        WG2=reshape(WG2,[N_d23,N_u]).*(1-a2primeProbsWG); % probability of upper grid point
         % If WG1 or WG2 is infinite, and probability is zero, we will get a nan, so get rid of these
         WG1(isnan(WG1))=0;
         WG2(isnan(WG2))=0;
         % Expectation over u (using pi_u), and then add the lower and upper
         WGmatrix=sum((WG1.*pi_u'),2)+sum((WG2.*pi_u'),2); % (d,1), sum over u
-        % WGmatrix is over (d,1)
+        WGmatrix=repmat(WGmatrix,N_a1,1); % (d-a1prime,1): WG does not depend on a1prime, expand to the (d,a1prime) rows
         % Now just make it the right shape (currently has aprime, needs the d,a,z dimensions)
         if vfoptions.lowmemory==0
             WGmatrix=WGmatrix.*ones(1,1,N_z);
@@ -522,7 +524,7 @@ for reverse_j=1:N_j-1
             V(:,z_c,jj)=Vtemp;
             Policy(2,:,z_c,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
             Policy(3,:,z_c,jj)=shiftdim(ceil(maxindex/N_d3),1);
-            Policy(1,:,:,jj)=shiftdim(d2index(maxindex),1); % note: no a nor z in temp4
+            Policy(1,:,z_c,jj)=shiftdim(d2index(maxindex),1); % note: no a nor z in temp4
         end
 
     end

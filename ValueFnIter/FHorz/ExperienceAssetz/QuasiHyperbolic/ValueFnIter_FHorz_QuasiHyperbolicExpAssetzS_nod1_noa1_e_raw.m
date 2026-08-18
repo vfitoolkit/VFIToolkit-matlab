@@ -1,0 +1,197 @@
+function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzS_nod1_noa1_e_raw(n_d2,n_a2,n_z,n_e,N_j, d2_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+% Sophisticated QH + experienceassetz, no-d1 variant.
+
+N_d2=prod(n_d2);
+N_a2=prod(n_a2);
+N_a=N_a2;
+N_z=prod(n_z);
+N_e=prod(n_e);
+
+Vhat=zeros(N_a,N_z,N_e,N_j,'gpuArray');
+Vunderbar=zeros(N_a,N_z,N_e,N_j,'gpuArray');
+Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray');
+
+
+if vfoptions.lowmemory==1
+    special_n_e=ones(1,length(n_e));
+elseif vfoptions.lowmemory==2
+    special_n_z=ones(1,length(n_z));
+    special_n_e=ones(1,length(n_e));
+end
+
+%% j=N_j (terminal)
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
+
+if ~isfield(vfoptions,'V_Jplus1')
+    if vfoptions.lowmemory==0
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d2, n_a2, n_z, n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+        Vhat(:,:,:,N_j)=shiftdim(Vtemp,1);
+        Policy(:,:,:,N_j)=shiftdim(maxindex,1);
+    elseif vfoptions.lowmemory==1
+        for e_c=1:N_e
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d2, n_a2, n_z, special_n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+            [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
+            Vhat(:,:,e_c,N_j)=shiftdim(Vtemp,1);
+            Policy(:,:,e_c,N_j)=shiftdim(maxindex,1);
+        end
+    elseif vfoptions.lowmemory==2
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,N_j);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d2, n_a2, special_n_z, special_n_e, d2_gridvals, a2_grid, z_val, e_val, ReturnFnParamsVec);
+                [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
+                Vhat(:,z_c,e_c,N_j)=Vtemp;
+                Policy(:,z_c,e_c,N_j)=maxindex;
+            end
+        end
+    end
+    Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j);
+else
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    beta=prod(DiscountFactorParamsVec);
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,N_j);
+    beta0beta=beta0*beta;
+
+    EVpre=sum(shiftdim(pi_e_J(:,N_j+1),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),3);
+
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix(aprimeFn, n_d2, n_a2, n_z, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), aprimeFnParamsVec,2);
+
+
+    Vlower=reshape(EVpre(a2primeIndex(:),:),[N_d2,N_a2,N_z,N_z]); % (d2,a2,z,zprime)
+    Vupper=reshape(EVpre(a2primeIndex(:)+1,:),[N_d2,N_a2,N_z,N_z]);
+    a2primeProbs=repmat(a2primeProbs,1,1,1,N_z); % [N_d2,N_a2,N_z,N_zprime]
+    skipinterp=(Vlower==Vupper);
+    a2primeProbs(skipinterp)=0;
+
+    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper;
+    EV=EV.*shiftdim(pi_z_J(:,:,N_j),-2);
+    EV(isnan(EV))=0;
+    EV=squeeze(sum(EV,4));
+
+    entireEV=EV;
+
+    if vfoptions.lowmemory==0
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d2, n_a2, n_z, n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+
+        entireRHS_hat=ReturnMatrix+beta0beta*entireEV;
+        [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+        Vhat(:,:,:,N_j)=shiftdim(Vtemp,1);
+        Policy(:,:,:,N_j)=shiftdim(maxindex,1);
+        entireRHS_std=ReturnMatrix+beta*entireEV;
+        maxindexfull=maxindex+N_d2*(0:1:N_a-1)+shiftdim(N_d2*N_a*(0:1:N_z-1),-1)+shiftdim(N_d2*N_a*N_z*(0:1:N_e-1),-2);
+        Vunderbar(:,:,:,N_j)=shiftdim(entireRHS_std(maxindexfull),1);
+    elseif vfoptions.lowmemory==1
+        for e_c=1:N_e
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d2, n_a2, n_z, special_n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+
+            entireRHS_hat=ReturnMatrix_e+beta0beta*entireEV;
+            [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+            Vhat(:,:,e_c,N_j)=shiftdim(Vtemp,1);
+            Policy(:,:,e_c,N_j)=shiftdim(maxindex,1);
+            entireRHS_std=ReturnMatrix_e+beta*entireEV;
+            maxindexfull=maxindex+N_d2*(0:1:N_a-1)+shiftdim(N_d2*N_a*(0:1:N_z-1),-1);
+            Vunderbar(:,:,e_c,N_j)=shiftdim(entireRHS_std(maxindexfull),1);
+        end
+    elseif vfoptions.lowmemory==2
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,N_j);
+            entireEV_z=entireEV(:,:,z_c);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d2, n_a2, special_n_z, special_n_e, d2_gridvals, a2_grid, z_val, e_val, ReturnFnParamsVec);
+
+                entireRHS_hat=ReturnMatrix_ze+beta0beta*entireEV_z;
+                [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+                Vhat(:,z_c,e_c,N_j)=Vtemp;
+                Policy(:,z_c,e_c,N_j)=maxindex;
+                entireRHS_std=ReturnMatrix_ze+beta*entireEV_z;
+                maxindexfull=maxindex+N_d2*(0:1:N_a-1);
+                Vunderbar(:,z_c,e_c,N_j)=entireRHS_std(maxindexfull);
+            end
+        end
+    end
+end
+
+%% Backward induction
+for reverse_j=1:N_j-1
+    jj=N_j-reverse_j;
+    if vfoptions.verbose==1
+        fprintf('Finite horizon: %i of %i \n',jj, N_j)
+    end
+
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+    beta=prod(DiscountFactorParamsVec);
+    beta0=CreateVectorFromParams(Parameters,vfoptions.QHadditionaldiscount,jj);
+    beta0beta=beta0*beta;
+
+    EVpre=sum(shiftdim(pi_e_J(:,jj+1),-2).*Vunderbar(:,:,:,jj+1),3);
+
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix(aprimeFn, n_d2, n_a2, n_z, d2_gridvals, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec,2);
+
+
+    Vlower=reshape(EVpre(a2primeIndex(:),:),[N_d2,N_a2,N_z,N_z]); % (d2,a2,z,zprime)
+    Vupper=reshape(EVpre(a2primeIndex(:)+1,:),[N_d2,N_a2,N_z,N_z]);
+    a2primeProbs=repmat(a2primeProbs,1,1,1,N_z); % [N_d2,N_a2,N_z,N_zprime]
+    skipinterp=(Vlower==Vupper);
+    a2primeProbs(skipinterp)=0;
+
+    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper;
+    EV=EV.*shiftdim(pi_z_J(:,:,jj),-2);
+    EV(isnan(EV))=0;
+    EV=squeeze(sum(EV,4));
+
+    entireEV=EV;
+
+    if vfoptions.lowmemory==0
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d2, n_a2, n_z, n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+
+        entireRHS_hat=ReturnMatrix+beta0beta*entireEV;
+        [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+        Vhat(:,:,:,jj)=shiftdim(Vtemp,1);
+        Policy(:,:,:,jj)=shiftdim(maxindex,1);
+        entireRHS_std=ReturnMatrix+beta*entireEV;
+        maxindexfull=maxindex+N_d2*(0:1:N_a-1)+shiftdim(N_d2*N_a*(0:1:N_z-1),-1)+shiftdim(N_d2*N_a*N_z*(0:1:N_e-1),-2);
+        Vunderbar(:,:,:,jj)=shiftdim(entireRHS_std(maxindexfull),1);
+    elseif vfoptions.lowmemory==1
+        for e_c=1:N_e
+            e_val=e_gridvals_J(e_c,:,jj);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d2, n_a2, n_z, special_n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
+
+            entireRHS_hat=ReturnMatrix_e+beta0beta*entireEV;
+            [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+            Vhat(:,:,e_c,jj)=shiftdim(Vtemp,1);
+            Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
+            entireRHS_std=ReturnMatrix_e+beta*entireEV;
+            maxindexfull=maxindex+N_d2*(0:1:N_a-1)+shiftdim(N_d2*N_a*(0:1:N_z-1),-1);
+            Vunderbar(:,:,e_c,jj)=shiftdim(entireRHS_std(maxindexfull),1);
+        end
+    elseif vfoptions.lowmemory==2
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,jj);
+            entireEV_z=entireEV(:,:,z_c);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,jj);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d2, n_a2, special_n_z, special_n_e, d2_gridvals, a2_grid, z_val, e_val, ReturnFnParamsVec);
+
+                entireRHS_hat=ReturnMatrix_ze+beta0beta*entireEV_z;
+                [Vtemp,maxindex]=max(entireRHS_hat,[],1);
+                Vhat(:,z_c,e_c,jj)=Vtemp;
+                Policy(:,z_c,e_c,jj)=maxindex;
+                entireRHS_std=ReturnMatrix_ze+beta*entireEV_z;
+                maxindexfull=maxindex+N_d2*(0:1:N_a-1);
+                Vunderbar(:,z_c,e_c,jj)=entireRHS_std(maxindexfull);
+            end
+        end
+    end
+end
+
+Policy=shiftdim(Policy,-1);
+
+end

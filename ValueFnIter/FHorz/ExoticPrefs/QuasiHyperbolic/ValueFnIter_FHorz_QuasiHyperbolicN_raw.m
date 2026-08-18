@@ -77,7 +77,7 @@ else
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-        entireEV=repelem(EV,ones(N_d,1));
+        entireEV=repelem(EV,N_d,1,1);
 
         % For naive, we compute Valt which is the exponential
         % discounter case, and then from this we get Vtilde and

@@ -47,9 +47,9 @@ while ~feof(fid)
         if tt-1<currstart % Two consequtive commas signifies missing value
             currentrow(vv)={'nan'};
         elseif vv==counter % Treat end of line specially
-            currentrow(vv)={string(tline(currstart:end))};
+            currentrow(vv)={tline(currstart:end)};   % char, consistent with the 'nan' fill
         else
-            currentrow(vv)={string(tline(currstart:tt-1))};
+            currentrow(vv)={tline(currstart:tt-1)};  % char, consistent with the 'nan' fill
         end
         currstart=tt+1; % The one after the current comma
     end
@@ -69,16 +69,20 @@ output=cell2table(fullentries); % Turn fullentries into a table
 output.Properties.VariableNames = VariableNames; % Assign names to the columns of the table
 
 for vv=1:counter
-    try 
-        temp = str2double(output.(vv)); % Try to convert the column to double
+    % From 1996 on, BLS wraps many values in double-quotes (e.g. "1996"),
+    % which str2double cannot parse; strip them before attempting the
+    % numeric conversion. Columns that still fail to convert are kept as
+    % (dequoted) strings.
+    try
+        colstr = erase(string(output.(vv)), '"');
+        temp   = str2double(colstr); % Try to convert the column to double
     catch
-
+        continue
     end
-    % Check if temp is just all nan, if so, leave it as string
     if all(isnan(temp))
-        % Do nothing
+        output.(vv) = colstr;  % genuinely non-numeric: keep as dequoted string
     else
-        output.(vv)=temp;
+        output.(vv) = temp;
     end
 end
 

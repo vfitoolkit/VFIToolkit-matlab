@@ -288,7 +288,7 @@ else
                 [~,maxindex1]=max(entireRHS_ii,[],2);
 
                 % Now, get and store the full (d,aprime)
-                [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_z]),[],1);
+                [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n]),[],1);
 
                 % Store
                 V(level1ii,z_c,e_c,N_j)=shiftdim(Vtempii,1);

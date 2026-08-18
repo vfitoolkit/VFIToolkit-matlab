@@ -253,7 +253,7 @@ else
             EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
 
             % n-Monotonicity
-            ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2); % effectively nod (as just a single d2 point), so use level=2 even for first level
+            ReturnMatrix_d2ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,4);
             entireRHS_d2ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*EV_d2;
             % Treat standard problem as just being the first layer
             [~,maxindex1]=max(entireRHS_d2ii,[],1); % no d1
@@ -262,7 +262,7 @@ else
             midpoints_jj(1,level1ii,:,:)=maxindex1;
 
             % Second level based on monotonicity
-            maxgap=squeeze(max(max(maxindex(1,2:end,:,:)-maxindex(1,1:end-1,:,:),[],4),[],3));
+            maxgap=squeeze(max(max(maxindex1(1,2:end,:,:)-maxindex1(1,1:end-1,:,:),[],4),[],3));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                 if maxgap(ii)>0
@@ -270,7 +270,7 @@ else
                     % loweredge is 1-by-n_semiz-by-n_e
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
                     % aprime possibilities are maxgap(ii)+1-by-1-by-n_semiz-by-n_e
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,4);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
                     aprimez=aprimeindexes+N_a*semizind;
                     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez),[(maxgap(ii)+1),1,N_semiz,N_e]); % autoexpand level1iidiff(ii) in 2nd-dim
                     [~,maxindex]=max(entireRHS_ii,[],1);
@@ -292,7 +292,7 @@ else
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
-            Policy_ford2_jj(:,:,:,d2_c)=shiftdim(midpoints_jj,1);
+            Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
 
             midpoint_ford2_jj(:,:,:,d2_c)=squeeze(midpoints_jj); % no d1
 

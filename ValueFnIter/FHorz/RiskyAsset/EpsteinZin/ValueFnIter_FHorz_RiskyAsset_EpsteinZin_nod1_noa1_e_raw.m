@@ -486,10 +486,10 @@ for reverse_j=1:N_j-1
         temp4=EV;
         if warmglow==1
             becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-            temp4(becareful)=(sj(jj)*temp4(becareful)+(1-sj(jj))*WGmatrix(becareful)).^ezc6(jj);
+            temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
             temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
         else % not using warmglow
-            temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6(jj);
+            temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
             temp4(EV==0)=0;
         end
 
@@ -534,10 +534,10 @@ for reverse_j=1:N_j-1
         temp4=EV;
         if warmglow==1
             becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-            temp4(becareful)=(sj(jj)*temp4(becareful)+(1-sj(jj))*WGmatrix(becareful)).^ezc6(jj);
+            temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
             temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
         else % not using warmglow
-            temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6(jj);
+            temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
             temp4(EV==0)=0;
         end
 
@@ -597,10 +597,10 @@ for reverse_j=1:N_j-1
             temp4=EV_z;
             if warmglow==1
                 becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(jj)*temp4(becareful)+(1-sj(jj))*WGmatrix(becareful)).^ezc6(jj);
+                temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6(jj);
+                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
                 temp4(EV_z==0)=0;
             end
 

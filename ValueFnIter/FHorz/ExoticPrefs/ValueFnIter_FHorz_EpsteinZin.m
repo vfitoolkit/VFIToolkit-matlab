@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Epstein-Zin preferences
 % Formulation depends on whether using utility-units or consumption-units
 % See appendix to the 'Intro to Life-Cycle models' for an explanation
@@ -165,6 +165,16 @@ if vfoptions.EZutils==0
 end
 
 
+
+%% Semi-exogenous shocks route to their own subfn (mirrors ValueFnIter_FHorz_QuasiHyperbolic)
+if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
+        [V,Policy]=ValueFnIter_FHorz_EpsteinZin_SemiExo(n_d,n_a,n_z,vfoptions.n_semiz,N_j,d_grid,a_grid,z_gridvals_J,vfoptions.semiz_gridvals_J,pi_z_J,vfoptions.pi_semiz_J,ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions,sj,warmglow,ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+        return
+    end
+end
+
+d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 %% Warn if no shocks at all (allowed, but only makes sense as a no-shocks reference version of a model)
 if N_e==0 && N_z==0

@@ -74,7 +74,7 @@ else
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-        entireEV=repelem(EV,ones(N_d,1));
+        entireEV=repelem(EV,N_d,1,1);
 
         % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat)
         % and then we compute Vunderbar.

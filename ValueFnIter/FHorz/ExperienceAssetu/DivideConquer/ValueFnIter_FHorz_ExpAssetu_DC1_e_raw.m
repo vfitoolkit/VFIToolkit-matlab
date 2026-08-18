@@ -172,7 +172,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
                         ReturnMatrix_ii=CreateReturnFnMatrix_ExpAsset_Disc_e(ReturnFn, n_d1,n_d2,maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, e_val, ReturnFnParamsVec,2,0); % Level=2, Refine=0
                         [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
-                        V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
+                        V(curraindex,z_c,e_c,N_j)=shiftdim(Vtempii,1);
                         % maxindex does not need reworking, as with expasset there is no a2prime
                         %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
                         dind=(rem(maxindex-1,N_d1*N_d2)+1);

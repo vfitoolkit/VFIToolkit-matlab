@@ -25,8 +25,8 @@ if vfoptions.lowmemory==0
     V_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
     Policy_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
 elseif vfoptions.lowmemory==1 % loops over e
-    V_ford2_jj=zeros(N_a,N_semiz,N_d2,'gpuArray');
-    Policy_ford2_jj=zeros(N_a,N_semiz,N_d2,'gpuArray');
+    V_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
+    Policy_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
 elseif vfoptions.lowmemory==2 % outer loop semiz, inner loop e
     V_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
     Policy_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');

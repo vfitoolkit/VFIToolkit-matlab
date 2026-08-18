@@ -113,9 +113,9 @@ else
             % d3_val=d3_grid(d3_c);
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,N_j);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -149,9 +149,9 @@ else
         for d3_c=1:N_d3
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,N_j);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -189,9 +189,9 @@ else
             % d3_val=d3_grid(d3_c);
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,N_j);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -270,9 +270,9 @@ for reverse_j=1:N_j-1
             % d3_val=d3_grid(d3_c);
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,jj);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -306,9 +306,9 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,jj);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -345,9 +345,9 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_semi_d3=pi_semiz_J(:,:,d3_c,jj);
+            pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
-            EV=EVpre.*shiftdim(pi_semi_d3',-1);
+            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
             EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 

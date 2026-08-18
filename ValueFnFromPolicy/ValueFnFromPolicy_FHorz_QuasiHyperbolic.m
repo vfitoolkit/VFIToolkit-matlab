@@ -41,7 +41,8 @@ if vfoptions.experienceassetz>=1
     return
 end
 if vfoptions.experienceassete>=1
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassete')
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssete(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
 if vfoptions.experienceassetze>=1
     [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssetze(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);

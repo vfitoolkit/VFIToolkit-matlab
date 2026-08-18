@@ -387,12 +387,12 @@ else
                 entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez),[N_d1*n2long,N_a,N_semiz]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
-                V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
-                Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
+                V_ford2_jj(:,:,e_c,d2_c)=shiftdim(Vtemp,1);
+                Policy_ford2_jj(:,:,e_c,d2_c)=shiftdim(maxindex,1);
 
                 d1_ind=rem(maxindex-1,N_d1)+1;
                 allind=d1_ind+N_d1*aind+N_d1*N_a*semizind; % loweredge is n_d-by-1-by-n_a-by-n_semiz
-                midpoint_ford2_jj(:,:,:,d2_c)=squeeze(midpoints_jj(allind));
+                midpoint_ford2_jj(:,:,e_c,d2_c)=squeeze(midpoints_jj(allind));
 
                 % L2 flag for this (d2, e_c)
                 L2offset_d2 = ceil(maxindex/N_d1);
@@ -402,7 +402,7 @@ else
                 isInfUpper = (ReturnMatrix_d2ii(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset_d2 >= 2)         & (L2offset_d2 <= n2short+1);
                 inUpperStrict = (L2offset_d2 >= n2short+3) & (L2offset_d2 <= n2long-1);
-                PolicyL2flag_ford2_jj(:,:,:,d2_c) = squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper));
+                PolicyL2flag_ford2_jj(:,:,e_c,d2_c) = squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper));
             end
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)

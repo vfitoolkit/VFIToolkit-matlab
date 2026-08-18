@@ -15,6 +15,9 @@ N_e=prod(vfoptions.n_e);
 if N_a1==0
     error('Cannot use grid interpolation layer with riskyasset+semiz if there is no standard endogenous state (N_a1==0)')
 end
+if length(n_a1)>1
+    error('riskyasset with two standard endogenous assets: gridinterplayer (GI2A) is not yet implemented (no 2A raws for this family)')
+end
 
 if ~isfield(vfoptions,'ngridinterp')
     vfoptions.ngridinterp=9;

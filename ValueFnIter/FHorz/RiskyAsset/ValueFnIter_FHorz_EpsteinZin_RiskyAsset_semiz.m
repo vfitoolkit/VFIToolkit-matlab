@@ -243,6 +243,18 @@ d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:sum(n_d1)+sum(n_d2)+sum(n_d3));
 d4_grid=d_grid(sum(n_d1)+sum(n_d2)+sum(n_d3)+1:end);
 
 
+%% Dispatch
+if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
+    [V,Policy]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_SemiExo_DC_GI(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+    return
+elseif vfoptions.divideandconquer==1
+    [V,Policy]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_SemiExo_DC(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+    return
+elseif vfoptions.gridinterplayer==1
+    [V,Policy]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_SemiExo_GI(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+    return
+end
+
 %% Solve
 N_d1=prod(n_d1);
 N_a1=prod(n_a1);
@@ -252,94 +264,151 @@ N_z=prod(n_z);
 
 if N_e==0
     if N_a1==0
-        error('riskyasset+semiz without a1 not yet implemented')
-        % if N_z==0
-        %     error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
-        % else
-        %     if N_d1==0
-        %         [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_raw(n_d2,n_d3,n_a2,n_z,n_u, N_j, d2_grid, d3_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-        %     else
-        %         [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_raw(n_d1,n_d2,n_d3,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-        %     end
-        % end
-    else % N_a1>0
         if N_z==0
-            error('riskyasset+semiz without z not yet implemented')
-            % if N_d1==0
-            %
-            % else
-            %
-            % end
+            if N_d1==0
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_noz_semiz_raw(n_d2,n_d3,n_d4,n_a2,n_semiz,n_u, N_j, d2_grid, d3_grid, d4_grid, a2_grid, semiz_gridvals_J, u_grid, pi_semiz_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_noz_semiz_raw(n_d1,n_d2,n_d3,n_d4,n_a2,n_semiz,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a2_grid, semiz_gridvals_J, u_grid, pi_semiz_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            end
         else
             if N_d1==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_semiz_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz, n_z,n_u, N_j, d2_grid, d3_grid,d4_grid, a1_grid,a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_semiz_raw(n_d2,n_d3,n_d4,n_a2,n_semiz,n_z,n_u, N_j, d2_grid, d3_grid, d4_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
             else
-                error('riskyasset+semiz with d1 not yet implemented')
-                % [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_semiz_raw(n_d1,n_d2,n_d3,n_d4,n_a2,n_semiz,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            end
+        end
+    else % N_a1>0
+        if N_z==0
+            if N_d1==0
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noz_semiz_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, u_grid, pi_semiz_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noz_semiz_raw(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, u_grid, pi_semiz_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            end
+        else
+            if N_d1==0
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_semiz_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_z,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_semiz_raw(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
             end
         end
     end
-else % N_e
-    error('riskyasset+semiz with e not yet implemented')
-    % if N_a1==0
-    %     if N_z==0
-    %         if N_d1==0
-    %             error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
-    %         else
-    %             error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
-    %         end
-    %     else
-    %         if N_d1==0
-    %             [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_e_raw(n_d2,n_d3, n_a2, n_z, vfoptions.n_e, n_u, N_j, d2_grid, d3_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-    %         else
-    %             [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_e_raw(n_d1,n_d2,n_d3, n_a2, n_z, vfoptions.n_e, n_u, N_j, d1_grid, d2_grid, d3_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-    %         end
-    %     end
-    % else % N_a1>0
-    %     if N_z==0
-    %         if N_d1==0
-    %             error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
-    %         else
-    %             error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
-    %         end
-    %     else
-    %         if N_d1==0
-    %             [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_e_raw(n_d2,n_d3, n_a1,n_a2, n_z, vfoptions.n_e, n_u, N_j, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-    %         else
-    %             [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_e_raw(n_d1,n_d2,n_d3, n_a1,n_a2, n_z, vfoptions.n_e, n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-    %         end
-    %     end
-    % end
+else % N_e>0
+    if N_a1==0
+        if N_z==0
+            if N_d1==0
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_noz_e_semiz_raw(n_d2,n_d3,n_d4,n_a2,n_semiz,vfoptions.n_e,n_u, N_j, d2_grid, d3_grid, d4_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_noz_e_semiz_raw(n_d1,n_d2,n_d3,n_d4,n_a2,n_semiz,vfoptions.n_e,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            end
+        else
+            if N_d1==0
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_e_semiz_raw(n_d2,n_d3,n_d4,n_a2,n_semiz,n_z,vfoptions.n_e,n_u, N_j, d2_grid, d3_grid, d4_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_e_semiz_raw(n_d1,n_d2,n_d3,n_d4,n_a2,n_semiz,n_z,vfoptions.n_e,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            end
+        end
+    else % N_a1>0
+        if N_z==0
+            if N_d1==0
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noz_e_semiz_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,vfoptions.n_e,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noz_e_semiz_raw(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,vfoptions.n_e,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            end
+        else
+            if N_d1==0
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_e_semiz_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_z,vfoptions.n_e,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_e_semiz_raw(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz,n_z,vfoptions.n_e,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+            end
+        end
+    end
 end
 
 
-
-
-%%
+%% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if N_a1==0
     n_a=n_a2;
 else
     n_a=[n_a1,n_a2];
-    n_d=[n_d,n_a1]; % just to UnKron
 end
-
+% Raw Policy is multi-channel: (d1,d2,d3,d4,a1prime), or with d1/a1prime dropped.
+% Pick the matching UnKronPolicyIndexes family based on N_d1, N_a1.
 if vfoptions.outputkron==0
-    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if N_e==0
-        if N_z==0
-            V=reshape(VKron,[n_a,n_semiz,N_j]);
-            Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_d, n_a, n_semiz, N_j, vfoptions);
+    if N_d1>0 && N_a1>0
+        % 5 channels: (d1, d2, d3, d4, a1prime)
+        if N_e==0
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], N_j, vfoptions);
+            end
         else
-            V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
-            Policy=UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_d, n_a, [n_semiz,n_z], N_j, vfoptions);
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            end
         end
-    else
-        if N_z==0
-            V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_d, n_a, n_semiz,vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+    elseif N_d1==0 && N_a1>0
+        % 4 channels: (d2, d3, d4, a1prime)
+        if N_e==0
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], N_j, vfoptions);
+            end
         else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_d, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            end
+        end
+    elseif N_d1>0 && N_a1==0
+        % 4 channels: (d1, d2, d3, d4)
+        if N_e==0
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a, n_semiz, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a, [n_semiz,n_z], N_j, vfoptions);
+            end
+        else
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            end
+        end
+    else % N_d1==0 && N_a1==0
+        % 3 channels: (d2, d3, d4)
+        if N_e==0
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a, n_semiz, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
+                Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a, [n_semiz,n_z], N_j, vfoptions);
+            end
+        else
+            if N_z==0
+                V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+            end
         end
     end
 else

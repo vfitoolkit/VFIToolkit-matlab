@@ -136,7 +136,11 @@ end
 
 if isNaive
     if N_a1==0
-        error('noa1 variant not yet implemented')
+        if N_d1==0
+            [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzeN_nod1_noa1_e_raw(n_d2,n_a2,n_z,vfoptions.n_e,N_j, d2_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        else
+            [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzeN_noa1_e_raw(n_d1,n_d2,n_a2,n_z,vfoptions.n_e,N_j, d_gridvals, d2_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        end
     elseif N_d1==0
         [V1Kron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzeN_nod1_e_raw(n_d2,n_a1,n_a2,n_z,vfoptions.n_e,N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
     else
@@ -144,7 +148,11 @@ if isNaive
     end
 else
     if N_a1==0
-        error('noa1 variant not yet implemented')
+        if N_d1==0
+            [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzeS_nod1_noa1_e_raw(n_d2,n_a2,n_z,vfoptions.n_e,N_j, d2_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        else
+            [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzeS_noa1_e_raw(n_d1,n_d2,n_a2,n_z,vfoptions.n_e,N_j, d_gridvals, d2_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        end
     elseif N_d1==0
         [V1Kron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetzeS_nod1_e_raw(n_d2,n_a1,n_a2,n_z,vfoptions.n_e,N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
     else
@@ -153,7 +161,11 @@ else
 end
 
 %% Unkron (baseline)
-n_a=[n_a1,n_a2];
+if N_a1==0 % noa1: the experience asset a2 is the only endogenous state
+    n_a=n_a2;
+else
+    n_a=[n_a1,n_a2];
+end
 if N_d1==0
     n_d=n_d2;
 else
@@ -165,6 +177,8 @@ if vfoptions.outputkron==1
 else
     if prod(n_d)==0
         n_daprime=n_a;
+    elseif N_a1==0
+        n_daprime=n_d; % noa1: the joint index has no a1prime channel (a2prime comes from aprimeFn)
     else
         n_daprime=[n_d,n_a1];
     end

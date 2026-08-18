@@ -207,7 +207,7 @@ else
                 a1primeindexes=loweredge+(0:1:maxgap(ii));
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, special_n_d, n_semiz, d12c_gridvals, a1_grid(a1primeindexes), a2_grid, a1_grid(curraindex), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec, 3, 0);
                 aprime=a1primeindexes+N_a1*a2ind+N_a1*N_a2*semizBind;
-                entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprime,[N_d1*(maxgap(ii)+1),N_a2,1,N_a2,N_semiz]));
+                entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprime,[N_d1,(maxgap(ii)+1),N_a2,1,N_a2,N_semiz]));
                 [~,maxindex]=max(entireRHS_ii,[],2);
                 midpoints_jj(:,1,:,curraindex,:,:)=maxindex+(loweredge-1);
             else

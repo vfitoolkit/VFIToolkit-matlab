@@ -7,14 +7,8 @@ function V=ValueFnFromPolicy_FHorz_EpsteinZin(Policy,n_d,n_a,n_z,N_j,d_grid,a_gr
 % ValueFnIter_FHorz_EpsteinZin reproduces its V exactly.
 
 %% Scope limits
-if vfoptions.gridinterplayer==1 && ~isscalar(n_a)
+if vfoptions.gridinterplayer==1 && ~isscalar(n_a) && vfoptions.riskyasset==0
     error('ValueFnFromPolicy_FHorz_EpsteinZin: gridinterplayer only supported for a single endogenous state (scalar n_a) for now')
-end
-if prod(vfoptions.n_semiz)>0
-    error('ValueFnFromPolicy_FHorz_EpsteinZin: not yet implemented for semi-exogenous shocks (Epstein-Zin with semiz is itself not yet implemented)')
-end
-if vfoptions.riskyasset==1
-    error('ValueFnFromPolicy_FHorz_EpsteinZin: not yet implemented for riskyasset')
 end
 if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1 || vfoptions.experienceassetsemiz>=1
     error('ValueFnFromPolicy_FHorz_EpsteinZin: not yet implemented for the experienceasset family')
@@ -145,6 +139,24 @@ if vfoptions.EZutils==0
     if ceis==1
         error('Cannot use EZeis parameter equal to one with Epstein-Zin preferences (look at formula, it would mean having to raise to the power of zero; you can always put 0.99 or 1.01)')
     end
+end
+
+%% Riskyasset routes to its own subfn (mirrors the riskyasset dispatch in ValueFnFromPolicy_FHorz)
+% riskyasset+semiz goes to its own subfn (mirrors how the vNM ValueFnFromPolicy_FHorz_RiskyAsset
+% dispatches to ValueFnFromPolicy_FHorz_RiskyAsset_SemiExo)
+if vfoptions.riskyasset==1
+    if prod(vfoptions.n_semiz)>0
+        V=ValueFnFromPolicy_FHorz_EpsteinZin_RiskyAsset_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+    else
+        V=ValueFnFromPolicy_FHorz_EpsteinZin_RiskyAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+    end
+    return
+end
+
+%% Semi-exogenous shocks route to their own subfn (mirrors ValueFnFromPolicy_FHorz_SemiExo)
+if prod(vfoptions.n_semiz)>0
+    V=ValueFnFromPolicy_FHorz_EpsteinZin_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+    return
 end
 
 %% Setup (mirrors ValueFnFromPolicy_FHorz)

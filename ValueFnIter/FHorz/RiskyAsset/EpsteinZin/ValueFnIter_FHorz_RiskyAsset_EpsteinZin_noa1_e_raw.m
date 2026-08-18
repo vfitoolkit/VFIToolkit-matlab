@@ -28,6 +28,7 @@ d13_grid=gpuArray(d13_grid);
 d23_grid=gpuArray(d23_grid);
 a2_grid=gpuArray(a2_grid);
 u_grid=gpuArray(u_grid);
+d13_gridvals=CreateGridvals(n_d13,d13_grid,1);
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
@@ -91,7 +92,7 @@ end
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, n_e, d13_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, n_e, d13_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
@@ -129,7 +130,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, special_n_e, d13_grid, a2_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, special_n_e, d13_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_e).*(ReturnMatrix_e~=0)); % finite and not zero
@@ -170,7 +171,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_z
                 z_val=z_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, special_n_z, special_n_e, d13_grid, a2_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, special_n_z, special_n_e, d13_gridvals, a2_grid, z_val, e_val, ReturnFnParamsVec);
 
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_ze).*(ReturnMatrix_ze~=0)); % finite and not zero
@@ -224,7 +225,7 @@ else
     temp=sum(temp.*pi_e_J(1,1,:,N_j+1),3);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, n_e, d13_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, n_e, d13_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -316,7 +317,7 @@ else
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, special_n_e, d13_grid, a2_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, special_n_e, d13_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -380,7 +381,7 @@ else
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
 
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, special_n_z, special_n_e, d13_grid, a2_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, special_n_z, special_n_e, d13_gridvals, a2_grid, z_val, e_val, ReturnFnParamsVec);
 
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_ze).*(ReturnMatrix_ze~=0)); % finite and not zero
@@ -467,7 +468,7 @@ for reverse_j=1:N_j-1
     temp=sum(temp.*pi_e_J(1,1,:,jj+1),3);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, n_e, d13_grid, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, n_e, d13_gridvals, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -497,10 +498,10 @@ for reverse_j=1:N_j-1
         temp4=EV;
         if warmglow==1
             becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-            temp4(becareful)=(sj(jj)*temp4(becareful)+(1-sj(jj))*WGmatrix(becareful)).^ezc6(jj);
+            temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
             temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
         else % not using warmglow
-            temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6(jj);
+            temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
             temp4(EV==0)=0;
         end
 
@@ -548,10 +549,10 @@ for reverse_j=1:N_j-1
         temp4=EV;
         if warmglow==1
             becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-            temp4(becareful)=(sj(jj)*temp4(becareful)+(1-sj(jj))*WGmatrix(becareful)).^ezc6(jj);
+            temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
             temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
         else % not using warmglow
-            temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6(jj);
+            temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
             temp4(EV==0)=0;
         end
 
@@ -561,7 +562,7 @@ for reverse_j=1:N_j-1
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, special_n_e, d13_grid, a2_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, n_z, special_n_e, d13_gridvals, a2_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -612,10 +613,10 @@ for reverse_j=1:N_j-1
             temp4=EV_z;
             if warmglow==1
                 becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(jj)*temp4(becareful)+(1-sj(jj))*WGmatrix(becareful)).^ezc6(jj);
+                temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6(jj);
+                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
                 temp4(EV_z==0)=0;
             end
 
@@ -626,7 +627,7 @@ for reverse_j=1:N_j-1
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
 
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, special_n_z, special_n_e, d13_grid, a2_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_e(ReturnFn, n_d13, n_a2, special_n_z, special_n_e, d13_gridvals, a2_grid, z_val, e_val, ReturnFnParamsVec);
 
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_ze).*(ReturnMatrix_ze~=0)); % finite and not zero

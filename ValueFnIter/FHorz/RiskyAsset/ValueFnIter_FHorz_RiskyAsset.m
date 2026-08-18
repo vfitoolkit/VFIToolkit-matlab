@@ -171,7 +171,7 @@ if vfoptions.outputkron==1
     return
 end
 
-if n_a1>0
+if prod(n_a1)>0
     n_a=[n_a1,n_a2];
 else
     n_a=n_a2;
