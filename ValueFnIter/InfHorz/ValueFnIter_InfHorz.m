@@ -26,7 +26,7 @@ if ~exist('vfoptions','var')
     vfoptions.howardsgreedy=0; % =0 iterated (aka modified-Policy Fn Iteration) or =1 greedy (aka Policy Fn Iteration)
         % Note: for small models, Howards greedy is faster, but cannot handle that V takes -Inf.
     % When doing Howards iterations, the following are some suboptions
-    vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
+    vfoptions.howards=40; % based on some tests, 40 was fastest at every grid size tried, both with and without the grid interpolation layer (by 120 the Howards acceleration was no longer providing any speedup at all)
     vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     if N_a>1200 && N_z>100
         vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix (rather than indexing). Sparse is only faster for bigger models.
@@ -94,7 +94,7 @@ else
     end
     % When doing Howards iterations, the following are some suboptions
     if ~isfield(vfoptions,'howards')
-        vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
+        vfoptions.howards=40; % based on some tests, 40 was fastest at every grid size tried, both with and without the grid interpolation layer (by 120 the Howards acceleration was no longer providing any speedup at all)
     end
     if ~isfield(vfoptions,'maxhowards')
         vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)

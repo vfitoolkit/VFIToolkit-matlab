@@ -1,182 +1,191 @@
-function [VKron, Policy] = ValueFnIter_InfHorz_postGI_sparse_nod_raw(VKronold,n_a,n_z,a_grid,z_gridvals,pi_z,DiscountFactorParamsVec,ReturnFn,ReturnFnParamsVec,vfoptions)
-% Improved version of ValueFnIter_InfHorz_postGI_nod_raw, using sparse matrix for Howard improvement.
-% OUTPUTS
-%   VKron:  Value function, size: [N_a,N_z]
-%   Policy: Policy function, size: [2,N_a,N_z], where
-%           Policy(1,:,:) is index of lower grid point of a_grid, which is
-%           an integer from 1 to n_a-1
-%           Policy(2,:,:) is index of second layer, which is integer from 1
-%           to n2+2, where n2 = ngridinterp
-% INPUTS
-% VKronold:   Initial guess for value function, size: [N_a,N_z]
-% n_a,n_z:    Grid dimensions
-% a_grid:     Grid for endogenous state variable
-% z_gridvals: Grid for exogenous state variables, size: [prod(n_z),length(n_z)]
-% pi_z:       Transition matrix for Markov shock, size: [prod(n_z),prod(n_z)]
-% DiscountFactorParamsVec
-% ReturnFn:   Function handle
-% ReturnFnParamsVec: Row vector of ReturnFn parameters
-% vfoptions:  Structure with options for VFI.
+function [VKron, Policy]=ValueFnIter_InfHorz_postGI_sparse_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParams, vfoptions)
+% Sparse-matrix (iterated) Howards, with the grid interpolation layer (postGI). No decision variable.
+%
+% Structure is the multi-grid postGI one: first solve on the coarse a_grid, then build the
+% +-vfoptions.maxaprimediff window ONCE and solve on the fine (interpolated) grid within it.
+% Howards is done by building the sparse transition matrix T_E and iterating with it
+% (vfoptions.howards times), rather than by solving the linear system as howardsgreedy does.
+% preGI: create the whole ReturnMatrix based on aprime
+% Then take a multigrid approach, using just a_grid for aprime until near
+% convergence, then switch to use the fine grid for aprime.
 
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-%% Create return function matrix on coarse grid
-a_gridvals      = a_grid; % only one endogenous state, else wouldn't end up here
+ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_a, n_a, n_z, a_grid, a_grid, z_gridvals, ReturnFnParams);
 
-% ReturnMatrix(a',a,z) with a' on coarse grid
-ReturnMatrix = CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, a_gridvals, a_gridvals, z_gridvals, ReturnFnParamsVec,1);
+pi_z_alt=shiftdim(pi_z',-1);
+% pi_z_howards=repelem(pi_z,N_a,1);
 
-a_ind_howard = repmat((1:1:N_a)',N_z,1); % a varies first, size: [N_a*N_z,1]
-z_ind_howard = repelem((1:1:N_z)',N_a,1); % z varies second, size: [N_a*N_z,1]
-ind_howard  = a_ind_howard+N_a*(z_ind_howard-1);
+addindexforaz=gpuArray(N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1));
 
-pi_z_transpose = pi_z';
+% Setup specific to the sparse-matrix Howards
+N_a_times_zind=N_a*gpuArray(0:1:N_z-1); % already contains -1
+azind1=repmat(gpuArray(1:1:N_a*N_z)',1,N_z); % (a-z,zprime)
+pi_z_big1=gpuArray(repelem(pi_z,N_a,1)); % (a-z,zprime)
 
-
-%% Create finer grid
-n2short = vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
-n2long  = vfoptions.ngridinterp*2+3; % total number of aprime points we end up looking at in second layer
-aprime_fine=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
-
-special_n_z=ones(1,length(n_z),'gpuArray'); % as lowmemory=1
-
-aind=gpuArray(0:1:N_a-1);
-
-%% Value function iteration
-% ReturnMatrix on coarse grid is precomputed, but ReturnMatrix_fine is computed at every iteration in the VFI loop.
-
-% preallocate
-Policy   = zeros(3,N_a,N_z,'gpuArray'); % +1 channel for PolicyL2flag
-VKron = zeros(N_a,N_z,'gpuArray');
-Ftemp = zeros(N_a,N_z,'gpuArray'); % useful for Howard
-
+%%
 tempcounter=1;
 currdist=Inf;
-while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
+
+%% First, just consider a_grid for next period
+while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=vfoptions.maxiter
+    VKronold=VKron;
 
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
-    EV = VKronold*pi_z_transpose; % (a',z)
+    EV=VKronold.*pi_z_alt;
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+    EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-    for z_c=1:N_z
-        EV_z = EV(:,z_c);
-        z_vals = z_gridvals(z_c,:);
-        ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % aprime by a by z
 
-        % First layer
-        entireRHS=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; % size: [N_a,N_a]
-        [~,max_ind]=max(entireRHS,[],1); % size: [1,N_a]
-
-        % Refinement with a' on finer grid
-        % Turn max_ind into the 'midpoint'
-        midpoint=max(min(max_ind,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
-        % midpoint is 1-by-n_a
-        % aprimeindexes has size [3+2*n2short,n_a]
-        aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
-        aprime_fine_small = aprime_fine(aprimeindexes);
-
-        % ReturnMatrix_fine(a',a) has size: [3+2*n2short,n_a]
-        ReturnMatrix_fine = CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_z, aprime_fine_small, a_gridvals, z_vals, ReturnFnParamsVec,1);
-        EV_z_interp       = interp1(a_grid,EV_z,aprime_fine_small,'linear');
-        % entireRHS_fine has size [3+2*n2short,n_a]
-        entireRHS_fine    = ReturnMatrix_fine+DiscountFactorParamsVec*EV_z_interp;
-
-        [max_val,maxindexL2]=max(entireRHS_fine,[],1); % (1,N_a)
-        VKron(:,z_c)    = max_val;
-        % midpoint from 2 to n_a-1
-        Policy(1,:,z_c) = midpoint;
-        % aprimeL2ind from 1 to 3+2*n2short
-        Policy(2,:,z_c) = maxindexL2;
-        ReturnMatrixind=maxindexL2+n2long*aind;
-        Ftemp(:, z_c)   = ReturnMatrix_fine(ReturnMatrixind);
-    end
-
-    %---------------------------------------------------------------------%
-    % Howard update
-    if currdist>vfoptions.tolerance*10
-        % Ftemp(a,z) = ReturnMatrix_fine(g(a,z),a,z)
-        Ftemp_vec = reshape(Ftemp,[N_a*N_z,1]);
-
-        % Find interp indexes and weights
-        adjust      = (Policy(2,:,:)<1+n2short+1); % if second layer is choosing below midpoint
-        % (1) lower grid point: from 1 to N_a-1
-        aprime_left = Policy(1,:,:)-adjust;
-        % (2) Index on fine grid: from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-        ind_L2      = adjust.*Policy(2,:,:)+(1-adjust).*(Policy(2,:,:)-n2short-1);
-        % (3) Weight on left grid point
-        weight_left = 1-(ind_L2-1)/(n2short+1);
-
-        % Left grid point
-        aprime_opt_vec = aprime_left(:);
-        % Mass on left grid point
-        weight_opt_vec = weight_left(:);
-
-        indp = aprime_opt_vec+N_a*(z_ind_howard-1);
-        indpp = (aprime_opt_vec+1)+N_a*(z_ind_howard-1);
-        Qmat = sparse(ind_howard,indp,weight_opt_vec,N_a*N_z,N_a*N_z)+...
-            sparse(ind_howard,indpp,1-weight_opt_vec,N_a*N_z,N_a*N_z);
-
-        for h_c=1:vfoptions.howards
-            EV_howard = VKron*pi_z_transpose; % (a',z)
-            EV_howard = reshape(EV_howard,[N_a*N_z,1]);
-            VKron = Ftemp_vec+DiscountFactorParamsVec*Qmat*EV_howard;
-            VKron = reshape(VKron,[N_a,N_z]);
-        end
-    end
-    %---------------------------------------------------------------------%
+    %Calc the max and it's index
+    [VKron,Policy]=max(entireRHS,[],1);
+    VKron=shiftdim(VKron,1); % a by z
 
     VKrondist=VKron(:)-VKronold(:);
+    VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
 
-    if vfoptions.verbose==1
-        disp(currdist)
+    % Use Howards Improvement, iterating with the sparse transition matrix (except for first few and last few iterations, as it is not a good idea there)
+    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
+        tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
+        Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a*N_z,1]); % keep return function of optimal policy for using in Howards
+
+        T_E=sparse(azind1,Policy(:)+N_a_times_zind,pi_z_big1,N_a*N_z,N_a*N_z);
+
+        VKron=reshape(VKron,[N_a*N_z,1]);
+        for h_c=1:vfoptions.howards
+            VKron=Ftemp+DiscountFactorParamsVec*(T_E*VKron); % T_E already contains pi_z, so T_E*V is the expected continuation
+        end
+        VKron=reshape(VKron,[N_a,N_z]);
     end
 
-    VKronold = VKron;
     tempcounter=tempcounter+1;
 
 end
+Policy=reshape(Policy,[1,N_a,N_z]); % Howards can mess with the size
+
+%% Now that we have solved on the rough grid, we resolve on the fine grid
+% Based on solving a bunch of value fns with and without grid
+% interpolation, the 'lower grid index' with grid interpolation is always
+% within a point or two of the solution on the rough grid. So here we only
+% consider +-vfoptions.maxaprimediff to set up the fine/interpolated aprime_grid
+
+% Current optimal aprime is Policy_a
+% So create an aprime_grid that is just an interpolation within +-vfoptions.maxaprimediff
+
+% First, create an aprime_grid that is just the +-vfoptions.maxaprimediff
+% Note: this code is for models with a single endogenous state
+n_aprimediff=1+2*vfoptions.maxaprimediff;
+N_aprimediff=prod(n_aprimediff);
+aprimeshifter=min(max(Policy,1+vfoptions.maxaprimediff),N_a-vfoptions.maxaprimediff);
+aprimeindex=(-vfoptions.maxaprimediff:1:vfoptions.maxaprimediff)' +aprimeshifter; % size n_aprime-by-n_a
+aprime_grid=a_grid(aprimeindex);
+% Second, interpolate this
+% Grid interpolation
+% vfoptions.ngridinterp=9;
+n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
+n_aprime=n_aprimediff+(n_aprimediff-1)*vfoptions.ngridinterp;
+N_aprime=prod(n_aprime);
+aprime_grid=interp1((1:1:N_aprimediff)',aprime_grid,linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)');
+% Note: aprime_grid is N_aprime-by-N_a-by-N_z
+
+ReturnMatrixfine=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
+
+EVinterpindex1=(1:1:N_aprimediff)';
+EVinterpindex2=linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)';
+
+% For Howards we need
+addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
+
+pi_z_alt2=shiftdim(pi_z,-2);
+
+% Setup specific to the sparse-matrix Howards
+% spI = gpuArray.speye(N_a*N_z);
+azind2=repmat(gpuArray(1:1:N_a*N_z)',2,N_z); % (a-z-2,zprime)
+pi_z_big2=gpuArray(repmat(pi_z_big1,2,1)); % (a-z-2,zprime)
 
 
-%% L2 flag (computed once after convergence, before the midpoint->lower-grid adjust)
-% Rebuild ReturnMatrix_fine per z at the converged midpoints to check whether
-% the L2 extremes (lower-coarse, upper-coarse) carry -Inf reward.
-PolicyL2flag_3d = 2*ones(1,N_a,N_z,'gpuArray');
-for z_c=1:N_z
-    z_vals = z_gridvals(z_c,:);
-    midpoint_z = reshape(Policy(1,:,z_c),[1,N_a]); % converged midpoint, 1-by-N_a
-    aprimeindexes_z = (midpoint_z+(midpoint_z-1)*n2short)+(-n2short-1:1:1+n2short)';
-    aprime_fine_small = aprime_fine(aprimeindexes_z);
-    ReturnMatrix_fine = CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_z, aprime_fine_small, a_gridvals, z_vals, ReturnFnParamsVec,1);
-    % ReturnMatrix_fine is [n2long, N_a]; pick L2=1 and L2=n2long extremes at each a
-    maxindexL2_z = reshape(Policy(2,:,z_c),[1,N_a]); % still 1..n2long (pre-adjust)
-    linidx_lower = 1      + n2long*aind;
-    linidx_upper = n2long + n2long*aind;
-    isInfLower_z = (ReturnMatrix_fine(linidx_lower) == -Inf);
-    isInfUpper_z = (ReturnMatrix_fine(linidx_upper) == -Inf);
-    inLowerStrict = (maxindexL2_z >= 2)         & (maxindexL2_z <= n2short+1);
-    inUpperStrict = (maxindexL2_z >= n2short+3) & (maxindexL2_z <= n2long-1);
-    PolicyL2flag_3d(1,:,z_c) = 2 + (inLowerStrict & isInfLower_z) - (inUpperStrict & isInfUpper_z);
+%% Now switch to considering the fine/interpolated aprime_grid
+tempcounter=1; % reset the counter
+currdist=1; % force going into the next while loop at least one iteration
+while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
+    VKronold=VKron;
+
+    % Switch VKron into being over vfoptions.maxaprimediff
+    EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_a,N_z,N_z]); % last dimension is zprime
+    % Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=EVpre.*pi_z_alt2;
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+    EV=squeeze(sum(EV,4)); % sum over z', leaving a singular second dimension
+    % EV is now [N_aprimediff,N_a,N_z]
+    % Interpolate EV over aprime_grid
+
+    EVinterp=interp1(EVinterpindex1,EV,EVinterpindex2);
+
+    entireRHS=ReturnMatrixfine+DiscountFactorParamsVec*EVinterp; % aprime by a by z
+
+    %Calc the max and it's index
+    [VKron,Policy]=max(entireRHS,[],1);
+    VKron=shiftdim(VKron,1); % a by z
+
+    VKrondist=VKron(:)-VKronold(:);
+    VKrondist(isnan(VKrondist))=0;
+    currdist=max(abs(VKrondist));
+
+    % Use Howards Improvement, iterating with the sparse transition matrix (except for first few and last few iterations, as it is not a good idea there)
+    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
+        tempmaxindex=shiftdim(Policy,1)+addindexforazfine; % aprime index, add the index for a and z
+        Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a*N_z,1]); % keep return function of optimal policy for using in Howards
+
+        Policy_L1a=ceil((Policy(:)-1)/(n2short+1))-1;
+        Policy_lowerind=max(Policy_L1a-vfoptions.maxaprimediff+aprimeshifter(:),1); % Policy_L1a is the index within the +-maxaprimediff window, so +aprimeshifter converts it to the index on the full a_grid
+        Policy_lowerprob=1- ((Policy(:)-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1); % Policy-(Policy_lowerind-1)*(n2short+1) is 2nd layer index
+        indp = Policy_lowerind+N_a_times_zind; % with all tomorrows z (a-z,zprime) [T_E is over N_a*N_z, so the z stride is N_a]
+
+        T_E=sparse(azind2,[indp;indp+1],[Policy_lowerprob;1-Policy_lowerprob].*pi_z_big2,N_a*N_z,N_a*N_z);
+
+        VKron=reshape(VKron,[N_a*N_z,1]);
+        for h_c=1:vfoptions.howards
+            VKron=Ftemp+DiscountFactorParamsVec*(T_E*VKron); % T_E already contains pi_z, so T_E*V is the expected continuation
+        end
+        VKron=reshape(VKron,[N_a,N_z]);
+    end
+
+    tempcounter=tempcounter+1;
 end
 
-%% Currently Policy(1,:) is the midpoint, and Policy(2,:) the second layer
-% (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
-% we switch Policy(1,:) to 'lower grid point' and then have Policy(2,:)
-% counting 0:nshort+1 up from this.
-adjust=(Policy(2,:,:)<1+n2short+1); % if second layer is choosing below midpoint
-Policy(1,:,:)=Policy(1,:,:)-adjust; % lower grid point
-Policy(2,:,:)=adjust.*Policy(2,:,:)+(1-adjust).*(Policy(2,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+%% Switch policy to lower grid index and L2 index (is currently index on fine grid)
+% Separate Policy into L1 and L2
+fineindex=reshape(Policy,[N_a*N_z,1]);
+L1a=ceil((fineindex-1)/(n2short+1))-1; % this ranges -vfoptions.maxaprimediff:1:vfoptions.maxaprimediff
+L1=max(L1a-vfoptions.maxaprimediff+1+aprimeshifter(:)-1,1); % lower grid point index (on the full grid), so this ranges 0 to n_a-1
+L1intermediate=max(L1a,0)+1; % lower grid point index (on the small grid, in form so we can get L2)
+L2=fineindex-(L1intermediate-1)*(n2short+1); % L2 index
 
-%% Write the L2 flag into Policy(3,:,:)
-Policy(3,:,:) = PolicyL2flag_3d;
+Policy=zeros(3,N_a,N_z,'gpuArray'); % +1 channel for PolicyL2flag
+Policy(1,:,:)=reshape(L1,[1,N_a,N_z]);
+Policy(2,:,:)=reshape(L2,[1,N_a,N_z]);
 
+% L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+% Computed once, post-convergence, using final ReturnMatrixfine and final aprimeshifter
+fineindex_lower = (L1intermediate-1)*(n2short+1) + 1;
+fineindex_upper = L1intermediate*(n2short+1) + 1;
+linidx_lower = reshape(fineindex_lower,[N_a,N_z]) + addindexforazfine;
+linidx_upper = reshape(fineindex_upper,[N_a,N_z]) + addindexforazfine;
+isInfLower = (ReturnMatrixfine(linidx_lower(:)) == -Inf);
+isInfUpper = (ReturnMatrixfine(linidx_upper(:)) == -Inf);
+inInterior = (L2 >= 2) & (L2 <= n2short+1);
+Policy(3,:,:) = reshape(2 + (inInterior & isInfLower) - (inInterior & isInfUpper), [1,N_a,N_z]);
 
+% Note: unlike Howards-greedy (which solves the linear system), iterating with the sparse T_E is
+% fine when V contains values of -Inf, so there is no need to warn about that here.
 if currdist > vfoptions.tolerance
     warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
              '(not due to convergence); can be set by vfoptions.maxiter. ', ...
              'Last currdist = %.16g; tolerance = %.16g.'], ...
              currdist, vfoptions.tolerance)
 end
-
 
 end

@@ -72,9 +72,9 @@ if vfoptions.gridinterplayer==1
     % postGI looks locally for the optimal grid interpolation point, in the area around the point that was optimal on the coarse grid.
     % By considering the nearest 'maxaprimediff' points on the original coarse grid the hope is that we set the 'local' sweep wide enough to ensure we catch the global optimum. By repeating this process 'postGIrepeat' times, we can hopefully take steps towards the global optimum of the fine grid problem.
     if ~isfield(vfoptions,'postGIrepeat')
-        vfoptions.postGIrepeat=1;
-        % In practice, the local optima appears to get stuck in a 'local basin', and so setting postGIrepeat>1 fails to achieve anything because each repeat remains stuck in the basin and does not get any closer to the global.
-        % We therefore set a default of postGIrepeat=1. This can be increased but in tests ran there was little to nothing to be gained from doing so in actual applications.
+        vfoptions.postGIrepeat=0;
+        % In practice, the local optima appears to get stuck in a 'local basin', and so setting postGIrepeat>0 fails to achieve anything because each repeat remains stuck in the basin and does not get any closer to the global. This is not true for small values of maxaprimediff, but at the default value of maxaprimediff anything other than postGIrepeat=0 seems pointless. And setting a larger maxaprimediff gives much more robust behaviour than pairing a smaller maxaprimediff with postGIrepeat>0
+        % We therefore set a default of postGIrepeat=0. This can be increased but in tests ran there was nothing to be gained from doing so: without a decision variable postGI was already exact (even for maxaprimediff as small as 3), and with a decision variable the conservatively large default maxaprimediff already reaches the global optimum.
     end
     if ~isfield(vfoptions,'maxaprimediff')
         if N_d==0

@@ -220,8 +220,15 @@ for ii=1:N_i
 
     % Switch to PolicyVals
     PolicyValues_temp=PolicyInd2Val_InfHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,simoptions_temp);
-    permuteindexes=[1+(1:1:(l_a_temp+l_z_temp)),1];
-    PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_s,l_d+l_a]
+    % Note: must collapse n_a (and n_z) into N_a (and N_z) before the permute, as a_gridvals is
+    % the joint grid over N_a. [Otherwise, with two endogenous states, the assets stay split and
+    % do not match a_gridvals; only coincides when there is a single endogenous state.]
+    % Note: use l_z_temp (not N_z_temp) to detect no-z, as N_z_temp was just set to 1 above
+    if l_z_temp==0
+        PolicyValuesPermute_temp=permute(reshape(PolicyValues_temp,[size(PolicyValues_temp,1),N_a_temp]),[2,1]); %[N_a,l_d+l_a]
+    else
+        PolicyValuesPermute_temp=permute(reshape(PolicyValues_temp,[size(PolicyValues_temp,1),N_a_temp,N_z_temp]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+    end
 
     l_daprime_temp=size(PolicyValues_temp,1); % Note, do this off of value not indexes, so that things like gridinterplayer have already been handled
 

@@ -44,8 +44,8 @@ if Parallel==2
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
     PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-    permuteindexes=[1+(1:1:(l_a+l_z)),1];
-    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
+    % Note: must collapse n_a and n_z into N_a and N_z before the permute, as a_gridvals is the joint grid over N_a
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
     for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required

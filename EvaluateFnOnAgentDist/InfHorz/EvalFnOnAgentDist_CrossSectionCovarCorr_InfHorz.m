@@ -79,8 +79,14 @@ StationaryDistVec=reshape(StationaryDist,[N_a*max(N_z,1),1]);
 CrossSectionCorr=struct();
 
 PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-permuteindexes=[1+(1:1:(l_a+l_z)),1];
-PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a]
+% Note: must collapse n_a (and n_z) into N_a (and N_z) before the permute, as a_gridvals is
+% the joint grid over N_a. [Otherwise, with two endogenous states, the assets stay split and
+% do not match a_gridvals; only coincides when there is a single endogenous state.]
+if N_z==0
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
+else
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+end
 l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate

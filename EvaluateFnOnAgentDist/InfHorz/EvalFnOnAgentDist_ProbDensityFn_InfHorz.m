@@ -106,8 +106,8 @@ if N_z==0
 
     ProbDensityFns=zeros(N_a,length(FnsToEvaluate),'gpuArray');
 
-    permuteindexes=[1+(1:1:l_a),1];
-    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,l_d+l_a]
+    % Note: must collapse n_a into N_a before the permute, as a_gridvals is the joint grid over N_a
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
 
     for ff=1:length(FnsToEvaluate)
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
@@ -120,8 +120,8 @@ else % N_z>0
 
     ProbDensityFns=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
 
-    permuteindexes=[1+(1:1:(l_a+l_z)),1];
-    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a]
+    % Note: must collapse n_a and n_z into N_a and N_z before the permute, as a_gridvals is the joint grid over N_a
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
     for ff=1:length(FnsToEvaluate)
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
