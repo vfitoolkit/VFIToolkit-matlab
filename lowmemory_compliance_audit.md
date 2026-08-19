@@ -1036,7 +1036,7 @@ All 40 on-disk semiz raws pass the gate and every dispatcher reference resolves.
 
 ### BUG A 2026-08-19 — Naive GI1 with-e, lowmemory 3: the shared coarse ReturnMatrix was lifted out of the e loop
 
-Figs 17/19 reported the Naive GI1 with-e raws disagreeing with themselves: lowmemory 1 and 2 exactly
+Figs 15/16 reported the Naive GI1 with-e raws disagreeing with themselves: lowmemory 1 and 2 exactly
 zero, lowmemory 3 off by 6.03 (V), 8.39 (Valt), 35/34 differing Policy entries. Sophisticated passed
 at every level; DC1_GI1 passed for both duals. Files:
 `...SemiExoN_GI1_e_raw.m` and `...SemiExoN_GI1_nod1_e_raw.m`.
@@ -1079,4 +1079,30 @@ use in each pass, so the passes cannot share it. Widening the pattern to `d\d*a1
 `gen_zsemiz` does would rewrite the 16 GPU-validated no-e raws for no behavioural gain, so it was left
 alone deliberately.
 
-Awaiting the GPU run of CoreFHorzQHExpAssetzTests, figs 17 and 19.
+Awaiting the GPU run of CoreFHorzQHExpAssetzTests, figs 15 and 16.
+
+**Figure numbers corrected.** This section originally said figs 17/19. Wrong: figs 17-20 are with2A1
+*nosemiz*, which has neither semiz nor a lowmemory 3, and they run DC2A/GI2A rather than GI1. The only
+two subcodes that print `lowmemory=3 (GI1)` are `CoreFHorzQHExpAssetz_nod1_z_e_semiz_withA1`
+(figure_c=15) and `CoreFHorzQHExpAssetz_d1_z_e_semiz_withA1` (figure_c=16) — withA1 + semiz + e, the
+only shape with all four rungs of the z+e+semiz ladder.
+
+**Re-verified independently 2026-08-19 (post-commit c716314f), no code change needed.** Four checks:
+(1) the invariant-3e scan over all of `ValueFnIter/FHorz/ExperienceAssetz` returns 0 hits; (2) the gate
+passes on all 32 semiz raws; (3) `build24.py` regenerates all 32 **byte-identical** to the on-disk
+committed files, so the generators and the toolkit are in step and the 16 no-e raws are provably
+untouched; (4) both lowmemory-3 blocks (the `V_Jplus1` branch and the jj loop) of each named file were
+diffed line-for-line against the GPU-validated exponential source
+`ValueFnIter_FHorz_ExpAssetzSemiExo_GI1[_nod1]_e_raw.m` with the `_alt`/`_tilde` suffixes stripped —
+both passes reproduce the source exactly, and the only lines outside the pass bodies are the correct
+dual expansion (`EVbase_qh` split into `beta`/`beta0beta` copies, per-pass per-state slices, and the
+two d3 collapses). Check (4) matters because a suffix-stripping diff cannot see a *missing* suffix; a
+separate read confirms every pass-local name in those blocks is suffixed, the sole exception being
+`d12a1primea2`, which is assigned immediately before its one use in each pass (see the note above).
+
+One generator drift was found and fixed while doing (3): `gen_zgiscaf` hardcoded the no-e widths in the
+terminal-period copy (`Vtilde(:,:,N_j)=Valt(:,:,N_j)` etc.), so it under-copied by one dimension on the
+8 with-e GI-family raws — it would have copied only the first e slice. The on-disk files already carry
+the correct 4-index form, so this was generator-only drift, not a toolkit bug. `_slices()` now reads the
+colon counts off the exponential source's own `V=`/`Policy=` declarations, the way `gen_zdcscaf` and
+`gen_zsemiz` already did. After the patch all 32 regenerate byte-identical.
