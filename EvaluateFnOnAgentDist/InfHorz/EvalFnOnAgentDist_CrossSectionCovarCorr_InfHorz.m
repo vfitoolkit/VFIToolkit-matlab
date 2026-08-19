@@ -22,6 +22,7 @@ if ~exist('simoptions','var')
     simoptions.n_semiz=0;
     % Internal options
     simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
 else
     % Check simoptions for missing fields, if there are some fill them with the defaults
     % Model solution
@@ -54,6 +55,9 @@ else
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
+    end
 end
 
 if isfield(simoptions,'conditionalrestrictions')
@@ -62,22 +66,21 @@ end
 
 %%
 l_a=length(n_a);
-l_z=length(n_z);
 
 N_a=prod(n_a);
-N_z=prod(n_z);
 
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-z_gridvals=CreateGridvals(n_z,z_grid,1);
+% Switch to z_gridvals (folding e and semiz into z if appropriate)
+[n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 
 %%
-StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
+StationaryDistVec=reshape(StationaryDist,[N_a*max(N_z,1),1]);
 
 CrossSectionCorr=struct();
 
 PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
-PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
+PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a]
 l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate
@@ -108,10 +111,10 @@ CrossSectionCorr.CorrelationMatrix=zeros(length(FnsToEvaluate),length(FnsToEvalu
 for ff1=1:length(FnsToEvaluate)
     FnToEvaluateParamsCell1=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff1).Names);
     Values1=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff1}, FnToEvaluateParamsCell1,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-    Values1=reshape(Values1,[N_a*N_z,1]);
+    Values1=reshape(Values1,[N_a*max(N_z,1),1]);
 
     Mean1=sum(Values1.*StationaryDistVec);
-    StdDev1=sqrt(sum(StationaryDistVec.*((Values1-Mean1.*ones(N_a*N_z,1)).^2)));
+    StdDev1=sqrt(sum(StationaryDistVec.*((Values1-Mean1.*ones(N_a*max(N_z,1),1)).^2)));
 
     CrossSectionCorr.(AggVarNames{ff1}).Mean=Mean1;
     CrossSectionCorr.(AggVarNames{ff1}).StdDeviation=StdDev1;
@@ -126,12 +129,12 @@ for ff1=1:length(FnsToEvaluate)
         else
             FnToEvaluateParamsCell2=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff2).Names);
             Values2=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff2}, FnToEvaluateParamsCell2,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-            Values2=reshape(Values2,[N_a*N_z,1]);
+            Values2=reshape(Values2,[N_a*max(N_z,1),1]);
 
             Mean2=sum(Values2.*StationaryDistVec);
-            StdDev2=sqrt(sum(StationaryDistVec.*((Values2-Mean2.*ones(N_a*N_z,1)).^2)));
+            StdDev2=sqrt(sum(StationaryDistVec.*((Values2-Mean2.*ones(N_a*max(N_z,1),1)).^2)));
 
-            CoVar=sum((Values1-Mean1*ones(N_a*N_z,1,'gpuArray')).*(Values2-Mean2*ones(N_a*N_z,1,'gpuArray')).*StationaryDistVec);
+            CoVar=sum((Values1-Mean1*ones(N_a*max(N_z,1),1,'gpuArray')).*(Values2-Mean2*ones(N_a*max(N_z,1),1,'gpuArray')).*StationaryDistVec);
             Corr=CoVar/(StdDev1*StdDev2);
 
             % Store them

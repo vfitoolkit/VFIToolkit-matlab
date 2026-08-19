@@ -2,16 +2,20 @@ function [V,Policy]=ValueFnIter_InfHorz_GridInterpLayer(V0, n_d, n_a, n_z, d_gri
 
 N_d=prod(n_d);
 
+%% Set default vfoptions for the settings that control the multi-grid approaches to GI in InfHorz
 % Pre-GI is 'safer' as it will definitely deliver the correct solution.
 % Post-GI is much faster, and as long as vfoptions.multigridswitch is not
 % too big and vfoptions.maxaprimediff is not to small, it will give the
-% correct answer.
+% correct answer. That said, you can quite easily set
+% vfoptions.maxaprimediff too small in a model with a decision variable,
+% and so the default value is quite conservative.
 
 if ~isfield(vfoptions,'multigridswitch')
+    % vfoptions.multigridswitch determines when to switch from the coarse
+    % grid to the fine grid (is based on how close to the solution convergence tolerance we are)
     if vfoptions.preGI==1
         vfoptions.multigridswitch=10000;
-        % use a_grid while currdist>multigridswitch*Tolerance
-        % then switch to aprime_grid (which includes the interpolation)
+        % use a_grid while currdist>multigridswitch*Tolerance then switch to aprime_grid (which includes the interpolation)
     elseif vfoptions.preGI==0
         vfoptions.multigridswitch=10;
         % need to be very close, as then we will only consider +- a few points on the rough grid
@@ -51,24 +55,16 @@ end
 % ValueFnIter_InfHorz_Refine_postGI2A_raw
 
 
-%% Archived code checked if multi-grid was faster than just going directly to using aprime_grid the whole time. Found that multi-grid is faster.
-% if ~isfield(vfoptions,'preinterp')
-%     vfoptions.preinterp=1;
-%     % =2 is way to slow to be useful
-% end
-% if isscalar(n_a)
-%     if N_d==0
-%         if vfoptions.preinterp==1
-%             % Multi-grid: only considers a_grid, then when nearing convergence switches to considering aprime_grid.
-%             % Precomputes the entirety of aprime_grid.
-%             [V,Policy]=ValueFnIter_InfHorz_preGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
-%         elseif vfoptions.preinterp==2
-%             % Precomputes the entirety of aprime_grid and just works with this the entire time.
-%             % [Multi-grid is better. This was just built for testing/understanding runtimes]
-%             [V,Policy]=ValueFnIter_InfHorz_pre2GI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
-%         end
-%      end
-% end
+%% Below Pre-GI and Post-GI both use a multi-grid approach
+% I did test a version where I create the full GI grid from the beginning
+% and just use this the entire time. It was slower than the Pre-GI multi-grid approach.
+
+%% Deal with the 'without z' case
+if prod(n_z)==0
+    [V,Policy]=ValueFnIter_InfHorz_GridInterpLayer_noz(V0, n_d, n_a, d_gridvals, a_grid, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+    % Only implement the four default settings for models without Markov
+    return
+end
 
 %% Use multi-grid approach. Pre-GI
 % Multi-grid: only considers a_grid, then when nearing convergence switches to considering aprime_grid.

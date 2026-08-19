@@ -279,27 +279,39 @@ end
 
 %% If there is an initial dist use that, otherwise set up a (basic but poor) initial guess
 if simoptions.iterate==1
-    % Iteration must start from an initial guess
-    if isfield(simoptions,'initialdist')
-        StationaryDist=reshape(simoptions.initialdist,[N_a*N_z,1]);
-    else
-        % Just use a poor initial guesses
-        StationaryDist=zeros(N_a,N_z);
-        z_stat=ones(N_z,1)/N_z;
-        for jj=1:10
-            z_stat=pi_z'*z_stat;
+    if N_z==0
+        % Iteration must start from an initial guess
+        if isfield(simoptions,'initialdist')
+            StationaryDist=reshape(simoptions.initialdist,[N_a,1]);
+        else
+            % Just use a poor initial guesses
+            StationaryDist=zeros(N_a,1);
+            StationaryDist(ceil(N_a/2))=1; % Just put the mass into midpoint
         end
-        StationaryDist(ceil(N_a/2),:)=z_stat';
-        StationaryDist=reshape(StationaryDist,[N_a*N_z,1]);
-        % Note for self: Tan improvement divides into 2 steps, first is
-        % policy, second is pi_z. Can't you then go a step further and
-        % divide whole thing to just do 'only second step' until dist over z fully
-        % converges, and after than 'only do first step' until get full
-        % convergence?
-        % This initial guess is kind of trying to partially exploit this
-        % idea.
+    else % N_z>0
+        % Iteration must start from an initial guess
+        if isfield(simoptions,'initialdist')
+            StationaryDist=reshape(simoptions.initialdist,[N_a*N_z,1]);
+        else
+            % Just use a poor initial guesses
+            StationaryDist=zeros(N_a,N_z);
+            z_stat=ones(N_z,1)/N_z;
+            for jj=1:10
+                z_stat=pi_z'*z_stat;
+            end
+            StationaryDist(ceil(N_a/2),:)=z_stat';
+            StationaryDist=reshape(StationaryDist,[N_a*N_z,1]);
+            % Note for self: Tan improvement divides into 2 steps, first is
+            % policy, second is pi_z. Can't you then go a step further and
+            % divide whole thing to just do 'only second step' until dist over z fully
+            % converges, and after than 'only do first step' until get full
+            % convergence?
+            % This initial guess is kind of trying to partially exploit this
+            % idea.
+        end
     end
 end
+
 
 %% Experience asset
 if simoptions.experienceasset>=1
@@ -345,6 +357,7 @@ if simoptions.gridinterplayer==1
 
     return
 end
+
 
 %% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
 if simoptions.iterate==1

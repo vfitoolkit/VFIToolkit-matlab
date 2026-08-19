@@ -48,16 +48,13 @@ end
 %%
 N_d=prod(n_d);
 N_a=prod(n_a);
-N_z=prod(n_z);
 
-if N_d==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
+% if N_d==0
+%     l_d=0;
+% else
+%     l_d=length(n_d);
+% end
 l_a=length(n_a);
-l_z=length(n_z);
-
 
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals (folding e and semiz into z if appropriate)
@@ -72,7 +69,11 @@ d_grid=gpuArray(d_grid);
 a_gridvals=gpuArray(a_gridvals);
 
 PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+if N_z==0
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
+else
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+end
 l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate
@@ -170,14 +171,14 @@ end
 
 %% Main loop
 StationaryDist=gpuArray(StationaryDist);
-StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
+StationaryDistVec=reshape(StationaryDist,[N_a*max(N_z,1),1]);
 
 AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
 for ff=1:length(FnsToEvaluate)
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
     Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-    Values=reshape(Values,[N_a*N_z,1]);
+    Values=reshape(Values,[N_a*max(N_z,1),1]);
     % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
     temp=Values.*StationaryDistVec;
     AggVars(ff)=sum(temp(~isnan(temp)));

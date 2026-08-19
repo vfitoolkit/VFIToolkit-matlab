@@ -88,18 +88,24 @@ end
 ValuesOnGrid=struct();
 
 if Parallel==2
-    if l_z==0
+    if N_z==0
         PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
-    else
+        for ff=1:length(FnsToEvaluate)
+            FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+            Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+            Values=reshape(Values,[N_a,1]);
+            ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,1]);
+        end
+    else % N_z>0
         PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+        for ff=1:length(FnsToEvaluate)
+            FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+            Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+            Values=reshape(Values,[N_a*N_z,1]);
+            ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
+        end
     end
 
-    for ff=1:length(FnsToEvaluate)
-        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-        Values=reshape(Values,[N_a*N_z,1]);
-        ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
-    end
 elseif Parallel==1
     % CPU
     simoptions.experienceasset=0; % needs to be set so can use CreateGridvals_Policy()

@@ -85,7 +85,6 @@ end
 
 N_d=prod(n_d);
 N_a=prod(n_a);
-N_z=prod(n_z);
 
 if N_d==0
     l_d=0;
@@ -93,7 +92,6 @@ else
     l_d=length(n_d);
 end
 l_a=length(n_a);
-l_z=length(n_z);
 
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 if prod(simoptions.n_semiz)>0
@@ -105,7 +103,7 @@ end
 CorrTransProbs=struct();
 
 %% I want to do some things now, so that they can be used in setting up conditional restrictions
-StationaryDist=reshape(StationaryDist,[N_a*N_z,1]);
+StationaryDist=reshape(StationaryDist,[N_a*max(N_z,1),1]);
 
 % Make sure things are on the gpu (they should already be)
 StationaryDist=gpuArray(StationaryDist);
@@ -113,7 +111,11 @@ Policy=gpuArray(Policy);
 
 % Switch to PolicyValues, and permute
 PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+if N_z==0
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
+else
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+end
 l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate
@@ -158,7 +160,7 @@ P=CreatePTransitionMatrix(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,pi_semi
 for ff=1:length(FnsToEvalNames)
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
     Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-    Values=reshape(Values,[N_a*N_z,1]);
+    Values=reshape(Values,[N_a*max(N_z,1),1]);
 
     %% Calculate the correlation
     % Correlation(x,y)=Cov(x,u)/(stddev(x)*stddev(y))
@@ -202,8 +204,8 @@ for ff=1:length(FnsToEvalNames)
             n_fvals=simoptions.transprobquantiles;
         end
         % Pintermediate: sum transition probabilities for next period based accumulating the unique values
-        Pintermediate=zeros(N_a*N_z,n_fvals);
-        for ii=1:N_a*N_z
+        Pintermediate=zeros(N_a*max(N_z,1),n_fvals);
+        for ii=1:N_a*max(N_z,1)
             Pintermediate(ii,:)=accumarray(indexes,full(P(ii,:)));
         end
         % Final: weighted sum of rows based on this period weights
@@ -235,8 +237,8 @@ for ff=1:length(FnsToEvalNames)
                 % n_fvals & indexes were already created when we did the 1-period transition probabilities, so can just reuse them [because still on same ff]
 
                 % Pintermediate: sum transition probabilities for next period based accumulating the unique values
-                Pintermediate=zeros(N_a*N_z,n_fvals);
-                for ii=1:N_a*N_z
+                Pintermediate=zeros(N_a*max(N_z,1),n_fvals);
+                for ii=1:N_a*max(N_z,1)
                     Pintermediate(ii,:)=accumarray(indexes,full(Ptt(ii,:)));
                 end
                 % Final: weighted sum of rows based on this period weights

@@ -4,20 +4,67 @@ function ProbDensityFns=EvalFnOnAgentDist_ProbDensityFn_InfHorz(StationaryDist, 
 % simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
 
 %%
-if ~isfield(simoptions,'gridinterplayer')
+if ~exist('simoptions','var')
+    % If simoptions is not given, just use all the defaults
+    % Model solution
     simoptions.gridinterplayer=0;
+    % Model setup
+    simoptions.experienceasset=0;
+    simoptions.experienceassetz=0;
+    simoptions.experienceassete=0;
+    simoptions.experienceassetze=0;
+    simoptions.inheritanceasset=0;
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
+    % Internal options
+    simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
+else
+    % Check simoptions for missing fields, if there are some fill them with the defaults
+    % Model solution
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
+    % Model setup
+    if ~isfield(simoptions,'experienceasset')
+        simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0;
+    end
+    if ~isfield(simoptions,'experienceassete')
+        simoptions.experienceassete=0;
+    end
+    if ~isfield(simoptions,'experienceassetze')
+        simoptions.experienceassetze=0;
+    end
+    if ~isfield(simoptions,'inheritanceasset')
+        simoptions.inheritanceasset=0;
+    end
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
+    % Internal options
+    if ~isfield(simoptions,'alreadygridvals')
+        simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
+    end
 end
 
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
+
 l_a=length(n_a);
-l_z=length(n_z);
+
+n_a=gpuArray(n_a);
 
 N_a=prod(n_a);
-N_z=prod(n_z);
+a_gridvals=CreateGridvals(n_a,gpuArray(a_grid),1);
+% Switch to z_gridvals (folding e and semiz into z if appropriate)
+[n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
 
 %%
 if isstruct(StationaryDist)
@@ -53,24 +100,35 @@ end
 
 %%
 StationaryDist=gpuArray(StationaryDist);
-n_d=gpuArray(n_d);
-n_a=gpuArray(n_a);
-n_z=gpuArray(n_z);
-a_gridvals=CreateGridvals(n_z,gpuArray(a_grid),1);
-z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
 
-StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
+if N_z==0
+    StationaryDistVec=reshape(StationaryDist,[N_a,1]);
 
-ProbDensityFns=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
+    ProbDensityFns=zeros(N_a,length(FnsToEvaluate),'gpuArray');
 
-permuteindexes=[1+(1:1:(l_a+l_z)),1];
-PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
+    permuteindexes=[1+(1:1:l_a),1];
+    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,l_d+l_a]
 
-for ff=1:length(FnsToEvaluate)
-    FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-    Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-    Values=reshape(Values,[N_a*N_z,1]);
-    ProbDensityFns(:,ff)=Values.*StationaryDistVec;
+    for ff=1:length(FnsToEvaluate)
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,[]);
+        Values=reshape(Values,[N_a,1]);
+        ProbDensityFns(:,ff)=Values.*StationaryDistVec;
+    end
+else % N_z>0
+    StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
+
+    ProbDensityFns=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
+
+    permuteindexes=[1+(1:1:(l_a+l_z)),1];
+    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a]
+
+    for ff=1:length(FnsToEvaluate)
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+        Values=reshape(Values,[N_a*N_z,1]);
+        ProbDensityFns(:,ff)=Values.*StationaryDistVec;
+    end
 end
 
 % Normalize to 1 (to make it a pdf)
@@ -89,14 +147,24 @@ if FnsToEvaluateStruct==1
     clear ProbDensityFns
     ProbDensityFns=struct();
 %     AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        ProbDensityFns.(AggVarNames{ff})=reshape(ProbDensityFns2(ff,:),[n_a,n_z]);
+    if N_z==0
+        for ff=1:length(AggVarNames)
+            ProbDensityFns.(AggVarNames{ff})=reshape(ProbDensityFns2(ff,:),[n_a,1]);
+        end
+    else
+        for ff=1:length(AggVarNames)
+            ProbDensityFns.(AggVarNames{ff})=reshape(ProbDensityFns2(ff,:),[n_a,n_z]);
+        end
     end
 else
     % Change the ordering and size so that ProbDensityFns has same kind of
     % shape as StationaryDist, except first dimension indexes the 'FnsToEvaluate'.
     ProbDensityFns=ProbDensityFns';
-    ProbDensityFns=reshape(ProbDensityFns,[length(FnsToEvaluate),n_a,n_z]);
+    if N_z==0
+        ProbDensityFns=reshape(ProbDensityFns,[length(FnsToEvaluate),n_a]);
+    else
+        ProbDensityFns=reshape(ProbDensityFns,[length(FnsToEvaluate),n_a,n_z]);
+    end
 end
 
 end

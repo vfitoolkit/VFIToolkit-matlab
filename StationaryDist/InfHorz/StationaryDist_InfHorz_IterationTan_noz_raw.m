@@ -11,7 +11,6 @@ function StationaryDistKron=StationaryDist_InfHorz_IterationTan_noz_raw(Stationa
 Policy_aprime=gather(reshape(Policy_aprime,[1,N_a]));
 
 %% Use Tan improvement [not actually relevant without z variable]
-
 StationaryDistKron=sparse(gather(StationaryDistKron));
 
 % Gamma for first step of Tan improvement
@@ -22,7 +21,7 @@ counter=0;
 while currdist>simoptions.tolerance && counter<simoptions.maxit
 
     % First step of Tan improvement
-    StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a]); %No point checking distance every single iteration. Do 100, then check.
+    StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a,1]); %No point checking distance every single iteration. Do 100, then check.
 
     % Only check convergence every couple of iterations
     if rem(counter,simoptions.multiiter)==0

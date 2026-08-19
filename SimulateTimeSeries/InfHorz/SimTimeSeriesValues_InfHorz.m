@@ -18,9 +18,13 @@ end
 simoptions.numbersims=1;
 
 % To make my life easy, this actually just uses the SimPanelValues command and creates just one simulation.
-InitialDist=zeros([N_a,N_z]);
-InitialDist(simoptions.seedpoint(1),simoptions.seedpoint(2))=1;
-
+if N_z==0
+    InitialDist=zeros([N_a,1]);
+    InitialDist(simoptions.seedpoint(1))=1;
+else
+    InitialDist=zeros([N_a,N_z]);
+    InitialDist(simoptions.seedpoint(1),simoptions.seedpoint(2))=1;
+end
 
 TimeSeries=SimPanelValues_InfHorz(InitialDist,Policy,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z, simoptions);
 
