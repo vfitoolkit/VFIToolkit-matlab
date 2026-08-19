@@ -76,7 +76,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(4,:,:,e_c,N_j)=shiftdim(ceil(maxindex/(N_d3*N_d4)),-1);
         end
 
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_semiz % outer loop over semiz
             z_val=semiz_gridvals_J(z_c,:,N_j);
             for e_c=1:N_e % inner loop over e
@@ -154,7 +154,7 @@ else
         Policy(2,:,:,:,N_j)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1);
         Policy(4,:,:,:,N_j)=shiftdim(ceil(d3a1prime_ind/N_d3),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % terminal lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             pi_semizd4=pi_semiz(:,:,d4_c);
             d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
@@ -316,7 +316,7 @@ for reverse_j=1:N_j-1
         Policy(2,:,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1);
         Policy(4,:,:,:,jj)=shiftdim(ceil(d3a1prime_ind/N_d3),-1);
 
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             pi_semizd4=pi_semiz(:,:,d4_c);
             d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));

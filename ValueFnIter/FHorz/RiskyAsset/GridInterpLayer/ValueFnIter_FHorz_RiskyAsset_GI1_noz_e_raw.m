@@ -80,7 +80,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
         PolicyL2flag(1,:,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             % Layer 1: full ReturnMatrix max for initial midpoint

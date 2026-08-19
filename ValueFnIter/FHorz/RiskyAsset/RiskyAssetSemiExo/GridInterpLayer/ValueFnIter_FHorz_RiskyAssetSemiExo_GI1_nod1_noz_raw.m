@@ -48,7 +48,6 @@ N_a1prime=length(a1prime_grid);
 aind=gpuArray(0:1:N_a-1);
 zind=shiftdim(gpuArray(0:1:N_semiz-1),-3);
 zindB=shiftdim(gpuArray(0:1:N_semiz-1),-1);
-a2ind=shiftdim(gpuArray(0:1:N_a2-1),-2);
 
 V_ford4_jj=zeros(N_a,N_semiz,N_d4,'gpuArray');
 Policy_ford4_jj=zeros(N_a,N_semiz,N_d4,'gpuArray');
@@ -85,7 +84,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy_ford4_jj(:,:,d4_c)=shiftdim(d_ind,1)+N_d3*(shiftdim(mid_at,1)-1)+N_d3*N_a1*(shiftdim(L2offset,1)-1);
             d2index_ford4_jj(:,:,d4_c)=1;
         end
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         for d4_c=1:N_d4
             d3_with_d4=[d3_gridvals,repmat(d4_gridvals(d4_c,:),N_d3,1)];
             for z_c=1:N_semiz
@@ -212,7 +211,7 @@ else
             d2index_ford4_jj(:,:,d4_c)=shiftdim(d2index_resh(lin),1);
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         special_n_semiz=ones(1,length(n_semiz));
         for d4_c=1:N_d4
             pi_semizd4=pi_semiz(:,:,d4_c);
@@ -386,7 +385,7 @@ for reverse_j=1:N_j-1
             d2index_ford4_jj(:,:,d4_c)=shiftdim(d2index_resh(lin),1);
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         special_n_semiz=ones(1,length(n_semiz));
         for d4_c=1:N_d4
             pi_semizd4=pi_semiz(:,:,d4_c);

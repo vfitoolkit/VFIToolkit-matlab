@@ -151,7 +151,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(1,:,:,N_j)=ones(1,N_a,N_e,'gpuArray'); % d2 (terminal: d2 doesn't matter, only in expectations)
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             % Layer 1: full ReturnMatrix max for initial midpoint

@@ -42,15 +42,15 @@ if ~isfield(vfoptions,'V_Jplus1')
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
-    dindex=rem(maxindex-1,N_d)+1;
+    dindex=rem(maxindex-1,N_d3)+1;
     Policy(1,:,N_j)=1; % is meaningless anyway
-    Policy(2,:,N_j)=shiftdim(ceil(dindex),-1);
-    Policy(3,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+    Policy(2,:,N_j)=shiftdim(dindex,-1);
+    Policy(3,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=reshape(vfoptions.V_Jplus1,[N_a2,1]); % Using V_Jplus1
+    EV=reshape(vfoptions.V_Jplus1,[N_a,1]); % Using V_Jplus1
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateRiskyAssetFnMatrix(aprimeFn, n_d23, n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)

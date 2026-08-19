@@ -158,7 +158,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 d2index_ford4_jj(:,:,d4_c)=1; % d2 meaningless at j=N_j without warm-glow
             end
         end
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             d3_with_d4=[d3_gridvals,repmat(d4_gridvals(d4_c,:),N_d3,1)];
             for z_c=1:N_semiz
@@ -351,7 +351,7 @@ else
             d2index_ford4_jj(:,:,d4_c)=shiftdim(d2indexfine_resh(linlookup),1);
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         special_n_semiz=ones(1,length(n_semiz));
         for d4_c=1:N_d4
             pi_semizd4=pi_semiz(:,:,d4_c);
@@ -641,7 +641,7 @@ for reverse_j=1:N_j-1
             d2index_ford4_jj(:,:,d4_c)=shiftdim(d2indexfine_resh(linlookup),1);
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         special_n_semiz=ones(1,length(n_semiz));
         for d4_c=1:N_d4
             pi_semizd4=pi_semiz(:,:,d4_c);

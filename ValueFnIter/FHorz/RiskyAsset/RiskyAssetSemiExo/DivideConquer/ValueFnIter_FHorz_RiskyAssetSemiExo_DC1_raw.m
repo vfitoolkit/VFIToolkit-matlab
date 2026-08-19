@@ -330,7 +330,7 @@ else
                 end
             end
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz(:,:,d4_c));
             d13_with_d4=[repmat(d13_gridvals,1,1),repmat(d4_gridvals(d4_c,:),N_d13,1)];
@@ -670,7 +670,7 @@ for reverse_j=1:N_j-1
                 end
             end
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz(:,:,d4_c));
             d13_with_d4=[repmat(d13_gridvals,1,1),repmat(d4_gridvals(d4_c,:),N_d13,1)];

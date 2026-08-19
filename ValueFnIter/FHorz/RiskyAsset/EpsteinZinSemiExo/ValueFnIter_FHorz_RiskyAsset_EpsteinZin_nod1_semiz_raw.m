@@ -211,7 +211,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             end
         end
 
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
 
         for z_c=1:N_bothz
             z_val=bothz_gridvals_J(z_c,:,N_j);
@@ -442,7 +442,7 @@ else
         Policy4(2,:,:,N_j)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
         Policy4(4,:,:,N_j)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
 
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz(:,:,d4_c)); % reverse order
@@ -757,7 +757,7 @@ for reverse_j=1:N_j-1
         Policy4(2,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
         Policy4(4,:,:,jj)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
 
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz(:,:,d4_c)); % reverse order

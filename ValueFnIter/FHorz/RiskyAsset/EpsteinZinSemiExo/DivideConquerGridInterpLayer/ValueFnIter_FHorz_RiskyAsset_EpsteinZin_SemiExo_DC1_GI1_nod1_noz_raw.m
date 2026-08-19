@@ -321,7 +321,7 @@ else
             zidx=repmat(gpuArray(1:N_semiz),N_a,1);
             linlookup=d3part+N_d3*(a1fine-1)+N_d3*N_a1prime*(zidx-1);
             d2_ford4_jj(:,:,d4_c)=d2indexfine_resh(linlookup);
-        elseif vfoptions.lowmemory==1
+        elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
             for z_c=1:N_semiz
                 semiz_val=semiz_gridvals(z_c,:);
                 DiscountedEV_zc=DiscountedEV(:,:,:,:,z_c);
@@ -626,7 +626,7 @@ for reverse_j=1:N_j-1
             zidx=repmat(gpuArray(1:N_semiz),N_a,1);
             linlookup=d3part+N_d3*(a1fine-1)+N_d3*N_a1prime*(zidx-1);
             d2_ford4_jj(:,:,d4_c)=d2indexfine_resh(linlookup);
-        elseif vfoptions.lowmemory==1
+        elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
             for z_c=1:N_semiz
                 semiz_val=semiz_gridvals(z_c,:);
                 DiscountedEV_zc=DiscountedEV(:,:,:,:,z_c);

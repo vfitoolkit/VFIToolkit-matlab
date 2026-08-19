@@ -47,7 +47,7 @@ d3_gridvals=gpuArray(CreateGridvals(n_d3,d3_grid,1));
 if vfoptions.lowmemory>=1
     special_n_e=ones(1,length(n_e));
 end
-if vfoptions.lowmemory==2
+if vfoptions.lowmemory>=2
     special_n_semiz=ones(1,length(n_semiz));
 end
 
@@ -208,7 +208,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 end
             end
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             d3_with_d4=[d3_gridvals,repmat(d4_gridvals(d4_c,:),N_d3,1)];
             for z_c=1:N_semiz

@@ -42,7 +42,7 @@ u_grid=gpuArray(u_grid);
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 d13_gridvals=CreateGridvals(n_d13,d13_grid,1);
 
-if vfoptions.lowmemory==1
+if vfoptions.lowmemory>=1
     special_n_z=ones(1,length(n_z));
 end
 
@@ -100,7 +100,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % d2 meaningless at j=N_j (no future)
         Policy(2,:,:,N_j)=ones(1,N_a,N_z,'gpuArray');
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_ExpAsset_Disc_DC2A(ReturnFn, n_d1, n_d3, n_a2, n_a3, special_n_z, d13_gridvals, a1_grid, a2_gridvals, a1_grid, a2_gridvals, a3_grid, z_val, ReturnFnParamsVec, 1);
@@ -225,7 +225,7 @@ else % V_Jplus1
         lin=d3_ind+N_d3*(a1mid-1)+N_d3*N_a1*(maxindexL2a2-1)+N_d3*N_a1*N_a2*zlin;
         Policy(2,:,:,N_j)=d2index_resh(lin);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             DiscountedEV_z=DiscountedEV_d13(:,:,:,:,:,:,z_c);
@@ -365,7 +365,7 @@ for reverse_j=1:N_j-1
         lin=d3_ind+N_d3*(a1mid-1)+N_d3*N_a1*(maxindexL2a2-1)+N_d3*N_a1*N_a2*zlin;
         Policy(2,:,:,jj)=d2index_resh(lin);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             DiscountedEV_z=DiscountedEV_d13(:,:,:,:,:,:,z_c);

@@ -49,12 +49,12 @@ if ~isfield(vfoptions,'V_Jplus1')
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        dindex=rem(maxindex-1,N_d)+1;
+        dindex=rem(maxindex-1,N_d3)+1;
         Policy(1,:,:,N_j)=1; % is meaningless anyway
         Policy(2,:,:,N_j)=shiftdim(dindex,-1);
-        Policy(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+        Policy(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -62,10 +62,10 @@ if ~isfield(vfoptions,'V_Jplus1')
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            dindex=rem(maxindex-1,N_d)+1;
+            dindex=rem(maxindex-1,N_d3)+1;
             Policy(1,:,z_c,N_j)=1; % is meaningless anyway
             Policy(2,:,z_c,N_j)=shiftdim(dindex,-1);
-            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
         end
     end
 else
@@ -124,7 +124,7 @@ else
         Policy(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
         Policy(1,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             DiscountedEV_onlyd3_z=DiscountedEV_onlyd3(:,1,z_c);
@@ -214,7 +214,7 @@ for reverse_j=1:N_j-1
         Policy(3,:,:,jj)=shiftdim(ceil(maxindex/N_d3),-1);
         Policy(1,:,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             DiscountedEV_onlyd3_z=DiscountedEV_onlyd3(:,1,z_c);

@@ -94,7 +94,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             end
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_ii_z=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,n_d3,n_a1,vfoptions.level1n,n_a2,special_n_z, d13_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1,0);
@@ -258,7 +258,7 @@ else % V_Jplus1
             end
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c); % [N_d3,N_a1,1,1]
@@ -450,7 +450,7 @@ for reverse_j=1:N_j-1
             end
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);

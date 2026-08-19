@@ -258,7 +258,7 @@ else
                 linlookup=d3part+N_d3*(a1mid-1)+N_d3*N_a1*(zidx-1);
                 d2_ford4_jj(:,semizblock,d4_c)=d2index_reshblock(linlookup);
             end
-        elseif vfoptions.lowmemory==2
+        elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
             for z_c=1:N_bothz
                 z_val=bothz_gridvals(z_c,:);
                 DiscountedEV_zc=DiscountedEV(:,:,:,:,z_c);
@@ -529,7 +529,7 @@ for reverse_j=1:N_j-1
                 linlookup=d3part+N_d3*(a1mid-1)+N_d3*N_a1*(zidx-1);
                 d2_ford4_jj(:,semizblock,d4_c)=d2index_reshblock(linlookup);
             end
-        elseif vfoptions.lowmemory==2
+        elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
             for z_c=1:N_bothz
                 z_val=bothz_gridvals(z_c,:);
                 DiscountedEV_zc=DiscountedEV(:,:,:,:,z_c);

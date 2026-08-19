@@ -124,12 +124,13 @@ else
             EV(isnan(EV))=0;
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-            skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index+N_a*((1:1:N_bothz)-1)));
-            aprimeProbs=repmat(a2primeProbs,N_a1,1);
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1)));
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_bothz);
             aprimeProbs(skipinterp)=0;
+            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_bothz]);
 
-            EV1=EV(aprimeIndex+N_a*((1:1:N_bothz)-1));
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_bothz)-1));
+            EV1=EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1));
+            EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1));
 
             EV1=reshape(EV1,[N_d23*N_a1,N_u,N_bothz]).*aprimeProbs;
             EV2=reshape(EV2,[N_d23*N_a1,N_u,N_bothz]).*(1-aprimeProbs);
@@ -175,12 +176,13 @@ else
             EV(isnan(EV))=0;
             EV=sum(EV,2);
 
-            skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index+N_a*((1:1:N_bothz)-1)));
-            aprimeProbs=repmat(a2primeProbs,N_a1,1);
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1)));
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_bothz);
             aprimeProbs(skipinterp)=0;
+            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_bothz]);
 
-            EV1=EV(aprimeIndex+N_a*((1:1:N_bothz)-1));
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_bothz)-1));
+            EV1=EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1));
+            EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1));
 
             EV1=reshape(EV1,[N_d23*N_a1,N_u,N_bothz]).*aprimeProbs;
             EV2=reshape(EV2,[N_d23*N_a1,N_u,N_bothz]).*(1-aprimeProbs);
@@ -217,7 +219,7 @@ else
         d1_lookup=d3a1prime_ind+N_d3*N_a1*aind+N_d3*N_a1*N_a*bothzind+N_d3*N_a1*N_a*N_bothz*shiftdim(maxindex-1,-1);
         Policy(1,:,:,N_j)=shiftdim(d1index_ford4_jj(d1_lookup),-1); % d1
 
-    elseif vfoptions.lowmemory==2 % loop over bothz (outer semiz, inner z)
+    elseif vfoptions.lowmemory>=2 % loop over bothz (outer semiz, inner z); also covers any higher lowmemory values
         for d4_c=1:N_d4
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz(:,:,d4_c));
             d1_d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d1,n_d3,special_n_d4,n_a1], [d1_grid; d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
@@ -394,7 +396,7 @@ for reverse_j=1:N_j-1
         d1_lookup=d3a1prime_ind+N_d3*N_a1*aind+N_d3*N_a1*N_a*bothzind+N_d3*N_a1*N_a*N_bothz*shiftdim(maxindex-1,-1);
         Policy(1,:,:,jj)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
 
-    elseif vfoptions.lowmemory==2 % loop over bothz (outer semiz, inner z)
+    elseif vfoptions.lowmemory>=2 % loop over bothz (outer semiz, inner z); also covers any higher lowmemory values
         for d4_c=1:N_d4
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz(:,:,d4_c));
             d1_d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d1,n_d3,special_n_d4,n_a1], [d1_grid; d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));

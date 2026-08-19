@@ -337,7 +337,7 @@ else
         d1_lookup=d3_ind+N_d3*aind+N_d3*N_a*bothzind+N_d3*N_a*N_bothz*shiftdim(maxindex-1,-1);
         Policy4(1,:,:,N_j)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
 
-    elseif vfoptions.lowmemory==2 % loop over bothz (outer semiz, inner z)
+    elseif vfoptions.lowmemory>=2 % loop over bothz (outer semiz, inner z); also covers any higher lowmemory values
         for d4_c=1:N_d4
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz(:,:,d4_c)); % reverse order
             d1_d3_special_d4_gridvals=gpuArray(CreateGridvals([n_d1,n_d3,special_n_d4], [d1_grid; d3_grid; d4_gridvals(d4_c,:)'], 1));
@@ -619,7 +619,7 @@ for reverse_j=1:N_j-1
         d1_lookup=d3_ind+N_d3*aind+N_d3*N_a*bothzind+N_d3*N_a*N_bothz*shiftdim(maxindex-1,-1);
         Policy4(1,:,:,jj)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
 
-    elseif vfoptions.lowmemory==2 % loop over bothz (outer semiz, inner z)
+    elseif vfoptions.lowmemory>=2 % loop over bothz (outer semiz, inner z); also covers any higher lowmemory values
         for d4_c=1:N_d4
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz(:,:,d4_c)); % reverse order
             d1_d3_special_d4_gridvals=gpuArray(CreateGridvals([n_d1,n_d3,special_n_d4], [d1_grid; d3_grid; d4_gridvals(d4_c,:)'], 1));

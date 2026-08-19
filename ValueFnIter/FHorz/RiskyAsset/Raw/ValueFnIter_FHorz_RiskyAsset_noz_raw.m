@@ -43,14 +43,14 @@ if ~isfield(vfoptions,'V_Jplus1')
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
-    dindex=rem(maxindex-1,N_d)+1;
+    dindex=rem(maxindex-1,N_d1*N_d3)+1;
     Policy(1,:,N_j)=shiftdim(rem(dindex-1,N_d1)+1,-1);
     Policy(2,:,N_j)=1; % is meaningless anyway
     Policy(3,:,N_j)=shiftdim(ceil(dindex/N_d1),-1);
-    Policy(4,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+    Policy(4,:,N_j)=shiftdim(ceil(maxindex/(N_d1*N_d3)),-1);
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a2,1]);    % First, switch V_Jplus1 into Kron form
+    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);

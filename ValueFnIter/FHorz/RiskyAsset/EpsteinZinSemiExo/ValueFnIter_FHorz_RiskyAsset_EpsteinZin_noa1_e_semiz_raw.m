@@ -353,7 +353,7 @@ else
         d1_lookup=d3_ind+N_d3*aind+N_d3*N_a*bothzind+N_d3*N_a*N_bothz*eind+N_d3*N_a*N_bothz*N_e*shiftdim(maxindex-1,-1);
         Policy4(1,:,:,:,N_j)=shiftdim(d1index_ford4_jj(d1_lookup),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % terminal lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz(:,:,d4_c)); % reverse order
             d1_d3_special_d4_gridvals=gpuArray(CreateGridvals([n_d1,n_d3,special_n_d4], [d1_grid; d3_grid; d4_gridvals(d4_c,:)'], 1));

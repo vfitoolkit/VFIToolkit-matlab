@@ -48,7 +48,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         Policy(1,:,:,N_j)=1; % is meaningless anyway
         Policy(2,:,:,N_j)=shiftdim(maxindex,-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d3, n_a, special_n_e, d3_gridvals, a_gridvals, e_val, ReturnFnParamsVec);
@@ -97,13 +97,13 @@ else
         Policy(2,:,:,N_j)=shiftdim(maxindex,1);
         Policy(1,:,:,N_j)=shiftdim(d2index(maxindex),1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         % Time to refine
         % Second (out of order): EV, we can refine out d2
         [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3,1]),[],1);
        for e_c=1:N_e
            e_val=e_gridvals_J(e_c,:,N_j);
-           ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d3, n_a, n_e, special_n_e, d3_gridvals, a_gridvals, e_val, ReturnFnParamsVec);
+           ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d3, n_a, special_n_e, d3_gridvals, a_gridvals, e_val, ReturnFnParamsVec);
 
            % Time to refine
            % First: ReturnMatrix, we can refine out d1
@@ -168,7 +168,7 @@ for reverse_j=1:N_j-1
         Policy(2,:,:,jj)=shiftdim(maxindex,1);
         Policy(1,:,:,jj)=shiftdim(d2index(maxindex),1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
 
        % Time to refine
        % Second (out of order): EV, we can refine out d2

@@ -186,7 +186,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(1,:,:,N_j)=d2index(d3_ind); % d2 comes from refining the warm-glow (no a nor z in WGmatrix)
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             % Layer 1
@@ -409,7 +409,7 @@ else % V_Jplus1
         linlookup=d3part+N_d3*(a1fine-1)+N_d3*N_a1prime*(zidx-1);
         Policy(1,:,:,N_j)=shiftdim(d2indexfine_resh(linlookup),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);
@@ -678,7 +678,7 @@ for reverse_j=1:N_j-1
         linlookup=d3part+N_d3*(a1fine-1)+N_d3*N_a1prime*(zidx-1);
         Policy(1,:,:,jj)=shiftdim(d2indexfine_resh(linlookup),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);

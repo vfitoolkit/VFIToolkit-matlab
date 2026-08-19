@@ -59,7 +59,7 @@ d3ind=repelem(gpuArray(1:1:N_d3)',N_d1,1);
 if vfoptions.lowmemory>=1
     special_n_e=ones(1,length(n_e));
 end
-if vfoptions.lowmemory==2
+if vfoptions.lowmemory>=2
     special_n_semiz=ones(1,length(n_semiz));
 end
 
@@ -259,7 +259,7 @@ else
                 linlookup=d3part+N_d3*(a1mid-1)+N_d3*N_a1*(zidx-1);
                 d2_ford4_jj(:,:,e_c,d4_c)=d2index_resh(linlookup);
             end
-        elseif vfoptions.lowmemory==2
+        elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
             % Loop over semiz (outer) and e (inner) to reduce memory footprint
             special_n_e=ones(1,length(n_e));
             for z_c=1:N_semiz
@@ -533,7 +533,7 @@ for reverse_j=1:N_j-1
                 linlookup=d3part+N_d3*(a1mid-1)+N_d3*N_a1*(zidx-1);
                 d2_ford4_jj(:,:,e_c,d4_c)=d2index_resh(linlookup);
             end
-        elseif vfoptions.lowmemory==2
+        elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
             % Loop over semiz (outer) and e (inner) to reduce memory footprint
             special_n_e=ones(1,length(n_e));
             for z_c=1:N_semiz

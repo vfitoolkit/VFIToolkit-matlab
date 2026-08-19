@@ -118,7 +118,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(2,:,:,N_j)=shiftdim(ceil(maxindex),1); % d3
         end
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -228,7 +228,7 @@ else
         Policy(1,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
         Policy(2,:,:,N_j)=shiftdim(maxindex,1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d3, n_a2, special_n_z, d3_grid, a2_grid, z_val, ReturnFnParamsVec);
@@ -397,7 +397,7 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
         Policy(2,:,:,jj)=shiftdim(maxindex,1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d3, n_a2, special_n_z, d3_grid, a2_grid, z_val, ReturnFnParamsVec);

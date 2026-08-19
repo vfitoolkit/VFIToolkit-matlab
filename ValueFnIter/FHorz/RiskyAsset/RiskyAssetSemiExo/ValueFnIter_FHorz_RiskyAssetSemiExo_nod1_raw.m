@@ -94,7 +94,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
+    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_bothz]);    % First, switch V_Jplus1 into Kron form
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
@@ -129,13 +129,14 @@ else
 
             % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
             % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-            skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index+N_a*((1:1:N_bothz)-1))); % Note, probably just do this off of a2prime values
-            aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1))); % Note, probably just do this off of a2prime values
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_bothz);
             aprimeProbs(skipinterp)=0;
+            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_bothz]);
 
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1=EV(aprimeIndex+N_a*((1:1:N_bothz)-1)); % (d,a1prime,u,z), the lower aprime
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_bothz)-1)); % (d,a1prime,u,z), the upper aprime
+            EV1=EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1)); % (d,a1prime,u,z), the lower aprime
+            EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1)); % (d,a1prime,u,z), the upper aprime
 
             % Apply the aprimeProbs
             EV1=reshape(EV1,[N_d23*N_a1,N_u,N_bothz]).*aprimeProbs; % probability of lower grid point
@@ -180,12 +181,13 @@ else
             EV(isnan(EV))=0;
             EV=sum(EV,2);
 
-            skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index+N_a*((1:1:N_bothz)-1)));
-            aprimeProbs=repmat(a2primeProbs,N_a1,1);
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1)));
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_bothz);
             aprimeProbs(skipinterp)=0;
+            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_bothz]);
 
-            EV1=EV(aprimeIndex+N_a*((1:1:N_bothz)-1));
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_bothz)-1));
+            EV1=EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1));
+            EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1));
 
             EV1=reshape(EV1,[N_d23*N_a1,N_u,N_bothz]).*aprimeProbs;
             EV2=reshape(EV2,[N_d23*N_a1,N_u,N_bothz]).*(1-aprimeProbs);
@@ -215,7 +217,7 @@ else
         Policy(2,:,:,N_j)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
         Policy(4,:,:,N_j)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
 
-    elseif vfoptions.lowmemory==2 % loop over bothz (outer semiz, inner z)
+    elseif vfoptions.lowmemory>=2 % loop over bothz (outer semiz, inner z); also covers any higher lowmemory values
         for d4_c=1:N_d4
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz(:,:,d4_c)); % reverse order
@@ -409,7 +411,7 @@ for reverse_j=1:N_j-1
         Policy(2,:,:,jj)=shiftdim(rem(d3a1prime_ind-1,N_d3)+1,-1); % d3p1
         Policy(4,:,:,jj)=shiftdim(ceil(d3a1prime_ind/N_d3),-1); % a1prime
 
-    elseif vfoptions.lowmemory==2 % loop over bothz (outer semiz, inner z)
+    elseif vfoptions.lowmemory>=2 % loop over bothz (outer semiz, inner z); also covers any higher lowmemory values
         for d4_c=1:N_d4
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz(:,:,d4_c)); % reverse order

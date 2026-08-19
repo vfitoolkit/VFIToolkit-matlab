@@ -103,7 +103,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
         PolicyL2flag(1,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             % Layer 1
@@ -254,7 +254,7 @@ else % V_Jplus1
         linlookup=d3part+N_d3*(a1mid-1)+N_d3*N_a1*(zidx-1);
         Policy(1,:,:,N_j)=shiftdim(d2index_resh(linlookup),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);
@@ -426,7 +426,7 @@ for reverse_j=1:N_j-1
         linlookup=d3part+N_d3*(a1mid-1)+N_d3*N_a1*(zidx-1);
         Policy(1,:,:,jj)=shiftdim(d2index_resh(linlookup),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             DiscountedEV_z=DiscountedEV(:,:,:,:,z_c);

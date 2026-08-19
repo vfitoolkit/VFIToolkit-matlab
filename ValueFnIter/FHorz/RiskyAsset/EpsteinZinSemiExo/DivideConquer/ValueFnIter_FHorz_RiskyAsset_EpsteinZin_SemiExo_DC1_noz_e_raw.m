@@ -226,7 +226,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 Policy(5,:,:,e_c,N_j)=a1primepart;
             end
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2 % lm2 already does the most-looped variant, so it also serves the higher lowmemory values
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_semiz

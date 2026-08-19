@@ -161,7 +161,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             end
         end
 
-    elseif vfoptions.lowmemory==2 % loop over bothz (outer semiz, inner z)
+    elseif vfoptions.lowmemory>=2 % loop over bothz (outer semiz, inner z); also covers any higher lowmemory values
         for z_c=1:N_bothz
             z_val=bothz_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d3,n_d4], n_a, special_n_bothz, d3d4_gridvals, a_gridvals, z_val, ReturnFnParamsVec);
@@ -283,7 +283,7 @@ else
         Policy3(2,:,:,N_j)=d3_ind;
         Policy3(1,:,:,N_j)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % terminal lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for d4_c=1:N_d4
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz(:,:,d4_c)); % reverse order
             d3_special_d4_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4], [d3_grid; d4_gridvals(d4_c,:)'], 1));
@@ -556,7 +556,7 @@ for reverse_j=1:N_j-1
         Policy3(2,:,:,jj)=d3_ind;
         Policy3(1,:,:,jj)=shiftdim(d2index_ford4_jj(d3_ind+N_d3*bothzind+N_d3*N_bothz*shiftdim(maxindex-1,-1)),-1);
 
-    elseif vfoptions.lowmemory==2 % loop over bothz (outer semiz, inner z)
+    elseif vfoptions.lowmemory>=2 % loop over bothz (outer semiz, inner z); also covers any higher lowmemory values
         for d4_c=1:N_d4
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz(:,:,d4_c)); % reverse order
             d3_special_d4_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4], [d3_grid; d4_gridvals(d4_c,:)'], 1));

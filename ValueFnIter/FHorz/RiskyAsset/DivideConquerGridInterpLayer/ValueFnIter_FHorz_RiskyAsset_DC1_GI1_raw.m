@@ -114,7 +114,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % d2, which was not in ReturnFn
         Policy(2,:,:,N_j)=ones(1,N_a,N_z,'gpuArray'); % d2 (because this is terminal period, choice of d2 is not actually doing anything (as it is only in the expectations term)
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             % Layer 1
@@ -271,7 +271,7 @@ else % V_Jplus1
         linlookup=d3part+N_d3*(a1mid-1)+N_d3*N_a1*(zidx-1);
         Policy(2,:,:,N_j)=shiftdim(d2index_resh(linlookup),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         special_n_z=ones(1,length(n_z));
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -450,7 +450,7 @@ for reverse_j=1:N_j-1
         linlookup=d3part+N_d3*(a1mid-1)+N_d3*N_a1*(zidx-1);
         Policy(2,:,:,jj)=shiftdim(d2index_resh(linlookup),-1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1 % lm1 already does the most-looped variant, so it also serves the higher lowmemory values
         special_n_z=ones(1,length(n_z));
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
