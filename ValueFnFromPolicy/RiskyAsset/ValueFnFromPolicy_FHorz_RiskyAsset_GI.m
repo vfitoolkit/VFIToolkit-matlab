@@ -119,11 +119,6 @@ else
 end
 
 %% Extract a1prime midpoint (lower) and L2
-if N_z==0 && N_e==0
-    a1_lower=ones(N_a, N_j, 'gpuArray');
-else
-    a1_lower=ones(N_a, N_ze, N_j, 'gpuArray');
-end
 a1_mid=shiftdim(Policy_k(l_d+1,:,:,:),1);
 L2=shiftdim(Policy_k(l_d+l_a1+1,:,:,:),1);
 w_a1_upper=(L2-1)/(n2short+1);
@@ -202,6 +197,7 @@ for reverse_j=0:N_j-1
             EVnext=V(:,jj+1);
         elseif N_z==0 && N_e>0
             EVnext=sum(V(:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1), -1), 2);
+            EVnext(isnan(EVnext))=0; % zero pi_e entries times -Inf give NaN
         elseif N_z>0 && N_e==0
             EVnext=V(:,:,jj+1)*pi_z_J(:,:,jj)';
             EVnext(isnan(EVnext))=0;
@@ -225,6 +221,7 @@ for reverse_j=0:N_j-1
             EV_UU=reshape(EVnext(a1u+N_a1*(a2u-1)),[N_a,N_u]);
             per_u=wa1l.*wa2l.*EV_LL + wa1l.*wa2u.*EV_LU + wa1u.*wa2l.*EV_UL + wa1u.*wa2u.*EV_UU;
             EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-1), 2);
+            EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
             V(:,jj)=F_jj+beta*EVnext_atpolicy;
         elseif N_z==0 && N_e>0
             % a1l/u, wa1l/u: [N_a, N_e]; a2primeIndex/Probs: [N_a, N_e, N_u]
@@ -240,6 +237,7 @@ for reverse_j=0:N_j-1
             EV_UU=reshape(EVnext(lin_UU(:)),[N_a,N_e,N_u]);
             per_u=wa1l.*wa2l.*EV_LL + wa1l.*wa2u.*EV_LU + wa1u.*wa2l.*EV_UL + wa1u.*wa2u.*EV_UU;
             EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-2), 3);
+            EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         elseif N_z>0 && N_e==0
             % a1l/u, wa1l/u: [N_a, N_z]; a2primeIndex/Probs: [N_a, N_z, N_u]
@@ -256,6 +254,7 @@ for reverse_j=0:N_j-1
             EV_UU=reshape(EVnext(lin_UU(:)),[N_a,N_z,N_u]);
             per_u=wa1l.*wa2l.*EV_LL + wa1l.*wa2u.*EV_LU + wa1u.*wa2l.*EV_UL + wa1u.*wa2u.*EV_UU;
             EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-2), 3);
+            EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         else
             % a1l/u, wa1l/u: [N_a, N_z*N_e] flat -> [N_a, N_z, N_e]
@@ -273,6 +272,7 @@ for reverse_j=0:N_j-1
             EV_UU=reshape(EVnext(lin_UU(:)),[N_a,N_z,N_e,N_u]);
             per_u=wa1l.*wa2l.*EV_LL + wa1l.*wa2u.*EV_LU + wa1u.*wa2l.*EV_UL + wa1u.*wa2u.*EV_UU;
             EVnext_atpolicy=sum(per_u .* shiftdim(pi_u,-3), 4);
+            EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
             V(:,:,:,jj)=F_jj+beta*EVnext_atpolicy;
         end
     end

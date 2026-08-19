@@ -55,7 +55,6 @@ if N_d==0
     error('ValueFnFromPolicy_FHorz_RiskyAsset_SemiExo: riskyasset+semiz requires at least one decision variable')
 end
 l_d=length(n_d);
-l_a=length(n_a);
 
 % Split a into a1 (standard) and a2 (risky asset).
 % noa1 case (n_a is scalar): use n_a1=0, N_a1=0 (toolkit convention). Override l_a1=0 explicitly
@@ -70,11 +69,7 @@ else
     l_a1=length(n_a1);
 end
 n_a2=n_a(end);
-N_a2=prod(n_a2);
-a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a2=length(n_a2);
-l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit); 0 in noa1 case
 
 % Which d feed the aprimeFn (d2,d3), under the 'refine' split:
 whichisdforriskyasset=(refine_d(1)+1):sum(refine_d(1:3));
@@ -116,11 +111,7 @@ l_daprime=size(PolicyValues,1); % = n_d1 + n_d3 + n_d4 + l_a1
 % PolicyValues shape:
 % - N_e==0: [l_daprime, N_a, N_shocks, N_j]
 % - N_e>0:  [l_daprime, N_a, N_shocks*N_e, N_j]
-if N_e==0
-    PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]);
-else
-    PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]);
-end
+PolicyValuesPermute=permute(PolicyValues,[2,3,1,4]); % same permute with or without e (shock dims kept combined)
 
 %% Reshape Policy to canonical Kron form
 if N_e==0
@@ -213,6 +204,7 @@ for reverse_j=0:N_j-1
         else
             V_next=V(:,:,:,jj+1);
             V_next=sum(V_next .* shiftdim(vfoptions.pi_e_J(:,jj+1), -2), 3);
+            V_next(isnan(V_next))=0; % zero pi_e entries times -Inf give NaN
             V_next=reshape(V_next, [N_a, N_shocks]);
         end
 
