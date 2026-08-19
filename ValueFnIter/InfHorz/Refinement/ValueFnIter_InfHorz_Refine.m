@@ -1,4 +1,4 @@
-function [VKron,Policy]=ValueFnIter_InfHorz_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions)
+function [V,Policy]=ValueFnIter_InfHorz_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions)
 % When using refinement, lowmemory is implemented in the first state (return fn) but not the second (the actual iteration).
 
 N_a=prod(n_a);
@@ -6,39 +6,39 @@ N_z=prod(n_z);
 
 
 if N_z==0
-    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a
+    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a.
     % Since the return function is independent of time creating it once and
-    % then using it every iteration is good for speed, but it does use a
-    % lot of memory.
+    % then using it every iteration is good for speed, but it does use a lot of memory.
 
     ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,1);
 
-    % For refinement, now we solve for d*(aprime,a) that maximizes the ReturnFn
+    % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
     if n_d(1)>0
         [ReturnMatrix,dstar]=max(ReturnMatrix,[],1);
         ReturnMatrix=shiftdim(ReturnMatrix,1);
     end
 
     %% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
-    if vfoptions.howardsgreedy==1
-        [VKron,Policy_a]=ValueFnIter_InfHorz_HowardGreedy_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
-    elseif vfoptions.howardsgreedy==0
-        if vfoptions.howardssparse==0
-            [VKron,Policy_a]=ValueFnIter_InfHorz_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-        elseif vfoptions.howardssparse==1
-            [VKron,Policy_a]=ValueFnIter_InfHorz_sparse_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-        end
-    end
+    [V,Policy_a]=ValueFnIter_InfHorz_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
 
     %% For refinement, add d into Policy
     % Policy is currently
     if n_d(1)>0
         Policy=zeros(2,N_a,'gpuArray');
         Policy(2,:)=shiftdim(Policy_a,-1);
-        temppolicyindex=reshape(Policy_a,[1,N_a])+(0:1:N_a-1)*N_a;
-        Policy(1,:)=reshape(dstar(temppolicyindex),[1,N_a]);
+        temppolicyindex=reshape(Policy_a,[1,N_a])+N_a*(0:1:N_a-1);
+        Policy(1,:)=reshape(dstar(temppolicyindex),[N_a,1]);
     else
         Policy=Policy_a;
+    end
+
+    %% Cleaning up the output
+    if vfoptions.outputkron==0
+        V=reshape(V,[n_a,1]);
+        Policy=UnKronPolicyIndexes2_noz(Policy, n_d, n_a, n_a, vfoptions); % We know there is a decision variable, as otherwise wouldn't be using Refine
+    else
+        Policy=reshape(Policy,[1,N_a]);
+        return
     end
 
 else % N_z>0
@@ -70,16 +70,14 @@ else % N_z>0
         end
     end
 
-
-
     %% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
     if vfoptions.howardsgreedy==1
-        [VKron,Policy_a]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
+        [V,Policy_a]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
     elseif vfoptions.howardsgreedy==0
         if vfoptions.howardssparse==0
-            [VKron,Policy_a]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            [V,Policy_a]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
         elseif vfoptions.howardssparse==1
-            [VKron,Policy_a]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            [V,Policy_a]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
         end
     end
 
@@ -93,7 +91,15 @@ else % N_z>0
     else
         Policy=Policy_a;
     end
-end
 
+    %% Cleaning up the output
+    if vfoptions.outputkron==0
+        V=reshape(V,[n_a,n_z]);
+        Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions); % We know there is a decision variable, as otherwise wouldn't be using Refine
+    else
+        Policy=reshape(Policy,[1,N_a,N_z]);
+        return
+    end
+end
 
 end

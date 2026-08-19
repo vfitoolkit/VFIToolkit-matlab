@@ -178,10 +178,10 @@ end
 
 %% V0 (initial guess)
 if isfield(vfoptions,'V0')
-    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
+    V0=reshape(gpuArray(vfoptions.V0),[N_a,max(N_z,1)]); % Note: max(N_z,1) is N_z, or if N_z=0 then it is 1
     vfoptions.actualV0=1;
 else
-    V0=zeros([N_a,N_z], 'gpuArray');
+    V0=zeros([N_a,max(N_z,1)], 'gpuArray');
     vfoptions.actualV0=0; % DC2 has different way of creating initial guess so this will be ignored
 end
 
@@ -445,6 +445,20 @@ if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI')
     % Note: have only implemented Relative VFI on the GPU
     warning('Relative VFI is unstable if you have substantial discretization (has difficulty converging if you dont use enough points)')
     [VKron,Policy]=ValueFnIter_InfHorz_RelativeVFI(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
+    % Relative VFI still returns Kron form, so clean up here. The other solnmethods each do their own.
+    if vfoptions.outputkron==0
+        V=reshape(VKron,[n_a,n_z]);
+        if N_d==0
+            Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
+        else
+            Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
+        end
+        varargout={V,Policy};
+    else
+        Policy=reshape(Policy,[1,N_a,N_z]);
+        varargout={VKron,Policy};
+    end
+    return
 end
 
 %%
@@ -454,20 +468,18 @@ if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI')
 %     [VKron,Policy]=ValueFnIter_InfHorz_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
-
-%% Divide-and-conquer together with grid interpolation layer is not yet done in InfHorz. It is assumed you just want the grid interpolation layer
-if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
-    vfoptions.divideandconquer=0;
-    warning('Cannot yet use divide-and-conquer with grid interpolation layer for InfHorz, so just ignoring the divide-and-conquer (and doing the grid interpolation layer)')
-end
-
 %% Divide-and-conquer
-if vfoptions.divideandconquer==1
-    warning('Divide-and-Conquer tends to be a slow option in Infinite Horizon problems')
-    [V,Policy]=ValueFnIter_InfHorz_DivideConquer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-    varargout={V,Policy};
-    return
+if vfoptions.divideandconquer>=1
+    warning('Ignoring Divide-and-Conquer as it just slows everything down in Infinite Horizon problems (set =2 to force using it)')
+    if vfoptions.divideandconquer==2 && vfoptions.gridinterplayer==0
+        [V,Policy]=ValueFnIter_InfHorz_DivideConquer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+        varargout={V,Policy};
+        return
+    elseif vfoptions.divideandconquer==2 && vfoptions.gridinterplayer==1
+        error('Cannot use both Divide-and-Conquer and Grid-Interpolation-Layer together in InfHorz (has not been implemented as DC just slows things down in InfHorz)')
+    end
 end
+
 %% Grid interpolation layer
 if vfoptions.gridinterplayer==1
     [V,Policy]=ValueFnIter_InfHorz_GridInterpLayer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
@@ -475,39 +487,21 @@ if vfoptions.gridinterplayer==1
     return
 end
 
-
-%% Baseline solution method for model without d: pure discretization
+%% Pure Discretization
 if strcmp(vfoptions.solnmethod,'purediscretization')
-    [VKron,Policy]=ValueFnIter_InfHorz_PureDiscretization(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
-end
-
-%% Baseline solution method for model without d: pure discretization + refine
-% If we get to refinement then there must be d variable
-if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
-    % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z.
-    [VKron,Policy]=ValueFnIter_InfHorz_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
-end
-
-
-if vfoptions.verbose==1
-    disp('Transforming Value Fn and Optimal Policy matrices back out of Kronecker Form')
-    tic;
-end
-
-%% Cleaning up the output
-if vfoptions.outputkron==0
-    V=reshape(VKron,[n_a,n_z]);
-    if N_d==0
-        Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
-    else
-        Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
-    end
-else
-    Policy=reshape(Policy,[1,N_a,N_z]);
-    varargout={VKron,Policy};
+    [V,Policy]=ValueFnIter_InfHorz_PureDiscretization(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+    varargout={V,Policy};
     return
 end
 
-varargout={V,Policy};
+%% Refine the decision variable, otherwise is just Pure Discretization
+% If we get to refinement then there must be d variable
+if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
+    % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z.
+    [V,Policy]=ValueFnIter_InfHorz_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+    varargout={V,Policy};
+    return
+end
+
 
 end
