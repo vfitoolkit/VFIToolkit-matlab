@@ -29,9 +29,10 @@ if prod(vfoptions.n_semiz)>0
     return
 end
 
-%% Scope limits -- plain case only for now (no ExpAsset family)
+%% Dispatch to the experience-asset QH subfns
 if vfoptions.experienceasset>=1
-    error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceasset')
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAsset(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
 end
 if vfoptions.experienceassetu>=1
     error('ValueFnFromPolicy_FHorz_QuasiHyperbolic: not yet implemented for experienceassetu')

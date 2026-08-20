@@ -40,6 +40,11 @@ if isfield(vfoptions,'experienceassete') && vfoptions.experienceassete>=1
     [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAssete_SemiExo(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     return
 end
+if isfield(vfoptions,'experienceasset') && vfoptions.experienceasset>=1
+    if ~isNaive, Policyalt=[]; end
+    [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAsset_SemiExo(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
 
 %% Setup (mirrors ValueFnFromPolicy_FHorz_SemiExo)
 if ~isfield(vfoptions,'pi_semiz_J')
