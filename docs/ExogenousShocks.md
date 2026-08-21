@@ -136,6 +136,8 @@ Both are called once per age `j` with age-`j` parameter values. `ExogShockFn` re
 
 `vfoptions.lowmemory` / `simoptions.lowmemory` trade GPU memory for looping: a higher level loops over more of the exogenous dimensions (building the return matrix in smaller pieces) and gives an **identical result** to level 0, just using less memory. **Which levels are valid is determined by which of `{z, e, semiz}` the model has** — do not request a level above what the shock combination allows. Higher level = more looping = less memory.
 
+**The table below is for finite horizon.** Infinite horizon is much more restricted; see [Infinite horizon](#infinite-horizon) at the end of this section.
+
 "Parallel over X" means X is vectorised; "loop over X" means it is looped. When `semiz` and `z` are both present they form the combined markov `bothz` (see [Combining shocks](#combining-shocks)), which can either be split (parallel semiz / loop z) or looped jointly as one index.
 
 | shocks present | valid `lowmemory` | what each level does |
@@ -148,6 +150,30 @@ Both are called once per age `j` with age-`j` parameter values. `ExogShockFn` re
 | `z` & `semiz` & `e` | `0, 1, 2, 3` | `=1`: parallel over semiz & z, loop over e. `=2`: parallel over semiz, outer loop over z, inner loop over e. `=3`: joint outer loop over semiz & z (`bothz`), inner loop over e |
 
 `lowmemory=0` always vectorises everything; it is the default and the fastest when memory permits.
+
+### Infinite horizon
+
+Infinite horizon has only lowmemory levels `0` and `1` — there is no level `2` or `3` anywhere in
+the infinite-horizon code. The reason is structural: `semiz` is not implemented for infinite-horizon
+value function iteration (`ValueFnIter_InfHorz` errors if `vfoptions.n_semiz>0`), and it is the
+`semiz` combinations that need the higher levels.
+
+Beyond that, `lowmemory=1` in infinite horizon means one specific thing: **refinement builds the
+refined return matrix one `z` at a time**, instead of building it whole and then maximising over `d`.
+That is only meaningful when there is a decision variable `d` to refine away. So:
+
+| solution method | valid `lowmemory` | what `=1` does |
+|---|---|---|
+| refinement (`solnmethod='purediscretization_refinement'`, the default whenever there is a `d`) | `0, 1` | loops over `z` when building the refined return matrix, so the oversized `[N_d,...]` array that gets maximised over `d` is never held whole |
+| pure discretization (`solnmethod='purediscretization'`, which is what a model with no `d` automatically uses) | `0` | nothing — there is no `d` to refine away, so there is no lowmemory option. Setting `1` raises an error |
+| grid interpolation layer, with `d` | `0, 1` | as for refinement, for both of the return matrices the postGI/preGI layer builds |
+| grid interpolation layer, without `d` | `0` | nothing. `1` is currently accepted but has no effect |
+
+In short: **in infinite horizon, `lowmemory` is a `d`-only option.** A model without a decision
+variable has no memory-saving option at any solution method.
+
+`simoptions.lowmemory` is a finite-horizon option only; the infinite-horizon distribution and
+evaluation commands ignore it.
 
 ---
 
