@@ -35,18 +35,16 @@ end
 
 
 %% Dispatch
+% These branches were copied from the exponential dispatcher and called the EXPONENTIAL
+% solver, which returns [V,Policy] only -- so varargout was never assigned, and had it been,
+% a quasi-hyperbolic call would have silently returned exponential results. Fail loudly
+% until the QH DC/GI tiers are implemented.
 if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
-    % Solve by doing Divide-and-Conquer, and then a grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_ExpAsset_DC_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals , d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-    return
+    error('QuasiHyperbolic ExpAsset: the DC+GI tier is not yet implemented')
 elseif vfoptions.divideandconquer==1
-    % Solve using Divide-and-Conquer algorithm
-    [V,Policy]=ValueFnIter_FHorz_ExpAsset_DC(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals , d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-    return
+    error('QuasiHyperbolic ExpAsset: the divide-and-conquer tier is not yet implemented')
 elseif vfoptions.gridinterplayer==1
-    % Solve using grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_ExpAsset_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals , d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-    return
+    error('QuasiHyperbolic ExpAsset: the grid-interpolation tier is not yet implemented')
 end
 
 
@@ -138,7 +136,11 @@ else
                     [VKron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetS_noz_raw(n_d1,n_d2,n_a1,n_a2, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 end
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_raw(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                if isNaive
+                    [VKron,PolicyKron,ValtKron,PolicyaltKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetN_raw(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                else
+                    [VKron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetS_raw(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                end
             end
         end
     else % N_e>0

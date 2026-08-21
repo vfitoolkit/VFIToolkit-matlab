@@ -44,18 +44,14 @@ end
 
 
 %% Dispatch
+% These branches were copied from the exponential dispatcher and called the EXPONENTIAL solver,
+% which returns [V,Policy] only. Fail loudly until the QH DC/GI tiers are implemented.
 if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
-    % Solve by doing Divide-and-Conquer, and then a grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_ExpAssetSemiExo_DC_GI(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d12_gridvals , d2_gridvals, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-    return
+    error('QuasiHyperbolic ExpAssetSemiExo: the DC+GI tier is not yet implemented')
 elseif vfoptions.divideandconquer==1
-    % Solve using Divide-and-Conquer algorithm
-    [V,Policy]=ValueFnIter_FHorz_ExpAssetSemiExo_DC(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d12_gridvals , d2_gridvals, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-    return
+    error('QuasiHyperbolic ExpAssetSemiExo: the divide-and-conquer tier is not yet implemented')
 elseif vfoptions.gridinterplayer==1
-    % Solve using grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_ExpAssetSemiExo_GI(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d12_gridvals , d2_gridvals, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-    return
+    error('QuasiHyperbolic ExpAssetSemiExo: the grid-interpolation tier is not yet implemented')
 end
 
 
@@ -147,7 +143,8 @@ else
                     [VKron,PolicyKron,ValtKron]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetSemiExoS_noz_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz, N_j, d12_gridvals, d2_gridvals, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 end
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d12_gridvals, d2_gridvals, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                % was calling the EXPONENTIAL raw from a quasi-hyperbolic path, returning no Valt
+                error('QuasiHyperbolic ExpAssetSemiExo: with-a1 + z + d1 base tier is not yet implemented')
             end
         end
     else % N_e
