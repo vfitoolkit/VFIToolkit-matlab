@@ -48,11 +48,13 @@ if ~isfield(vfoptions,'maxaprimediff')
     end
 end
 
-% Note: The defaults mean that only four of the following commands get used:
-% ValueFnIter_InfHorz_postGI_nod_raw
-% ValueFnIter_InfHorz_Refine_postGI_raw
-% ValueFnIter_InfHorz_postGI2A_nod_raw
-% ValueFnIter_InfHorz_Refine_postGI2A_raw
+% Note: The defaults (postGI, howardsgreedy=0, howardssparse=1) mean that only four of the following
+% commands get used:
+% ValueFnIter_InfHorz_postGI_sparse_nod_raw
+% ValueFnIter_InfHorz_postGI_sparse_raw
+% ValueFnIter_InfHorz_postGI2A_sparse_nod_raw
+% ValueFnIter_InfHorz_Refine_postGI2A_sparse_raw
+% The howardssparse=0 versions of each are still reachable by setting vfoptions.howardssparse=0.
 
 
 %% Below Pre-GI and Post-GI both use a multi-grid approach
@@ -134,11 +136,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
                 if vfoptions.howardssparse==0
                     [V,Policy]=ValueFnIter_InfHorz_postGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
-                    if vfoptions.lowmemory==0
-                        error('vfoptions.howardssparse=1 only implemented for vfoptions.lowmemory=1')
-                    elseif vfoptions.lowmemory==1
-                        [V,Policy]=ValueFnIter_InfHorz_postGI_sparse_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
-                    end
+                    [V,Policy]=ValueFnIter_InfHorz_postGI_sparse_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==1
                 [V,Policy]=ValueFnIter_InfHorz_postGI_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
@@ -153,11 +151,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
                 if vfoptions.howardssparse==0
                     [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
-                    if vfoptions.lowmemory==0
-                        error('vfoptions.howardssparse=1 only implemented for vfoptions.lowmemory=1')
-                    elseif vfoptions.lowmemory==1
-                        [V,Policy] = ValueFnIter_InfHorz_postGI_sparse_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-                    end
+                    [V,Policy] = ValueFnIter_InfHorz_postGI_sparse_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==1
                 [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
@@ -173,7 +167,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
                 if vfoptions.howardssparse==0
                     [V,Policy]=ValueFnIter_InfHorz_postGI2A_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
-                    error('Not yet implemented')
+                    [V,Policy]=ValueFnIter_InfHorz_postGI2A_sparse_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 end
             else
                 error('Based on runtimes for the one endogeneous state models with grid interpolation layer, it seems howards greedy is not worthwhile, so did not bother implementing it (you have vfoptoins.howardsgreedy>0)')
@@ -184,7 +178,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
                 if vfoptions.howardssparse==0
                     [V,Policy]=ValueFnIter_InfHorz_Refine_postGI2A_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
-                    error('Not yet implemented')
+                    [V,Policy]=ValueFnIter_InfHorz_Refine_postGI2A_sparse_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 end
             else
                 error('Based on runtimes for the one endogeneous state models with grid interpolation layer, it seems howards greedy is not worthwhile, so did not bother implementing it (you have vfoptoins.howardsgreedy>0)')

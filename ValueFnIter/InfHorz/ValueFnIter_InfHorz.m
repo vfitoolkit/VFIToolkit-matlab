@@ -22,17 +22,35 @@ if ~exist('vfoptions','var')
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0; % grid interpolation layer
     vfoptions.lowmemory=0;
-    % Howards improvement
+    % Howards improvement: when doing Howards iterations, there are various suboptions.
+    % Defaults for Howards are set based on runtimes from CoreInfHorzVFIAlgoTests.m in the VFI Toolkit Test Bank: https://github.com/vfitoolkit/vfitoolkitTests/blob/main/CoreInfHorzTests/with_CoreInfHorzVFIAlgoTests/CoreInfHorzVFIAlgoTests.m
     vfoptions.howardsgreedy=0; % =0 iterated (aka modified-Policy Fn Iteration) or =1 greedy (aka Policy Fn Iteration)
-        % Note: for small models, Howards greedy is faster, but cannot handle that V takes -Inf.
-    % When doing Howards iterations, the following are some suboptions
-    vfoptions.howards=40; % based on some tests, 40 was fastest at every grid size tried, both with and without the grid interpolation layer (by 120 the Howards acceleration was no longer providing any speedup at all)
-    vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
-    if N_a>1200 && N_z>100
-        vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix (rather than indexing). Sparse is only faster for bigger models.
+    % First the Howards method. With the grid interpolation layer the sparse matrix version won every
+    % model and grid size tried, by 1.1x to 2x, so it is used whenever it exists there (it is
+    % implemented for postGI only; the preGI branches all error). Without the grid interpolation
+    % layer what matters is N_z rather than the total number of states: the sparse transition matrix
+    % has N_a*N_z*N_z non-zeros, so what it buys scales with how much mixing over z there is. Sparse
+    % won by 2x to 6x at n_z of 75 and 150 (as long as N_a was at least 500), and was a tie at n_z of
+    % 25 or less no matter how big N_a was. Two endogenous state models with N_a over 10000 and a
+    % small n_z are still ties, which is what rules out setting this on N_a*N_z.
+    if vfoptions.gridinterplayer==1 && vfoptions.preGI==1
+        vfoptions.howardssparse=0; % sparse is not implemented for preGI
+    elseif vfoptions.gridinterplayer==1
+        vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix (rather than indexing).
+    elseif N_z>=50 && N_a>=500
+        vfoptions.howardssparse=1;
     else
         vfoptions.howardssparse=0;
     end
+    % Then the number of Howards steps, which follows from the method rather than from the grid size.
+    % A sparse matrix multiply is cheap per step so more steps pay for themselves, while the indexed
+    % version is dearer per step and 40 beat 80 in every model and grid size tried.
+    if vfoptions.howardssparse==1
+        vfoptions.howards=80;
+    else
+        vfoptions.howards=40;
+    end
+    vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     % Different asset types
     vfoptions.endogenousexit=0;
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
@@ -86,25 +104,43 @@ else
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    % Howards improvement
+    % Howards improvement: when doing Howards iterations, there are various suboptions.
+    % Defaults for Howards are set based on runtimes from CoreInfHorzVFIAlgoTests.m in the VFI Toolkit Test Bank: https://github.com/vfitoolkit/vfitoolkitTests/blob/main/CoreInfHorzTests/with_CoreInfHorzVFIAlgoTests/CoreInfHorzVFIAlgoTests.m
     if ~isfield(vfoptions,'howardsgreedy')
         vfoptions.howardsgreedy=0; % =0 iterated (aka modified-Policy Fn Iteration) or =1 greedy (aka Policy Fn Iteration)
-        % Note: for small models, Howards greedy is faster, but cannot handle that V takes -Inf.
         % Note: Howards greedy =1 can only be used without grid interpolation layer (gridinterplayer=0)
     end
-    % When doing Howards iterations, the following are some suboptions
-    if ~isfield(vfoptions,'howards')
-        vfoptions.howards=40; % based on some tests, 40 was fastest at every grid size tried, both with and without the grid interpolation layer (by 120 the Howards acceleration was no longer providing any speedup at all)
-    end
-    if ~isfield(vfoptions,'maxhowards')
-        vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
-    end
     if ~isfield(vfoptions,'howardssparse')
-        if N_a>1200 && N_z>100
-            vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix (rather than indexing). Sparse is only faster for bigger models.
+        % First the Howards method. With the grid interpolation layer the sparse matrix version won every
+        % model and grid size tried, by 1.1x to 2x, so it is used whenever it exists there (it is
+        % implemented for postGI only; the preGI branches all error). Without the grid interpolation
+        % layer what matters is N_z rather than the total number of states: the sparse transition matrix
+        % has N_a*N_z*N_z non-zeros, so what it buys scales with how much mixing over z there is. Sparse
+        % won by 2x to 6x at n_z of 75 and 150 (as long as N_a was at least 500), and was a tie at n_z of
+        % 25 or less no matter how big N_a was. Two endogenous state models with N_a over 10000 and a
+        % small n_z are still ties, which is what rules out setting this on N_a*N_z.
+        if vfoptions.gridinterplayer==1 && vfoptions.preGI==1
+            vfoptions.howardssparse=0; % sparse is not implemented for preGI
+        elseif vfoptions.gridinterplayer==1
+            vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix (rather than indexing).
+        elseif N_z>=50 && N_a>=500
+            vfoptions.howardssparse=1;
         else
             vfoptions.howardssparse=0;
         end
+    end
+    if ~isfield(vfoptions,'howards')
+        % Then the number of Howards steps, which follows from the method rather than from the grid size.
+        % A sparse matrix multiply is cheap per step so more steps pay for themselves, while the indexed
+        % version is dearer per step and 40 beat 80 in every model and grid size tried.
+        if vfoptions.howardssparse==1
+            vfoptions.howards=80;
+        else
+            vfoptions.howards=40;
+        end
+    end
+    if ~isfield(vfoptions,'maxhowards')
+        vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     end
     % Different asset types
     if ~isfield(vfoptions,'endogenousexit')

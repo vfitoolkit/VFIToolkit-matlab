@@ -1,8 +1,21 @@
-function [VKron, Policy]=ValueFnIter_InfHorz_postGI2A_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParams, vfoptions)
-% preGI: create the whole ReturnMatrix based on aprime
-% Then take a multigrid approach, using just a_grid for aprime until near
-% convergence, then switch to use the fine grid for aprime.
-% 2B: two endogenous states, just use grid interpolation layer on the first
+function [VKron, Policy]=ValueFnIter_InfHorz_postGI2A_sparse_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParams, vfoptions)
+% Sparse-matrix (iterated) Howards, with the grid interpolation layer (postGI), two endogenous
+% states, no decision variable.
+%
+% Structure is the multi-grid postGI one: first solve on the coarse a_grid, then build the
+% +-vfoptions.maxaprimediff window ONCE (on the first endogenous state only) and solve on the fine
+% (interpolated) grid within it. Howards is done by building the sparse transition matrix T_E and
+% iterating with it (vfoptions.howards times).
+%
+% Note: the non-sparse ValueFnIter_InfHorz_postGI2A_nod_raw has no Howards at all in its second
+% (fine grid) stage; the indexed version was too slow to be worth using because it has to
+% re-interpolate EV inside every Howards step. Building T_E bakes the interpolation weights in once,
+% so each Howards step is a single sparse matrix multiply and the cost disappears.
+%
+% The grid interpolation layer is on the FIRST endogenous state only. The joint index over a is
+% a1+N_a1*(a2-1), so a1 varies fastest, which means the two points that an interpolated a1prime
+% spreads mass over are adjacent in the joint index (stride 1), exactly as in the one endogenous
+% state case.
 
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -13,18 +26,20 @@ a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
-
 ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_a, n_a, n_z, a_gridvals, a_gridvals, z_gridvals, ReturnFnParams);
 
 pi_z_alt=shiftdim(pi_z',-1);
-pi_z_howards=repelem(pi_z,N_a,1);
 
 addindexforaz=gpuArray(N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1));
+
+% Setup specific to the sparse-matrix Howards
+N_a_times_zind=N_a*gpuArray(0:1:N_z-1); % already contains -1
+azind1=repmat(gpuArray(1:1:N_a*N_z)',1,N_z); % (a-z,zprime)
+pi_z_big1=gpuArray(repelem(pi_z,N_a,1)); % (a-z,zprime)
 
 %%
 tempcounter=1;
 currdist=Inf;
-
 
 %% First, just consider a_grid for next period
 while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=vfoptions.maxiter
@@ -45,35 +60,31 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
 
-    % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
+    % Use Howards Improvement, iterating with the sparse transition matrix (except for first few and last few iterations, as it is not a good idea there)
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
         tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
-        Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
-        Policy=Policy(:); % a by z (this shape is just convenient for Howards)
-        for Howards_counter=1:vfoptions.howards
-            EVKrontemp=VKron(Policy,:);
-            EVKrontemp=EVKrontemp.*pi_z_howards;
-            EVKrontemp(isnan(EVKrontemp))=0;
-            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-            VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp; % interpolate EV
+        Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a*N_z,1]); % keep return function of optimal policy for using in Howards
+
+        % On the coarse grid Policy is already the joint aprime index, so this is the same as the one endogenous state case
+        T_E=sparse(azind1,Policy(:)+N_a_times_zind,pi_z_big1,N_a*N_z,N_a*N_z);
+
+        VKron=reshape(VKron,[N_a*N_z,1]);
+        for h_c=1:vfoptions.howards
+            VKron=Ftemp+DiscountFactorParamsVec*(T_E*VKron); % T_E already contains pi_z, so T_E*V is the expected continuation
         end
+        VKron=reshape(VKron,[N_a,N_z]);
     end
 
     tempcounter=tempcounter+1;
-end
 
+end
 Policy=reshape(Policy,[1,N_a,N_z]); % Howards can mess with the size
 Policy_a1=rem(Policy-1,N_a1)+1;
-% Policy_a2=ceil(Policy/N_a1);
 
 %% Now that we have solved on the rough grid, we resolve on the fine grid
-% Based on solving a bunch of value fns with and without grid
-% interpolation, the 'lower grid index' with grid interpolation is always
-% within a point or two of the solution on the rough grid. So here we only
-% consider +-vfoptions.maxaprimediff to set up the fine/interpolated aprime_grid
-
-% Current optimal aprime is Policy_a
-% So create an aprime_grid that is just an interpolation within +-vfoptions.maxaprimediff
+% Based on solving a bunch of value fns with and without grid interpolation, the 'lower grid index'
+% with grid interpolation is always within a point or two of the solution on the rough grid. So here
+% we only consider +-vfoptions.maxaprimediff to set up the fine/interpolated a1prime_grid
 
 % First, create an a1prime_grid that is just the +-vfoptions.maxaprimediff
 n_a1primediff=1+2*vfoptions.maxaprimediff;
@@ -82,8 +93,6 @@ a1primeshifter=min(max(Policy_a1,1+vfoptions.maxaprimediff),N_a1-vfoptions.maxap
 a1primeindex=(-vfoptions.maxaprimediff:1:vfoptions.maxaprimediff)' +a1primeshifter; % size n_aprime-by-n_a
 a1prime_grid=a1_grid(a1primeindex);
 % Second, interpolate this
-% Grid interpolation
-% vfoptions.ngridinterp=9;
 n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
 n_a1prime=n_a1primediff+(n_a1primediff-1)*vfoptions.ngridinterp;
 N_a1prime=prod(n_a1prime);
@@ -106,6 +115,9 @@ addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
 
 pi_z_alt2=shiftdim(pi_z,-2);
 
+% Setup specific to the sparse-matrix Howards
+azind2=repmat(gpuArray(1:1:N_a*N_z)',2,N_z); % (a-z-2,zprime)
+pi_z_big2=gpuArray(repmat(pi_z_big1,2,1)); % (a-z-2,zprime)
 
 %% Now switch to considering the fine/interpolated aprime_grid
 currdist=1; % force going into the next while loop at least one iteration
@@ -135,57 +147,61 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
 
-    % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
+    % Use Howards Improvement, iterating with the sparse transition matrix (except for first few and last few iterations, as it is not a good idea there)
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
-        tempmaxindex=shiftdim(Policy,1)+addindexforazfine; % aprime index, add the index for a and z, size is [N_a,N_z]
-        Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
-        % Resolve the interpolation to a (lower grid index, weight) pair once, here, instead of
-        % re-interpolating the whole of EV inside every Howards step. The old version built all
-        % N_aprime interpolated rows for each (a,z) and then kept one, which made Howards cost more
-        % than it saved (measured as a net loss above about n_z=15 in CoreInfHorzVFIAlgoTests).
+        tempmaxindex=shiftdim(Policy,1)+addindexforazfine; % aprime index, add the index for a and z
+        Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a*N_z,1]); % keep return function of optimal policy for using in Howards
+
+        % Split the fine index into its a1prime (interpolated) and a2prime (exact) parts
         Policy_fine1=rem(Policy(:)-1,N_a1prime)+1; % a1prime, in the post-GI (fine, within-window) index
         Policy_fine2=ceil(Policy(:)/N_a1prime); % a2prime index, on the coarse a2 grid
         Policy_L1a=ceil((Policy_fine1-1)/(n2short+1))-1;
-        Policy_lowerind=max(Policy_L1a-vfoptions.maxaprimediff+a1primeshifter(:),1)+N_a1*(Policy_fine2-1); % joint index over a is a1+N_a1*(a2-1), so the upper point is the next one along
+        Policy_lowerind=max(Policy_L1a-vfoptions.maxaprimediff+a1primeshifter(:),1); % Policy_L1a is the index within the +-maxaprimediff window, so +a1primeshifter converts it to the index on the full a1_grid
         Policy_lowerprob=1- ((Policy_fine1-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
-        for Howards_counter=1:vfoptions.howards
-            EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind,:)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1,:); % [N_a*N_z,N_z], last dimension is zprime
-            EVKrontemp=EVKrontemp.*pi_z_howards;
-            EVKrontemp(isnan(EVKrontemp))=0;
-            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-            VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
+        % Joint index over a is a1+N_a1*(a2-1), so the upper interpolation point is the next one along
+        indp = Policy_lowerind+N_a1*(Policy_fine2-1)+N_a_times_zind; % with all tomorrows z (a-z,zprime)
+
+        T_E=sparse(azind2,[indp;indp+1],[Policy_lowerprob;1-Policy_lowerprob].*pi_z_big2,N_a*N_z,N_a*N_z);
+
+        VKron=reshape(VKron,[N_a*N_z,1]);
+        for h_c=1:vfoptions.howards
+            VKron=Ftemp+DiscountFactorParamsVec*(T_E*VKron); % T_E already contains pi_z, so T_E*V is the expected continuation
         end
+        VKron=reshape(VKron,[N_a,N_z]);
     end
 
     tempcounter=tempcounter+1;
 end
 
-
 %% Do another post-GI layer
 % Note: is just a copy-paste of the previous post-GI layer code
-% Only difference that before we start there are two lines of code to
-% convert Policy_a back into being about the nearest rough grid index
+% Only difference is that before we start there are a couple of lines of code to convert the policy
+% back into being about the nearest rough grid index
 while vfoptions.postGIrepeat>0
     vfoptions.postGIrepeat=vfoptions.postGIrepeat-1;
 
-    % Current optimal aprime is Policy_a
-    % So create an aprime_grid that is just an interpolation within +-vfoptions.maxaprimediff
-
-    % Note: as 'postGIrepeat', we only need to do the lines of setup code that have changed.
-
-    % First, we switch Policy_a to be the nearest point on the rough grid
+    % First, we switch the policy to be the nearest point on the rough grid
     Policy=reshape(Policy,[1,N_a,N_z]); % Howards can mess with the size
     Policy_a1=rem(Policy-1,N_a1prime)+1;
-    % Policy_a2=ceil(Policy/N_a1prime);
     Policy_a1=ceil((Policy_a1-1)/(n2short+1))-vfoptions.maxaprimediff+a1primeshifter;
-    % ceil((Policy_a1-1)/(n2short+1))-vfoptions.maxaprimediff ranges -vfoptions.maxaprimediff:0:vfoptions.maxaprimediff
+    % ceil((Policy_a1-1)/(n2short+1))-vfoptions.maxaprimediff ranges -vfoptions.maxaprimediff:1:vfoptions.maxaprimediff
+
+
+    %% Now that we have solved on the rough grid, we resolve on the fine grid
+    % Based on solving a bunch of value fns with and without grid interpolation, the 'lower grid index'
+    % with grid interpolation is always within a point or two of the solution on the rough grid. So here
+    % we only consider +-vfoptions.maxaprimediff to set up the fine/interpolated a1prime_grid
 
     % First, create an a1prime_grid that is just the +-vfoptions.maxaprimediff
+    n_a1primediff=1+2*vfoptions.maxaprimediff;
+    N_a1primediff=prod(n_a1primediff);
     a1primeshifter=min(max(Policy_a1,1+vfoptions.maxaprimediff),N_a1-vfoptions.maxaprimediff);
     a1primeindex=(-vfoptions.maxaprimediff:1:vfoptions.maxaprimediff)' +a1primeshifter; % size n_aprime-by-n_a
     a1prime_grid=a1_grid(a1primeindex);
     % Second, interpolate this
-    % Grid interpolation
+    n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
+    n_a1prime=n_a1primediff+(n_a1primediff-1)*vfoptions.ngridinterp;
+    N_a1prime=prod(n_a1prime);
     a1prime_grid=interp1((1:1:N_a1primediff)',a1prime_grid,linspace(1,N_a1primediff,N_a1primediff+(N_a1primediff-1)*vfoptions.ngridinterp)');
     % Note: a1prime_grid is N_a1prime-by-N_a-by-N_z
 
@@ -194,9 +210,20 @@ while vfoptions.postGIrepeat>0
     EVinterpindex1=(1:1:N_a1primediff)';
     EVinterpindex2=linspace(1,N_a1primediff,N_a1primediff+(N_a1primediff-1)*vfoptions.ngridinterp)';
 
+    N_aprime=N_a1prime*N_a2;
+    N_aprimediff=N_a1primediff*N_a2;
     aprimeindex=repmat(a1primeindex,N_a2,1,1)+N_a1*repelem((0:1:N_a2-1)',N_a1primediff,1,1);
 
     ReturnMatrixfine=CreateReturnFnMatrix_Disc_DC2A_nod(ReturnFn, n_z, a1prime_grid, a2_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParams, 2);
+
+    % For Howards we need
+    addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
+
+    pi_z_alt2=shiftdim(pi_z,-2);
+
+    % Setup specific to the sparse-matrix Howards
+    azind2=repmat(gpuArray(1:1:N_a*N_z)',2,N_z); % (a-z-2,zprime)
+    pi_z_big2=gpuArray(repmat(pi_z_big1,2,1)); % (a-z-2,zprime)
 
     %% Now switch to considering the fine/interpolated aprime_grid
     currdist=1; % force going into the next while loop at least one iteration
@@ -226,31 +253,33 @@ while vfoptions.postGIrepeat>0
         VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
 
-        % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
+        % Use Howards Improvement, iterating with the sparse transition matrix (except for first few and last few iterations, as it is not a good idea there)
         if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
-            tempmaxindex=shiftdim(Policy,1)+addindexforazfine; % aprime index, add the index for a and z, size is [N_a,N_z]
-            Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
-        % Resolve the interpolation to a (lower grid index, weight) pair once, here, instead of
-        % re-interpolating the whole of EV inside every Howards step. The old version built all
-        % N_aprime interpolated rows for each (a,z) and then kept one, which made Howards cost more
-        % than it saved (measured as a net loss above about n_z=15 in CoreInfHorzVFIAlgoTests).
-        Policy_fine1=rem(Policy(:)-1,N_a1prime)+1; % a1prime, in the post-GI (fine, within-window) index
-        Policy_fine2=ceil(Policy(:)/N_a1prime); % a2prime index, on the coarse a2 grid
-        Policy_L1a=ceil((Policy_fine1-1)/(n2short+1))-1;
-        Policy_lowerind=max(Policy_L1a-vfoptions.maxaprimediff+a1primeshifter(:),1)+N_a1*(Policy_fine2-1); % joint index over a is a1+N_a1*(a2-1), so the upper point is the next one along
-        Policy_lowerprob=1- ((Policy_fine1-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
-        for Howards_counter=1:vfoptions.howards
-            EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind,:)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1,:); % [N_a*N_z,N_z], last dimension is zprime
-            EVKrontemp=EVKrontemp.*pi_z_howards;
-            EVKrontemp(isnan(EVKrontemp))=0;
-            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-            VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
-        end
+            tempmaxindex=shiftdim(Policy,1)+addindexforazfine; % aprime index, add the index for a and z
+            Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a*N_z,1]); % keep return function of optimal policy for using in Howards
+
+            % Split the fine index into its a1prime (interpolated) and a2prime (exact) parts
+            Policy_fine1=rem(Policy(:)-1,N_a1prime)+1; % a1prime, in the post-GI (fine, within-window) index
+            Policy_fine2=ceil(Policy(:)/N_a1prime); % a2prime index, on the coarse a2 grid
+            Policy_L1a=ceil((Policy_fine1-1)/(n2short+1))-1;
+            Policy_lowerind=max(Policy_L1a-vfoptions.maxaprimediff+a1primeshifter(:),1); % Policy_L1a is the index within the +-maxaprimediff window, so +a1primeshifter converts it to the index on the full a1_grid
+            Policy_lowerprob=1- ((Policy_fine1-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
+            % Joint index over a is a1+N_a1*(a2-1), so the upper interpolation point is the next one along
+            indp = Policy_lowerind+N_a1*(Policy_fine2-1)+N_a_times_zind; % with all tomorrows z (a-z,zprime)
+
+            T_E=sparse(azind2,[indp;indp+1],[Policy_lowerprob;1-Policy_lowerprob].*pi_z_big2,N_a*N_z,N_a*N_z);
+
+            VKron=reshape(VKron,[N_a*N_z,1]);
+            for h_c=1:vfoptions.howards
+                VKron=Ftemp+DiscountFactorParamsVec*(T_E*VKron); % T_E already contains pi_z, so T_E*V is the expected continuation
+            end
+            VKron=reshape(VKron,[N_a,N_z]);
         end
 
         tempcounter=tempcounter+1;
     end
 end
+
 
 %% Switch policy to lower grid index and L2 index (is currently index on fine grid)
 fineindex=reshape(Policy,[1,N_a,N_z]);
@@ -281,6 +310,8 @@ isInfUpper = (ReturnMatrixfine(linidx_upper) == -Inf);
 inInterior = (L2 >= 2) & (L2 <= n2short+1);
 Policy(4,:,:) = reshape(2 + (inInterior & isInfLower) - (inInterior & isInfUpper), [1,N_a,N_z]);
 
+% Note: unlike Howards-greedy (which solves the linear system), iterating with the sparse T_E is
+% fine when V contains values of -Inf, so there is no need to warn about that here.
 if currdist > vfoptions.tolerance
     warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
              '(not due to convergence); can be set by vfoptions.maxiter. ', ...

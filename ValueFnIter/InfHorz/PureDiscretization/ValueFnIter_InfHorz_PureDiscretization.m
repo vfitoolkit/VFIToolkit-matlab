@@ -3,8 +3,13 @@ function [V,Policy]=ValueFnIter_InfHorz_PureDiscretization(V0,n_d,n_a,n_z,d_grid
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+N_e=prod(vfoptions.n_e);
 
-if N_z==0
+if vfoptions.lowmemory~=0
+    warning('vfoptions.lowmemory=0 is only option for infinite horizon models without decision varialbe, d')
+end
+
+if N_z==0 && N_e==0
 
     %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a
     % Since the return function is independent of time creating it once and
@@ -53,55 +58,38 @@ if N_z==0
         Policy=reshape(Policy,[1,N_a]); % no z, so N_z=0 and [1,N_a,N_z] would be empty
     end
 
-else % N_z>0
-    if vfoptions.lowmemory==0
-        %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
-        % Since the return function is independent of time creating it once and
-        % then using it every iteration is good for speed, but it does use a lot of memory.
+elseif N_z>0 && N_e==0
+    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
+    % Since the return function is independent of time creating it once and
+    % then using it every iteration is good for speed, but it does use a lot of memory.
 
-        if vfoptions.verbose==1
-            disp('Creating return fn matrix')
-        end
+    if vfoptions.verbose==1
+        disp('Creating return fn matrix')
+    end
 
-        if N_d==0
-            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_z, [], a_grid, z_gridvals, ReturnFnParamsVec,0);
-        else
-            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
-        end
+    if N_d==0
+        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, n_z, [], a_grid, z_gridvals, ReturnFnParamsVec,0);
+    else
+        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
+    end
 
-        if vfoptions.verbose==1
-            fprintf('Starting Value Function \n')
-        end
+    if vfoptions.verbose==1
+        fprintf('Starting Value Function \n')
+    end
 
-        if N_d==0
-            if vfoptions.howardsgreedy==1
-                [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-            elseif vfoptions.howardsgreedy==0
-                if vfoptions.howardssparse==0
-                    [V,Policy]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-                elseif vfoptions.howardssparse==1
-                    [V,Policy]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-                end
-            end
-        else
-            % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
-            [V, Policy]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
-        end
-
-    elseif vfoptions.lowmemory==1
-        if vfoptions.verbose==1
-            disp('Starting Value Function')
-        end
-
-        if N_d==0
+    if N_d==0
+        if vfoptions.howardsgreedy==1
+            [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        elseif vfoptions.howardsgreedy==0
             if vfoptions.howardssparse==0
-                [V,Policy]=ValueFnIter_InfHorz_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                [V,Policy]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             elseif vfoptions.howardssparse==1
-                [V,Policy]=ValueFnIter_InfHorz_LowMem_sparse_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                [V,Policy]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             end
-        else
-            [V, Policy]=ValueFnIter_InfHorz_LowMem_raw(V0, n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
         end
+    else
+        % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
+        [V, Policy]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
     end
 
 
@@ -116,6 +104,58 @@ else % N_z>0
     else
         Policy=reshape(Policy,[1,N_a,N_z]);
     end
+
+elseif N_z==0 && N_e>=0
+
+    vfoptions
+
+    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-e.
+    % Since the return function is independent of time creating it once and
+    % then using it every iteration is good for speed, but it does use a lot of memory.
+
+    if vfoptions.verbose==1
+        disp('Creating return fn matrix')
+    end
+
+    if N_d==0
+        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, vfoptions.n_e, [], a_grid, vfoptions.e_gridvals, ReturnFnParamsVec,0);
+    else
+        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, vfoptions.n_e, d_gridvals, a_grid, vfoptions.e_gridvals, ReturnFnParamsVec,0);
+    end
+
+    if vfoptions.verbose==1
+        fprintf('Starting Value Function \n')
+    end
+    
+    if N_d==0
+        if vfoptions.howardsgreedy==1
+            [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        elseif vfoptions.howardsgreedy==0
+            if vfoptions.howardssparse==0
+                [V,Policy]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            elseif vfoptions.howardssparse==1
+                [V,Policy]=ValueFnIter_InfHorz_sparse_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
+        end
+    else
+        % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
+        [V, Policy]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,vfoptions.n_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+    end
+
+
+    %% Cleaning up the output
+    if vfoptions.outputkron==0
+        V=reshape(V,[n_a,vfoptions.n_e]);
+        if N_d==0
+            Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, vfoptions.n_e, vfoptions);
+        else
+            Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, vfoptions.n_e, vfoptions);
+        end
+    else
+        Policy=reshape(Policy,[1,N_a,N_e]);
+    end
+elseif N_z>=0 && N_e>=0
+
 end
 
 

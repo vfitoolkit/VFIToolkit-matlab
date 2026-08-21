@@ -102,12 +102,15 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
         tempmaxindex=shiftdim(Policy,1)+addindexforafine; % aprime index, add the index for a, size is [N_a,1]
         Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,1]); % keep return function of optimal policy for using in Howards
-        tempmaxindex2=Policy(:)+N_aprime*(0:1:N_a-1)'; % size is [N_a,1], contains the (aprime,a) index; (this shape is just convenient for Howards)
+        % Resolve the interpolation to a (lower grid index, weight) pair once, here, instead of
+        % re-interpolating the whole of EV inside every Howards step. The old version built an
+        % [N_aprime,...] array each step and then kept one row per state, which at n_a=500, n_z=75
+        % came to 13.5GB and ran the GPU out of memory.
+        Policy_L1a=ceil((Policy(:)-1)/(n2short+1))-1;
+        Policy_lowerind=max(Policy_L1a-vfoptions.maxaprimediff+aprimeshifter(:),1); % index on the full a_grid
+        Policy_lowerprob=1- ((Policy(:)-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
         for Howards_counter=1:vfoptions.howards
-            EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_a]); % last dimension is zprime
-            EVKrontemp=interp1(EVinterpindex1,EVpre,EVinterpindex2); % interpolate V as Policy points to the interpolated indexes
-            EVKrontemp=reshape(EVKrontemp,[N_aprime*N_a,1]);  % last dimension is zprime
-            EVKrontemp=EVKrontemp(tempmaxindex2,1);
+            EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1); % [N_a,1]
             VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
         end
     end
@@ -183,11 +186,15 @@ while vfoptions.postGIrepeat>0
         if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
             tempmaxindex=shiftdim(Policy,1)+addindexforafine; % aprime index, add the index for a, size is [N_a,1]
             Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,1]); % keep return function of optimal policy for using in Howards
-            tempmaxindex2=Policy(:)+N_aprime*(0:1:N_a-1)'; % size is [N_a,1], contains the (aprime,a) index; (this shape is just convenient for Howards)
+            % Resolve the interpolation to a (lower grid index, weight) pair once, here, instead of
+            % re-interpolating the whole of EV inside every Howards step. The old version built an
+            % [N_aprime,...] array each step and then kept one row per state, which at n_a=500, n_z=75
+            % came to 13.5GB and ran the GPU out of memory.
+            Policy_L1a=ceil((Policy(:)-1)/(n2short+1))-1;
+            Policy_lowerind=max(Policy_L1a-vfoptions.maxaprimediff+aprimeshifter(:),1); % index on the full a_grid
+            Policy_lowerprob=1- ((Policy(:)-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
             for Howards_counter=1:vfoptions.howards
-                EVpre=reshape(VKron(aprimeindex),[N_aprimediff,N_a]); % last dimension is zprime
-                EVKrontemp=interp1(EVinterpindex1,EVpre,EVinterpindex2); % interpolate V as Policy points to the interpolated indexes
-                EVKrontemp=EVKrontemp(tempmaxindex2,1);
+                EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1); % [N_a,1]
                 VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
             end
         end

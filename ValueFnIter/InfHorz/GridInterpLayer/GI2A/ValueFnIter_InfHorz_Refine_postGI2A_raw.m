@@ -188,24 +188,27 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
 
-    % THIS IMPLENTATION OF HOWARDS ITER IS ACTUALLY SLOWER
-    % I THINK IT IS JUST THAT I DONT REALLY UNDERSTAND HOW TO DO HOWARDS WELL WITH THIS Post-GI APPROACH
-    % % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
-    % if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
-    %     tempmaxindex=shiftdim(Policy,1)+addindexforazfine; % aprime index, add the index for a and z, size is [N_a,N_z]
-    %     Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
-    %     tempmaxindex2=Policy(:)+N_aprime*(0:1:N_a*N_z-1)'; % size is [N_a*N_z,1], contains the (aprime,a,z) index; (this shape is just convenient for Howards)
-    %     for Howards_counter=1:vfoptions.howards
-    %         EVpre=reshape(VKron(aprimeindex,:),[N_a1primediff,N_a2,N_a*N_z,N_z]); % last dimension is zprime
-    %         EVKrontemp=interp1(EVinterpindex1,EVpre,EVinterpindex2); % interpolate V as Policy points to the interpolated indexes
-    %         EVKrontemp=reshape(EVKrontemp,[N_aprime*N_a*N_z,N_z]);  % last dimension is zprime
-    %         EVKrontemp=EVKrontemp(tempmaxindex2,:);
-    %         EVKrontemp=EVKrontemp.*pi_z_howards;
-    %         EVKrontemp(isnan(EVKrontemp))=0;
-    %         EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-    %         VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
-    %     end
-    % end
+    % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
+    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
+        tempmaxindex=shiftdim(Policy_a,1)+addindexforazfine; % aprime index, add the index for a and z, size is [N_a,N_z]
+        Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
+        % Resolve the interpolation to a (lower grid index, weight) pair once, here, instead of
+        % re-interpolating the whole of EV inside every Howards step. The old version built all
+        % N_aprime interpolated rows for each (a,z) and then kept one, which made Howards cost more
+        % than it saved (measured as a net loss above about n_z=15 in CoreInfHorzVFIAlgoTests).
+        Policy_fine1=rem(Policy_a(:)-1,N_a1prime)+1; % a1prime, in the post-GI (fine, within-window) index
+        Policy_fine2=ceil(Policy_a(:)/N_a1prime); % a2prime index, on the coarse a2 grid
+        Policy_L1a=ceil((Policy_fine1-1)/(n2short+1))-1;
+        Policy_lowerind=max(Policy_L1a-vfoptions.maxaprimediff+a1primeshifter(:),1)+N_a1*(Policy_fine2-1); % joint index over a is a1+N_a1*(a2-1), so the upper point is the next one along
+        Policy_lowerprob=1- ((Policy_fine1-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
+        for Howards_counter=1:vfoptions.howards
+            EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind,:)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1,:); % [N_a*N_z,N_z], last dimension is zprime
+            EVKrontemp=EVKrontemp.*pi_z_howards;
+            EVKrontemp(isnan(EVKrontemp))=0;
+            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+            VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
+        end
+    end
 
     tempcounter=tempcounter+1;
 end
@@ -301,24 +304,27 @@ while vfoptions.postGIrepeat>0
         VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
 
-        % THIS IMPLENTATION OF HOWARDS ITER IS ACTUALLY SLOWER
-        % I THINK IT IS JUST THAT I DONT REALLY UNDERSTAND HOW TO DO HOWARDS WELL WITH THIS Post-GI APPROACH
-        % % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
-        % if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
-        %     tempmaxindex=shiftdim(Policy,1)+addindexforazfine; % aprime index, add the index for a and z, size is [N_a,N_z]
-        %     Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
-        %     tempmaxindex2=Policy(:)+N_aprime*(0:1:N_a*N_z-1)'; % size is [N_a*N_z,1], contains the (aprime,a,z) index; (this shape is just convenient for Howards)
-        %     for Howards_counter=1:vfoptions.howards
-        %         EVpre=reshape(VKron(aprimeindex,:),[N_a1primediff,N_a2,N_a*N_z,N_z]); % last dimension is zprime
-        %         EVKrontemp=interp1(EVinterpindex1,EVpre,EVinterpindex2); % interpolate V as Policy points to the interpolated indexes
-        %         EVKrontemp=reshape(EVKrontemp,[N_aprime*N_a*N_z,N_z]);  % last dimension is zprime
-        %         EVKrontemp=EVKrontemp(tempmaxindex2,:);
-        %         EVKrontemp=EVKrontemp.*pi_z_howards;
-        %         EVKrontemp(isnan(EVKrontemp))=0;
-        %         EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-        %         VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
-        %     end
-        % end
+        % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
+        if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
+            tempmaxindex=shiftdim(Policy_a,1)+addindexforazfine; % aprime index, add the index for a and z, size is [N_a,N_z]
+            Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
+        % Resolve the interpolation to a (lower grid index, weight) pair once, here, instead of
+        % re-interpolating the whole of EV inside every Howards step. The old version built all
+        % N_aprime interpolated rows for each (a,z) and then kept one, which made Howards cost more
+        % than it saved (measured as a net loss above about n_z=15 in CoreInfHorzVFIAlgoTests).
+        Policy_fine1=rem(Policy_a(:)-1,N_a1prime)+1; % a1prime, in the post-GI (fine, within-window) index
+        Policy_fine2=ceil(Policy_a(:)/N_a1prime); % a2prime index, on the coarse a2 grid
+        Policy_L1a=ceil((Policy_fine1-1)/(n2short+1))-1;
+        Policy_lowerind=max(Policy_L1a-vfoptions.maxaprimediff+a1primeshifter(:),1)+N_a1*(Policy_fine2-1); % joint index over a is a1+N_a1*(a2-1), so the upper point is the next one along
+        Policy_lowerprob=1- ((Policy_fine1-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
+        for Howards_counter=1:vfoptions.howards
+            EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind,:)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1,:); % [N_a*N_z,N_z], last dimension is zprime
+            EVKrontemp=EVKrontemp.*pi_z_howards;
+            EVKrontemp(isnan(EVKrontemp))=0;
+            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+            VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
+        end
+        end
 
         tempcounter=tempcounter+1;
     end
