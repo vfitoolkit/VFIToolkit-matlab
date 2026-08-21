@@ -328,7 +328,7 @@ else
                     d2aprimez=d2ind+N_d2*(loweredge-1)+N_d2*N_a1*a2ind+N_d2*N_a1*N_a2*zind; % [N_d,1,1,N_a2,N_z]; linear index into DiscountedEV [N_d2,N_a1,1,N_a2,N_z]
                     entireRHS_ii=reshape(ReturnMatrix_ii+DiscountedEV(d2aprimez),[N_d,level1iidiff(ii)*N_a2,N_z]);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                    V(curraindex,:,:,N_j)=shiftdim(Vtempii,1);
+                    V(curraindex,:,e_c,N_j)=shiftdim(Vtempii,1);
                     % maxindex does not need reworking, as with expasset there is no a2prime
                     %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
                     dind=(rem(maxindex-1,N_d1*N_d2)+1);
