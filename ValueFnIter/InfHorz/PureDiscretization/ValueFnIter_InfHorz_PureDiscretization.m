@@ -6,7 +6,10 @@ N_z=prod(n_z);
 N_e=prod(vfoptions.n_e);
 
 if vfoptions.lowmemory~=0
-    warning('vfoptions.lowmemory=0 is only option for infinite horizon models without decision varialbe, d')
+    % Every branch below builds the whole ReturnMatrix up front and nothing reads
+    % vfoptions.lowmemory again, so the setting has no effect here whether or not there is a
+    % decision variable. Warn rather than error, since what gets returned is still correct.
+    warning('vfoptions.lowmemory is ignored by infinite horizon pure discretization (lowmemory=0 is the only option implemented); solving as lowmemory=0')
 end
 
 if N_z==0 && N_e==0
@@ -106,8 +109,6 @@ elseif N_z>0 && N_e==0
     end
 
 elseif N_z==0 && N_e>=0
-
-    vfoptions
 
     %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-e.
     % Since the return function is independent of time creating it once and
