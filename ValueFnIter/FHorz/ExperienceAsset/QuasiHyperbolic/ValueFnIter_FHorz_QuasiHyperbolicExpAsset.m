@@ -35,16 +35,36 @@ end
 
 
 %% Dispatch
-% These branches were copied from the exponential dispatcher and called the EXPONENTIAL
-% solver, which returns [V,Policy] only -- so varargout was never assigned, and had it been,
-% a quasi-hyperbolic call would have silently returned exponential results. Fail loudly
-% until the QH DC/GI tiers are implemented.
 if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
-    error('QuasiHyperbolic ExpAsset: the DC+GI tier is not yet implemented')
+    % Solve by doing Divide-and-Conquer, and then a grid interpolation layer
+    if isNaive
+        [V1, Policy, Valt, Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAsset_DC_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals , d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        varargout={V1, Policy, Valt, Policyalt};
+    else
+        [V1, Policy, Valt]=ValueFnIter_FHorz_QuasiHyperbolicExpAsset_DC_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals , d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        varargout={V1, Policy, Valt, []};
+    end
+    return
 elseif vfoptions.divideandconquer==1
-    error('QuasiHyperbolic ExpAsset: the divide-and-conquer tier is not yet implemented')
+    % Solve by Divide-and-Conquer
+    if isNaive
+        [V1, Policy, Valt, Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAsset_DC(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals , d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        varargout={V1, Policy, Valt, Policyalt};
+    else
+        [V1, Policy, Valt]=ValueFnIter_FHorz_QuasiHyperbolicExpAsset_DC(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals , d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        varargout={V1, Policy, Valt, []};
+    end
+    return
 elseif vfoptions.gridinterplayer==1
-    error('QuasiHyperbolic ExpAsset: the grid-interpolation tier is not yet implemented')
+    % Solve with a grid interpolation layer
+    if isNaive
+        [V1, Policy, Valt, Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAsset_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals , d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        varargout={V1, Policy, Valt, Policyalt};
+    else
+        [V1, Policy, Valt]=ValueFnIter_FHorz_QuasiHyperbolicExpAsset_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d_gridvals , d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        varargout={V1, Policy, Valt, []};
+    end
+    return
 end
 
 
