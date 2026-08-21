@@ -1,7 +1,12 @@
 function createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,transpathoptions)
 % Creates plots of the current transition path iteration. Control what is plotted with transpathoptions
 
-disp(' ') % For some reason without this Matlab just sometimes doesn't bother updating the graphs
+if transpathoptions.graphpricepath==1 || transpathoptions.graphaggvarspath==1 || transpathoptions.graphGEcondns==1
+    disp(' ') % For some reason without this Matlab just sometimes doesn't bother updating the graphs
+end
+% Note: the disp() above is only done when something is actually going to be plotted. It is a
+% hack to make Matlab flush the graphics queue, so it serves no purpose when no graphs are drawn,
+% and it was otherwise putting one line per transition path iteration into the diary.
 
 if transpathoptions.graphpricepath==1
     % Do a graph of the PricePaths

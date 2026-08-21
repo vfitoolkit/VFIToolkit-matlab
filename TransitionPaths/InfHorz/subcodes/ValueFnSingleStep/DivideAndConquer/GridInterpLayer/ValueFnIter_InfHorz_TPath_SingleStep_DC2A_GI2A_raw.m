@@ -85,7 +85,9 @@ if vfoptions.lowmemory==0
             midpoints(:,1,:,curraindex,:,:)=maxindex+(loweredge-1);
         else
             loweredge=maxindex1(:,1,:,ii,:,:);
-            midpoints(:,1,:,curraindex,:,:)=maxindexfix+(loweredge-1); % THIS MIGHT BE INCORRECT??
+            % Zero gap, so every a1 in this interval takes the same a1prime: just replicate
+            % loweredge across the interval (there is no second-layer index to add).
+            midpoints(:,1,:,curraindex,:,:)=repelem(loweredge,1,1,1,length(curraindex),1,1);
         end
     end
 
@@ -121,7 +123,81 @@ if vfoptions.lowmemory==0
     Policy(5,:,:) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 elseif vfoptions.lowmemory==1
-    error('not yet implemented vfoptions.lowmemory==1 with DC2A and GI in InfHorz TPath')
+
+    EV=Vnext.*shiftdim(pi_z',-1);
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+    DiscountedEV=DiscountFactorParamsVec*reshape(shiftdim(EV,-1),[1,N_a1,N_a2,1,1,N_z]); % [1,a1p,a2p,1,1,z] — pre-discounted
+
+    % Interpolate EV over aprime_grid
+    EVinterp=reshape(interp1(a1_grid,reshape(EV,[N_a1,N_a2,N_z]),a1prime_grid),[N_a1prime*N_a2,N_z]);
+    DiscountedEVinterp=DiscountFactorParamsVec*reshape(shiftdim(EVinterp,-1),[1,N_a1prime,N_a2,1,1,N_z]); % [1,a1p,a2p,1,1,z] — pre-discounted
+
+    for z_c=1:N_z
+        z_val=z_gridvals(z_c,:);
+        DiscountedEV_z=DiscountedEV(:,:,:,1,1,z_c); % [1,a1p,a2p]
+        DiscountedEVinterp_z=DiscountedEVinterp(:,:,:,1,1,z_c); % [1,a1p,a2p]
+
+        % n-Monotonicity
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, n_d, special_n_z, d_gridvals, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_val, ReturnFnParamsVec,1,0);
+
+        entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z; % d, level1 (a1), a2state all broadcast
+
+        % First, we want a1prime conditional on (d,1,a2prime,a1,a2)
+        [~,maxindex1]=max(entireRHS_ii,[],2);
+        midpoints(:,1,:,level1ii,:)=maxindex1;
+
+        % Attempt for improved version
+        maxgap=squeeze(max(max(max(maxindex1(:,1,:,2:end,:)-maxindex1(:,1,:,1:end-1,:),[],5),[],3),[],1));
+        for ii=1:(vfoptions.level1n-1)
+            curraindex=(level1ii(ii)+1:1:level1ii(ii+1)-1)';
+            if maxgap(ii)>0
+                loweredge=min(maxindex1(:,1,:,ii,:),N_a1-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2
+                a1primeindexes=loweredge+(0:1:maxgap(ii));
+                % aprime possibilities are n_d-by-maxgap(ii)+1-by-n_a2-by-1-by-n_a2
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, n_d, special_n_z, d_gridvals, a1_grid(a1primeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val, ReturnFnParamsVec,3,0);
+                aprimez=a1primeindexes+N_a1*shiftdim((0:1:N_a2-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
+                % ReturnMatrix_ii (Level=3) has level1iidiff as dim 4; EV-indexed has singleton dim 4 -> broadcast.
+                entireRHS_ii=ReturnMatrix_ii+DiscountedEV_z(aprimez);
+                [~,maxindex]=max(entireRHS_ii,[],2);
+                midpoints(:,1,:,curraindex,:)=maxindex+(loweredge-1);
+            else
+                loweredge=maxindex1(:,1,:,ii,:);
+                midpoints(:,1,:,curraindex,:)=repelem(loweredge,1,1,1,length(curraindex),1);
+            end
+        end
+
+        % Turn this into the 'midpoint'
+        midpoints=max(min(midpoints,n_a(1)-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        % midpoint is n_d-by-1-by-n_a2-by-n_a1-by-n_a2
+        a1primeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
+        % a1prime possibilities are n_d-by-n2long-by-n_a2-by-n_a1-by-n_a2
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC2A(ReturnFn, n_d, special_n_z, d_gridvals, a1prime_grid(a1primeindexes), a2_grid, a1_grid, a2_grid, z_val, ReturnFnParamsVec,2,0);
+        aprimez=a1primeindexes+N_a1prime*shiftdim((0:1:N_a2-1),-1);
+        entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp_z(aprimez(:)),[N_d*n2long*N_a2,N_a]);
+        [Vtempii,maxindex2]=max(entireRHS_ii,[],1);
+        V(:,z_c)=shiftdim(Vtempii,1);
+        % midpoint has a1 midpoint, maxindex2 has d, L2index for a1 and index for a2
+        d_ind=shiftdim(rem(maxindex2-1,N_d)+1,1);
+        maxindex2p2=shiftdim(ceil(maxindex2/N_d),1);
+        maxindexL2=rem(maxindex2p2-1,n2long)+1;
+        maxindexa2prime=ceil(maxindex2p2/n2long);
+        maxindexa1prime=midpoints(d_ind+N_d*(maxindexa2prime-1)+N_d*N_a2*(0:1:N_a-1)');
+        Policy(1,:,z_c)=d_ind; % d
+        Policy(2,:,z_c)=maxindexa1prime; % midpoint for a1
+        Policy(3,:,z_c)=maxindexa2prime; % a2
+        Policy(4,:,z_c)=maxindexL2; % a1prime L2index
+        % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+        aBind = (0:1:N_a-1)';
+        linidx_lower = d_ind                  + N_d*n2long*(maxindexa2prime-1) + N_d*n2long*N_a2*aBind;
+        linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*(maxindexa2prime-1) + N_d*n2long*N_a2*aBind;
+        isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+        isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
+        inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+        Policy(5,:,z_c) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    end
 
 end
 

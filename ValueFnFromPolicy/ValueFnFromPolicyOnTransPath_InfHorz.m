@@ -21,13 +21,22 @@ else
     % divide-and-conquer is not relevant for ValueFnFromPolicy
 end
 
+%% Grid interpolation layer is handled by its own command
+% (the continuation value has to be interpolated between the two neighbouring coarse points,
+%  which is not just a matter of stripping the extra Policy channels)
+if vfoptions.gridinterplayer==1
+    VPath=ValueFnFromPolicyOnTransPath_InfHorz_GI(PolicyPath,V_final,ParamPath,PricePath,T,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    return
+end
+
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
 
-l_daprime=size(PolicyPath,1)-2*vfoptions.gridinterplayer; % gridinterplayer=1 carries an extra L2 index and L2flag
+% Note: gridinterplayer=1 has already been sent to ValueFnFromPolicyOnTransPath_InfHorz_GI above
+l_daprime=size(PolicyPath,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 %% Switch to z_gridvals

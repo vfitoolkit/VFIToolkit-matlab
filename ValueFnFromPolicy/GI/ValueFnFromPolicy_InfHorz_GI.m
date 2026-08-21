@@ -65,7 +65,14 @@ if N_z==0
         VKronold=VKron;
 
         EVKrontemp=reshape(VKron(aprimeindex,:),[2,N_a]);
-        EVKrontemp=shiftdim(sum(PolicyProbs.*EVKrontemp,1),1);
+        EVKrontemp=PolicyProbs.*EVKrontemp;
+        % A zero interpolation weight on a grid point where V is -Inf gives 0*(-Inf)=NaN, which then
+        % contaminates the sum. The value fn iteration has the same guard on its own expectation, for
+        % the same reason: a zero weight is meant to contribute nothing. Note the value fn iteration
+        % weights by pi_z and guards before it interpolates, whereas here the interpolation comes
+        % first, so the guard has to be at the product rather than after the pi_z multiply.
+        EVKrontemp(isnan(EVKrontemp))=0;
+        EVKrontemp=shiftdim(sum(EVKrontemp,1),1);
 
         VKron=FofPolicy+DiscountFactorParamsVec*EVKrontemp;
 
@@ -94,7 +101,14 @@ else % N_z>0
         VKronold=VKron;
 
         EVKrontemp=reshape(VKron(aprimeindex,:),[2,N_a*N_z,N_z]); % last dimension is zprime
-        EVKrontemp=shiftdim(sum(PolicyProbs.*EVKrontemp,1),1); % [N_a*N_z,N_z]
+        EVKrontemp=PolicyProbs.*EVKrontemp;
+        % A zero interpolation weight on a grid point where V is -Inf gives 0*(-Inf)=NaN, which then
+        % contaminates the sum. The value fn iteration has the same guard on its own expectation, for
+        % the same reason: a zero weight is meant to contribute nothing. Note the value fn iteration
+        % weights by pi_z and guards before it interpolates, whereas here the interpolation comes
+        % first, so the guard has to be at the product rather than after the pi_z multiply.
+        EVKrontemp(isnan(EVKrontemp))=0;
+        EVKrontemp=shiftdim(sum(EVKrontemp,1),1); % [N_a*N_z,N_z]
 
         EVKrontemp=EVKrontemp.*pi_z_howards;
         EVKrontemp(isnan(EVKrontemp))=0;

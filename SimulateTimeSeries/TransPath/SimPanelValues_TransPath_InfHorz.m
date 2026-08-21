@@ -169,6 +169,10 @@ end
 
 %% Simulate the indexes
 % Can just pretend this is a standard FHorz model and use that to implement the simulation
+simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
+% (without this, SimPanelIndexes_FHorz returns the a index split across l_a rows and the z index
+% split across l_z rows, but everything below reads row 1 as the kron a index and row 2 as the
+% kron z index. Those coincide only when l_a==1 and l_z==1.)
 SimPanelIndexes=SimPanelIndexes_FHorz(gather(AgentDist_initial),gather(PolicyPath),n_d,n_a,n_z,T,pi_z_T, simoptions);
 
 %% Check if using _tminus1 and/or _tplus1 variables.

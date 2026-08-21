@@ -33,27 +33,33 @@ if vfoptions.gridinterplayer==0
             else
                 [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
-        elseif length(n_a)==2
-            if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
+        elseif length(n_a)>1
+            if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the endogenous states after the first
                 vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2A
                 if N_d==0
                     [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC2A_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
                     [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC2A_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
-            else % Do divide-and-conquer for both endogenous states
-                error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')
+            else % Do divide-and-conquer for more than just the first endogenous state
+                error('With more than one endogenous state, can only do divide-and-conquer in the first endogenous state')
             end
-        else
-            error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
         end
     end
 else % vfoptions.gridinterplayer==1
     if vfoptions.divideandconquer==0
-        if N_d==0
-            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        else
-            [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if isscalar(n_a)
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        elseif length(n_a)>1
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI2A_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_GI2A_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
         end
     elseif vfoptions.divideandconquer==1
         if isscalar(n_a)
@@ -62,8 +68,8 @@ else % vfoptions.gridinterplayer==1
             else
                 [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
-        elseif length(n_a)==2
-            if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
+        elseif length(n_a)>1
+            if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the endogenous states after the first
                 vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2A
                 if N_d==0
                     [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC2A_GI2A_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -71,7 +77,7 @@ else % vfoptions.gridinterplayer==1
                     [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC2A_GI2A_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             else
-                error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')
+                error('With more than one endogenous state, can only do divide-and-conquer in the first endogenous state')
             end
         end
     end
