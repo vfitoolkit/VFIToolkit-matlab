@@ -10,19 +10,18 @@ function AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,
 nCalibParams=length(ParamNames);
 FullParamNames=fieldnames(Parameters);
 nFields=length(FullParamNames);
+ParamDict=dictionary(string(FullParamNames),(1:nFields)');
 
 AgeMatrixOfParamValues=zeros(N_j,nCalibParams);
 for iCalibParam = 1:nCalibParams
-    found=0;
-    for iField=1:nFields
-        if strcmp(ParamNames{iCalibParam},FullParamNames{iField})
-            AgeMatrixOfParamValues(:,iCalibParam)=reshape(gather(Parameters.(FullParamNames{iField})),[length(Parameters.(FullParamNames{iField})),1]).*ones(N_j,1);
-            % Note, if parameter depends on age this is just the column vector, if parameter does not depend on age then this turns it into a constant valued column vector
-            found=1;
-            break
+    try
+        iField=ParamDict(ParamNames{iCalibParam});
+        if isscalar(Parameters.(FullParamNames{iField}))==1
+            AgeMatrixOfParamValues(:,iCalibParam)=Parameters.(FullParamNames{iField})*ones(N_j,1,'gpuArray');
+        else
+            AgeMatrixOfParamValues(:,iCalibParam)=reshape(gpuArray(Parameters.(FullParamNames{iField})),[N_j,1]);
         end
-    end
-    if found==0 % Have added this check so that user can see if they are missing a parameter
+    catch ME
         error(['Failed to find parameter ',ParamNames{iCalibParam}])
     end
 end
