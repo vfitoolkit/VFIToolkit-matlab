@@ -92,9 +92,12 @@ else
     EVpre=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
 
     % Use sparse for a few lines until sum over zprime
-    EV=EVpre.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+    EVinf=(EVpre==-Inf);
+    EV=EVpre;
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=EV*pi_z_J(:,:,N_j)';
+    EV(EVinf*(pi_z_J(:,:,N_j)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=reshape(EV,[N_a,1,N_z]);
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
@@ -180,9 +183,12 @@ for reverse_j=1:N_j-1
 
     EVpre=V(:,:,jj+1);
 
-    EV=EVpre.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+    EVinf=(EVpre==-Inf);
+    EV=EVpre;
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=EV*pi_z_J(:,:,jj)';
+    EV(EVinf*(pi_z_J(:,:,jj)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=reshape(EV,[N_a,1,N_z]);
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);

@@ -95,9 +95,12 @@ else
             ReturnMatrix_d2=CreateReturnFnMatrix_Disc_e(ReturnFn, special_n_d2, n_a, n_semiz,n_e, d2_val, a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
             % (d,aprime,a,z)
 
-            EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
+            EV_d2inf=(EV==-Inf);
+            EV_d2=EV;
+            EV_d2(EV_d2inf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV_d2=EV_d2*pi_semiz';
+            EV_d2(EV_d2inf*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV_d2=reshape(EV_d2,[N_a,1,N_semiz]);
 
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2; %repmat(entireEV,1,N_a,1);
 
@@ -120,9 +123,12 @@ else
             d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
 
-            EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
+            EV_d2inf=(EV==-Inf);
+            EV_d2=EV;
+            EV_d2(EV_d2inf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV_d2=EV_d2*pi_semiz';
+            EV_d2(EV_d2inf*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV_d2=reshape(EV_d2,[N_a,1,N_semiz]);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
@@ -200,9 +206,12 @@ for reverse_j=1:N_j-1
             ReturnMatrix_d2=CreateReturnFnMatrix_Disc_e(ReturnFn, special_n_d2, n_a, n_semiz,n_e, d2_val, a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
             % (d,aprime,a,z)
 
-            EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
+            EV_d2inf=(EV==-Inf);
+            EV_d2=EV;
+            EV_d2(EV_d2inf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV_d2=EV_d2*pi_semiz';
+            EV_d2(EV_d2inf*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV_d2=reshape(EV_d2,[N_a,1,N_semiz]);
 
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2;
 
@@ -227,9 +236,12 @@ for reverse_j=1:N_j-1
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
 
             % Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV_d2=sum(EV_d2,2);
+            EV_d2inf=(EV==-Inf);
+            EV_d2=EV;
+            EV_d2(EV_d2inf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV_d2=EV_d2*pi_semiz';
+            EV_d2(EV_d2inf*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV_d2=reshape(EV_d2,[N_a,1,N_semiz]);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);

@@ -181,9 +181,12 @@ else
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
-            EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
+            EV_d2inf=(EV==-Inf);
+            EV_d2=EV;
+            EV_d2(EV_d2inf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV_d2=EV_d2*pi_bothz';
+            EV_d2(EV_d2inf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV_d2=reshape(EV_d2,[N_a,1,N_bothz]);
 
             % Interpolate EV over aprime_grid
             EVinterp=interp1(a_grid,EV_d2,aprime_grid);
@@ -378,9 +381,12 @@ for reverse_j=1:N_j-1
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
             d12c_gridvals=d12_gridvals(:,:,d2_c);
 
-            EV_d2=EV.*shiftdim(pi_bothz',-1);
-            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
+            EV_d2inf=(EV==-Inf);
+            EV_d2=EV;
+            EV_d2(EV_d2inf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV_d2=EV_d2*pi_bothz';
+            EV_d2(EV_d2inf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV_d2=reshape(EV_d2,[N_a,1,N_bothz]);
 
             % Interpolate EV over aprime_grid
             EVinterp=interp1(a_grid,EV_d2,aprime_grid);
