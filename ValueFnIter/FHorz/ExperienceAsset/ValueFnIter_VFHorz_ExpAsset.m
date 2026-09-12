@@ -56,11 +56,7 @@ for i = 1:num_a2
 end
 
 V = zeros(N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
-if isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer == 1
-    PolicyKron = zeros(3, N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
-else
-    PolicyKron = zeros(N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
-end
+PolicyKron = zeros(N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
 V_next = zeros(N_a1, N_a2, N_z_safe, 'like', a2_grid);
 
 for reverse_j = 0:N_j-1
@@ -165,14 +161,7 @@ for reverse_j = 0:N_j-1
     PolicyKron_j = d_idx + (Pol_apr_max - 1) * (N_d1_safe * N_d2);
     
     V(:, :, :, jj) = V_j_max;
-    if isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer == 1
-        G_segments = vfoptions.ngridinterp + 1;
-        PolicyKron(1, :, :, :, jj) = PolicyKron_j;
-        PolicyKron(2, :, :, :, jj) = G_segments + 1;
-        PolicyKron(3, :, :, :, jj) = 2;
-    else
-        PolicyKron(:, :, :, jj) = PolicyKron_j;
-    end
+    PolicyKron(:, :, :, jj) = PolicyKron_j;
     V_next = V_j_max;
 end
 
