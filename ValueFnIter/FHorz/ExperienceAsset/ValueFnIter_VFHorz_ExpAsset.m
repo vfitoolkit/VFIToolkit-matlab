@@ -59,6 +59,27 @@ V = zeros(N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
 PolicyKron = zeros(N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
 V_next = zeros(N_a1, N_a2, N_z_safe, 'like', a2_grid);
 
+gridinterplayer = isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer == 1;
+if gridinterplayer
+    n2short = vfoptions.ngridinterp;
+    n2long = n2short*2 + 3;
+    a1prime_grid = interp1(1:1:N_a1, a1_gridvals(:,1), linspace(1, N_a1, N_a1 + (N_a1-1)*n2short))';
+    N_a1prime = length(a1prime_grid);
+    PolicyKron = zeros(4, N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
+else
+    PolicyKron = zeros(N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
+end
+
+% Flatten state mesh for local continuous interpolation later
+[a1_mesh, a2_mesh, z_mesh] = ndgrid(a1_gridvals(:,1), a2_gridvals(:,1), z_gridvals_J(:,1,1));
+N_state = N_a1 * N_a2 * N_z_safe;
+a1_flat = reshape(a1_mesh, [1, N_state]);
+a2_flat = reshape(a2_mesh, [1, N_state]);
+z_flat  = reshape(z_mesh, [1, N_state]);
+[~, a2_idx_mesh, z_idx_mesh] = ndgrid(1:N_a1, 1:N_a2, 1:N_z_safe);
+a2_idx_flat = reshape(a2_idx_mesh, [1, N_state]);
+z_idx_flat  = reshape(z_idx_mesh, [1, N_state]);
+
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
 
@@ -131,7 +152,64 @@ for reverse_j = 0:N_j-1
         RHS = F_tensor + beta_j .* EV_d2_bc;
 
         RHS_flat = reshape(RHS, [N_a1 * N_d1_safe, N_a1 * N_a2 * N_z_safe]);
-        [V_sub, Pol_sub_idx] = max(RHS_flat, [], 1);
+        [V_sub_coarse, Pol_sub_idx_coarse] = max(RHS_flat, [], 1);
+
+        if N_d1 > 0
+            apr_idx_coarse = mod(Pol_sub_idx_coarse - 1, N_a1) + 1;
+            d1_idx_coarse = ceil(Pol_sub_idx_coarse / N_a1);
+        else
+            apr_idx_coarse = Pol_sub_idx_coarse;
+            d1_idx_coarse = ones(size(Pol_sub_idx_coarse), 'like', Pol_sub_idx_coarse);
+        end
+
+        if gridinterplayer
+            % --- THE FINE PASS (Sub-Grid Expansion) ---
+            midpoint = max(min(apr_idx_coarse, N_a1 - 1), 2);
+
+            % Build the local 21-point micro-tensor for each state
+            base_idx = midpoint + (midpoint - 1) * n2short;
+            offset = (-n2short-1 : 1 : n2short+1)';
+            fine_idx = base_idx + offset; % Size: [n2long, N_state]
+
+            % Prepare the localized states and choices
+            apr_in_fine = a1prime_grid(fine_idx);
+            a1_in_fine  = repmat(a1_flat, [n2long, 1]);
+            a2_in_fine  = repmat(a2_flat, [n2long, 1]);
+            A1_fine = {a1_in_fine}; A2_fine = {a2_in_fine};
+            if N_z > 0; Z_fine = {repmat(z_flat, [n2long, 1])}; else; Z_fine = {}; end
+            if N_d1 > 0; D1_fine = {repmat(d1_gridvals(d1_idx_coarse, 1)', [n2long, 1])}; else; D1_fine = {}; end
+            D2_fine = {repmat(d2_gridvals(i_d2, 1), [n2long, N_state])};
+
+            % Evaluate Return Function only on the 21 points
+            F_tensor_fine = ReturnFn(D1_fine{:}, D2_fine{:}, apr_in_fine, A1_fine{:}, A2_fine{:}, Z_fine{:}, ReturnFnParamsVec{:});
+
+            % Interpolate the Expected Value for the sub-grid
+            EV_d2_flat = reshape(EV_d2, [N_a1, N_a2 * N_z_safe]);
+            EV_d2_interp = interp1(a1_gridvals(:,1), EV_d2_flat, a1prime_grid); % [N_a1prime, N_state_a2_z]
+
+            % Map the linear indices to extract the sub-grid EVs
+            EV_lin_idx = fine_idx + (repmat(a2_idx_flat, [n2long, 1]) - 1) * N_a1prime + (repmat(z_idx_flat, [n2long, 1]) - 1) * N_a1prime * N_a2;
+            EV_fine = EV_d2_interp(EV_lin_idx);
+
+            RHS_fine = F_tensor_fine + beta_j .* EV_fine;
+            [V_sub, maxindexL2] = max(RHS_fine, [], 1);
+
+            % Calculate Toolkit L2 Bounds Logic
+            isInfLower = RHS_fine(1, :) == -Inf;
+            isInfUpper = RHS_fine(end, :) == -Inf;
+            inLowerStrict = (maxindexL2 >= 2) & (maxindexL2 <= n2short+1);
+            inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
+            L2flag = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
+            apr_idx = reshape(midpoint, [N_a1, N_a2, N_z_safe]);
+            d1_idx  = reshape(d1_idx_coarse, [N_a1, N_a2, N_z_safe]);
+            L2idx   = reshape(maxindexL2, [N_a1, N_a2, N_z_safe]);
+            L2flag  = reshape(L2flag, [N_a1, N_a2, N_z_safe]);
+        else
+            % --- DISCRETE PASS (Standard) ---
+            apr_idx = reshape(apr_idx_coarse, [N_a1, N_a2, N_z_safe]);
+            d1_idx = reshape(d1_idx_coarse, [N_a1, N_a2, N_z_safe]);
+        end
         V_sub = reshape(V_sub, [N_a1, N_a2, N_z_safe]);
 
         if N_d1 > 0
@@ -166,31 +244,44 @@ for reverse_j = 0:N_j-1
 end
 
 V = reshape(V, [N_a, N_z_safe, N_j]);
-PolicyKron = reshape(PolicyKron, [N_a, N_z_safe, N_j]);
+if gridinterplayer
+    PolicyKron = reshape(PolicyKron, [4, N_a, N_z_safe, N_j]);
+else
+    PolicyKron = reshape(PolicyKron, [N_a, N_z_safe, N_j]);
+end
 
 if vfoptions.outputkron == 1
     Policy = PolicyKron;
 else
-    PolicyKron = shiftdim(PolicyKron, -1);
-    
     if n_d1 > 0
         n_d_vec = [n_d1, n_d2];
     else
         n_d_vec = n_d2;
     end
-    
-    if n_a1 > 0 && n_a1(1) > 0
-        n_d_vec = [n_d_vec, n_a1];
-        n_a_vec = [n_a1, n_a2];
+
+    if gridinterplayer
+        if N_z == 0
+            V = reshape(V, [N_a, N_j]);
+            Policy = UnKronPolicyIndexes2_FHorz_noz(PolicyKron, n_d_vec, n_a1, [n_a1, n_a2], N_j, vfoptions);
+        else
+            Policy = UnKronPolicyIndexes2_FHorz_z(PolicyKron, n_d_vec, n_a1, [n_a1, n_a2], n_z, N_j, vfoptions);
+        end
     else
-        n_a_vec = n_a2;
-    end
-    
-    if N_z == 0
-        V = reshape(V, [N_a, N_j]);
-        Policy = UnKronPolicyIndexes1_FHorz_noz(PolicyKron, n_d_vec, n_a_vec, N_j, vfoptions);
-    else
-        Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_d_vec, n_a_vec, n_z, N_j, vfoptions);
+        PolicyKron = shiftdim(PolicyKron, -1);
+
+        if n_a1 > 0 && n_a1(1) > 0
+            n_d_vec_disc = [n_d_vec, n_a1];
+            n_a_vec_disc = [n_a1, n_a2];
+        else
+            n_a_vec_disc = n_a2;
+        end
+
+        if N_z == 0
+            V = reshape(V, [N_a, N_j]);
+            Policy = UnKronPolicyIndexes1_FHorz_noz(PolicyKron, n_d_vec_disc, n_a_vec_disc, N_j, vfoptions);
+        else
+            Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_d_vec_disc, n_a_vec_disc, n_z, N_j, vfoptions);
+        end
     end
 end
 
