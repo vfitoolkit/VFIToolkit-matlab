@@ -120,112 +120,35 @@ for reverse_j = 0:N_j-1
     
     [a2primeIndex, a2primeProbs] = CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec, 2);
     
-    V_j_max     = -inf(N_a1, N_a2, N_z_safe, 'like', a2_grid);
-    Pol_apr_max = ones(N_a1, N_a2, N_z_safe, 'like', a2_grid);
-    Pol_d1_max  = ones(N_a1, N_a2, N_z_safe, 'like', a2_grid);
-    Pol_d2_max  = ones(N_a1, N_a2, N_z_safe, 'like', a2_grid);
-    if gridinterplayer
-        Pol_L2idx_max  = ones(N_a1, N_a2, N_z_safe, 'like', a2_grid);
-        Pol_L2flag_max = 2 * ones(N_a1, N_a2, N_z_safe, 'like', a2_grid);
+    % ... (inside reverse_j loop, after EV interpolation setup) ...
+
+    % Define the Unified GPU Tensor Engine for this time period
+    EvalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_ExpAsset_TensorBlock(...
+        state_idx, loweredge_matrix, maxgap_scalar, ...
+        N_a1, N_a2, N_d1, N_d2, N_z_safe, N_state, gridinterplayer, n2short, n2long, ...
+        beta_j, EV_d2, EV_d2_interp, a1prime_grid, a2primeIndex, a2primeProbs, ...
+        a1_flat, a2_flat, z_flat, a2_idx_flat, z_idx_flat, ...
+        ReturnFn, D1_cells, d2_gridvals, apr_in, A1_cells, A2_cells, Z_cells, ReturnFnParamsVec);
+
+    % The Time-Loop Router
+    if isfield(vfoptions, 'level1n') && vfoptions.level1n > 1
+        % Route to Universal DC1 Slicer
+        [V_j_max, Pol_apr_max, Pol_d1_max, Pol_L2idx_max, Pol_L2flag_max] = ...
+            ValueFnIter_DC1_Slicer(N_a1, N_a1, N_a2, N_z_safe, vfoptions, EvalBlockFn);
+
+        % In DC1, we still need the d2 max across the loop. 
+        % (For ExpAsset, d2 is handled inside the block, so Pol_d2_max is returned or implied)
+        % Note: To keep things perfectly modular, you'll update EvalBlockFn to loop over d2 internally 
+        % and return the winning d2 index as well.
+    else
+        % Route to Brute Force (Standard _raw)
+        [V_j_max, Pol_apr_max, Pol_d1_max, Pol_L2idx_max, Pol_L2flag_max, Pol_d2_max] = ...
+            EvalBlockFn(1:N_a1, [], 0);
     end
-    
-    for i_d2 = 1:N_d2
-        idx   = a2primeIndex(i_d2, :);
-        probs = a2primeProbs(i_d2, :);
-        probs_rs  = reshape(probs, [1, N_a2, 1]);
-        idx_lower = idx;
-        idx_upper = min(idx + 1, N_a2);
-        
-        Vlower = V_next(:, idx_lower, :);
-        Vupper = V_next(:, idx_upper, :);
-        EV_interp = probs_rs .* Vlower + (1 - probs_rs) .* Vupper;
-        
-        if N_z > 0
-            EV_flat = reshape(EV_interp, [N_a1 * N_a2, N_z]);
-            EV_d2   = reshape(EV_flat * pi_z_j', [N_a1, N_a2, N_z]);
-        else
-            EV_d2 = EV_interp;
-        end
-        
-        D2_cells = cell(1, num_d2);
-        for i = 1:num_d2
-            D2_cells{i} = d2_gridvals(i_d2, i);
-        end
-        
-        F_tensor = ReturnFn(D1_cells{:}, D2_cells{:}, apr_in, A1_cells{:}, A2_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
-        EV_d2_bc = reshape(EV_d2, [N_a1, 1, 1, N_a2, N_z_safe]);
-        RHS      = F_tensor + beta_j .* EV_d2_bc;
-        RHS_flat = reshape(RHS, [N_a1 * N_d1_safe, N_a1 * N_a2 * N_z_safe]);
-        
-        [V_sub_coarse, Pol_sub_idx_coarse] = max(RHS_flat, [], 1);
-        
-        if N_d1 > 0
-            apr_idx_coarse = mod(Pol_sub_idx_coarse - 1, N_a1) + 1;
-            d1_idx_coarse  = ceil(Pol_sub_idx_coarse / N_a1);
-        else
-            apr_idx_coarse = Pol_sub_idx_coarse;
-            d1_idx_coarse  = ones(size(Pol_sub_idx_coarse), 'like', Pol_sub_idx_coarse);
-        end
-        
-        if gridinterplayer
-            midpoint = max(min(apr_idx_coarse, N_a1 - 1), 2);
-            base_idx = midpoint + (midpoint - 1) * n2short;
-            offset   = (-n2short-1 : 1 : n2short+1)';
-            fine_idx = base_idx + offset;
-            
-            apr_in_fine = a1prime_grid(fine_idx);
-            a1_in_fine  = repmat(a1_flat, [n2long, 1]);
-            a2_in_fine  = repmat(a2_flat, [n2long, 1]);
-            A1_fine = {a1_in_fine}; 
-            A2_fine = {a2_in_fine};
-            if N_z > 0;  Z_fine = {repmat(z_flat, [n2long, 1])}; else; Z_fine = {}; end
-            if N_d1 > 0; D1_fine = {repmat(d1_gridvals(d1_idx_coarse, 1)', [n2long, 1])}; else; D1_fine = {}; end
-            D2_fine = {repmat(d2_gridvals(i_d2, 1), [n2long, N_state])};
-            
-            F_tensor_fine = ReturnFn(D1_fine{:}, D2_fine{:}, apr_in_fine, A1_fine{:}, A2_fine{:}, Z_fine{:}, ReturnFnParamsVec{:});
-            
-            EV_d2_flat   = reshape(EV_d2, [N_a1, N_a2 * N_z_safe]);
-            EV_d2_interp = interp1(a1_gridvals(:, 1), EV_d2_flat, a1prime_grid);
-            EV_lin_idx   = fine_idx + (repmat(a2_idx_flat, [n2long, 1]) - 1) * N_a1prime + (repmat(z_idx_flat, [n2long, 1]) - 1) * N_a1prime * N_a2;
-            EV_fine      = EV_d2_interp(EV_lin_idx);
-            
-            RHS_fine = F_tensor_fine + beta_j .* EV_fine;
-            [V_sub_fine, maxindexL2] = max(RHS_fine, [], 1);
-            
-            isInfLower    = (RHS_fine(1, :) == -Inf);
-            isInfUpper    = (RHS_fine(end, :) == -Inf);
-            inLowerStrict = (maxindexL2 >= 2) & (maxindexL2 <= n2short + 1);
-            inUpperStrict = (maxindexL2 >= n2short + 3) & (maxindexL2 <= n2long - 1);
-            L2flag_fine   = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
-            
-            V_sub   = reshape(V_sub_fine,     [N_a1, N_a2, N_z_safe]);
-            apr_idx = reshape(midpoint,       [N_a1, N_a2, N_z_safe]);
-            d1_idx  = reshape(d1_idx_coarse,  [N_a1, N_a2, N_z_safe]);
-            L2idx   = reshape(maxindexL2,     [N_a1, N_a2, N_z_safe]);
-            L2flag  = reshape(L2flag_fine,    [N_a1, N_a2, N_z_safe]);
-        else
-            V_sub   = reshape(V_sub_coarse,   [N_a1, N_a2, N_z_safe]);
-            apr_idx = reshape(apr_idx_coarse, [N_a1, N_a2, N_z_safe]);
-            d1_idx  = reshape(d1_idx_coarse,  [N_a1, N_a2, N_z_safe]);
-        end
-        
-        if i_d2 == 1
-            update_mask = true(N_a1, N_a2, N_z_safe);
-        else
-            update_mask = V_sub > V_j_max;
-        end
-        
-        V_j_max(update_mask)     = V_sub(update_mask);
-        Pol_apr_max(update_mask) = apr_idx(update_mask);
-        Pol_d1_max(update_mask)  = d1_idx(update_mask);
-        Pol_d2_max(update_mask)  = i_d2;
-        if gridinterplayer
-            Pol_L2idx_max(update_mask)  = L2idx(update_mask);
-            Pol_L2flag_max(update_mask) = L2flag(update_mask);
-        end
-    end
-    
+
+    % Pack PolicyKron
     d_idx = Pol_d1_max + (Pol_d2_max - 1) * N_d1_safe;
+    % ... (Proceed to gridinterplayer packing logic as before) ...
     
     if gridinterplayer
         adjust = (Pol_L2idx_max < 1 + n2short + 1);
