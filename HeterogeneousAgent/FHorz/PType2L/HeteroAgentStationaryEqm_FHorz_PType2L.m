@@ -75,6 +75,7 @@ if N_p~=0 && ~isfield(heteroagentoptions,'p_grid')
 end
 if ~isfield(heteroagentoptions,'GEptype'),          heteroagentoptions.GEptype={}; end
 if ~isfield(heteroagentoptions,'constrainpositive'), heteroagentoptions.constrainpositive={}; end
+if ~isfield(heteroagentoptions,'constrainpositivemethod'), heteroagentoptions.constrainpositivemethod='softplus'; end
 if ~isfield(heteroagentoptions,'constrain0to1'),    heteroagentoptions.constrain0to1={}; end
 if ~isfield(heteroagentoptions,'constrainAtoB'),    heteroagentoptions.constrainAtoB={}; end
 if isfield(heteroagentoptions,'constrainAtoB') && ~isempty(heteroagentoptions.constrainAtoB)

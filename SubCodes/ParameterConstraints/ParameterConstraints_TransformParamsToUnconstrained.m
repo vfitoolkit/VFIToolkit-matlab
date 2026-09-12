@@ -12,9 +12,24 @@ function [calibparamsvec,caliboptions]=ParameterConstraints_TransformParamsToUnc
 % ParameterConstraints_TransformParamsToUnconstrained: transforms cparam to uparam
 % ParameterConstraints_TransformParamsToOriginal: transforms uparam to cparam
 %
-% - Constrain parameter to be positive
+% - Constrain parameter to be positive, caliboptions.constrainpositivemethod='log'
 %     uparam=log(cparam)
 %     cparam=exp(uparam)
+%
+% - Constrain parameter to be positive, caliboptions.constrainpositivemethod='softplus' (default)
+%     uparam=log(exp(cparam)-1)
+%     cparam=log(1+exp(uparam))
+%   Both send the real line to (0,infty). They differ in the step sizes the
+%   optimizer sees. log gives PROPORTIONAL steps everywhere, which is right for
+%   scale-free parameters (variances, productivity levels) whose plausible range
+%   spans orders of magnitude. softplus is near-linear away from zero, so it
+%   gives ABSOLUTE steps, which is right for parameters that live at a known
+%   magnitude and where positivity is a guard rail rather than a feature (most
+%   general eqm prices). Rule of thumb: if halving the parameter would mean the
+%   same thing at 0.01 as at 100, use log; otherwise use softplus.
+%   Note softplus does NOT make the zero boundary easier to reach: as
+%   uparam->-infty it degenerates to the same log tail. Use constrainAtoB if the
+%   solution can genuinely sit at zero.
 %
 % - Constrain parameter to be zero-to-one
 %     uparam=
@@ -60,6 +75,21 @@ if constraintsbyname==1
         end
 
     end
+
+    % Which of the constrainpositive parameters use softplus rather than log.
+    % Kept as a per-parameter vector (like the constraints themselves) so that a
+    % future per-parameter version of constrainpositivemethod only changes how
+    % this vector gets filled, not the transform code that reads it.
+    if ~isfield(caliboptions,'constrainpositivemethod')
+        caliboptions.constrainpositivemethod='softplus';
+    end
+    if strcmp(caliboptions.constrainpositivemethod,'softplus')
+        caliboptions.constrainpositivesoftplus=caliboptions.constrainpositive;
+    elseif strcmp(caliboptions.constrainpositivemethod,'log')
+        caliboptions.constrainpositivesoftplus=zeros(length(CalibParamNames),1);
+    else
+        error('caliboptions.constrainpositivemethod must be ''log'' or ''softplus'' (check spelling)')
+    end
 end
 
 %% Throw an error if you constrain a parameter that is not being calibrated/being determined in general eqm
@@ -90,8 +120,22 @@ for pp=1:length(CalibParamNames)
             fprintf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(CalibParamNames)),' (',CalibParamNames{pp},')\n'])
             error('Initial guess for positive-constrained parameter is negative.');
         end
-        calibparamsvec(pp_index)=min(49.99,max(log(p_val),-49.99));
-        % Note, the max() is because otherwise p=0 returns -Inf, and the min() is because exp() overflows to Inf above about 709. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
+        if caliboptions.constrainpositivesoftplus(pp)==0
+            calibparamsvec(pp_index)=min(49.99,max(log(p_val),-49.99));
+            % Note, the max() is because otherwise p=0 returns -Inf, and the min() is because exp() overflows to Inf above about 709. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
+        else
+            % softplus: uparam=log(exp(cparam)-1), written as cparam+log(1-exp(-cparam))
+            % so that exp(cparam) never overflows for large cparam (uparam->cparam).
+            % expm1() keeps the small-cparam end accurate, where uparam->log(cparam).
+            calibparamsvec(pp_index)=max(p_val+log(-expm1(-p_val)),-49.99);
+            % Note: only a LOWER cutoff here. Under log the +-50 cutoffs sit in log
+            % units, so +50 means cparam of about 5*10^21; under softplus cparam is
+            % roughly uparam once away from zero, so a +50 cutoff would silently cap
+            % every positive parameter at 50. softplus has no overflow to guard
+            % against (cparam grows linearly), so the upper cutoff is simply dropped.
+            % The lower cutoff keeps log's convention that softplus(-50), about
+            % 2*10^-22, counts as zero.
+        end
     end
     if caliboptions.constrainAtoB(pp)==1
         % Constrain parameter to be A to B (by first converting to 0 to 1, and then treating it as constraint 0 to 1)

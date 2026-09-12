@@ -22,6 +22,9 @@ if ~isfield(estimoptions,'constrainpositive')
     % Convert constrained positive p into x=log(p) which is unconstrained.
     % Then use p=exp(x) in the model.
 end
+if ~isfield(estimoptions,'constrainpositivemethod')
+    estimoptions.constrainpositivemethod='softplus'; % 'log' (uparam=log(cparam)) or 'softplus' (cparam=log(1+exp(uparam))); see ParameterConstraints_TransformParamsToUnconstrained for which suits which parameter
+end
 if ~isfield(estimoptions,'constrain0to1')
     estimoptions.constrain0to1={}; % names of parameters to be constrained to 0 to 1 (gets converted to binary-valued vector below)
     % Handle 0 to 1 constraints by using log-odds function to switch parameter p into unconstrained x, so x=log(p/(1-p))
