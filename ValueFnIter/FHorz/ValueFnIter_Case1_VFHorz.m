@@ -461,16 +461,15 @@ for reverse_j = 0:N_j-1
         adjust = (Pol_L2idx_max < 1 + n2short + 1);
         lower_grid_pt = Pol_apr_max - adjust;
         subgrid_step  = adjust .* Pol_L2idx_max + (1 - adjust) .* (Pol_L2idx_max - n2short - 1);
-        
+
         if N_d > 0
-            PolicyKron(1, :, :, 1, jj) = Pol_d_max;
-            PolicyKron(2, :, :, 1, jj) = lower_grid_pt;
-            PolicyKron(3, :, :, 1, jj) = subgrid_step;
+            % KRONECKER PACKING: Embed both 'd' and 'a' into the first slice
+            PolicyKron(1, :, :, 1, jj) = (lower_grid_pt - 1) * N_d + Pol_d_max;
         else
             PolicyKron(1, :, :, 1, jj) = lower_grid_pt;
-            PolicyKron(2, :, :, 1, jj) = subgrid_step;
-            PolicyKron(3, :, :, 1, jj) = Pol_L2flag_max;
         end
+        PolicyKron(2, :, :, 1, jj) = subgrid_step;
+        PolicyKron(3, :, :, 1, jj) = Pol_L2flag_max;
     else
         if N_d > 0
             PolicyKron(:, :, 1, jj) = (Pol_apr_max - 1) * N_d + Pol_d_max;
