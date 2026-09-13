@@ -385,7 +385,21 @@ has_e = isfield(vfoptions, 'n_e') && ~isempty(vfoptions.n_e) && prod(vfoptions.n
 if has_e
     n_e_vars = length(vfoptions.n_e);
     n_e_work = prod(vfoptions.n_e);
-    e_work   = shiftdim(gpuArray(vfoptions.e_grid),-2);
+    if n_e_vars > 1
+        e_grids_1d = cell(1, n_e_vars);
+        offset = 0;
+        for i_e = 1:n_e_vars
+            e_grids_1d{i_e} = vfoptions.e_grid((offset + 1):(offset + vfoptions.n_e(i_e)));
+            offset = offset + vfoptions.n_e(i_e);
+        end
+        [E_mesh_raw{1:n_e_vars}] = ndgrid(e_grids_1d{:});
+        e_work = zeros(n_e_work, n_e_vars, 'like', a_grid);
+        for i_e = 1:n_e_vars
+            e_work(:, i_e) = E_mesh_raw{i_e}(:);
+        end
+    else
+        e_work = vfoptions.e_grid(:);
+    end
 else
     n_e_vars = 0;
     n_e_work = 1;
@@ -478,25 +492,26 @@ for reverse_j = 0:N_j-1
         adjust = (Pol_L2idx_max < 1 + n2short + 1);
         lower_grid_pt = Pol_apr_max - adjust;
         subgrid_step  = adjust .* Pol_L2idx_max + (1 - adjust) .* (Pol_L2idx_max - n2short - 1);
-
+        
         if N_d > 0
             % KRONECKER PACKING: Embed both 'd' and 'a' into the first slice
-            PolicyKron(1, :, :, 1, jj) = (lower_grid_pt - 1) * N_d + Pol_d_max;
+            PolicyKron(1, :, :, :, jj) = (lower_grid_pt - 1) * N_d + Pol_d_max;
         else
-            PolicyKron(1, :, :, 1, jj) = lower_grid_pt;
+            PolicyKron(1, :, :, :, jj) = lower_grid_pt;
         end
-        PolicyKron(2, :, :, 1, jj) = subgrid_step;
-        PolicyKron(3, :, :, 1, jj) = Pol_L2flag_max;
+        PolicyKron(2, :, :, :, jj) = subgrid_step;
+        PolicyKron(3, :, :, :, jj) = Pol_L2flag_max;
     else
         if N_d > 0
-            PolicyKron(:, :, 1, jj) = (Pol_apr_max - 1) * N_d + Pol_d_max;
+            PolicyKron(:, :, :, jj) = (Pol_apr_max - 1) * N_d + Pol_d_max;
         else
-            PolicyKron(:, :, 1, jj) = Pol_apr_max;
+            PolicyKron(:, :, :, jj) = Pol_apr_max;
         end
     end
     
-    V(:, :, 1, jj) = V_j_max;
+    V(:, :, :, jj) = V_j_max;
     V_next = V_j_max;
+
 end
 
 if N_z == 0
@@ -580,15 +595,21 @@ else
 end
 
 if has_z
-    z_in = repmat(reshape(z_gridvals_j(ZE_z_idx, 1), [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
-    Z_cells_block = {z_in};
+    num_z_vars = size(z_gridvals_j, 2);
+    Z_cells_block = cell(1, num_z_vars);
+    for iz = 1:num_z_vars
+        Z_cells_block{iz} = repmat(reshape(z_gridvals_j(ZE_z_idx, iz), [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
+    end
 else
     Z_cells_block = {};
 end
 
 if has_e
-    e_in = repmat(reshape(e_work(ZE_e_idx), [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
-    E_cells_block = {e_in};
+    num_e_vars = size(e_work, 2);
+    E_cells_block = cell(1, num_e_vars);
+    for ie = 1:num_e_vars
+        E_cells_block{ie} = repmat(reshape(e_work(ZE_e_idx, ie), [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
+    end
 else
     E_cells_block = {};
 end
@@ -640,15 +661,21 @@ if gridinterplayer
     end
 
     if has_z
-        z_in_fine = repmat(reshape(z_gridvals_j(ZE_z_idx, 1), [1, 1, 1, N_ze]), [N_d_safe, n2long, N_block, 1]);
-        Z_fine = {z_in_fine};
+        num_z_vars = size(z_gridvals_j, 2);
+        Z_fine = cell(1, num_z_vars);
+        for iz = 1:num_z_vars
+            Z_fine{iz} = repmat(reshape(z_gridvals_j(ZE_z_idx, iz), [1, 1, 1, N_ze]), [N_d_safe, n2long, N_block, 1]);
+        end
     else
         Z_fine = {};
     end
     
     if has_e
-        e_in_fine = repmat(reshape(e_work(ZE_e_idx), [1, 1, 1, N_ze]), [N_d_safe, n2long, N_block, 1]);
-        E_fine = {e_in_fine};
+        num_e_vars = size(e_work, 2);
+        E_fine = cell(1, num_e_vars);
+        for ie = 1:num_e_vars
+            E_fine{ie} = repmat(reshape(e_work(ZE_e_idx, ie), [1, 1, 1, N_ze]), [N_d_safe, n2long, N_block, 1]);
+        end
     else
         E_fine = {};
     end
