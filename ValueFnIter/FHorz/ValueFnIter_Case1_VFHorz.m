@@ -426,34 +426,51 @@ for reverse_j = 0:N_j-1
     
     if N_z > 0
         pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
-        EV = V_next * pi_z_j';
+        if n_e_work > 1
+            % Handle 3D matrix multiplication for multi-e
+            EV = zeros(N_a, N_z_safe, n_e_work, 'like', V_next);
+            for ie = 1:n_e_work
+                EV(:,:,ie) = V_next(:,:,ie) * pi_z_j';
+            end
+        else
+            EV = V_next * pi_z_j';
+        end
     else
         EV = V_next;
     end
-    
-    % Define the Unified GPU Tensor Engine for Case1 (Now with N_d and D_cells)
+
+    % --- The ZE Flattening Trick ---
+    N_ze = N_z_safe * n_e_work;
+    EV_flat_ze = reshape(EV, [N_a, N_ze]);
+
+    [Z_mesh, E_mesh] = ndgrid(1:N_z_safe, 1:n_e_work);
+    ZE_z_idx = Z_mesh(:);
+    ZE_e_idx = E_mesh(:);
+
+    % Define the Unified GPU Tensor Engine for Case1 (Now with ZE Support)
     EvalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
-        state_idx, loweredge_matrix, maxgap_scalar, N_a, N_z_safe, N_d, ...
-        vfoptions.gridinterplayer, n2short, n2long, beta_j, EV, A_mat, a1prime_grid, ...
+        state_idx, loweredge_matrix, maxgap_scalar, N_a, N_ze, N_d, ...
+        has_z, has_e, ZE_z_idx, ZE_e_idx, e_work, ...
+        vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_flat_ze, A_mat, a1prime_grid, ...
         z_gridvals_J(:,:,min(jj, size(z_gridvals_J,3))), D_cells, ReturnFn, ReturnFnParamsVec);
 
     % The Time-Loop Router
     if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
         vfoptions.level1n = vfoptions.level1n(1); % Ensure scalar for 1D DC1
         [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = ...
-            ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_z_safe, vfoptions, EvalBlockFn);
+            ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_ze, vfoptions, EvalBlockFn);
     else
         % Brute Force
         [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = EvalBlockFn(1:N_a, [], 0);
     end
     
-    % --- NEW: Squeeze Slicer Outputs to 2D for Case 1 ---
-    V_j_max     = reshape(V_j_max,     [N_a, N_z_safe]);
-    Pol_apr_max = reshape(Pol_apr_max, [N_a, N_z_safe]);
-    Pol_d_max   = reshape(Pol_d_max,   [N_a, N_z_safe]);
+    % Squeeze Slicer Outputs back to full 3D [N_a, N_z, N_e] structure
+    V_j_max     = reshape(V_j_max,     [N_a, N_z_safe, n_e_work]);
+    Pol_apr_max = reshape(Pol_apr_max, [N_a, N_z_safe, n_e_work]);
+    Pol_d_max   = reshape(Pol_d_max,   [N_a, N_z_safe, n_e_work]);
     if vfoptions.gridinterplayer == 1
-        Pol_L2idx_max  = reshape(Pol_L2idx_max,  [N_a, N_z_safe]);
-        Pol_L2flag_max = reshape(Pol_L2flag_max, [N_a, N_z_safe]);
+        Pol_L2idx_max  = reshape(Pol_L2idx_max,  [N_a, N_z_safe, n_e_work]);
+        Pol_L2flag_max = reshape(Pol_L2flag_max, [N_a, N_z_safe, n_e_work]);
     end
     
     % Pack PolicyKron
@@ -528,7 +545,8 @@ varargout{2} = Policy;
 end
 
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_Case1_TensorBlock(...
-    state_idx, loweredge_matrix, maxgap_scalar, N_a, N_z_safe, N_d, ...
+    state_idx, loweredge_matrix, maxgap_scalar, N_a, N_ze, N_d, ...
+    has_z, has_e, ZE_z_idx, ZE_e_idx, e_work, ...
     gridinterplayer, n2short, n2long, beta_j, EV, a_gridvals, a1prime_grid, ...
     z_gridvals_j, D_cells, ReturnFn, ReturnFnParamsVec)
 
@@ -538,73 +556,68 @@ N_d_safe = max(1, N_d);
 % --- 1. Choice Grid Setup (The Ragged Edge Handler) ---
 if isempty(loweredge_matrix)
     N_choice = N_a;
-    % Dim 1: d, Dim 2: a', Dim 3: a, Dim 4: z
-    apr_idx_tensor = repmat(reshape(1:N_a, [1, N_choice, 1, 1]), [N_d_safe, 1, N_block, N_z_safe]);
+    apr_idx_tensor = repmat(reshape(1:N_a, [1, N_choice, 1, 1]), [N_d_safe, 1, N_block, N_ze]);
 else
     N_choice = maxgap_scalar + 1;
     offset = reshape(0:maxgap_scalar, [1, N_choice, 1, 1]);
-    
-    % loweredge_matrix from DC1_Slicer is size [1, 1, N_z_safe] (constant for the whole segment!)
-    % We force it to [1, 1, 1, N_z_safe] and then replicate it across the block
-    base_edge = repmat(reshape(loweredge_matrix, [1, 1, 1, N_z_safe]), [N_d_safe, N_choice, N_block, 1]);
-    apr_idx_tensor = base_edge + repmat(offset, [N_d_safe, 1, N_block, N_z_safe]);
+    base_edge = repmat(reshape(loweredge_matrix, [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
+    apr_idx_tensor = base_edge + repmat(offset, [N_d_safe, 1, N_block, N_ze]);
 end
 
 % --- 2. State & Choice Tensor Construction ---
-a_work_local = a_gridvals(:, 1); % Extract column vector first to prevent N-D flattening
-
-% Choices (Single subscript preserves the 4D tensor shape)
+a_work_local = a_gridvals(:, 1); 
 apr_in = a_work_local(apr_idx_tensor);
-
-% States
-a_in = repmat(reshape(a_work_local(state_idx), [1, 1, N_block, 1]), [N_d_safe, N_choice, 1, N_z_safe]);
+a_in = repmat(reshape(a_work_local(state_idx), [1, 1, N_block, 1]), [N_d_safe, N_choice, 1, N_ze]);
 
 if N_d > 0
     D_cells_block = cell(size(D_cells));
     for id = 1:length(D_cells)
         d_val = reshape(D_cells{id}, [N_d_safe, 1, 1, 1]);
-        D_cells_block{id} = repmat(d_val, [1, N_choice, N_block, N_z_safe]);
+        D_cells_block{id} = repmat(d_val, [1, N_choice, N_block, N_ze]);
     end
 else
     D_cells_block = {};
 end
 
-if N_z_safe > 1
-    z_in = repmat(reshape(z_gridvals_j(:,1), [1, 1, 1, N_z_safe]), [N_d_safe, N_choice, N_block, 1]);
+if has_z
+    z_in = repmat(reshape(z_gridvals_j(ZE_z_idx, 1), [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
     Z_cells_block = {z_in};
 else
     Z_cells_block = {};
 end
 
-% --- 3. Evaluate Return Function & Coarse RHS ---
-F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, ReturnFnParamsVec{:});
+if has_e
+    e_in = repmat(reshape(e_work(ZE_e_idx), [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
+    E_cells_block = {e_in};
+else
+    E_cells_block = {};
+end
 
-% Map EV correctly taking D into account
-EV_flat = reshape(EV, [N_a * N_z_safe, 1]);
-z_offset = repmat(reshape((0:N_z_safe-1) * N_a, [1, 1, 1, N_z_safe]), [N_d_safe, N_choice, N_block, 1]);
-EV_bounded = reshape(EV_flat(apr_idx_tensor + z_offset), [N_d_safe, N_choice, N_block, N_z_safe]);
+% --- 3. Evaluate Return Function & Coarse RHS ---
+F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
+
+EV_flat = reshape(EV, [N_a * N_ze, 1]);
+z_offset = repmat(reshape((0:N_ze-1) * N_a, [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
+EV_bounded = reshape(EV_flat(apr_idx_tensor + z_offset), [N_d_safe, N_choice, N_block, N_ze]);
 
 RHS = F_tensor + beta_j .* EV_bounded;
 
-% Flatten across d and a' to find the maximum
-RHS_flat = reshape(RHS, [N_d_safe * N_choice, N_block * N_z_safe]);
+RHS_flat = reshape(RHS, [N_d_safe * N_choice, N_block * N_ze]);
 [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
 
-% Unpack local d and a'
 d_idx_local   = mod(Pol_sub_idx - 1, N_d_safe) + 1;
 apr_idx_local = ceil(Pol_sub_idx / N_d_safe);
 
 if isempty(loweredge_matrix)
     apr_idx_coarse = apr_idx_local;
 else
-    % Expand the constant loweredge to match the [N_block, N_z_safe] matrix
-    loweredge_2d = repmat(reshape(loweredge_matrix, [1, N_z_safe]), [N_block, 1]);
-    apr_idx_local_2d = reshape(apr_idx_local, [N_block, N_z_safe]);
+    loweredge_2d = repmat(reshape(loweredge_matrix, [1, N_ze]), [N_block, 1]);
+    apr_idx_local_2d = reshape(apr_idx_local, [N_block, N_ze]);
     apr_idx_coarse = loweredge_2d + apr_idx_local_2d - 1;
 end
 
-apr_idx_coarse = reshape(apr_idx_coarse, [N_block, N_z_safe]);
-d_idx_coarse   = reshape(d_idx_local, [N_block, N_z_safe]);
+apr_idx_coarse = reshape(apr_idx_coarse, [N_block, N_ze]);
+d_idx_coarse   = reshape(d_idx_local, [N_block, N_ze]);
 
 % --- 4. The Continuous Sub-Grid Refinement (GI1) ---
 if gridinterplayer
@@ -613,36 +626,43 @@ if gridinterplayer
     offset   = (-n2short-1 : 1 : n2short+1)';
     fine_idx = base_idx(:)' + offset; 
 
-    apr_in_fine = repmat(reshape(a1prime_grid(fine_idx), [1, n2long, N_block, N_z_safe]), [N_d_safe, 1, 1, 1]);
-    a_in_fine   = repmat(reshape(a_gridvals(state_idx, 1), [1, 1, N_block, 1]), [N_d_safe, n2long, 1, N_z_safe]);
+    apr_in_fine = repmat(reshape(a1prime_grid(fine_idx), [1, n2long, N_block, N_ze]), [N_d_safe, 1, 1, 1]);
+    a_in_fine   = repmat(reshape(a_gridvals(state_idx, 1), [1, 1, N_block, 1]), [N_d_safe, n2long, 1, N_ze]);
 
     if N_d > 0
         D_fine = cell(size(D_cells));
         for id = 1:length(D_cells)
             d_val = reshape(D_cells{id}, [N_d_safe, 1, 1, 1]);
-            D_fine{id} = repmat(d_val, [1, n2long, N_block, N_z_safe]);
+            D_fine{id} = repmat(d_val, [1, n2long, N_block, N_ze]);
         end
     else
         D_fine = {};
     end
 
-    if N_z_safe > 1
-        z_in_fine = repmat(reshape(z_gridvals_j(:,1), [1, 1, 1, N_z_safe]), [N_d_safe, n2long, N_block, 1]);
+    if has_z
+        z_in_fine = repmat(reshape(z_gridvals_j(ZE_z_idx, 1), [1, 1, 1, N_ze]), [N_d_safe, n2long, N_block, 1]);
         Z_fine = {z_in_fine};
     else
         Z_fine = {};
     end
-
-    F_tensor_fine = ReturnFn(D_fine{:}, apr_in_fine, a_in_fine, Z_fine{:}, ReturnFnParamsVec{:});
-
-    EV_interp = interp1((1:N_a)', EV, a1prime_grid);
-    z_offset_fine = repmat(reshape((0:N_z_safe-1) * length(a1prime_grid), [1, N_z_safe]), [n2long, N_block]);
     
-    EV_fine_2D = EV_interp(fine_idx + reshape(z_offset_fine, [n2long, N_block * N_z_safe])); 
-    EV_fine = repmat(reshape(EV_fine_2D, [1, n2long, N_block, N_z_safe]), [N_d_safe, 1, 1, 1]);
+    if has_e
+        e_in_fine = repmat(reshape(e_work(ZE_e_idx), [1, 1, 1, N_ze]), [N_d_safe, n2long, N_block, 1]);
+        E_fine = {e_in_fine};
+    else
+        E_fine = {};
+    end
+
+    F_tensor_fine = ReturnFn(D_fine{:}, apr_in_fine, a_in_fine, Z_fine{:}, E_fine{:}, ReturnFnParamsVec{:});
+
+    EV_interp = interp1(a_work_local, EV, a1prime_grid);
+    z_offset_fine = repmat(reshape((0:N_ze-1) * length(a1prime_grid), [1, N_ze]), [n2long, N_block]);
+    
+    EV_fine_2D = EV_interp(fine_idx + reshape(z_offset_fine, [n2long, N_block * N_ze])); 
+    EV_fine = repmat(reshape(EV_fine_2D, [1, n2long, N_block, N_ze]), [N_d_safe, 1, 1, 1]);
 
     RHS_fine = F_tensor_fine + beta_j .* EV_fine;
-    RHS_fine_flat = reshape(RHS_fine, [N_d_safe * n2long, N_block * N_z_safe]);
+    RHS_fine_flat = reshape(RHS_fine, [N_d_safe * n2long, N_block * N_ze]);
     [V_sub_fine, maxindexL2] = max(RHS_fine_flat, [], 1);
 
     d_idx_fine    = mod(maxindexL2 - 1, N_d_safe) + 1;
@@ -654,18 +674,17 @@ if gridinterplayer
     inLowerStrict = (apr_step_fine >= 2) & (apr_step_fine <= n2short + 1);
     inUpperStrict = (apr_step_fine >= n2short + 3) & (apr_step_fine <= n2long - 1);
     
-    % Extract bounds boolean for the specific winning choice
-    linear_win_d = d_idx_fine + (0:N_block*N_z_safe-1)*N_d_safe;
+    linear_win_d = d_idx_fine + (0:N_block*N_ze-1)*N_d_safe;
     L2flag_fine = 2 + (inLowerStrict & isInfLower(linear_win_d)) - (inUpperStrict & isInfUpper(linear_win_d));
 
-    V_j_max        = reshape(V_sub_fine,    [N_block, N_z_safe]);
-    Pol_apr_max    = reshape(midpoint,      [N_block, N_z_safe]);
-    Pol_d_max      = reshape(d_idx_fine,    [N_block, N_z_safe]);
-    Pol_L2idx_max  = reshape(apr_step_fine, [N_block, N_z_safe]);
-    Pol_L2flag_max = reshape(L2flag_fine,   [N_block, N_z_safe]);
+    V_j_max        = reshape(V_sub_fine,    [N_block, N_ze]);
+    Pol_apr_max    = reshape(midpoint,      [N_block, N_ze]);
+    Pol_d_max      = reshape(d_idx_fine,    [N_block, N_ze]);
+    Pol_L2idx_max  = reshape(apr_step_fine, [N_block, N_ze]);
+    Pol_L2flag_max = reshape(L2flag_fine,   [N_block, N_ze]);
 else
-    V_j_max        = reshape(V_sub_coarse,   [N_block, N_z_safe]);
-    Pol_apr_max    = reshape(apr_idx_coarse, [N_block, N_z_safe]);
+    V_j_max        = reshape(V_sub_coarse,   [N_block, N_ze]);
+    Pol_apr_max    = reshape(apr_idx_coarse, [N_block, N_ze]);
     Pol_d_max      = d_idx_coarse;
     Pol_L2idx_max  = []; 
     Pol_L2flag_max = [];
