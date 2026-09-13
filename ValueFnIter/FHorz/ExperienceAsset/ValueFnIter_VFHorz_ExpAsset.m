@@ -78,6 +78,9 @@ if gridinterplayer
     N_state = N_a1 * N_a2 * N_z_safe;
 else
     PolicyKron = zeros(N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
+    n2short = 0;
+    n2long  = 0;
+    a1prime_grid = [];
 end
 
 for reverse_j = 0:N_j-1
@@ -126,25 +129,19 @@ for reverse_j = 0:N_j-1
 
     % The Time-Loop Router
     if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
-        % Extract the first dimension for the Slicer.
-        % Slicing a1 while broadcasting a2 natively achieves DC2A without extra loops!
+        % Extract the first dimension for the Slicer
         vfoptions.level1n = vfoptions.level1n(1);
 
-        % Route to Universal DC1 Slicer
-        [V_j_max, Pol_apr_max, Pol_d1_max, Pol_L2idx_max, Pol_L2flag_max] = ...
+        [V_j_max, Pol_apr_max, Pol_d_combo, Pol_L2idx_max, Pol_L2flag_max] = ...
             ValueFnIter_DC1_Slicer(N_a1, N_a1, N_a2, N_z_safe, vfoptions, EvalBlockFn);
-
-        % For ExpAsset with DC1, we fetch the max d2 implicitly from the tensor engine
-        % (Requires expanding DC1 Slicer to track Pol_d2_max, but for now we skip since DC1 is off)
-        Pol_d2_max = ones(N_a1, N_a2, N_z_safe, 'like', a2_grid);
     else
         % Route to Brute Force (Standard _raw)
-        [V_j_max, Pol_apr_max, Pol_d1_max, Pol_L2idx_max, Pol_L2flag_max, Pol_d2_max] = ...
+        [V_j_max, Pol_apr_max, Pol_d_combo, Pol_L2idx_max, Pol_L2flag_max] = ...
             EvalBlockFn(1:N_a1, [], 0);
     end
 
-    % Pack PolicyKron
-    d_idx = Pol_d1_max + (Pol_d2_max - 1) * N_d1_safe;
+    % Pack PolicyKron (d_idx is now natively tracked by the combo index!)
+    d_idx = Pol_d_combo;
 
     if gridinterplayer
         adjust = (Pol_L2idx_max < 1 + n2short + 1);
@@ -218,7 +215,7 @@ if gridinterplayer
     end
 else
     % UnKron1 expects the asset dimensions of PolicyKron to be flattened
-    PolicyKron_flat = reshape(PolicyKron, [N_a, N_z_safe, N_j]);
+    PolicyKron_flat = reshape(PolicyKron, [1, N_a, N_z_safe, N_j]);
     n_d_vec_disc = [n_d_vec, n_a1];
 
     if N_z == 0
@@ -233,7 +230,7 @@ end
 
 end
 
-function [V_j_max, Pol_apr_max, Pol_d1_max, Pol_L2idx_max, Pol_L2flag_max, Pol_d2_max] = Evaluate_ExpAsset_TensorBlock(...
+function [V_j_max, Pol_apr_max, Pol_d_combo, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_ExpAsset_TensorBlock(...
     state_idx, loweredge_matrix, maxgap_scalar, ...
     N_a1, N_a2, N_d1, N_d2, N_z_safe, gridinterplayer, n2short, n2long, ...
     beta_j, V_next, pi_z_j, a1prime_grid, a2primeIndex, a2primeProbs, ...
@@ -283,27 +280,40 @@ for i_d2 = 1:N_d2
     % --- 1. Compute Full Expected Value (EV) for this d2 choice ---
     idx   = a2primeIndex(i_d2, :);
     probs = a2primeProbs(i_d2, :);
-    probs_rs = reshape(probs, [1, N_a2, 1]);
-    
-    % We MUST compute EV for all possible future a1 choices, not just state_idx!
+
     Vlower = V_next(:, idx, :);
     Vupper = V_next(:, min(idx + 1, N_a2), :);
-    
-    % THE A2 SHIELD: Replicate the toolkit's exact 0 * -Inf protection
-    EV_interp = probs_rs .* Vlower + (1 - probs_rs) .* Vupper;
-    EV_interp(probs_rs == 0) = Vupper(probs_rs == 0);
-    EV_interp(probs_rs == 1) = Vlower(probs_rs == 1);
-    EV_interp(isnan(EV_interp)) = -Inf; % Catch any lingering math artifacts
+
+    % Expand probabilities to perfectly match the tensor size!
+    % (This completely avoids MATLAB's logical indexing broadcast trap)
+    probs_full = repmat(reshape(probs, [1, N_a2, 1]), [N_a1, 1, N_z_safe]);
+
+    % Toolkit exact rule: Skip interpolation if upper and lower are equal
+    skipinterp = (Vlower == Vupper);
+    probs_full(skipinterp) = 0;
+
+    EV_interp = probs_full .* Vlower + (1 - probs_full) .* Vupper;
+
+    % Apply the toolkit's exact 0 and 1 protections using our full-sized masks
+    mask0 = (probs_full == 0);
+    mask1 = (probs_full == 1);
+    EV_interp(mask0) = Vupper(mask0);
+    EV_interp(mask1) = Vlower(mask1);
+
+    % Catch any lingering 0 * -Inf = NaN
+    EV_interp(isnan(EV_interp)) = -Inf;
 
     if N_z_safe > 1
         EV_flat = reshape(EV_interp, [N_a1 * N_a2, N_z_safe]);
-        
-        % THE Z SHIELD: Pre-sanitize -Inf to survive Matrix Multiplication
-        % -1e12 ensures 0 * -1e12 = 0, preventing NaN corruption, while 
-        % remaining infinitely bad to the max() optimizer.
-        EV_flat(EV_flat == -Inf) = -1e12; 
-        
+
+        % THE Z SHIELD: Matrix multiplication converts 0 * -Inf to NaN.
+        % Temporarily use -1e15 to safely survive the dot product...
+        EV_flat(EV_flat == -Inf) = -1e15;
         EV_d2_full = reshape(EV_flat * pi_z_j', [N_a1, N_a2, N_z_safe]);
+
+        % ...then STRICTLY restore anything infected by -1e15 back to -Inf!
+        % (This ensures the Grid Interpolator's boundary checks work perfectly)
+        EV_d2_full(EV_d2_full <= -1e5) = -Inf;
     else
         EV_d2_full = EV_interp;
     end
@@ -374,7 +384,17 @@ for i_d2 = 1:N_d2
         F_tensor_fine = ReturnFn(D1_fine{:}, D2_cells{:}, apr_in_fine, A1_cells_block{:}, A2_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
 
         % Vectorized 1D interpolation of EV across all non-sliced states
-        EV_d2_interp = interp1((1:N_a1)', reshape(EV_d2_full, [N_a1, N_a2 * N_z_safe]), a1prime_grid);
+        % SHIELD: interp1 creates NaNs if it touches -Inf. Use -1e15 temporarily!
+        EV_d2_for_interp = EV_d2_full;
+        EV_d2_for_interp(EV_d2_for_interp == -Inf) = -1e15;
+
+        % Vectorized 1D interpolation of EV across all non-sliced states
+        % SHIELD: interp1 creates NaNs if it touches -Inf. Use -1e15 temporarily!
+        EV_d2_for_interp = EV_d2_full;
+        EV_d2_for_interp(EV_d2_for_interp == -Inf) = -1e15; 
+        
+        % BUG FIX: Use the actual coarse asset grid (a1_work_local) as the X-axis!
+        EV_d2_interp = interp1(a1_work_local, reshape(EV_d2_for_interp, [N_a1, N_a2 * N_z_safe]), a1prime_grid);
 
         a2_col = reshape(1:N_a2, [1, 1, 1, N_a2, 1]);
         z_col  = reshape(0:N_z_safe-1, [1, 1, 1, 1, N_z_safe]) .* N_a2;
@@ -392,8 +412,10 @@ for i_d2 = 1:N_d2
         RHS_fine_flat = reshape(RHS_fine, [n2long, N_block * N_a2 * N_z_safe]);
         [V_sub_fine, maxindexL2] = max(RHS_fine_flat, [], 1);
 
-        isInfLower = (RHS_fine_flat(1, :) == -Inf);
-        isInfUpper = (RHS_fine_flat(end, :) == -Inf);
+        % GI BOUNDARY CHECK: Look for the proxy infinity (-1e10) instead of strict -Inf
+        isInfLower = (RHS_fine_flat(1, :) <= -1e10);
+        isInfUpper = (RHS_fine_flat(end, :) <= -1e10);
+
         inLowerStrict = (maxindexL2 >= 2) & (maxindexL2 <= n2short + 1);
         inUpperStrict = (maxindexL2 >= n2short + 3) & (maxindexL2 <= n2long - 1);
         L2flag_fine = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
@@ -425,7 +447,16 @@ for i_d2 = 1:N_d2
         Pol_L2idx_max(update_mask)  = L2idx(update_mask);
         Pol_L2flag_max(update_mask) = L2flag(update_mask);
     end
-end
+end % End of i_d2 loop
+
+% Pack d1 and d2 into a single combo index so the universal DC1 slicer
+% can track both dimensions implicitly!
+Pol_d_combo = Pol_d1_max + (Pol_d2_max - 1) * N_d1_safe;
+
+% Restore strict -Inf bounds so the next time period's EV calculates correctly
+V_j_max(V_j_max <= -1e10) = -Inf;
 
 
 end
+
+
