@@ -64,6 +64,7 @@ for jj = N_j : -1 : 1
     % Warm Glow of Bequests Expectation (WG_u)
     % ---------------------------------------------------------
     if warmglow == 1
+        % Evaluate on a_grid and interpolate to perfectly match toolkit's numerical integration
         WG_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
         WG_raw = vfoptions.WarmGlowBequestsFn(a_grid, WG_params{:});
 
@@ -72,21 +73,22 @@ for jj = N_j : -1 : 1
         if ezc5(jj) == 1
             WG_temp(valid_wg) = ezc4 * WG_raw(valid_wg);
         else
-            % Clamp to 0 to prevent FMA noise from throwing complex numbers
             WG_temp(valid_wg) = max(ezc4 * WG_raw(valid_wg), 0).^ezc5(jj);
         end
         WG_temp(WG_raw == 0) = 0;
         WG_temp(~isfinite(WG_raw)) = -Inf;
 
-        inf_mask_wg = double(WG_temp == -Inf);
-        WG_safe = WG_temp; WG_safe(inf_mask_wg > 0) = 0;
-        WG_interp = interp1(a_grid, WG_safe, aprime_clamped(:), 'linear');
-        inf_interp_wg = interp1(a_grid, inf_mask_wg, aprime_clamped(:), 'linear');
-        WG_interp(inf_interp_wg > 0) = -Inf;
-        WG_interp = reshape(WG_interp, [N_d2*N_d3, N_u]);
+        inf_mask_wg = (WG_temp == -Inf);
+        WG_safe = WG_temp; WG_safe(inf_mask_wg) = 0;
 
+        WG_interp = interp1(a_grid, WG_safe, aprime_clamped(:), 'linear');
+        inf_interp_wg = interp1(a_grid, double(inf_mask_wg), aprime_clamped(:), 'linear');
+        WG_interp(inf_interp_wg > 0) = -Inf;
+
+        WG_interp = reshape(WG_interp, [N_d2*N_d3, N_u]);
         inf_mask_wg_u = (WG_interp == -Inf);
         WG_safe_u = WG_interp; WG_safe_u(inf_mask_wg_u) = 0;
+
         pi_u_rs = reshape(pi_u, [1, N_u]);
         WG_u = sum(WG_safe_u .* pi_u_rs, 2);
         inf_infect_wg_u = double(inf_mask_wg_u) .* double(pi_u_rs > 0);
@@ -99,13 +101,14 @@ for jj = N_j : -1 : 1
     % ---------------------------------------------------------
     % EV Expectation & Fractional Exponent Combination
     % ---------------------------------------------------------
+    warning('off', 'MATLAB:divideByZero');
     if jj == N_j
         temp4 = WG_u;
         valid_t4 = isfinite(temp4) & (temp4 ~= 0);
         if warmglow == 1
             temp4(valid_t4) = ((1 - sj(jj)) * max(temp4(valid_t4), 0).^ezc8(jj)).^ezc6(jj);
             temp4(WG_u == 0) = 0;
-            temp4(~valid_t4 & WG_u ~= 0) = NaN; % Use NaN so max() ignores invalid states
+            temp4(~valid_t4 & WG_u ~= 0) = NaN;
         else
             temp4 = nan(N_d2*N_d3, 1, 'like', a_grid);
         end
@@ -149,7 +152,7 @@ for jj = N_j : -1 : 1
             temp4(valid_combined) = (sj(jj) * max(EV_u(valid_combined), 0).^ezc8(jj) + (1-sj(jj)) * max(WG_u(valid_combined), 0).^ezc8(jj)).^ezc6(jj);
             zero_mask = (EV_u == 0) & repmat(WG_u == 0, [1, N_z]);
             temp4(zero_mask) = 0;
-            temp4(~valid_combined & ~zero_mask) = NaN; % NaN forces max() to ignore
+            temp4(~valid_combined & ~zero_mask) = NaN;
         else
             valid_t4 = isfinite(EV_u) & (EV_u ~= 0);
             temp4(valid_t4) = (sj(jj) * max(EV_u(valid_t4), 0).^ezc8(jj)).^ezc6(jj);
@@ -157,13 +160,17 @@ for jj = N_j : -1 : 1
             temp4(~valid_t4 & EV_u ~= 0) = NaN;
         end
     end
+    warning('on', 'MATLAB:divideByZero');
 
     % DIMENSIONAL COMPRESSION: Maximize out d2 (riskyshare)
     temp4_tensor = reshape(temp4, [N_d2, N_d3, N_z]);
-    [EV_max_d3, Pol_d2_idx] = max(ezc3 * temp4_tensor, [], 1);
-    EV_max_d3 = reshape(EV_max_d3, [N_d3, N_z]);
 
-    % Convert NaN back to -Inf so invalid states remain properly shielded in the RHS
+    % temp4 is POSITIVE. ezc3 flips it to negative so max() finds the TRUE optimum (minimum misery).
+    [EV_max_d3_raw, Pol_d2_idx] = max(ezc3 * temp4_tensor, [], 1);
+
+    % Flip it back to POSITIVE to safely feed into the Tensor Block
+    EV_max_d3 = ezc3 * EV_max_d3_raw;
+    EV_max_d3 = reshape(EV_max_d3, [N_d3, N_z]);
     EV_max_d3(isnan(EV_max_d3)) = -Inf;
 
     % =========================================================
@@ -173,7 +180,7 @@ for jj = N_j : -1 : 1
         state_idx, loweredge_matrix, maxgap_scalar, ...
         N_d2, N_d3, N_a, N_z, gridinterplayer, n2short, n2long, ...
         beta_j, EV_max_d3, Pol_d2_idx, d3_grid, d3prime_grid, a_grid, z_gridvals(:,:,jj), ...
-        ReturnFn, ReturnFnParamsCell, ezc1_j, ezc2(jj), ezc7(jj));
+        ReturnFn, ReturnFnParamsCell, ezc1_j, ezc2(jj), ezc7(jj), ezc4, ezc3);
 
     % Slicer Dispatcher
     if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
@@ -224,7 +231,7 @@ end
 function [V_sub, Pol_d3_idx, Pol_d_combo, L2idx, L2flag] = Evaluate_EZ_TensorBlock(...
     state_idx, loweredge_matrix, maxgap_scalar, N_d2, N_d3, N_a, N_z, gridinterplayer, n2short, n2long, ...
     beta_j, EV_max_d3, Pol_d2_idx, d3_grid, d3prime_grid, a_grid, z_gridvals, ...
-    ReturnFn, ReturnFnParamsCell, ezc1_j, ezc2_j, ezc7_j)
+    ReturnFn, ReturnFnParamsCell, ezc1_j, ezc2_j, ezc7_j, ezc4, ezc3)
 
 N_block = length(state_idx);
 if isempty(loweredge_matrix)
@@ -240,36 +247,37 @@ d3_in = reshape(d3_grid(d3_idx_tensor(:)), size(d3_idx_tensor));
 A_cells = reshape(a_grid(state_idx), [1, N_block, 1]);
 Z_cells = reshape(z_gridvals, [1, 1, N_z]);
 
-% Evaluate F and shield fractional roots
+% Evaluate F and keep it POSITIVE using ezc4
 F_tensor = ReturnFn(d3_in, A_cells, Z_cells, ReturnFnParamsCell{:});
 temp2 = F_tensor;
 valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
 
-% Bypass `.^` if exponent is exactly 1 to avoid `.^1.0` GPU complex crashes on negative bases
 if ezc2_j == 1
-    temp2(valid_F) = F_tensor(valid_F);
+    temp2(valid_F) = ezc4 * F_tensor(valid_F);
 else
-    temp2(valid_F) = F_tensor(valid_F).^ezc2_j;
+    temp2(valid_F) = max(ezc4 * F_tensor(valid_F), 0).^ezc2_j;
 end
 temp2(~isfinite(F_tensor)) = -Inf;
 
-% Broadcast EV_max_d3 natively against block size
+% EV_max_d3 is POSITIVE
 ev_lin_idx = d3_idx_tensor + reshape(0:N_z-1, [1, 1, N_z]) .* N_d3;
 EV_bc = reshape(EV_max_d3(ev_lin_idx(:)), size(ev_lin_idx));
 
-% Assemble EZ RHS (Note: ezc3 is ALREADY baked into EV_bc via the max() function)
+% Assemble EZ RHS (POSITIVE + POSITIVE = POSITIVE)
 entireRHS = ezc1_j .* temp2 + beta_j .* EV_bc;
 
+% Flip back to NEGATIVE for final fractional power / evaluation using ezc3
 RHS = entireRHS;
 valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
 
 if ezc7_j == 1
-    RHS(valid_RHS) = entireRHS(valid_RHS);
+    RHS(valid_RHS) = ezc3 * entireRHS(valid_RHS);
 else
-    RHS(valid_RHS) = entireRHS(valid_RHS).^ezc7_j;
+    RHS(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
 end
 RHS(~isfinite(entireRHS)) = -Inf;
 
+% RHS is now strictly NEGATIVE. max() correctly finds the highest true utility.
 RHS_flat = reshape(RHS, [N_choice, N_block * N_z]);
 [V_sub_coarse, Pol_sub_idx_coarse] = max(RHS_flat, [], 1);
 
@@ -293,9 +301,9 @@ if gridinterplayer
     temp2_fine = F_fine;
     valid_F_f = isfinite(F_fine) & (F_fine ~= 0);
     if ezc2_j == 1
-        temp2_fine(valid_F_f) = F_fine(valid_F_f);
+        temp2_fine(valid_F_f) = ezc4 * F_fine(valid_F_f);
     else
-        temp2_fine(valid_F_f) = F_fine(valid_F_f).^ezc2_j;
+        temp2_fine(valid_F_f) = max(ezc4 * F_fine(valid_F_f), 0).^ezc2_j;
     end
     temp2_fine(~isfinite(F_fine)) = -Inf;
 
@@ -313,9 +321,9 @@ if gridinterplayer
     valid_RHS_f = isfinite(entireRHS_fine) & (entireRHS_fine ~= 0);
 
     if ezc7_j == 1
-        RHS_fine(valid_RHS_f) = entireRHS_fine(valid_RHS_f);
+        RHS_fine(valid_RHS_f) = ezc3 * entireRHS_fine(valid_RHS_f);
     else
-        RHS_fine(valid_RHS_f) = entireRHS_fine(valid_RHS_f).^ezc7_j;
+        RHS_fine(valid_RHS_f) = ezc3 * (entireRHS_fine(valid_RHS_f).^ezc7_j);
     end
     RHS_fine(~isfinite(entireRHS_fine)) = -Inf;
 
