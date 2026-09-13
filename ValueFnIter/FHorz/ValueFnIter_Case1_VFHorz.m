@@ -587,12 +587,13 @@ varargout{2} = Policy;
 end
 
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_Case1_TensorBlock(...
-    state_idx, loweredge_matrix, maxgap_scalar, N_a, N_ze, N_d, ...
+    state_idx, ze_idx, loweredge_matrix, maxgap_scalar, N_a, N_d, ...
     has_z, has_e, ZE_z_idx, ZE_e_idx, e_work, ...
-    gridinterplayer, n2short, n2long, beta_j, EV, a_gridvals, a1prime_grid, ...
+    gridinterplayer, n2short, n2long, beta_j, EV_flat_ze, a_gridvals, a1prime_grid, ...
     z_gridvals_j, D_cells, ReturnFn, ReturnFnParamsVec)
 
 N_block = length(state_idx);
+N_ze_local = length(ze_idx);
 N_d_safe = max(1, N_d);
 
 % --- 1. Choice Grid Setup (Implicit Dimensions) ---
@@ -604,9 +605,9 @@ else
     N_choice = length(offset_vec);
     offset = reshape(gpuArray(offset_vec), [1, N_choice, 1, 1]);
     
-    % FIX: Map loweredge_matrix to States (Dim 3) and Exogenous (Dim 4)
-    base_edge = reshape(loweredge_matrix, [1, 1, N_block, N_ze]);
-    apr_idx_tensor = base_edge + offset; % Expands to [1, N_choice, N_block, N_ze]
+    % FIX: loweredge_matrix is [1, N_ze_local]. Let implicit expansion handle N_block!
+    base_edge = reshape(loweredge_matrix, [1, 1, 1, N_ze_local]);
+    apr_idx_tensor = base_edge + offset; % Size: [1, N_choice, 1, N_ze_local]
 end
 
 % --- 2. State & Choice Tensor Construction (Zero Repmats) ---
@@ -615,7 +616,7 @@ a_work_local = a_gridvals(:, 1);
 % FIX: Dynamically shape apr_in to match the implicitly expanded tensor
 apr_in = reshape(a_work_local(apr_idx_tensor(:)), size(apr_idx_tensor));
 
-a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
+a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]); 
 
 if N_d > 0
     D_cells_block = cell(size(D_cells));
@@ -630,7 +631,7 @@ if has_z
     num_z_vars = size(z_gridvals_j, 2);
     Z_cells_block = cell(1, num_z_vars);
     for iz = 1:num_z_vars
-        Z_cells_block{iz} = reshape(z_gridvals_j(ZE_z_idx, iz), [1, 1, 1, N_ze]);
+        Z_cells_block{iz} = reshape(z_gridvals_j(ZE_z_idx(ze_idx), iz), [1, 1, 1, N_ze_local]);
     end
 else
     Z_cells_block = {};
@@ -640,7 +641,7 @@ if has_e
     num_e_vars = size(e_work, 2);
     E_cells_block = cell(1, num_e_vars);
     for ie = 1:num_e_vars
-        E_cells_block{ie} = reshape(e_work(ZE_e_idx, ie), [1, 1, 1, N_ze]);
+        E_cells_block{ie} = reshape(e_work(ZE_e_idx(ze_idx), ie), [1, 1, 1, N_ze_local]);
     end
 else
     E_cells_block = {};
@@ -649,8 +650,9 @@ end
 % --- 3. Evaluate Return Function & Coarse RHS ---
 F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
 
-EV_flat = reshape(EV, [N_a * N_ze, 1]);
-z_offset = reshape((0:N_ze-1) * N_a, [1, 1, 1, N_ze]);
+EV_local = EV_flat_ze(:, ze_idx);
+EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
+z_offset = reshape((0:N_ze_local-1) * N_a, [1, 1, 1, N_ze_local]);
 linear_idx = apr_idx_tensor + z_offset; 
 
 % FIX: Dynamically shape EV_bounded to match the index tensor
@@ -659,12 +661,12 @@ EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
 RHS = F_tensor + beta_j .* EV_bounded;
 
 % Zero-overhead guard to ensure implicit expansion reached full 4D shape
-expected_sz = [N_d_safe, N_choice, N_block, N_ze];
+expected_sz = [N_d_safe, N_choice, N_block, N_ze_local];
 if ~isequal(size(RHS), expected_sz)
-    RHS = RHS + zeros(expected_sz, 'like', EV);
+    RHS = RHS + zeros(expected_sz, 'like', EV_flat_ze);
 end
 
-RHS_flat = reshape(RHS, [N_d_safe * N_choice, N_block * N_ze]);
+RHS_flat = reshape(RHS, [N_d_safe * N_choice, N_block * N_ze_local]);
 [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
 
 d_idx_local   = mod(Pol_sub_idx - 1, N_d_safe) + 1;
@@ -673,13 +675,13 @@ apr_idx_local = ceil(Pol_sub_idx / N_d_safe);
 if isempty(loweredge_matrix)
     apr_idx_coarse = apr_idx_local;
 else
-    loweredge_2d = repmat(reshape(loweredge_matrix, [1, N_ze]), [N_block, 1]);
-    apr_idx_local_2d = reshape(apr_idx_local, [N_block, N_ze]);
+    loweredge_2d = repmat(reshape(loweredge_matrix, [1, N_ze_local]), [N_block, 1]);
+    apr_idx_local_2d = reshape(apr_idx_local, [N_block, N_ze_local]);
     apr_idx_coarse = loweredge_2d + apr_idx_local_2d - 1;
 end
 
-apr_idx_coarse = reshape(apr_idx_coarse, [N_block, N_ze]);
-d_idx_coarse   = reshape(d_idx_local, [N_block, N_ze]);
+apr_idx_coarse = reshape(apr_idx_coarse, [N_block, N_ze_local]);
+d_idx_coarse   = reshape(d_idx_local, [N_block, N_ze_local]);
 
 % --- 4. The Continuous Sub-Grid Refinement (GI1) ---
 if gridinterplayer
@@ -688,26 +690,26 @@ if gridinterplayer
     offset   = (-n2short-1 : 1 : n2short+1)';
     fine_idx = base_idx(:)' + offset; 
 
-    % Explicitly guarantee [1, n2long, N_block, N_ze]
     fine_idx_4d = reshape(fine_idx, [1, n2long, N_block, N_ze_local]);
     apr_in_fine = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
     a_in_fine   = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
     
     F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in_fine, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
 
-    EV_interp = interp1(a_work_local, EV, a1prime_grid);
-    z_offset_fine = reshape((0:N_ze-1) * length(a1prime_grid), [1, 1, 1, N_ze]);
-    linear_fine_idx = fine_idx_4d + z_offset_fine; % Size: [1, n2long, N_block, N_ze]
-    EV_fine = reshape(EV_interp(linear_fine_idx(:)), [1, n2long, N_block, N_ze]);
+    EV_interp = interp1(a_work_local, EV_local, a1prime_grid);
+    z_offset_fine = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, N_ze_local]);
+    linear_fine_idx = fine_idx_4d + z_offset_fine;
+    
+    EV_fine = reshape(EV_interp(linear_fine_idx(:)), size(linear_fine_idx));
 
     RHS_fine = F_tensor_fine + beta_j .* EV_fine;
     
-    expected_sz_fine = [N_d_safe, n2long, N_block, N_ze];
+    expected_sz_fine = [N_d_safe, n2long, N_block, N_ze_local];
     if ~isequal(size(RHS_fine), expected_sz_fine)
-        RHS_fine = RHS_fine + zeros(expected_sz_fine, 'like', EV);
+        RHS_fine = RHS_fine + zeros(expected_sz_fine, 'like', EV_flat_ze);
     end
     
-    RHS_fine_flat = reshape(RHS_fine, [N_d_safe * n2long, N_block * N_ze]);
+    RHS_fine_flat = reshape(RHS_fine, [N_d_safe * n2long, N_block * N_ze_local]);
     [V_sub_fine, maxindexL2] = max(RHS_fine_flat, [], 1);
 
     d_idx_fine    = mod(maxindexL2 - 1, N_d_safe) + 1;
@@ -719,17 +721,17 @@ if gridinterplayer
     inLowerStrict = (apr_step_fine >= 2) & (apr_step_fine <= n2short + 1);
     inUpperStrict = (apr_step_fine >= n2short + 3) & (apr_step_fine <= n2long - 1);
     
-    linear_win_d = d_idx_fine + (0:N_block*N_ze-1)*N_d_safe;
+    linear_win_d = d_idx_fine + (0:N_block*N_ze_local-1)*N_d_safe;
     L2flag_fine = 2 + (inLowerStrict & isInfLower(linear_win_d)) - (inUpperStrict & isInfUpper(linear_win_d));
 
-    V_j_max        = reshape(V_sub_fine,    [N_block, N_ze]);
-    Pol_apr_max    = reshape(midpoint,      [N_block, N_ze]);
-    Pol_d_max      = reshape(d_idx_fine,    [N_block, N_ze]);
-    Pol_L2idx_max  = reshape(apr_step_fine, [N_block, N_ze]);
-    Pol_L2flag_max = reshape(L2flag_fine,   [N_block, N_ze]);
+    V_j_max        = reshape(V_sub_fine,    [N_block, N_ze_local]);
+    Pol_apr_max    = reshape(midpoint,      [N_block, N_ze_local]);
+    Pol_d_max      = reshape(d_idx_fine,    [N_block, N_ze_local]);
+    Pol_L2idx_max  = reshape(apr_step_fine, [N_block, N_ze_local]);
+    Pol_L2flag_max = reshape(L2flag_fine,   [N_block, N_ze_local]);
 else
-    V_j_max        = reshape(V_sub_coarse,   [N_block, N_ze]);
-    Pol_apr_max    = reshape(apr_idx_coarse, [N_block, N_ze]);
+    V_j_max        = reshape(V_sub_coarse,   [N_block, N_ze_local]);
+    Pol_apr_max    = reshape(apr_idx_coarse, [N_block, N_ze_local]);
     Pol_d_max      = d_idx_coarse;
     Pol_L2idx_max  = []; 
     Pol_L2flag_max = [];
