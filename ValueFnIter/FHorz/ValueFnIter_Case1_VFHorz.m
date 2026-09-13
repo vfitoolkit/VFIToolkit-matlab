@@ -275,6 +275,16 @@ if isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0
     return
 end
 
+%% Risky Asset state Dispatch
+if isfield(vfoptions, 'riskyasset') && vfoptions.riskyasset == 1
+    % Route directly to our optimized Tensor architecture
+    [V, Policy] = ValueFnIter_VFHorz_RiskyAsset(n_d, n_a, [], n_z, n_u, N_j, ...
+        d_grid, a_grid, [], z_grid, u_grid, pi_z, pi_u, ...
+        ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ...
+        ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    return
+end
+
 %% Semi-exogenous state Dispatch
 % The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
 if isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz)>0
