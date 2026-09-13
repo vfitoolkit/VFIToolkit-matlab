@@ -276,7 +276,6 @@ if isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0
 end
 
 %% Risky Asset state Dispatch
-%% Risky Asset state Dispatch
 if isfield(vfoptions, 'riskyasset') && vfoptions.riskyasset == 1
     % 1. Extract risky asset variables from vfoptions
     n_u = vfoptions.n_u;
@@ -298,12 +297,21 @@ if isfield(vfoptions, 'riskyasset') && vfoptions.riskyasset == 1
         aprimeFnParamNames = {};
     end
     
-    % 3. Route directly to our optimized Tensor architecture
-    % NOTE: We pass z_gridvals_J and pi_z_J so the age-dependent dimensions match!
-    [V, Policy] = ValueFnIter_VFHorz_RiskyAsset(n_d, n_a, [], n_z, n_u, N_j, ...
-        d_grid, a_grid, [], z_gridvals_J, u_grid, pi_z_J, pi_u, ...
-        ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ...
-        ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    % 3. Route to the appropriate Tensor architecture
+    if is_EZ
+        % Age-dependent ezc1 is calculated within the tensor block's time loop
+        [V, Policy] = ValueFnIter_VFHorz_RiskyAsset_EpsteinZin(n_d, n_a, [], n_z, n_u, N_j, ...
+            d_grid, a_grid, [], z_gridvals_J, u_grid, pi_z_J, pi_u, ...
+            ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ...
+            ReturnFnParamNames, aprimeFnParamNames, vfoptions, ...
+            sj, warmglow, ezc2, ezc3, ezc4, ezc5, ezc6, ezc7, ezc8);
+    else
+        [V, Policy] = ValueFnIter_VFHorz_RiskyAsset(n_d, n_a, [], n_z, n_u, N_j, ...
+            d_grid, a_grid, [], z_gridvals_J, u_grid, pi_z_J, pi_u, ...
+            ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ...
+            ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    end
+    
     varargout = {V, Policy};
     return
 end
