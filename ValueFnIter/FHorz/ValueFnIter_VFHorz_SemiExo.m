@@ -198,6 +198,15 @@ for reverse_j = 0:N_j-1
                 [v, p_apr, p_d1, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, [], 0);
             end
 
+            % --- FIX: Force shapes to strictly match the chunk geometry ---
+            v     = reshape(v,     [N_a, N_ze_local]);
+            p_apr = reshape(p_apr, [N_a, N_ze_local]);
+            p_d1  = reshape(p_d1,  [N_a, N_ze_local]);
+            if vfoptions.gridinterplayer == 1
+                p_l2idx  = reshape(p_l2idx,  [N_a, N_ze_local]);
+                p_l2flag = reshape(p_l2flag, [N_a, N_ze_local]);
+            end
+
             % 4. Reduce against global max
             update_mask = v > V_j_max(:, curr_ze);
 
@@ -237,18 +246,28 @@ for reverse_j = 0:N_j-1
     PolicyKron(2,:,:,jj) = Pol_d2_max;
 
     if vfoptions.gridinterplayer == 1
+        % Translate raw L2 index into toolkit's lower_grid_pt and subgrid_step
+        adjust = (Pol_tau_max < 1 + n2short + 1);
+        lower_grid_pt = Pol_apr_max - adjust;
+        
+        % SAFETY CLAMP: Prevent 0-index for completely invalid (-Inf) states
+        lower_grid_pt = max(lower_grid_pt, 1);
+        
+        subgrid_step  = adjust .* Pol_tau_max + (1 - adjust) .* (Pol_tau_max - n2short - 1);
+        
         % Apply toolkit safety clamp to the WINNING choices
-        G_segments = vfoptions.ngridinterp + 1;
-        at_top = (Pol_apr_max == N_a);
-
-        Pol_apr_max(at_top) = N_a - 1;
-        Pol_tau_max(at_top) = G_segments + 1;
-
-        PolicyKron(3,:,:,jj) = Pol_apr_max;
-        PolicyKron(4,:,:,jj) = Pol_tau_max;
+        G_segments = n2short + 1;
+        at_top = (lower_grid_pt >= N_a);
+        
+        lower_grid_pt(at_top) = N_a - 1;
+        subgrid_step(at_top)  = G_segments + 1; % Force it to sit exactly on the top node
+        
+        PolicyKron(3,:,:,jj) = lower_grid_pt;
+        PolicyKron(4,:,:,jj) = subgrid_step;
         PolicyKron(5,:,:,jj) = Pol_L2_max;
     else
-        PolicyKron(3,:,:,jj) = Pol_apr_max;
+        % Safety clamp for coarse grid as well
+        PolicyKron(3,:,:,jj) = max(Pol_apr_max, 1);
     end
     V_next = V(:,:,jj);
 end
