@@ -174,23 +174,23 @@ elseif l_a2==2
     %   a2primeIndexes(:,k) = lower-grid index in a2_k dim
     %   a2primeProbs(:,k)   = probability of lower grid point in a2_k dim
     if N_semizze==0
-        N=N_a;
+        a2primeIndexes=zeros(N_a,l_a2,'gpuArray');
+        a2primeProbs=zeros(N_a,l_a2,'gpuArray');
+        a2primeIndexes(:,1)=loIdx_1(:);
+        a2primeIndexes(:,2)=loIdx_2(:);
+        a2primeProbs(:,1)=prob_1(:);
+        a2primeProbs(:,2)=prob_2(:);
     else
-        N=N_a*N_semizze;
-    end
-    a2primeIndexes=zeros(N,l_a2,'gpuArray');
-    a2primeProbs=zeros(N,l_a2,'gpuArray');
-    a2primeIndexes(:,1)=loIdx_1(:);
-    a2primeIndexes(:,2)=loIdx_2(:);
-    a2primeProbs(:,1)=prob_1(:);
-    a2primeProbs(:,2)=prob_2(:);
-
-    if N_semizze==0
-        a2primeIndexes=reshape(a2primeIndexes,[N_a,l_a2]);
-        a2primeProbs=reshape(a2primeProbs,[N_a,l_a2]);
-    else
-        a2primeIndexes=reshape(a2primeIndexes,[N_a,l_a2,N_semizze]);
-        a2primeProbs=reshape(a2primeProbs,[N_a,l_a2,N_semizze]);
+        % Assign into the [N_a,l_a2,N_semizze] array directly, as CreateaprimePolicyExperienceAssetze
+        % does. Building [N_a*N_semizze,l_a2] and reshaping instead only reinterprets the buffer:
+        % l_a2 is its slowest dim but the middle dim of the target, so the dim-1 values for one
+        % shock land where the dim-2 values for another belong.
+        a2primeIndexes=zeros(N_a,l_a2,N_semizze,'gpuArray');
+        a2primeProbs=zeros(N_a,l_a2,N_semizze,'gpuArray');
+        a2primeIndexes(:,1,:)=reshape(loIdx_1,[N_a,1,N_semizze]);
+        a2primeIndexes(:,2,:)=reshape(loIdx_2,[N_a,1,N_semizze]);
+        a2primeProbs(:,1,:)=reshape(prob_1,[N_a,1,N_semizze]);
+        a2primeProbs(:,2,:)=reshape(prob_2,[N_a,1,N_semizze]);
     end
 end
 
