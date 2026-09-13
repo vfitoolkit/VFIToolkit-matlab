@@ -288,13 +288,21 @@ for i_d2 = 1:N_d2
     % We MUST compute EV for all possible future a1 choices, not just state_idx!
     Vlower = V_next(:, idx, :);
     Vupper = V_next(:, min(idx + 1, N_a2), :);
-    EV_interp = probs_rs .* Vlower + (1 - probs_rs) .* Vupper;
     
-    % THE NAN SHIELD: Squash 0 * -Inf artifacts back to -Inf
-    EV_interp(isnan(EV_interp)) = -Inf;
+    % THE A2 SHIELD: Replicate the toolkit's exact 0 * -Inf protection
+    EV_interp = probs_rs .* Vlower + (1 - probs_rs) .* Vupper;
+    EV_interp(probs_rs == 0) = Vupper(probs_rs == 0);
+    EV_interp(probs_rs == 1) = Vlower(probs_rs == 1);
+    EV_interp(isnan(EV_interp)) = -Inf; % Catch any lingering math artifacts
 
     if N_z_safe > 1
         EV_flat = reshape(EV_interp, [N_a1 * N_a2, N_z_safe]);
+        
+        % THE Z SHIELD: Pre-sanitize -Inf to survive Matrix Multiplication
+        % -1e12 ensures 0 * -1e12 = 0, preventing NaN corruption, while 
+        % remaining infinitely bad to the max() optimizer.
+        EV_flat(EV_flat == -Inf) = -1e12; 
+        
         EV_d2_full = reshape(EV_flat * pi_z_j', [N_a1, N_a2, N_z_safe]);
     else
         EV_d2_full = EV_interp;
