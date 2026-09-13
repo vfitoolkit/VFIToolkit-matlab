@@ -276,10 +276,32 @@ if isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0
 end
 
 %% Risky Asset state Dispatch
+%% Risky Asset state Dispatch
 if isfield(vfoptions, 'riskyasset') && vfoptions.riskyasset == 1
-    % Route directly to our optimized Tensor architecture
+    % 1. Extract risky asset variables from vfoptions
+    n_u = vfoptions.n_u;
+    u_grid = vfoptions.u_grid;
+    pi_u = vfoptions.pi_u;
+    aprimeFn = vfoptions.aprimeFn;
+    
+    % 2. Dynamically extract aprimeFnParamNames
+    l_d = length(n_d);
+    if isfield(vfoptions, 'refine_d')
+        l_d = l_d - vfoptions.refine_d(1);
+    end
+    l_u = length(n_u); % Number of u-variables (usually 1)
+    
+    temp = getAnonymousFnInputNames(aprimeFn);
+    if length(temp) > (l_d + l_u)
+        aprimeFnParamNames = {temp{l_d + l_u + 1 : end}}; 
+    else
+        aprimeFnParamNames = {};
+    end
+    
+    % 3. Route directly to our optimized Tensor architecture
+    % NOTE: We pass z_gridvals_J and pi_z_J so the age-dependent dimensions match!
     [V, Policy] = ValueFnIter_VFHorz_RiskyAsset(n_d, n_a, [], n_z, n_u, N_j, ...
-        d_grid, a_grid, [], z_grid, u_grid, pi_z, pi_u, ...
+        d_grid, a_grid, [], z_gridvals_J, u_grid, pi_z_J, pi_u, ...
         ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ...
         ReturnFnParamNames, aprimeFnParamNames, vfoptions);
     return

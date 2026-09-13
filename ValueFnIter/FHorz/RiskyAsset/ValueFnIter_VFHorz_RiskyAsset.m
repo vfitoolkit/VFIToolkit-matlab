@@ -62,10 +62,11 @@ U_3D  = reshape(u_grid,  [1, 1, N_u]);
 % TIME LOOP
 % =========================================================
 for jj = N_j : -1 : 1
-    ReturnFnParamsVec = CreateVectorFromParams(Parameters, ReturnFnParamNames, jj);
-    aprimeFnParamsVec = CreateVectorFromParams(Parameters, aprimeFnParamNames, jj);
-    DiscountFactor    = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
-    beta_j = prod(DiscountFactor);
+    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
+    aprimeFnParamsCell = CreateCellFromParams(Parameters, aprimeFnParamNames, jj);
+
+    DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
+    beta_j = prod(DiscountFactorParamsVec);
 
     if jj == N_j
         % Final period: Future value is zero.
@@ -73,7 +74,7 @@ for jj = N_j : -1 : 1
         Pol_d2_idx = ones(1, N_d3, N_z, 'like', a_grid);
     else
         % 1. Evaluate future assets across (d2, d3, u)
-        aprime_tensor = aprimeFn(D2_3D, D3_3D, U_3D, aprimeFnParamsVec{:});
+        aprime_tensor = aprimeFn(D2_3D, D3_3D, U_3D, aprimeFnParamsCell{:});
         aprime_clamped = max(min(aprime_tensor, a_grid(end)), a_grid(1));
 
         % 2. Interpolate V_next onto aprime using Pure NaN Shield
@@ -123,7 +124,7 @@ for jj = N_j : -1 : 1
         state_idx, loweredge_matrix, maxgap_scalar, ...
         N_d2, N_d3, N_a, N_z, gridinterplayer, n2short, n2long, ...
         beta_j, EV_max_d3, Pol_d2_idx, d3_grid, d3prime_grid, a_grid, z_gridvals(:,:,jj), ...
-        ReturnFn, ReturnFnParamsVec);
+        ReturnFn, ReturnFnParamsCell);
 
     % Slicer Dispatcher
     if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
@@ -184,7 +185,7 @@ function [V_sub, Pol_d3_idx, Pol_d_combo, L2idx, L2flag] = Evaluate_RiskyAsset_T
     state_idx, loweredge_matrix, maxgap_scalar, ...
     N_d2, N_d3, N_a, N_z, gridinterplayer, n2short, n2long, ...
     beta_j, EV_max_d3, Pol_d2_idx, d3_grid, d3prime_grid, a_grid, z_gridvals, ...
-    ReturnFn, ReturnFnParamsVec)
+    ReturnFn, ReturnFnParamsCell)
 
 N_block = length(state_idx);
 
@@ -204,7 +205,7 @@ A_cells = reshape(a_grid(state_idx), [1, N_block, 1]);
 Z_cells = reshape(z_gridvals, [1, 1, N_z]);
 
 % Broadcast purely against d3 (Savings)
-F_tensor = ReturnFn(d3_in, A_cells, Z_cells, ReturnFnParamsVec{:});
+F_tensor = ReturnFn(d3_in, A_cells, Z_cells, ReturnFnParamsCell{:});
 
 z_offset = reshape(0:N_z-1, [1, 1, N_z]) .* N_d3;
 ev_lin_idx = d3_idx_tensor + z_offset;
@@ -232,7 +233,7 @@ if gridinterplayer
     fine_idx_tensor = base_idx_tensor + offset_fine;
 
     d3_in_fine = reshape(d3prime_grid(fine_idx_tensor(:)), size(fine_idx_tensor));
-    F_fine = ReturnFn(d3_in_fine, A_cells, Z_cells, ReturnFnParamsVec{:});
+    F_fine = ReturnFn(d3_in_fine, A_cells, Z_cells, ReturnFnParamsCell{:});
 
     % Dual-Interpolation pure NaN shield for EV_max_d3
     inf_mask = double(EV_max_d3 == -Inf);
