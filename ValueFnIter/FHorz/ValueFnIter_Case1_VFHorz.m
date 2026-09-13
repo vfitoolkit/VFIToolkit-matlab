@@ -568,27 +568,33 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
 N_block = length(state_idx);
 N_d_safe = max(1, N_d);
 
-% --- 1. Choice Grid Setup (The Ragged Edge Handler) ---
+% --- 1. Choice Grid Setup (Implicit Dimensions) ---
 if isempty(loweredge_matrix)
     N_choice = N_a;
-    apr_idx_tensor = repmat(reshape(1:N_a, [1, N_choice, 1, 1]), [N_d_safe, 1, N_block, N_ze]);
+    apr_idx_tensor = reshape(1:N_a, [1, N_choice, 1, 1]);
 else
     N_choice = maxgap_scalar + 1;
     offset = reshape(0:maxgap_scalar, [1, N_choice, 1, 1]);
-    base_edge = repmat(reshape(loweredge_matrix, [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
-    apr_idx_tensor = base_edge + repmat(offset, [N_d_safe, 1, N_block, N_ze]);
+    base_edge = reshape(loweredge_matrix, [1, 1, 1, N_ze]);
+    apr_idx_tensor = base_edge + offset; % Size: [1, N_choice, 1, N_ze]
 end
 
-% --- 2. State & Choice Tensor Construction ---
-a_work_local = a_gridvals(:, 1); 
-apr_in = a_work_local(apr_idx_tensor);
-a_in = repmat(reshape(a_work_local(state_idx), [1, 1, N_block, 1]), [N_d_safe, N_choice, 1, N_ze]);
+% --- 2. State & Choice Tensor Construction (Zero Repmats) ---
+a_work_local = a_gridvals(:, 1);
+
+% Force Dim 1 to be singleton [1, N_choice, 1, ...]
+if isempty(loweredge_matrix)
+    apr_in = reshape(a_work_local(apr_idx_tensor(:)), [1, N_choice, 1, 1]);
+else
+    apr_in = reshape(a_work_local(apr_idx_tensor(:)), [1, N_choice, 1, N_ze]);
+end
+
+a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
 
 if N_d > 0
     D_cells_block = cell(size(D_cells));
     for id = 1:length(D_cells)
-        d_val = reshape(D_cells{id}, [N_d_safe, 1, 1, 1]);
-        D_cells_block{id} = repmat(d_val, [1, N_choice, N_block, N_ze]);
+        D_cells_block{id} = reshape(D_cells{id}, [N_d_safe, 1, 1, 1]);
     end
 else
     D_cells_block = {};
@@ -598,7 +604,7 @@ if has_z
     num_z_vars = size(z_gridvals_j, 2);
     Z_cells_block = cell(1, num_z_vars);
     for iz = 1:num_z_vars
-        Z_cells_block{iz} = repmat(reshape(z_gridvals_j(ZE_z_idx, iz), [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
+        Z_cells_block{iz} = reshape(z_gridvals_j(ZE_z_idx, iz), [1, 1, 1, N_ze]);
     end
 else
     Z_cells_block = {};
@@ -608,7 +614,7 @@ if has_e
     num_e_vars = size(e_work, 2);
     E_cells_block = cell(1, num_e_vars);
     for ie = 1:num_e_vars
-        E_cells_block{ie} = repmat(reshape(e_work(ZE_e_idx, ie), [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
+        E_cells_block{ie} = reshape(e_work(ZE_e_idx, ie), [1, 1, 1, N_ze]);
     end
 else
     E_cells_block = {};
@@ -618,10 +624,17 @@ end
 F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
 
 EV_flat = reshape(EV, [N_a * N_ze, 1]);
-z_offset = repmat(reshape((0:N_ze-1) * N_a, [1, 1, 1, N_ze]), [N_d_safe, N_choice, N_block, 1]);
-EV_bounded = reshape(EV_flat(apr_idx_tensor + z_offset), [N_d_safe, N_choice, N_block, N_ze]);
+z_offset = reshape((0:N_ze-1) * N_a, [1, 1, 1, N_ze]);
+linear_idx = apr_idx_tensor + z_offset; % Size: [1, N_choice, 1, N_ze]
+EV_bounded = reshape(EV_flat(linear_idx(:)), [1, N_choice, 1, N_ze]);
 
 RHS = F_tensor + beta_j .* EV_bounded;
+
+% Zero-overhead guard to ensure implicit expansion reached full 4D shape
+expected_sz = [N_d_safe, N_choice, N_block, N_ze];
+if ~isequal(size(RHS), expected_sz)
+    RHS = RHS + zeros(expected_sz, 'like', EV);
+end
 
 RHS_flat = reshape(RHS, [N_d_safe * N_choice, N_block * N_ze]);
 [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
@@ -647,48 +660,25 @@ if gridinterplayer
     offset   = (-n2short-1 : 1 : n2short+1)';
     fine_idx = base_idx(:)' + offset; 
 
-    apr_in_fine = repmat(reshape(a1prime_grid(fine_idx), [1, n2long, N_block, N_ze]), [N_d_safe, 1, 1, 1]);
-    a_in_fine   = repmat(reshape(a_gridvals(state_idx, 1), [1, 1, N_block, 1]), [N_d_safe, n2long, 1, N_ze]);
-
-    if N_d > 0
-        D_fine = cell(size(D_cells));
-        for id = 1:length(D_cells)
-            d_val = reshape(D_cells{id}, [N_d_safe, 1, 1, 1]);
-            D_fine{id} = repmat(d_val, [1, n2long, N_block, N_ze]);
-        end
-    else
-        D_fine = {};
-    end
-
-    if has_z
-        num_z_vars = size(z_gridvals_j, 2);
-        Z_fine = cell(1, num_z_vars);
-        for iz = 1:num_z_vars
-            Z_fine{iz} = repmat(reshape(z_gridvals_j(ZE_z_idx, iz), [1, 1, 1, N_ze]), [N_d_safe, n2long, N_block, 1]);
-        end
-    else
-        Z_fine = {};
-    end
+    % Explicitly guarantee [1, n2long, N_block, N_ze]
+    fine_idx_4d = reshape(fine_idx, [1, n2long, N_block, N_ze]);
+    apr_in_fine = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze]);
     
-    if has_e
-        num_e_vars = size(e_work, 2);
-        E_fine = cell(1, num_e_vars);
-        for ie = 1:num_e_vars
-            E_fine{ie} = repmat(reshape(e_work(ZE_e_idx, ie), [1, 1, 1, N_ze]), [N_d_safe, n2long, N_block, 1]);
-        end
-    else
-        E_fine = {};
-    end
-
-    F_tensor_fine = ReturnFn(D_fine{:}, apr_in_fine, a_in_fine, Z_fine{:}, E_fine{:}, ReturnFnParamsVec{:});
+    % We reuse the implicitly sized a_in, D_cells, Z_cells, and E_cells directly!
+    F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
 
     EV_interp = interp1(a_work_local, EV, a1prime_grid);
-    z_offset_fine = repmat(reshape((0:N_ze-1) * length(a1prime_grid), [1, N_ze]), [n2long, N_block]);
-    
-    EV_fine_2D = EV_interp(fine_idx + reshape(z_offset_fine, [n2long, N_block * N_ze])); 
-    EV_fine = repmat(reshape(EV_fine_2D, [1, n2long, N_block, N_ze]), [N_d_safe, 1, 1, 1]);
+    z_offset_fine = reshape((0:N_ze-1) * length(a1prime_grid), [1, 1, 1, N_ze]);
+    linear_fine_idx = fine_idx_4d + z_offset_fine; % Size: [1, n2long, N_block, N_ze]
+    EV_fine = reshape(EV_interp(linear_fine_idx(:)), [1, n2long, N_block, N_ze]);
 
     RHS_fine = F_tensor_fine + beta_j .* EV_fine;
+    
+    expected_sz_fine = [N_d_safe, n2long, N_block, N_ze];
+    if ~isequal(size(RHS_fine), expected_sz_fine)
+        RHS_fine = RHS_fine + zeros(expected_sz_fine, 'like', EV);
+    end
+    
     RHS_fine_flat = reshape(RHS_fine, [N_d_safe * n2long, N_block * N_ze]);
     [V_sub_fine, maxindexL2] = max(RHS_fine_flat, [], 1);
 
