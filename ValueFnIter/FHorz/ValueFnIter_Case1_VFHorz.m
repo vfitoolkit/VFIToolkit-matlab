@@ -401,370 +401,44 @@ V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
 
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
-
+    
     if jj == N_j && isfield(vfoptions, 'V_Jplus1') && ~isempty(vfoptions.V_Jplus1)
-        V_next = reshape(gpuArray(vfoptions.V_Jplus1), size(V_next));
+        V_next = reshape(gpuArray(vfoptions.V_Jplus1), [N_a, N_z_safe]);
     end
-
-    % 1. Get standard discount factor
+    
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
     beta_j = prod(DiscountFactorParamsVec);
-
     ReturnFnParamsVec = CreateVectorFromParams(Parameters, ReturnFnParamNames, jj);
-    if ~iscell(ReturnFnParamsVec)
-        ReturnFnParamsVec = num2cell(ReturnFnParamsVec);
-    end
-
-    if N_z > 0
-        if size(z_gridvals_J, 3) > 1
-            z_work_j = squeeze(z_gridvals_J(:, :, jj));
-        else
-            z_work_j = z_work_1;
-        end
-        pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
-    else
-        z_work_j = zeros(1, 1, 'like', a_grid);
-        pi_z_j   = ones(1, 1, 'like', a_grid);
-    end
-
-    if has_z
-        num_z = length(n_all_z);
-
-        if has_semiz
-            if isfield(vfoptions, 'semiexog_grid')
-                semiz_work = vfoptions.semiexog_grid;
-            elseif isfield(vfoptions, 'semiz_grid')
-                semiz_work = vfoptions.semiz_grid;
-            elseif isfield(vfoptions, 'semiz_gridvals')
-                semiz_work = vfoptions.semiz_gridvals;
-            end
-            s_grids_1d = cell(1, length(vfoptions.n_semiz));
-            offset = 0;
-            for i_s = 1:length(vfoptions.n_semiz)
-                s_grids_1d{i_s} = semiz_work((offset + 1):(offset + vfoptions.n_semiz(i_s)));
-                offset = offset + vfoptions.n_semiz(i_s);
-            end
-        else
-            s_grids_1d = {};
-        end
-
-        z_grids_1d = cell(1, length(n_z));
-        offset = 0;
-        for i_z = 1:length(n_z)
-            z_grids_1d{i_z} = z_work_j((offset + 1):(offset + n_z(i_z)));
-            offset = offset + n_z(i_z);
-        end
-
-        all_grids_1d = [s_grids_1d, z_grids_1d];
-        [Z_mesh{1:num_z}] = ndgrid(all_grids_1d{:});
-
-        Z_cells = cell(1, num_z);
-        for i_z = 1:num_z
-            Z_cells{i_z} = shiftdim(Z_mesh{i_z}(:), -1); % Dim 2
-        end
-    else
-        Z_cells = {};
-    end
-
-    if has_e
-        if isfield(vfoptions, 'pi_e_J') && ~isempty(vfoptions.pi_e_J)
-            % Age-specific column slice: size [n_e, 1]
-            pi_e_j = gpuArray(vfoptions.pi_e_J(:, jj));
-        elseif isfield(vfoptions, 'pi_e') && ~isempty(vfoptions.pi_e)
-            % Time-invariant distribution: size [n_e, 1]
-            pi_e_j = gpuArray(vfoptions.pi_e(:));
-        else
-            error('has_e is true, but neither pi_e nor pi_e_J is defined in vfoptions.');
-        end
-        % Set up E_cells outside z_iter loop
-        num_e = length(vfoptions.n_e);
-        if num_e > 1
-            if size(vfoptions.e_grid, 2) == num_e
-                % Already Cartesian coordinates: [N_e x num_e]
-                E_cells = cell(1, num_e);
-                for i_e = 1:num_e
-                    E_cells{i_e} = shiftdim(gpuArray(vfoptions.e_grid(:, i_e)), -2); % Dim 3: [1, 1, N_e]
-                end
-            else
-                % Stacked grid of length sum(n_e)
-                e_grids_1d = cell(1, num_e);
-                offset = 0;
-                for i_e = 1:num_e
-                    e_grids_1d{i_e} = vfoptions.e_grid((offset + 1):(offset + vfoptions.n_e(i_e)));
-                    offset = offset + vfoptions.n_e(i_e);
-                end
-                [E_mesh{1:num_e}] = ndgrid(e_grids_1d{:});
-                E_cells = cell(1, num_e);
-                for i_e = 1:num_e
-                    E_cells{i_e} = shiftdim(gpuArray(E_mesh{i_e}(:)), -2); % Dim 3: [1, 1, N_e]
-                end
-            end
-        else
-            E_cells = { e_work }; % Already pushed to Dim 3
-        end
-    else
-        E_cells = {};
-    end
-
-    % ---------------------------------------------------------------------
-    % 1. Pre-Expectation Transform
-    % ---------------------------------------------------------------------
-    if is_EZ
-        if vfoptions.EZoneminusbeta == 1
-            ezc1 = 1 - beta_j;
-        elseif vfoptions.EZoneminusbeta == 2
-            ezc1 = 1 - sj(jj) * beta_j;
-        else
-            ezc1 = 1;
-        end
-
-        temp_V = V_next;
-        valid_V = isfinite(V_next);
-        temp_V(valid_V) = (ezc4 * V_next(valid_V)).^ezc5(jj);
-        temp_V(V_next == 0) = 0;
-        temp_V(~isfinite(V_next)) = ezc4 * V_next(~isfinite(V_next));
-    else
-        temp_V = V_next;
-    end
-
-    % ---------------------------------------------------------------------
-    % 2. Continuation Value Integration: Integrate e' out, then Markov z' -> z
-    % ---------------------------------------------------------------------
-    if jj == N_j && ~(isfield(vfoptions, 'V_Jplus1') && ~isempty(vfoptions.V_Jplus1))
-        EV_raw = zeros(n_a_work, n_z_work, 'like', a_work);
-    else
-        if has_e
-            if isfield(vfoptions, 'pi_e_J') && ~isempty(vfoptions.pi_e_J)
-                pi_e_tomorrow = gpuArray(vfoptions.pi_e_J(:, min(jj + 1, size(vfoptions.pi_e_J, 2))));
-            else
-                pi_e_tomorrow = gpuArray(vfoptions.pi_e(:));
-            end
-            temp_V_inte = sum(temp_V .* reshape(pi_e_tomorrow, [1, 1, n_e_work]), 3);
-            if has_z
-                if has_semiz
-                    temp_V_inte_rs = reshape(temp_V_inte, [n_a_work * N_semiz, N_z_exog]);
-                    EV_raw_rs = temp_V_inte_rs * (pi_z_j');
-                    EV_raw = reshape(EV_raw_rs, [n_a_work, n_z_work]);
-                else
-                    EV_raw = temp_V_inte * (pi_z_j');
-                end
-            else
-                EV_raw = temp_V_inte;
-            end
-        else
-            if has_z
-                if has_semiz
-                    temp_V_rs = reshape(temp_V, [n_a_work * N_semiz, N_z_exog]);
-                    EV_raw_rs = temp_V_rs * (pi_z_j');
-                    EV_raw = reshape(EV_raw_rs, [n_a_work, n_z_work]);
-                else
-                    EV_raw = temp_V * (pi_z_j');
-                end
-            else
-                EV_raw = temp_V;
-            end
-        end
-    end
-
-    % ---------------------------------------------------------------------
-    % 3. Post-Expectation Transform (CE) & Warm Glow Matrix
-    % ---------------------------------------------------------------------
-    if is_EZ
-        if warmglow == 1
-            WGParamsCell = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
-            WGmatrix = vfoptions.WarmGlowBequestsFn(a_work, WGParamsCell{:});
-        else
-            WGmatrix = 0;
-        end
-
-        EV_next = zeros(size(EV_raw), 'like', EV_raw);
-        valid_EV = isfinite(EV_raw);
-
-        if warmglow == 1
-            % Broadcast full 2D tensors: (N_a x N_z) + (N_a x 1)
-            CE_base = sj(jj) .* (EV_raw .^ ezc8(jj)) + (1 - sj(jj)) .* (WGmatrix .^ ezc8(jj));
-            EV_next(valid_EV) = CE_base(valid_EV) .^ ezc6(jj);
-            EV_next((EV_raw == 0) & (WGmatrix == 0)) = 0;
-        else
-            CE_base = sj(jj) .* (EV_raw .^ ezc8(jj));
-            EV_next(valid_EV) = CE_base(valid_EV) .^ ezc6(jj);
-            EV_next(EV_raw == 0) = 0;
-        end
-
-        BellmanCombiner = @(F, EV_cont) Compute_EZ_RHS(F, EV_cont, ezc1, ezc2(jj), ezc3, ezc7(jj), beta_j);
-    else
-        EV_next = EV_raw;
-        BellmanCombiner = @(F, EV_cont) F + beta_j .* EV_cont;
-    end
-
-    % ---------------------------------------------------------------------
-    % 4. Memory Throttling Bounds (Hoisted across all kernels)
-    % ---------------------------------------------------------------------
-    lowmem = 0;
-    if isfield(vfoptions, 'lowmemory')
-        lowmem = vfoptions.lowmemory;
-    end
-
-    % lowmem >= 1: loop sequentially over e
-    use_loop_e = (has_e && lowmem >= 1);
-    if use_loop_e
-        n_e_loops = n_e_work;
-    else
-        n_e_loops = 1;
-    end
-
-    % lowmem >= 2: loop sequentially over z
-    use_loop_z = (has_z && lowmem >= 2);
-    if use_loop_z
-        n_z_loops = n_z_work;
-    else
-        n_z_loops = 1;
-    end
-
-    % Container allocation for period j
-    if vfoptions.gridinterplayer == 1
-        n_pol_rows = 3;
-        if has_e
-            V_j_all   = zeros(n_a_work, n_z_work, n_e_work, 'like', a_work);
-            Pol_j_all = zeros(n_pol_rows, n_a_work, n_z_work, n_e_work, 'like', a_work);
-        else
-            V_j_all   = zeros(n_a_work, n_z_work, 'like', a_work);
-            Pol_j_all = zeros(n_pol_rows, n_a_work, n_z_work, 'like', a_work);
-        end
-    else
-        if has_e
-            V_j_all   = zeros(n_a_work, n_z_work, n_e_work, 'like', a_work);
-            Pol_j_all = zeros(n_a_work, n_z_work, n_e_work, 'like', a_work);
-        else
-            V_j_all   = zeros(n_a_work, n_z_work, 'like', a_work);
-            Pol_j_all = zeros(n_a_work, n_z_work, 'like', a_work);
-        end
-    end
-
-    % ---------------------------------------------------------------------
-    % 5. Nested Shocks Iteration
-    % ---------------------------------------------------------------------
-    for z_iter = 1:n_z_loops
-        if use_loop_z
-            z_slice = z_work_j(z_iter);
-            n_z_slice = 1;
-            z_idx_range = z_iter;
-            % Slice continuation value for this specific z: (n_a x 1)
-            EV_slice = EV_next(:, z_iter);
-        else
-            z_slice = z_work_j;
-            n_z_slice = n_z_work;
-            z_idx_range = 1:n_z_work;
-            EV_slice = EV_next; % (n_a x n_z)
-        end
-
-        for e_iter = 1:n_e_loops
-            if use_loop_e
-                e_slice = e_work(1, 1, e_iter);
-                n_e_slice = 1;
-                e_idx_range = e_iter;
-                
-                % Slice each coordinate in E_cells to the current e_iter point: size [1, 1, 1]
-                E_cells_slice = cell(1, length(E_cells));
-                for i_e = 1:length(E_cells)
-                    E_cells_slice{i_e} = E_cells{i_e}(1, 1, e_iter);
-                end
-            else
-                e_slice = e_work;
-                n_e_slice = n_e_work;
-                e_idx_range = 1:n_e_work;
-                E_cells_slice = E_cells;
-            end
+    if ~iscell(ReturnFnParamsVec); ReturnFnParamsVec = num2cell(ReturnFnParamsVec); end
     
-            % Construct unified kernel adapter for this e-slice
-            if has_d && has_z && has_e
-                eval_kernel = @(d_in, apr_in, A_cells, z_in) ReturnFn(...
-                    D_cells{:}, apr_in, A_cells{:}, Z_cells{:}, E_cells_slice{:}, ReturnFnParamsVec{:});
-            elseif has_d && has_z && ~has_e
-                eval_kernel = @(d_in, apr_in, A_cells, z_in) ReturnFn(...
-                    D_cells{:}, apr_in, A_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
-            elseif ~has_d && has_z && has_e
-                eval_kernel = @(d_in, apr_in, A_cells, z_in) ReturnFn(...
-                    apr_in, A_cells{:}, Z_cells{:}, E_cells_slice{:}, ReturnFnParamsVec{:});
-            elseif ~has_d && has_z && ~has_e
-                eval_kernel = @(d_in, apr_in, A_cells, z_in) ReturnFn(...
-                    apr_in, A_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
-            elseif has_d && ~has_z && ~has_e
-                eval_kernel = @(d_in, apr_in, A_cells, z_in) ReturnFn(...
-                    D_cells{:}, apr_in, A_cells{:}, ReturnFnParamsVec{:});
-            else
-                eval_kernel = @(d_in, apr_in, A_cells, z_in) ReturnFn(...
-                    apr_in, A_cells{:}, ReturnFnParamsVec{:});
-            end
-
-            % -------------------------------------------------------------
-            % 6. Method Dispatch (Consumes standard n_z_slice, EV_slice)
-            % -------------------------------------------------------------
-            if vfoptions.divideandconquer == 1 && vfoptions.gridinterplayer == 1
-                [V_sub, Pol_sub] = ValueFnIter_FHorz_vectorized_DC1_GI1(...
-                    eval_kernel, BellmanCombiner, EV_slice, A_mat, z_slice, d_work, ...
-                    n_a_work, n_z_slice, n_d_work, pi_z_j, ReturnFnParamsVec, vfoptions);
-                % Pol_sub contains:
-                % Row 1: Optimal coarse asset index a'_opt
-                % Row 2: Optimal subgrid index tau_opt
-                % If n_d == 0, evaluate optimal continuous choice h* on the optimal policy grid
-                if N_d == 0 && nargout(ReturnFn) >= 2
-                    % Reconstruct optimal continuous a'
-                    a_diff_j = [diff(a_work); 0];
-                    tau_step = (Pol_sub(2, :) - 1) ./ G;
-                    apr_star = a_work(Pol_sub(1, :)) + a_diff_j(Pol_sub(1, :)) .* tau_step;
-
-                    [~, h_star] = ReturnFn(apr_star, a_grid_expanded, z_grid_expanded, e_grid_expanded, ReturnFnParamsVec{:});
-
-                    % Store h* into Policy row 1 or as a separate Policy array
-                    Pol_j_all(1, :, z_idx_range, e_idx_range) = reshape(h_star, [1, n_a_work, n_z_slice, n_e_slice]);
-                end
-
-            elseif vfoptions.gridinterplayer == 1
-                [V_sub, Pol_sub] = ValueFnIter_FHorz_vectorized_GI1_raw(...
-                    eval_kernel, BellmanCombiner, EV_slice, A_mat, z_slice, d_work, ...
-                    n_a_work, n_z_slice, n_d_work, pi_z_j, ReturnFnParamsVec, vfoptions);
-
-            elseif vfoptions.divideandconquer == 1
-                [V_sub, Pol_sub] = ValueFnIter_FHorz_vectorized_DC1(...
-                    eval_kernel, BellmanCombiner, EV_slice, A_mat, z_slice, d_work, ...
-                    n_a_work, n_z_slice, n_d_work, pi_z_j, vfoptions);
-
-            else
-                % pi_z_j has already done its work
-                [V_sub, Pol_sub] = ValueFnIter_FHorz_vectorized_raw(...
-                    eval_kernel, BellmanCombiner, EV_slice, A_mat, z_slice, d_work,  ...
-                    n_a_work, n_z_slice, n_d_work, vfoptions);
-            end
-
-            % Store results into period containers
-            if vfoptions.gridinterplayer == 1
-                if has_e
-                    V_j_all(:, z_idx_range, e_idx_range)       = reshape(V_sub, [n_a_work, n_z_slice, n_e_slice]);
-                    Pol_j_all(:, :, z_idx_range, e_idx_range) = reshape(Pol_sub, [n_pol_rows, n_a_work, n_z_slice, n_e_slice]);
-                else
-                    V_j_all(:, z_idx_range)       = reshape(V_sub, [n_a_work, n_z_slice]);
-                    Pol_j_all(:, :, z_idx_range) = reshape(Pol_sub, [n_pol_rows, n_a_work, n_z_slice]);
-                end
-            else
-                if has_e
-                    V_j_all(:, z_idx_range, e_idx_range)     = reshape(V_sub, [n_a_work, n_z_slice, n_e_slice]);
-                    Pol_j_all(:, z_idx_range, e_idx_range)   = reshape(Pol_sub, [n_a_work, n_z_slice, n_e_slice]);
-                else
-                    V_j_all(:, z_idx_range)     = reshape(V_sub, [n_a_work, n_z_slice]);
-                    Pol_j_all(:, z_idx_range)   = reshape(Pol_sub, [n_a_work, n_z_slice]);
-                end
-            end
-        end
-    end
-
-    V(:, :, :, jj) = V_j_all;
-    if vfoptions.gridinterplayer == 1
-        PolicyKron(:, :, :, :, jj) = Pol_j_all;
+    if N_z > 0
+        pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
+        EV = V_next * pi_z_j';
     else
-        PolicyKron(:, :, :, jj) = Pol_j_all;
+        EV = V_next;
     end
-    V_next = V_j_all;
+    
+    % Define the Unified GPU Tensor Engine for Case1
+    EvalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
+        state_idx, loweredge_matrix, maxgap_scalar, N_a, N_z_safe, ...
+        gridinterplayer, n2short, n2long, beta_j, EV, a_gridvals, a1prime_grid, ...
+        z_gridvals_J(:,:,min(jj, size(z_gridvals_J,3))), ReturnFn, ReturnFnParamsVec);
+
+    % The Time-Loop Router
+    if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
+        % level1n is handled by the toolkit's default logic (e.g., floor(sqrt(N_a)))
+        vfoptions.level1n = vfoptions.level1n(1); % Ensure scalar for 1D DC1
+        
+        [V_j_max, Pol_apr_max, Pol_d1_dummy, Pol_L2idx_max, Pol_L2flag_max] = ...
+            ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_z_safe, vfoptions, EvalBlockFn);
+    else
+        % Brute Force
+        [V_j_max, Pol_apr_max, Pol_L2idx_max, Pol_L2flag_max] = EvalBlockFn(1:N_a, [], 0);
+    end
+    
+    % ... (Proceed to gridinterplayer PolicyKron packing as normal, using Pol_apr_max) ...
+    V(:, :, jj) = V_j_max;
+    V_next = V_j_max;
 end
 
 if N_z == 0
@@ -808,6 +482,108 @@ end
 
 varargout{1} = V;
 varargout{2} = Policy;
+
+
+end
+
+function [V_j_max, Pol_apr_max, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_Case1_TensorBlock(...
+    state_idx, loweredge_matrix, maxgap_scalar, N_a, N_z_safe, ...
+    gridinterplayer, n2short, n2long, beta_j, EV, a_gridvals, a1prime_grid, ...
+    z_gridvals_j, ReturnFn, ReturnFnParamsVec)
+
+N_block = length(state_idx);
+
+% --- 1. Choice Grid Setup (The Ragged Edge Handler) ---
+if isempty(loweredge_matrix)
+    % BRUTE FORCE: Evaluate all choices
+    N_choice = N_a;
+    apr_idx_tensor = repmat((1:N_a)', [1, N_block, N_z_safe]); 
+else
+    % DC1 SLICER: Evaluate only the ragged bounds passed by the CPU
+    N_choice = maxgap_scalar + 1;
+    % loweredge_matrix is [N_block, 1, N_z_safe]. Expand it into the bounded window:
+    offset = reshape(0:maxgap_scalar, [N_choice, 1, 1]);
+    apr_idx_tensor = repmat(shiftdim(loweredge_matrix, -1), [N_choice, 1, 1]) + repmat(offset, [1, N_block, N_z_safe]);
+end
+
+% --- 2. State & Choice Tensor Construction ---
+% States
+a_in = repmat(a_gridvals(state_idx, 1)', [N_choice, 1, N_z_safe]);
+if N_z_safe > 1
+    z_in = repmat(reshape(z_gridvals_j(:,1), [1, 1, N_z_safe]), [N_choice, N_block, 1]);
+    Z_cells = {z_in};
+else
+    Z_cells = {};
+end
+
+% Choices (Map indices to exact grid values)
+apr_in = a_gridvals(apr_idx_tensor, 1);
+
+% --- 3. Evaluate Return Function & Coarse RHS ---
+F_tensor = ReturnFn(apr_in, a_in, Z_cells{:}, ReturnFnParamsVec{:});
+
+% Map the ragged choice indices to extract specific EV bounds
+EV_flat = reshape(EV, [N_a * N_z_safe, 1]);
+z_offset = repmat(reshape((0:N_z_safe-1) * N_a, [1, 1, N_z_safe]), [N_choice, N_block, 1]);
+EV_bounded = reshape(EV_flat(apr_idx_tensor + z_offset), [N_choice, N_block, N_z_safe]);
+
+RHS = F_tensor + beta_j .* EV_bounded;
+
+[V_sub_coarse, Pol_sub_idx] = max(RHS, [], 1);
+
+% Map the local chunk index back to the global coarse a' index
+if isempty(loweredge_matrix)
+    apr_idx_coarse = Pol_sub_idx;
+else
+    % Extract the exact global index that won from our ragged tracker
+    linear_win_idx = Pol_sub_idx + (0:N_block*N_z_safe-1)*N_choice;
+    apr_idx_coarse = reshape(apr_idx_tensor(linear_win_idx), [1, N_block, N_z_safe]);
+end
+
+% --- 4. The Continuous Sub-Grid Refinement (GI1) ---
+if gridinterplayer
+    apr_idx_coarse_flat = reshape(apr_idx_coarse, [N_block, N_z_safe]);
+    midpoint = max(min(apr_idx_coarse_flat, N_a - 1), 2);
+
+    base_idx = midpoint + (midpoint - 1) * n2short;
+    offset   = (-n2short-1 : 1 : n2short+1)';
+    fine_idx = base_idx(:)' + offset; % [n2long, N_block * N_z_safe]
+
+    apr_in_fine = a1prime_grid(fine_idx);
+    a_in_fine   = repmat(a_gridvals(state_idx, 1)', [n2long, N_z_safe]);
+    if N_z_safe > 1
+        z_in_fine = repmat(reshape(z_gridvals_j(:,1), [1, N_z_safe]), [n2long, N_block]);
+        Z_fine = {z_in_fine};
+    else
+        Z_fine = {};
+    end
+
+    F_tensor_fine = ReturnFn(apr_in_fine, a_in_fine, Z_fine{:}, ReturnFnParamsVec{:});
+
+    % Interpolate EV globally, then slice the micro-grid
+    EV_interp = interp1((1:N_a)', EV, a1prime_grid);
+    z_offset_fine = repmat(reshape((0:N_z_safe-1) * length(a1prime_grid), [1, N_z_safe]), [n2long, N_block]);
+    EV_fine = EV_interp(fine_idx + z_offset_fine);
+
+    RHS_fine = F_tensor_fine + beta_j .* EV_fine;
+    [V_sub_fine, maxindexL2] = max(RHS_fine, [], 1);
+
+    isInfLower    = (RHS_fine(1, :) == -Inf);
+    isInfUpper    = (RHS_fine(end, :) == -Inf);
+    inLowerStrict = (maxindexL2 >= 2) & (maxindexL2 <= n2short + 1);
+    inUpperStrict = (maxindexL2 >= n2short + 3) & (maxindexL2 <= n2long - 1);
+    L2flag_fine   = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
+    V_j_max        = reshape(V_sub_fine,  [N_block, N_z_safe]);
+    Pol_apr_max    = reshape(midpoint,    [N_block, N_z_safe]);
+    Pol_L2idx_max  = reshape(maxindexL2,  [N_block, N_z_safe]);
+    Pol_L2flag_max = reshape(L2flag_fine, [N_block, N_z_safe]);
+else
+    V_j_max        = reshape(V_sub_coarse,   [N_block, N_z_safe]);
+    Pol_apr_max    = reshape(apr_idx_coarse, [N_block, N_z_safe]);
+    Pol_L2idx_max  = []; 
+    Pol_L2flag_max = [];
+end
 
 
 end

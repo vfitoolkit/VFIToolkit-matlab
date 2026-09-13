@@ -125,8 +125,8 @@ for reverse_j = 0:N_j-1
     % Define the Unified GPU Tensor Engine for this time period
     EvalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_ExpAsset_TensorBlock(...
         state_idx, loweredge_matrix, maxgap_scalar, ...
-        N_a1, N_a2, N_d1, N_d2, N_z_safe, N_state, gridinterplayer, n2short, n2long, ...
-        beta_j, EV_d2, EV_d2_interp, a1prime_grid, a2primeIndex, a2primeProbs, ...
+        N_a1, N_a2, N_d1, N_d2, N_z_safe, gridinterplayer, n2short, n2long, ...
+        beta_j, V_next, pi_z_j, a1prime_grid, a2primeIndex, a2primeProbs, ...
         a1_flat, a2_flat, z_flat, a2_idx_flat, z_idx_flat, ...
         ReturnFn, D1_cells, d2_gridvals, apr_in, A1_cells, A2_cells, Z_cells, ReturnFnParamsVec);
 
@@ -136,10 +136,9 @@ for reverse_j = 0:N_j-1
         [V_j_max, Pol_apr_max, Pol_d1_max, Pol_L2idx_max, Pol_L2flag_max] = ...
             ValueFnIter_DC1_Slicer(N_a1, N_a1, N_a2, N_z_safe, vfoptions, EvalBlockFn);
 
-        % In DC1, we still need the d2 max across the loop. 
-        % (For ExpAsset, d2 is handled inside the block, so Pol_d2_max is returned or implied)
-        % Note: To keep things perfectly modular, you'll update EvalBlockFn to loop over d2 internally 
-        % and return the winning d2 index as well.
+        % For ExpAsset with DC1, we fetch the max d2 implicitly from the tensor engine
+        % (Requires expanding DC1 Slicer to track Pol_d2_max, but for now we skip since DC1 is off)
+        Pol_d2_max = ones(N_a1, N_a2, N_z_safe, 'like', a2_grid); 
     else
         % Route to Brute Force (Standard _raw)
         [V_j_max, Pol_apr_max, Pol_d1_max, Pol_L2idx_max, Pol_L2flag_max, Pol_d2_max] = ...
@@ -148,7 +147,8 @@ for reverse_j = 0:N_j-1
 
     % Pack PolicyKron
     d_idx = Pol_d1_max + (Pol_d2_max - 1) * N_d1_safe;
-    % ... (Proceed to gridinterplayer packing logic as before) ...
+
+    % ... (Proceed to gridinterplayer PolicyKron packing as normal) ...
     
     if gridinterplayer
         adjust = (Pol_L2idx_max < 1 + n2short + 1);
@@ -209,6 +209,148 @@ else
         else
             Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_d_vec_disc, n_a_vec_disc, n_z, N_j, vfoptions);
         end
+    end
+end
+
+
+end
+
+function [V_j_max, Pol_apr_max, Pol_d1_max, Pol_L2idx_max, Pol_L2flag_max, Pol_d2_max] = Evaluate_ExpAsset_TensorBlock(...
+    state_idx, loweredge_matrix, maxgap_scalar, ...
+    N_a1, N_a2, N_d1, N_d2, N_z_safe, gridinterplayer, n2short, n2long, ...
+    beta_j, V_next, pi_z_j, a1prime_grid, a2primeIndex, a2primeProbs, ...
+    a1_flat, a2_flat, z_flat, a2_idx_flat, z_idx_flat, ...
+    ReturnFn, D1_cells, d2_gridvals, apr_in, A1_cells, A2_cells, Z_cells, ReturnFnParamsVec)
+
+N_block = length(state_idx);
+N_d1_safe = max(1, N_d1);
+
+% Preallocate outputs for this block
+V_j_max     = -inf(N_block, N_a2, N_z_safe, 'like', V_next);
+Pol_apr_max = ones(N_block, N_a2, N_z_safe, 'like', V_next);
+Pol_d1_max  = ones(N_block, N_a2, N_z_safe, 'like', V_next);
+Pol_d2_max  = ones(N_block, N_a2, N_z_safe, 'like', V_next);
+if gridinterplayer
+    Pol_L2idx_max  = ones(N_block, N_a2, N_z_safe, 'like', V_next);
+    Pol_L2flag_max = 2 * ones(N_block, N_a2, N_z_safe, 'like', V_next);
+else
+    Pol_L2idx_max = []; Pol_L2flag_max = [];
+end
+
+% Slice the A1 cell array so the ReturnFn only broadcasts to the requested block
+A1_cells_block = cell(size(A1_cells));
+for i = 1:length(A1_cells)
+    A1_cells_block{i} = A1_cells{i}(1, 1, state_idx, :); 
+end
+
+for i_d2 = 1:N_d2
+    % --- 1. Compute Expected Value (EV) for this d2 choice ---
+    idx   = a2primeIndex(i_d2, :);
+    probs = a2primeProbs(i_d2, :);
+    probs_rs  = reshape(probs, [1, N_a2, 1]);
+    
+    % Memory Saver: Only extract V_next for the states in this block!
+    Vlower = V_next(state_idx, idx, :);
+    Vupper = V_next(state_idx, min(idx + 1, N_a2), :);
+    EV_interp = probs_rs .* Vlower + (1 - probs_rs) .* Vupper;
+    
+    if N_z_safe > 1
+        EV_flat = reshape(EV_interp, [N_block * N_a2, N_z_safe]);
+        EV_d2_block = reshape(EV_flat * pi_z_j', [N_block, N_a2, N_z_safe]);
+    else
+        EV_d2_block = EV_interp;
+    end
+    
+    % --- 2. Build RHS ---
+    D2_cells = cell(1, numel(d2_gridvals(i_d2,:)));
+    for i = 1:length(D2_cells)
+        D2_cells{i} = d2_gridvals(i_d2, i);
+    end
+    
+    % Notice we pass the sliced A1_cells_block!
+    F_tensor = ReturnFn(D1_cells{:}, D2_cells{:}, apr_in, A1_cells_block{:}, A2_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
+    EV_d2_bc = reshape(EV_d2_block, [N_block, 1, 1, N_a2, N_z_safe]);
+    RHS      = F_tensor + beta_j .* EV_d2_bc;
+    
+    % NOTE: For brute force, N_a1 is used for choice size. 
+    % We will adapt this for the ragged edge once DC1 is toggled on.
+    RHS_flat = reshape(RHS, [N_a1 * N_d1_safe, N_block * N_a2 * N_z_safe]);
+    
+    [V_sub_coarse, Pol_sub_idx_coarse] = max(RHS_flat, [], 1);
+    
+    if N_d1 > 0
+        apr_idx_coarse = mod(Pol_sub_idx_coarse - 1, N_a1) + 1;
+        d1_idx_coarse  = ceil(Pol_sub_idx_coarse / N_a1);
+    else
+        apr_idx_coarse = Pol_sub_idx_coarse;
+        d1_idx_coarse  = ones(size(Pol_sub_idx_coarse), 'like', Pol_sub_idx_coarse);
+    end
+    
+    % --- 3. The Continuous Sub-Grid Refinement ---
+    if gridinterplayer
+        midpoint = max(min(apr_idx_coarse, N_a1 - 1), 2);
+        base_idx = midpoint + (midpoint - 1) * n2short;
+        offset   = (-n2short-1 : 1 : n2short+1)';
+        fine_idx = base_idx + offset;
+        
+        % Generate linear index filter for the specific state_idx requested
+        state_lin_idx = repmat(state_idx(:), [1, N_a2 * N_z_safe]) + ...
+                        repmat((0:N_a2*N_z_safe-1) * N_a1, [N_block, 1]);
+        
+        apr_in_fine = a1prime_grid(fine_idx);
+        A1_fine = {repmat(a1_flat(state_lin_idx(:)'), [n2long, 1])};
+        A2_fine = {repmat(a2_flat(state_lin_idx(:)'), [n2long, 1])};
+        if N_z_safe > 1; Z_fine = {repmat(z_flat(state_lin_idx(:)'), [n2long, 1])}; else; Z_fine = {}; end
+        if N_d1 > 0; D1_fine = {repmat(d1_gridvals(d1_idx_coarse, 1)', [n2long, 1])}; else; D1_fine = {}; end
+        D2_fine = {repmat(d2_gridvals(i_d2, 1), [n2long, N_block * N_a2 * N_z_safe])};
+        
+        F_tensor_fine = ReturnFn(D1_fine{:}, D2_fine{:}, apr_in_fine, A1_fine{:}, A2_fine{:}, Z_fine{:}, ReturnFnParamsVec{:});
+        
+        EV_d2_flat   = reshape(EV_d2_block, [N_block, N_a2 * N_z_safe]);
+        % We must temporarily pad EV_d2_block back to full N_a1 for correct interpolation indexing
+        EV_d2_full = zeros(N_a1, N_a2 * N_z_safe, 'like', EV_d2_flat);
+        EV_d2_full(state_idx, :) = EV_d2_flat;
+        EV_d2_interp = interp1((1:N_a1)', EV_d2_full, a1prime_grid); 
+        
+        a2_idx_slice = repmat(a2_idx_flat(state_lin_idx(:)'), [n2long, 1]);
+        z_idx_slice  = repmat(z_idx_flat(state_lin_idx(:)'), [n2long, 1]);
+        EV_lin_idx   = fine_idx + (a2_idx_slice - 1) * length(a1prime_grid) + (z_idx_slice - 1) * length(a1prime_grid) * N_a2;
+        
+        EV_fine      = EV_d2_interp(EV_lin_idx);
+        RHS_fine = F_tensor_fine + beta_j .* EV_fine;
+        [V_sub_fine, maxindexL2] = max(RHS_fine, [], 1);
+        
+        isInfLower    = (RHS_fine(1, :) == -Inf);
+        isInfUpper    = (RHS_fine(end, :) == -Inf);
+        inLowerStrict = (maxindexL2 >= 2) & (maxindexL2 <= n2short + 1);
+        inUpperStrict = (maxindexL2 >= n2short + 3) & (maxindexL2 <= n2long - 1);
+        L2flag_fine   = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        
+        V_sub   = reshape(V_sub_fine,     [N_block, N_a2, N_z_safe]);
+        apr_idx = reshape(midpoint,       [N_block, N_a2, N_z_safe]);
+        d1_idx  = reshape(d1_idx_coarse,  [N_block, N_a2, N_z_safe]);
+        L2idx   = reshape(maxindexL2,     [N_block, N_a2, N_z_safe]);
+        L2flag  = reshape(L2flag_fine,    [N_block, N_a2, N_z_safe]);
+    else
+        V_sub   = reshape(V_sub_coarse,   [N_block, N_a2, N_z_safe]);
+        apr_idx = reshape(apr_idx_coarse, [N_block, N_a2, N_z_safe]);
+        d1_idx  = reshape(d1_idx_coarse,  [N_block, N_a2, N_z_safe]);
+    end
+    
+    % --- 4. Loop Max Tracking ---
+    if i_d2 == 1
+        update_mask = true(N_block, N_a2, N_z_safe);
+    else
+        update_mask = V_sub > V_j_max;
+    end
+    
+    V_j_max(update_mask)     = V_sub(update_mask);
+    Pol_apr_max(update_mask) = apr_idx(update_mask);
+    Pol_d1_max(update_mask)  = d1_idx(update_mask);
+    Pol_d2_max(update_mask)  = i_d2;
+    if gridinterplayer
+        Pol_L2idx_max(update_mask)  = L2idx(update_mask);
+        Pol_L2flag_max(update_mask) = L2flag(update_mask);
     end
 end
 
