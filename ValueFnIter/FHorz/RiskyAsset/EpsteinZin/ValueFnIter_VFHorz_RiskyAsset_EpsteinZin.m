@@ -124,7 +124,7 @@ for jj = N_j : -1 : 1
             temp4(WG_u == 0) = 0;
             temp4(~valid_t4 & WG_u ~= 0) = NaN;
         else
-            temp4 = nan(N_d2*N_d3, 1, 'like', a_grid);
+            temp4 = zeros(N_d2*N_d3, 1, 'like', a_grid);
         end
         temp4 = repmat(temp4, [1, N_z]);
     else
