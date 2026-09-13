@@ -535,7 +535,28 @@ for reverse_j = 0:N_j-1
         Pol_L2idx_max  = reshape(Pol_L2idx_max,  [N_a, N_z_safe, n_e_work]);
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_a, N_z_safe, n_e_work]);
     end
-    
+
+    % --- Pack PolicyKron ---
+    if vfoptions.gridinterplayer == 1
+        adjust = (Pol_L2idx_max < 1 + n2short + 1);
+        lower_grid_pt = Pol_apr_max - adjust;
+        subgrid_step  = adjust .* Pol_L2idx_max + (1 - adjust) .* (Pol_L2idx_max - n2short - 1);
+
+        if N_d > 0
+            PolicyKron(1, :, :, :, jj) = (lower_grid_pt - 1) * N_d + Pol_d_max;
+        else
+            PolicyKron(1, :, :, :, jj) = lower_grid_pt;
+        end
+        PolicyKron(2, :, :, :, jj) = subgrid_step;
+        PolicyKron(3, :, :, :, jj) = Pol_L2flag_max;
+    else
+        if N_d > 0
+            PolicyKron(:, :, :, jj) = (Pol_apr_max - 1) * N_d + Pol_d_max;
+        else
+            PolicyKron(:, :, :, jj) = Pol_apr_max;
+        end
+    end
+
     V(:, :, :, jj) = V_j_max;
     V_next = V_j_max;
 
