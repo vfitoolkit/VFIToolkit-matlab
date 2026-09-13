@@ -284,10 +284,10 @@ for i_d2 = 1:N_d2
     idx   = a2primeIndex(i_d2, :);
     probs = a2primeProbs(i_d2, :);
     probs_rs = reshape(probs, [1, N_a2, 1]);
-
-    % Memory Saver: Only extract V_next for the states in this block!
-    Vlower = V_next(state_idx, idx, :);
-    Vupper = V_next(state_idx, min(idx + 1, N_a2), :);
+    
+    % We MUST compute EV for all possible future a1 choices, not just state_idx!
+    Vlower = V_next(:, idx, :);
+    Vupper = V_next(:, min(idx + 1, N_a2), :);
     EV_interp = probs_rs .* Vlower + (1 - probs_rs) .* Vupper;
     
     % THE NAN SHIELD: Squash 0 * -Inf artifacts back to -Inf
