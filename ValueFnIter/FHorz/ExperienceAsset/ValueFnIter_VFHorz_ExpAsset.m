@@ -306,14 +306,25 @@ for i_d2 = 1:N_d2
     if N_z_safe > 1
         EV_flat = reshape(EV_interp, [N_a1 * N_a2, N_z_safe]);
 
-        % THE Z SHIELD: Matrix multiplication converts 0 * -Inf to NaN.
-        % Temporarily use -1e15 to safely survive the dot product...
-        EV_flat(EV_flat == -Inf) = -1e15;
-        EV_d2_full = reshape(EV_flat * pi_z_j', [N_a1, N_a2, N_z_safe]);
+        % THE PURE Z SHIELD: Exact Boolean State Tracking
+        % 1. Locate the exact -Inf states
+        inf_mask = (EV_flat == -Inf);
 
-        % ...then STRICTLY restore anything infected by -1e15 back to -Inf!
-        % (This ensures the Grid Interpolator's boundary checks work perfectly)
-        EV_d2_full(EV_d2_full <= -1e5) = -Inf;
+        % 2. Temporarily zero them out to safely perform the dot product
+        EV_safe = EV_flat;
+        EV_safe(inf_mask) = 0;
+
+        % 3. Calculate expected value on the finite domain
+        EV_d2_full_flat = EV_safe * pi_z_j';
+
+        % 4. Track the "Infection": Did a >0 probability hit a -Inf state?
+        % (Using double() ensures the matrix multiplication works on all GPUs)
+        inf_infect = double(inf_mask) * double(pi_z_j' > 0);
+
+        % 5. Strictly restore -Inf to any infected expected values
+        EV_d2_full_flat(inf_infect > 0) = -Inf;
+
+        EV_d2_full = reshape(EV_d2_full_flat, [N_a1, N_a2, N_z_safe]);
     else
         EV_d2_full = EV_interp;
     end
@@ -383,18 +394,21 @@ for i_d2 = 1:N_d2
 
         F_tensor_fine = ReturnFn(D1_fine{:}, D2_cells{:}, apr_in_fine, A1_cells_block{:}, A2_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
 
-        % Vectorized 1D interpolation of EV across all non-sliced states
-        % SHIELD: interp1 creates NaNs if it touches -Inf. Use -1e15 temporarily!
-        EV_d2_for_interp = EV_d2_full;
-        EV_d2_for_interp(EV_d2_for_interp == -Inf) = -1e15;
+        % THE PURE GI SHIELD: Dual-Interpolation of Values and Infection Masks
 
-        % Vectorized 1D interpolation of EV across all non-sliced states
-        % SHIELD: interp1 creates NaNs if it touches -Inf. Use -1e15 temporarily!
-        EV_d2_for_interp = EV_d2_full;
-        EV_d2_for_interp(EV_d2_for_interp == -Inf) = -1e15; 
-        
-        % BUG FIX: Use the actual coarse asset grid (a1_work_local) as the X-axis!
-        EV_d2_interp = interp1(a1_work_local, reshape(EV_d2_for_interp, [N_a1, N_a2 * N_z_safe]), a1prime_grid);
+        % 1. Create a boolean mask of the exact -Inf states
+        inf_mask = double(EV_d2_full == -Inf);
+
+        % 2. Safely zero out the expected values for pure numerical interpolation
+        EV_safe = EV_d2_full;
+        EV_safe(EV_d2_full == -Inf) = 0;
+
+        % 3. Interpolate BOTH the values and the infection mask
+        EV_d2_interp = interp1(a1_work_local, reshape(EV_safe, [N_a1, N_a2 * N_z_safe]), a1prime_grid);
+        inf_interp   = interp1(a1_work_local, reshape(inf_mask, [N_a1, N_a2 * N_z_safe]), a1prime_grid);
+
+        % 4. Strictly restore -Inf to ANY sub-grid point that touched an invalid node
+        EV_d2_interp(inf_interp > 0) = -Inf;
 
         a2_col = reshape(1:N_a2, [1, 1, 1, N_a2, 1]);
         z_col  = reshape(0:N_z_safe-1, [1, 1, 1, 1, N_z_safe]) .* N_a2;
@@ -412,9 +426,9 @@ for i_d2 = 1:N_d2
         RHS_fine_flat = reshape(RHS_fine, [n2long, N_block * N_a2 * N_z_safe]);
         [V_sub_fine, maxindexL2] = max(RHS_fine_flat, [], 1);
 
-        % GI BOUNDARY CHECK: Look for the proxy infinity (-1e10) instead of strict -Inf
-        isInfLower = (RHS_fine_flat(1, :) <= -1e10);
-        isInfUpper = (RHS_fine_flat(end, :) <= -1e10);
+        % GI BOUNDARY CHECK: Pure strict infinity check
+        isInfLower = (RHS_fine_flat(1, :) == -Inf);
+        isInfUpper = (RHS_fine_flat(end, :) == -Inf);
 
         inLowerStrict = (maxindexL2 >= 2) & (maxindexL2 <= n2short + 1);
         inUpperStrict = (maxindexL2 >= n2short + 3) & (maxindexL2 <= n2long - 1);
@@ -453,10 +467,5 @@ end % End of i_d2 loop
 % can track both dimensions implicitly!
 Pol_d_combo = Pol_d1_max + (Pol_d2_max - 1) * N_d1_safe;
 
-% Restore strict -Inf bounds so the next time period's EV calculates correctly
-V_j_max(V_j_max <= -1e10) = -Inf;
-
 
 end
-
-
