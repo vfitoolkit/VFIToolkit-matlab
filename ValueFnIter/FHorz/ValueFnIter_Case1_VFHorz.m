@@ -282,7 +282,7 @@ if isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz)>0
         n_d1 = n_d(1:end-vfoptions.l_dsemiz);
         d1_grid = d_grid(1:sum(n_d1));
     else
-        n_d1 = 0; 
+        n_d1 = 0;
         d1_grid = [];
     end
     n_d2 = n_d(end-vfoptions.l_dsemiz+1:end); % n_d2 influences transition probs
@@ -324,10 +324,10 @@ if has_d
             d_grids_1d{i_d} = d_grid((offset + 1):(offset + n_d(i_d)));
             offset = offset + n_d(i_d);
         end
-        
+
         % 2. Form Cartesian coordinates matching the Kron order: [N_d x num_d]
         [D_mesh{1:num_d}] = ndgrid(d_grids_1d{:});
-        
+
         % 3. Pack into cell array, each variable spanning Dim 4: [1, 1, 1, N_d]
         D_cells = cell(1, num_d);
         for i_d = 1:num_d
@@ -428,16 +428,16 @@ end
 
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
-    
+
     if jj == N_j && isfield(vfoptions, 'V_Jplus1') && ~isempty(vfoptions.V_Jplus1)
         V_next = reshape(gpuArray(vfoptions.V_Jplus1), [N_a, N_z_safe]);
     end
-    
+
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
     beta_j = prod(DiscountFactorParamsVec);
     ReturnFnParamsVec = CreateVectorFromParams(Parameters, ReturnFnParamNames, jj);
     if ~iscell(ReturnFnParamsVec); ReturnFnParamsVec = num2cell(ReturnFnParamsVec); end
-    
+
     if N_z > 0
         pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
         if n_e_work > 1
@@ -461,7 +461,7 @@ for reverse_j = 0:N_j-1
     ZE_z_idx = Z_mesh(:);
     ZE_e_idx = E_mesh(:);
 
-% --- Determine Exogenous Memory Chunking (lowmemory) ---
+    % --- Determine Exogenous Memory Chunking (lowmemory) ---
     lowmem_level = 0;
     if isfield(vfoptions, 'lowmemory') && ~isempty(vfoptions.lowmemory)
         lowmem_level = vfoptions.lowmemory;
@@ -488,12 +488,23 @@ for reverse_j = 0:N_j-1
         error('Invalid lowmemory level requested for the current shock combination.');
     end
 
-    % Define the unified block engine (Accepts ze_idx)
-    EvalBlockFn = @(state_idx, ze_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
-        state_idx, ze_idx, loweredge_matrix, maxgap_scalar, N_a, N_d, ...
-        has_z, has_e, ZE_z_idx, ZE_e_idx, e_work, ...
-        vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_flat_ze, A_mat, a1prime_grid, ...
-        z_gridvals_J(:,:,min(jj, size(z_gridvals_J,3))), D_cells, ReturnFn, ReturnFnParamsVec);
+    % --- The Master Orchestrator Pre-Computation ---
+    a_work_local = A_mat(:, 1);
+    z_gridvals_j_local = [];
+    if has_z
+        z_gridvals_j_local = z_gridvals_J(:,:,min(jj, size(z_gridvals_J,3)));
+    end
+
+    % Pre-build D_cells_block (Loop Invariant for both Slicer and ZE chunks)
+    N_d_safe = max(1, N_d);
+    if N_d > 0
+        D_cells_block = cell(size(D_cells));
+        for id = 1:length(D_cells)
+            D_cells_block{id} = reshape(D_cells{id}, [N_d_safe, 1, 1, 1]);
+        end
+    else
+        D_cells_block = {};
+    end
 
     % Preallocate output tensors
     V_j_max        = zeros(N_a, N_ze, 'like', EV_flat_ze);
@@ -505,28 +516,65 @@ for reverse_j = 0:N_j-1
     % --- The Master Orchestrator Loop ---
     for i_ze = 1:length(ze_chunks)
         curr_ze = ze_chunks{i_ze};
-        
-        % Create a localized closure for the Slicer so it only sees the current ZE slice
-        LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) EvalBlockFn(state_idx, curr_ze, loweredge_matrix, maxgap_scalar);
-        
-        if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
-            vfoptions.level1n = vfoptions.level1n(1); 
-            [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a, N_a, 1, length(curr_ze), vfoptions, LocalBlockFn);
+        N_ze_local = length(curr_ze);
+
+        % 1. Pre-build Exogenous Cells (Loop Invariant for Slicer!)
+        if has_z
+            num_z_vars = size(z_gridvals_j_local, 2);
+            Z_cells_local = cell(1, num_z_vars);
+            for iz = 1:num_z_vars
+                Z_cells_local{iz} = reshape(z_gridvals_j_local(ZE_z_idx(curr_ze), iz), [1, 1, 1, N_ze_local]);
+            end
         else
-            % Brute Force over 'a' (no fake endogenous looping here!)
+            Z_cells_local = {};
+        end
+
+        if has_e
+            num_e_vars = size(e_work, 2);
+            E_cells_local = cell(1, num_e_vars);
+            for ie = 1:num_e_vars
+                E_cells_local{ie} = reshape(e_work(ZE_e_idx(curr_ze), ie), [1, 1, 1, N_ze_local]);
+            end
+        else
+            E_cells_local = {};
+        end
+
+        % 2. Pre-build EV dependencies and Interpolations (Loop Invariant for Slicer!)
+        EV_local = EV_flat_ze(:, curr_ze);
+        z_offset_local = reshape((0:N_ze_local-1) * N_a, [1, 1, 1, N_ze_local]);
+
+        if vfoptions.gridinterplayer
+            EV_interp_local = interp1(a_work_local, EV_local, a1prime_grid);
+            z_offset_fine_local = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, N_ze_local]);
+        else
+            EV_interp_local = [];
+            z_offset_fine_local = [];
+        end
+
+        % Create a localized closure for the Slicer so it only executes pure math
+        LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
+            state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
+            Z_cells_local, E_cells_local, D_cells_block, ...
+            vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a_work_local, a1prime_grid, ...
+            ReturnFn, ReturnFnParamsVec);
+
+        if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
+            vfoptions.level1n = vfoptions.level1n(1);
+            [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
+        else
             [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, [], 0);
         end
-        
+
         % Slot results directly into the preallocated flat tensors
-        V_j_max(:, curr_ze)     = reshape(v,     [N_a, length(curr_ze)]);
-        Pol_apr_max(:, curr_ze) = reshape(p_apr, [N_a, length(curr_ze)]);
-        Pol_d_max(:, curr_ze)   = reshape(p_d,   [N_a, length(curr_ze)]);
+        V_j_max(:, curr_ze)     = reshape(v,     [N_a, N_ze_local]);
+        Pol_apr_max(:, curr_ze) = reshape(p_apr, [N_a, N_ze_local]);
+        Pol_d_max(:, curr_ze)   = reshape(p_d,   [N_a, N_ze_local]);
         if vfoptions.gridinterplayer == 1
-            Pol_L2idx_max(:, curr_ze)  = reshape(p_l2idx,  [N_a, length(curr_ze)]);
-            Pol_L2flag_max(:, curr_ze) = reshape(p_l2flag, [N_a, length(curr_ze)]);
+            Pol_L2idx_max(:, curr_ze)  = reshape(p_l2idx,  [N_a, N_ze_local]);
+            Pol_L2flag_max(:, curr_ze) = reshape(p_l2flag, [N_a, N_ze_local]);
         end
     end
-    
+
     % Squeeze Outputs back to full 3D [N_a, N_z, N_e] structure
     V_j_max     = reshape(V_j_max,     [N_a, N_z_safe, n_e_work]);
     Pol_apr_max = reshape(Pol_apr_max, [N_a, N_z_safe, n_e_work]);
@@ -559,7 +607,6 @@ for reverse_j = 0:N_j-1
 
     V(:, :, :, jj) = V_j_max;
     V_next = V_j_max;
-
 end
 
 if N_z == 0
@@ -584,7 +631,6 @@ end
 
 if has_z && has_e
     Policy = UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_daprime, n_a, n_all_z, n_e_work, N_j, vfoptions);
-    % Flatten compound Z and E dimensions for downstream toolkit compatibility
     Policy = reshape(Policy, [size(Policy, 1), n_a_work, n_z_work, n_e_work, N_j]);
     V = reshape(V, [n_a_work, n_z_work, n_e_work, N_j]);
 elseif has_z && ~has_e
@@ -603,19 +649,15 @@ end
 
 varargout{1} = V;
 varargout{2} = Policy;
-
-
 end
 
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_Case1_TensorBlock(...
-    state_idx, ze_idx, loweredge_matrix, maxgap_scalar, N_a, N_d, ...
-    has_z, has_e, ZE_z_idx, ZE_e_idx, e_work, ...
-    gridinterplayer, n2short, n2long, beta_j, EV_flat_ze, a_gridvals, a1prime_grid, ...
-    z_gridvals_j, D_cells, ReturnFn, ReturnFnParamsVec)
+    state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
+    Z_cells_block, E_cells_block, D_cells_block, ...
+    gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a_work_local, a1prime_grid, ...
+    ReturnFn, ReturnFnParamsVec)
 
 N_block = length(state_idx);
-N_ze_local = length(ze_idx);
-N_d_safe = max(1, N_d);
 
 % --- 1. Choice Grid Setup (Implicit Dimensions) ---
 if isempty(loweredge_matrix)
@@ -625,66 +667,26 @@ else
     offset_vec = 0:gather(maxgap_scalar);
     N_choice = length(offset_vec);
     offset = reshape(gpuArray(offset_vec), [1, N_choice, 1, 1]);
-    
-    % FIX: loweredge_matrix is [1, N_ze_local]. Let implicit expansion handle N_block!
     base_edge = reshape(loweredge_matrix, [1, 1, 1, N_ze_local]);
-    apr_idx_tensor = base_edge + offset; % Size: [1, N_choice, 1, N_ze_local]
+    apr_idx_tensor = base_edge + offset;
 end
 
-% --- 2. State & Choice Tensor Construction (Zero Repmats) ---
-a_work_local = a_gridvals(:, 1);
-
-% FIX: Dynamically shape apr_in to match the implicitly expanded tensor
+% --- 2. State & Choice Tensor Construction ---
 apr_in = reshape(a_work_local(apr_idx_tensor(:)), size(apr_idx_tensor));
-
-a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]); 
-
-if N_d > 0
-    D_cells_block = cell(size(D_cells));
-    for id = 1:length(D_cells)
-        D_cells_block{id} = reshape(D_cells{id}, [N_d_safe, 1, 1, 1]);
-    end
-else
-    D_cells_block = {};
-end
-
-if has_z
-    num_z_vars = size(z_gridvals_j, 2);
-    Z_cells_block = cell(1, num_z_vars);
-    for iz = 1:num_z_vars
-        Z_cells_block{iz} = reshape(z_gridvals_j(ZE_z_idx(ze_idx), iz), [1, 1, 1, N_ze_local]);
-    end
-else
-    Z_cells_block = {};
-end
-
-if has_e
-    num_e_vars = size(e_work, 2);
-    E_cells_block = cell(1, num_e_vars);
-    for ie = 1:num_e_vars
-        E_cells_block{ie} = reshape(e_work(ZE_e_idx(ze_idx), ie), [1, 1, 1, N_ze_local]);
-    end
-else
-    E_cells_block = {};
-end
+a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
 
 % --- 3. Evaluate Return Function & Coarse RHS ---
 F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
 
-EV_local = EV_flat_ze(:, ze_idx);
 EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
-z_offset = reshape((0:N_ze_local-1) * N_a, [1, 1, 1, N_ze_local]);
-linear_idx = apr_idx_tensor + z_offset; 
-
-% FIX: Dynamically shape EV_bounded to match the index tensor
+linear_idx = apr_idx_tensor + z_offset_local;
 EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
 
 RHS = F_tensor + beta_j .* EV_bounded;
 
-% Zero-overhead guard to ensure implicit expansion reached full 4D shape
 expected_sz = [N_d_safe, N_choice, N_block, N_ze_local];
 if ~isequal(size(RHS), expected_sz)
-    RHS = RHS + zeros(expected_sz, 'like', EV_flat_ze);
+    RHS = RHS + zeros(expected_sz, 'like', EV_local);
 end
 
 RHS_flat = reshape(RHS, [N_d_safe * N_choice, N_block * N_ze_local]);
@@ -709,27 +711,24 @@ if gridinterplayer
     midpoint = max(min(apr_idx_coarse, N_a - 1), 2);
     base_idx = midpoint + (midpoint - 1) * n2short;
     offset   = (-n2short-1 : 1 : n2short+1)';
-    fine_idx = base_idx(:)' + offset; 
+    fine_idx = base_idx(:)' + offset;
 
     fine_idx_4d = reshape(fine_idx, [1, n2long, N_block, N_ze_local]);
     apr_in_fine = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
     a_in_fine   = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
-    
+
     F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in_fine, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
 
-    EV_interp = interp1(a_work_local, EV_local, a1prime_grid);
-    z_offset_fine = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, N_ze_local]);
-    linear_fine_idx = fine_idx_4d + z_offset_fine;
-    
-    EV_fine = reshape(EV_interp(linear_fine_idx(:)), size(linear_fine_idx));
+    linear_fine_idx = fine_idx_4d + z_offset_fine_local;
+    EV_fine = reshape(EV_interp_local(linear_fine_idx(:)), size(linear_fine_idx));
 
     RHS_fine = F_tensor_fine + beta_j .* EV_fine;
-    
+
     expected_sz_fine = [N_d_safe, n2long, N_block, N_ze_local];
     if ~isequal(size(RHS_fine), expected_sz_fine)
-        RHS_fine = RHS_fine + zeros(expected_sz_fine, 'like', EV_flat_ze);
+        RHS_fine = RHS_fine + zeros(expected_sz_fine, 'like', EV_local);
     end
-    
+
     RHS_fine_flat = reshape(RHS_fine, [N_d_safe * n2long, N_block * N_ze_local]);
     [V_sub_fine, maxindexL2] = max(RHS_fine_flat, [], 1);
 
@@ -738,10 +737,10 @@ if gridinterplayer
 
     isInfLower    = (RHS_fine_flat(1:N_d_safe, :) == -Inf);
     isInfUpper    = (RHS_fine_flat(end-N_d_safe+1:end, :) == -Inf);
-    
+
     inLowerStrict = (apr_step_fine >= 2) & (apr_step_fine <= n2short + 1);
     inUpperStrict = (apr_step_fine >= n2short + 3) & (apr_step_fine <= n2long - 1);
-    
+
     linear_win_d = d_idx_fine + (0:N_block*N_ze_local-1)*N_d_safe;
     L2flag_fine = 2 + (inLowerStrict & isInfLower(linear_win_d)) - (inUpperStrict & isInfUpper(linear_win_d));
 
@@ -754,7 +753,7 @@ else
     V_j_max        = reshape(V_sub_coarse,   [N_block, N_ze_local]);
     Pol_apr_max    = reshape(apr_idx_coarse, [N_block, N_ze_local]);
     Pol_d_max      = d_idx_coarse;
-    Pol_L2idx_max  = []; 
+    Pol_L2idx_max  = [];
     Pol_L2flag_max = [];
 end
 
