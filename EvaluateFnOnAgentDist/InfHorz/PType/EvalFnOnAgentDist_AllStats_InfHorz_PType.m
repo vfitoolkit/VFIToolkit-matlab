@@ -339,11 +339,25 @@ for ii=1:N_i
                     if simoptions_temp.groupusingtdigest==1
                         error('Code should never get here (should have thrown an error earlier')
                     else
-                        if simoptions.ptypestorecpu==1
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}); gather(RestrictedSortedWeights)*gather(StationaryDist.ptweights(ii))];
+                        % Population-weighted, un-normalised restricted mass of this ptype.
+                        % restrictedsamplemass(ii,rr) is needed because RestrictedSortedWeights was
+                        % normalized to mass one above: without it every ptype enters with its full
+                        % population weight regardless of how little of it meets the restriction.
+                        % The zero-mass branch is needed because such a ptype had its
+                        % RestrictedStationaryDistVec normalized 0/0 above and is all NaN; those NaNs
+                        % would propagate into the pooled weights and make every grouped restricted
+                        % statistic NaN. A ptype absent from the group contributes nothing to it.
+                        if restrictedsamplemass(ii,rr)>0
+                            RestrictedWeights_ii=RestrictedSortedWeights*(StationaryDist.ptweights(ii)*restrictedsamplemass(ii,rr));
                         else
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}); RestrictedSortedWeights*StationaryDist.ptweights(ii)];
+                            RestrictedWeights_ii=zeros(size(RestrictedSortedWeights),'like',RestrictedSortedWeights);
                         end
+                        if simoptions.ptypestorecpu==1
+                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}); gather(RestrictedWeights_ii)];
+                        else
+                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}); RestrictedWeights_ii];
+                        end
+                        % Note: later once we have all the ii do AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}) renormalized by sum(ptweights.*restrictedsamplemass(:,rr))
                     end
                 end
             end
@@ -416,7 +430,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         allstatnames=fieldnames(tempStats);
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
-                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}),[],@sum);
+                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})/sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr)),[],@sum);
                 tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{kk}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
                 % Guard isfield: some stats (e.g. LorenzCurveComment) are only emitted by StatsFromWeightedGrid
@@ -428,7 +442,11 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                     end
                 end
                 if kk==1
-                    AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(restrictedsamplemass(:,rr));
+                    % Population mass in the restriction. Note the per-ptype
+                    % RestrictedSampleMass.(iistr) above are WITHIN-type shares, so this is
+                    % their ptweights-weighted sum, not their plain sum (which is not a mass
+                    % at all and can exceed one).
+                    AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr));
                 end
             end
         end

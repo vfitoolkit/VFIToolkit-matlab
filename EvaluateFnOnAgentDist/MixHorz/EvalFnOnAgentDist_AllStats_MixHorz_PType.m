@@ -492,12 +492,27 @@ for ii=1:N_i
                     if simoptions_temp.groupusingtdigest==1
                         error('Code should never get here (should have thrown an error earlier')
                     else
-                        if simoptions.ptypestorecpu==1
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); gather(RestrictedSortedWeights*restrictedsamplemass(ii,rr))]; %*gather(StationaryDist.ptweights(ii))];
+                        % Population-weighted, un-normalised restricted mass of this ptype.
+                        % ptweights(ii) is needed so the grouped restricted stats weight each ptype
+                        % by its population mass, exactly as the unrestricted grouped stats below do;
+                        % without it every ptype enters proportional to its within-type share of the
+                        % restriction, so a rare type counts as much as a common one.
+                        % The zero-mass branch is needed because such a ptype had its
+                        % RestrictedStationaryDistVec normalized 0/0 above and is all NaN, and NaN*0
+                        % is NaN rather than 0; those NaNs would propagate into the pooled weights and
+                        % make every grouped restricted statistic NaN. A ptype absent from the group
+                        % contributes nothing to it.
+                        if restrictedsamplemass(ii,rr)>0
+                            RestrictedWeights_ii=RestrictedSortedWeights*(StationaryDist.ptweights(ii)*restrictedsamplemass(ii,rr));
                         else
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); RestrictedSortedWeights*restrictedsamplemass(ii,rr)]; %*StationaryDist.ptweights(ii)];
+                            RestrictedWeights_ii=zeros(size(RestrictedSortedWeights),'like',RestrictedSortedWeights);
                         end
-                        % Note: later once we have all the ii do AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}) renormalized by sum(restrictedsamplemass(:,rr))
+                        if simoptions.ptypestorecpu==1
+                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); gather(RestrictedWeights_ii)];
+                        else
+                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); RestrictedWeights_ii];
+                        end
+                        % Note: later once we have all the ii do AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}) renormalized by sum(ptweights.*restrictedsamplemass(:,rr))
                     end
                 end
             end
@@ -570,7 +585,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         allstatnames=fieldnames(tempStats);
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
-                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})/sum(restrictedsamplemass(:,rr)),[],@sum);
+                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})/sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr)),[],@sum);
                 tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
                 rallstatnames=fieldnames(tempStatsRestricted);
@@ -578,7 +593,11 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                     AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(rallstatnames{aa})=tempStatsRestricted.(rallstatnames{aa});
                 end
                 if ff==1
-                    AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(restrictedsamplemass(:,rr));
+                    % Population mass in the restriction. Note the per-ptype
+                    % RestrictedSampleMass.(iistr) above are WITHIN-type shares, so this is
+                    % their ptweights-weighted sum, not their plain sum (which is not a mass
+                    % at all and can exceed one).
+                    AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr));
                 end
             end
         end
