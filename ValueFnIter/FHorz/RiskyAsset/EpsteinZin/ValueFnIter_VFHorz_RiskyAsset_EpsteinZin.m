@@ -5,9 +5,14 @@ N_a1 = prod(n_a1); N_a2 = prod(n_a2); N_a = max(N_a1, 1) * max(N_a2, 1);
 N_z = prod(n_z); N_u = prod(n_u);
 
 n_d1 = 0; N_d1 = 1;
-if vfoptions.refine_d(1) > 0; n_d1 = n_d(1:vfoptions.refine_d(1)); end
-n_d2 = n_d(vfoptions.refine_d(1)+1 : vfoptions.refine_d(1)+vfoptions.refine_d(2)); N_d2 = prod(n_d2);
-n_d3 = n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+1 : end); N_d3 = prod(n_d3);
+if vfoptions.refine_d(1) > 0;
+    n_d1 = n_d(1:vfoptions.refine_d(1));
+    N_d1 = prod(n_d1);
+end
+n_d2 = n_d(vfoptions.refine_d(1)+1 : vfoptions.refine_d(1)+vfoptions.refine_d(2));
+N_d2 = prod(n_d2);
+n_d3 = n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+1 : end);
+N_d3 = prod(n_d3);
 
 d1_grid = d_grid(1 : sum(n_d1));
 d2_grid = d_grid(sum(n_d1)+1 : sum(n_d1)+sum(n_d2));
