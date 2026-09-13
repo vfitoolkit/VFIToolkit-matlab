@@ -164,18 +164,20 @@ end
 % =========================================================
 % UNPACK POLICY
 % =========================================================
-if vfoptions.outputkron == 1
+if isfield(vfoptions, 'outputkron') && vfoptions.outputkron == 1
     Policy = PolicyKron;
     return
 end
 
 if gridinterplayer
     PolicyKron_flat = reshape(PolicyKron, [4, N_a, N_z, N_j]);
-    Policy = UnKronPolicyIndexes2_FHorz_z(PolicyKron_flat, n_d2, n_d3, N_a, n_z, N_j, vfoptions);
+    Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron_flat, n_d, N_a, n_z, N_j, vfoptions);
 else
     PolicyKron_flat = reshape(PolicyKron, [1, N_a, N_z, N_j]);
-    Policy = UnKronPolicyIndexes2_FHorz_z(PolicyKron_flat, n_d2, n_d3, N_a, n_z, N_j, vfoptions);
+    Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron_flat, n_d, N_a, n_z, N_j, vfoptions);
 end
+
+
 end
 
 % =========================================================

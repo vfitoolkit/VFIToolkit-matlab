@@ -304,6 +304,7 @@ if isfield(vfoptions, 'riskyasset') && vfoptions.riskyasset == 1
         d_grid, a_grid, [], z_gridvals_J, u_grid, pi_z_J, pi_u, ...
         ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ...
         ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    varargout = {V, Policy};
     return
 end
 
