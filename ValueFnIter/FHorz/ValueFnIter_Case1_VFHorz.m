@@ -492,7 +492,7 @@ for reverse_j = 0:N_j-1
     EvalBlockFn = @(state_idx, ze_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
         state_idx, ze_idx, loweredge_matrix, maxgap_scalar, N_a, N_d, ...
         has_z, has_e, ZE_z_idx, ZE_e_idx, e_work, ...
-        vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_flat_ze, a_gridvals, a1prime_grid, ...
+        vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_flat_ze, A_mat, a1prime_grid, ...
         z_gridvals_J(:,:,min(jj, size(z_gridvals_J,3))), D_cells, ReturnFn, ReturnFnParamsVec);
 
     % Preallocate output tensors
@@ -600,21 +600,20 @@ if isempty(loweredge_matrix)
     N_choice = N_a;
     apr_idx_tensor = reshape(1:N_a, [1, N_choice, 1, 1]);
 else
-    N_choice = maxgap_scalar + 1;
-    offset = reshape(0:maxgap_scalar, [1, N_choice, 1, 1]);
-    base_edge = reshape(loweredge_matrix, [1, 1, 1, N_ze]);
-    apr_idx_tensor = base_edge + offset; % Size: [1, N_choice, 1, N_ze]
+    offset_vec = 0:gather(maxgap_scalar);
+    N_choice = length(offset_vec);
+    offset = reshape(gpuArray(offset_vec), [1, N_choice, 1, 1]);
+    
+    % FIX: Map loweredge_matrix to States (Dim 3) and Exogenous (Dim 4)
+    base_edge = reshape(loweredge_matrix, [1, 1, N_block, N_ze]);
+    apr_idx_tensor = base_edge + offset; % Expands to [1, N_choice, N_block, N_ze]
 end
 
 % --- 2. State & Choice Tensor Construction (Zero Repmats) ---
 a_work_local = a_gridvals(:, 1);
 
-% Force Dim 1 to be singleton [1, N_choice, 1, ...]
-if isempty(loweredge_matrix)
-    apr_in = reshape(a_work_local(apr_idx_tensor(:)), [1, N_choice, 1, 1]);
-else
-    apr_in = reshape(a_work_local(apr_idx_tensor(:)), [1, N_choice, 1, N_ze]);
-end
+% FIX: Dynamically shape apr_in to match the implicitly expanded tensor
+apr_in = reshape(a_work_local(apr_idx_tensor(:)), size(apr_idx_tensor));
 
 a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
 
@@ -652,8 +651,10 @@ F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_bl
 
 EV_flat = reshape(EV, [N_a * N_ze, 1]);
 z_offset = reshape((0:N_ze-1) * N_a, [1, 1, 1, N_ze]);
-linear_idx = apr_idx_tensor + z_offset; % Size: [1, N_choice, 1, N_ze]
-EV_bounded = reshape(EV_flat(linear_idx(:)), [1, N_choice, 1, N_ze]);
+linear_idx = apr_idx_tensor + z_offset; 
+
+% FIX: Dynamically shape EV_bounded to match the index tensor
+EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
 
 RHS = F_tensor + beta_j .* EV_bounded;
 
@@ -688,11 +689,11 @@ if gridinterplayer
     fine_idx = base_idx(:)' + offset; 
 
     % Explicitly guarantee [1, n2long, N_block, N_ze]
-    fine_idx_4d = reshape(fine_idx, [1, n2long, N_block, N_ze]);
-    apr_in_fine = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze]);
+    fine_idx_4d = reshape(fine_idx, [1, n2long, N_block, N_ze_local]);
+    apr_in_fine = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
+    a_in_fine   = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
     
-    % We reuse the implicitly sized a_in, D_cells, Z_cells, and E_cells directly!
-    F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
+    F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in_fine, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
 
     EV_interp = interp1(a_work_local, EV, a1prime_grid);
     z_offset_fine = reshape((0:N_ze-1) * length(a1prime_grid), [1, 1, 1, N_ze]);
