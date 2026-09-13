@@ -461,52 +461,79 @@ for reverse_j = 0:N_j-1
     ZE_z_idx = Z_mesh(:);
     ZE_e_idx = E_mesh(:);
 
-    % Define the Unified GPU Tensor Engine for Case1 (Now with ZE Support)
-    EvalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
-        state_idx, loweredge_matrix, maxgap_scalar, N_a, N_ze, N_d, ...
+% --- Determine Exogenous Memory Chunking (lowmemory) ---
+    lowmem_level = 0;
+    if isfield(vfoptions, 'lowmemory') && ~isempty(vfoptions.lowmemory)
+        lowmem_level = vfoptions.lowmemory;
+    end
+
+    if lowmem_level == 0
+        % Vectorize everything
+        ze_chunks = {1:N_ze};
+    elseif lowmem_level == 1
+        if N_z_safe > 1 && n_e_work > 1
+            % z & e present: Parallel over z, loop over e
+            ze_chunks = cell(1, n_e_work);
+            for ie = 1:n_e_work
+                ze_chunks{ie} = (ie - 1) * N_z_safe + 1 : ie * N_z_safe;
+            end
+        else
+            % Only z or only e present: loop over that active shock
+            ze_chunks = num2cell(1:N_ze);
+        end
+    elseif lowmem_level == 2
+        % z & e present: loop both (evaluate one ZE combination at a time)
+        ze_chunks = num2cell(1:N_ze);
+    else
+        error('Invalid lowmemory level requested for the current shock combination.');
+    end
+
+    % Define the unified block engine (Accepts ze_idx)
+    EvalBlockFn = @(state_idx, ze_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
+        state_idx, ze_idx, loweredge_matrix, maxgap_scalar, N_a, N_d, ...
         has_z, has_e, ZE_z_idx, ZE_e_idx, e_work, ...
-        vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_flat_ze, A_mat, a1prime_grid, ...
+        vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_flat_ze, a_gridvals, a1prime_grid, ...
         z_gridvals_J(:,:,min(jj, size(z_gridvals_J,3))), D_cells, ReturnFn, ReturnFnParamsVec);
 
-    % The Time-Loop Router
-    if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
-        vfoptions.level1n = vfoptions.level1n(1); % Ensure scalar for 1D DC1
-        [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = ...
-            ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_ze, vfoptions, EvalBlockFn);
-    else
-        % Brute Force
-        [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = EvalBlockFn(1:N_a, [], 0);
+    % Preallocate output tensors
+    V_j_max        = zeros(N_a, N_ze, 'like', EV_flat_ze);
+    Pol_apr_max    = zeros(N_a, N_ze, 'like', EV_flat_ze);
+    Pol_d_max      = zeros(N_a, N_ze, 'like', EV_flat_ze);
+    Pol_L2idx_max  = zeros(N_a, N_ze, 'like', EV_flat_ze);
+    Pol_L2flag_max = zeros(N_a, N_ze, 'like', EV_flat_ze);
+
+    % --- The Master Orchestrator Loop ---
+    for i_ze = 1:length(ze_chunks)
+        curr_ze = ze_chunks{i_ze};
+        
+        % Create a localized closure for the Slicer so it only sees the current ZE slice
+        LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) EvalBlockFn(state_idx, curr_ze, loweredge_matrix, maxgap_scalar);
+        
+        if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
+            vfoptions.level1n = vfoptions.level1n(1); 
+            [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a, N_a, 1, length(curr_ze), vfoptions, LocalBlockFn);
+        else
+            % Brute Force over 'a' (no fake endogenous looping here!)
+            [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, [], 0);
+        end
+        
+        % Slot results directly into the preallocated flat tensors
+        V_j_max(:, curr_ze)     = reshape(v,     [N_a, length(curr_ze)]);
+        Pol_apr_max(:, curr_ze) = reshape(p_apr, [N_a, length(curr_ze)]);
+        Pol_d_max(:, curr_ze)   = reshape(p_d,   [N_a, length(curr_ze)]);
+        if vfoptions.gridinterplayer == 1
+            Pol_L2idx_max(:, curr_ze)  = reshape(p_l2idx,  [N_a, length(curr_ze)]);
+            Pol_L2flag_max(:, curr_ze) = reshape(p_l2flag, [N_a, length(curr_ze)]);
+        end
     end
     
-    % Squeeze Slicer Outputs back to full 3D [N_a, N_z, N_e] structure
+    % Squeeze Outputs back to full 3D [N_a, N_z, N_e] structure
     V_j_max     = reshape(V_j_max,     [N_a, N_z_safe, n_e_work]);
     Pol_apr_max = reshape(Pol_apr_max, [N_a, N_z_safe, n_e_work]);
     Pol_d_max   = reshape(Pol_d_max,   [N_a, N_z_safe, n_e_work]);
     if vfoptions.gridinterplayer == 1
         Pol_L2idx_max  = reshape(Pol_L2idx_max,  [N_a, N_z_safe, n_e_work]);
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_a, N_z_safe, n_e_work]);
-    end
-    
-    % Pack PolicyKron
-    if vfoptions.gridinterplayer == 1
-        adjust = (Pol_L2idx_max < 1 + n2short + 1);
-        lower_grid_pt = Pol_apr_max - adjust;
-        subgrid_step  = adjust .* Pol_L2idx_max + (1 - adjust) .* (Pol_L2idx_max - n2short - 1);
-        
-        if N_d > 0
-            % KRONECKER PACKING: Embed both 'd' and 'a' into the first slice
-            PolicyKron(1, :, :, :, jj) = (lower_grid_pt - 1) * N_d + Pol_d_max;
-        else
-            PolicyKron(1, :, :, :, jj) = lower_grid_pt;
-        end
-        PolicyKron(2, :, :, :, jj) = subgrid_step;
-        PolicyKron(3, :, :, :, jj) = Pol_L2flag_max;
-    else
-        if N_d > 0
-            PolicyKron(:, :, :, jj) = (Pol_apr_max - 1) * N_d + Pol_d_max;
-        else
-            PolicyKron(:, :, :, jj) = Pol_apr_max;
-        end
     end
     
     V(:, :, :, jj) = V_j_max;
