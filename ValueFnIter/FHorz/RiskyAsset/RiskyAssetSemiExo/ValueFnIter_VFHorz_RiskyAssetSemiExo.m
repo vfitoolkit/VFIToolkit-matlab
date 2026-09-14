@@ -59,6 +59,21 @@ D3_3D = reshape(d3_grid, [1, N_d3, 1]);
 U_3D  = reshape(u_grid,  [1, 1, N_u]);
 
 % =========================================================
+% UNIVERSAL MIX-IN: EPSTEIN-ZIN VS CRRA
+% =========================================================
+is_EZ = isfield(vfoptions, 'exoticpreferences') && strcmp(vfoptions.exoticpreferences, 'EpsteinZin');
+if is_EZ
+    ezc2 = vfoptions.ezc2; ezc3 = vfoptions.ezc3; ezc4 = vfoptions.ezc4; 
+    ezc5 = vfoptions.ezc5; ezc6 = vfoptions.ezc6; ezc7 = vfoptions.ezc7; 
+    ezc8 = vfoptions.ezc8; sj   = vfoptions.sj;   warmglow = vfoptions.warmglow;
+else
+    % Neutral CRRA fallbacks (collapses EZ math to standard)
+    ezc2 = ones(N_j,1); ezc3 = 1; ezc4 = 1; 
+    ezc5 = ones(N_j,1); ezc6 = ones(N_j,1); ezc7 = ones(N_j,1); 
+    ezc8 = ones(N_j,1); sj   = ones(N_j,1); warmglow = 0;
+end
+
+% =========================================================
 % TIME LOOP
 % =========================================================
 for jj = N_j : -1 : 1
@@ -87,9 +102,17 @@ for jj = N_j : -1 : 1
                 V_slice = squeeze(V_next(i_a1, :, i_semiz, :));
                 if max(N_z,1) == 1, V_slice = V_slice(:); end
 
-                inf_mask = double(V_slice == -Inf);
-                V_safe = V_slice;
-                V_safe(inf_mask > 0) = 0;
+                % =========================================================
+                % STEP 2: UNIVERSAL MIX-IN (EZ VALUE TRANSFORMATION)
+                % =========================================================
+                valid_V = isfinite(V_slice) & (V_slice ~= 0);
+                if ezc5(jj) == 1
+                    V_slice(valid_V) = ezc4 * V_slice(valid_V);
+                else
+                    V_slice(valid_V) = max(ezc4 * V_slice(valid_V), 0).^ezc5(jj);
+                end
+                V_slice(V_next(i_a1, :, i_semiz, :) == 0) = 0;
+                % =========================================================
 
                 V_int_slice = interp1(a2_grid, V_safe, aprime_clamped(:), 'linear');
                 inf_int_slice = interp1(a2_grid, inf_mask, aprime_clamped(:), 'linear');
@@ -235,16 +258,35 @@ ReturnFn_Args = [ReturnFn_Args, Semiz_Args];
 if N_z_safe > 0, ReturnFn_Args{end+1} = Z_cells; end
 ReturnFn_Args = [ReturnFn_Args, ReturnFnParamsCell];
 
-% 3. Evaluate F (6D)
+% 3. Evaluate F (6D) and apply ezc
 F_tensor = ReturnFn(ReturnFn_Args{:});
-F_tensor(~isfinite(F_tensor)) = -Inf;
 
-% 4. Assemble RHS
-EV_query = EV_max_d3(:, semiz_idx, :, :, :); % [N_a1, N_block, N_d4, N_d3, N_z]
-EV_bc = permute(EV_query, [4, 3, 1, 2, 5]); % [N_d3, N_d4, N_a1, N_block, N_z]
+temp2 = F_tensor;
+valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
+if ezc2_j == 1
+    temp2(valid_F) = ezc4 * F_tensor(valid_F);
+else
+    temp2(valid_F) = max(ezc4 * F_tensor(valid_F), 0).^ezc2_j;
+end
+temp2(~isfinite(F_tensor)) = -Inf;
+
+% 4. Assemble RHS (Utility + Expected Value)
+EV_query = EV_max_d3(:, semiz_idx, :, :, :);
+EV_bc = permute(EV_query, [4, 3, 1, 2, 5]);
 EV_bc = reshape(EV_bc, [1, N_d3, N_d4, N_a1, N_block, N_z_safe]);
 
-RHS = F_tensor + beta_j .* EV_bc;
+% (Note: ezc1_j handled dynamically, assumed 1 if EZoneminusbeta=0)
+ezc1_j = 1;
+entireRHS = ezc1_j .* temp2 + beta_j .* EV_bc;
+
+RHS = entireRHS;
+valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
+if ezc7_j == 1
+    RHS(valid_RHS) = ezc3 * entireRHS(valid_RHS);
+else
+    RHS(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
+end
+RHS(~isfinite(entireRHS)) = -Inf;
 
 % 5. Simultaneous Compression (Flatten all choices)
 RHS_flat = reshape(RHS, [N_d1 * N_d3 * N_d4 * N_a1, N_block * N_z_safe]);
