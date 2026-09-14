@@ -96,26 +96,31 @@ for jj = N_j : -1 : 1
         EV_z = zeros(N_a1, N_semiz, N_d2*N_d3, max(N_z,1), 'like', a2_grid);
         pi_z_j = pi_z_J(:,:,jj);
 
+        % =========================================================
+        % STEP 2: UNIVERSAL MIX-IN (EZ VALUE TRANSFORMATION) - VECTORIZED
+        % =========================================================
+        valid_V = isfinite(V_next) & (V_next ~= 0);
+        V_transformed = V_next;
+        if ezc5(jj) == 1
+            V_transformed(valid_V) = ezc4 * V_next(valid_V);
+        else
+            V_transformed(valid_V) = max(ezc4 * V_next(valid_V), 0).^ezc5(jj);
+        end
+        V_transformed(V_next == 0) = 0;
+
         % Interpolate aprime and compute E_u, E_z
         for i_a1 = 1:N_a1
             for i_semiz = 1:N_semiz
-                V_slice = squeeze(V_next(i_a1, :, i_semiz, :));
+                % SLICE THE ALREADY-TRANSFORMED TENSOR
+                V_slice = squeeze(V_transformed(i_a1, :, i_semiz, :));
                 if max(N_z,1) == 1, V_slice = V_slice(:); end
 
-                % =========================================================
-                % STEP 2: UNIVERSAL MIX-IN (EZ VALUE TRANSFORMATION)
-                % =========================================================
-                valid_V = isfinite(V_slice) & (V_slice ~= 0);
-                if ezc5(jj) == 1
-                    V_slice(valid_V) = ezc4 * V_slice(valid_V);
-                else
-                    V_slice(valid_V) = max(ezc4 * V_slice(valid_V), 0).^ezc5(jj);
-                end
-                V_slice(V_next(i_a1, :, i_semiz, :) == 0) = 0;
-                % =========================================================
+                inf_mask = (V_slice == -Inf);
+                V_safe = V_slice;
+                V_safe(inf_mask) = 0;
 
                 V_int_slice = interp1(a2_grid, V_safe, aprime_clamped(:), 'linear');
-                inf_int_slice = interp1(a2_grid, inf_mask, aprime_clamped(:), 'linear');
+                inf_int_slice = interp1(a2_grid, cast(inf_mask, 'like', a2_grid), aprime_clamped(:), 'linear');
                 V_int_slice(inf_int_slice > 0) = -Inf;
 
                 V_interp = reshape(V_int_slice, [N_d2*N_d3, N_u, max(N_z,1)]);
@@ -168,6 +173,14 @@ for jj = N_j : -1 : 1
             end
         end
 
+        valid_EV = isfinite(EV_semiz) & (EV_semiz ~= 0);
+        if ezc6(jj) ~= 1
+            EV_semiz(valid_EV) = max(EV_semiz(valid_EV), 0).^ezc6(jj);
+        end
+        if ezc8(jj) ~= 1
+            EV_semiz(valid_EV) = max(EV_semiz(valid_EV), 0).^ezc8(jj);
+        end
+
         % DIMENSIONAL COMPRESSION: Maximize out d2 (riskyshare)
         EV_tensor = reshape(EV_semiz, [N_a1, N_semiz, N_d4, N_d2, N_d3, max(N_z,1)]);
         [EV_max_d2_raw, Pol_d2_idx] = max(EV_tensor, [], 4);
@@ -182,7 +195,8 @@ for jj = N_j : -1 : 1
     EvalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_RiskyAssetSemiExo_TensorBlock(...
         state_idx, N_d1, N_d2, N_d3, N_d4, N_a1, N_a2, N_semiz, max(N_z,1), ...
         beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, d4_grid, a1_grid, a2_grid, ...
-        semiz_gridvals(:,:,jj), z_gridvals(:,:,jj), ReturnFn, ReturnFnParamsCell, has_d1, has_a1);
+        semiz_gridvals(:,:,jj), z_gridvals(:,:,jj), ReturnFn, ReturnFnParamsCell, has_d1, has_a1, ...
+        ezc2(jj), ezc3, ezc4, ezc7(jj));
 
     if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
         vfopts_dc = vfoptions; vfopts_dc.level1n = vfoptions.level1n(1);
@@ -223,7 +237,7 @@ end
 function [V_sub, Pol_d_combo, L2idx, L2flag] = Evaluate_RiskyAssetSemiExo_TensorBlock(...
     state_idx, N_d1, N_d2, N_d3, N_d4, N_a1, N_a2, N_semiz, N_z_safe, ...
     beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, d4_grid, a1_grid, a2_grid, Semiz_mat, z_gridvals, ...
-    ReturnFn, ReturnFnParamsCell, has_d1, has_a1)
+    ReturnFn, ReturnFnParamsCell, has_d1, has_a1, ezc2_j, ezc3, ezc4, ezc7_j)
 
 N_block = length(state_idx);
 
@@ -260,33 +274,11 @@ ReturnFn_Args = [ReturnFn_Args, ReturnFnParamsCell];
 
 % 3. Evaluate F (6D) and apply ezc
 F_tensor = ReturnFn(ReturnFn_Args{:});
-
-temp2 = F_tensor;
-valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
-if ezc2_j == 1
-    temp2(valid_F) = ezc4 * F_tensor(valid_F);
-else
-    temp2(valid_F) = max(ezc4 * F_tensor(valid_F), 0).^ezc2_j;
-end
-temp2(~isfinite(F_tensor)) = -Inf;
-
-% 4. Assemble RHS (Utility + Expected Value)
 EV_query = EV_max_d3(:, semiz_idx, :, :, :);
 EV_bc = permute(EV_query, [4, 3, 1, 2, 5]);
 EV_bc = reshape(EV_bc, [1, N_d3, N_d4, N_a1, N_block, N_z_safe]);
-
-% (Note: ezc1_j handled dynamically, assumed 1 if EZoneminusbeta=0)
-ezc1_j = 1;
-entireRHS = ezc1_j .* temp2 + beta_j .* EV_bc;
-
-RHS = entireRHS;
-valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
-if ezc7_j == 1
-    RHS(valid_RHS) = ezc3 * entireRHS(valid_RHS);
-else
-    RHS(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
-end
-RHS(~isfinite(entireRHS)) = -Inf;
+% (Assuming ezc1_j = 1 for standard models, or extract it from vfoptions if needed)
+RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bc, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 
 % 5. Simultaneous Compression (Flatten all choices)
 RHS_flat = reshape(RHS, [N_d1 * N_d3 * N_d4 * N_a1, N_block * N_z_safe]);

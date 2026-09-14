@@ -524,6 +524,15 @@ for reverse_j = 0:N_j-1
         EV = V_transformed; % Use V_transformed
     end
 
+    % --- EZ Certainty Equivalent Reverse Transformation (ezc6 & ezc8) ---
+    valid_EV = isfinite(EV) & (EV ~= 0);
+    if ezc6(jj) ~= 1
+        EV(valid_EV) = max(EV(valid_EV), 0).^ezc6(jj);
+    end
+    if ezc8(jj) ~= 1
+        EV(valid_EV) = max(EV(valid_EV), 0).^ezc8(jj);
+    end
+
     % --- The ZE Flattening Trick ---
     N_ze = N_z_safe * n_e_work;
     EV_flat_ze = reshape(EV, [N_a, N_ze]);
@@ -726,7 +735,7 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
     state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
     Z_cells_block, E_cells_block, D_cells_block, ...
     gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a_work_local, a1prime_grid, ...
-    ReturnFn, ReturnFnParamsCell)
+    ReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j)
 
 N_block = length(state_idx);
 
@@ -749,29 +758,12 @@ a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
 % --- 3. Evaluate Return Function & Coarse RHS ---
 F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
-temp2 = F_tensor;
-if ezc2_j == 1
-    temp2(valid_F) = ezc4 * F_tensor(valid_F);
-else
-    temp2(valid_F) = max(ezc4 * F_tensor(valid_F), 0).^ezc2_j;
-end
-temp2(~isfinite(F_tensor)) = -Inf;
-
 EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
 linear_idx = apr_idx_tensor + z_offset_local;
 EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
-
-entireRHS = temp2 + beta_j .* EV_bounded;
-
-valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
-RHS = entireRHS;
-if ezc7_j == 1
-    RHS(valid_RHS) = ezc3 * entireRHS(valid_RHS);
-else
-    RHS(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
-end
-RHS(~isfinite(entireRHS)) = -Inf;
+    
+% (Note: ezc1_j is 1 here, since we are doing standard RHS)
+RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 
 expected_sz = [N_d_safe, N_choice, N_block, N_ze_local];
 if ~isequal(size(RHS), expected_sz)
@@ -808,29 +800,12 @@ if gridinterplayer
 
     F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in_fine, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-    valid_F = isfinite(F_tensor_fine) & (F_tensor_fine ~= 0);
-    temp2 = F_tensor_fine;
-    if ezc2_j == 1
-        temp2(valid_F) = ezc4 * F_tensor_fine(valid_F);
-    else
-        temp2(valid_F) = max(ezc4 * F_tensor_fine(valid_F), 0).^ezc2_j;
-    end
-    temp2(~isfinite(F_tensor_fine)) = -Inf;
-
     EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
     linear_idx = apr_idx_tensor + z_offset_local;
     EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
 
-    entireRHS = temp2 + beta_j .* EV_bounded;
-
-    valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
-    RHS_fine = entireRHS;
-    if ezc7_j == 1
-        RHS_fine(valid_RHS) = ezc3 * entireRHS(valid_RHS);
-    else
-        RHS_fine(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
-    end
-    RHS_fine(~isfinite(entireRHS)) = -Inf;
+    % (Note: ezc1_j is 1 here, since we are doing standard RHS)
+    RHS = Evaluate_Universal_RHS_VFHorz(F_tensor_fine, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 
     expected_sz_fine = [N_d_safe, n2long, N_block, N_ze_local];
     if ~isequal(size(RHS_fine), expected_sz_fine)
