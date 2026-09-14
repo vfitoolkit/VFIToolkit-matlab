@@ -77,7 +77,7 @@ for jj = N_j : -1 : 1
         EV_max_d3 = zeros(N_a1, N_semiz, N_d4, N_d3, max(N_z,1), 'like', a2_grid);
         Pol_d2_idx = ones(N_a1, N_semiz, N_d4, N_d3, max(N_z,1), 'like', a2_grid);
     else
-        pi_u_rs = reshape(pi_u, [1, 1, N_u]);
+        pi_u_rs = reshape(pi_u, [1, N_u, 1]);
         EV_z = zeros(N_a1, N_semiz, N_d2*N_d3, max(N_z,1), 'like', a2_grid);
         pi_z_j = pi_z_J(:,:,jj);
 
