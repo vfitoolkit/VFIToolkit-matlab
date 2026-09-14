@@ -805,13 +805,7 @@ if gridinterplayer
     EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
 
     % (Note: ezc1_j is 1 here, since we are doing standard RHS)
-    RHS = Evaluate_Universal_RHS_VFHorz(F_tensor_fine, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-
-    expected_sz_fine = [N_d_safe, n2long, N_block, N_ze_local];
-    if ~isequal(size(RHS_fine), expected_sz_fine)
-        RHS_fine = RHS_fine + zeros(expected_sz_fine, 'like', EV_local);
-    end
-
+    RHS_fine = Evaluate_Universal_RHS_VFHorz(F_tensor_fine, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
     RHS_fine_flat = reshape(RHS_fine, [N_d_safe * n2long, N_block * N_ze_local]);
     [V_sub_fine, maxindexL2] = max(RHS_fine_flat, [], 1);
 
