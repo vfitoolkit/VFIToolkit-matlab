@@ -475,6 +475,20 @@ else
     a1prime_grid = [];
 end
 
+% =========================================================
+% UNIVERSAL MIX-IN: EPSTEIN-ZIN VS CRRA (Base Orchestrator)
+% =========================================================
+if is_EZ
+    ezc2 = vfoptions.ezc2; ezc3 = vfoptions.ezc3; ezc4 = vfoptions.ezc4; 
+    ezc5 = vfoptions.ezc5; ezc6 = vfoptions.ezc6; ezc7 = vfoptions.ezc7; 
+    ezc8 = vfoptions.ezc8; sj = vfoptions.sj; warmglow = vfoptions.warmglow;
+else
+    % Neutral CRRA fallbacks (collapses EZ math to standard)
+    ezc2 = ones(N_j,1); ezc3 = 1; ezc4 = 1; 
+    ezc5 = ones(N_j,1); ezc6 = ones(N_j,1); ezc7 = ones(N_j,1); 
+    ezc8 = ones(N_j,1); sj = ones(N_j,1); warmglow = 0;
+end
+
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
 
@@ -484,22 +498,30 @@ for reverse_j = 0:N_j-1
 
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
     beta_j = prod(DiscountFactorParamsVec);
-    ReturnFnParamsVec = CreateVectorFromParams(Parameters, ReturnFnParamNames, jj);
-    if ~iscell(ReturnFnParamsVec); ReturnFnParamsVec = num2cell(ReturnFnParamsVec); end
+    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
+
+    % --- EZ V_next Transformation ---
+    valid_V = isfinite(V_next) & (V_next ~= 0);
+    V_transformed = V_next;
+    if ezc5(jj) == 1
+        V_transformed(valid_V) = ezc4 * V_next(valid_V);
+    else
+        V_transformed(valid_V) = max(ezc4 * V_next(valid_V), 0).^ezc5(jj);
+    end
+    V_transformed(V_next == 0) = 0;
 
     if N_z > 0
         pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
-        if n_e_work > 1
-            % Handle 3D matrix multiplication for multi-e
+        if n_e_work > 1 
             EV = zeros(N_a, N_z_safe, n_e_work, 'like', V_next);
             for ie = 1:n_e_work
-                EV(:,:,ie) = V_next(:,:,ie) * pi_z_j';
+                EV(:,:,ie) = V_transformed(:,:,ie) * pi_z_j'; % Use V_transformed
             end
         else
-            EV = V_next * pi_z_j';
+            EV = V_transformed * pi_z_j'; % Use V_transformed
         end
     else
-        EV = V_next;
+        EV = V_transformed; % Use V_transformed
     end
 
     % --- The ZE Flattening Trick ---
@@ -605,7 +627,7 @@ for reverse_j = 0:N_j-1
             state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
             Z_cells_local, E_cells_local, D_cells_block, ...
             vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a_work_local, a1prime_grid, ...
-            ReturnFn, ReturnFnParamsVec);
+            ReturnFn, ReturnFnParamsVec, ezc2(jj), ezc3, ezc4, ezc7(jj)); % <--- Added the 4 EZ constants
 
         if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
             vfoptions.level1n = vfoptions.level1n(1);
@@ -727,11 +749,29 @@ a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
 % --- 3. Evaluate Return Function & Coarse RHS ---
 F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
 
+valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
+temp2 = F_tensor;
+if ezc2_j == 1
+    temp2(valid_F) = ezc4 * F_tensor(valid_F);
+else
+    temp2(valid_F) = max(ezc4 * F_tensor(valid_F), 0).^ezc2_j;
+end
+temp2(~isfinite(F_tensor)) = -Inf;
+
 EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
 linear_idx = apr_idx_tensor + z_offset_local;
 EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
 
-RHS = F_tensor + beta_j .* EV_bounded;
+entireRHS = temp2 + beta_j .* EV_bounded;
+
+valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
+RHS = entireRHS;
+if ezc7_j == 1
+    RHS(valid_RHS) = ezc3 * entireRHS(valid_RHS);
+else
+    RHS(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
+end
+RHS(~isfinite(entireRHS)) = -Inf;
 
 expected_sz = [N_d_safe, N_choice, N_block, N_ze_local];
 if ~isequal(size(RHS), expected_sz)
@@ -768,10 +808,29 @@ if gridinterplayer
 
     F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in_fine, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
 
-    linear_fine_idx = fine_idx_4d + z_offset_fine_local;
-    EV_fine = reshape(EV_interp_local(linear_fine_idx(:)), size(linear_fine_idx));
+    valid_F = isfinite(F_tensor_fine) & (F_tensor_fine ~= 0);
+    temp2 = F_tensor_fine;
+    if ezc2_j == 1
+        temp2(valid_F) = ezc4 * F_tensor_fine(valid_F);
+    else
+        temp2(valid_F) = max(ezc4 * F_tensor_fine(valid_F), 0).^ezc2_j;
+    end
+    temp2(~isfinite(F_tensor_fine)) = -Inf;
 
-    RHS_fine = F_tensor_fine + beta_j .* EV_fine;
+    EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
+    linear_idx = apr_idx_tensor + z_offset_local;
+    EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
+
+    entireRHS = temp2 + beta_j .* EV_bounded;
+
+    valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
+    RHS_fine = entireRHS;
+    if ezc7_j == 1
+        RHS_fine(valid_RHS) = ezc3 * entireRHS(valid_RHS);
+    else
+        RHS_fine(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
+    end
+    RHS_fine(~isfinite(entireRHS)) = -Inf;
 
     expected_sz_fine = [N_d_safe, n2long, N_block, N_ze_local];
     if ~isequal(size(RHS_fine), expected_sz_fine)
