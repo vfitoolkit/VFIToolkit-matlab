@@ -627,7 +627,7 @@ for reverse_j = 0:N_j-1
             state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
             Z_cells_local, E_cells_local, D_cells_block, ...
             vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a_work_local, a1prime_grid, ...
-            ReturnFn, ReturnFnParamsVec, ezc2(jj), ezc3, ezc4, ezc7(jj)); % <--- Added the 4 EZ constants
+            ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj)); % <--- Added the 4 EZ constants
 
         if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
             vfoptions.level1n = vfoptions.level1n(1);
@@ -726,7 +726,7 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
     state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
     Z_cells_block, E_cells_block, D_cells_block, ...
     gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a_work_local, a1prime_grid, ...
-    ReturnFn, ReturnFnParamsVec)
+    ReturnFn, ReturnFnParamsCell)
 
 N_block = length(state_idx);
 
@@ -747,7 +747,7 @@ apr_in = reshape(a_work_local(apr_idx_tensor(:)), size(apr_idx_tensor));
 a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
 
 % --- 3. Evaluate Return Function & Coarse RHS ---
-F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
+F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
 valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
 temp2 = F_tensor;
@@ -806,7 +806,7 @@ if gridinterplayer
     apr_in_fine = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
     a_in_fine   = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
 
-    F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in_fine, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsVec{:});
+    F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in_fine, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
     valid_F = isfinite(F_tensor_fine) & (F_tensor_fine ~= 0);
     temp2 = F_tensor_fine;
