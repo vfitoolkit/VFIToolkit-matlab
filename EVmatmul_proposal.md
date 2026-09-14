@@ -191,6 +191,7 @@ implementation-time step per the standing rule (never generalise across families
 | ExpAsset*SemiExo trees (incl. u, e, ze, semiz) | 1,516 | V1 (contraction-first) / V2+N (`EV_aprime`) | YES | inside d3 loops; `pi_bothz_d3`/`pi_semiz_d3` are naming variants of the same slices |
 | QuasiHyperbolic, all 7 trees | 3,752 | V1 / V2+N / V3+N per donor family | YES — one expectation per site, two discount scalings after; zero transforms | largest family |
 | GulPesendorfer (incl. SemiExo, 2A) | 228 | V1 | YES — plain V; no temptation-twin expectation exists | |
+| GulPesendorferExpAsset (added 2026-09-14, after the counts above) | ~120 (uncounted) | V2 / EV_aprime (ExpAsset-family idioms) | YES — plain V; no temptation-twin expectation exists | 40 raws + 2 FromPolicy; sweep with the ExpAsset wave or the GP wave, whichever comes second |
 | AmbiguityAversion (incl. AA RiskyAsset) | 110 | V1 | YES — plain V per prior, min after | uses `ambiguity_pi_z_J(:,:,jj,amb_c)` |
 | RiskyAsset non-EZ (Raw/DC/GI/DCGI/SemiExo) | 305 | V1 | YES — z-expectation precedes the u/aprimeProbs machinery (which is untouched) | DC/GI variants already reshape to `[N_a,N_z]` after the sum: matmul lands there with no reshape |
 | ResidualAsset (+SemiExo) | 8 | V2+N | YES | transient is `N_d*N_a^2*N_z^2` — worst per-site payoff in the repo |

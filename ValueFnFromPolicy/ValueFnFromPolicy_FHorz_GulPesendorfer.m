@@ -29,6 +29,15 @@ if prod(vfoptions.n_semiz)>0
     V=ValueFnFromPolicy_FHorz_GulPesendorfer_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,ReturnFn,Parameters,DiscountFactorParamNames,vfoptions);
     return
 end
+if vfoptions.experienceasset>=1
+    % Dispatch to the ExpAsset subfn (handles gridinterplayer itself): the continuation is at
+    % a2prime=aprimeFn(d2,a2), so the policy-lookup machinery differs from the standard case.
+    V=ValueFnFromPolicy_FHorz_GulPesendorfer_ExpAsset(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,ReturnFn,Parameters,DiscountFactorParamNames,vfoptions);
+    return
+end
+if vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1 || vfoptions.experienceassetsemiz>=1
+    error('ValueFnFromPolicy: GulPesendorfer is not implemented for the u/z/e/ze/semiz experience-asset variants')
+end
 if vfoptions.gridinterplayer==1 && length(n_a)>2
     error('GulPesendorfer with gridinterplayer is not implemented for more than two standard endogenous states')
 end
