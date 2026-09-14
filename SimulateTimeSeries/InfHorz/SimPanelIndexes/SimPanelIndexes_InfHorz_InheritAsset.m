@@ -144,7 +144,7 @@ if simoptions.gridinterplayer==1
     PolicyProbs(:,:,:,1:2)=PolicyProbs(:,:,:,1:2).*(1-aprimeProbs_upper); % lower a1
     PolicyProbs(:,:,:,3:4)=PolicyProbs(:,:,:,3:4).*aprimeProbs_upper; % upper a1
 end
-CumPolicyProbs=cumsum(PolicyProbs,3);
+CumPolicyProbs=cumsum(PolicyProbs,4); % lower/upper is the FOURTH dimension here: the inheritance asset puts a zprime dimension in front of it, where the experience-asset versions have (a,z,probs) and so cumsum over 3
 
 
 %%

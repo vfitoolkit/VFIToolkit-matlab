@@ -30,7 +30,7 @@ elseif vfoptions.lowmemory==1 % loop over z
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
         ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2], n_a2, special_n_z, d_gridvals, a2_grid, zvals, ReturnFnParamsVec);
-        ReturnMatrix_z=reshape(ReturnMatrix_z,[N_d1,N_d2,N_a2,N_z]);
+        ReturnMatrix_z=reshape(ReturnMatrix_z,[N_d1,N_d2,N_a2]); % just this z, so no N_z dimension
 
         [ReturnMatrix_z,d1star_z]=max(ReturnMatrix_z,[],1); % solve for d1star
         ReturnMatrix(:,:,z_c)=shiftdim(ReturnMatrix_z,1);
@@ -106,7 +106,7 @@ end
 Policy=reshape(Policy,[N_a,N_z]);
 
 %% For refinement, recover d1
-temppolicyindex=reshape(Policy,[1,N_a*N_z])+(0:1:N_a*N_z-1)*N_a;
+temppolicyindex=reshape(Policy,[1,N_a*N_z])+N_d2*(0:1:N_a*N_z-1); % d1star is (d2,a,z), so the stride is N_d2
 Policy_d1=reshape(d1star(temppolicyindex),[N_a,N_z]);
 % Output d1 and d2 as two separate points (first dim) rather than combining into one index
 Policytemp=zeros(2,N_a,N_z,'gpuArray');
