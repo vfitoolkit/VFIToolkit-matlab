@@ -26,12 +26,8 @@ end
 % --- 4. Setup Grids and Functions ---
 aprimeFn = vfoptions.aprimeFn;
 num_d2 = length(n_d2); num_a2 = length(n_a2); num_semiz = length(n_semiz);
-temp = getAnonymousFnInputNames(aprimeFn);
-if length(temp) > (num_d2 + num_a2 + num_semiz)
-    aprimeFnParamNames = {temp{num_d2 + num_a2 + num_semiz + 1:end}};
-else
-    aprimeFnParamNames = {};
-end
+input_names = getAnonymousFnInputNames(aprimeFn);
+aprimeFnParamNames = input_names(isfield(Parameters, input_names));
 
 num_d1 = length(n_d1);
 if N_d1 > 0 && n_d1(1) > 0
