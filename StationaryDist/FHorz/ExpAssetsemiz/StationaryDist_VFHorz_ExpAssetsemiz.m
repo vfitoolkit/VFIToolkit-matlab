@@ -29,7 +29,7 @@ end
 
 N_a1 = max(1, prod(n_a1)); N_a2 = max(1, prod(n_a2));
 N_semiz_safe = max(1, prod(n_semiz)); N_z_safe = max(1, prod(n_z));
-N_d2 = max(1, prod(n_d2)); N_d3 = max(1, prod(n_d3));
+N_d1 = max(1, prod(n_d1)); N_d2 = max(1, prod(n_d2)); N_d3 = max(1, prod(n_d3));
 
 if isfield(simoptions, 'gridinterplayer') && simoptions.gridinterplayer(1) == 1
     error('Grid interpolation not yet supported in V-World StationaryDist_ExpAssetsemiz.');
@@ -55,8 +55,18 @@ StationaryDist = zeros([N_a1, N_a2, N_semiz_safe, N_z_safe, N_j], 'like', jequal
 % Initialize Cohort
 Dist_curr = reshape(jequaloneDist, [N_a1 * N_a2 * N_semiz_safe * N_z_safe, 1]);
 
-% Prepare explicit coordinate grids for linear index lookups
-[~, A2_grid_idx, Semiz_grid_idx, Z_grid_idx] = ndgrid(1:N_a1, 1:N_a2, 1:N_semiz_safe, 1:N_z_safe);
+% Explicitly construct full-size state coordinate vectors (Length = 511,875)
+[~, A2_idx_grid, Semiz_idx_grid, Z_idx_grid] = ndgrid(1:N_a1, 1:N_a2, 1:N_semiz_safe, 1:N_z_safe);
+
+A2_grid_idx    = A2_idx_grid(:);
+Semiz_grid_idx = Semiz_idx_grid(:);
+Z_grid_idx     = Z_idx_grid(:);
+
+% Policy comes in with un-flattened state grids (10 dimensions).
+% We reshape it down to a clean 6D tensor matching our flattened state counts:
+% [NumPolicies, N_a1, N_a2, N_semiz_safe, N_z_safe, N_j]
+NumPolicies = size(Policy, 1);
+Policy_reshaped = reshape(Policy, [NumPolicies, N_a1, N_a2, N_semiz_safe, N_z_safe, N_j]);
 
 % =========================================================
 % TIME LOOP (FORWARD SIMULATION)
@@ -69,44 +79,62 @@ for jj = 1:N_j
         break; % Terminal period, no forward transition needed.
     end
 
-    % 2. Extract Exact Sub-Policy Indexes for Current Age
-    % Build linear indexing over n_a1 (endogenous states)
-    a1_linear_idx = zeros(N_a1 * N_a2 * N_semiz_safe * N_z_safe, 1, 'like', Dist_curr);
-    cum_n_a1 = [1, cumprod(n_a1)];
-    for i = 1:l_a1
-        Pol_a1_i = shiftdim(Policy(l_d+i, :, :, :, :, jj), 1);
-        a1_linear_idx = a1_linear_idx + cum_n_a1(i) * (Pol_a1_i(:) - 1);
-    end
-    a1_linear_idx = a1_linear_idx + 1;
+    % 2. Extract Exact Policy Indexes for Current Age
+    % Assuming layer 1 holds your packed combined policy index:
+    Pol_age = Policy_reshaped(1, :, :, :, :, jj); 
 
-    % Build linear indexing over n_d3 (semi-exogenous decision)
-    d3_linear_idx = zeros(N_a1 * N_a2 * N_semiz_safe * N_z_safe, 1, 'like', Dist_curr);
-    cum_n_d3 = [1, cumprod(n_d3)];
-    for i = 1:l_d3
-        Pol_d3_i = shiftdim(Policy(l_d1+l_d2+i, :, :, :, :, jj), 1);
-        d3_linear_idx = d3_linear_idx + cum_n_d3(i) * (Pol_d3_i(:) - 1);
-    end
-    d3_linear_idx = d3_linear_idx + 1;
+    % Force it into the exact state space shape
+    Pol_flat = reshape(Pol_age, [N_a1, N_a2, N_semiz_safe, N_z_safe]);
 
-    % Build linear indexing over n_d2 (experience asset decision)
-    d2_linear_idx = zeros(N_a1 * N_a2 * N_semiz_safe * N_z_safe, 1, 'like', Dist_curr);
-    cum_n_d2 = [1, cumprod(n_d2)];
-    for i = 1:l_d2
-        Pol_d2_i = shiftdim(Policy(l_d1+i, :, :, :, :, jj), 1);
-        d2_linear_idx = d2_linear_idx + cum_n_d2(i) * (Pol_d2_i(:) - 1);
-    end
-    d2_linear_idx = d2_linear_idx + 1;
+    N_d_total = N_d1 * N_d2 * N_d3;
+
+    apr_idx = floor((double(Pol_flat(:)) - 1) / N_d_total) + 1;
+    d_combo_idx = mod(double(Pol_flat(:)) - 1, N_d_total) + 1;
+
+    % Clamp indices to safe bounds
+    a1_linear_idx = max(1, min(apr_idx, N_a1));
+
+    % Unpack d3 and d2 from the combo index
+    d3_idx = floor((d_combo_idx - 1) / (N_d1 * N_d2)) + 1;
+    d2_idx = mod(floor((d_combo_idx - 1) / N_d1), N_d2) + 1;
+    d3_linear_idx = max(1, min(d3_idx, N_d3));
+    d2_linear_idx = max(1, min(d2_idx, N_d2));
 
     % 3. Calculate Experience Asset Transition (a2)
-    aprimeFnParamsVec = CreateVectorFromParams(Parameters, aprimeFnParamNames, jj);
-    [a2primeIndex_matrix, a2primeProbs_matrix] = CreateExperienceAssetsemizFnMatrix(...
-        aprimeFn, n_d2, n_a2, n_semiz, d2_gridvals, a2_grid, ...
-        simoptions.semiz_grid(:,:,jj), aprimeFnParamsVec, 2);
+    aprimeFnParamsCell = CreateCellFromParams(Parameters, aprimeFnParamNames, jj);
 
-    lookup_idx = d2_linear_idx(:) + N_d2 * (A2_grid_idx(:) - 1) + N_d2 * N_a2 * (Semiz_grid_idx(:) - 1);
-    a2_p_lower = a2primeIndex_matrix(lookup_idx);
+    % Build full 3D mesh for d2, a2, and semiz
+    % This guarantees the output is strictly [N_d2, N_a2, N_semiz_safe]
+    [d2_mesh, a2_mesh, semiz_mesh_1] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,1,jj));
+    [~,       ~,       semiz_mesh_2] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,2,jj));
+    [~,       ~,       semiz_mesh_3] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,3,jj));
+    [~,       ~,       semiz_mesh_4] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,4,jj));
+
+    % Evaluate aprimeFn directly across the completely explicit 3D space
+    a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, semiz_mesh_1, semiz_mesh_2, semiz_mesh_3, semiz_mesh_4, aprimeFnParamsCell{:});
+
+    % Failsafe: Force array to expand to the full 3D size in case aprimeFn dropped dimensions
+    if numel(a2_prime_vals) < N_d2 * N_a2 * N_semiz_safe
+        a2_prime_vals = a2_prime_vals + zeros(N_d2, N_a2, N_semiz_safe);
+    end
+
+    % Flat evaluate histc using (:) so it returns a flat vector of exactly N_d2*N_a2*N_semiz_safe elements
+    [~, a2primeIndex] = histc(a2_prime_vals(:), a2_grid);
+    a2primeIndex = max(1, min(a2primeIndex, N_a2 - 1));
+
+    a2_step = a2_grid(a2primeIndex + 1) - a2_grid(a2primeIndex);
+    a2_step(a2_step == 0) = 1; % Prevent division by zero
+
+    % Ensure a2primeProbs is also explicitly flattened
+    a2primeProbs = (a2_grid(a2primeIndex + 1) - a2_prime_vals(:)) ./ a2_step;
+    a2primeProbs = max(0, min(1, a2primeProbs));
+
+    % Map to the full flattened state space
+    lookup_idx = d2_linear_idx(:) + N_d2 * (A2_grid_idx - 1) + N_d2 * N_a2 * (Semiz_grid_idx - 1);
+    
+    a2_p_lower = a2primeIndex(lookup_idx);
     a2_p_upper = min(a2_p_lower + 1, N_a2);
-    a2_prob_lower = a2primeProbs_matrix(lookup_idx);
+    a2_prob_lower = a2primeProbs(lookup_idx);
 
     % 4. Build Target Linear Indices (for AccumArray)
     % We push the mass into an intermediate tensor: [a1', a2', semiz, z, d3]
@@ -161,7 +189,7 @@ end
 % =========================================================
 % OUTPUT UNPACKING
 % =========================================================
-if simoptions.outputkron == 0
+if ~isfield(simoptions, 'outputkron') || simoptions.outputkron == 0
     if N_z_safe > 1
         StationaryDist = reshape(StationaryDist, [n_a_out, n_semiz, n_z, N_j]);
     else

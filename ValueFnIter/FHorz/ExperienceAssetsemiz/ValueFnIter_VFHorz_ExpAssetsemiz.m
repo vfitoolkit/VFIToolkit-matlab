@@ -78,8 +78,28 @@ for reverse_j = 0:N_j-1
     ReturnFnParamsVec = CreateVectorFromParams(Parameters, ReturnFnParamNames, jj);
     if ~iscell(ReturnFnParamsVec), ReturnFnParamsVec = num2cell(ReturnFnParamsVec); end
 
-    aprimeFnParamsVec = CreateVectorFromParams(Parameters, aprimeFnParamNames, jj);
-    [a2primeIndex, a2primeProbs] = CreateExperienceAssetsemizFnMatrix(aprimeFn, n_d2, n_a2, n_semiz, d2_gridvals, a2_grid, semiz_gridvals_J(:,:,jj), aprimeFnParamsVec, 2);
+    aprimeFnParamsCell = CreateCellFromParams(Parameters, aprimeFnParamNames, jj);
+
+    % Build mesh for d2 and a2 grids
+    [d2_mesh, a2_mesh] = ndgrid(d2_gridvals(:), a2_grid(:));
+
+    % Extract age-dependent semi-exogenous grid slice for this period
+    semiz_slice = semiz_gridvals_J(:,:,jj);
+
+    % Evaluate aprimeFn directly across the vectorized space
+    a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, semiz_slice(:,1), semiz_slice(:,2), semiz_slice(:,3), semiz_slice(:,4), aprimeFnParamsCell{:});
+
+    % Find lower index and interpolation weight for a2_grid
+    [~, a2_p_lower] = histc(a2_prime_vals(:), a2_grid);
+    a2_p_lower = max(1, min(a2_p_lower, N_a2 - 1));
+    a2_step = a2_grid(a2_p_lower + 1) - a2_grid(a2_p_lower);
+    a2_step(a2_step == 0) = 1; % Prevent division by zero
+
+    a2_prob = (a2_grid(a2_p_lower + 1) - a2_prime_vals(:)) ./ a2_step;
+    a2_prob = max(0, min(1, a2_prob));
+
+    a2primeIndex = reshape(a2_p_lower, [N_d2, N_a2]);
+    a2primeProbs = reshape(a2_prob, [N_d2, N_a2]);
 
     if N_z_safe > 1
         pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
@@ -233,11 +253,13 @@ for i_d3 = 1:N_d3
 
     for i_d2 = 1:N_d2
         % --- C. Experience Asset Interpolation ---
-        idx = a2primeIndex(i_d2, :, :);     % [1, N_a2, N_semiz]
-        probs = a2primeProbs(i_d2, :, :);   % [1, N_a2, N_semiz]
+        % idx and probs come from a2primeIndex/Probs which are sized [N_d2, N_a2]
+        idx_slice = a2primeIndex(i_d2, :);     % [1, N_a2]
+        probs_slice = a2primeProbs(i_d2, :);   % [1, N_a2]
 
-        idx_full = repmat(reshape(idx, [1, N_a2, N_semiz_safe, 1]), [N_a1, 1, 1, N_z_safe]);
-        probs_full = repmat(reshape(probs, [1, N_a2, N_semiz_safe, 1]), [N_a1, 1, 1, N_z_safe]);
+        % Expand cleanly across N_a1, N_semiz_safe, and N_z_safe using implicit expansion
+        idx_full = reshape(idx_slice, [1, N_a2, 1, 1]);
+        probs_full = reshape(probs_slice, [1, N_a2, 1, 1]);
 
         ev_semiz_offset = reshape(0:N_semiz_safe-1, [1, 1, N_semiz_safe, 1]) .* (N_a1 * N_a2);
         ev_z_offset = reshape(0:N_z_safe-1, [1, 1, 1, N_z_safe]) .* (N_a1 * N_a2 * N_semiz_safe);
