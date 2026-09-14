@@ -171,6 +171,7 @@ function [V_j_max, Pol_apr_max, Pol_d_combo] = Evaluate_ExpAssetSemiZ_TensorBloc
 
 N_block = length(state_idx);
 N_d1_safe = max(1, N_d1);
+
 V_j_max = -inf(N_block, N_a2, N_semiz_safe, N_z_safe, 'like', EV_z_pre);
 Pol_apr_max = ones(N_block, N_a2, N_semiz_safe, N_z_safe, 'like', EV_z_pre);
 Pol_d1_max = ones(N_block, N_a2, N_semiz_safe, N_z_safe, 'like', EV_z_pre);
@@ -180,26 +181,27 @@ Pol_d3_max = ones(N_block, N_a2, N_semiz_safe, N_z_safe, 'like', EV_z_pre);
 A1_cells_block = cell(size(A1_cells));
 for i = 1:length(A1_cells), A1_cells_block{i} = A1_cells{i}(1, 1, state_idx, :); end
 
-% --- 0. Choice Grid Setup ---
+% --- 0. Choice Grid Setup (Proper 6D Alignment) ---
+% Dim 1: N_choice, Dim 2: N_d1, Dim 3: N_block, Dim 4: N_a2, Dim 5: N_semiz, Dim 6: N_z
 if isempty(loweredge_matrix)
     N_choice = N_a1;
-    apr_idx_tensor = reshape(1:N_a1, [N_choice, 1, 1, 1, 1]);
+    apr_idx_tensor = reshape(1:N_a1, [N_choice, 1, 1, 1, 1, 1]);
 else
     N_choice = maxgap_scalar + 1;
-    offset = reshape(gpuArray(0:maxgap_scalar), [N_choice, 1, 1, 1, 1]);
-    base_edge = reshape(loweredge_matrix, [1, N_block, N_a2, N_semiz_safe * N_z_safe]);
-    apr_idx_tensor = reshape(base_edge, [1, N_block, N_a2, N_semiz_safe, N_z_safe]) + offset;
+    offset = reshape(gpuArray(0:maxgap_scalar), [N_choice, 1, 1, 1, 1, 1]);
+    base_edge = reshape(loweredge_matrix, [1, 1, N_block, N_a2, N_semiz_safe, N_z_safe]);
+    apr_idx_tensor = base_edge + offset;
 end
 
-% Extract dynamic A1prime cells (for models with multiple continuous states like asset + housing)
 A1prime_cells = cell(1, num_a1);
 for i = 1:num_a1
     A1prime_cells{i} = reshape(a1_work_local(apr_idx_tensor(:), i), size(apr_idx_tensor));
 end
 
-a2_offset = reshape(0:N_a2-1, [1, 1, N_a2, 1, 1]) .* N_a1;
-semiz_offset = reshape(0:N_semiz_safe-1, [1, 1, 1, N_semiz_safe, 1]) .* (N_a1 * N_a2);
-z_offset = reshape(0:N_z_safe-1, [1, 1, 1, 1, N_z_safe]) .* (N_a1 * N_a2 * N_semiz_safe);
+% SHIFTED: a2 is Dim 4, semiz is Dim 5, z is Dim 6!
+a2_offset    = reshape(0:N_a2-1,         [1, 1, 1, N_a2, 1, 1]) .* N_a1;
+semiz_offset = reshape(0:N_semiz_safe-1, [1, 1, 1, 1, N_semiz_safe, 1]) .* (N_a1 * N_a2);
+z_offset     = reshape(0:N_z_safe-1,     [1, 1, 1, 1, 1, N_z_safe]) .* (N_a1 * N_a2 * N_semiz_safe);
 lin_idx = apr_idx_tensor + a2_offset + semiz_offset + z_offset;
 
 for i_d3 = 1:N_d3
@@ -263,15 +265,22 @@ for i_d3 = 1:N_d3
 
         RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bc, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 
-        expected_sz = [N_choice, N_block, N_a2, N_semiz_safe, N_z_safe];
+        expected_sz = [N_choice, N_d1_safe, N_block, N_a2, N_semiz_safe, N_z_safe];
         if ~isequal(size(RHS), expected_sz)
             RHS = RHS + zeros(expected_sz, 'like', EV_z_pre);
         end
-        RHS_flat = reshape(RHS, [N_choice, N_block * N_a2 * N_semiz_safe * N_z_safe]);
+
+        % Safely flatten by combining N_choice * N_d1 for the max() lookup
+        RHS_flat = reshape(RHS, [N_choice * N_d1_safe, N_block * N_a2 * N_semiz_safe * N_z_safe]);
         [V_sub_coarse, Pol_sub_idx_coarse] = max(RHS_flat, [], 1);
 
-        apr_idx_local = Pol_sub_idx_coarse;
-        d1_idx_coarse = ones(size(Pol_sub_idx_coarse), 'like', Pol_sub_idx_coarse); % N_d1 is 0 here
+        if N_d1 > 0
+            apr_idx_local = mod(Pol_sub_idx_coarse - 1, N_choice) + 1;
+            d1_idx_coarse = ceil(Pol_sub_idx_coarse / N_choice);
+        else
+            apr_idx_local = Pol_sub_idx_coarse;
+            d1_idx_coarse = ones(size(Pol_sub_idx_coarse), 'like', Pol_sub_idx_coarse);
+        end
 
         if isempty(loweredge_matrix)
             apr_idx_coarse = apr_idx_local;
