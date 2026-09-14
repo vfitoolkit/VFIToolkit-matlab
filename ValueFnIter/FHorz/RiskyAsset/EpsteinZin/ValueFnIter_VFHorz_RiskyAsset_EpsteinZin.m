@@ -1,14 +1,24 @@
-function [V, Policy] = ValueFnIter_VFHorz_RiskyAsset_EpsteinZin(n_d, n_a1, n_a2, n_z, n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc2, ezc3, ezc4, ezc5, ezc6, ezc7, ezc8)
+function [V, Policy] = ValueFnIter_VFHorz_RiskyAsset_EpsteinZin(n_d, n_a1, n_a2, n_z, n_u, N_j, ...
+    d_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ...
+    ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ...
+    ReturnFnParamNames, aprimeFnParamNames, vfoptions, ...
+    sj, warmglow, ezc2, ezc3, ezc4, ezc5, ezc6, ezc7, ezc8)
 
 % 1. Extract Dimensions and Grids
-N_a1 = prod(n_a1); N_a2 = prod(n_a2); N_a = max(N_a1, 1) * max(N_a2, 1);
-N_z = prod(n_z); N_u = prod(n_u);
+has_a1 = ~isempty(n_a1) && prod(n_a1) > 0;
+N_a1 = max(prod(n_a1), 1);
+N_a2 = max(prod(n_a2), 1);
+N_a  = N_a1 * N_a2;
+N_z  = prod(n_z);
+N_u  = prod(n_u);
 
 n_d1 = 0; N_d1 = 1;
-if vfoptions.refine_d(1) > 0;
+if vfoptions.refine_d(1) > 0
     n_d1 = n_d(1:vfoptions.refine_d(1));
     N_d1 = prod(n_d1);
 end
+has_d1 = (N_d1 > 1) || (N_d1 == 1 && length(d_grid) >= sum(n_d1) && d_grid(1) ~= 0);
+
 n_d2 = n_d(vfoptions.refine_d(1)+1 : vfoptions.refine_d(1)+vfoptions.refine_d(2));
 N_d2 = prod(n_d2);
 n_d3 = n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+1 : end);
@@ -19,15 +29,9 @@ d2_grid = d_grid(sum(n_d1)+1 : sum(n_d1)+sum(n_d2));
 d3_grid = d_grid(sum(n_d1)+sum(n_d2)+1 : end);
 
 % 2. Push Variables to GPU
-if isempty(d1_grid)
-    d1_grid = gpuArray(0); % Dummy scalar to prevent reshape errors if no d1
-else
-    d1_grid = gpuArray(d1_grid(:));
-end
-a_grid  = gpuArray(a1_grid(:));
-
-% 2. Push Variables to GPU
-a_grid  = gpuArray(a1_grid(:));
+if isempty(d1_grid), d1_grid = gpuArray(0); else, d1_grid = gpuArray(d1_grid(:)); end
+if isempty(a1_grid), a1_grid = gpuArray(0); else, a1_grid = gpuArray(a1_grid(:)); end
+a2_grid = gpuArray(a2_grid(:));
 d2_grid = gpuArray(d2_grid(:));
 d3_grid = gpuArray(d3_grid(:));
 u_grid  = gpuArray(u_grid(:));
@@ -35,22 +39,9 @@ pi_u    = gpuArray(pi_u(:));
 pi_z_J  = gpuArray(pi_z_J);
 z_gridvals = gpuArray(z_gridvals_J);
 
-% 3. Grid Interpolation Layer Setup
-gridinterplayer = isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer == 1;
-if gridinterplayer
-    n2short = vfoptions.n2short; n2long  = 2 * n2short + 1;
-    d3prime_grid = gpuArray(interp1(1:N_d3, d3_grid, 1:(1/(n2short+1)):N_d3, 'linear')');
-else
-    n2short = 0; n2long = 0; d3prime_grid = [];
-end
-
-V = zeros(N_a, N_z, N_j, 'like', a_grid);
-if gridinterplayer
-    PolicyKron = zeros(4, N_a, N_z, N_j, 'like', a_grid);
-else
-    PolicyKron = zeros(1, N_a, N_z, N_j, 'like', a_grid);
-end
-V_next = zeros(N_a, N_z, 'like', a_grid);
+V = zeros(N_a, N_z, N_j, 'like', a2_grid);
+PolicyKron = zeros(1, N_a, N_z, N_j, 'like', a2_grid);
+V_next = zeros(N_a, N_z, 'like', a2_grid);
 
 D2_3D = reshape(d2_grid, [N_d2, 1, 1]);
 D3_3D = reshape(d3_grid, [1, N_d3, 1]);
@@ -72,16 +63,14 @@ for jj = N_j : -1 : 1
     end
 
     aprime_tensor = aprimeFn(D2_3D, D3_3D, U_3D, aprimeFnParamsCell{:});
-    aprime_clamped = max(min(aprime_tensor, a_grid(end)), a_grid(1));
+    aprime_clamped = max(min(aprime_tensor, a2_grid(end)), a2_grid(1));
 
     % ---------------------------------------------------------
-    % Warm Glow of Bequests Expectation (WG_u)
+    % Warm Glow of Bequests
     % ---------------------------------------------------------
     if warmglow == 1
-        % Evaluate on a_grid and interpolate to perfectly match toolkit's numerical integration
         WG_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
-        WG_raw = vfoptions.WarmGlowBequestsFn(a_grid, WG_params{:});
-
+        WG_raw = vfoptions.WarmGlowBequestsFn(a2_grid, WG_params{:});
         WG_temp = WG_raw;
         valid_wg = isfinite(WG_raw) & (WG_raw ~= 0);
         if ezc5(jj) == 1
@@ -93,16 +82,17 @@ for jj = N_j : -1 : 1
         WG_temp(~isfinite(WG_raw)) = -Inf;
 
         inf_mask_wg = (WG_temp == -Inf);
-        WG_safe = WG_temp; WG_safe(inf_mask_wg) = 0;
+        WG_safe = WG_temp;
+        WG_safe(inf_mask_wg) = 0;
 
-        WG_interp = interp1(a_grid, WG_safe, aprime_clamped(:), 'linear');
-        inf_interp_wg = interp1(a_grid, double(inf_mask_wg), aprime_clamped(:), 'linear');
+        WG_interp = interp1(a2_grid, WG_safe, aprime_clamped(:), 'linear');
+        inf_interp_wg = interp1(a2_grid, double(inf_mask_wg), aprime_clamped(:), 'linear');
         WG_interp(inf_interp_wg > 0) = -Inf;
 
         WG_interp = reshape(WG_interp, [N_d2*N_d3, N_u]);
         inf_mask_wg_u = (WG_interp == -Inf);
-        WG_safe_u = WG_interp; WG_safe_u(inf_mask_wg_u) = 0;
-
+        WG_safe_u = WG_interp;
+        WG_safe_u(inf_mask_wg_u) = 0;
         pi_u_rs = reshape(pi_u, [1, N_u]);
         WG_u = sum(WG_safe_u .* pi_u_rs, 2);
         inf_infect_wg_u = double(inf_mask_wg_u) .* double(pi_u_rs > 0);
@@ -113,9 +103,8 @@ for jj = N_j : -1 : 1
     end
 
     % ---------------------------------------------------------
-    % EV Expectation & Fractional Exponent Combination
+    % Multi-State Interpolation & Expectations
     % ---------------------------------------------------------
-    warning('off', 'MATLAB:divideByZero');
     if jj == N_j
         temp4 = WG_u;
         valid_t4 = isfinite(temp4) & (temp4 ~= 0);
@@ -124,152 +113,177 @@ for jj = N_j : -1 : 1
             temp4(WG_u == 0) = 0;
             temp4(~valid_t4 & WG_u ~= 0) = NaN;
         else
-            temp4 = zeros(N_d2*N_d3, 1, 'like', a_grid);
+            temp4 = zeros(N_d2*N_d3, 1, 'like', a2_grid);
         end
-        temp4 = repmat(temp4, [1, N_z]);
+        temp4 = repmat(reshape(temp4, [1, N_d2*N_d3, 1]), [N_a1, 1, max(N_z,1)]);
     else
-        V_temp = V_next;
-        valid_V = isfinite(V_next) & (V_next ~= 0);
-        if ezc5(jj) == 1
-            V_temp(valid_V) = ezc4 * V_next(valid_V);
-        else
-            V_temp(valid_V) = max(ezc4 * V_next(valid_V), 0).^ezc5(jj);
+        V_next_3D = reshape(V_next, [N_a1, N_a2, max(N_z,1)]);
+        V_interp = zeros(N_a1, N_d2*N_d3, N_u, max(N_z,1), 'like', a2_grid);
+
+        for i_a1 = 1:N_a1
+            V_slice = squeeze(V_next_3D(i_a1, :, :));
+            if max(N_z,1) == 1, V_slice = V_slice(:); end
+
+            valid_V = isfinite(V_slice) & (V_slice ~= 0);
+            if ezc5(jj) == 1
+                V_slice(valid_V) = ezc4 * V_slice(valid_V);
+            else
+                V_slice(valid_V) = max(ezc4 * V_slice(valid_V), 0).^ezc5(jj);
+            end
+            V_slice(V_next_3D(i_a1,:,:) == 0) = 0;
+
+            inf_mask = double(V_slice == -Inf);
+            V_safe = V_slice;
+            V_safe(inf_mask > 0) = 0;
+
+            V_int_slice = interp1(a2_grid, V_safe, aprime_clamped(:), 'linear');
+            inf_int_slice = interp1(a2_grid, inf_mask, aprime_clamped(:), 'linear');
+            V_int_slice(inf_int_slice > 0) = -Inf;
+
+            V_interp(i_a1, :, :, :) = reshape(V_int_slice, [1, N_d2*N_d3, N_u, max(N_z,1)]);
         end
-        V_temp(V_next == 0) = 0;
-        V_temp(~isfinite(V_next)) = -Inf;
 
-        inf_mask_z = (V_temp == -Inf);
-        V_safe = V_temp; V_safe(inf_mask_z) = 0;
-        pi_z_j = pi_z_J(:,:,jj);
-        EV_z = V_safe * pi_z_j';
-        inf_infect_z = double(inf_mask_z) * double(pi_z_j' > 0);
-        EV_z(inf_infect_z > 0) = -Inf;
-
-        inf_mask = double(EV_z == -Inf);
-        EV_safe = EV_z; EV_safe(inf_mask > 0) = 0;
-        V_interp = interp1(a_grid, EV_safe, aprime_clamped(:), 'linear');
-        inf_interp = interp1(a_grid, inf_mask, aprime_clamped(:), 'linear');
-        V_interp(inf_interp > 0) = -Inf;
-        V_interp = reshape(V_interp, [N_d2*N_d3, N_u, N_z]);
-
+        pi_u_rs = reshape(pi_u, [1, 1, N_u, 1]);
         inf_mask_u = (V_interp == -Inf);
-        V_interp_safe = V_interp; V_interp_safe(inf_mask_u) = 0;
-        pi_u_rs = reshape(pi_u, [1, N_u, 1]);
-        EV_u = sum(V_interp_safe .* pi_u_rs, 2);
+        V_interp_safe = V_interp;
+        V_interp_safe(inf_mask_u) = 0;
+        EV_u = sum(V_interp_safe .* pi_u_rs, 3);
         inf_infect_u = double(inf_mask_u) .* double(pi_u_rs > 0);
-        EV_u(sum(inf_infect_u, 2) > 0) = -Inf;
-        EV_u = reshape(EV_u, [N_d2*N_d3, N_z]);
+        EV_u(sum(inf_infect_u, 3) > 0) = -Inf;
+        EV_u = reshape(EV_u, [N_a1, N_d2*N_d3, max(N_z,1)]);
 
-        temp4 = EV_u;
+        if N_z > 0
+            EV_z = zeros(N_a1, N_d2*N_d3, N_z, 'like', a2_grid);
+            pi_z_j = pi_z_J(:,:,jj);
+            for i_a1 = 1:N_a1
+                EV_u_slice = squeeze(EV_u(i_a1, :, :));
+                if N_z == 1, EV_u_slice = EV_u_slice(:)'; end
+
+                inf_mask_z = (EV_u_slice == -Inf);
+                EV_u_safe = EV_u_slice;
+                EV_u_safe(inf_mask_z) = 0;
+
+                EV_z_slice = EV_u_safe * pi_z_j';
+                inf_infect_z = double(inf_mask_z) * double(pi_z_j' > 0);
+                EV_z_slice(inf_infect_z > 0) = -Inf;
+
+                EV_z(i_a1, :, :) = EV_z_slice;
+            end
+        else
+            EV_z = EV_u;
+        end
+
+        temp4 = EV_z;
+
         if warmglow == 1
-            valid_combined = isfinite(EV_u) & repmat(isfinite(WG_u), [1, N_z]) & ~((EV_u == 0) & repmat(WG_u == 0, [1, N_z]));
-            temp4(valid_combined) = (sj(jj) * max(EV_u(valid_combined), 0).^ezc8(jj) + (1-sj(jj)) * max(WG_u(valid_combined), 0).^ezc8(jj)).^ezc6(jj);
-            zero_mask = (EV_u == 0) & repmat(WG_u == 0, [1, N_z]);
+            WG_u_rs = reshape(WG_u, [1, N_d2*N_d3, 1]); % <-- MOVED INSIDE
+            valid_combined = isfinite(EV_z) & repmat(isfinite(WG_u_rs), [N_a1, 1, max(N_z,1)]) & ...
+                ~((EV_z == 0) & repmat(WG_u_rs == 0, [N_a1, 1, max(N_z,1)]));
+            temp4(valid_combined) = (sj(jj) * max(EV_z(valid_combined), 0).^ezc8(jj) + ...
+                (1-sj(jj)) * max(WG_u_rs(valid_combined), 0).^ezc8(jj)).^ezc6(jj);
+            zero_mask = (EV_z == 0) & repmat(WG_u_rs == 0, [N_a1, 1, max(N_z,1)]);
             temp4(zero_mask) = 0;
             temp4(~valid_combined & ~zero_mask) = NaN;
         else
-            valid_t4 = isfinite(EV_u) & (EV_u ~= 0);
-            temp4(valid_t4) = (sj(jj) * max(EV_u(valid_t4), 0).^ezc8(jj)).^ezc6(jj);
-            temp4(EV_u == 0) = 0;
-            temp4(~valid_t4 & EV_u ~= 0) = NaN;
+            valid_t4 = isfinite(EV_z) & (EV_z ~= 0);
+            temp4(valid_t4) = (sj(jj) * max(EV_z(valid_t4), 0).^ezc8(jj)).^ezc6(jj);
+            temp4(EV_z == 0) = 0;
+            temp4(~valid_t4 & EV_z ~= 0) = NaN;
         end
     end
-    warning('on', 'MATLAB:divideByZero');
 
     % DIMENSIONAL COMPRESSION: Maximize out d2 (riskyshare)
-    temp4_tensor = reshape(temp4, [N_d2, N_d3, N_z]);
+    temp4_tensor = reshape(temp4, [N_a1, N_d2, N_d3, max(N_z,1)]);
+    [EV_max_d2_raw, Pol_d2_idx] = max(ezc3 * temp4_tensor, [], 2);
 
-    % temp4 is POSITIVE. ezc3 flips it to negative so max() finds the TRUE optimum (minimum misery).
-    [EV_max_d3_raw, Pol_d2_idx] = max(ezc3 * temp4_tensor, [], 1);
-
-    % Flip it back to POSITIVE to safely feed into the Tensor Block
-    EV_max_d3 = ezc3 * EV_max_d3_raw;
-    EV_max_d3 = reshape(EV_max_d3, [N_d3, N_z]);
+    EV_max_d3 = ezc3 * EV_max_d2_raw;
+    EV_max_d3 = reshape(EV_max_d3, [N_a1, N_d3, max(N_z,1)]);
     EV_max_d3(isnan(EV_max_d3)) = -Inf;
+    Pol_d2_idx = reshape(Pol_d2_idx, [N_a1, N_d3, max(N_z,1)]);
 
     % =========================================================
-    % TENSOR BLOCK: Optimize d3 against current state (a, z)
+    % 5D TENSOR BLOCK
     % =========================================================
     EvalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_EZ_TensorBlock(...
-        state_idx, loweredge_matrix, maxgap_scalar, ...
-        N_d1, N_d2, N_d3, N_a, N_z, gridinterplayer, n2short, n2long, ...
-        beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, d3prime_grid, a_grid, z_gridvals(:,:,jj), ...
-        ReturnFn, ReturnFnParamsCell, ezc1_j, ezc2(jj), ezc7(jj), ezc4, ezc3);
+        state_idx, N_d1, N_d2, N_d3, N_a1, N_a2, max(N_z,1), ...
+        beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, a1_grid, a2_grid, ...
+        z_gridvals(:,:,jj), ReturnFn, ReturnFnParamsCell, ...
+        ezc1_j, ezc2(jj), ezc7(jj), ezc4, ezc3, has_d1, has_a1);
 
-    % Slicer Dispatcher
     if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
         vfopts_dc = vfoptions; vfopts_dc.level1n = vfoptions.level1n(1);
-        [V_j_max, Pol_d3_max, Pol_d_combo, Pol_L2idx, Pol_L2flag] = ...
-            ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_z, vfopts_dc, EvalBlockFn);
+        [V_j_max, Pol_d_combo] = ValueFnIter_DC1_Slicer(N_a, N_a, 1, max(N_z,1), vfopts_dc, EvalBlockFn);
     else
-        [V_j_max, Pol_d3_max, Pol_d_combo, Pol_L2idx, Pol_L2flag] = EvalBlockFn(1:N_a, [], 0);
+        [V_j_max, Pol_d_combo] = EvalBlockFn(1:N_a, [], 0);
     end
 
     V(:,:,jj) = V_j_max;
-
-    % Pack policies
-    if gridinterplayer
-        adjust = (Pol_L2idx < 1 + n2short + 1);
-        lower_grid_pt = max(Pol_d3_max - adjust, 1);
-        subgrid_step  = adjust .* Pol_L2idx + (1 - adjust) .* (Pol_L2idx - n2short - 1);
-        at_top = (lower_grid_pt >= N_d3);
-        lower_grid_pt(at_top) = N_d3 - 1;
-        subgrid_step(at_top)  = (n2short + 1) + 1;
-
-        PolicyKron(1, :, :, jj) = Pol_d_combo;
-        PolicyKron(2, :, :, jj) = lower_grid_pt;
-        PolicyKron(3, :, :, jj) = subgrid_step;
-        PolicyKron(4, :, :, jj) = Pol_L2flag;
-    else
-        PolicyKron(1, :, :, jj) = Pol_d_combo;
-    end
+    PolicyKron(1, :, :, jj) = Pol_d_combo;
     V_next = V(:,:,jj);
 end
 
 % =========================================================
-% UNPACK POLICY
+% UNPACK POLICY AND RESHAPE
 % =========================================================
 if isfield(vfoptions, 'outputkron') && vfoptions.outputkron == 1
     Policy = PolicyKron; return;
 end
-if gridinterplayer
-    Policy = UnKronPolicyIndexes1_FHorz_z(reshape(PolicyKron, [4, N_a, N_z, N_j]), n_d, N_a, n_z, N_j, vfoptions);
+
+n_daprime = [n_d, n_a1];
+PolicyKron_flat = reshape(PolicyKron, [size(PolicyKron,1), N_a, N_z, N_j]);
+Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron_flat, n_daprime, N_a, n_z, N_j, vfoptions);
+
+% --- NEW: Unpack the compressed multi-state tensor ---
+if has_a1
+    n_a_full = [N_a1, N_a2];
 else
-    Policy = UnKronPolicyIndexes1_FHorz_z(reshape(PolicyKron, [1, N_a, N_z, N_j]), n_d, N_a, n_z, N_j, vfoptions);
+    n_a_full = N_a2;
 end
 
-
+if isempty(n_z) || prod(n_z) == 0
+    V = reshape(V, [n_a_full, N_j]);
+    Policy = reshape(Policy, [size(Policy, 1), n_a_full, N_j]);
+else
+    V = reshape(V, [n_a_full, n_z, N_j]);
+    Policy = reshape(Policy, [size(Policy, 1), n_a_full, n_z, N_j]);
+end
 end
 
 % =========================================================
-% UNIFIED EZ TENSOR BLOCK FUNCTION
+% UNIFIED EZ 5D TENSOR BLOCK FUNCTION
 % =========================================================
-function [V_sub, Pol_d3_idx, Pol_d_combo, L2idx, L2flag] = Evaluate_EZ_TensorBlock(...
-    state_idx, loweredge_matrix, maxgap_scalar, N_d1, N_d2, N_d3, N_a, N_z, gridinterplayer, n2short, n2long, ...
-    beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, d3prime_grid, a_grid, z_gridvals, ...
-    ReturnFn, ReturnFnParamsCell, ezc1_j, ezc2_j, ezc7_j, ezc4, ezc3)
+function [V_sub, Pol_d_combo, L2idx, L2flag] = Evaluate_EZ_TensorBlock(...
+    state_idx, N_d1, N_d2, N_d3, N_a1, N_a2, N_z_safe, ...
+    beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, a1_grid, a2_grid, z_gridvals, ...
+    ReturnFn, ReturnFnParamsCell, ezc1_j, ezc2_j, ezc7_j, ezc4, ezc3, has_d1, has_a1)
 
 N_block = length(state_idx);
 
-% 1. Setup 4D Grid Structures
-d1_in = reshape(d1_grid, [N_d1, 1, 1, 1]);
+% 1. Setup 5D Choice/State Structures
+d1_in      = reshape(d1_grid, [N_d1, 1, 1, 1, 1]);
+a1prime_in = reshape(a1_grid, [1, N_a1, 1, 1, 1]);
+d3_in      = reshape(d3_grid, [1, 1, N_d3, 1, 1]);
 
-if isempty(loweredge_matrix)
-    N_choice = N_d3;
-    d3_idx_tensor = reshape(1:N_d3, [1, N_choice, 1, 1]);
-else
-    offset_vec = 0:gather(maxgap_scalar);
-    N_choice = length(offset_vec);
-    offset = reshape(gpuArray(offset_vec), [1, N_choice, 1, 1]);
-    d3_idx_tensor = reshape(loweredge_matrix, [1, 1, N_block, N_z]) + offset;
+[a1_idx, a2_idx] = ind2sub([N_a1, N_a2], state_idx);
+A1_cells = reshape(a1_grid(a1_idx), [1, 1, 1, N_block, 1]);
+A2_cells = reshape(a2_grid(a2_idx), [1, 1, 1, N_block, 1]);
+Z_cells  = reshape(z_gridvals, [1, 1, 1, 1, N_z_safe]);
+
+% 2. Dynamically Assemble ReturnFn Signature
+ReturnFn_Args = {};
+if has_d1, ReturnFn_Args{end+1} = d1_in; end
+ReturnFn_Args{end+1} = d3_in;
+if has_a1
+    ReturnFn_Args{end+1} = a1prime_in;
+    ReturnFn_Args{end+1} = A1_cells;
 end
+ReturnFn_Args{end+1} = A2_cells;
+if N_z_safe > 0, ReturnFn_Args{end+1} = Z_cells; end
+ReturnFn_Args = [ReturnFn_Args, ReturnFnParamsCell];
 
-d3_in   = reshape(d3_grid(d3_idx_tensor(:)), size(d3_idx_tensor));
-A_cells = reshape(a_grid(state_idx), [1, 1, N_block, 1]);
-Z_cells = reshape(z_gridvals, [1, 1, 1, N_z]);
+% 3. Evaluate F (5D) and apply ezc4
+F_tensor = ReturnFn(ReturnFn_Args{:});
 
-% 2. Evaluate F (4D) and apply ezc4
-F_tensor = ReturnFn(d1_in, d3_in, A_cells, Z_cells, ReturnFnParamsCell{:});
 temp2 = F_tensor;
 valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
 if ezc2_j == 1
@@ -279,11 +293,8 @@ else
 end
 temp2(~isfinite(F_tensor)) = -Inf;
 
-% 3. Extract EV_bc and Broadcast across Dim 1 and Dim 3
-ev_lin_idx = d3_idx_tensor + reshape(0:N_z-1, [1, 1, 1, N_z]) .* N_d3;
-EV_bc = reshape(EV_max_d3(ev_lin_idx(:)), size(ev_lin_idx));
-
-% 4. Assemble RHS and apply ezc3/ezc7
+% 4. Assemble RHS
+EV_bc = reshape(EV_max_d3, [1, N_a1, N_d3, 1, N_z_safe]);
 entireRHS = ezc1_j .* temp2 + beta_j .* EV_bc;
 
 RHS = entireRHS;
@@ -295,97 +306,27 @@ else
 end
 RHS(~isfinite(entireRHS)) = -Inf;
 
-% 5. COMPRESS D1: Maximize over Dim 1
-[RHS_max_d1, Pol_d1_idx_raw] = max(RHS, [], 1);
+% 5. Simultaneous Compression (Flatten all choices)
+RHS_flat = reshape(RHS, [N_d1 * N_a1 * N_d3, N_block * N_z_safe]);
+[V_sub_coarse, opt_idx_flat] = max(RHS_flat, [], 1);
 
-% 6. Maximize over D3 Choice
-RHS_flat = reshape(RHS_max_d1, [N_choice, N_block * N_z]);
-[V_sub_coarse, Pol_sub_idx_coarse] = max(RHS_flat, [], 1);
+% Extract indices for d1, a1prime, and d3
+[d1_opt, a1prime_opt, d3_opt] = ind2sub([N_d1, N_a1, N_d3], opt_idx_flat);
+d1_opt = reshape(d1_opt, [N_block, N_z_safe]);
+a1prime_opt = reshape(a1prime_opt, [N_block, N_z_safe]);
+d3_opt = reshape(d3_opt, [N_block, N_z_safe]);
 
-% Safely extract the corresponding d1 choice
-linear_choice_idx = Pol_sub_idx_coarse(:)' + (0:N_block*N_z-1) * N_choice;
-d1_opt_coarse = reshape(Pol_d1_idx_raw(linear_choice_idx), [N_block, N_z]);
+% Extract the optimal d2 (riskyshare)
+z_idx_bc = repmat(reshape(1:N_z_safe, [1, N_z_safe]), [N_block, 1]);
+linear_d2_query = a1prime_opt + (d3_opt - 1)*N_a1 + (z_idx_bc - 1)*N_a1*N_d3;
+d2_opt = reshape(Pol_d2_idx(linear_d2_query(:)), [N_block, N_z_safe]);
 
-if isempty(loweredge_matrix)
-    d3_idx_coarse = Pol_sub_idx_coarse;
-else
-    d3_idx_coarse = loweredge_matrix(:)' + Pol_sub_idx_coarse - 1;
-end
+% Pack unified Kron Index: [d1, d2, d3, a1prime]
+Pol_d_combo = d1_opt + (d2_opt - 1) * N_d1 + (d3_opt - 1) * N_d1 * N_d2 + (a1prime_opt - 1) * (N_d1 * N_d2 * N_d3);
 
-% ---------------------------------------------------------
-% CONTINUOUS GRID INTERPOLATION (d3 refinement)
-% ---------------------------------------------------------
-if gridinterplayer
-    midpoint = max(min(d3_idx_coarse, N_d3 - 1), 2);
-    base_idx_tensor = reshape(midpoint + (midpoint - 1) * n2short, [1, 1, N_block, N_z]);
-    fine_idx_tensor = base_idx_tensor + reshape(-n2short-1 : n2short+1, [1, n2long, 1, 1]);
-    d3_in_fine = reshape(d3prime_grid(fine_idx_tensor(:)), size(fine_idx_tensor));
-
-    F_fine = ReturnFn(d1_in, d3_in_fine, A_cells, Z_cells, ReturnFnParamsCell{:});
-
-    temp2_fine = F_fine;
-    valid_F_f = isfinite(F_fine) & (F_fine ~= 0);
-    if ezc2_j == 1
-        temp2_fine(valid_F_f) = ezc4 * F_fine(valid_F_f);
-    else
-        temp2_fine(valid_F_f) = max(ezc4 * F_fine(valid_F_f), 0).^ezc2_j;
-    end
-    temp2_fine(~isfinite(F_fine)) = -Inf;
-
-    inf_mask = double(EV_max_d3 == -Inf);
-    EV_safe = EV_max_d3;
-    EV_safe(inf_mask > 0) = 0;
-
-    EV_fine_full = interp1(d3_grid, EV_safe, d3prime_grid, 'linear');
-    inf_fine_full = interp1(d3_grid, inf_mask, d3prime_grid, 'linear');
-    EV_fine_full(inf_fine_full > 0) = -Inf;
-
-    fine_lin_idx = fine_idx_tensor + reshape(0:N_z-1, [1, 1, 1, N_z]) .* length(d3prime_grid);
-    EV_bc_fine = reshape(EV_fine_full(fine_lin_idx(:)), size(fine_lin_idx));
-
-    entireRHS_fine = ezc1_j .* temp2_fine + beta_j .* EV_bc_fine;
-
-    RHS_fine = entireRHS_fine;
-    valid_RHS_f = isfinite(entireRHS_fine) & (entireRHS_fine ~= 0);
-    if ezc7_j == 1
-        RHS_fine(valid_RHS_f) = ezc3 * entireRHS_fine(valid_RHS_f);
-    else
-        RHS_fine(valid_RHS_f) = ezc3 * (entireRHS_fine(valid_RHS_f).^ezc7_j);
-    end
-    RHS_fine(~isfinite(entireRHS_fine)) = -Inf;
-
-    % Maximize Fine over d1
-    [RHS_fine_max_d1, Pol_d1_idx_raw_fine] = max(RHS_fine, [], 1);
-
-    RHS_fine_flat = reshape(RHS_fine_max_d1, [n2long, N_block * N_z]);
-    [V_sub, maxindexL2] = max(RHS_fine_flat, [], 1);
-
-    linear_choice_idx_fine = maxindexL2(:)' + (0:N_block*N_z-1) * n2long;
-    d1_opt = reshape(Pol_d1_idx_raw_fine(linear_choice_idx_fine), [N_block, N_z]);
-
-    isInfLower = (RHS_fine_flat(1, :) == -Inf);
-    isInfUpper = (RHS_fine_flat(end, :) == -Inf);
-    inLowerStrict = (maxindexL2 >= 2) & (maxindexL2 <= n2short + 1);
-    inUpperStrict = (maxindexL2 >= n2short + 3) & (maxindexL2 <= n2long - 1);
-    L2flag = reshape(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), [N_block, N_z]);
-
-    V_sub = reshape(V_sub, [N_block, N_z]);
-    Pol_d3_idx = reshape(midpoint, [N_block, N_z]);
-    L2idx = reshape(maxindexL2, [N_block, N_z]);
-else
-    V_sub      = reshape(V_sub_coarse, [N_block, N_z]);
-    Pol_d3_idx = reshape(d3_idx_coarse, [N_block, N_z]);
-    d1_opt     = d1_opt_coarse;
-    L2idx = [];
-    L2flag = [];
-end
-
-% RE-PACK COMBO INDEX (d1, d2, d3)
-d2_query_idx = Pol_d3_idx + repmat(reshape(0:N_z-1, [1, N_z]) .* N_d3, [N_block, 1]);
-d2_opt = reshape(Pol_d2_idx(d2_query_idx(:)), [N_block, N_z]);
-
-% Unified Toolkit Kron packing handles N_d1 = 1 perfectly.
-Pol_d_combo = d1_opt + (d2_opt - 1) * N_d1 + (Pol_d3_idx - 1) * N_d1 * N_d2;
+V_sub  = reshape(V_sub_coarse, [N_block, N_z_safe]);
+L2idx  = [];
+L2flag = [];
 
 
 end
