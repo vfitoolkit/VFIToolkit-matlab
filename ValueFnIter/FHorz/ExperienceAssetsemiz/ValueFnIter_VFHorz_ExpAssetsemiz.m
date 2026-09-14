@@ -3,7 +3,8 @@ function [V, Policy] = ValueFnIter_VFHorz_ExpAssetsemiz(n_d1, n_d2, n_d3, n_a1, 
 % --- 1. Safe Dimension Setup ---
 N_d1 = max(1, prod(n_d1)); N_d2 = max(1, prod(n_d2)); N_d3 = max(1, prod(n_d3));
 N_a1 = max(1, prod(n_a1)); N_a2 = max(1, prod(n_a2));
-N_z_safe = max(1, prod(n_z)); N_semiz_safe = max(1, prod(n_semiz));
+N_z = prod(n_z); N_z_safe = max(1, N_z); 
+N_semiz_safe = max(1, prod(n_semiz));
 
 % --- 2. GPU Transfer ---
 if vfoptions.parallel == 2
@@ -124,7 +125,7 @@ for reverse_j = 0:N_j-1
     V(:,:,:,:,jj) = V_j_max;
     V_next = V_j_max;
 
-    PolicyKron_j = Pol_d_combo + (max(Pol_apr_max, 1) - 1) * (N_d1_safe * max(1,N_d2) * max(1,N_d3));
+    PolicyKron_j = Pol_d_combo + (max(Pol_apr_max, 1) - 1) * (N_d1 * N_d2 * N_d3);
     PolicyKron(:, :, :, :, jj) = PolicyKron_j;
 end
 

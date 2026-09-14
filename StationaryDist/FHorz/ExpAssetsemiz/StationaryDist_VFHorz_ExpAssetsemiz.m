@@ -5,7 +5,11 @@ function StationaryDist = StationaryDist_VFHorz_ExpAssetsemiz(jequaloneDist, Age
 
 % --- 1. Dimension Extraction ---
 l_dsemiz = simoptions.l_dsemiz;
-l_dexperienceasset = simoptions.l_dexperienceasset;
+if ~isfield(simoptions,'l_dexperienceasset')
+    l_dexperienceasset=1;
+else
+    l_dexperienceasset = simoptions.l_dexperienceasset;
+end
 
 n_d3 = n_d(end - l_dsemiz + 1 : end);
 n_d2 = n_d(end - l_dexperienceasset - l_dsemiz + 1 : end - l_dsemiz);

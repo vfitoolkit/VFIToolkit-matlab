@@ -17,7 +17,11 @@ if has_expasset && has_semiz
     if isfield(simoptions, 'pi_semiz_J')
         pi_semiz_J = simoptions.pi_semiz_J;
     else
-        error('V-World Error: simoptions.pi_semiz_J is required. Please attach the tensor calculated during VFI to simoptions.');
+        %% Semi-exogenous shock gridvals and pi
+        % Internally, only ever use age-dependent joint-grids
+        % Would be great to get these from vfoptions already calculated...
+        simoptions = SemiExogShockSetup_FHorz(n_d, N_j, simoptions.d_grid, Parameters, simoptions, 3);
+        pi_semiz_J = simoptions.pi_semiz_J;
     end
 
     % Route to the Universal ExpAssetSemiZ Simulator
