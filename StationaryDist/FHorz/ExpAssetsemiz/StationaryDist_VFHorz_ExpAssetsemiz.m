@@ -80,25 +80,32 @@ for jj = 1:N_j
     end
 
     % 2. Extract Exact Policy Indexes for Current Age
-    % Assuming layer 1 holds your packed combined policy index:
-    Pol_age = Policy_reshaped(1, :, :, :, :, jj); 
-
-    % Force it into the exact state space shape
-    Pol_flat = reshape(Pol_age, [N_a1, N_a2, N_semiz_safe, N_z_safe]);
-
-    N_d_total = N_d1 * N_d2 * N_d3;
-
-    apr_idx = floor((double(Pol_flat(:)) - 1) / N_d_total) + 1;
-    d_combo_idx = mod(double(Pol_flat(:)) - 1, N_d_total) + 1;
-
+    % From ElectrifyHousingsemizV_ReturnFn, the first 4 inputs are:
+    % 1. installpv (d2 -> drives Experience Asset)
+    % 2. buyhouse  (d3 -> drives Semi-Exogenous states)
+    % 3. aprime    (Endogenous asset 1)
+    % 4. hprime    (Endogenous asset 2)
+    
+    % Layer 1: d2 (installpv)
+    d2_layer = reshape(Policy_reshaped(1, :, :, :, :, jj), [N_a1, N_a2, N_semiz_safe, N_z_safe]);
+    d2_linear_idx = d2_layer(:);
+    
+    % Layer 2: d3 (buyhouse)
+    d3_layer = reshape(Policy_reshaped(2, :, :, :, :, jj), [N_a1, N_a2, N_semiz_safe, N_z_safe]);
+    d3_linear_idx = d3_layer(:);
+    
+    % Layer 3 & 4: aprime and hprime
+    aprime_idx = reshape(Policy_reshaped(3, :, :, :, :, jj), [N_a1, N_a2, N_semiz_safe, N_z_safe]);
+    hprime_idx = reshape(Policy_reshaped(4, :, :, :, :, jj), [N_a1, N_a2, N_semiz_safe, N_z_safe]);
+    
+    % Combine aprime and hprime into the flattened a1 linear index
+    % n_a1(1) is the size of the 'a' grid (13). This maps them into the 39-element N_a1 space.
+    a1_linear_idx = aprime_idx(:) + n_a1(1) * (hprime_idx(:) - 1);
+    
     % Clamp indices to safe bounds
-    a1_linear_idx = max(1, min(apr_idx, N_a1));
-
-    % Unpack d3 and d2 from the combo index
-    d3_idx = floor((d_combo_idx - 1) / (N_d1 * N_d2)) + 1;
-    d2_idx = mod(floor((d_combo_idx - 1) / N_d1), N_d2) + 1;
-    d3_linear_idx = max(1, min(d3_idx, N_d3));
-    d2_linear_idx = max(1, min(d2_idx, N_d2));
+    d2_linear_idx = max(1, min(d2_linear_idx, N_d2));
+    d3_linear_idx = max(1, min(d3_linear_idx, N_d3));
+    a1_linear_idx = max(1, min(a1_linear_idx, N_a1));
 
     % 3. Calculate Experience Asset Transition (a2)
     aprimeFnParamsCell = CreateCellFromParams(Parameters, aprimeFnParamNames, jj);
@@ -117,6 +124,9 @@ for jj = 1:N_j
     if numel(a2_prime_vals) < N_d2 * N_a2 * N_semiz_safe
         a2_prime_vals = a2_prime_vals + zeros(N_d2, N_a2, N_semiz_safe);
     end
+
+    % --- NEW LINE: Clamp floating-point overshoots strictly to the grid boundaries ---
+    a2_prime_vals = max(a2_grid(1), min(a2_grid(end), a2_prime_vals));
 
     % Flat evaluate histc using (:) so it returns a flat vector of exactly N_d2*N_a2*N_semiz_safe elements
     [~, a2primeIndex] = histc(a2_prime_vals(:), a2_grid);
