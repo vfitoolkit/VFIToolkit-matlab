@@ -141,12 +141,12 @@ for jj = N_j : -1 : 1
             EV_z = EV_u;
         end
 
-        valid_EV = isfinite(EV_semiz) & (EV_semiz ~= 0);
+        valid_EV = isfinite(EV_z) & (EV_z ~= 0);
         if ezc6(jj) ~= 1
-            EV_semiz(valid_EV) = max(EV_semiz(valid_EV), 0).^ezc6(jj);
+            EV_z(valid_EV) = max(EV_z(valid_EV), 0).^ezc6(jj);
         end
         if ezc8(jj) ~= 1
-            EV_semiz(valid_EV) = max(EV_semiz(valid_EV), 0).^ezc8(jj);
+            EV_z(valid_EV) = max(EV_z(valid_EV), 0).^ezc8(jj);
         end
 
         % DIMENSIONAL COMPRESSION: Maximize out d2 (riskyshare)
@@ -241,15 +241,9 @@ ReturnFn_Args = [ReturnFn_Args, ReturnFnParamsCell];
 
 % 3. Evaluate F (5D)
 F_tensor = ReturnFn(ReturnFn_Args{:});
-EV_query = EV_max_d3(:, semiz_idx, :, :, :);
-EV_bc = permute(EV_query, [4, 3, 1, 2, 5]);
-EV_bc = reshape(EV_bc, [1, N_d3, N_d4, N_a1, N_block, N_z_safe]);
+EV_bc = reshape(EV_max_d3, [1, N_d3, 1, N_a1, 1, N_z_safe]);
 % (Assuming ezc1_j = 1 for standard models, or extract it from vfoptions if needed)
 RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bc, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-
-% 4. Assemble RHS
-EV_bc = reshape(EV_max_d3, [1, N_a1, N_d3, 1, N_z_safe]);
-RHS = F_tensor + beta_j .* EV_bc;
 
 % 5. Simultaneous Compression (Flatten all choices)
 RHS_flat = reshape(RHS, [N_d1 * N_a1 * N_d3, N_block * N_z_safe]);
