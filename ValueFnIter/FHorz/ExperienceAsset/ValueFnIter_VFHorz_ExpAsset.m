@@ -60,7 +60,7 @@ end
 V      = zeros(N_a1, N_a2, N_z_safe, N_j, 'like', a2_grid);
 V_next = zeros(N_a1, N_a2, N_z_safe, 'like', a2_grid);
 
-gridinterplayer = isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer == 1;
+gridinterplayer = isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer(1) == 1;
 
 if gridinterplayer
     n2short = vfoptions.ngridinterp;
@@ -92,10 +92,7 @@ for reverse_j = 0:N_j-1
 
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
     beta_j = prod(DiscountFactorParamsVec);
-    ReturnFnParamsVec = CreateVectorFromParams(Parameters, ReturnFnParamNames, jj);
-    if ~iscell(ReturnFnParamsVec)
-        ReturnFnParamsVec = num2cell(ReturnFnParamsVec);
-    end
+    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
     aprimeFnParamsVec = CreateVectorFromParams(Parameters, aprimeFnParamNames, jj);
 
     num_z = length(n_z);
@@ -125,7 +122,7 @@ for reverse_j = 0:N_j-1
         N_a1, N_a2, N_d1, N_d2, N_z_safe, gridinterplayer, n2short, n2long, ...
         beta_j, V_next, pi_z_j, a1prime_grid, a2primeIndex, a2primeProbs, ...
         a1_work_local, ...
-        ReturnFn, D1_cells, d2_gridvals, A1_cells, A2_cells, Z_cells, ReturnFnParamsVec);
+        ReturnFn, D1_cells, d2_gridvals, A1_cells, A2_cells, Z_cells, ReturnFnParamsCell);
 
     % The Time-Loop Router
     if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1

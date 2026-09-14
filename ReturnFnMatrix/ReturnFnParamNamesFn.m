@@ -1,99 +1,38 @@
-function ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters)
+function ReturnFnParamNames = ReturnFnParamNamesFn(ReturnFn, n_d, n_a, n_z, N_j, vfoptions, Parameters)
+% RETURNFNPARAMNAMESFN (V-World Upgraded)
+% Extracts parameter names dynamically using vectorized struct field lookups,
+% while providing user-friendly error handling for misspelled parameters.
 
-if isempty(N_j) % N_j is optional input
-    N_j=0; % Infinite horizon
-end
+% 1. Get all input names from the anonymous function
+input_names = getAnonymousFnInputNames(ReturnFn);
 
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
-if n_a(1)==0
-    l_a=0;
-else
-    l_a=length(n_a);
-end
-l_aprime=l_a;
+% 2. Vectorized Dictionary Lookup
+param_mask = isfield(Parameters, input_names);
 
-%% Exogenous states
-l_z=length(n_z); % markov
-if prod(n_z)==0
-    l_z=0;
-end
-l_semizze=l_z;
-if isfield(vfoptions,'n_semiz') && prod(vfoptions.n_semiz)>0 % semi-exogenous markov
-    l_semizze=l_semizze+length(vfoptions.n_semiz);
-end
-if isfield(vfoptions,'n_e') && prod(vfoptions.n_e)>0 % iid
-    l_semizze=l_semizze+length(vfoptions.n_e);
-end
+% 3. V-World Heuristic Validation: States must precede Parameters!
+first_param_idx = find(param_mask, 1);
 
-%% Endogenous states
-if isfield(vfoptions,'experienceasset')
-    % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-vfoptions.experienceasset;
-end
-if isfield(vfoptions,'experienceassetz')
-    % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-vfoptions.experienceassetz;
-end
-if isfield(vfoptions,'experienceassete')
-    % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-vfoptions.experienceassete;
-end
-if isfield(vfoptions,'experienceassetze')
-    % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-vfoptions.experienceassetze;
-end
-if isfield(vfoptions,'experienceassetu')
-    % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-vfoptions.experienceassetu;
-end
-if isfield(vfoptions,'experienceassetsemiz')
-    % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-vfoptions.experienceassetsemiz;
-end
-if isfield(vfoptions,'riskyasset')
-    % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-vfoptions.riskyasset;
-end
-if isfield(vfoptions,'residualasset')
-    % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-vfoptions.residualasset;
-end
-if isfield(vfoptions,'inheritanceasset')
-    % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-vfoptions.inheritanceasset;
-end
-if isfield(vfoptions,'refine_d')
-    % Remove d2
-    l_d=l_d-vfoptions.refine_d(2);
-end
+if ~isempty(first_param_idx)
+    % Check if any inputs AFTER the first parameter are missing from the struct
+    invalid_mask = ~param_mask(first_param_idx:end);
 
+    if any(invalid_mask)
+        % Find the exact name of the misspelled parameter
+        tail_names = input_names(first_param_idx:end);
+        bad_names = tail_names(invalid_mask);
 
-%% Figure out ReturnFnParamNames from ReturnFn
-temp=getAnonymousFnInputNames(ReturnFn);
-if length(temp)>(l_d+l_aprime+l_a+l_semizze) % This is largely pointless, the ReturnFn is always going to have some parameters
-    ReturnFnParamNames={temp{l_d+l_aprime+l_a+l_semizze+1:end}}; % the first inputs will always be (d,aprime,a,z,e)
-else
-    ReturnFnParamNames={};
-end
-
-% Decided to do the check of the parameters to here.
-% Inputs to ReturnFn should all be in Parameters, and should either be scalar or age-dependent
-for pp=1:length(ReturnFnParamNames)
-    if ~isfield(Parameters,ReturnFnParamNames{pp})
-        error(['Cannot find the parameter ',ReturnFnParamNames{pp}, ' in the Parameters structure (it is needed as an input to the ReturnFn)'])
-    else
-        if isscalar(Parameters.(ReturnFnParamNames{pp}))
-            %  scalar is fine
-        elseif all(size(Parameters.(ReturnFnParamNames{pp}))==[1,N_j]) || all(size(Parameters.(ReturnFnParamNames{pp}))==[N_j,1])
-            % age-dependent vector is fine
-        else
-            error(['The parameter ',ReturnFnParamNames{pp}, ' must be scalar or age-dependent (check the size of this parameter; it is needed as an input to the ReturnFn)'])
-        end
+        error_msg = sprintf('\nError: Cannot find the parameter ''%s'' in the Parameters structure.\n', bad_names{1});
+        error_msg = [error_msg, sprintf('It appears after valid parameters (like ''%s'') in your ReturnFn signature, so it is assumed to be a parameter. Did you misspell it, or forget to add it to Params?', input_names{first_param_idx})];
+        error(error_msg);
     end
+end
+
+% 4. Apply the logical mask to extract only the parameters
+ReturnFnParamNames = input_names(param_mask);
+
+% Fallback safety
+if isempty(ReturnFnParamNames)
+    warning('No parameters found in ReturnFn matching the Parameters struct.');
 end
 
 

@@ -232,26 +232,13 @@ else
     pi_z_J = [];
 end
 
-%% Experience Asset Dispatch
+%% Experience Asset (and Semi-Exo) Dispatch
 if isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0
+
+    has_semiz = isfield(vfoptions, 'n_semiz') && ~isempty(vfoptions.n_semiz) && prod(vfoptions.n_semiz) > 0;
     l_a2 = vfoptions.experienceasset; % Supports l_a2 >= 1
-    l_d2 = 1; % Toolkit default: last decision variable drives experience asset
 
-    % Split Decision Grids
-    if length(n_d) > l_d2
-        n_d1 = n_d(1:end-l_d2);
-        d1_grid = d_grid(1:sum(n_d1));
-    else
-        n_d1 = 0;
-        d1_grid = [];
-    end
-    n_d2 = n_d(end-l_d2+1:end);
-    d2_grid = d_grid(sum(n_d1)+1:end);
-
-    d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
-    d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
-
-    % Split Asset Grids
+    % 1. Split Asset Grids (Safely handles multi-asset n_a1 like Assets + Housing!)
     if length(n_a) > l_a2
         n_a1 = n_a(1:end-l_a2);
         a1_grid = a_grid(1:sum(n_a1));
@@ -264,14 +251,61 @@ if isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0
     n_a2 = n_a(end-l_a2+1:end);
     a2_grid = a_grid(sum(n_a1)+1:end);
 
-    % Dispatch to the vectorized ExpAsset handler and bail out of Case1
-    [V, Policy] = ValueFnIter_VFHorz_ExpAsset(n_d1, n_d2, n_a1, n_a2, n_z, N_j, ...
-        d1_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ...
-        pi_z_J, ReturnFn, Parameters, ...
-        DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    if has_semiz
+        % --- ExpAsset + SemiExo Routing ---
+        l_d3 = 1; % Toolkit default: last decision drives semiz
+        l_d2 = 1; % Toolkit default: second-to-last drives experience asset
 
-    varargout = {V, Policy};
-    return
+        % Split Decision Grids into d1, d2, and d3
+        if length(n_d) > (l_d2 + l_d3)
+            n_d1 = n_d(1:end-l_d2-l_d3);
+            d1_grid = d_grid(1:sum(n_d1));
+            d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
+        else
+            n_d1 = 0;
+            d1_grid = [];
+            d1_gridvals = [];
+        end
+        n_d2 = n_d(end-l_d3-l_d2+1 : end-l_d3);
+        d2_grid = d_grid(sum(n_d1)+1 : sum(n_d1)+sum(n_d2));
+        d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
+
+        n_d3 = n_d(end-l_d3+1 : end);
+        d3_grid = d_grid(sum(n_d1)+sum(n_d2)+1 : end);
+        d3_gridvals = CreateGridvals(n_d3, d3_grid, 1);
+
+        % Dispatch to the 7D V-World Orchestrator
+        [V, Policy] = ValueFnIter_VFHorz_ExpAssetsemiz(n_d1, n_d2, n_d3, n_a1, n_a2, n_z, vfoptions.n_semiz, N_j, ...
+            d1_gridvals, d2_gridvals, d3_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, ...
+            pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, ...
+            DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        varargout = {V, Policy};
+        return
+
+    else
+        % --- Pure ExpAsset Routing ---
+        l_d2 = 1;
+        if length(n_d) > l_d2
+            n_d1 = n_d(1:end-l_d2);
+            d1_grid = d_grid(1:sum(n_d1));
+            d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
+        else
+            n_d1 = 0;
+            d1_grid = [];
+            d1_gridvals = [];
+        end
+        n_d2 = n_d(end-l_d2+1:end);
+        d2_grid = d_grid(sum(n_d1)+1:end);
+        d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
+
+        % Dispatch to the 5D V-World Orchestrator
+        [V, Policy] = ValueFnIter_VFHorz_ExpAsset(n_d1, n_d2, n_a1, n_a2, n_z, N_j, ...
+            d1_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ...
+            pi_z_J, ReturnFn, Parameters, ...
+            DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        varargout = {V, Policy};
+        return
+    end
 end
 
 %% Risky Asset state Dispatch
