@@ -334,11 +334,15 @@ if isfield(vfoptions, 'riskyasset') && vfoptions.riskyasset == 1
         end
     end
     l_u = length(n_u); 
-    temp = getAnonymousFnInputNames(aprimeFn);
-    if length(temp) > (l_d + l_u)
-        aprimeFnParamNames = {temp{l_d + l_u + 1 : end}};
+    if isfield(vfoptions, 'aprimeFnParamNames')
+        aprimeFnParamNames = vfoptions.aprimeFnParamNames;
     else
-        aprimeFnParamNames = {};
+        temp = getAnonymousFnInputNames(aprimeFn);
+        if length(temp) > (l_d + l_u)
+            aprimeFnParamNames = {temp{l_d + l_u + 1 : end}};
+        else
+            aprimeFnParamNames = {};
+        end
     end
 
     % 4. Route to the Universal Tensor Architecture (EZ and CRRA unified!)
@@ -532,7 +536,11 @@ for reverse_j = 0:N_j-1
 
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
     beta_j = prod(DiscountFactorParamsVec);
-    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
+    if isfield(vfoptions, 'ReturnFnParamNames')
+        ReturnFnParamsCell = vfoptions.ReturnFnParamNames;
+    else
+        ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
+    end
 
     % --- EZ V_next Transformation ---
     valid_V = isfinite(V_next) & (V_next ~= 0);
