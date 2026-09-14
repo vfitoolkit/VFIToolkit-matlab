@@ -121,7 +121,10 @@ for jj = N_j : -1 : 1
 
         % Compute E_semiz based on d4 (buyhouse)
         EV_semiz = zeros(N_a1, N_semiz, N_d4, N_d2*N_d3, max(N_z,1), 'like', a2_grid);
-        pi_sz_flat = reshape(pi_semiz_J(:,:,:,jj), [N_semiz, N_semiz * N_d4]);
+
+        % FIXED PERMUTATION: [s_now, d4, s_next]
+        pi_perm = permute(pi_semiz_J(:,:,:,jj), [1, 3, 2]);
+        pi_sz_flat = reshape(pi_perm, [N_semiz * N_d4, N_semiz]);
 
         for i_a1 = 1:N_a1
             for i_z = 1:max(N_z,1)
@@ -132,8 +135,10 @@ for jj = N_j : -1 : 1
                 EV_z_safe = EV_z_slice;
                 EV_z_safe(inf_mask_s) = 0;
 
-                res = pi_sz_flat' * EV_z_safe; % Matrix mult across semiz transition
-                inf_infect_s = double(pi_sz_flat') * double(inf_mask_s);
+                % Matrix mult across semiz transition
+                res = pi_sz_flat * EV_z_safe;
+
+                inf_infect_s = double(pi_sz_flat) * double(inf_mask_s);
                 res(inf_infect_s > 0) = -Inf;
 
                 EV_semiz(i_a1, :, :, :, i_z) = reshape(res, [N_semiz, N_d4, N_d2*N_d3]);
