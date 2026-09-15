@@ -71,46 +71,37 @@ for z_c=1:N_z
             starting_zeros=sum(vals==0);
             cidx=length(this_run);
 
-            % See if we can collapse this system down to two or three basis elements
+            % See if we can collapse this system down to two basis elements
             % gridvals and the sums are indexed into `this_run`, not values of `this_run`
-            gridvals=vals.*a2_grid_T(this_run);
-            lower_sums=cumsum(gridvals,'forward');
-            lower_sums=[vals(1)*(a2_grid_T(this_run(1))~=0),lower_sums(2:end)./a2_grid_T(this_run(2:end))];
-            lower_sums(isinf(lower_sums))=lower_sums(circshift(isinf(lower_sums),-1));
-            upper_sums=cumsum(gridvals,'reverse');
-            upper_sums=[upper_sums(1:end-1)./a2_grid_T(this_run(1:end-1)),vals(end)*(a2_grid_T(this_run(end))~=0)];
-            upper_sums(isinf(upper_sums))=upper_sums(circshift(isinf(upper_sums),1)); % grids should have only a single zero value
-            % Where lower_sums(1:end-1)+upper_sums(2:end)<=run_prob_sum we have room to redistribute probabilities
-            valid_crossover=run_prob_sum-(lower_sums(1:end-1)+upper_sums(2:end))>=0;
-            lower_idx=find(valid_crossover,1,'first');
-            if isempty(lower_idx)
-                % Maybe we need a span of 3...it happens
-                valid_crossover=run_prob_sum-(lower_sums(1:end-2)+upper_sums(3:end))>=0;
-                lower_idx=find(valid_crossover,1,'first');
-                assert(~isempty(lower_idx));
-                upper_idx=lower_idx+2;
-            else
-                upper_idx=lower_idx+1;
+            gridvals = vals .* a2_grid_T(this_run);
+
+            % 1. Calculate the center of mass of this specific run
+            target_mean = sum(gridvals) / run_prob_sum;
+
+            % 2. Find the exact grid interval that bounds this mean
+            lower_idx = find(a2_grid_T(this_run) <= target_mean, 1, 'last');
+
+            % 3. Guard against exact hits on the upper boundary
+            if lower_idx == length(this_run)
+                lower_idx = lower_idx - 1;
             end
-            SystemOfEquations=[a2_grid_T(this_run(lower_idx:upper_idx));ones(1,upper_idx-lower_idx+1)];
-            GoalValues=[sum(gridvals); run_prob_sum];
-            new_vals=linsolve(SystemOfEquations,GoalValues);
-            if any(new_vals<0)
-                % Maybe we need a span of 3...it happens
-                lower_idx=lower_idx-(new_vals(2)<0);
-                upper_idx=upper_idx+(new_vals(1)<0);
-                SystemOfEquations=[a2_grid_T(this_run(lower_idx:upper_idx));ones(1,upper_idx-lower_idx+1)];
-                new_vals=linsolve(SystemOfEquations,GoalValues);
-                assert(all(new_vals>=0));
-            end
-            res_vec_mag = norm(GoalValues-SystemOfEquations*new_vals);
-            new_vals=round(new_vals,epsilon_round)';
-            if res_vec_mag==0 || (~isnan(res_vec_mag) && res_vec_mag/norm(new_vals)<=epsilon)
-                % Put this valid redistribution into the Stationary Dist, finishing this run
-                temp=sparse(row,this_run(lower_idx:upper_idx),new_vals,N_a1,N_a2);
-                StationaryDist_row_jj(row,this_run)=temp(row,this_run);
-                new_zeros_created(z_c)=new_zeros_created(z_c)+cidx-2-starting_zeros;
-            end
+            upper_idx = lower_idx + 1;
+
+            aL = a2_grid_T(this_run(lower_idx));
+            aU = a2_grid_T(this_run(upper_idx));
+
+            % 4. Direct algebraic solution to preserve 0th (mass) and 1st (mean) moments
+            p_U = (sum(gridvals) - run_prob_sum * aL) / (aU - aL);
+            p_L = run_prob_sum - p_U;
+
+            new_vals = round([p_L, p_U], epsilon_round);
+
+            % 5. Put this valid redistribution into the Stationary Dist, finishing this run
+            temp = sparse(row, this_run(lower_idx:upper_idx), new_vals, N_a1, N_a2);
+            StationaryDist_row_jj(row, this_run) = temp(row, this_run);
+
+            % Tally the zeros we successfully created
+            new_zeros_created(z_c) = new_zeros_created(z_c) + cidx - 2 - starting_zeros;
         end
     end
     StationaryDist_jj(:,z_c)=reshape(StationaryDist_row_jj,[N_a1*N_a2,1]);
