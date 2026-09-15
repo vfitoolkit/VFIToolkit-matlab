@@ -117,21 +117,18 @@ for reverse_j = 0:N_j-1
     end
 
     % --- Vectorized Experience Asset Transition (Replaces CreateExperienceAssetFnMatrix) ---
-    % 1. Build the full N-dimensional mesh for d2, a2, and z (if present)
+    % 1. Build the full 3D mesh for d2, a2, and z (if present)
     if N_z > 0
-        % Dynamic mesh building for z
-        mesh_args = cell(1, 2 + num_z);
-        mesh_args{1} = d2_gridvals(:,1);
-        mesh_args{2} = a2_grid(:);
+        % Create a clean 3D mesh where the 3rd dimension is strictly the Z-state linear index
+        [d2_mesh, a2_mesh, z_idx_mesh] = ndgrid(d2_gridvals(:,1), a2_grid(:), 1:N_z_safe);
+
+        z_mesh_cells = cell(1, num_z);
         for iz = 1:num_z
-            mesh_args{2+iz} = z_work_j(:, iz);
+            z_val_col = z_work_j(:, iz);
+            % Natively map the specific z-variable to the 3D tensor
+            z_mesh_cells{iz} = z_val_col(z_idx_mesh); 
         end
-        [nd_out{1:2+num_z}] = ndgrid(mesh_args{:});
-        
-        d2_mesh = nd_out{1};
-        a2_mesh = nd_out{2};
-        z_mesh_cells = nd_out(3:end);
-        
+
         % Evaluate aprimeFn natively factoring in exogenous shocks
         a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, aprimeFnParamsCell{:});
         expected_size = [N_d2, N_a2, N_z_safe];
@@ -168,7 +165,7 @@ for reverse_j = 0:N_j-1
         state_idx, loweredge_matrix, maxgap_scalar, ...
         N_a1, N_a2, N_d1, N_d2, N_z_safe, gridinterplayer, n2short, n2long, ...
         beta_j, V_next, pi_z_j, a1prime_grid, a2primeIndex, a2primeProbs, ...
-        a1_work_local, ...
+        a1_work_local, a1_gridvals, ...
         ReturnFn, D1_cells, d2_gridvals, A1_cells, A2_cells, Z_cells, ReturnFnParamsCell);
 
     % The Time-Loop Router
@@ -278,7 +275,7 @@ function [V_j_max, Pol_apr_max, Pol_d_combo, Pol_L2idx_max, Pol_L2flag_max] = Ev
     state_idx, loweredge_matrix, maxgap_scalar, ...
     N_a1, N_a2, N_d1, N_d2, N_z_safe, gridinterplayer, n2short, n2long, ...
     beta_j, V_next, pi_z_j, a1prime_grid, a2primeIndex, a2primeProbs, ...
-    a1_work_local, ...
+    a1_work_local, a1_gridvals, ...
     ReturnFn, D1_cells, d2_gridvals, A1_cells, A2_cells, Z_cells, ReturnFnParamsVec)
 
 N_block = length(state_idx);
@@ -314,7 +311,12 @@ else
     base_edge = reshape(loweredge_matrix, [1, 1, 1, N_a2, N_z_safe]);
     apr_idx_tensor = base_edge + offset;
 end
-apr_in = reshape(a1_work_local(apr_idx_tensor(:)), size(apr_idx_tensor));
+num_a1_vars = size(a1_gridvals, 2);
+A1prime_cells = cell(1, num_a1_vars);
+for i_a = 1:num_a1_vars
+    a1_col = a1_gridvals(:, i_a);
+    A1prime_cells{i_a} = reshape(a1_col(apr_idx_tensor(:)), size(apr_idx_tensor));
+end
 
 % Pre-calculate tensor offsets for linear indexing
 a2_offset = reshape(0:N_a2-1, [1, 1, 1, N_a2, 1]) .* N_a1;
@@ -384,7 +386,7 @@ for i_d2 = 1:N_d2
         D2_cells{i} = d2_gridvals(i_d2, i);
     end
 
-    F_tensor = ReturnFn(D1_cells{:}, D2_cells{:}, apr_in, A1_cells_block{:}, A2_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
+    F_tensor = ReturnFn(D1_cells{:}, D2_cells{:}, A1prime_cells{:}, A1_cells_block{:}, A2_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
 
     % Extract the exact subset of EV bounds requested by the DC Slicer
     lin_idx = apr_idx_tensor + a2_offset + z_offset;
@@ -428,7 +430,14 @@ for i_d2 = 1:N_d2
         offset_fine = reshape(-n2short-1 : n2short+1, [n2long, 1, 1, 1, 1]);
         fine_idx_tensor = base_idx_tensor + offset_fine;
 
-        apr_in_fine = reshape(a1prime_grid(fine_idx_tensor(:)), size(fine_idx_tensor));
+        num_a1_vars = size(a1_gridvals, 2);
+        A1prime_fine_cells = cell(1, num_a1_vars);
+        A1prime_fine_cells{1} = reshape(a1prime_grid(fine_idx_tensor(:)), size(fine_idx_tensor));
+        for i_a = 2:num_a1_vars
+            a1_col = a1_gridvals(:, i_a);
+            coarse_mapping = reshape(a1_col(midpoint(:)), [1, 1, N_block, N_a2, N_z_safe]);
+            A1prime_fine_cells{i_a} = coarse_mapping + zeros(size(fine_idx_tensor), 'like', a1_gridvals);
+        end
 
         if N_d1 > 0
             % Keep d1 fixed at the optimal coarse choice
@@ -441,7 +450,7 @@ for i_d2 = 1:N_d2
             D1_fine = {};
         end
 
-        F_tensor_fine = ReturnFn(D1_fine{:}, D2_cells{:}, apr_in_fine, A1_cells_block{:}, A2_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
+        F_tensor_fine = ReturnFn(D1_fine{:}, D2_cells{:}, A1prime_fine_cells{:}, A1_cells_block{:}, A2_cells{:}, Z_cells{:}, ReturnFnParamsVec{:});
 
         % THE PURE GI SHIELD: Dual-Interpolation of Values and Infection Masks
 
