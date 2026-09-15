@@ -237,8 +237,31 @@ else
 end
 
 %% Experience Asset (and Semi-Exo) Dispatch
-if isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0
+%% Experience Asset (and Semi-Exo) Dispatch
+is_exp  = isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0;
+is_expz = isfield(vfoptions, 'experienceassetz') && vfoptions.experienceassetz > 0;
 
+if is_exp || is_expz
+    has_semiz = isfield(vfoptions, 'n_semiz') && ~isempty(vfoptions.n_semiz) && prod(vfoptions.n_semiz) > 0;
+    
+    if is_exp
+        l_a2 = vfoptions.experienceasset; 
+    else
+        l_a2 = vfoptions.experienceassetz;
+    end
+    
+    % 1. Split Asset Grids
+    if length(n_a) > l_a2
+        n_a1 = n_a(1:end-l_a2);
+        a1_grid = a_grid(1:sum(n_a1));
+        a1_gridvals = CreateGridvals(n_a1, a1_grid, 1);
+    else
+        n_a1 = 0;
+        a1_grid = [];
+        a1_gridvals = [];
+    end
+    n_a2 = n_a(end-l_a2+1:end);
+    a2_grid = a_grid(sum(n_a1)+1:end);
     has_semiz = isfield(vfoptions, 'n_semiz') && ~isempty(vfoptions.n_semiz) && prod(vfoptions.n_semiz) > 0;
     l_a2 = vfoptions.experienceasset; % Supports l_a2 >= 1
 
@@ -282,6 +305,30 @@ if isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0
         [V, Policy] = ValueFnIter_VFHorz_ExpAssetsemiz(n_d1, n_d2, n_d3, n_a1, n_a2, n_z, vfoptions.n_semiz, N_j, ...
             d1_gridvals, d2_gridvals, d3_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, ...
             pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, ...
+            DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        varargout = {V, Policy};
+        return
+
+    elseif is_expz
+        % --- Pure ExpAssetz Routing ---
+        l_d2 = 1;
+        if length(n_d) > l_d2
+            n_d1 = n_d(1:end-l_d2);
+            d1_grid = d_grid(1:sum(n_d1));
+            d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
+        else
+            n_d1 = 0;
+            d1_grid = [];
+            d1_gridvals = [];
+        end
+        n_d2 = n_d(end-l_d2+1:end);
+        d2_grid = d_grid(sum(n_d1)+1:end);
+        d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
+
+        % Dispatch to the ExpAssetz Orchestrator
+        [V, Policy] = ValueFnIter_FHorz_ExpAssetz(n_d1, n_d2, n_a1, n_a2, n_z, N_j, ...
+            d1_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ...
+            pi_z_J, ReturnFn, Parameters, ...
             DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         varargout = {V, Policy};
         return
