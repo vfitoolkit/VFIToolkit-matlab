@@ -106,6 +106,61 @@ else
     end
 end
 
+% --- SMART nargin PARSER ---
+if isempty(ReturnFnParamNames)
+    if isfield(vfoptions, 'ReturnFnParamNames')
+        ReturnFnParamNames = vfoptions.ReturnFnParamNames;
+    else
+        temp = getAnonymousFnInputNames(ReturnFn);
+
+        num_d_vars = length(n_d);
+        if num_d_vars == 1 && n_d(1) == 0; num_d_vars = 0; end
+        num_a_vars = length(n_a);
+        num_z_vars = length(n_z);
+        if num_z_vars == 1 && n_z(1) == 0; num_z_vars = 0; end
+
+        is_exp  = vfoptions.experienceasset > 0;
+        is_expz = vfoptions.experienceassetz > 0;
+        has_semiz = prod(vfoptions.n_semiz) > 0;
+        has_e = prod(vfoptions.n_e) > 0;
+
+        if is_exp || is_expz
+            if is_exp
+                l_a2 = vfoptions.experienceasset;
+            else
+                l_a2 = vfoptions.experienceassetz;
+            end
+            num_a1 = num_a_vars - l_a2;
+            num_a2 = l_a2;
+
+            % ExpAsset structure: D, A1prime, A1, A2, Z
+            num_prefix_args = num_d_vars + 2*num_a1 + num_a2 + num_z_vars;
+            if has_semiz
+                num_prefix_args = num_prefix_args + length(vfoptions.n_semiz);
+            end
+        elseif vfoptions.riskyasset == 1
+            num_u_vars = length(vfoptions.n_u);
+            % RiskyAsset structure: D, A1prime, A2prime, A1, A2, Z, U
+            num_prefix_args = num_d_vars + 4 + num_z_vars + num_u_vars; 
+            if has_semiz
+                num_prefix_args = num_prefix_args + length(vfoptions.n_semiz);
+            end
+        else
+            % Standard Case: D, Aprime, A, Z, E
+            num_prefix_args = num_d_vars + 2*num_a_vars + num_z_vars;
+            if has_e
+                num_prefix_args = num_prefix_args + length(vfoptions.n_e);
+            end
+        end
+
+        if length(temp) > num_prefix_args
+            ReturnFnParamNames = {temp{num_prefix_args + 1 : end}};
+        else
+            ReturnFnParamNames = {};
+        end
+    end
+end
+
 is_EZ = strcmp(vfoptions.exoticpreferences, 'EpsteinZin');
 if is_EZ
     % Reject asset types this dispatcher does not handle: every asset type it does handle is
@@ -194,14 +249,6 @@ if vfoptions.divideandconquer==1
     end
 end
 
-if isempty(ReturnFnParamNames)
-    if isfield(vfoptions, 'ReturnFnParamNames')
-        ReturnFnParamNames = vfoptions.ReturnFnParamNames;
-    else
-        ReturnFnParamNames = ReturnFnParamNamesFn(ReturnFn, n_d, n_a, n_z, N_j, vfoptions, Parameters);
-    end
-end
-
 if vfoptions.parallel == 2
     if ~isempty(d_grid), d_grid = gpuArray(d_grid); end
     if ~isempty(a_grid), a_grid = gpuArray(a_grid); end
@@ -211,7 +258,7 @@ end
 
 %% Semi-exogenous shock gridvals and pi
 if vfoptions.alreadygridvals_semiexo==0
-    if isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz)>0
+    if prod(vfoptions.n_semiz)>0
         % Internally, only ever use age-dependent joint-grids
         vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 3);
     end
@@ -237,90 +284,70 @@ else
 end
 
 %% Experience Asset (and Semi-Exo) Dispatch
-is_exp  = isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0;
-is_expz = isfield(vfoptions, 'experienceassetz') && vfoptions.experienceassetz > 0;
+is_exp      = vfoptions.experienceasset > 0;
+is_expz     = vfoptions.experienceassetz > 0;
+is_expsemiz = vfoptions.experienceassetsemiz > 0;
 
-if is_exp || is_expz
-    has_semiz = isfield(vfoptions, 'n_semiz') && ~isempty(vfoptions.n_semiz) && prod(vfoptions.n_semiz) > 0;
-    
+if is_exp || is_expz || is_expsemiz
+    has_semiz = prod(vfoptions.n_semiz) > 0;
+
     if is_exp
-        l_a2 = vfoptions.experienceasset; 
-    else
+        l_a2 = vfoptions.experienceasset;
+    elseif is_expz
         l_a2 = vfoptions.experienceassetz;
+    else
+        l_a2 = vfoptions.experienceassetsemiz;
     end
-    
+
     % 1. Split Asset Grids
     if length(n_a) > l_a2
         n_a1 = n_a(1:end-l_a2);
         a1_grid = a_grid(1:sum(n_a1));
         a1_gridvals = CreateGridvals(n_a1, a1_grid, 1);
     else
-        n_a1 = 0;
-        a1_grid = [];
-        a1_gridvals = [];
+        n_a1 = 0; a1_grid = []; a1_gridvals = [];
     end
     n_a2 = n_a(end-l_a2+1:end);
     a2_grid = a_grid(sum(n_a1)+1:end);
 
+    % 2. Split Decision Grids
+    l_d3 = has_semiz * 1; % Toolkit default: last decision drives semiz
+    l_d2 = 1;             % Toolkit default: second-to-last drives exp asset
+
+    if length(n_d) > (l_d2 + l_d3)
+        n_d1 = n_d(1:end-l_d2-l_d3);
+        d1_grid = d_grid(1:sum(n_d1));
+        d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
+    else
+        n_d1 = 0; d1_grid = []; d1_gridvals = [];
+    end
+
+    n_d2 = n_d(end-l_d3-l_d2+1 : end-l_d3);
+    d2_grid = d_grid(sum(n_d1)+1 : sum(n_d1)+sum(n_d2));
+    d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
+
     if has_semiz
-        % --- ExpAsset + SemiExo Routing ---
-        l_d3 = 1; % Toolkit default: last decision drives semiz
-        l_d2 = 1; % Toolkit default: second-to-last drives experience asset
-
-        % Split Decision Grids into d1, d2, and d3
-        if length(n_d) > (l_d2 + l_d3)
-            n_d1 = n_d(1:end-l_d2-l_d3);
-            d1_grid = d_grid(1:sum(n_d1));
-            d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
-        else
-            n_d1 = 0;
-            d1_grid = [];
-            d1_gridvals = [];
-        end
-        n_d2 = n_d(end-l_d3-l_d2+1 : end-l_d3);
-        d2_grid = d_grid(sum(n_d1)+1 : sum(n_d1)+sum(n_d2));
-        d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
-
         n_d3 = n_d(end-l_d3+1 : end);
         d3_grid = d_grid(sum(n_d1)+sum(n_d2)+1 : end);
         d3_gridvals = CreateGridvals(n_d3, d3_grid, 1);
-
-        % Dispatch to the 7D V-World Orchestrator
-        [V, Policy] = ValueFnIter_VFHorz_ExpAssetsemiz(n_d1, n_d2, n_d3, n_a1, n_a2, n_z, vfoptions.n_semiz, N_j, ...
-            d1_gridvals, d2_gridvals, d3_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, ...
-            pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, ...
-            DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        varargout = {V, Policy};
-        return
-
+        n_semiz_pass = vfoptions.n_semiz;
+        semiz_grid_pass = vfoptions.semiz_gridvals_J;
+        pi_semiz_pass = vfoptions.pi_semiz_J;
     else
-        % --- Pure ExpAsset Routing ---
-        l_d2 = 1;
-        if length(n_d) > l_d2
-            n_d1 = n_d(1:end-l_d2);
-            d1_grid = d_grid(1:sum(n_d1));
-            d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
-        else
-            n_d1 = 0;
-            d1_grid = [];
-            d1_gridvals = [];
-        end
-        n_d2 = n_d(end-l_d2+1:end);
-        d2_grid = d_grid(sum(n_d1)+1:end);
-        d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
-
-        % Dispatch to the 5D V-World Orchestrator (handles N_z >= 1 automatically!)
-        [V, Policy] = ValueFnIter_VFHorz_ExpAsset(n_d1, n_d2, n_a1, n_a2, n_z, N_j, ...
-            d1_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ...
-            pi_z_J, ReturnFn, Parameters, ...
-            DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        varargout = {V, Policy};
-        return
+        n_d3 = 0; d3_gridvals = []; n_semiz_pass = 0; semiz_grid_pass = []; pi_semiz_pass = [];
     end
+
+    % Dispatch to the Universal V-World Orchestrator
+    [V, Policy] = ValueFnIter_VFHorz_ExpAsset(n_d1, n_d2, n_d3, n_a1, n_a2, n_z, n_semiz_pass, N_j, ...
+        d1_gridvals, d2_gridvals, d3_gridvals, a1_gridvals, a2_grid, ...
+        z_gridvals_J, semiz_grid_pass, pi_z_J, pi_semiz_pass, ReturnFn, Parameters, ...
+        DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout = {V, Policy};
+    return
 end
 
 %% Risky Asset state Dispatch
-if isfield(vfoptions, 'riskyasset') && vfoptions.riskyasset == 1
+if vfoptions.riskyasset == 1
 
     % 1. Split standard and risky endogenous states (NEW)
     vfoptions = SetupNonStandardEndoStates_FHorz(n_d, n_a, d_grid, a_grid, vfoptions);
@@ -340,7 +367,7 @@ if isfield(vfoptions, 'riskyasset') && vfoptions.riskyasset == 1
     if isfield(vfoptions, 'refine_d')
         l_d = l_d - vfoptions.refine_d(1);
         % If semiz is active, d4 is part of the decision vector but not in aprimeFn
-        if isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz) > 0 && length(vfoptions.refine_d) >= 4
+        if prod(vfoptions.n_semiz) > 0 && length(vfoptions.refine_d) >= 4
             l_d = l_d - vfoptions.refine_d(4);
         end
     end
@@ -357,7 +384,7 @@ if isfield(vfoptions, 'riskyasset') && vfoptions.riskyasset == 1
     end
 
     % 4. Route to the Universal Tensor Architecture (EZ and CRRA unified!)
-    if isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz) > 0
+    if prod(vfoptions.n_semiz) > 0
         [V, Policy] = ValueFnIter_VFHorz_RiskyAssetSemiExo(n_d, n_a1, n_a2, vfoptions.n_semiz, n_z, n_u, N_j, ...
             d_grid, a1_grid, a2_grid, vfoptions.semiz_gridvals_J, z_gridvals_J, u_grid, ...
             vfoptions.pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, ...
@@ -375,7 +402,7 @@ end
 
 %% Semi-exogenous state Dispatch
 % The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
-if isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz)>0
+if prod(vfoptions.n_semiz)>0
     if length(n_d) > vfoptions.l_dsemiz
         n_d1 = n_d(1:end-vfoptions.l_dsemiz);
         d1_grid = d_grid(1:sum(n_d1));
@@ -468,7 +495,7 @@ else
     z_work_1 = squeeze(z_gridvals_J(:, :, 1));
 end
 
-has_semiz = isfield(vfoptions, 'n_semiz') && ~isempty(vfoptions.n_semiz) && prod(vfoptions.n_semiz) > 0;
+has_semiz = prod(vfoptions.n_semiz) > 0;
 if has_semiz
     N_semiz = prod(vfoptions.n_semiz);
     n_all_z = [vfoptions.n_semiz, n_z];
@@ -479,7 +506,7 @@ end
 n_z_work = N_semiz * max(1, N_z_exog);
 has_z = (N_z_exog > 0);
 
-has_e = isfield(vfoptions, 'n_e') && ~isempty(vfoptions.n_e) && prod(vfoptions.n_e) > 0;
+has_e = prod(vfoptions.n_e) > 0;
 if has_e
     n_e_vars = length(vfoptions.n_e);
     n_e_work = prod(vfoptions.n_e);
@@ -591,15 +618,10 @@ for reverse_j = 0:N_j-1
     ZE_e_idx = E_mesh(:);
 
     % --- Determine Exogenous Memory Chunking (lowmemory) ---
-    lowmem_level = 0;
-    if isfield(vfoptions, 'lowmemory') && ~isempty(vfoptions.lowmemory)
-        lowmem_level = vfoptions.lowmemory;
-    end
-
-    if lowmem_level == 0
+    if vfoptions.lowmemory == 0
         % Vectorize everything
         ze_chunks = {1:N_ze};
-    elseif lowmem_level == 1
+    elseif vfoptions.lowmemory == 1
         if N_z_safe > 1 && n_e_work > 1
             % z & e present: Parallel over z, loop over e
             ze_chunks = cell(1, n_e_work);
@@ -610,7 +632,7 @@ for reverse_j = 0:N_j-1
             % Only z or only e present: loop over that active shock
             ze_chunks = num2cell(1:N_ze);
         end
-    elseif lowmem_level == 2
+    elseif vfoptions.lowmemory == 2
         % z & e present: loop both (evaluate one ZE combination at a time)
         ze_chunks = num2cell(1:N_ze);
     else
@@ -687,7 +709,7 @@ for reverse_j = 0:N_j-1
             vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a_work_local, a1prime_grid, ...
             ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj)); % <--- Added the 4 EZ constants
 
-        if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
+        if vfoptions.divideandconquer == 1
             vfoptions.level1n = vfoptions.level1n(1);
             [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
         else
