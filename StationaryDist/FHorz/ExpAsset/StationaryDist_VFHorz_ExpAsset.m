@@ -172,11 +172,16 @@ for jj = 1:N_j
         weight_name = AgeWeightParamNames{aw};
         if isfield(Parameters, weight_name)
             weight_vals = Parameters.(weight_name);
-            % Multiply cohort mass by survival probability for this age
-            Dist_curr = Dist_curr * weight_vals(min(jj, length(weight_vals)));
+            % The actual survival rate is the ratio of the next cohort's mass to the current one
+            if jj < length(weight_vals)
+                survival_rate = weight_vals(jj+1) / weight_vals(jj);
+                Dist_curr = Dist_curr * survival_rate;
+            else
+                Dist_curr = Dist_curr * 0; % Terminal period
+            end
         end
     end
-    % ---------------------------------------------------
+
 end
 
 % =========================================================
