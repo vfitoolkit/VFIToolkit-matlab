@@ -237,7 +237,6 @@ else
 end
 
 %% Experience Asset (and Semi-Exo) Dispatch
-%% Experience Asset (and Semi-Exo) Dispatch
 is_exp  = isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0;
 is_expz = isfield(vfoptions, 'experienceassetz') && vfoptions.experienceassetz > 0;
 
@@ -251,21 +250,6 @@ if is_exp || is_expz
     end
     
     % 1. Split Asset Grids
-    if length(n_a) > l_a2
-        n_a1 = n_a(1:end-l_a2);
-        a1_grid = a_grid(1:sum(n_a1));
-        a1_gridvals = CreateGridvals(n_a1, a1_grid, 1);
-    else
-        n_a1 = 0;
-        a1_grid = [];
-        a1_gridvals = [];
-    end
-    n_a2 = n_a(end-l_a2+1:end);
-    a2_grid = a_grid(sum(n_a1)+1:end);
-    has_semiz = isfield(vfoptions, 'n_semiz') && ~isempty(vfoptions.n_semiz) && prod(vfoptions.n_semiz) > 0;
-    l_a2 = vfoptions.experienceasset; % Supports l_a2 >= 1
-
-    % 1. Split Asset Grids (Safely handles multi-asset n_a1 like Assets + Housing!)
     if length(n_a) > l_a2
         n_a1 = n_a(1:end-l_a2);
         a1_grid = a_grid(1:sum(n_a1));
