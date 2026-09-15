@@ -18,15 +18,36 @@ end
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     % If transpathoptions is not given, just use all the defaults
+    transpathoptions.t_updateJacobian=Inf; % GEnewprice=1 only: recompute the Jacobian from scratch every t_updateJacobian iterations, with Broyden rank-one updates in between. =1 is a full Newton method, =Inf computes it once and relies on Broyden thereafter
+    transpathoptions.GEnewprice1.Jacobianmethod='LudwigPath'; % How the initial/reinitialised Jacobian is built for GEnewprice=1. 'LudwigPath' is the Omega kron I structure of Ludwig (2007) GSQN with Omega measured by perturbing the current price path in every period, costing nPrices path solves per rebuild. 'LudwigStationary' is the same structure with Omega taken instead at the final stationary eqm, as Ludwig sec 3.2 prescribes, costing nPrices+1 stationary solves once and never rebuilt. 'FullJacobian' finite-differences every (period,price) at (T-1)*nPrices path solves and assumes no structure, so it is the oracle the other two are checked against. 'LudwigSSJ' uses the sequence-space Jacobian as the initial matrix, keeping the cross-time structure that the two Ludwig methods collapse to the identity
+    if ~isfield(transpathoptions,'GEnewprice1') || ~isfield(transpathoptions.GEnewprice1,'quasiNewton_reinitJacobian')
+        if strcmp(transpathoptions.GEnewprice1.Jacobianmethod,'FullJacobian')
+            transpathoptions.GEnewprice1.quasiNewton_reinitJacobian=10; % how many times the step may be halved before giving up on the direction and reinitialising the Jacobian. Rebuilding the full Jacobian costs (T-1)*nPrices path solves, so it is worth backtracking a long way first
+        else
+            transpathoptions.GEnewprice1.quasiNewton_reinitJacobian=3; % Ludwig's prescription: three line-search failures then reinitialise, which is cheap when the Jacobian is nPrices path solves
+        end
+    end
+    transpathoptions.GEnewprice1.factor=0.1; % pnew=p+factor*dp, the factor on 'dp' when updating prices in the Newton (with Broyden) algorithm; a dampening hyperparameter, the smaller this number the smaller the update each iteration
+    transpathoptions.epsprice=1e-3; % Finite-difference step used to build the Jacobian (used by GEnewprice=1, and by the fake-news Jacobian when that arrives). Do NOT make this small: with discretized choice the residual is a step function of the prices, so a tiny perturbation moves no policy and the difference is discretization noise rather than a derivative. Measured on the d_z model of CoreInfHorzTPathAlgoTests, rcond of the Jacobian was 2.5e-6 at 1e-5 and 2.5e-3 at 1e-3, a thousand times better for the same cost. Do not use sqrt(eps): with discretized choice the policy is a step function of prices, so a machine-precision bump moves no policy at all
+    transpathoptions.GEnewprice1.BroydenRegularisation='minimumnorm'; % GEnewprice=1 only: how to regularise the Newton step, since the Jacobian of a price path is badly conditioned. 'minimumnorm' drops the directions the Jacobian does not resolve, 'TikhonovRegularisation' fades them out instead
+    transpathoptions.GEnewprice1.Tikhonovlambda=1e-4; % GEnewprice=1 only, and only used by BroydenRegularisation='TikhonovRegularisation': the regularisation weight, taken relative to the largest singular value of the Jacobian so that it does not depend on the units of the prices
+    transpathoptions.GEnewprice1.stepcap=0.1; % GEnewprice=1 only, and only used by BroydenRegularisation='stepcap': the most the Newton step may move the price path in one iteration, as a fraction of the length of the path itself
+    transpathoptions.GEnewprice1.FullJacobianReuseVpath=0; % GEnewprice=1 with Jacobianmethod='FullJacobian' only: =0 builds the Jacobian one full path solve per column. =1 restarts the backward pass at the perturbed period instead, since the value fn at a later period cannot depend on an earlier price, which is exact and roughly halves the value fn work, at the cost of holding the whole path of V in memory
     transpathoptions.updatepert=0; % 0: build the new price path from all periods at once after the loop over t (updatePricePathNew_TPath_T), 1: build it period by period inside the loop (updatePricePathNew_TPath_tt, the original). Same answer either way for the shooting algorithm; =0 is what the Newton options need, as their Jacobian couples periods
+    transpathoptions.anderson=struct(); % GEnewprice=2 only: the Anderson acceleration options, all documented in AndersonAcceleration(). Defaults are set there, except for safeguard just below
+    transpathoptions.anderson.safeguard=0; % GEnewprice=2 only: 0: take every Anderson step. 1: evaluate the general eqm conditions at the trial point too, and fall back to a plain shooting step if the distance got worse, which costs a second path solve on every Anderson iteration
     transpathoptions.toleranceGEprices=Inf; % convergence criterion for GE prices, set =Inf to turn this off (it is off by default)
     transpathoptions.toleranceGEcondns=1e-4; % convergence criterion for GE condns
     transpathoptions.multiGEcriterion=1; % How to combine multiple GE condns (default is sum-of-squares)
     transpathoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     transpathoptions.updateaccuracycutoff=10^(-9); % If the suggested update is less than this then don't bother; 10^(-9) is decent odds to be numerical error anyway (currently only works for transpathoptions.GEnewprice=3)
     transpathoptions.parallel=1+(gpuDeviceCount>0);
-    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
-                                   % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
+    % transpathoptions.GEnewprice must be set explicitly for now: =1 is Newton with Broyden updates, =3 is the shooting algorithm.
+    % There is deliberately no default while the Newton options are being built, because 1 and 3 want different things
+    % from the user (3 needs GEnewprice3.howtoupdate) and silently picking one would be the wrong kind of convenience.
+    % RESTORE A DEFAULT LATER. The old line was:
+    % transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period separately), 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
+    error('transpathoptions.GEnewprice must be set: =1 for quasi-Newton with Broyden updates, =2 for Anderson acceleration, =3 for the shooting algorithm')
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
@@ -41,8 +62,52 @@ if exist('transpathoptions','var')==0
     transpathoptions.tanimprovement=1;
 else
     % Check transpathoptions for missing fields, if there are some fill them with the defaults
+    if ~isfield(transpathoptions,'t_updateJacobian')
+        transpathoptions.t_updateJacobian=Inf; % GEnewprice=1 only: recompute the Jacobian from scratch every t_updateJacobian iterations, with Broyden rank-one updates in between. =1 is a full Newton method, =Inf computes it once and relies on Broyden thereafter
+    end
+    if ~isfield(transpathoptions,'GEnewprice1') || ~isfield(transpathoptions.GEnewprice1,'Jacobianmethod')
+        transpathoptions.GEnewprice1.Jacobianmethod='LudwigPath'; % How the initial/reinitialised Jacobian is built for GEnewprice=1. 'LudwigPath' is the Omega kron I structure of Ludwig (2007) GSQN with Omega measured by perturbing the current price path in every period, costing nPrices path solves per rebuild. 'LudwigStationary' is the same structure with Omega taken instead at the final stationary eqm, as Ludwig sec 3.2 prescribes, costing nPrices+1 stationary solves once and never rebuilt. 'FullJacobian' finite-differences every (period,price) at (T-1)*nPrices path solves and assumes no structure, so it is the oracle the other two are checked against. 'LudwigSSJ' uses the sequence-space Jacobian as the initial matrix, keeping the cross-time structure that the two Ludwig methods collapse to the identity
+    end
+    % transpathoptions.GEnewprice1.LudwigGeneralEqmEqns has no default. It is only needed by
+    % Jacobianmethod='LudwigStationary', and only when the GeneralEqmEqns refer to the previous or next period
+    % (t-1 or t+1 prices, parameters or aggregate variables), which have no meaning in the stationary
+    % general eqm that Ludwig's W is built from. It is then a copy of GeneralEqmEqns written with
+    % same-period names only, same eqn names in the same order. TransitionPath_InfHorz_LudwigW errors
+    % with an explanation if it is needed and absent.
+    if ~isfield(transpathoptions,'GEnewprice1') || ~isfield(transpathoptions.GEnewprice1,'quasiNewton_reinitJacobian')
+        if strcmp(transpathoptions.GEnewprice1.Jacobianmethod,'FullJacobian')
+            transpathoptions.GEnewprice1.quasiNewton_reinitJacobian=10; % how many times the step may be halved before giving up on the direction and reinitialising the Jacobian. Rebuilding the full Jacobian costs (T-1)*nPrices path solves, so it is worth backtracking a long way first
+        else
+            transpathoptions.GEnewprice1.quasiNewton_reinitJacobian=3; % Ludwig's prescription: three line-search failures then reinitialise, which is cheap when the Jacobian is nPrices path solves
+        end
+    end
+    if ~isfield(transpathoptions,'GEnewprice1') || ~isfield(transpathoptions.GEnewprice1,'factor')
+        transpathoptions.GEnewprice1.factor=0.1; % pnew=p+factor*dp, the factor on 'dp' when updating prices in the Newton (with Broyden) algorithm; a dampening hyperparameter, the smaller this number the smaller the update each iteration
+    end
+    if ~isfield(transpathoptions,'epsprice')
+        transpathoptions.epsprice=1e-3; % Finite-difference step used to build the Jacobian (used by GEnewprice=1, and by the fake-news Jacobian when that arrives). Do NOT make this small: with discretized choice the residual is a step function of the prices, so a tiny perturbation moves no policy and the difference is discretization noise rather than a derivative. Measured on the d_z model of CoreInfHorzTPathAlgoTests, rcond of the Jacobian was 2.5e-6 at 1e-5 and 2.5e-3 at 1e-3, a thousand times better for the same cost. Do not use sqrt(eps): with discretized choice the policy is a step function of prices, so a machine-precision bump moves no policy at all
+    end
+    if ~isfield(transpathoptions,'GEnewprice1') || ~isfield(transpathoptions.GEnewprice1,'BroydenRegularisation')
+        transpathoptions.GEnewprice1.BroydenRegularisation='minimumnorm'; % GEnewprice=1 only: how to regularise the Newton step, since the Jacobian of a price path is badly conditioned. 'minimumnorm' drops the directions the Jacobian does not resolve, 'TikhonovRegularisation' fades them out instead
+    end
+    if ~isfield(transpathoptions,'GEnewprice1') || ~isfield(transpathoptions.GEnewprice1,'Tikhonovlambda')
+        transpathoptions.GEnewprice1.Tikhonovlambda=1e-4; % GEnewprice=1 only, and only used by BroydenRegularisation='TikhonovRegularisation': the regularisation weight, taken relative to the largest singular value of the Jacobian so that it does not depend on the units of the prices
+    end
+    if ~isfield(transpathoptions,'GEnewprice1') || ~isfield(transpathoptions.GEnewprice1,'stepcap')
+        transpathoptions.GEnewprice1.stepcap=0.1; % GEnewprice=1 only, and only used by BroydenRegularisation='stepcap': the most the Newton step may move the price path in one iteration, as a fraction of the length of the path itself
+    end
+    if ~isfield(transpathoptions,'GEnewprice1') || ~isfield(transpathoptions.GEnewprice1,'FullJacobianReuseVpath')
+        transpathoptions.GEnewprice1.FullJacobianReuseVpath=0; % GEnewprice=1 with Jacobianmethod='FullJacobian' only: =0 builds the Jacobian one full path solve per column. =1 restarts the backward pass at the perturbed period instead, since the value fn at a later period cannot depend on an earlier price, which is exact and roughly halves the value fn work, at the cost of holding the whole path of V in memory
+    end
+
     if ~isfield(transpathoptions,'updatepert')
         transpathoptions.updatepert=0; % 0: build the new price path from all periods at once after the loop over t (updatePricePathNew_TPath_T), 1: build it period by period inside the loop (updatePricePathNew_TPath_tt, the original). Same answer either way for the shooting algorithm; =0 is what the Newton options need, as their Jacobian couples periods
+    end
+    if ~isfield(transpathoptions,'anderson')
+        transpathoptions.anderson=struct(); % GEnewprice=2 only: the Anderson acceleration options, all documented in AndersonAcceleration(). Defaults are set there, except for safeguard just below
+    end
+    if ~isfield(transpathoptions.anderson,'safeguard')
+        transpathoptions.anderson.safeguard=0; % GEnewprice=2 only: 0: take every Anderson step. 1: evaluate the general eqm conditions at the trial point too, and fall back to a plain shooting step if the distance got worse, which costs a second path solve on every Anderson iteration
     end
     if isfield(transpathoptions,'tolerance')
         error('Old transpathoptions.tolerance, has now been renamed and you should use transpathoptions.toleranceGEcondns instead')
@@ -66,8 +131,12 @@ else
         transpathoptions.parallel=1+(gpuDeviceCount>0);
     end
     if ~isfield(transpathoptions,'GEnewprice')
-        transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
-                                       % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
+        % transpathoptions.GEnewprice must be set explicitly for now: =1 is Newton with Broyden updates, =3 is the shooting algorithm.
+        % There is deliberately no default while the Newton options are being built, because 1 and 3 want different things
+        % from the user (3 needs GEnewprice3.howtoupdate) and silently picking one would be the wrong kind of convenience.
+        % RESTORE A DEFAULT LATER. The old line was:
+        % transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period separately), 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
+        error('transpathoptions.GEnewprice must be set: =1 for quasi-Newton with Broyden updates, =2 for Anderson acceleration, =3 for the shooting algorithm')
     end
     if ~isfield(transpathoptions,'oldpathweight')
         if transpathoptions.GEnewprice==3
@@ -114,11 +183,6 @@ if transpathoptions.parallel~=2
     error('Transition paths can only be solved if you have a GPU')
 end
 
-if transpathoptions.graphGEcondns==1
-    if transpathoptions.GEnewprice~=3
-        error('Can only use transpathoptions.graphGEcondns=1 when using transpathoptions.GEnewprice=3')
-    end
-end
 
 %% Check which vfoptions have been used, set all others to defaults
 if exist('vfoptions','var')==0
@@ -450,6 +514,10 @@ end
 
 
 %% If using a shooting algorithm, set that up
+if transpathoptions.GEnewprice==2 && (~isfield(transpathoptions,'GEnewprice2') || ~isfield(transpathoptions.GEnewprice2,'howtoupdate'))
+    % Anderson acceleration accelerates the shooting map, so it needs the same instructions the shooting algorithm does
+    error('transpathoptions.GEnewprice=2 (Anderson acceleration) requires transpathoptions.GEnewprice2.howtoupdate (same format as GEnewprice3.howtoupdate)')
+end
 transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames);
 
 
@@ -515,28 +583,20 @@ if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agente
 end
 
 %%
-if transpathoptions.GEnewprice~=2
+if transpathoptions.GEnewprice==1 % Damped Newton on the whole price path, Jacobian by brute-force finite differences with Broyden updates
+    [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_quasiNewton(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d,n_a,n_z,vfoptions.n_e, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, vfoptions, simoptions,transpathoptions);
+elseif transpathoptions.GEnewprice==2 % Anderson acceleration of the shooting update
+    [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_Anderson(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d,n_a,n_z,vfoptions.n_e, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, vfoptions, simoptions,transpathoptions);
+else % the shooting algorithm
     [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d,n_a,n_z,vfoptions.n_e, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, vfoptions, simoptions,transpathoptions);
-
-    % Switch to structure for output
-    for pp=1:length(PricePathNames)
-        PricePathStruct.(PricePathNames{pp})=PricePath(:,pp)';
-    end
-    for gg=1:length(GEeqnNames)
-        GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg)';
-    end
-
 end
 
-if transpathoptions.GEnewprice==2
-    warning('Have not yet implemented transpathoptions.GEnewprice==2 for infinite horizon transition paths (2 is to treat path as a fixed-point problem) ')
-
-
-    % Switch to structure for output
-    for pp=1:length(PricePathNames)
-        PricePathStruct.(PricePathNames{pp})=PricePath(:,pp)';
-    end
-
+% Switch to structure for output
+for pp=1:length(PricePathNames)
+    PricePathStruct.(PricePathNames{pp})=PricePath(:,pp)';
+end
+for gg=1:length(GEeqnNames)
+    GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg)';
 end
 
 if nargout==1

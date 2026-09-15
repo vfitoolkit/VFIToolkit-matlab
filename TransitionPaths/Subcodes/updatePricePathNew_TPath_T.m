@@ -12,7 +12,13 @@ PricePathNew(T,:)=PricePathOld(T,:); % period T is the terminal condition, it ne
 
 if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
     PricePathNew(1:T-1,:)=GEcondnPath; % the formulae evaluate to the new prices directly
-% Note there is no GEnewprice==2, it uses a completely different code
+elseif transpathoptions.GEnewprice==2 % Anderson acceleration, which accelerates the shooting update, so the map itself is the shooting one
+    % Same formula as GEnewprice==3 below, but with no additional-factor ramp: Anderson builds its
+    % step from the history of iterates and so needs the same map at every iteration, which is why
+    % setupGEnewprice3_shooting errors if additionalfactor is set for GEnewprice=2.
+    p_i=GEcondnPath(:,transpathoptions.GEnewprice2.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
+    p_i=(abs(p_i)>transpathoptions.updateaccuracycutoff).*p_i;
+    PricePathNew(1:T-1,:)=(PricePathOld(1:T-1,:).*transpathoptions.GEnewprice2.keepold)+transpathoptions.GEnewprice2.add.*transpathoptions.GEnewprice2.factor.*p_i-(1-transpathoptions.GEnewprice2.add).*transpathoptions.GEnewprice2.factor.*p_i;
 elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
     p_i=GEcondnPath(:,transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
     I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
