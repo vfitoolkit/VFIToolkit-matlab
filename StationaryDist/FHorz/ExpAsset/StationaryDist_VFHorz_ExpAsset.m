@@ -35,7 +35,8 @@ N_d2 = max(1, prod(n_d2));
 aprimeFn = simoptions.aprimeFn;
 d_grid = simoptions.d_grid;
 a2_grid = simoptions.a_grid(sum(n_a1)+1:end);
-d2_gridvals = CreateGridvals(n_d2, d_grid(l_d1+1 : l_d1+l_d2), 1);
+d2_grid = d_grid(sum(n_d1)+1 : sum(n_d1)+sum(n_d2));
+d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
 
 input_names = getAnonymousFnInputNames(aprimeFn);
 aprimeFnParamNames = input_names(isfield(Parameters, input_names));
@@ -123,7 +124,7 @@ for jj = 1:N_j
     a2primeProbs = (a2_grid(a2primeIndex + 1) - a2_prime_vals(:)) ./ a2_step;
     a2primeProbs = max(0, min(1, a2primeProbs));
     
-    lookup_idx = d2_linear_idx(:) + N_d2 * (A2_grid_idx - 1);
+    lookup_idx = d2_linear_idx(:) + N_d2 * (A2_grid_idx - 1) + N_d2 * N_a2 * (Z_grid_idx(:) - 1);
     a2_p_lower = a2primeIndex(lookup_idx);
     a2_p_upper = min(a2_p_lower + 1, N_a2);
     a2_prob_lower = a2primeProbs(lookup_idx);
