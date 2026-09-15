@@ -293,30 +293,6 @@ if is_exp || is_expz
         varargout = {V, Policy};
         return
 
-    elseif is_expz
-        % --- Pure ExpAssetz Routing ---
-        l_d2 = 1;
-        if length(n_d) > l_d2
-            n_d1 = n_d(1:end-l_d2);
-            d1_grid = d_grid(1:sum(n_d1));
-            d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
-        else
-            n_d1 = 0;
-            d1_grid = [];
-            d1_gridvals = [];
-        end
-        n_d2 = n_d(end-l_d2+1:end);
-        d2_grid = d_grid(sum(n_d1)+1:end);
-        d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
-
-        % Dispatch to the ExpAssetz Orchestrator
-        [V, Policy] = ValueFnIter_FHorz_ExpAssetz(n_d1, n_d2, n_a1, n_a2, n_z, N_j, ...
-            d1_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ...
-            pi_z_J, ReturnFn, Parameters, ...
-            DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        varargout = {V, Policy};
-        return
-
     else
         % --- Pure ExpAsset Routing ---
         l_d2 = 1;
@@ -333,7 +309,7 @@ if is_exp || is_expz
         d2_grid = d_grid(sum(n_d1)+1:end);
         d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
 
-        % Dispatch to the 5D V-World Orchestrator
+        % Dispatch to the 5D V-World Orchestrator (handles N_z >= 1 automatically!)
         [V, Policy] = ValueFnIter_VFHorz_ExpAsset(n_d1, n_d2, n_a1, n_a2, n_z, N_j, ...
             d1_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ...
             pi_z_J, ReturnFn, Parameters, ...

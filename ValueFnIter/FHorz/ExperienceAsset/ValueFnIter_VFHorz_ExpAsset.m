@@ -22,11 +22,15 @@ end
 aprimeFn = vfoptions.aprimeFn;
 num_d2 = length(n_d2);
 num_a2 = length(n_a2);
-temp = getAnonymousFnInputNames(aprimeFn);
-if length(temp) > (num_d2 + num_a2 + (num_a2 >= 2))
-    aprimeFnParamNames = {temp{num_d2 + num_a2 + (num_a2 >= 2) + 1:end}};
+if isfield(vfoptions, 'aprimeFnParamNames')
+    aprimeFnParamNames = vfoptions.aprimeFnParamNames;
 else
-    aprimeFnParamNames = {};
+    temp = getAnonymousFnInputNames(aprimeFn);
+    if length(temp) > (num_d2 + num_a2 + (num_a2 >= 2))
+        aprimeFnParamNames = {temp{num_d2 + num_a2 + (num_a2 >= 2) + 1:end}};
+    else
+        aprimeFnParamNames = {};
+    end
 end
 
 num_d1 = length(n_d1);
@@ -93,7 +97,7 @@ for reverse_j = 0:N_j-1
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
     beta_j = prod(DiscountFactorParamsVec);
     ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
-    aprimeFnParamsVec = CreateVectorFromParams(Parameters, aprimeFnParamNames, jj);
+    aprimeFnParamsCell = CreateCellFromParams(Parameters, aprimeFnParamNames, jj);
 
     num_z = length(n_z);
     if N_z > 0
@@ -112,7 +116,50 @@ for reverse_j = 0:N_j-1
         pi_z_j = [];
     end
 
-    [a2primeIndex, a2primeProbs] = CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec, 2);
+    % --- Vectorized Experience Asset Transition (Replaces CreateExperienceAssetFnMatrix) ---
+    % 1. Build the full N-dimensional mesh for d2, a2, and z (if present)
+    if N_z > 0
+        % Dynamic mesh building for z
+        mesh_args = cell(1, 2 + num_z);
+        mesh_args{1} = d2_gridvals(:,1);
+        mesh_args{2} = a2_grid(:);
+        for iz = 1:num_z
+            mesh_args{2+iz} = z_work_j(:, iz);
+        end
+        [nd_out{1:2+num_z}] = ndgrid(mesh_args{:});
+        
+        d2_mesh = nd_out{1};
+        a2_mesh = nd_out{2};
+        z_mesh_cells = nd_out(3:end);
+        
+        % Evaluate aprimeFn natively factoring in exogenous shocks
+        a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, aprimeFnParamsCell{:});
+        expected_size = [N_d2, N_a2, N_z_safe];
+    else
+        [d2_mesh, a2_mesh] = ndgrid(d2_gridvals(:,1), a2_grid(:));
+        a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, aprimeFnParamsCell{:});
+        expected_size = [N_d2, N_a2, 1];
+    end
+
+    % 2. Dimensional Guard & Boundary Clamping
+    if ~isequal(size(a2_prime_vals), expected_size)
+        a2_prime_vals = a2_prime_vals + zeros(expected_size, 'like', a2_grid);
+    end
+    a2_prime_vals = max(a2_grid(1), min(a2_grid(end), a2_prime_vals));
+
+    % 3. Calculate Indices and Probabilities using histc
+    [~, a2primeIndex] = histc(a2_prime_vals(:), a2_grid);
+    a2primeIndex = max(1, min(a2primeIndex, N_a2 - 1));
+    
+    a2_step = a2_grid(a2primeIndex + 1) - a2_grid(a2primeIndex);
+    a2_step(a2_step == 0) = 1; % Prevent division by zero
+    
+    a2primeProbs = (a2_grid(a2primeIndex + 1) - a2_prime_vals(:)) ./ a2_step;
+    a2primeProbs = max(0, min(1, a2primeProbs));
+    
+    % Force them into strictly uniform 3D tensors so the EV lookup never breaks
+    a2primeIndex = reshape(a2primeIndex, expected_size);
+    a2primeProbs = reshape(a2primeProbs, expected_size);
 
     a1_work_local = a1_gridvals(:, 1);
 
@@ -275,19 +322,24 @@ z_offset  = reshape(0:N_z_safe-1, [1, 1, 1, 1, N_z_safe]) .* (N_a1 * N_a2);
 
 for i_d2 = 1:N_d2
     % --- 1. Compute Full Expected Value (EV) for this d2 choice ---
-    idx   = a2primeIndex(i_d2, :);
-    probs = a2primeProbs(i_d2, :);
+    % Extract the exact 2D slice for this decision across all assets and z-states
+    idx   = reshape(a2primeIndex(i_d2, :, :), [N_a2, N_z_safe]);
+    probs = reshape(a2primeProbs(i_d2, :, :), [N_a2, N_z_safe]);
 
-    Vlower = V_next(:, idx, :);
-    Vupper = V_next(:, min(idx + 1, N_a2), :);
+    % Linear indexing to extract Vlower and Vupper gracefully across all z-states
+    a1_col = reshape(1:N_a1, [N_a1, 1, 1]);
+    idx_lower_offset = reshape((idx - 1) * N_a1, [1, N_a2, N_z_safe]);
+    idx_upper_offset = reshape((min(idx + 1, N_a2) - 1) * N_a1, [1, N_a2, N_z_safe]);
+    z_offset_V = reshape((0:N_z_safe-1) * (N_a1 * N_a2), [1, 1, N_z_safe]);
+
+    lin_lower = a1_col + idx_lower_offset + z_offset_V;
+    lin_upper = a1_col + idx_upper_offset + z_offset_V;
+
+    Vlower = V_next(lin_lower);
+    Vupper = V_next(lin_upper);
 
     % Expand probabilities to perfectly match the tensor size!
-    % (This completely avoids MATLAB's logical indexing broadcast trap)
-    probs_full = repmat(reshape(probs, [1, N_a2, 1]), [N_a1, 1, N_z_safe]);
-
-    % Toolkit exact rule: Skip interpolation if upper and lower are equal
-    skipinterp = (Vlower == Vupper);
-    probs_full(skipinterp) = 0;
+    probs_full = repmat(reshape(probs, [1, N_a2, N_z_safe]), [N_a1, 1, 1]);
 
     EV_interp = probs_full .* Vlower + (1 - probs_full) .* Vupper;
 
