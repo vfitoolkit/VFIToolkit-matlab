@@ -5,11 +5,12 @@ function StationaryDist = StationaryDist_VFHorz_Case1(jequaloneDist, AgeWeightPa
 % Inspects the model structure and dispatches to the correct vectorized tensor engine.
 
 % --- 1. Identify Model Features from simoptions ---
-has_expasset = isfield(simoptions, 'experienceasset') && simoptions.experienceasset == 1;
-has_semiz    = isfield(simoptions, 'n_semiz') && ~isempty(simoptions.n_semiz);
+has_expasset  = isfield(simoptions, 'experienceasset') && simoptions.experienceasset == 1;
+has_expassetz = isfield(simoptions, 'experienceassetz') && simoptions.experienceassetz == 1;
+has_semiz     = isfield(simoptions, 'n_semiz') && ~isempty(simoptions.n_semiz);
 
 % --- 2. Dispatch to Specific Orchestrators ---
-if has_expasset && has_semiz
+if (has_expasset || has_expassetz) && has_semiz
     % Unpack Semi-Exo requirements
     n_semiz = simoptions.n_semiz;
 
@@ -29,9 +30,11 @@ if has_expasset && has_semiz
         jequaloneDist, AgeWeightParamNames, Policy, n_d, n_a, n_semiz, n_z, ...
         N_j, pi_semiz_J, pi_z_J, Parameters, simoptions);
 
-elseif has_expasset
-    % Future: Route to StationaryDist_VFHorz_ExpAsset
-    error('V-World: ExpAsset (without semiz) dispatcher not yet implemented.');
+elseif has_expasset || has_expassetz
+    % Route to StationaryDist_VFHorz_ExpAsset
+    StationaryDist = StationaryDist_VFHorz_ExpAsset(...
+        jequaloneDist, AgeWeightParamNames, Policy, n_d, n_a, n_z, ...
+        N_j, pi_z_J, Parameters, simoptions);
 
 elseif has_semiz
     % Future: Route to StationaryDist_VFHorz_SemiExo
