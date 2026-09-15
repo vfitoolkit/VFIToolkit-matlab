@@ -34,7 +34,7 @@ elseif has_expasset || has_expassetz
     % Route to StationaryDist_VFHorz_ExpAsset
     StationaryDist = StationaryDist_VFHorz_ExpAsset(...
         jequaloneDist, AgeWeightParamNames, Policy, n_d, n_a, n_z, ...
-        N_j, pi_z_J, Parameters, simoptions);
+        N_j, simoptions.z_gridvals_J, pi_z_J, Parameters, simoptions);
 
 elseif has_semiz
     % Future: Route to StationaryDist_VFHorz_SemiExo

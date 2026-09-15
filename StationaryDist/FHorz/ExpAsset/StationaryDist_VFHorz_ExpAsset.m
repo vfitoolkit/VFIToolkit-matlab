@@ -1,4 +1,4 @@
-function StationaryDist = StationaryDist_VFHorz_ExpAsset(jequaloneDist, AgeWeightParamNames, Policy, n_d, n_a, n_z, N_j, pi_z_J, Parameters, simoptions)
+function StationaryDist = StationaryDist_VFHorz_ExpAsset(jequaloneDist, AgeWeightParamNames, Policy, n_d, n_a, n_z, N_j, z_gridvals_J, pi_z_J, Parameters, simoptions)
 % STATIONARYDIST_VFHORZ_EXPASSET
 % V-World Universal Forward Simulator for Experience Asset OLG Models (ExpAsset & ExpAssetz)
 
@@ -53,7 +53,7 @@ Dist_curr = reshape(jequaloneDist, [N_a1 * N_a2 * N_z_safe, 1]);
 % Construct full-size state coordinate vectors
 [~, A2_idx_grid, Z_idx_grid] = ndgrid(1:N_a1, 1:N_a2, 1:N_z_safe);
 A2_grid_idx = A2_idx_grid(:);
-Z_grid_idx  = Z_grid_idx(:);
+Z_grid_idx  = Z_idx_grid(:);
 
 % Policy tensor comes in as [NumPolicies, N_a1, N_a2, N_z_safe, N_j]
 NumPolicies = size(Policy, 1);
