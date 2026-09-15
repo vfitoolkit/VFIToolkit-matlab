@@ -74,8 +74,8 @@ if gridinterplayer
     a1prime_grid = interp1(1:1:N_a1, a1_gridvals(:, 1), linspace(1, N_a1, N_a1 + (N_a1 - 1) * n2short))';
     PolicyKron = zeros(4, N_a1, N_a2, N_all_z_safe, N_j, 'like', a2_grid);
 else
-    % Allocate 2 explicit layers: Layer 1 for decisions, Layer 2 for asset choices
-    PolicyKron = zeros(2, N_a1, N_a2, N_all_z_safe, N_j, 'like', a2_grid);
+    % Back to a single scalar layer!
+    PolicyKron = zeros(N_a1, N_a2, N_all_z_safe, N_j, 'like', a2_grid);
     n2short = 0; n2long = 0; a1prime_grid = [];
 end
 
@@ -221,8 +221,8 @@ for reverse_j = 0:N_j-1
         PolicyKron(3, :, :, :, jj) = subgrid_step;
         PolicyKron(4, :, :, :, jj) = Pol_L2flag_max;
     else
-        PolicyKron(1, :, :, :, jj) = d_idx;
-        PolicyKron(2, :, :, :, jj) = max(Pol_apr_max, 1);
+        % Pack decisions and assets into a single standard Kronecker index
+        PolicyKron(:, :, :, jj) = d_idx + (max(Pol_apr_max, 1) - 1) * (N_d1_safe * N_d2 * N_d3_safe);
     end
     V(:, :, :, jj) = V_j_max;
     V_next = V_j_max;
@@ -242,14 +242,14 @@ if N_z == 0 && N_semiz == 0
     if gridinterplayer
         Policy = reshape(PolicyKron, [4, n_a_vec, N_j]);
     else
-        Policy = reshape(PolicyKron, [2, n_a_vec, N_j]);
+        Policy = reshape(PolicyKron, [n_a_vec, N_j]);
     end
 else
     V = reshape(V, [n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
     if gridinterplayer
         Policy = reshape(PolicyKron, [4, n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
     else
-        Policy = reshape(PolicyKron, [2, n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
+        Policy = reshape(PolicyKron, [n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
     end
 end
 
