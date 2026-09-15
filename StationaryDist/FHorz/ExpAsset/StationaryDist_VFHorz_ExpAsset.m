@@ -3,7 +3,7 @@ function StationaryDist = StationaryDist_VFHorz_ExpAsset(jequaloneDist, AgeWeigh
 % V-World Universal Forward Simulator for Experience Asset OLG Models (ExpAsset & ExpAssetz)
 
 % --- 1. Dimension Extraction ---
-l_dexperienceasset = 1; 
+l_dexperienceasset = 1;
 
 n_d2 = n_d(end - l_dexperienceasset + 1 : end);
 if length(n_d) > l_dexperienceasset
@@ -66,31 +66,29 @@ Policy_reshaped = reshape(Policy, [NumPolicies, N_a1, N_a2, N_z_safe, N_j]);
 for jj = 1:N_j
     % 1. Store the current cohort distribution
     StationaryDist(:, :, :, jj) = reshape(Dist_curr, [N_a1, N_a2, N_z_safe]);
-    if jj == N_j 
-        break; 
+    if jj == N_j
+        break;
     end
-    
+
     % 2. Extract Exact Policy Indexes for Current Age
-    % Layer 1: d2 (experience asset decision)
-    d2_layer = reshape(Policy_reshaped(1, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
-    d2_linear_idx = d2_layer(:); 
+    l_d = length(n_d);
+    % Layer 1: d2 (experience asset decision is always the last 'd')
+    d2_layer = reshape(Policy_reshaped(l_d, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
+    d2_linear_idx = max(1, min(d2_layer(:), N_d2)); % Clamp to safe bounds
 
     % Layer 2+: aprime (endogenous asset indexes)
-    aprime_idx = reshape(Policy_reshaped(2, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
-    if NumPolicies >= 3 && numel(n_a1) > 1
-        hprime_idx = reshape(Policy_reshaped(3, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
-        a1_linear_idx = aprime_idx(:) + n_a1(1) * (hprime_idx(:) - 1);
-    else
-        a1_linear_idx = aprime_idx(:);
+    a1_linear_idx = zeros(N_a1 * N_a2 * N_z_safe, 1) + 1; % Base 1 index
+    cum_n_a1 = 1;
+    for ia = 1:length(n_a1)
+        % Endogenous asset policies start immediately after 'd'
+        pol_idx = reshape(Policy_reshaped(l_d + ia, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
+        a1_linear_idx = a1_linear_idx + cum_n_a1 * (pol_idx(:) - 1);
+        cum_n_a1 = cum_n_a1 * n_a1(ia);
     end
-
-    % Clamp indices to safe bounds
-    d2_linear_idx = max(1, min(d2_linear_idx, N_d2));
     a1_linear_idx = max(1, min(a1_linear_idx, N_a1));
-    
+
     % 3. Calculate Experience Asset Transition (a2)
     aprimeFnParamsCell = CreateCellFromParams(Parameters, aprimeFnParamNames, jj);
-    
     if N_z_safe > 1
         z_work_j = z_gridvals_J(:, :, min(jj, size(z_gridvals_J, 3)));
         [d2_mesh, a2_mesh, z_idx_mesh] = ndgrid(d2_gridvals(:), a2_grid(:), 1:N_z_safe);
@@ -104,42 +102,62 @@ for jj = 1:N_j
         [d2_mesh, a2_mesh] = ndgrid(d2_gridvals(:), a2_grid(:));
         a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, aprimeFnParamsCell{:});
     end
-    
+
     expected_size = [N_d2, N_a2, N_z_safe];
     if numel(a2_prime_vals) > prod(expected_size)
         a2_prime_vals = reshape(a2_prime_vals(1:prod(expected_size)), expected_size);
     elseif ~isequal(size(a2_prime_vals), expected_size)
         a2_prime_vals = a2_prime_vals + zeros(expected_size, 'like', a2_grid);
     end
-    
     a2_prime_vals = max(a2_grid(1), min(a2_grid(end), a2_prime_vals));
-    
+
     [~, a2primeIndex] = histc(a2_prime_vals(:), a2_grid);
     a2primeIndex = max(1, min(a2primeIndex, N_a2 - 1));
-    
+
     a2_step = a2_grid(a2primeIndex + 1) - a2_grid(a2primeIndex);
     a2_step(a2_step == 0) = 1;
-    
     a2primeProbs = (a2_grid(a2primeIndex + 1) - a2_prime_vals(:)) ./ a2_step;
     a2primeProbs = max(0, min(1, a2primeProbs));
-    
+
     lookup_idx = d2_linear_idx(:) + N_d2 * (A2_grid_idx - 1) + N_d2 * N_a2 * (Z_grid_idx(:) - 1);
+
     a2_p_lower = a2primeIndex(lookup_idx);
     a2_p_upper = min(a2_p_lower + 1, N_a2);
     a2_prob_lower = a2primeProbs(lookup_idx);
-    
-    % 4. Build Target Linear Indices for AccumArray
-    target_idx_lower = a1_linear_idx(:) + N_a1 * (a2_p_lower(:) - 1) + N_a1 * N_a2 * (Z_grid_idx(:) - 1);
-    target_idx_upper = a1_linear_idx(:) + N_a1 * (a2_p_upper(:) - 1) + N_a1 * N_a2 * (Z_grid_idx(:) - 1);
-    
-    % 5. Map Mass forward
-    mass_lower = Dist_curr(:) .* a2_prob_lower(:);
-    mass_upper = Dist_curr(:) .* (1 - a2_prob_lower(:));
+
+    % 4 & 5. Map Mass forward (with Grid Interpolation Support)
     sz_mid = N_a1 * N_a2 * N_z_safe;
-    
-    Dist_mid_flat = accumarray([target_idx_lower; target_idx_upper], double([mass_lower; mass_upper]), [sz_mid, 1]);
+
+    if isfield(simoptions, 'gridinterplayer') && simoptions.gridinterplayer == 1
+        % Extract L2 index to preserve fractional wealth
+        l2_layer = reshape(Policy_reshaped(end-1, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
+        a1_prob_upper = (l2_layer(:) - 1) / (simoptions.ngridinterp + 1);
+
+        % Four-way target mapping (splitting between a1 and a2 bounds)
+        idx_LL = a1_linear_idx(:) + N_a1 * (a2_p_lower(:) - 1) + N_a1 * N_a2 * (Z_grid_idx(:) - 1);
+        idx_UL = min(a1_linear_idx(:) + 1, N_a1) + N_a1 * (a2_p_lower(:) - 1) + N_a1 * N_a2 * (Z_grid_idx(:) - 1);
+        idx_LU = a1_linear_idx(:) + N_a1 * (a2_p_upper(:) - 1) + N_a1 * N_a2 * (Z_grid_idx(:) - 1);
+        idx_UU = min(a1_linear_idx(:) + 1, N_a1) + N_a1 * (a2_p_upper(:) - 1) + N_a1 * N_a2 * (Z_grid_idx(:) - 1);
+
+        mass_LL = Dist_curr(:) .* a2_prob_lower(:) .* (1 - a1_prob_upper(:));
+        mass_UL = Dist_curr(:) .* a2_prob_lower(:) .* a1_prob_upper(:);
+        mass_LU = Dist_curr(:) .* (1 - a2_prob_lower(:)) .* (1 - a1_prob_upper(:));
+        mass_UU = Dist_curr(:) .* (1 - a2_prob_lower(:)) .* a1_prob_upper(:);
+
+        Dist_mid_flat = accumarray([idx_LL; idx_UL; idx_LU; idx_UU], double([mass_LL; mass_UL; mass_LU; mass_UU]), [sz_mid, 1]);
+    else
+        % Standard discrete 2-way split (a2 only)
+        idx_L = a1_linear_idx(:) + N_a1 * (a2_p_lower(:) - 1) + N_a1 * N_a2 * (Z_grid_idx(:) - 1);
+        idx_U = a1_linear_idx(:) + N_a1 * (a2_p_upper(:) - 1) + N_a1 * N_a2 * (Z_grid_idx(:) - 1);
+
+        mass_L = Dist_curr(:) .* a2_prob_lower(:);
+        mass_U = Dist_curr(:) .* (1 - a2_prob_lower(:));
+
+        Dist_mid_flat = accumarray([idx_L; idx_U], double([mass_L; mass_U]), [sz_mid, 1]);
+    end
+
     Dist_mid = reshape(cast(Dist_mid_flat, 'like', Dist_curr), [N_a1 * N_a2, N_z_safe]);
-    
+
     % 6. Apply Exogenous Markov Shocks (z)
     if N_z_safe > 1
         pi_z = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
@@ -148,6 +166,17 @@ for jj = 1:N_j
     else
         Dist_curr = reshape(Dist_mid, [N_a1 * N_a2 * N_z_safe, 1]);
     end
+
+    % 7. Apply Age Weights (The Grim Reaper) ---
+    for aw = 1:length(AgeWeightParamNames)
+        weight_name = AgeWeightParamNames{aw};
+        if isfield(Parameters, weight_name)
+            weight_vals = Parameters.(weight_name);
+            % Multiply cohort mass by survival probability for this age
+            Dist_curr = Dist_curr * weight_vals(min(jj, length(weight_vals)));
+        end
+    end
+    % ---------------------------------------------------
 end
 
 % =========================================================
