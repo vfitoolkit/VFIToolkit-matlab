@@ -74,7 +74,8 @@ if gridinterplayer
     a1prime_grid = interp1(1:1:N_a1, a1_gridvals(:, 1), linspace(1, N_a1, N_a1 + (N_a1 - 1) * n2short))';
     PolicyKron = zeros(4, N_a1, N_a2, N_all_z_safe, N_j, 'like', a2_grid);
 else
-    PolicyKron = zeros(N_a1, N_a2, N_all_z_safe, N_j, 'like', a2_grid);
+    % Allocate 2 explicit layers: Layer 1 for decisions, Layer 2 for asset choices
+    PolicyKron = zeros(2, N_a1, N_a2, N_all_z_safe, N_j, 'like', a2_grid);
     n2short = 0; n2long = 0; a1prime_grid = [];
 end
 
@@ -220,8 +221,8 @@ for reverse_j = 0:N_j-1
         PolicyKron(3, :, :, :, jj) = subgrid_step;
         PolicyKron(4, :, :, :, jj) = Pol_L2flag_max;
     else
-        PolicyKron_j = d_idx + (max(Pol_apr_max, 1) - 1) * (N_d1_safe * N_d2 * N_d3_safe);
-        PolicyKron(:, :, :, jj) = PolicyKron_j;
+        PolicyKron(1, :, :, :, jj) = d_idx;
+        PolicyKron(2, :, :, :, jj) = max(Pol_apr_max, 1);
     end
     V(:, :, :, jj) = V_j_max;
     V_next = V_j_max;
@@ -235,40 +236,27 @@ else
 end
 if N_d3 > 0, n_d_vec = [n_d_vec, n_d3]; end
 
-if vfoptions.outputkron == 1
-    if N_z == 0 && N_semiz == 0
-        V = reshape(V, [n_a_vec, N_j]);
-        if gridinterplayer, Policy = reshape(PolicyKron, [4, n_a_vec, N_j]); else, Policy = reshape(PolicyKron, [n_a_vec, N_j]); end
+n_a_vec = [n_a1, n_a2];
+if N_z == 0 && N_semiz == 0
+    V = reshape(V, [n_a_vec, N_j]);
+    if gridinterplayer
+        Policy = reshape(PolicyKron, [4, n_a_vec, N_j]);
     else
-        % Pass Kron arrays safely to final structures depending on active dimensions
-        V = reshape(V, [n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
-        if gridinterplayer, Policy = reshape(PolicyKron, [4, n_a_vec, max(1, n_semiz), max(1, n_z), N_j]); else, Policy = reshape(PolicyKron, [n_a_vec, max(1, n_semiz), max(1, n_z), N_j]); end
-    end
-    return
-end
-
-if gridinterplayer
-    PolicyKron_flat = reshape(PolicyKron, [4, N_a, N_all_z_safe, N_j]);
-    if N_z == 0 && N_semiz == 0
-        V = reshape(V, [n_a_vec, N_j]);
-        Policy = UnKronPolicyIndexes2_FHorz_noz(PolicyKron_flat, n_d_vec, n_a1, n_a_vec, N_j, vfoptions);
-    else
-        V = reshape(V, [n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
-        % Route to joint unpacker internally
-        Policy = UnKronPolicyIndexes2_FHorz_z(PolicyKron_flat, n_d_vec, n_a1, n_a_vec, max(1, N_all_z_safe), N_j, vfoptions);
+        Policy = reshape(PolicyKron, [2, n_a_vec, N_j]);
     end
 else
-    PolicyKron_flat = reshape(PolicyKron, [1, N_a, N_all_z_safe, N_j]);
-    n_d_vec_disc = [n_d_vec, n_a1];
-    if N_z == 0 && N_semiz == 0
-        V = reshape(V, [n_a_vec, N_j]);
-        Policy = UnKronPolicyIndexes1_FHorz_noz(PolicyKron_flat, n_d_vec_disc, n_a_vec, N_j, vfoptions);
+    V = reshape(V, [n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
+    if gridinterplayer
+        Policy = reshape(PolicyKron, [4, n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
     else
-        V = reshape(V, [n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
-        Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron_flat, n_d_vec_disc, n_a_vec, max(1, N_all_z_safe), N_j, vfoptions);
+        Policy = reshape(PolicyKron, [2, n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
     end
 end
+
+
 end
+
+
 
 function [V_j_max, Pol_apr_max, Pol_d_combo, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_ExpAsset_TensorBlock(...
     state_idx, loweredge_matrix, maxgap_scalar, ...
@@ -472,7 +460,8 @@ for i_d3 = 1:N_d3_safe
         if i_d2 == 1 && i_d3 == 1
             update_mask = true(N_block, N_a2, N_all_z_safe);
         else
-            update_mask = V_sub > V_j_max;
+            % Match standard toolkit tie-breaking: prefer lower asset choice if values are exactly equal
+            update_mask = (V_sub > V_j_max) | ((V_sub == V_j_max) & (apr_idx < Pol_apr_max));
         end
         V_j_max(update_mask)     = V_sub(update_mask);
         Pol_apr_max(update_mask) = apr_idx(update_mask);

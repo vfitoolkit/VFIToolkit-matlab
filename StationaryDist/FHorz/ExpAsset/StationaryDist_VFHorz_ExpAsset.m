@@ -73,18 +73,17 @@ for jj = 1:N_j
     % 2. Extract Exact Policy Indexes for Current Age
     % Layer 1: d2 (experience asset decision)
     d2_layer = reshape(Policy_reshaped(1, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
-    d2_linear_idx = d2_layer(:);
-    
+    d2_linear_idx = d2_layer(:); 
+
     % Layer 2+: aprime (endogenous asset indexes)
     aprime_idx = reshape(Policy_reshaped(2, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
-    
-    if numel(n_a1) > 1
+    if NumPolicies >= 3 && numel(n_a1) > 1
         hprime_idx = reshape(Policy_reshaped(3, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
         a1_linear_idx = aprime_idx(:) + n_a1(1) * (hprime_idx(:) - 1);
     else
         a1_linear_idx = aprime_idx(:);
     end
-    
+
     % Clamp indices to safe bounds
     d2_linear_idx = max(1, min(d2_linear_idx, N_d2));
     a1_linear_idx = max(1, min(a1_linear_idx, N_a1));
