@@ -195,7 +195,11 @@ if vfoptions.divideandconquer==1
 end
 
 if isempty(ReturnFnParamNames)
-    ReturnFnParamNames = ReturnFnParamNamesFn(ReturnFn, n_d, n_a, n_z, N_j, vfoptions, Parameters);
+    if isfield(vfoptions, 'ReturnFnParamNames')
+        ReturnFnParamNames = vfoptions.ReturnFnParamNames;
+    else
+        ReturnFnParamNames = ReturnFnParamNamesFn(ReturnFn, n_d, n_a, n_z, N_j, vfoptions, Parameters);
+    end
 end
 
 if vfoptions.parallel == 2
@@ -536,11 +540,7 @@ for reverse_j = 0:N_j-1
 
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
     beta_j = prod(DiscountFactorParamsVec);
-    if isfield(vfoptions, 'ReturnFnParamNames')
-        ReturnFnParamsCell = vfoptions.ReturnFnParamNames;
-    else
-        ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
-    end
+    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
 
     % --- EZ V_next Transformation ---
     valid_V = isfinite(V_next) & (V_next ~= 0);
