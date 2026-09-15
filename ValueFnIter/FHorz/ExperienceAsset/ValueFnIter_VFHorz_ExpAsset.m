@@ -74,8 +74,8 @@ if gridinterplayer
     a1prime_grid = interp1(1:1:N_a1, a1_gridvals(:, 1), linspace(1, N_a1, N_a1 + (N_a1 - 1) * n2short))';
     PolicyKron = zeros(4, N_a1, N_a2, N_all_z_safe, N_j, 'like', a2_grid);
 else
-    % Back to a single scalar layer!
-    PolicyKron = zeros(N_a1, N_a2, N_all_z_safe, N_j, 'like', a2_grid);
+    num_policies = 1 + length(n_a1);
+    PolicyKron = zeros(num_policies, N_a1, N_a2, N_all_z_safe, N_j, 'like', a2_grid);
     n2short = 0; n2long = 0; a1prime_grid = [];
 end
 
@@ -221,8 +221,15 @@ for reverse_j = 0:N_j-1
         PolicyKron(3, :, :, :, jj) = subgrid_step;
         PolicyKron(4, :, :, :, jj) = Pol_L2flag_max;
     else
-        % Pack decisions and assets into a single standard Kronecker index
-        PolicyKron(:, :, :, jj) = d_idx + (max(Pol_apr_max, 1) - 1) * (N_d1_safe * N_d2 * N_d3_safe);
+        % Explicitly separate policy into layered indices [d, a, pv]
+        PolicyKron(1, :, :, :, jj) = d_idx;
+        if length(n_a1) == 1
+            PolicyKron(2, :, :, :, jj) = max(Pol_apr_max, 1);
+        elseif length(n_a1) == 2
+            apr_safe = max(Pol_apr_max, 1);
+            PolicyKron(2, :, :, :, jj) = mod(apr_safe - 1, n_a1(1)) + 1;
+            PolicyKron(3, :, :, :, jj) = floor((apr_safe - 1) / n_a1(1)) + 1;
+        end
     end
     V(:, :, :, jj) = V_j_max;
     V_next = V_j_max;
@@ -237,20 +244,18 @@ end
 if N_d3 > 0, n_d_vec = [n_d_vec, n_d3]; end
 
 n_a_vec = [n_a1, n_a2];
+if gridinterplayer
+    num_out = 4;
+else
+    num_out = 1 + length(n_a1);
+end
+
 if N_z == 0 && N_semiz == 0
     V = reshape(V, [n_a_vec, N_j]);
-    if gridinterplayer
-        Policy = reshape(PolicyKron, [4, n_a_vec, N_j]);
-    else
-        Policy = reshape(PolicyKron, [n_a_vec, N_j]);
-    end
+    Policy = reshape(PolicyKron, [num_out, n_a_vec, N_j]);
 else
     V = reshape(V, [n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
-    if gridinterplayer
-        Policy = reshape(PolicyKron, [4, n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
-    else
-        Policy = reshape(PolicyKron, [n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
-    end
+    Policy = reshape(PolicyKron, [num_out, n_a_vec, max(1, n_semiz), max(1, n_z), N_j]);
 end
 
 
