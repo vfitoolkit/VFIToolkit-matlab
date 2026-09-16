@@ -102,13 +102,13 @@ end
 V1 = zeros(N_a, N_z, N_j, 'gpuArray');
 Valt = zeros(N_a, N_z, N_j, 'gpuArray');
 
-has_GI = isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer == 1;
+has_GI = vfoptions.gridinterplayer == 1;
 if has_GI
     Policy = zeros(3, N_a, N_z, N_j, 'gpuArray');
     if isNaive; Policyalt = zeros(3, N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
 else
     Policy = zeros(N_a, N_z, N_j, 'gpuArray');
-    if isNaive; Policyalt = zeros(N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
+    if isNaive; Policyalt = zeros(1, N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
 end
 
 % --- 3. Slicer Setup ---
@@ -222,7 +222,7 @@ if has_GI
     if isNaive; Policyalt = reshape(Policyalt, [3, out_dims]); end
 else
     Policy = reshape(Policy, out_dims);
-    if isNaive; Policyalt = reshape(Policyalt, out_dims); end
+    if isNaive; Policyalt = reshape(Policyalt, [1, out_dims]); end
 end
 
 

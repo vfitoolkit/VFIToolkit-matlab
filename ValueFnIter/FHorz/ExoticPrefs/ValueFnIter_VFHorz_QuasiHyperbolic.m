@@ -108,7 +108,7 @@ if has_GI
     if isNaive; Policyalt = zeros(3, N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
 else
     Policy = zeros(N_a, N_z, N_j, 'gpuArray');
-    if isNaive; Policyalt = zeros(N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
+    if isNaive; Policyalt = zeros(1, N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
 end
 
 % --- 3. Slicer Setup ---
@@ -205,8 +205,8 @@ for reverse_j = 0:N_j-1
             Policyalt(3,:,:,jj) = 2;
         end
     else
-        Policy(:,:,jj) = Pol_j;
-        if isNaive; Policyalt(:,:,jj) = Polalt_j; end
+        Policy(1,:,:,jj) = Pol_j;
+        if isNaive; Policyalt(1,:,:,jj) = Polalt_j; end
     end
 end
 
@@ -222,7 +222,7 @@ if has_GI
     if isNaive; Policyalt = reshape(Policyalt, [3, out_dims]); end
 else
     Policy = reshape(Policy, out_dims);
-    if isNaive; Policyalt = reshape(Policyalt, out_dims); end
+    if isNaive; Policyalt = reshape(Policyalt, [1, out_dims]); end
 end
 
 
