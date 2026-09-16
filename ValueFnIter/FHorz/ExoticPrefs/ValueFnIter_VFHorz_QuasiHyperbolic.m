@@ -210,20 +210,39 @@ for reverse_j = 0:N_j-1
     end
 end
 
-% --- 5. Final Reshape to Full Native Dimensions ---
+% --- 5. UnKron Policies and Final Reshape ---
 out_dims = [n_a, n_z, N_j];
 if isscalar(out_dims); out_dims = [out_dims, 1]; end
 
 V1 = reshape(V1, out_dims);
 Valt = reshape(Valt, out_dims);
 
-if has_GI
-    Policy = reshape(Policy, [3, out_dims]);
-    if isNaive; Policyalt = reshape(Policyalt, [3, out_dims]); end
+% 1. Define the choice space that the Kron index spans
+if isempty(n_d) || prod(n_d) == 0
+    n_daprime = n_a1;
 else
-    Policy = reshape(Policy, out_dims);
-    if isNaive; Policyalt = reshape(Policyalt, [1, out_dims]); end
+    n_daprime = [n_d, n_a1];
 end
+
+% 2. Add leading singleton so the UnKron engine recognizes it
+if ~has_GI
+    Policy = shiftdim(Policy, -1);
+    if isNaive; Policyalt = shiftdim(Policyalt, -1); end
+end
+
+% 3. Unpack the single index into independent rows for d, a1_1, a1_2...
+if N_z > 0
+    Policy = UnKronPolicyIndexes1_FHorz_z(Policy, n_daprime, n_a, n_z, N_j, vfoptions);
+    if isNaive; Policyalt = UnKronPolicyIndexes1_FHorz_z(Policyalt, n_daprime, n_a, n_z, N_j, vfoptions); end
+else
+    Policy = UnKronPolicyIndexes1_FHorz_noz(Policy, n_daprime, n_a, N_j, vfoptions);
+    if isNaive; Policyalt = UnKronPolicyIndexes1_FHorz_noz(Policyalt, n_daprime, n_a, N_j, vfoptions); end
+end
+
+% 4. Final reshape for the downstream StationaryDist engine
+NumPol = size(Policy, 1);
+Policy = reshape(Policy, [NumPol, out_dims]);
+if isNaive; Policyalt = reshape(Policyalt, [NumPol, out_dims]); end
 
 
 end
