@@ -30,53 +30,35 @@ N_a  = N_a1 * N_a2;
 N_z  = max(1, prod(n_z(n_z > 0)));
 if N_z == 0; N_z = 1; end
 
-% A1 grids
-num_a1 = length(n_a1(n_a1 > 0));
-a1_grids_1d = cell(1, num_a1);
-offset = 0;
-for i_a = 1:num_a1
-    a1_grids_1d{i_a} = a_grid((offset + 1):(offset + n_a1(i_a)));
-    offset = offset + n_a1(i_a);
-end
-if num_a1 > 0
-    [A1_mesh{1:num_a1}] = ndgrid(a1_grids_1d{:});
-    A1_mat = zeros(N_a1, num_a1, 'like', a_grid);
-    for i_a = 1:num_a1; A1_mat(:, i_a) = A1_mesh{i_a}(:); end
-else
-    A1_mat = [];
+% --- 2b. Universal Grid Packing ---
+a1_grid_len = sum(n_a1);
+a1_grid_vals = a_grid(1:a1_grid_len);
+a2_grid_vals = a_grid(a1_grid_len+1:end);
+
+% Pack D and A1 (Endogenous)
+[D_cells_block, A1_cells, ~, ~] = CreateReturnFnMatrix_VFHorz(n_d, n_a1, 0, 0, d_grid, a1_grid_vals, [], []);
+
+% Pack A2 (Experience)
+[~, A2_cells, ~, ~] = CreateReturnFnMatrix_VFHorz(0, n_a2, 0, 0, [], a2_grid_vals, [], []);
+
+% Re-construct the legacy A1_mat and A2_mat formats expected by the lower TensorBlock
+A1_mat = zeros(N_a1, length(n_a1), 'like', a_grid);
+for i_a = 1:length(n_a1)
+    A1_mat(:, i_a) = A1_cells{i_a}(:);
 end
 
-% A2 grids
-num_a2 = length(n_a2(n_a2 > 0));
-a2_grids_1d = cell(1, num_a2);
-for i_a = 1:num_a2
-    a2_grids_1d{i_a} = a_grid((offset + 1):(offset + n_a2(i_a)));
+A2_mat = zeros(N_a2, length(n_a2), 'like', a_grid);
+a2_grids_1d = cell(1, length(n_a2));
+offset = 0;
+for i_a = 1:length(n_a2)
+    A2_mat(:, i_a) = A2_cells{i_a}(:);
+    a2_grids_1d{i_a} = a2_grid_vals((offset + 1):(offset + n_a2(i_a)));
     offset = offset + n_a2(i_a);
 end
-if num_a2 > 0
-    [A2_mesh{1:num_a2}] = ndgrid(a2_grids_1d{:});
-    A2_mat = zeros(N_a2, num_a2, 'like', a_grid);
-    for i_a = 1:num_a2; A2_mat(:, i_a) = A2_mesh{i_a}(:); end
-else
-    A2_mat = [];
-end
 
-% D grids
-num_d = length(n_d(n_d > 0));
-D_cells_block = cell(1, num_d);
-if num_d > 0
-    d_grids_1d = cell(1, num_d);
-    offset = 0;
-    for i_d = 1:num_d
-        d_grids_1d{i_d} = d_grid((offset + 1):(offset + n_d(i_d)));
-        offset = offset + n_d(i_d);
-    end
-    if num_d > 1
-        [D_mesh{1:num_d}] = ndgrid(d_grids_1d{:});
-        for i_d = 1:num_d; D_cells_block{i_d} = reshape(D_mesh{i_d}(:), [N_d, 1, 1, 1, 1]); end
-    else
-        D_cells_block{1} = reshape(d_grid(:), [N_d, 1, 1, 1, 1]);
-    end
+% Ensure D_cells_block is formatted for the QHEZ 5D Tensor [N_d, 1, 1, 1, 1]
+for i_d = 1:length(D_cells_block)
+    D_cells_block{i_d} = reshape(D_cells_block{i_d}, [N_d, 1, 1, 1, 1]);
 end
 
 % Extract aprimeFn Params for ExpAsset
