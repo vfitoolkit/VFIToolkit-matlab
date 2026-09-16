@@ -98,20 +98,17 @@ else
     aprimeFnParamNames = {};
 end
 
-% Pre-allocate Output Tensors
-state_dims = [n_a, n_z];
-if isscalar(state_dims); state_dims = [state_dims, 1]; end
+% Pre-allocate Flattened Output Tensors
+V1 = zeros(N_a, N_z, N_j, 'gpuArray');
+Valt = zeros(N_a, N_z, N_j, 'gpuArray');
 
-V1 = zeros([state_dims, N_j], 'gpuArray');
-Valt = zeros([state_dims, N_j], 'gpuArray');
-
-has_GI = isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer == 1;
+has_GI = vfoptions.gridinterplayer == 1;
 if has_GI
-    Policy = zeros([3, state_dims, N_j], 'gpuArray');
-    if isNaive; Policyalt = zeros([3, state_dims, N_j], 'gpuArray'); else; Policyalt = []; end
+    Policy = zeros(3, N_a, N_z, N_j, 'gpuArray');
+    if isNaive; Policyalt = zeros(3, N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
 else
-    Policy = zeros([state_dims, N_j], 'gpuArray');
-    if isNaive; Policyalt = zeros([state_dims, N_j], 'gpuArray'); else; Policyalt = []; end
+    Policy = zeros(N_a, N_z, N_j, 'gpuArray');
+    if isNaive; Policyalt = zeros(N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
 end
 
 % --- 3. Slicer Setup ---
@@ -195,23 +192,40 @@ for reverse_j = 0:N_j-1
         if isNaive; Polalt_j(:, curr_ze) = Pol_alt; end
     end
 
-    V1(:,:,jj) = reshape(V1_j, state_dims);
-    Valt(:,:,jj) = reshape(Valt_j, state_dims);
+    V1(:,:,jj) = V1_j;
+    Valt(:,:,jj) = Valt_j;
 
     if has_GI
-        Policy(1,:,:,jj) = reshape(Pol_j, state_dims);
+        Policy(1,:,:,jj) = Pol_j;
         Policy(2,:,:,jj) = 0;
         Policy(3,:,:,jj) = 2;
         if isNaive
-            Policyalt(1,:,:,jj) = reshape(Polalt_j, state_dims);
+            Policyalt(1,:,:,jj) = Polalt_j;
             Policyalt(2,:,:,jj) = 0;
             Policyalt(3,:,:,jj) = 2;
         end
     else
-        Policy(:,:,jj) = reshape(Pol_j, state_dims);
-        if isNaive; Policyalt(:,:,jj) = reshape(Polalt_j, state_dims); end
+        Policy(:,:,jj) = Pol_j;
+        if isNaive; Policyalt(:,:,jj) = Polalt_j; end
     end
 end
+
+% --- 5. Final Reshape to Full Native Dimensions ---
+out_dims = [n_a, n_z, N_j];
+if isscalar(out_dims); out_dims = [out_dims, 1]; end
+
+V1 = reshape(V1, out_dims);
+Valt = reshape(Valt, out_dims);
+
+if has_GI
+    Policy = reshape(Policy, [3, out_dims]);
+    if isNaive; Policyalt = reshape(Policyalt, [3, out_dims]); end
+else
+    Policy = reshape(Policy, out_dims);
+    if isNaive; Policyalt = reshape(Policyalt, out_dims); end
+end
+
+
 end
 
 % =========================================================================
