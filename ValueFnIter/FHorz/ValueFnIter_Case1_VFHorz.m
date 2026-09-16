@@ -161,6 +161,17 @@ if isempty(ReturnFnParamNames)
     end
 end
 
+if strcmp(vfoptions.exoticpreferences, 'QuasiHyperbolic')
+    if nargout == 4
+        [V1, Policy, Valt, Policyalt] = ValueFnIter_VFHorz_QuasiHyperbolic(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        varargout = {V1, Policy, Valt, Policyalt};
+    else
+        [V1, Policy, Valt] = ValueFnIter_VFHorz_QuasiHyperbolic(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        varargout = {V1, Policy, Valt, []};
+    end
+    return;
+end
+
 is_EZ = strcmp(vfoptions.exoticpreferences, 'EpsteinZin');
 if is_EZ
     % Reject asset types this dispatcher does not handle: every asset type it does handle is
