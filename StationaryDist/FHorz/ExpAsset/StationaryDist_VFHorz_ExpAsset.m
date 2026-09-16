@@ -202,6 +202,10 @@ for jj = 1:N_j
 
 end
 
+if simoptions.optimize_nProbs == 1 && isfield(simoptions, 'verbose') && simoptions.verbose >= 1
+    fprintf('nProbs Optimization: Total zeros created across all ages = %d\n', total_zeros_created);
+end
+
 % =========================================================
 % OUTPUT UNPACKING
 % =========================================================

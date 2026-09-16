@@ -118,11 +118,16 @@ if jj<jj_at_max_a2 && any(temp(:,N_a2,:)~=0,'all')
     jj_at_max_a2=jj;
 end
 
-sum_new_zeros=sum(new_zeros_created);
-total_zeros_created=total_zeros_created+sum_new_zeros;
-if simoptions.verbose==2
-    if sum_new_zeros || simoptions.verbose==2
-        fprintf("Age %3d: zeros created = %d \n", jj, sum_new_zeros);
+sum_new_zeros = sum(new_zeros_created);
+total_zeros_created = total_zeros_created + sum_new_zeros;
+
+% Clean, explicit verbose messaging
+if isfield(simoptions, 'verbose') && simoptions.verbose >= 2
+    if sum_new_zeros > 0
+        fprintf('Age %3d: zeros created = %d\n', jj, sum_new_zeros);
+    elseif simoptions.verbose == 2
+        % Only print the 0-creation lines if they ask for maximum verbosity
+        fprintf('Age %3d: zeros created = 0 (Grid already optimal)\n', jj);
     end
 end
 
