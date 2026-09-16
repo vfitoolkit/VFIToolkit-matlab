@@ -113,7 +113,7 @@ for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
 
     ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj, vfoptions.precision);
-    DiscountFactorParamsVec = CreateVecFromParams(Parameters, DiscountFactorParamNames, jj, vfoptions.precision);
+    DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj, vfoptions.precision);
     beta_j = prod(DiscountFactorParamsVec);
     beta0beta_j = beta0 * beta_j;
 
