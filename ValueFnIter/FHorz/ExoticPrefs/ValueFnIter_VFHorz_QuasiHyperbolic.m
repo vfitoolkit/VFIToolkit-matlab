@@ -1,22 +1,31 @@
 function [V1, Policy, Valt, Policyalt] = ValueFnIter_VFHorz_QuasiHyperbolic(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
-% 1. Extract Settings
+% 1. Extract Settings & Guardrails
+if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
+    error('V Universe Abort: Divide-and-Conquer assumes policy monotonicity. Quasi-Hyperbolic present-bias frequently causes non-monotonic savings behavior. Please set vfoptions.divideandconquer = 0.');
+end
+
 beta0 = Parameters.(vfoptions.QHadditionaldiscount);
 isNaive = strcmp(vfoptions.quasi_hyperbolic, 'Naive');
 
+% (For QHEpsteinZin.m, keep your ezc parameter extractions here)
+
 % 2. Pre-allocate Output Tensors (using native V Universe dimensions)
 N_choices = prod(n_d) * prod(n_a);
-state_dims = [n_a, n_z]; % V Universe native state shape
+state_dims = [n_a, n_z];
 if isscalar(state_dims); state_dims = [state_dims, 1]; end
 
 V1 = zeros([state_dims, N_j], 'gpuArray');
-Policy = zeros([state_dims, N_j], 'gpuArray');
 Valt = zeros([state_dims, N_j], 'gpuArray');
 
-if isNaive
-    Policyalt = zeros([state_dims, N_j], 'gpuArray');
+% GI requires a 3-tier Policy tensor: [Coarse Idx, Subgrid Step, Edge Flag]
+has_GI = isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer == 1;
+if has_GI
+    Policy = zeros([3, state_dims, N_j], 'gpuArray');
+    if isNaive; Policyalt = zeros([3, state_dims, N_j], 'gpuArray'); else; Policyalt = []; end
 else
-    Policyalt = [];
+    Policy = zeros([state_dims, N_j], 'gpuArray');
+    if isNaive; Policyalt = zeros([state_dims, N_j], 'gpuArray'); else; Policyalt = []; end
 end
 
 % 3. Backward Induction Loop
@@ -41,14 +50,25 @@ for reverse_j = 1:N_j
         Pol_jj = reshape(maxindex, state_dims);
 
         V1(:,:,jj) = V1_jj;
-        Policy(:,:,jj) = Pol_jj;
         Valt(:,:,jj) = V1_jj; % Valt = Vtilde or Vhat in terminal
-        if isNaive
-            Policyalt(:,:,jj) = Pol_jj;
+
+        if has_GI
+            Policy(1,:,:,jj) = Pol_jj;
+            Policy(2,:,:,jj) = 0; % Dummy subgrid step (snapped to coarse)
+            Policy(3,:,:,jj) = 2; % Interior flag
+            if isNaive
+                Policyalt(1,:,:,jj) = Pol_jj;
+                Policyalt(2,:,:,jj) = 0;
+                Policyalt(3,:,:,jj) = 2;
+            end
+        else
+            Policy(:,:,jj) = Pol_jj;
+            if isNaive
+                Policyalt(:,:,jj) = Pol_jj;
+            end
         end
         continue;
     end
-
     % --- CONTINUATION PERIODS ---
     if jj == N_j
         EV = reshape(vfoptions.V_Jplus1, state_dims); % V_Jplus1 is Valt for Naive, Vunderbar for Soph.
@@ -66,20 +86,30 @@ for reverse_j = 1:N_j
         RHS_alt = ReturnMatrix_Flat + beta * EV_Flat;
         [Vtemp_alt, maxindex_alt] = max(RHS_alt, [], 1);
         Valt(:,:,jj) = reshape(Vtemp_alt, state_dims);
-        Policyalt(:,:,jj) = reshape(maxindex_alt, state_dims);
 
         % 2. Naive QH Discounter (The current self)
         RHS_tilde = ReturnMatrix_Flat + beta0beta * EV_Flat;
         [Vtemp_tilde, maxindex_tilde] = max(RHS_tilde, [], 1);
         V1(:,:,jj) = reshape(Vtemp_tilde, state_dims);
-        Policy(:,:,jj) = reshape(maxindex_tilde, state_dims);
+
+        % Policy GI Routing
+        if has_GI
+            Policy(1,:,:,jj) = reshape(maxindex_tilde, state_dims);
+            Policy(2,:,:,jj) = 0;
+            Policy(3,:,:,jj) = 2;
+            Policyalt(1,:,:,jj) = reshape(maxindex_alt, state_dims);
+            Policyalt(2,:,:,jj) = 0;
+            Policyalt(3,:,:,jj) = 2;
+        else
+            Policy(:,:,jj) = reshape(maxindex_tilde, state_dims);
+            Policyalt(:,:,jj) = reshape(maxindex_alt, state_dims);
+        end
 
     else % Sophisticated
         % 1. Sophisticated QH Discounter (The current self's choice)
         RHS_hat = ReturnMatrix_Flat + beta0beta * EV_Flat;
         [Vtemp_hat, maxindex_hat] = max(RHS_hat, [], 1);
         V1(:,:,jj) = reshape(Vtemp_hat, state_dims);
-        Policy(:,:,jj) = reshape(maxindex_hat, state_dims);
 
         % 2. The Realized Continuation Value (Vunderbar)
         RHS_underbar = ReturnMatrix_Flat + beta * EV_Flat;
@@ -88,6 +118,15 @@ for reverse_j = 1:N_j
         maxindexfull = maxindex_hat(:)' + N_choices * (0 : N_states - 1);
         Vunderbar_Flat = RHS_underbar(maxindexfull);
         Valt(:,:,jj) = reshape(Vunderbar_Flat, state_dims);
+
+        % Policy GI Routing
+        if has_GI
+            Policy(1,:,:,jj) = reshape(maxindex_hat, state_dims);
+            Policy(2,:,:,jj) = 0;
+            Policy(3,:,:,jj) = 2;
+        else
+            Policy(:,:,jj) = reshape(maxindex_hat, state_dims);
+        end
     end
 end
 
