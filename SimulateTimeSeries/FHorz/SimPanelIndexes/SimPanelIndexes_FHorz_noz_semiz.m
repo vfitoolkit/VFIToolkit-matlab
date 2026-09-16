@@ -44,11 +44,11 @@ if ~isfield(simoptions,'n_e')
         SimPanelKron=reshape(SimPanel,[3,N_j*simoptions.numbersims]);
         SimPanel=nan(l_a+l_semiz+1,N_j*simoptions.numbersims); % (a,semiz,j)
 
-        SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
-        SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_homemade(n_semiz,SimPanelKron(2,:)); % semiz
+        SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+        SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_vec_homemade(n_semiz,SimPanelKron(2,:)')'; % semiz
         SimPanel(end,:)=SimPanelKron(3,:); % j
 
-        SimPanel=reshape(SimPanel,[3,N_j,simoptions.numbersims]);
+        SimPanel=reshape(SimPanel,[l_a+l_semiz+1,N_j,simoptions.numbersims]);
     end
 
 
@@ -87,12 +87,12 @@ else %if prod(simoptions.n_e)>0
         SimPanelKron=reshape(SimPanel,[4,N_j*simoptions.numbersims]);
         SimPanel=nan(l_a+l_semiz+l_e+1,N_j*simoptions.numbersims); % (a,semiz,e,j)
 
-        SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
-        SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_homemade(n_semiz,SimPanelKron(2,:)); % semiz
-        SimPanel(l_a+l_semiz+1:l_a+l_semiz+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(3,:)); % e
+        SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+        SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_vec_homemade(n_semiz,SimPanelKron(2,:)')'; % semiz
+        SimPanel(l_a+l_semiz+1:l_a+l_semiz+l_e,:)=ind2sub_vec_homemade(simoptions.n_e,SimPanelKron(3,:)')'; % e
         SimPanel(end,:)=SimPanelKron(4,:); % j
 
-        SimPanel=reshape(SimPanel,[4,N_j,simoptions.numbersims]);
+        SimPanel=reshape(SimPanel,[l_a+l_semiz+l_e+1,N_j,simoptions.numbersims]);
     end
 
 end

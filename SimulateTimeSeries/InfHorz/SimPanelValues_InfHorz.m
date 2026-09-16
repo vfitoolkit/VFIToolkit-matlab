@@ -170,6 +170,16 @@ end
 pi_z=gather(pi_z); % This is only use for the simulations
 InitialDist=gather(InitialDist);
 
+% Which form the panel indexes have to come back in is set here, not by the user: the
+% entry/exit code below reads (a,z) as subscripts, everything else uses the kron indexes.
+% (The exit branch of SimPanelIndexes_InfHorz() always returns subscripts regardless; this
+% matters for the agententryandexit=1 with exitinpanel=0 case, which uses the other branch.)
+if simoptions.agententryandexit==1
+    simoptions.simpanelindexkron=0;
+else
+    simoptions.simpanelindexkron=1;
+end
+
 if simoptions.agententryandexit==1
     % Do everything for an extra period, and then delete this at the end
     % (this is needed as lot's of info about exit decisions gets encoded into the next period as a way to minimize memory usage)
@@ -352,14 +362,16 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0
                 z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
                 z_ind=sub2ind_homemade(n_z,z_sub);
 
-                j_ind=SimPanel_ii(end,t);
+                % InfHorz has no age dimension: a time-varying parameter is indexed by the
+                % period of the panel, as on the agententryandexit=0 path above.
+                t_ind=t;
 
                 daprime_val=daprimePolicy_gridvals(a_ind+N_a*(z_ind-1),:);
                 for vv=1:length(FnsToEvaluate)
                     if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                         SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:));
                     else
-                        FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                        FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,t_ind));
                         SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:),FnsToEvaluateParamsCell{:});
                     end
                 end
@@ -383,14 +395,16 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==1
                 z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
                 z_ind=sub2ind_homemade(n_z,z_sub);
 
-                j_ind=SimPanel_ii(end,t);
+                % InfHorz has no age dimension: a time-varying parameter is indexed by the
+                % period of the panel, as on the agententryandexit=0 path above.
+                t_ind=t;
 
                 daprime_val=daprimePolicy_gridvals(a_ind+N_a*(z_ind-1),:);
                 for vv=1:length(FnsToEvaluate)
                     if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                         SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:));
                     else
-                        FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                        FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,t_ind));
                         SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:),FnsToEvaluateParamsCell{:});
                     end
                 end
@@ -415,7 +429,9 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==2
                 z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
                 z_ind=sub2ind_homemade(n_z,z_sub);
 
-                j_ind=SimPanel_ii(end,t);
+                % InfHorz has no age dimension: a time-varying parameter is indexed by the
+                % period of the panel, as on the agententryandexit=0 path above.
+                t_ind=t;
 
                 % Make sure that firm is not currently about to exit (includes where firm faces exogenous exit, even though this is not a decision).
                 if t<simoptions.simperiods % Note that with exit the last period will be thrown out anyway, so no need to get it correct.
@@ -431,7 +447,7 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==2
                         if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                             SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:));
                         else
-                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,t_ind));
                             SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:),FnsToEvaluateParamsCell{:});
                         end
                     end
@@ -441,7 +457,7 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==2
                         if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                             SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:));
                         else
-                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,t_ind));
                             SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:),FnsToEvaluateParamsCell{:});
                         end
                     end
