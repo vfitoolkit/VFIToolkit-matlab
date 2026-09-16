@@ -141,7 +141,7 @@ if isempty(ReturnFnParamNames)
         elseif vfoptions.riskyasset == 1
             num_u_vars = length(vfoptions.n_u);
             % RiskyAsset structure: D, A1prime, A2prime, A1, A2, Z, U
-            num_prefix_args = num_d_vars + 4 + num_z_vars + num_u_vars; 
+            num_prefix_args = num_d_vars + 4 + num_z_vars + num_u_vars;
             if has_semiz
                 num_prefix_args = num_prefix_args + length(vfoptions.n_semiz);
             end
@@ -286,7 +286,7 @@ else
     pi_z_J = [];
 end
 
-%% Quasi-Hyperbolic dispatcher (no divide-and-conquer) 
+%% Quasi-Hyperbolic dispatcher (no divide-and-conquer)
 if isfield(vfoptions, 'exoticpreferences')
     if strcmp(vfoptions.exoticpreferences, 'QuasiHyperbolic')
         if nargout == 4
@@ -397,7 +397,7 @@ if vfoptions.riskyasset == 1
             l_d = l_d - vfoptions.refine_d(4);
         end
     end
-    l_u = length(n_u); 
+    l_u = length(n_u);
     if isfield(vfoptions, 'aprimeFnParamNames')
         aprimeFnParamNames = vfoptions.aprimeFnParamNames;
     else
@@ -452,112 +452,46 @@ if prod(vfoptions.n_semiz)>0
     return
 end
 
-% Standardize missing dimensions to length-1 singletons
-if isempty(d_grid) || N_d == 0
-    n_d_vars = 0;
-    d_work = zeros(1, 1, 'like', a_grid);
-    n_d_work = 1;
-else
-    n_d_vars = length(n_d);
-    d_work = d_grid;
-    n_d_work = N_d;
-end
-has_d = (n_d_work > 0 && n_d(1) > 0);
-
-% Set up D_cells once outside the reverse_j loop
-if has_d
-    num_d = length(n_d);
-    if num_d > 1
-        % 1. Extract 1D grid vectors from the stacked d_grid
-        d_grids_1d = cell(1, num_d);
-        offset = 0;
-        for i_d = 1:num_d
-            d_grids_1d{i_d} = d_grid((offset + 1):(offset + n_d(i_d)));
-            offset = offset + n_d(i_d);
-        end
-
-        % 2. Form Cartesian coordinates matching the Kron order: [N_d x num_d]
-        [D_mesh{1:num_d}] = ndgrid(d_grids_1d{:});
-
-        % 3. Pack into cell array, each variable spanning Dim 4: [1, 1, 1, N_d]
-        D_cells = cell(1, num_d);
-        for i_d = 1:num_d
-            D_cells{i_d} = shiftdim(D_mesh{i_d}(:), -3);
-        end
-    else
-        D_cells = { shiftdim(d_work(:), -3) };
-    end
-else
-    D_cells = {};
-end
-
 % ---------------------------------------------------------------------
-% Unstack Endogenous States (a, n1, n2, ...)
+% UNIVERSAL PACKER: Unstack Endogenous, Decision, and Exogenous Grids
 % ---------------------------------------------------------------------
-num_a = length(n_a);
-if num_a > 1
-    a_grids_1d = cell(1, num_a);
-    offset = 0;
-    for i_a = 1:num_a
-        a_grids_1d{i_a} = a_grid((offset + 1):(offset + n_a(i_a)));
-        offset = offset + n_a(i_a);
-    end
-    [A_mesh_raw{1:num_a}] = ndgrid(a_grids_1d{:});
-    A_mat = zeros(N_a, num_a, 'like', a_grid);
-    for i_a = 1:num_a
-        A_mat(:, i_a) = A_mesh_raw{i_a}(:);
-    end
-else
-    A_mat = a_grid(:);
+has_e = isfield(vfoptions, 'n_e') && prod(vfoptions.n_e) > 0;
+n_e_pass = 0; e_grid_pass = [];
+if has_e
+    n_e_pass = vfoptions.n_e;
+    e_grid_pass = vfoptions.e_grid;
 end
-a_work = A_mat(:, 1); % Primary asset grid for interpolation
-n_a_work = N_a;
 
-if isempty(z_gridvals_J) || N_z == 0
-    N_z_exog = 0;
-    z_work_1 = zeros(1, 1, 'like', a_grid);
-else
-    N_z_exog = N_z;
-    z_work_1 = squeeze(z_gridvals_J(:, :, 1));
+z_pass = [];
+if N_z > 0
+    % Pass period 1 for initial sizing; dynamic time-varying Z is handled in the reverse_j loop
+    z_pass = z_gridvals_J(:,:,1);
 end
+
+% ONE CALL TO RULE THEM ALL
+[D_cells, A_cells, Z_cells, E_cells] = CreateReturnFnMatrix_VFHorz(n_d, n_a, n_z, n_e_pass, d_grid, a_grid, z_pass, e_grid_pass);
+
+% --- Standardize Dimensions for the Slicer & Allocator ---
+N_d_safe = max(1, prod(n_d));
+has_d = (N_d_safe > 1) || (length(n_d) > 0 && n_d(1) > 0);
+
+n_a_work = prod(n_a);
+a_work = A_cells{1}(:); % Extract primary asset grid for interpolation
 
 has_semiz = prod(vfoptions.n_semiz) > 0;
+N_semiz = 1;
+n_all_z = n_z;
 if has_semiz
     N_semiz = prod(vfoptions.n_semiz);
     n_all_z = [vfoptions.n_semiz, n_z];
-else
-    N_semiz = 1;
-    n_all_z = n_z;
-end
-n_z_work = N_semiz * max(1, N_z_exog);
-has_z = (N_z_exog > 0);
-
-has_e = prod(vfoptions.n_e) > 0;
-if has_e
-    n_e_vars = length(vfoptions.n_e);
-    n_e_work = prod(vfoptions.n_e);
-    if n_e_vars > 1
-        e_grids_1d = cell(1, n_e_vars);
-        offset = 0;
-        for i_e = 1:n_e_vars
-            e_grids_1d{i_e} = vfoptions.e_grid((offset + 1):(offset + vfoptions.n_e(i_e)));
-            offset = offset + vfoptions.n_e(i_e);
-        end
-        [E_mesh_raw{1:n_e_vars}] = ndgrid(e_grids_1d{:});
-        e_work = zeros(n_e_work, n_e_vars, 'like', a_grid);
-        for i_e = 1:n_e_vars
-            e_work(:, i_e) = E_mesh_raw{i_e}(:);
-        end
-    else
-        e_work = vfoptions.e_grid(:);
-    end
-else
-    n_e_vars = 0;
-    n_e_work = 1;
-    e_work   = gpuArray(0); % dummy scalar keeping rank/signatures consistent
 end
 
-V = zeros(n_a_work, n_z_work, n_e_work, N_j, 'like', a_grid);
+has_z = (N_z > 0);
+N_z_exog = max(1, N_z);
+n_z_work = N_semiz * N_z_exog;
+
+n_e_work = max(1, prod(n_e_pass));
+
 if vfoptions.gridinterplayer == 1
     PolicyKron = zeros(3, n_a_work, n_z_work, n_e_work, N_j, 'like', a_grid);
 else
@@ -581,13 +515,13 @@ end
 % UNIVERSAL MIX-IN: EPSTEIN-ZIN VS CRRA (Base Orchestrator)
 % =========================================================
 if is_EZ
-    ezc2 = vfoptions.ezc2; ezc3 = vfoptions.ezc3; ezc4 = vfoptions.ezc4; 
-    ezc5 = vfoptions.ezc5; ezc6 = vfoptions.ezc6; ezc7 = vfoptions.ezc7; 
+    ezc2 = vfoptions.ezc2; ezc3 = vfoptions.ezc3; ezc4 = vfoptions.ezc4;
+    ezc5 = vfoptions.ezc5; ezc6 = vfoptions.ezc6; ezc7 = vfoptions.ezc7;
     ezc8 = vfoptions.ezc8; sj = vfoptions.sj; warmglow = vfoptions.warmglow;
 else
     % Neutral CRRA fallbacks (collapses EZ math to standard)
-    ezc2 = ones(N_j,1); ezc3 = 1; ezc4 = 1; 
-    ezc5 = ones(N_j,1); ezc6 = ones(N_j,1); ezc7 = ones(N_j,1); 
+    ezc2 = ones(N_j,1); ezc3 = 1; ezc4 = 1;
+    ezc5 = ones(N_j,1); ezc6 = ones(N_j,1); ezc7 = ones(N_j,1);
     ezc8 = ones(N_j,1); sj = ones(N_j,1); warmglow = 0;
 end
 
@@ -614,7 +548,7 @@ for reverse_j = 0:N_j-1
 
     if N_z > 0
         pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
-        if n_e_work > 1 
+        if n_e_work > 1
             EV = zeros(N_a, N_z_safe, n_e_work, 'like', V_next);
             for ie = 1:n_e_work
                 EV(:,:,ie) = V_transformed(:,:,ie) * pi_z_j'; % Use V_transformed
@@ -858,7 +792,7 @@ F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_bl
 EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
 linear_idx = apr_idx_tensor + z_offset_local;
 EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
-    
+
 % (Note: ezc1_j is 1 here, since we are doing standard RHS)
 RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 
