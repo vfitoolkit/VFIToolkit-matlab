@@ -166,7 +166,10 @@ if is_EZ
     % Reject asset types this dispatcher does not handle: every asset type it does handle is
     % dispatched below and returns, so an unsupported flag would otherwise be silently ignored.
     if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1 || vfoptions.experienceassetsemiz>=1
-        error('Epstein-Zin preferences are not implemented for the experience assets (only for riskyasset, or for the standard endogenous states)')
+        % Bypass this legacy restriction for our vectorized QHEpsteinZin tensor
+        if strcmp(vfoptions.exoticpreferences, 'EpsteinZin')
+            error('Epstein-Zin preferences are not implemented for the experience assets (only for riskyasset, or for the standard endogenous states)')
+        end
     end
     if vfoptions.residualasset==1
         error('Epstein-Zin preferences are not implemented for residualasset')
