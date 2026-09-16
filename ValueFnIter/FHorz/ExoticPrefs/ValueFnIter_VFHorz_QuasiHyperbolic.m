@@ -158,7 +158,9 @@ for reverse_j = 0:N_j-1
                 Z_cells_local{iz} = reshape(z_gridvals_J(curr_ze, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, 1, N_ze_local]);
             end
 
-            EV_local = EV_flat( (curr_ze - 1)*N_a + 1 : curr_ze*N_a );
+            start_idx = (min(curr_ze) - 1) * N_a + 1;
+            end_idx   = max(curr_ze) * N_a;
+            EV_local  = EV_flat(start_idx : end_idx);
 
             % Launch the QH Bridge TensorBlock
             [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QH_TensorBlock(...
