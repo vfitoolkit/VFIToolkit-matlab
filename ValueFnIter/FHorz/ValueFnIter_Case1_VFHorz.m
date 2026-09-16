@@ -29,6 +29,7 @@ if exist('vfoptions','var')==0
     vfoptions.outputkron=0; % If 1 then leave output in Kron form
     vfoptions.alreadygridvals=0; % =1 when calling as a subcommand
     vfoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
+    vfoptions.precision = underlyingType(a_grid);
 else
     % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'verbose')
@@ -103,6 +104,9 @@ else
     end
     if ~isfield(vfoptions,'alreadygridvals_semiexo')
         vfoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
+    end
+    if ~isfield(vfoptions,'precision')
+        vfoptions.precision = underlyingType(a_grid);
     end
 end
 
@@ -389,9 +393,9 @@ for reverse_j = 0:N_j-1
         V_next = reshape(gpuArray(vfoptions.V_Jplus1), [N_a, N_z_safe]);
     end
 
-    DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj);
+    DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj, vfoptions.precision);
     beta_j = prod(DiscountFactorParamsVec);
-    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
+    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj, vfoptions.precision);
 
     % --- EZ V_next Transformation ---
     valid_V = isfinite(V_next) & (V_next ~= 0);

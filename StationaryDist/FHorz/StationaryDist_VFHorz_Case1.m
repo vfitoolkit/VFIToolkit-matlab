@@ -5,6 +5,18 @@ function StationaryDist = StationaryDist_VFHorz_Case1(jequaloneDist, AgeWeightPa
 % Inspects the model structure and dispatches to the correct vectorized tensor engine.
 
 % --- 1. Identify Model Features from simoptions ---
+if exist('simoptions','var')==0
+    simoptions = struct();
+    simoptions.optimize_nProbs = 0; % Default to off
+    simoptions.precision=underlyingType(jequaloneDist);
+else
+    if ~isfield(simoptions, 'optimize_nProbs')
+        simoptions.optimize_nProbs = 0;
+    end
+    if ~isfield(simoptions, 'precision')
+        simoptions.precision=underlyingType(jequaloneDist);
+    end
+end
 has_expasset  = isfield(simoptions, 'experienceasset') && simoptions.experienceasset == 1;
 has_expassetz = isfield(simoptions, 'experienceassetz') && simoptions.experienceassetz == 1;
 has_semiz     = isfield(simoptions, 'n_semiz') && ~isempty(simoptions.n_semiz);

@@ -1,7 +1,7 @@
 function [V1, Policy, Valt, Policyalt] = ValueFnIter_VFHorz_QHEpsteinZin(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 % --- 1. Settings & Guardrails ---
-if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
+if vfoptions.divideandconquer == 1
     error('V Universe Abort: Divide-and-Conquer assumes policy monotonicity. Quasi-Hyperbolic present-bias causes non-monotonic behavior.');
 end
 
@@ -12,8 +12,8 @@ ezc5 = vfoptions.ezc5; ezc6 = vfoptions.ezc6; ezc7 = vfoptions.ezc7; ezc8 = vfop
 
 % --- 2. Dimension and ExpAsset Slicing ---
 l_a2 = 0;
-if isfield(vfoptions, 'experienceasset') && vfoptions.experienceasset > 0; l_a2 = vfoptions.experienceasset; end
-if isfield(vfoptions, 'experienceassetz') && vfoptions.experienceassetz > 0; l_a2 = vfoptions.experienceassetz; end
+if vfoptions.experienceasset > 0; l_a2 = vfoptions.experienceasset; end
+if vfoptions.experienceassetz > 0; l_a2 = vfoptions.experienceassetz; end
 
 if l_a2 > 0
     n_a1 = n_a(1:end-l_a2);
@@ -81,16 +81,16 @@ else
 end
 
 % Pre-allocate Flattened Output Tensors
-V1 = zeros(N_a, N_z, N_j, 'gpuArray');
-Valt = zeros(N_a, N_z, N_j, 'gpuArray');
+V1 = zeros(N_a, N_z, N_j, 'like', a_grid);
+Valt = zeros(N_a, N_z, N_j, 'like', a_grid);
 
 has_GI = vfoptions.gridinterplayer == 1;
 if has_GI
-    Policy = zeros(3, N_a, N_z, N_j, 'gpuArray');
-    if isNaive; Policyalt = zeros(3, N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
+    Policy = zeros(3, N_a, N_z, N_j, 'like', a_grid);
+    if isNaive; Policyalt = zeros(3, N_a, N_z, N_j, 'like', a_grid); else; Policyalt = cast([],vfoptions.precision); end
 else
-    Policy = zeros(N_a, N_z, N_j, 'gpuArray');
-    if isNaive; Policyalt = zeros(N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
+    Policy = zeros(N_a, N_z, N_j, 'like', a_grid);
+    if isNaive; Policyalt = zeros(N_a, N_z, N_j, 'like', a_grid); else; Policyalt = cast([],vfoptions.precision); end
 end
 
 % --- 3. Slicer Setup (Multi-Axis) ---
@@ -112,9 +112,9 @@ end
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
 
-    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj);
-    DiscountFactorParamsCell = CreateCellFromParams(Parameters, DiscountFactorParamNames, jj);
-    beta_j = prod(cell2mat(DiscountFactorParamsCell));
+    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj, vfoptions.precision);
+    DiscountFactorParamsVec = CreateVecFromParams(Parameters, DiscountFactorParamNames, jj, vfoptions.precision);
+    beta_j = prod(DiscountFactorParamsVec);
     beta0beta_j = beta0 * beta_j;
 
     if l_a2 > 0
@@ -187,12 +187,14 @@ for reverse_j = 0:N_j-1
                 ezc2(jj), ezc3, ezc4, ezc7(jj), isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'));
 
             % Map the local slice back into the global V1_j structure
-            % V_hat size is [N_a1 * N_a2_local, N_ze_local]
-            V1_j( (curr_a2 - 1)*N_a1 + (1:N_a1), curr_ze ) = reshape(V_hat, [N_a1 * N_a2_local, N_ze_local]);
-            Valt_j( (curr_a2 - 1)*N_a1 + (1:N_a1), curr_ze ) = reshape(V_underbar, [N_a1 * N_a2_local, N_ze_local]);
-            Pol_j( (curr_a2 - 1)*N_a1 + (1:N_a1), curr_ze ) = reshape(Pol_hat, [N_a1 * N_a2_local, N_ze_local]);
+            start_a_idx = (min(curr_a2) - 1) * N_a1 + 1;
+            end_a_idx   = max(curr_a2) * N_a1;
+
+            V1_j( start_a_idx : end_a_idx, curr_ze ) = reshape(V_hat, [N_a1 * N_a2_local, N_ze_local]);
+            Valt_j( start_a_idx : end_a_idx, curr_ze ) = reshape(V_underbar, [N_a1 * N_a2_local, N_ze_local]);
+            Pol_j( start_a_idx : end_a_idx, curr_ze ) = reshape(Pol_hat, [N_a1 * N_a2_local, N_ze_local]);
             if isNaive
-                Polalt_j( (curr_a2 - 1)*N_a1 + (1:N_a1), curr_ze ) = reshape(Pol_alt, [N_a1 * N_a2_local, N_ze_local]);
+                Polalt_j( start_a_idx : end_a_idx, curr_ze ) = reshape(Pol_alt, [N_a1 * N_a2_local, N_ze_local]);
             end
         end
     end
