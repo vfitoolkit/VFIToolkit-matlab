@@ -103,7 +103,7 @@ kappa = 1e-8;
 if strcmp(tanakatodaoptions.method,'gauss-hermite')  % define prior probabilities
     q = W;
 else
-    q = W.*normpdf(e_grid,mew,sigma);
+    q = W.*(exp(-0.5*((e_grid-mew)./sigma).^2)./(sigma*sqrt(2*pi)));
 end
 
 if any(q < kappa)

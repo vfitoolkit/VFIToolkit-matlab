@@ -15,6 +15,11 @@ function [z_grid,pi_z]=discretizeAR1wGM_Tauchen(mew,rho,mixprobs_i,mu_i,sigma_i,
 %   sigma_i        - (nmix-by-1) standard deviations of the gaussian mixture innovations
 %   znum           - number of states in discretization of z (must be an odd number)
 %   Tauchen_q      - (Hyperparameter) Defines max/min grid points as E(z)+-Tauchen_q*sigmaz (I suggest 2 or 3)
+%                    Set Tauchen_q=[] for the default, which is min(sqrt(znum-1),w) with w the
+%                    width that leaves the same tail mass outside the grid as four standard
+%                    deviations does for a normal. For a one-component mixture w is exactly 4; for
+%                    a fat-tailed mixture it is larger, because the grid has to reach further. See
+%                    the note where it is computed below.
 % Optional Inputs (tauchenoptions)
 %   parallel:      - set equal to 2 to use GPU, 0 to use CPU
 % Outputs
@@ -98,6 +103,38 @@ end
 mew_e=sum(mixprobs_i.*mu_i); % mean of the gaussian mixture
 sigmasq_e=sum(mixprobs_i.*(mu_i.^2+sigma_i.^2))-mew_e^2; % variance of the gaussian mixture
 
+% Tauchen_q=[] means use the default width
+% For a gaussian innovation the default is min(sqrt(znum-1),4), as in discretizeAR1_Tauchen. A cap
+% of 4 is wrong for a gaussian mixture, though, and the test bank measures how wrong: on P3's
+% calibration the width that minimises the excess kurtosis error is 7, not 4. What sets the
+% requirement is how far the CONDITIONAL distribution reaches, since that is what each row of the
+% transition matrix is built from - not the unconditional kurtosis of z, which fails as a predictor
+% (P3 and P4 have nearly the same kurtosis of z, 0.68 and 0.83, and want widths a factor of two
+% apart, because P4's conditional law is a single normal while P3's is a mixture).
+%
+% So the cap is computed rather than fixed: pick the width that leaves the same tail mass outside
+% the grid as 4 standard deviations does for a normal, which for a gaussian mixture is closed form.
+% The only tuned number is the 4, inherited from the gaussian default, so a one-component mixture
+% returns exactly 4 and nothing changes for a normal. On P3's mixture it returns 7.01 against a
+% measured optimum of 7, which was not fitted.
+%
+% Solved by bisection; the tail is monotone decreasing in the width, so this always converges.
+if isempty(Tauchen_q)
+    epstail=2*(1-(0.5*erfc(-4/sqrt(2)))); % the mass a normal leaves outside four standard deviations
+    sigma_e=sqrt(sigmasq_e);
+    wlo=0.5; whi=40;
+    for bisect_c=1:200
+        wmid=(wlo+whi)/2;
+        tailmass=sum(mixprobs_i.*((1-(0.5*erfc(-((mew_e+wmid*sigma_e-mu_i)./sigma_i)/sqrt(2))))+(0.5*erfc(-((mew_e-wmid*sigma_e-mu_i)./sigma_i)/sqrt(2)))));
+        if tailmass>epstail
+            wlo=wmid;
+        else
+            whi=wmid;
+        end
+    end
+    Tauchen_q=min(sqrt(znum-1),(wlo+whi)/2);
+end
+
 if znum==1
     z_grid=(mew+mew_e)/(1-rho); %expected value of z
     pi_z=1;
@@ -125,8 +162,8 @@ if tauchenoptions.parallel==0 || tauchenoptions.parallel==1
     P_part1=zeros(znum,znum);
     P_part2=zeros(znum,znum);
     for i_c=1:nmix
-        P_part1=P_part1+mixprobs_i(i_c)*normcdf(upperj-rho*zi-mu_i(i_c),mew,sigma_i(i_c));
-        P_part2=P_part2+mixprobs_i(i_c)*normcdf(lowerj-rho*zi-mu_i(i_c),mew,sigma_i(i_c));
+        P_part1=P_part1+mixprobs_i(i_c)*(0.5*erfc(-((upperj-rho*zi-mu_i(i_c))-mew)./(sigma_i(i_c)*sqrt(2))));
+        P_part2=P_part2+mixprobs_i(i_c)*(0.5*erfc(-((lowerj-rho*zi-mu_i(i_c))-mew)./(sigma_i(i_c)*sqrt(2))));
     end
 
     pi_z=P_part1-P_part2;
@@ -141,19 +178,18 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
     upper=z_grid+omega/2;
     lower=z_grid-omega/2;
 
-    %Note: normcdf is not yet a supported function for use on the gpu in Matlab
-    %However erf is supported, and we can easily construct our own normcdf
-    %from erf (see http://en.wikipedia.org/wiki/Normal_distribution for the
-    %formula for normcdf as function of erf)
+    % Same erfc expression as the cpu branch above, so the two differ only where the cpu and gpu
+    % erfc libraries disagree in the last bit. erfc not 1+erf: the left tail cdf is tiny, and
+    % 1+erf loses all relative precision there (it is exactly zero past about -8.3 sd).
 
     P_part1=zeros(znum,znum,'gpuArray');
     P_part2=zeros(znum,znum,'gpuArray');
     for i_c=1:nmix
-        erfinput=arrayfun(@(zi,zj,rho,mew,mui,sigmai) ((zj-rho*zi)-mew-mui)/sqrt(2*sigmai^2), z_grid,upper', rho,mew,mu_i(i_c),sigma_i(i_c));
-        P_part1=P_part1+mixprobs_i(i_c)*0.5*(1+erf(erfinput));
+        erfcinput=arrayfun(@(zi,zj,rho,mew,mui,sigmai) -((zj-rho*zi-mui)-mew)/(sigmai*sqrt(2)), z_grid,upper', rho,mew,mu_i(i_c),sigma_i(i_c));
+        P_part1=P_part1+mixprobs_i(i_c)*(0.5*erfc(erfcinput));
 
-        erfinput=arrayfun(@(zi,zj,rho,mew,mui,sigmai) ((zj-rho*zi)-mew-mui)/sqrt(2*sigmai^2), z_grid,lower', rho,mew,mu_i(i_c),sigma_i(i_c));
-        P_part2=P_part2+mixprobs_i(i_c)*0.5*(1+erf(erfinput));
+        erfcinput=arrayfun(@(zi,zj,rho,mew,mui,sigmai) -((zj-rho*zi-mui)-mew)/(sigmai*sqrt(2)), z_grid,lower', rho,mew,mu_i(i_c),sigma_i(i_c));
+        P_part2=P_part2+mixprobs_i(i_c)*(0.5*erfc(erfcinput));
     end
 
     pi_z=P_part1-P_part2;

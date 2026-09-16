@@ -12,6 +12,12 @@ function [e_grid,pi_e,otheroutputs] = discretizeIIDNormal_TanakaToda(mew,sigma,e
 %   method         - The method used to determine the grid ('even','gauss-legendre', 'clenshaw-curtis','gauss-hermite')
 %   nMoments       - Number of moments to match (default=2)
 %   nSigmas        - (Hyperparameter) Defines max/min grid points as mew+-nSigmas*sigma (default depends on enum)
+%   e_grid         - (enum-by-1) skip grid construction and run the maximum entropy step on this
+%                    grid. method and nSigmas are ignored. The prior is treated as in 'even', which
+%                    is the right translation because 'even' is the one built-in grid that carries no
+%                    quadrature weights of its own (W=ones); the other three pair a specific weight
+%                    vector with a specific set of nodes, and those weights are meaningless on a grid
+%                    the caller chose.
 %   parallel:      - set equal to 2 to use GPU, 0 to use CPU
 % Outputs
 %   e_grid         - column vector containing the enum states of the discrete approximation of e
@@ -69,26 +75,46 @@ if ~isnumeric(tanakatodaoptions.nMoments) || tanakatodaoptions.nMoments < 1 || t
     error('tanakatodaoptions.nMoments must be either 1, 2, 3, 4')
 end
 
-if tanakatodaoptions.nSigmas<1.2
-    warning('Trying to hit the 2nd moment with tanakatodaoptions.nSigmas at 1 or less is odd. It will put lots of probability near edges of grid as you are trying to get the std dev, but you max grid points are only about plus/minus one std dev (warning shows for tanakatodaoptions.nSigmas<1.2).')
+% A user grid is signalled by its presence, exactly as in discretizeAR1_Tauchen and
+% discretizeIIDNormal_Tauchen. nSigmas is not used in that case, so its warning must not fire either.
+if isfield(tanakatodaoptions,'e_grid')
+    tanakatodaoptions.usergrid=1;
+    if size(tanakatodaoptions.e_grid,2)>1
+        tanakatodaoptions.e_grid=tanakatodaoptions.e_grid'; % use a column until the switch below, which works in rows
+    end
+    if length(tanakatodaoptions.e_grid)~=enum
+        error('length of tanakatodaoptions.e_grid must equal enum')
+    end
+    if ~issorted(tanakatodaoptions.e_grid,'strictascend')
+        error('tanakatodaoptions.e_grid must be strictly ascending')
+    end
+else
+    tanakatodaoptions.usergrid=0;
+    if tanakatodaoptions.nSigmas<1.2
+        warning('Trying to hit the 2nd moment with tanakatodaoptions.nSigmas at 1 or less is odd. It will put lots of probability near edges of grid as you are trying to get the std dev, but you max grid points are only about plus/minus one std dev (warning shows for tanakatodaoptions.nSigmas<1.2).')
+    end
 end
 
-
-switch tanakatodaoptions.method
-    case 'even'
-        e_grid = linspace(mew-tanakatodaoptions.nSigmas*sigma,mew+tanakatodaoptions.nSigmas*sigma,enum);
-        W = ones(1,enum);
-    case 'gauss-legendre'
-        [e_grid,W] = legpts(enum,[mew-tanakatodaoptions.nSigmas*sigma,mew+tanakatodaoptions.nSigmas*sigma]);
-        e_grid = e_grid';
-    case 'clenshaw-curtis'
-        [e_grid,W] = fclencurt(enum,mew-tanakatodaoptions.nSigmas*sigma,mew+tanakatodaoptions.nSigmas*sigma);
-        e_grid = fliplr(e_grid');
-        W = fliplr(W');
-    case 'gauss-hermite'
-        [e_grid,W] = GaussHermite(enum);
-        e_grid = mew+sqrt(2)*sigma*e_grid';
-        W = W'./sqrt(pi);
+if tanakatodaoptions.usergrid==1
+    e_grid = tanakatodaoptions.e_grid'; % the code below works in row vectors
+    W = ones(1,enum);
+else
+    switch tanakatodaoptions.method
+        case 'even'
+            e_grid = linspace(mew-tanakatodaoptions.nSigmas*sigma,mew+tanakatodaoptions.nSigmas*sigma,enum);
+            W = ones(1,enum);
+        case 'gauss-legendre'
+            [e_grid,W] = legpts(enum,[mew-tanakatodaoptions.nSigmas*sigma,mew+tanakatodaoptions.nSigmas*sigma]);
+            e_grid = e_grid';
+        case 'clenshaw-curtis'
+            [e_grid,W] = fclencurt(enum,mew-tanakatodaoptions.nSigmas*sigma,mew+tanakatodaoptions.nSigmas*sigma);
+            e_grid = fliplr(e_grid');
+            W = fliplr(W');
+        case 'gauss-hermite'
+            [e_grid,W] = GaussHermite(enum);
+            e_grid = mew+sqrt(2)*sigma*e_grid';
+            W = W'./sqrt(pi);
+    end
 end
 
 %% define central moments that Tanaka-Toda method targets
@@ -104,10 +130,10 @@ TBar = [T1 T2 T3 T4]'; % vector of central moments
 scalingFactor = max(abs(e_grid));
 kappa = 1e-8;
 
-if strcmp(tanakatodaoptions.method,'gauss-hermite')  % define prior probabilities
+if strcmp(tanakatodaoptions.method,'gauss-hermite') && tanakatodaoptions.usergrid==0  % define prior probabilities
     q = W;
 else
-    q = W.*normpdf(e_grid,mew,sigma);
+    q = W.*(exp(-0.5*((e_grid-mew)./sigma).^2)./(sigma*sqrt(2*pi)));
 end
 
 if any(q < kappa)

@@ -118,7 +118,7 @@ if bruteforce==0
     end
 
     if l_z==1
-        P = normcdf(z_gridvals+z_gridspacing_up,Mew,sqrt(Sigma))-normcdf(z_gridvals-z_gridspacing_down,Mew,sqrt(Sigma));
+        P = (0.5*erfc(-((z_gridvals+z_gridspacing_up)-Mew)./(sqrt(Sigma)*sqrt(2))))-(0.5*erfc(-((z_gridvals-z_gridspacing_down)-Mew)./(sqrt(Sigma)*sqrt(2))));
     else
         P=reshape(mvncdf(z_gridvals-z_gridspacing_down,z_gridvals+z_gridspacing_up,Mew,Sigma),znum);
         % mvncdf() can put NaN when
