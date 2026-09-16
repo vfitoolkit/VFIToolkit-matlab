@@ -410,12 +410,18 @@ for reverse_j = 0:N_j-1
     if N_z > 0
         pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
         if n_e_work > 1
-            EV = zeros(N_a, N_z_safe, n_e_work, 'like', V_next);
+            EV = zeros(N_a, n_z_work, n_e_work, 'like', V_next);
             for ie = 1:n_e_work
-                EV(:,:,ie) = V_transformed(:,:,ie) * pi_z_j'; % Use V_transformed
+                % Reshape to isolate exogenous z from semiz for the Markov transition
+                V_slice = reshape(V_transformed(:,:,ie), [N_a * N_semiz, N_z_safe]);
+                EV_slice = V_slice * pi_z_j';
+                EV(:,:,ie) = reshape(EV_slice, [N_a, n_z_work]);
             end
         else
-            EV = V_transformed * pi_z_j'; % Use V_transformed
+            % Reshape to isolate exogenous z from semiz for the Markov transition
+            V_slice = reshape(V_transformed, [N_a * N_semiz, N_z_safe]);
+            EV_slice = V_slice * pi_z_j';
+            EV = reshape(EV_slice, [N_a, n_z_work]);
         end
     else
         EV = V_transformed; % Use V_transformed
@@ -431,33 +437,62 @@ for reverse_j = 0:N_j-1
     end
 
     % --- The ZE Flattening Trick ---
-    N_ze = N_z_safe * n_e_work;
+    % FIX: N_ze must account for the full n_z_work (which includes N_semiz)
+    N_ze = n_z_work * n_e_work;
     EV_flat_ze = reshape(EV, [N_a, N_ze]);
 
-    [Z_mesh, E_mesh] = ndgrid(1:N_z_safe, 1:n_e_work);
+    [Z_mesh, E_mesh] = ndgrid(1:n_z_work, 1:n_e_work);
     ZE_z_idx = Z_mesh(:);
     ZE_e_idx = E_mesh(:);
 
     % --- Slicer Setup (Multi-Axis) ---
     % Determine Z/E Chunking
     if ismember(vfoptions.lowmemory, [0, 4])
-        ze_chunks = {1:N_z}; % Keep ZE vectorized
+        ze_chunks = {1:N_ze}; % FIX: Must span the full N_ze width
     else
-        ze_chunks = num2cell(1:N_z); % Slice ZE
+        ze_chunks = num2cell(1:N_ze); % Slice ZE
+    end
+
+    % --- Determine N_a1 and N_a2 for Slicing ---
+    if is_exp || is_expz
+        N_a1 = max(1, prod(n_a(1:end-1)));
+        N_a2 = n_a(end);
+    else
+        N_a1 = max(1, prod(n_a));
+        N_a2 = 1;
     end
 
     % Determine Experience Asset (A2) Chunking
-    if ismember(vfoptions.lowmemory, [4, 5]) && l_a2 > 0
+    if ismember(vfoptions.lowmemory, [4, 5]) && (is_exp || is_expz)
         a2_chunks = num2cell(1:N_a2); % Slice A2
     else
         a2_chunks = {1:N_a2}; % Keep A2 vectorized
     end
 
     % --- The Master Orchestrator Pre-Computation ---
-    a_work_local = A_mat(:, 1);
+    a_work_local = a_work; % FIX: A_mat is deprecated in the tensor bridge
+
+    % Dynamically merge semiz and z into a single joint tensor mapping
+    % This guarantees they pass into ReturnFn in the exact order requested
     z_gridvals_j_local = [];
-    if has_z
-        z_gridvals_j_local = z_gridvals_J(:,:,min(jj, size(z_gridvals_J,3)));
+    if has_semiz || has_z
+        semiz_j = [];
+        if has_semiz
+            semiz_j = vfoptions.semiz_gridvals_J(:,:,min(jj, size(vfoptions.semiz_gridvals_J, 3)));
+        end
+        z_j = [];
+        if has_z
+            z_j = z_gridvals_J(:,:,min(jj, size(z_gridvals_J, 3)));
+        end
+
+        if has_semiz && has_z
+            [sz_idx, z_idx] = ndgrid(1:size(semiz_j, 1), 1:size(z_j, 1));
+            z_gridvals_j_local = [semiz_j(sz_idx(:), :), z_j(z_idx(:), :)];
+        elseif has_semiz
+            z_gridvals_j_local = semiz_j;
+        else
+            z_gridvals_j_local = z_j;
+        end
     end
 
     % Pre-build D_cells_block (Loop Invariant for both Slicer and ZE chunks)
@@ -483,12 +518,15 @@ for reverse_j = 0:N_j-1
         curr_a2 = a2_chunks{i_a2};
         N_a2_local = length(curr_a2);
 
+        start_a_idx = (min(curr_a2) - 1) * N_a1 + 1;
+        end_a_idx   = max(curr_a2) * N_a1;
+
         for i_ze = 1:length(ze_chunks)
             curr_ze = ze_chunks{i_ze};
             N_ze_local = length(curr_ze);
 
             % 1. Pre-build Exogenous Cells (Loop Invariant for Slicer!)
-            if has_z
+            if has_semiz || has_z
                 num_z_vars = size(z_gridvals_j_local, 2);
                 Z_cells_local = cell(1, num_z_vars);
                 for iz = 1:num_z_vars
@@ -529,29 +567,31 @@ for reverse_j = 0:N_j-1
 
             if vfoptions.divideandconquer == 1
                 vfoptions.level1n = vfoptions.level1n(1);
-                [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
+                [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a1 * N_a2_local, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
             else
-                [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, [], 0);
+                % FIX: Pass the specific A2 slice into the evaluator!
+                [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(start_a_idx:end_a_idx, [], 0);
             end
 
-            % Slot results directly into the preallocated flat tensors
-            V_j_max(:, curr_ze)     = reshape(v,     [N_a, N_ze_local]);
-            Pol_apr_max(:, curr_ze) = reshape(p_apr, [N_a, N_ze_local]);
-            Pol_d_max(:, curr_ze)   = reshape(p_d,   [N_a, N_ze_local]);
+            % FIX: Slot results directly into the mapped chunk
+            V_j_max(start_a_idx:end_a_idx, curr_ze)     = reshape(v,     [N_a1 * N_a2_local, N_ze_local]);
+            Pol_apr_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_apr, [N_a1 * N_a2_local, N_ze_local]);
+            Pol_d_max(start_a_idx:end_a_idx, curr_ze)   = reshape(p_d,   [N_a1 * N_a2_local, N_ze_local]);
+
             if vfoptions.gridinterplayer == 1
-                Pol_L2idx_max(:, curr_ze)  = reshape(p_l2idx,  [N_a, N_ze_local]);
-                Pol_L2flag_max(:, curr_ze) = reshape(p_l2flag, [N_a, N_ze_local]);
+                Pol_L2idx_max(start_a_idx:end_a_idx, curr_ze)  = reshape(p_l2idx,  [N_a1 * N_a2_local, N_ze_local]);
+                Pol_L2flag_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_l2flag, [N_a1 * N_a2_local, N_ze_local]);
             end
         end
     end
 
-    % Squeeze Outputs back to full 3D [N_a, N_z, N_e] structure
-    V_j_max     = reshape(V_j_max,     [N_a, N_z_safe, n_e_work]);
-    Pol_apr_max = reshape(Pol_apr_max, [N_a, N_z_safe, n_e_work]);
-    Pol_d_max   = reshape(Pol_d_max,   [N_a, N_z_safe, n_e_work]);
+    % Squeeze Outputs back to full 3D [N_a, n_z_work, n_e_work] structure
+    V_j_max     = reshape(V_j_max,     [N_a, n_z_work, n_e_work]);
+    Pol_apr_max = reshape(Pol_apr_max, [N_a, n_z_work, n_e_work]);
+    Pol_d_max   = reshape(Pol_d_max,   [N_a, n_z_work, n_e_work]);
     if vfoptions.gridinterplayer == 1
-        Pol_L2idx_max  = reshape(Pol_L2idx_max,  [N_a, N_z_safe, n_e_work]);
-        Pol_L2flag_max = reshape(Pol_L2flag_max, [N_a, N_z_safe, n_e_work]);
+        Pol_L2idx_max  = reshape(Pol_L2idx_max,  [N_a, n_z_work, n_e_work]);
+        Pol_L2flag_max = reshape(Pol_L2flag_max, [N_a, n_z_work, n_e_work]);
     end
 
     % --- Pack PolicyKron ---
@@ -646,7 +686,7 @@ num_assets = length(A_cells);
 apr_in_fine = cell(1, num_assets);
 a_in_fine   = cell(1, num_assets);
 for ia = 1:num_assets
-    if ia == 1 && gridinterplayer
+    if ia == 1 && any(gridinterplayer)
         apr_in_fine{ia} = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
     else
         apr_in_fine{ia} = reshape(A_cells{ia}(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
@@ -686,7 +726,7 @@ apr_idx_coarse = reshape(apr_idx_coarse, [N_block, N_ze_local]);
 d_idx_coarse   = reshape(d_idx_local, [N_block, N_ze_local]);
 
 % --- 4. The Continuous Sub-Grid Refinement (GI1) ---
-if gridinterplayer
+if any(gridinterplayer)
     midpoint = max(min(apr_idx_coarse, N_a - 1), 2);
     base_idx = midpoint + (midpoint - 1) * n2short;
     offset   = (-n2short-1 : 1 : n2short+1)';
