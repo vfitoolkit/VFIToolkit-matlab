@@ -1,6 +1,11 @@
 function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, n_a1,n_a2,N_z_input,jj, epsilon,total_zeros_created,jj_at_max_a2, simoptions)
 
-epsilon_round=5;
+% Dynamic precision rounding to prevent singlefp truncation
+if isfield(simoptions, 'precision') && strcmp(simoptions.precision, 'single')
+    epsilon_round = 6;
+else
+    epsilon_round = 10;
+end
 
 % For grid interpolation, N_a2 arrives as zero.  We simplify the implementation
 % by treating this N_a1x1 grid as an 1xN_a1 grid (with N_a1 spelled N_a2 below).
@@ -11,6 +16,7 @@ else
     N_a1=max(prod(n_a1),1);
 end
 N_a2=prod(n_a2);
+
 if isfield(simoptions, 'a_grid')
     a2_grid_T=gather(double(simoptions.a_grid(sum(n_a1)+1:end)))';
 else
@@ -40,8 +46,9 @@ for z_c=1:N_z
     StationaryDist_row_jj=round(reshape(StationaryDist_jj(:,z_c),[N_a1,N_a2]),epsilon_round);
 
     row_prob_sum=full(sum(StationaryDist_row_jj,'all'));
-    if row_prob_sum==0 || all(arrayfun(@(r) nnz(StationaryDist_row_jj(r,:)), 1:size(StationaryDist_row_jj,1))<3)
-        % Sometimes nobody chooses the path less taken
+
+    % INSTANT VECTORIZED CHECK: Skip if the max non-zeros in any row is < 3
+    if row_prob_sum==0 || max(sum(StationaryDist_row_jj > 0, 2)) < 3
         continue
     end
 
