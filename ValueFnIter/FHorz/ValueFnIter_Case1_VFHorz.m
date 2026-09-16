@@ -309,149 +309,6 @@ if isfield(vfoptions, 'exoticpreferences')
     end
 end
 
-%% Experience Asset (and Semi-Exo) Dispatch
-is_exp      = vfoptions.experienceasset > 0;
-is_expz     = vfoptions.experienceassetz > 0;
-is_expsemiz = vfoptions.experienceassetsemiz > 0;
-
-if is_exp || is_expz || is_expsemiz
-    has_semiz = prod(vfoptions.n_semiz) > 0;
-
-    if is_exp
-        l_a2 = vfoptions.experienceasset;
-    elseif is_expz
-        l_a2 = vfoptions.experienceassetz;
-    else
-        l_a2 = vfoptions.experienceassetsemiz;
-    end
-
-    % 1. Split Asset Grids
-    if length(n_a) > l_a2
-        n_a1 = n_a(1:end-l_a2);
-        a1_grid = a_grid(1:sum(n_a1));
-        a1_gridvals = CreateGridvals(n_a1, a1_grid, 1);
-    else
-        n_a1 = 0; a1_grid = []; a1_gridvals = [];
-    end
-    n_a2 = n_a(end-l_a2+1:end);
-    a2_grid = a_grid(sum(n_a1)+1:end);
-
-    % 2. Split Decision Grids
-    l_d3 = has_semiz * 1; % Toolkit default: last decision drives semiz
-    l_d2 = 1;             % Toolkit default: second-to-last drives exp asset
-
-    if length(n_d) > (l_d2 + l_d3)
-        n_d1 = n_d(1:end-l_d2-l_d3);
-        d1_grid = d_grid(1:sum(n_d1));
-        d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
-    else
-        n_d1 = 0; d1_grid = []; d1_gridvals = [];
-    end
-
-    n_d2 = n_d(end-l_d3-l_d2+1 : end-l_d3);
-    d2_grid = d_grid(sum(n_d1)+1 : sum(n_d1)+sum(n_d2));
-    d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
-
-    if has_semiz
-        n_d3 = n_d(end-l_d3+1 : end);
-        d3_grid = d_grid(sum(n_d1)+sum(n_d2)+1 : end);
-        d3_gridvals = CreateGridvals(n_d3, d3_grid, 1);
-        n_semiz_pass = vfoptions.n_semiz;
-        semiz_grid_pass = vfoptions.semiz_gridvals_J;
-        pi_semiz_pass = vfoptions.pi_semiz_J;
-    else
-        n_d3 = 0; d3_gridvals = []; n_semiz_pass = 0; semiz_grid_pass = []; pi_semiz_pass = [];
-    end
-
-    % Dispatch to the Universal V-World Orchestrator
-    [V, Policy] = ValueFnIter_VFHorz_ExpAsset(n_d1, n_d2, n_d3, n_a1, n_a2, n_z, n_semiz_pass, N_j, ...
-        d1_gridvals, d2_gridvals, d3_gridvals, a1_gridvals, a2_grid, ...
-        z_gridvals_J, semiz_grid_pass, pi_z_J, pi_semiz_pass, ReturnFn, Parameters, ...
-        DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    varargout = {V, Policy};
-    return
-end
-
-%% Risky Asset state Dispatch
-if vfoptions.riskyasset == 1
-
-    % 1. Split standard and risky endogenous states (NEW)
-    vfoptions = SetupNonStandardEndoStates_FHorz(n_d, n_a, d_grid, a_grid, vfoptions);
-    n_a1 = vfoptions.n_a1;
-    n_a2 = vfoptions.n_a2;
-    a1_grid = vfoptions.a1_grid;
-    a2_grid = vfoptions.a2_grid;
-
-    % 2. Extract risky asset variables from vfoptions
-    n_u = vfoptions.n_u;
-    u_grid = vfoptions.u_grid;
-    pi_u = vfoptions.pi_u;
-    aprimeFn = vfoptions.aprimeFn;
-
-    % 3. Dynamically extract aprimeFnParamNames
-    l_d = length(n_d);
-    if isfield(vfoptions, 'refine_d')
-        l_d = l_d - vfoptions.refine_d(1);
-        % If semiz is active, d4 is part of the decision vector but not in aprimeFn
-        if prod(vfoptions.n_semiz) > 0 && length(vfoptions.refine_d) >= 4
-            l_d = l_d - vfoptions.refine_d(4);
-        end
-    end
-    l_u = length(n_u);
-    if isfield(vfoptions, 'aprimeFnParamNames')
-        aprimeFnParamNames = vfoptions.aprimeFnParamNames;
-    else
-        temp = getAnonymousFnInputNames(aprimeFn);
-        if length(temp) > (l_d + l_u)
-            aprimeFnParamNames = {temp{l_d + l_u + 1 : end}};
-        else
-            aprimeFnParamNames = {};
-        end
-    end
-
-    % 4. Route to the Universal Tensor Architecture (EZ and CRRA unified!)
-    if prod(vfoptions.n_semiz) > 0
-        [V, Policy] = ValueFnIter_VFHorz_RiskyAssetSemiExo(n_d, n_a1, n_a2, vfoptions.n_semiz, n_z, n_u, N_j, ...
-            d_grid, a1_grid, a2_grid, vfoptions.semiz_gridvals_J, z_gridvals_J, u_grid, ...
-            vfoptions.pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, ...
-            DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-    else
-        [V, Policy] = ValueFnIter_VFHorz_RiskyAsset(n_d, n_a1, n_a2, n_z, n_u, N_j, ...
-            d_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ...
-            ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ...
-            ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-    end
-
-    varargout = {V, Policy};
-    return
-end
-
-%% Semi-exogenous state Dispatch
-% The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
-if prod(vfoptions.n_semiz)>0
-    if length(n_d) > vfoptions.l_dsemiz
-        n_d1 = n_d(1:end-vfoptions.l_dsemiz);
-        d1_grid = d_grid(1:sum(n_d1));
-    else
-        n_d1 = 0;
-        d1_grid = [];
-    end
-    n_d2 = n_d(end-vfoptions.l_dsemiz+1:end); % n_d2 influences transition probs
-    d2_grid = d_grid(sum(n_d1)+1:end);
-
-    d1_gridvals = CreateGridvals(n_d1, d1_grid, 1);
-    d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
-
-    % Dispatch to the vectorized SemiExo handler and bail out of Case1
-    [V, Policy] = ValueFnIter_VFHorz_SemiExo(n_d1, n_d2, n_a, vfoptions.n_semiz, n_z, N_j, ...
-        d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, ...
-        pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, ...
-        DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-
-    varargout = {V, Policy};
-    return
-end
-
 % ---------------------------------------------------------------------
 % UNIVERSAL PACKER: Unstack Endogenous, Decision, and Exogenous Grids
 % ---------------------------------------------------------------------
@@ -665,9 +522,9 @@ for reverse_j = 0:N_j-1
         % Create a localized closure for the Slicer so it only executes pure math
         LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
             state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
-            Z_cells_local, E_cells_local, D_cells_block, ...
-            vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a_work_local, a1prime_grid, ...
-            ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj)); % <--- Added the 4 EZ constants
+            Z_cells_local, E_cells_local, D_cells_block, A_cells, ...
+            vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
+            ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj));
 
         if vfoptions.divideandconquer == 1
             vfoptions.level1n = vfoptions.level1n(1);
@@ -764,8 +621,8 @@ end
 
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_Case1_TensorBlock(...
     state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
-    Z_cells_block, E_cells_block, D_cells_block, ...
-    gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a_work_local, a1prime_grid, ...
+    Z_cells_block, E_cells_block, D_cells_block, A_cells, ...
+    gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
     ReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j)
 
 N_block = length(state_idx);
@@ -782,12 +639,20 @@ else
     apr_idx_tensor = base_edge + offset;
 end
 
-% --- 2. State & Choice Tensor Construction ---
-apr_in = reshape(a_work_local(apr_idx_tensor(:)), size(apr_idx_tensor));
-a_in = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
+% --- 2. State & Choice Tensor Construction (Multi-Asset) ---
+num_assets = length(A_cells);
+apr_in_fine = cell(1, num_assets);
+a_in_fine   = cell(1, num_assets);
+for ia = 1:num_assets
+    if ia == 1 && gridinterplayer
+        apr_in_fine{ia} = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
+    else
+        apr_in_fine{ia} = reshape(A_cells{ia}(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
+    end
+    a_in_fine{ia} = reshape(A_cells{ia}(state_idx), [1, 1, N_block, 1]);
+end
 
-% --- 3. Evaluate Return Function & Coarse RHS ---
-F_tensor = ReturnFn(D_cells_block{:}, apr_in, a_in, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine{:}, a_in_fine{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
 EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
 linear_idx = apr_idx_tensor + z_offset_local;
