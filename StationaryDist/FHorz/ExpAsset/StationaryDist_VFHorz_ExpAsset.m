@@ -2,6 +2,10 @@ function StationaryDist = StationaryDist_VFHorz_ExpAsset(jequaloneDist, AgeWeigh
 % STATIONARYDIST_VFHORZ_EXPASSET
 % V-World Universal Forward Simulator for Experience Asset OLG Models (ExpAsset & ExpAssetz)
 
+if ~isfield(simoptions, 'optimize_nProbs')
+    simoptions.optimize_nProbs=0;
+end
+
 % --- 1. Dimension Extraction ---
 l_dexperienceasset = 1;
 
@@ -63,9 +67,23 @@ Policy_reshaped = reshape(Policy, [NumPolicies, N_a1, N_a2, N_z_safe, N_j]);
 % =========================================================
 % TIME LOOP (FORWARD SIMULATION)
 % =========================================================
+total_zeros_created = 0;
+jj_at_max_a2 = 0;
+
 for jj = 1:N_j
-    % 1. Store the current cohort distribution
-    StationaryDist(:, :, :, jj) = reshape(Dist_curr, [N_a1, N_a2, N_z_safe]);
+    % 1. Extract, Optimize, and Store the current cohort distribution
+    StationaryDist_jj = reshape(Dist_curr, [N_a1, N_a2, N_z_safe]);
+
+    if simoptions.optimize_nProbs == 1
+        [StationaryDist_jj, total_zeros_created, jj_at_max_a2] = StationaryDist_FHorz_Optimize_nProbs_raw(...
+            StationaryDist_jj, n_a1, n_a2, N_z_safe, jj, 10, total_zeros_created, jj_at_max_a2, simoptions);
+
+        % Update Dist_curr so the optimized mass is what transitions forward
+        Dist_curr = reshape(StationaryDist_jj, [N_a1 * N_a2 * N_z_safe, 1]);
+    end
+
+    StationaryDist(:, :, :, jj) = StationaryDist_jj;
+
     if jj == N_j
         break;
     end
