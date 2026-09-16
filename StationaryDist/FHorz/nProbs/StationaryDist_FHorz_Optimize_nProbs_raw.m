@@ -1,6 +1,6 @@
 function [StationaryDist_jj,total_zeros_created,jj_at_max_a2]=StationaryDist_FHorz_Optimize_nProbs_raw(StationaryDist_jj, n_a1,n_a2,N_z_input,jj, epsilon,total_zeros_created,jj_at_max_a2, simoptions)
 
-epsilon_round=10;
+epsilon_round=5;
 
 % For grid interpolation, N_a2 arrives as zero.  We simplify the implementation
 % by treating this N_a1x1 grid as an 1xN_a1 grid (with N_a1 spelled N_a2 below).
@@ -20,18 +20,17 @@ end
 % Gather so we can round; it will be placed back into gpuArray by caller
 StationaryDist_jj=gather(StationaryDist_jj);
 
-% Remember whether we want to return [N_a*N_z,1] or [N_a,N_z]
+% Remember whether we want to return [N_a*N_z,1], [N_a,N_z], or [N_a1, N_a2, N_z]
 StationaryDist_jj_size=size(StationaryDist_jj);
 
 if N_z_input==0
     N_z=1;
 else
     N_z=N_z_input;
-    if StationaryDist_jj_size(2)==1 && N_z>1
-        % For our purposes, we need to unmix N_z from N_a
-        StationaryDist_jj=reshape(StationaryDist_jj,[N_a1*N_a2,N_z]);
-    end
 end
+
+% FORCE RESHAPE to 2D [N_a1*N_a2, N_z] for the loop logic regardless of input shape
+StationaryDist_jj = reshape(StationaryDist_jj, [N_a1*N_a2, N_z]);
 
 new_zeros_created=zeros(1,N_z);
 
