@@ -158,21 +158,29 @@ for reverse_j = 0:N_j-1
                 Z_cells_local{iz} = reshape(z_gridvals_J(curr_ze, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, 1, N_ze_local]);
             end
 
+            % Slice A2 locally for the current chunk
+            A2_local = A2_mat(curr_a2, :);
+            N_a2_local = size(A2_local, 1);
+
             start_idx = (min(curr_ze) - 1) * N_a + 1;
             end_idx   = max(curr_ze) * N_a;
             EV_local  = EV_flat(start_idx : end_idx);
 
             % Launch the QH Bridge TensorBlock
             [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QH_TensorBlock(...
-                N_a1, N_a2, N_d, N_ze_local, Z_cells_local, D_cells_block, ...
-                A1_mat, A2_mat, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
+                N_a1, N_a2_local, N_d, N_ze_local, Z_cells_local, D_cells_block, ...
+                A1_mat, A2_local, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
                 ReturnFn, ReturnFnParamsCell, aprimeFn, aprimeFnParamsCell, ...
                 isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'));
 
-            V1_j(:, curr_ze) = V_hat;
-            Valt_j(:, curr_ze) = V_underbar;
-            Pol_j(:, curr_ze) = Pol_hat;
-            if isNaive; Polalt_j(:, curr_ze) = Pol_alt; end
+            % Map the local slice back into the global V1_j structure
+            % V_hat size is [N_a1 * N_a2_local, N_ze_local]
+            V1_j( (curr_a2 - 1)*N_a1 + (1:N_a1), curr_ze ) = reshape(V_hat, [N_a1 * N_a2_local, N_ze_local]);
+            Valt_j( (curr_a2 - 1)*N_a1 + (1:N_a1), curr_ze ) = reshape(V_underbar, [N_a1 * N_a2_local, N_ze_local]);
+            Pol_j( (curr_a2 - 1)*N_a1 + (1:N_a1), curr_ze ) = reshape(Pol_hat, [N_a1 * N_a2_local, N_ze_local]);
+            if isNaive
+                Polalt_j( (curr_a2 - 1)*N_a1 + (1:N_a1), curr_ze ) = reshape(Pol_alt, [N_a1 * N_a2_local, N_ze_local]);
+            end
         end
     end
 
@@ -248,14 +256,14 @@ for ia = 1:num_a1
     A1_cells{ia}  = reshape(A1_mat(:,ia), [1, 1, N_a1, 1, 1]);
 end
 
-num_a2 = size(A2_mat, 2);
-A2_cells = cell(1, num_a2);
-for ia = 1:num_a2
-    A2_cells{ia} = reshape(A2_mat(:,ia), [1, 1, 1, N_a2, 1]);
-end
-
-% 2. Evaluate ReturnFn (Unpacks EXACTLY what arrayfun needs)
+% 2. Evaluate ReturnFn with raw numeric arrays for A2
 if l_a2 > 0
+    N_a2_local = size(A2_mat, 1);
+    num_a2 = size(A2_mat, 2);
+    A2_cells = cell(1, num_a2);
+    for ia = 1:num_a2
+        A2_cells{ia} = reshape(A2_mat(:,ia), [1, 1, 1, N_a2_local, 1]);
+    end
     F_tensor = ReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, ReturnFnParamsCell{:});
 else
     F_tensor = ReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, ReturnFnParamsCell{:});
