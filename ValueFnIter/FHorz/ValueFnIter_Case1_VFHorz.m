@@ -434,26 +434,19 @@ for reverse_j = 0:N_j-1
     ZE_z_idx = Z_mesh(:);
     ZE_e_idx = E_mesh(:);
 
-    % --- Determine Exogenous Memory Chunking (lowmemory) ---
-    if vfoptions.lowmemory == 0
-        % Vectorize everything
-        ze_chunks = {1:N_ze};
-    elseif vfoptions.lowmemory == 1
-        if N_z_safe > 1 && n_e_work > 1
-            % z & e present: Parallel over z, loop over e
-            ze_chunks = cell(1, n_e_work);
-            for ie = 1:n_e_work
-                ze_chunks{ie} = (ie - 1) * N_z_safe + 1 : ie * N_z_safe;
-            end
-        else
-            % Only z or only e present: loop over that active shock
-            ze_chunks = num2cell(1:N_ze);
-        end
-    elseif vfoptions.lowmemory == 2
-        % z & e present: loop both (evaluate one ZE combination at a time)
-        ze_chunks = num2cell(1:N_ze);
+    % --- Slicer Setup (Multi-Axis) ---
+    % Determine Z/E Chunking
+    if ismember(vfoptions.lowmemory, [0, 4])
+        ze_chunks = {1:N_z}; % Keep ZE vectorized
     else
-        error('Invalid lowmemory level requested for the current shock combination.');
+        ze_chunks = num2cell(1:N_z); % Slice ZE
+    end
+
+    % Determine Experience Asset (A2) Chunking
+    if ismember(vfoptions.lowmemory, [4, 5]) && l_a2 > 0
+        a2_chunks = num2cell(1:N_a2); % Slice A2
+    else
+        a2_chunks = {1:N_a2}; % Keep A2 vectorized
     end
 
     % --- The Master Orchestrator Pre-Computation ---
@@ -482,64 +475,69 @@ for reverse_j = 0:N_j-1
     Pol_L2flag_max = zeros(N_a, N_ze, 'like', EV_flat_ze);
 
     % --- The Master Orchestrator Loop ---
-    for i_ze = 1:length(ze_chunks)
-        curr_ze = ze_chunks{i_ze};
-        N_ze_local = length(curr_ze);
+    for i_a2 = 1:length(a2_chunks)
+        curr_a2 = a2_chunks{i_a2};
+        N_a2_local = length(curr_a2);
 
-        % 1. Pre-build Exogenous Cells (Loop Invariant for Slicer!)
-        if has_z
-            num_z_vars = size(z_gridvals_j_local, 2);
-            Z_cells_local = cell(1, num_z_vars);
-            for iz = 1:num_z_vars
-                Z_cells_local{iz} = reshape(z_gridvals_j_local(ZE_z_idx(curr_ze), iz), [1, 1, 1, N_ze_local]);
+        for i_ze = 1:length(ze_chunks)
+            curr_ze = ze_chunks{i_ze};
+            N_ze_local = length(curr_ze);
+
+            % 1. Pre-build Exogenous Cells (Loop Invariant for Slicer!)
+            if has_z
+                num_z_vars = size(z_gridvals_j_local, 2);
+                Z_cells_local = cell(1, num_z_vars);
+                for iz = 1:num_z_vars
+                    Z_cells_local{iz} = reshape(z_gridvals_j_local(ZE_z_idx(curr_ze), iz), [1, 1, 1, N_ze_local]);
+                end
+            else
+                Z_cells_local = {};
             end
-        else
-            Z_cells_local = {};
-        end
 
-        if has_e
-            num_e_vars = size(e_work, 2);
-            E_cells_local = cell(1, num_e_vars);
-            for ie = 1:num_e_vars
-                E_cells_local{ie} = reshape(e_work(ZE_e_idx(curr_ze), ie), [1, 1, 1, N_ze_local]);
+            if has_e
+                num_e_vars = size(e_work, 2);
+                E_cells_local = cell(1, num_e_vars);
+                for ie = 1:num_e_vars
+                    E_cells_local{ie} = reshape(e_work(ZE_e_idx(curr_ze), ie), [1, 1, 1, N_ze_local]);
+                end
+            else
+                E_cells_local = {};
             end
-        else
-            E_cells_local = {};
-        end
 
-        % 2. Pre-build EV dependencies and Interpolations (Loop Invariant for Slicer!)
-        EV_local = EV_flat_ze(:, curr_ze);
-        z_offset_local = reshape((0:N_ze_local-1) * N_a, [1, 1, 1, N_ze_local]);
+            % 2. Pre-build EV dependencies and Interpolations (Loop Invariant for Slicer!)
+            EV_local = EV_flat_ze(:, curr_ze);
+            z_offset_local = reshape((0:N_ze_local-1) * N_a, [1, 1, 1, N_ze_local]);
 
-        if vfoptions.gridinterplayer
-            EV_interp_local = interp1(a_work_local, EV_local, a1prime_grid);
-            z_offset_fine_local = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, N_ze_local]);
-        else
-            EV_interp_local = [];
-            z_offset_fine_local = [];
-        end
+            if vfoptions.gridinterplayer
+                EV_interp_local = interp1(a_work_local, EV_local, a1prime_grid);
+                z_offset_fine_local = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, N_ze_local]);
+            else
+                EV_interp_local = [];
+                z_offset_fine_local = [];
+            end
 
-        % Create a localized closure for the Slicer so it only executes pure math
-        LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
-            state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
-            Z_cells_local, E_cells_local, D_cells_block, A_cells, ...
-            vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
-            ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj));
+            % Create a localized closure for the Slicer so it only executes pure math
+            LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
+                state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
+                Z_cells_local, E_cells_local, D_cells_block, A_cells, ...
+                vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
+                ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj));
 
-        if vfoptions.divideandconquer == 1
-            vfoptions.level1n = vfoptions.level1n(1);
-            [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
-        else
-            [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, [], 0);
-        end
+            if vfoptions.divideandconquer == 1
+                vfoptions.level1n = vfoptions.level1n(1);
+                [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
+            else
+                [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, [], 0);
+            end
 
-        % Slot results directly into the preallocated flat tensors
-        V_j_max(:, curr_ze)     = reshape(v,     [N_a, N_ze_local]);
-        Pol_apr_max(:, curr_ze) = reshape(p_apr, [N_a, N_ze_local]);
-        Pol_d_max(:, curr_ze)   = reshape(p_d,   [N_a, N_ze_local]);
-        if vfoptions.gridinterplayer == 1
-            Pol_L2idx_max(:, curr_ze)  = reshape(p_l2idx,  [N_a, N_ze_local]);
-            Pol_L2flag_max(:, curr_ze) = reshape(p_l2flag, [N_a, N_ze_local]);
+            % Slot results directly into the preallocated flat tensors
+            V_j_max(:, curr_ze)     = reshape(v,     [N_a, N_ze_local]);
+            Pol_apr_max(:, curr_ze) = reshape(p_apr, [N_a, N_ze_local]);
+            Pol_d_max(:, curr_ze)   = reshape(p_d,   [N_a, N_ze_local]);
+            if vfoptions.gridinterplayer == 1
+                Pol_L2idx_max(:, curr_ze)  = reshape(p_l2idx,  [N_a, N_ze_local]);
+                Pol_L2flag_max(:, curr_ze) = reshape(p_l2flag, [N_a, N_ze_local]);
+            end
         end
     end
 

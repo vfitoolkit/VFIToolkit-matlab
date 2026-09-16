@@ -91,14 +91,22 @@ if has_GI
     if isNaive; Policyalt = zeros(3, N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
 else
     Policy = zeros(N_a, N_z, N_j, 'gpuArray');
-    if isNaive; Policyalt = zeros(1, N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
+    if isNaive; Policyalt = zeros(N_a, N_z, N_j, 'gpuArray'); else; Policyalt = []; end
 end
 
-% --- 3. Slicer Setup ---
-if vfoptions.lowmemory == 0
-    ze_chunks = {1:N_z};
+% --- 3. Slicer Setup (Multi-Axis) ---
+% Determine Z/E Chunking
+if ismember(vfoptions.lowmemory, [0, 4])
+    ze_chunks = {1:N_z}; % Keep ZE vectorized
 else
-    ze_chunks = num2cell(1:N_z);
+    ze_chunks = num2cell(1:N_z); % Slice ZE
+end
+
+% Determine Experience Asset (A2) Chunking
+if ismember(vfoptions.lowmemory, [4, 5]) && l_a2 > 0
+    a2_chunks = num2cell(1:N_a2); % Slice A2
+else
+    a2_chunks = {1:N_a2}; % Keep A2 vectorized
 end
 
 % --- 4. Backward Induction Loop ---
@@ -137,28 +145,33 @@ for reverse_j = 0:N_j-1
     Pol_j = zeros(N_a, N_z, 'like', a_grid);
     if isNaive; Polalt_j = zeros(N_a, N_z, 'like', a_grid); end
 
-    for i_ze = 1:length(ze_chunks)
-        curr_ze = ze_chunks{i_ze};
-        N_ze_local = length(curr_ze);
+    for i_a2 = 1:length(a2_chunks)
+        curr_a2 = a2_chunks{i_a2};
+        N_a2_local = length(curr_a2);
 
-        Z_cells_local = cell(1, size(z_gridvals_J, 2));
-        for iz = 1:size(z_gridvals_J, 2)
-            Z_cells_local{iz} = reshape(z_gridvals_J(curr_ze, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, 1, N_ze_local]);
+        for i_ze = 1:length(ze_chunks)
+            curr_ze = ze_chunks{i_ze};
+            N_ze_local = length(curr_ze);
+
+            Z_cells_local = cell(1, size(z_gridvals_J, 2));
+            for iz = 1:size(z_gridvals_J, 2)
+                Z_cells_local{iz} = reshape(z_gridvals_J(curr_ze, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, 1, N_ze_local]);
+            end
+
+            EV_local = EV_flat( (curr_ze - 1)*N_a + 1 : curr_ze*N_a );
+
+            % Launch the QH Bridge TensorBlock
+            [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QH_TensorBlock(...
+                N_a1, N_a2, N_d, N_ze_local, Z_cells_local, D_cells_block, ...
+                A1_mat, A2_mat, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
+                ReturnFn, ReturnFnParamsCell, aprimeFn, aprimeFnParamsCell, ...
+                isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'));
+
+            V1_j(:, curr_ze) = V_hat;
+            Valt_j(:, curr_ze) = V_underbar;
+            Pol_j(:, curr_ze) = Pol_hat;
+            if isNaive; Polalt_j(:, curr_ze) = Pol_alt; end
         end
-
-        EV_local = EV_flat( (curr_ze - 1)*N_a + 1 : curr_ze*N_a );
-
-        % Launch the QH Bridge TensorBlock
-        [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QH_TensorBlock(...
-            N_a1, N_a2, N_d, N_ze_local, Z_cells_local, D_cells_block, ...
-            A1_mat, A2_mat, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
-            ReturnFn, ReturnFnParamsCell, aprimeFn, aprimeFnParamsCell, ...
-            isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'));
-
-        V1_j(:, curr_ze) = V_hat;
-        Valt_j(:, curr_ze) = V_underbar;
-        Pol_j(:, curr_ze) = Pol_hat;
-        if isNaive; Polalt_j(:, curr_ze) = Pol_alt; end
     end
 
     V1(:,:,jj) = V1_j;
