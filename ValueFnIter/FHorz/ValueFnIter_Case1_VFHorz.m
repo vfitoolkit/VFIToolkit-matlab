@@ -700,16 +700,27 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
 
 N_block = length(state_idx);
 
-% --- 1. SAFELY Extract 1D Asset Grids & Rebuild Choice Space ---
+% --- 1. SAFELY Extract 1D Asset Grids & Rebuild Sequences ---
 num_assets = length(A_cells);
 grid_1D = cell(1, num_assets);
-asset_seq = cell(1, num_assets);
 
 for ia = 1:num_assets
-    % A_cells is sized [N_d_safe, N_a, N_z, N_e]. Reshape to expose N_a cleanly.
-    flat_A = reshape(A_cells{ia}, [N_d_safe, N_a, numel(A_cells{ia}) / (N_d_safe * N_a)]);
-    asset_seq{ia} = flat_A(1, :, 1); % The exact repeating sequence for the state space
-    grid_1D{ia} = unique(asset_seq{ia});
+    % unique() safely flattens any shape (implicitly expanded or full)
+    % and extracts the pure 1D monotonic grid for this asset
+    grid_1D{ia} = unique(A_cells{ia}(:));
+end
+
+% Rebuild the exact N_a Cartesian state sequence natively
+state_grids = cell(1, num_assets);
+if num_assets > 1
+    [state_grids{:}] = ndgrid(grid_1D{:});
+else
+    state_grids{1} = grid_1D{1};
+end
+
+asset_seq = cell(1, num_assets);
+for ia = 1:num_assets
+    asset_seq{ia} = state_grids{ia}(:).'; % 1 x N_a sequence
 end
 
 N_choice = 1;
@@ -734,7 +745,12 @@ a_in_fine     = cell(1, num_assets);
 % Natively rebuild the choice grid to guarantee correct Cartesian combinations
 if num_a1 > 0
     choice_grids = cell(1, num_a1);
-    [choice_grids{:}] = ndgrid(grid_1D{1:num_a1});
+    if num_a1 > 1
+        [choice_grids{:}] = ndgrid(grid_1D{1:num_a1});
+    else
+        choice_grids{1} = grid_1D{1};
+    end
+
     for ia = 1:num_a1
         flat_choice = choice_grids{ia}(:);
         sub_idx = min(max(apr_idx_tensor, 1), numel(flat_choice));
@@ -742,7 +758,7 @@ if num_a1 > 0
     end
 end
 
-% Safely map the state grid values using the extracted sequence
+% Safely map the state grid values using the reconstructed sequence
 for ia = 1:num_assets
     state_sub = min(max(state_idx, 1), N_a);
     a_in_fine{ia} = reshape(asset_seq{ia}(state_sub), [1, 1, N_block, 1]);
