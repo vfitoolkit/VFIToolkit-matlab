@@ -700,19 +700,22 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
 
 N_block = length(state_idx);
 
-% --- 1. SAFELY Calculate N_choice and Extract Monotonic Asset Grids ---
+% --- 1. SAFELY Extract 1D Asset Grids & Rebuild Choice Space ---
 num_assets = length(A_cells);
-unique_a_grids = cell(1, num_assets);
-N_a1_choice = 1;
+grid_1D = cell(1, num_assets);
+asset_seq = cell(1, num_assets);
 
 for ia = 1:num_assets
-    % Extract the exact monotonic 1D sequence for this asset by bypassing the decision dimension
-    unique_a_grids{ia} = unique(A_cells{ia}(1, 1:N_a));
-    if ia <= num_a1
-        N_a1_choice = N_a1_choice * length(unique_a_grids{ia});
-    end
+    % A_cells is sized [N_d_safe, N_a, N_z, N_e]. Reshape to expose N_a cleanly.
+    flat_A = reshape(A_cells{ia}, [N_d_safe, N_a, numel(A_cells{ia}) / (N_d_safe * N_a)]);
+    asset_seq{ia} = flat_A(1, :, 1); % The exact repeating sequence for the state space
+    grid_1D{ia} = unique(asset_seq{ia});
 end
-N_choice = N_a1_choice;
+
+N_choice = 1;
+for ia = 1:num_a1
+    N_choice = N_choice * length(grid_1D{ia});
+end
 
 % --- 2. Build Choice Tensor ---
 if isempty(loweredge_matrix)
@@ -728,22 +731,27 @@ end
 apr_in_coarse = cell(1, num_assets);
 a_in_fine     = cell(1, num_assets);
 
-for ia = 1:num_assets
-    % Extract the correct repeating sequence for the N_a dimension
-    asset_sequence = A_cells{ia}(1, 1:N_a);
-
-    if ia <= num_a1
-        sub_idx = min(max(apr_idx_tensor, 1), N_choice);
-        apr_in_coarse{ia} = reshape(asset_sequence(sub_idx), size(apr_idx_tensor));
+% Natively rebuild the choice grid to guarantee correct Cartesian combinations
+if num_a1 > 0
+    choice_grids = cell(1, num_a1);
+    [choice_grids{:}] = ndgrid(grid_1D{1:num_a1});
+    for ia = 1:num_a1
+        flat_choice = choice_grids{ia}(:);
+        sub_idx = min(max(apr_idx_tensor, 1), numel(flat_choice));
+        apr_in_coarse{ia} = reshape(flat_choice(sub_idx), size(apr_idx_tensor));
     end
+end
+
+% Safely map the state grid values using the extracted sequence
+for ia = 1:num_assets
     state_sub = min(max(state_idx, 1), N_a);
-    a_in_fine{ia} = reshape(asset_sequence(state_sub), [1, 1, N_block, 1]);
+    a_in_fine{ia} = reshape(asset_seq{ia}(state_sub), [1, 1, N_block, 1]);
 end
 
 F_tensor = ReturnFn(D_cells_block{:}, apr_in_coarse{1:num_a1}, a_in_fine{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
 % --- 3. Evaluate Experience Asset Transition natively ---
-a2_grid = unique_a_grids{end}; % SAFELY use the exact monotonic grid
+a2_grid = grid_1D{end}; % Use the clean 1D grid we just extracted
 installpv_tensor = D_cells_block{1}; % D1 is installpv
 solarpv_tensor   = a_in_fine{end};
 
@@ -800,4 +808,6 @@ Pol_apr_max    = reshape(apr_idx_coarse, [N_block, N_ze_local]);
 Pol_d_max      = d_idx_coarse;
 Pol_L2idx_max  = [];
 Pol_L2flag_max = [];
+
+
 end
