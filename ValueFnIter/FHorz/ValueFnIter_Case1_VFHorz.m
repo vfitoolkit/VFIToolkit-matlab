@@ -278,12 +278,12 @@ N_z_safe = max(1, N_z);
 
 %% Exogenous shock gridvals and pi
 if N_z > 0
-    if vfoptions.alreadygridvals == 0
-        [z_gridvals_J, pi_z_J, vfoptions] = ExogShockSetup_FHorz(n_z, z_grid, pi_z, N_j, Parameters, vfoptions, 1, 0);
-    else
-        z_gridvals_J = z_grid;
-        pi_z_J = pi_z;
-    end
+    % BYPASS ExogShockSetup_FHorz ENTIRELY!
+    % It secretly detects n_semiz and expands pi_z via kron(pi_z, eye(N_semiz)).
+    % For Robert's A9 model, that makes a tiny 66x66 matrix. 
+    % For your model, it makes a 30,870 x 30,870 matrix, breaking the sequential EV tensor!
+    z_gridvals_J = z_grid;
+    pi_z_J = pi_z;
 else
     z_gridvals_J = [];
     pi_z_J = [];
