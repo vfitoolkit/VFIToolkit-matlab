@@ -75,6 +75,8 @@ if l_a2 > 0
             aprimeFnParamNames = {};
         end
     end
+    % --- TENSOR BRIDGE FIX: Filter out state variables misidentified as parameters ---
+    aprimeFnParamNames = aprimeFnParamNames(isfield(Parameters, aprimeFnParamNames));
 else
     aprimeFn = [];
     aprimeFnParamNames = {};
@@ -183,7 +185,7 @@ for reverse_j = 0:N_j-1
             [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QHEZ_TensorBlock(...
                 N_a1, N_a2_local, N_d, N_ze_local, Z_cells_local, D_cells_block, ...
                 A1_mat, A2_local, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
-                TensorReturnFn, ReturnFnParamsCell, aprimeFn, aprimeFnParamsCell, ...
+                TensorReturnFn, ReturnFnParamsCell, TensoraprimeFn, aprimeFnParamsCell, ...
                 ezc2(jj), ezc3, ezc4, ezc7(jj), isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'));
 
             % Map the local slice back into the global V1_j structure
@@ -260,7 +262,7 @@ end
 function [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QHEZ_TensorBlock(...
     N_a1, N_a2, N_d_safe, N_ze_local, Z_cells_block, D_cells_block, ...
     A1_mat, A2_mat, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
-    TensorReturnFn, ReturnFnParamsCell, aprimeFn, aprimeFnParamsCell, ...
+    TensorReturnFn, ReturnFnParamsCell, TensoraprimeFn, aprimeFnParamsCell, ...
     ezc2_j, ezc3, ezc4, ezc7_j, isNaive, isTerminal)
 
 % 1. Build A1 and A2 Cells dynamically
@@ -288,7 +290,7 @@ end
 % 3. Format Expected Values (EV_bounded)
 if l_a2 > 0
     % ExpAsset Transition Interpolation
-    A2_prime = aprimeFn(D_cells_block{:}, A2_cells{:}, Z_cells_block{:}, aprimeFnParamsCell{:});
+    A2_prime = TensoraprimeFn(D_cells_block{:}, A2_cells{:}, Z_cells_block{:}, aprimeFnParamsCell{:});
 
     a2_grid_1d_vec = a2_grids_1d{1};
     a2_min = a2_grid_1d_vec(1);
