@@ -277,16 +277,47 @@ N_z = prod(n_z);
 N_z_safe = max(1, N_z);
 
 %% Exogenous shock gridvals and pi
-if N_z > 0
-    % For large semi-exogenous state spaces, ExogShockSetup_FHorz triggers
-    % a memory allocation failure by attempting a full Kronecker expansion:
-    % kron(pi_z, eye(N_semiz)). We bypass this and pass the native matrix
-    % to evaluate expectations sequentially.
+if isfield(vfoptions, 'semiz_gridvals_J') && ~isempty(vfoptions.semiz_gridvals_J)
+    % 1. Extract the pre-computed static semiz tensor
+    sz_J = vfoptions.semiz_gridvals_J;
+    N_semiz = size(sz_J, 1);
+    num_semiz_vars = size(sz_J, 2);
+    num_periods = size(sz_J, 3);
+
+    % 2. Get the z grid
+    if N_z > 0
+        z_J = repmat(z_grid(:), [1, 1, num_periods]);
+    else
+        z_J = [];
+    end
+
+    % 3. Combine them via Kronecker expansion for each period
+    z_gridvals_J = zeros(N_semiz * max(1, N_z), num_semiz_vars + (N_z>0), num_periods, 'like', sz_J);
+    for t = 1:num_periods
+        if N_z > 0
+            % Repeat semiz for every z
+            semiz_expanded = kron(sz_J(:,:,t), ones(N_z, 1));
+            % Repeat z for every semiz
+            z_expanded = kron(ones(N_semiz, 1), z_J(:,:,t));
+            z_gridvals_J(:,:,t) = [semiz_expanded, z_expanded];
+        else
+            z_gridvals_J(:,:,t) = sz_J(:,:,t);
+        end
+    end
+
+    % 4. Combine transition matrices
+    if N_z > 0
+        pi_z_J = zeros(N_semiz * N_z, N_semiz * N_z, num_periods, 'like', vfoptions.pi_semiz_J);
+        for t = 1:num_periods
+            pi_z_J(:,:,t) = kron(vfoptions.pi_semiz_J(:,:,t), pi_z);
+        end
+    else
+        pi_z_J = vfoptions.pi_semiz_J;
+    end
+else
+    % Fallback to standard z
     z_gridvals_J = z_grid;
     pi_z_J = pi_z;
-else
-    z_gridvals_J = [];
-    pi_z_J = [];
 end
 
 %% Quasi-Hyperbolic dispatcher (no divide-and-conquer)
