@@ -82,25 +82,31 @@ else
     aprimeFnParamNames = {};
 end
 
-% Pre-allocate Flattened Output Tensors
-V1 = zeros(N_a, N_z, N_j, 'like', a_grid);
-Valt = zeros(N_a, N_z, N_j, 'like', a_grid);
-
+% Pre-allocate Flattened Output Tensors in SYSTEM RAM (CPU) to prevent VRAM overflow
+V1 = zeros(N_a, N_z, N_j, vfoptions.precision);
+Valt = zeros(N_a, N_z, N_j, vfoptions.precision);
 has_GI = vfoptions.gridinterplayer == 1;
 if has_GI
-    Policy = zeros(3, N_a, N_z, N_j, 'like', a_grid);
-    if isNaive; Policyalt = zeros(3, N_a, N_z, N_j, 'like', a_grid); else; Policyalt = cast([],vfoptions.precision); end
+    Policy = zeros(3, N_a, N_z, N_j, vfoptions.precision);
+    if isNaive; Policyalt = zeros(3, N_a, N_z, N_j, vfoptions.precision); else; Policyalt = cast([],vfoptions.precision); end
 else
-    Policy = zeros(N_a, N_z, N_j, 'like', a_grid);
-    if isNaive; Policyalt = zeros(N_a, N_z, N_j, 'like', a_grid); else; Policyalt = cast([],vfoptions.precision); end
+    Policy = zeros(N_a, N_z, N_j, vfoptions.precision);
+    if isNaive; Policyalt = zeros(N_a, N_z, N_j, vfoptions.precision); else; Policyalt = cast([],vfoptions.precision); end
 end
 
 % --- 3. Slicer Setup (Multi-Axis) ---
 % Determine Z/E Chunking
 if ismember(vfoptions.lowmemory, [0, 4])
     ze_chunks = {1:N_z}; % Keep ZE vectorized
+elseif vfoptions.lowmemory == 1
+    chunk_size = 300; % Safely saturate the RTX 5090!
+    num_chunks = ceil(N_z / chunk_size);
+    ze_chunks = cell(1, num_chunks);
+    for c = 1:num_chunks
+        ze_chunks{c} = (c-1)*chunk_size + 1 : min(c*chunk_size, N_z);
+    end
 else
-    ze_chunks = num2cell(1:N_z); % Slice ZE
+    ze_chunks = num2cell(1:N_z); % Slice ZE (Chunk size 1)
 end
 
 % Determine Experience Asset (A2) Chunking
@@ -131,9 +137,10 @@ for reverse_j = 0:N_j-1
     else
         % --- CONTINUATION PERIODS ---
         if jj == N_j
-            EV_Source = reshape(vfoptions.V_Jplus1, [N_a, N_z]);
+            EV_Source = reshape(gpuArray(vfoptions.V_Jplus1), [N_a, N_z]);
         else
-            EV_Source = reshape(Valt(:,:,jj+1), [N_a, N_z]);
+            % Pull the slice back from CPU RAM to the GPU for this period's math
+            EV_Source = gpuArray(reshape(Valt(:,:,jj+1), [N_a, N_z]));
         end
 
         valid_V = isfinite(EV_Source) & (EV_Source ~= 0);
@@ -155,6 +162,7 @@ for reverse_j = 0:N_j-1
         EV_flat = reshape(EV_Expected, [N_a * N_z, 1]);
     end
 
+    % Allocate GPU tensors for THIS period's slices
     V1_j = zeros(N_a, N_z, 'like', a_grid);
     Valt_j = zeros(N_a, N_z, 'like', a_grid);
     Pol_j = zeros(N_a, N_z, 'like', a_grid);
@@ -201,21 +209,21 @@ for reverse_j = 0:N_j-1
         end
     end
 
-    V1(:,:,jj) = V1_j;
-    Valt(:,:,jj) = Valt_j;
-
+    % Gather from GPU to System RAM
+    V1(:,:,jj) = gather(V1_j);
+    Valt(:,:,jj) = gather(Valt_j);
     if has_GI
-        Policy(1,:,:,jj) = Pol_j;
+        Policy(1,:,:,jj) = gather(Pol_j);
         Policy(2,:,:,jj) = 0;
         Policy(3,:,:,jj) = 2;
         if isNaive
-            Policyalt(1,:,:,jj) = Polalt_j;
+            Policyalt(1,:,:,jj) = gather(Polalt_j);
             Policyalt(2,:,:,jj) = 0;
             Policyalt(3,:,:,jj) = 2;
         end
     else
-        Policy(:,:,jj) = Pol_j;
-        if isNaive; Policyalt(:,:,jj) = Polalt_j; end
+        Policy(:,:,jj) = gather(Pol_j);
+        if isNaive; Policyalt(:,:,jj) = gather(Polalt_j); end
     end
 end
 
