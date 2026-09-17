@@ -7,10 +7,8 @@ if ~isfield(simoptions, 'optimize_nProbs')
 end
 
 % --- 1. Dimension Extraction ---
-l_dsemiz = 1;
-if isfield(simoptions, 'l_dsemiz'), l_dsemiz = simoptions.l_dsemiz; end
-l_dexperienceasset = 1;
-if isfield(simoptions, 'l_dexperienceasset'), l_dexperienceasset = simoptions.l_dexperienceasset; end
+l_dsemiz = simoptions.l_dsemiz;
+l_dexperienceasset = simoptions.l_dexperienceasset;
 
 % Extract decision partitions (d3=semiz, d2=expasset, d1=other)
 n_d3 = n_d(end - l_dsemiz + 1 : end);
@@ -92,7 +90,7 @@ NumPolicies = size(Policy, 1);
 Policy_reshaped = reshape(Policy, [NumPolicies, N_a1, N_a2, N_semiz, N_z_safe, N_j]);
 
 % --- BYPASS EXOG SHOCK SETUP ---
-if isfield(simoptions, 'n_z')
+if isfield(simoptions, 'z_grid')
     z_gridvals_J = simoptions.z_grid;
 else
     z_gridvals_J = [];
@@ -194,7 +192,7 @@ for jj = 1:N_j
     end
 
     % 5. Map Mass Forward (Tensor-Product of A1, A2, and SemiZ dispersion)
-    is_gridinterp = isfield(simoptions, 'gridinterplayer') && simoptions.gridinterplayer == 1;
+    is_gridinterp = any(simoptions.gridinterplayer);
     if is_gridinterp
         l2_layer = reshape(Policy_reshaped(end-1, :,:,:,:, jj), [N_states, 1]);
         a1_prob_upper = (l2_layer(:) - 1) / (simoptions.ngridinterp + 1);
