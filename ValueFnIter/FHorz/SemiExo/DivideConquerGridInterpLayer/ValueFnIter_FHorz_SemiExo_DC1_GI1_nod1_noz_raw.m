@@ -5,9 +5,9 @@ N_a=prod(n_a);
 N_semiz=prod(n_semiz);
 
 V=zeros(N_a,N_semiz,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 % For semiz it turns out to be easier to go straight to constructing policy that stores d,d2,aprime seperately
-Policy=zeros(3,N_a,N_semiz,N_j,'gpuArray'); % first dim indexes the optimal choice for d2,aprime and aprime2 (in GI layer)
+Policy=zeros(4,N_a,N_semiz,N_j,'gpuArray'); % first dim indexes the optimal choice for d2,aprime and aprime2 (in GI layer)
+Policy(4,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 special_n_d2=ones(1,length(n_d2));
@@ -102,7 +102,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+    Policy(4,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
     elseif vfoptions.lowmemory==1 % loop semiz
         midpoints_Nj=zeros(N_d2,1,N_a,'gpuArray');
@@ -157,7 +157,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,semiz_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(4,:,semiz_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
 
     end
@@ -316,7 +316,7 @@ else
     aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
     Policy(2,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
     Policy(3,:,:,N_j)=aprimeL2_ind; % aprimeL2ind
-    PolicyL2flag(1,:,:,N_j)=reshape(PolicyL2flag_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
+    Policy(4,:,:,N_j)=reshape(PolicyL2flag_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 
 end
 
@@ -483,7 +483,7 @@ for reverse_j=1:N_j-1
     aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
     Policy(2,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
     Policy(3,:,:,jj)=aprimeL2_ind; % aprimeL2ind
-    PolicyL2flag(1,:,:,jj)=reshape(PolicyL2flag_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
+    Policy(4,:,:,jj)=reshape(PolicyL2flag_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 
 end
 
@@ -495,10 +495,8 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust; % lower grid point
-Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+Policy(3,:,:,:)=Policy(3,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-Policy=[Policy; PolicyL2flag];
-
-% Policy=squeeze(Policy(1,:,:,:)+N_d2*(Policy(2,:,:,:)-1)+N_d2*N_a*(Policy(3,:,:,:)-1)+N_d2*N_a*(n2short+2)*(PolicyL2flag-1));
+% Policy=squeeze(Policy(1,:,:,:)+N_d2*(Policy(2,:,:,:)-1)+N_d2*N_a*(Policy(3,:,:,:)-1)+N_d2*N_a*(n2short+2)*(Policy(4,:,:,:)-1));
 
 end
