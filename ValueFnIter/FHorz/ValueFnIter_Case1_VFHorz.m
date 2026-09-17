@@ -278,10 +278,10 @@ N_z_safe = max(1, N_z);
 
 %% Exogenous shock gridvals and pi
 if N_z > 0
-    % BYPASS ExogShockSetup_FHorz ENTIRELY!
-    % It secretly detects n_semiz and expands pi_z via kron(pi_z, eye(N_semiz)).
-    % For Robert's A9 model, that makes a tiny 66x66 matrix.
-    % For your model, it makes a 30,870 x 30,870 matrix, breaking the sequential EV tensor!
+    % For large semi-exogenous state spaces, ExogShockSetup_FHorz triggers
+    % a memory allocation failure by attempting a full Kronecker expansion:
+    % kron(pi_z, eye(N_semiz)). We bypass this and pass the native matrix
+    % to evaluate expectations sequentially.
     z_gridvals_J = z_grid;
     pi_z_J = pi_z;
 else
@@ -370,7 +370,7 @@ V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
 if any(vfoptions.gridinterplayer)
     n2short = vfoptions.ngridinterp;
     n2long  = n2short * 2 + 3;
-    % Fix: Use a_work instead of a_gridvals(:,1)
+    % Use a_work instead of a_gridvals(:,1)
     a1prime_grid = interp1(1:1:N_a, a_work, linspace(1, N_a, N_a + (N_a - 1) * n2short))';
 else
     n2short = 0;
@@ -676,12 +676,13 @@ if isfield(vfoptions, 'outputkron') && vfoptions.outputkron == 1
     return
 end
 
-%% Safe UnKron (Bypassing the 2.14 Billion Element GPU Limit)
-% The final Policy tensor contains 2.22 billion elements.
-% MATLAB GPUs enforce a strict 2.14 billion (2^31-1) element limit per array.
-% We unpack iteratively and assemble safely in 64-bit System RAM (CPU).
+%% Iterative Policy Unpacking (System RAM Handoff)
+% MATLAB GPUs enforce a strict 32-bit signed integer limit for array indexing
+% (max 2,147,483,647 elements per array). For high-resolution models exceeding
+% this limit, the Policy tensor is unpacked iteratively by period and assembled
+% safely in 64-bit System RAM.
 
-disp('UnKronning Policy tensor to CPU (Bypassing GPU 32-bit element limit)...');
+disp('Unpacking Policy tensor to System RAM...');
 
 num_pol_vars = length(n_daprime);
 n_daprime_col = n_daprime(:);
