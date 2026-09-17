@@ -329,7 +329,7 @@ if N_z > 0
 end
 
 % ONE CALL TO RULE THEM ALL
-[D_cells, A_cells, Z_cells, E_cells] = CreateReturnFnMatrix_VFHorz(n_d, n_a, n_z, n_e_pass, d_grid, a_grid, z_pass, e_grid_pass);
+[TensorReturnFn, D_cells, A_cells, Z_cells, E_cells] = CreateTensorFnAndCells(ReturnFn, n_d, n_a, n_z, n_e_pass, d_grid, a_grid, z_pass, e_grid_pass);
 
 % --- Standardize Dimensions for the Slicer & Allocator ---
 N_d_safe = max(1, prod(n_d));
@@ -607,7 +607,8 @@ for reverse_j = 0:N_j-1
                 state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A_cells, num_a1_pass, ...
                 vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
-                ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), vfoptions.aprimeFn, A_cells{end}(:), N_dsemiz, dsemiz_idx_tensor);
+                TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
+                CreateTensorBridge(vfoptions.aprimeFn), A_cells{end}(:), N_dsemiz, dsemiz_idx_tensor);
 
             if vfoptions.divideandconquer == 1
                 vfoptions.level1n = vfoptions.level1n(1);
@@ -723,7 +724,7 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
     state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
     Z_cells_block, E_cells_block, D_cells_block, A_cells, num_a1, ...
     gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
-    ReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, a2primeFn, a2_grid_full, N_dsemiz, dsemiz_idx_tensor)
+    TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, Tensora2primeFn, a2_grid_full, N_dsemiz, dsemiz_idx_tensor)
 
 N_block = length(state_idx);
 
@@ -791,14 +792,14 @@ for ia = 1:num_assets
     a_in_fine{ia} = reshape(asset_seq{ia}(state_sub), [1, 1, N_block, 1]);
 end
 
-F_tensor = ReturnFn(D_cells_block{:}, apr_in_coarse{1:num_a1}, a_in_fine{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+F_tensor = TensorReturnFn(D_cells_block{:}, apr_in_coarse{1:num_a1}, a_in_fine{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
 % --- 3. Evaluate Experience Asset Transition natively ---
 a2_grid = grid_1D{end}; % Use the clean 1D grid we just extracted
 installpv_tensor = D_cells_block{1}; % D1 is installpv
 solarpv_tensor   = a_in_fine{end};
 
-a2_prime_vals = a2primeFn(installpv_tensor, solarpv_tensor, 0, 0, 0, 0);
+a2_prime_vals = Tensora2primeFn(installpv_tensor, solarpv_tensor, 0, 0, 0, 0);
 a2_prime_vals = max(a2_grid(1), min(a2_grid(end), a2_prime_vals));
 
 [~, a2_idx] = histc(a2_prime_vals(:), a2_grid);

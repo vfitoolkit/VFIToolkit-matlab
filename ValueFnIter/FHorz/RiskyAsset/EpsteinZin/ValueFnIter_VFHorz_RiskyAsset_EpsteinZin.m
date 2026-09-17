@@ -207,7 +207,7 @@ for jj = N_j : -1 : 1
     EvalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_EZ_TensorBlock(...
         state_idx, N_d1, N_d2, N_d3, N_a1, N_a2, max(N_z,1), ...
         beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, a1_grid, a2_grid, ...
-        z_gridvals(:,:,jj), ReturnFn, ReturnFnParamsCell, ...
+        z_gridvals(:,:,jj), TensorReturnFn, ReturnFnParamsCell, ...
         ezc1_j, ezc2(jj), ezc7(jj), ezc4, ezc3, has_d1, has_a1);
 
     if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
@@ -255,7 +255,7 @@ end
 function [V_sub, Pol_d_combo, L2idx, L2flag] = Evaluate_EZ_TensorBlock(...
     state_idx, N_d1, N_d2, N_d3, N_a1, N_a2, N_z_safe, ...
     beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, a1_grid, a2_grid, z_gridvals, ...
-    ReturnFn, ReturnFnParamsCell, ezc1_j, ezc2_j, ezc7_j, ezc4, ezc3, has_d1, has_a1)
+    TensorReturnFn, ReturnFnParamsCell, ezc1_j, ezc2_j, ezc7_j, ezc4, ezc3, has_d1, has_a1)
 
 N_block = length(state_idx);
 
@@ -282,7 +282,7 @@ if N_z_safe > 0, ReturnFn_Args{end+1} = Z_cells; end
 ReturnFn_Args = [ReturnFn_Args, ReturnFnParamsCell];
 
 % 3. Evaluate F (5D) and apply ezc4
-F_tensor = ReturnFn(ReturnFn_Args{:});
+F_tensor = TensorReturnFn(ReturnFn_Args{:});
 
 temp2 = F_tensor;
 valid_F = isfinite(F_tensor) & (F_tensor ~= 0);

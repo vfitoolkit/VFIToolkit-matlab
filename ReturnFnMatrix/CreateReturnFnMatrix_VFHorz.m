@@ -1,4 +1,4 @@
-function [D_cells, A_cells, Z_cells, E_cells] = CreateReturnFnMatrix_VFHorz(n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals, e_grid)
+function [TensorFn, D_cells, A_cells, Z_cells, E_cells] = CreateTensorFnAndCells(InputFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals, e_grid)
 % THE UNIVERSAL PACKER (tensor-bridge)
 % Dynamically unpacks stacked 1D grids into isolated ND-cells for the Fused CUDA Kernel
 

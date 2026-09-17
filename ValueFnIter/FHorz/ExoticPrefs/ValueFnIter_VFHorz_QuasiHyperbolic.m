@@ -33,10 +33,10 @@ a1_grid_vals = a_grid(1:a1_grid_len);
 a2_grid_vals = a_grid(a1_grid_len+1:end);
 
 % Pack D and A1 (Endogenous)
-[D_cells_block, A1_cells, ~, ~] = CreateReturnFnMatrix_VFHorz(n_d, n_a1, 0, 0, d_grid, a1_grid_vals, [], []);
+[TensorReturnFn, D_cells_block, A1_cells, ~, ~] = CreateTensorFnAndCells(ReturnFn, n_d, n_a1, 0, 0, d_grid, a1_grid_vals, [], []);
 
 % Pack A2 (Experience)
-[~, A2_cells, ~, ~] = CreateReturnFnMatrix_VFHorz(0, n_a2, 0, 0, [], a2_grid_vals, [], []);
+[TensoraprimeFn, ~, A2_cells, ~, ~] = CreateTensorFnAndCells(vfoptions.aprimeFn, 0, n_a2, 0, 0, [], a2_grid_vals, [], []);
 
 % Re-construct the legacy A1_mat and A2_mat formats expected by the lower TensorBlock
 A1_mat = zeros(N_a1, length(n_a1), 'like', a_grid);
@@ -167,7 +167,7 @@ for reverse_j = 0:N_j-1
             [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QH_TensorBlock(...
                 N_a1, N_a2_local, N_d, N_ze_local, Z_cells_local, D_cells_block, ...
                 A1_mat, A2_local, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
-                ReturnFn, ReturnFnParamsCell, aprimeFn, aprimeFnParamsCell, ...
+                TensorReturnFn, ReturnFnParamsCell, TensoraprimeFn, aprimeFnParamsCell, ...
                 isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'));
 
             % Map the local slice back into the global V1_j structure
@@ -243,7 +243,7 @@ end
 function [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QH_TensorBlock(...
     N_a1, N_a2, N_d_safe, N_ze_local, Z_cells_block, D_cells_block, ...
     A1_mat, A2_mat, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
-    ReturnFn, ReturnFnParamsCell, aprimeFn, aprimeFnParamsCell, ...
+    TensorReturnFn, ReturnFnParamsCell, TensoraprimeFn, aprimeFnParamsCell, ...
     isNaive, isTerminal)
 
 % 1. Build A1 and A2 Cells dynamically
@@ -263,15 +263,15 @@ if l_a2 > 0
     for ia = 1:num_a2
         A2_cells{ia} = reshape(A2_mat(:,ia), [1, 1, 1, N_a2_local, 1]);
     end
-    F_tensor = ReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, ReturnFnParamsCell{:});
+    F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, ReturnFnParamsCell{:});
 else
-    F_tensor = ReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, ReturnFnParamsCell{:});
+    F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, ReturnFnParamsCell{:});
 end
 
 % 3. Format Expected Values (EV_bounded)
 if l_a2 > 0
     % ExpAsset Transition Interpolation
-    A2_prime = aprimeFn(D_cells_block{:}, A2_cells{:}, Z_cells_block{:}, aprimeFnParamsCell{:});
+    A2_prime = TensoraprimeFn(D_cells_block{:}, A2_cells{:}, Z_cells_block{:}, aprimeFnParamsCell{:});
     a2_grid_1d_vec = a2_grids_1d{1};
     a2_min = a2_grid_1d_vec(1);
     a2_max = a2_grid_1d_vec(end);
