@@ -8,7 +8,8 @@ end
 
 % --- 1. Dimension Extraction ---
 l_dsemiz = simoptions.l_dsemiz;
-l_dexperienceasset = simoptions.l_dexperienceasset;
+l_dexperienceasset = 1;
+if isfield(simoptions, 'l_dexperienceasset'), l_dexperienceasset = simoptions.l_dexperienceasset; end
 
 % Extract decision partitions (d3=semiz, d2=expasset, d1=other)
 n_d3 = n_d(end - l_dsemiz + 1 : end);
