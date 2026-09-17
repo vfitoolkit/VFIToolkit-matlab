@@ -68,6 +68,13 @@ Z_grid_idx  = Z_idx_grid(:);
 NumPolicies = size(Policy, 1);
 Policy_reshaped = reshape(Policy, [NumPolicies, N_a1, N_a2, N_z_safe, N_j]);
 
+% --- BYPASS EXOG SHOCK SETUP ---
+if prod(simoptions.n_z) > 0
+    z_gridvals_J = simoptions.z_grid;
+else
+    z_gridvals_J = [];
+end
+
 % =========================================================
 % TIME LOOP (FORWARD SIMULATION)
 % =========================================================
