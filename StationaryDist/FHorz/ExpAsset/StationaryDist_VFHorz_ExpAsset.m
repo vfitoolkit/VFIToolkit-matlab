@@ -8,6 +8,7 @@ end
 
 % --- 1. Dimension Extraction ---
 l_dexperienceasset = 1;
+if isfield(simoptions, 'l_dexperienceasset'), l_dexperienceasset = simoptions.l_dexperienceasset; end
 
 n_d2 = n_d(end - l_dexperienceasset + 1 : end);
 if length(n_d) > l_dexperienceasset
