@@ -48,6 +48,12 @@ D3_3D = reshape(d3_grid, [1, N_d3, 1]);
 U_3D  = reshape(u_grid,  [1, 1, N_u]);
 
 % =========================================================
+% TENSOR BRIDGE INTERCEPTS
+% =========================================================
+TensorReturnFn = CreateTensorBridge(ReturnFn);
+TensorAprimeFn = CreateTensorBridge(aprimeFn);
+
+% =========================================================
 % TIME LOOP
 % =========================================================
 for jj = N_j : -1 : 1
@@ -62,7 +68,7 @@ for jj = N_j : -1 : 1
         elseif vfoptions.EZoneminusbeta == 2; ezc1_j = 1 - sj(jj) * beta_j; end
     end
 
-    aprime_tensor = aprimeFn(D2_3D, D3_3D, U_3D, aprimeFnParamsCell{:});
+    aprime_tensor = TensorAprimeFn(D2_3D, D3_3D, U_3D, aprimeFnParamsCell{:});
     aprime_clamped = max(min(aprime_tensor, a2_grid(end)), a2_grid(1));
 
     % ---------------------------------------------------------
