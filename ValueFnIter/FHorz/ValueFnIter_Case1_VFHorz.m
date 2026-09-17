@@ -266,8 +266,8 @@ end
 %% Semi-exogenous shock gridvals and pi
 if vfoptions.alreadygridvals_semiexo==0
     if prod(vfoptions.n_semiz)>0
-        % Catch the two explicit returns and store them cleanly in vfoptions
-        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 0);
+        % Default AgeDependence=1 (Bypassed if master script passes alreadygridvals_semiexo=1)
+        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 1);
     end
 end
 
@@ -278,11 +278,12 @@ N_z_safe = max(1, N_z);
 
 %% Exogenous shock gridvals and pi
 if N_z > 0
-    % BYPASS ExogShockSetup_FHorz ENTIRELY!
-    % It secretly detects SemiExoStateFn and mangles the transition matrix.
-    % Since z is a pure AR(1) process, we natively pass the Farmer-Toda arrays.
-    z_gridvals_J = z_grid;
-    pi_z_J = pi_z;
+    if vfoptions.alreadygridvals == 0
+        [z_gridvals_J, pi_z_J, vfoptions] = ExogShockSetup_FHorz(n_z, z_grid, pi_z, N_j, Parameters, vfoptions, 1, 0);
+    else
+        z_gridvals_J = z_grid;
+        pi_z_J = pi_z;
+    end
 else
     z_gridvals_J = [];
     pi_z_J = [];
@@ -411,10 +412,14 @@ for reverse_j = 0:N_j-1
     end
     V_transformed(V_next == 0) = 0;
 
-    % --- Sequential EV Computation (Bypassing Dense Kronecker Product) ---
+    % --- Sequential EV Computation (Applying Z and SemiZ transitions) ---
     N_dsemiz = 1;
     if has_semiz && length(n_d) > 0
-        N_dsemiz = n_d(end); % SemiZ transitions depend on the last decision
+        if isfield(vfoptions, 'l_dsemiz')
+            N_dsemiz = prod(n_d(end-vfoptions.l_dsemiz+1:end));
+        else
+            N_dsemiz = n_d(end); % Default to the last decision variable
+        end
     end
 
     EV = zeros(N_a, n_z_work, n_e_work, N_dsemiz, 'like', V_next);
@@ -441,12 +446,11 @@ for reverse_j = 0:N_j-1
 
             for idsemiz = 1:N_dsemiz
                 pi_semiz_d = pi_semiz_j(:, :, idsemiz);
-                EV_perm = pi_semiz_d * V_perm; % Matrix multiply across semi-exo states!
+                EV_perm = pi_semiz_d * V_perm;
                 EV_d = permute(reshape(EV_perm, [N_semiz, N_a, N_z_exog]), [2, 1, 3]);
                 EV(:,:,ie,idsemiz) = reshape(EV_d, [N_a, n_z_work]);
             end
         else
-            % No Semi-Exo, just pass through
             EV(:,:,ie,1) = reshape(V_z_eval, [N_a, n_z_work]);
         end
     end
@@ -539,7 +543,11 @@ for reverse_j = 0:N_j-1
 
     % --- Pre-build dsemiz index tensor ---
     if N_dsemiz > 1
-        N_d_prefix = max(1, prod(n_d(1:end-1)));
+        if isfield(vfoptions, 'l_dsemiz')
+            N_d_prefix = max(1, prod(n_d(1:end-vfoptions.l_dsemiz)));
+        else
+            N_d_prefix = max(1, prod(n_d(1:end-1)));
+        end
         dsemiz_idx = ceil((1:N_d_safe)' / N_d_prefix);
         dsemiz_idx_tensor = reshape(dsemiz_idx, [N_d_safe, 1, 1, 1]);
     else
