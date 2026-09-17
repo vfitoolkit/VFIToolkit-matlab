@@ -280,7 +280,7 @@ N_z_safe = max(1, N_z);
 if N_z > 0
     % BYPASS ExogShockSetup_FHorz ENTIRELY!
     % It secretly detects n_semiz and expands pi_z via kron(pi_z, eye(N_semiz)).
-    % For Robert's A9 model, that makes a tiny 66x66 matrix. 
+    % For Robert's A9 model, that makes a tiny 66x66 matrix.
     % For your model, it makes a 30,870 x 30,870 matrix, breaking the sequential EV tensor!
     z_gridvals_J = z_grid;
     pi_z_J = pi_z;
@@ -676,18 +676,42 @@ if isfield(vfoptions, 'outputkron') && vfoptions.outputkron == 1
     return
 end
 
+%% Safe UnKron (Bypassing the 2.14 Billion Element GPU Limit)
+% The final Policy tensor contains 2.22 billion elements.
+% MATLAB GPUs enforce a strict 2.14 billion (2^31-1) element limit per array.
+% We unpack iteratively and assemble safely in 64-bit System RAM (CPU).
+
+disp('UnKronning Policy tensor to CPU (Bypassing GPU 32-bit element limit)...');
+
+num_pol_vars = length(n_daprime);
+n_daprime_col = n_daprime(:);
+divisors = cumprod([1; n_daprime_col(1:end-1)]);
+
+% Allocate in System RAM ('single', NOT 'like' PolicyKron)
+Policy_flat = zeros([num_pol_vars, n_a_work, n_z_work, n_e_work, N_j], 'single');
+
+for jj = 1:N_j
+    PK_j = PolicyKron(:,:,:,:,jj);
+    % Compute the 148MB chunk on GPU, then gather immediately to CPU RAM
+    P_j_gpu = mod(floor((PK_j - 1) ./ divisors), n_daprime_col) + 1;
+    Policy_flat(:,:,:,:,jj) = gather(P_j_gpu);
+end
+
+% Gather V to CPU to keep memory domains aligned for StationaryDist
+V_cpu = gather(V);
+
 if has_z && has_e
-    Policy = UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_daprime, n_a, n_all_z, n_e_work, N_j, vfoptions);
-    V = reshape(V, [n_a, n_all_z, n_e_pass, N_j]);
+    Policy = reshape(Policy_flat, [num_pol_vars, n_a, n_all_z, n_e_pass, N_j]);
+    V = reshape(V_cpu, [n_a, n_all_z, n_e_pass, N_j]);
 elseif has_z && ~has_e
-    Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_daprime, n_a, n_all_z, N_j, vfoptions);
-    V = reshape(V, [n_a, n_all_z, N_j]);
+    Policy = reshape(Policy_flat, [num_pol_vars, n_a, n_all_z, N_j]);
+    V = reshape(V_cpu, [n_a, n_all_z, N_j]);
 elseif ~has_z && has_e
-    Policy = UnKronPolicyIndexes1_FHorz_e(PolicyKron, n_daprime, n_a, n_e_work, N_j, vfoptions);
-    V = reshape(V, [n_a, n_e_pass, N_j]);
+    Policy = reshape(Policy_flat, [num_pol_vars, n_a, n_e_pass, N_j]);
+    V = reshape(V_cpu, [n_a, n_e_pass, N_j]);
 else
-    Policy = UnKronPolicyIndexes1_FHorz_noz(PolicyKron, n_daprime, n_a, N_j, vfoptions);
-    V = reshape(V, [n_a, N_j]);
+    Policy = reshape(Policy_flat, [num_pol_vars, n_a, N_j]);
+    V = reshape(V_cpu, [n_a, N_j]);
 end
 
 varargout{1} = V;
