@@ -68,11 +68,11 @@ Z_grid_idx  = Z_idx_grid(:);
 NumPolicies = size(Policy, 1);
 Policy_reshaped = reshape(Policy, [NumPolicies, N_a1, N_a2, N_z_safe, N_j]);
 
-% --- BYPASS EXOG SHOCK SETUP ---
-if prod(simoptions.n_z) > 0
-    z_gridvals_J = simoptions.z_grid;
+% --- BYPASS ROGUE n_z ARGUMENT FROM CALLER ---
+if isfield(simoptions, 'n_z') && prod(simoptions.n_z) > 0
+    n_z = simoptions.n_z;
 else
-    z_gridvals_J = [];
+    n_z = 0;
 end
 
 % =========================================================
@@ -129,7 +129,17 @@ for jj = 1:N_j
         a2_prime_vals = TensoraprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, aprimeFnParamsCell{:});
     else
         [d2_mesh, a2_mesh] = ndgrid(d2_gridvals(:), a2_grid(:));
-        a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, aprimeFnParamsCell{:});
+
+        % Dynamically calculate how many dummy variables are needed to satisfy the wrapper
+        num_expected_args = nargin(aprimeFn);
+        num_provided_args = 2 + length(aprimeFnParamsCell);
+        num_dummy_args    = max(0, num_expected_args - num_provided_args);
+
+        % Generate a general cell array of zeros to pad the function call
+        dummy_padding = num2cell(zeros(1, num_dummy_args));
+
+        % Evaluate the bridged tensor function universally
+        a2_prime_vals = TensoraprimeFn(d2_mesh, a2_mesh, dummy_padding{:}, aprimeFnParamsCell{:});
     end
 
     expected_size = [N_d2, N_a2, N_z_safe];
