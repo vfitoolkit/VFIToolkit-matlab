@@ -42,8 +42,12 @@ a2_grid = simoptions.a_grid(sum(n_a1)+1:end);
 d2_grid = d_grid(sum(n_d1)+1 : sum(n_d1)+sum(n_d2));
 d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
 
+% Introspect the original, un-bridged function so we get the real variable names
 input_names = getAnonymousFnInputNames(aprimeFn);
 aprimeFnParamNames = input_names(isfield(Parameters, input_names));
+
+% Build the tensor bridge
+TensoraprimeFn = CreateTensorBridge(aprimeFn);
 
 % --- 3. Output Allocation ---
 if isscalar(n_a)
@@ -115,7 +119,7 @@ for jj = 1:N_j
             z_val_col = z_work_j(:, iz);
             z_mesh_cells{iz} = z_val_col(z_idx_mesh);
         end
-        a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, aprimeFnParamsCell{:});
+        a2_prime_vals = TensoraprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, aprimeFnParamsCell{:});
     else
         [d2_mesh, a2_mesh] = ndgrid(d2_gridvals(:), a2_grid(:));
         a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, aprimeFnParamsCell{:});

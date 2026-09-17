@@ -41,8 +41,13 @@ aprimeFn = simoptions.aprimeFn;
 a2_grid = simoptions.a_grid(sum(n_a1)+1:end);
 d2_grid = simoptions.d_grid(sum(n_d1)+1 : sum(n_d1)+sum(n_d2));
 d2_gridvals = CreateGridvals(n_d2, d2_grid, 1);
+
+% Introspect the original, un-bridged function so we get the real variable names
 input_names = getAnonymousFnInputNames(aprimeFn);
 aprimeFnParamNames = input_names(isfield(Parameters, input_names));
+
+% Build the tensor bridge
+TensoraprimeFn = CreateTensorBridge(aprimeFn);
 
 % --- 3. Pre-Process pi_semiz_J into a Dense Vectorized Map ---
 N_sz = size(pi_semiz_J, 1);
@@ -130,7 +135,7 @@ for jj = 1:N_j
         for iz = 1:length(n_z)
             z_mesh_cells{iz} = z_work_j(z_idx_mesh, iz);
         end
-        a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, aprimeFnParamsCell{:});
+        a2_prime_vals = TensoraprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, aprimeFnParamsCell{:});
     else
         [d2_mesh, a2_mesh] = ndgrid(d2_gridvals(:), a2_grid(:));
         a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, aprimeFnParamsCell{:});
