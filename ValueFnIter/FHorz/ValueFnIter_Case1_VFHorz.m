@@ -455,8 +455,8 @@ for reverse_j = 0:N_j-1
     if ismember(vfoptions.lowmemory, [0, 4])
         ze_chunks = {1:N_ze}; % Full blast (OOM risk)
     elseif vfoptions.lowmemory == 1
-        % Goldilocks Slicer: Process in chunks of 500 ZE states
-        chunk_size = 500;
+        % Goldilocks Slicer: Process in chunks of 10 ZE states
+        chunk_size = 10;
         num_chunks = ceil(N_ze / chunk_size);
         ze_chunks = cell(1, num_chunks);
         for c = 1:num_chunks
@@ -584,7 +584,7 @@ for reverse_j = 0:N_j-1
                 state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A_cells, num_a1_pass, ...
                 vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
-                ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj));
+                ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), vfoptions.aprimeFn, A_cells{end}(:));
 
             if vfoptions.divideandconquer == 1
                 vfoptions.level1n = vfoptions.level1n(1);
@@ -645,9 +645,9 @@ if N_z == 0
 end
 
 if N_d == 0
-    n_daprime = n_a;
+    n_daprime = n_a(1:num_a1_pass);
 else
-    n_daprime = [n_d, n_a];
+    n_daprime = [n_d, n_a(1:num_a1_pass)];
 end
 
 % FIX 1: Safe boolean check for arrays like [0,0,0]
@@ -687,21 +687,17 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
     state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
     Z_cells_block, E_cells_block, D_cells_block, A_cells, num_a1, ...
     gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
-    ReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j)
+    ReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, a2primeFn, a2_grid_full)
 
 N_block = length(state_idx);
 
-% --- 1. Choice Grid Setup (Implicit Dimensions) ---
-if isempty(loweredge_matrix)
-    N_choice = N_a;
-    apr_idx_tensor = reshape(1:N_a, [1, N_choice, 1, 1]);
-else
-    offset_vec = 0:gather(maxgap_scalar);
-    N_choice = length(offset_vec);
-    offset = reshape(gpuArray(offset_vec), [1, N_choice, 1, 1]);
-    base_edge = reshape(loweredge_matrix, [1, 1, 1, N_ze_local]);
-    apr_idx_tensor = base_edge + offset;
+% --- 1. Restrict Choice Grid to Standard Assets ---
+N_a1_choice = 1;
+for i = 1:num_a1
+    N_a1_choice = N_a1_choice * length(A_cells{i});
 end
+N_choice = N_a1_choice;
+apr_idx_tensor = reshape(1:N_choice, [1, N_choice, 1, 1]);
 
 % --- 2. State & Choice Tensor Construction (Multi-Asset) ---
 num_assets = length(A_cells);
@@ -709,19 +705,47 @@ apr_in_coarse = cell(1, num_assets);
 a_in_fine     = cell(1, num_assets);
 
 for ia = 1:num_assets
-    % apr_idx_tensor lacks N_block (it is invariant to the origin state block).
-    % We preserve its size [1, N_choice, 1, ...] for implicit expansion in the ReturnFn!
-    apr_in_coarse{ia} = reshape(A_cells{ia}(apr_idx_tensor), size(apr_idx_tensor));
-    a_in_fine{ia}     = reshape(A_cells{ia}(state_idx), [1, 1, N_block, 1]);
+    grid_matrix = A_cells{ia};
+    if ia <= num_a1
+        % For choice assets, index using the choice tensor safely
+        sub_idx = min(max(apr_idx_tensor, 1), numel(grid_matrix));
+        apr_in_coarse{ia} = reshape(grid_matrix(sub_idx), size(apr_idx_tensor));
+    end
+    % For all assets (including experience assets), capture state values
+    state_sub = min(max(state_idx, 1), numel(grid_matrix));
+    a_in_fine{ia} = reshape(grid_matrix(state_sub), [1, 1, N_block, 1]);
 end
 
 F_tensor = ReturnFn(D_cells_block{:}, apr_in_coarse{1:num_a1}, a_in_fine{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
-linear_idx = apr_idx_tensor + z_offset_local;
-EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
+% --- 3. Evaluate Experience Asset Transition natively ---
+a2_grid = a2_grid_full(1 : length(A_cells{end})); % Isolate unique points
+installpv_tensor = D_cells_block{2}; % D2 is installpv
+solarpv_tensor   = a_in_fine{end};
 
-% (Note: ezc1_j is 1 here, since we are doing standard RHS)
+% Call your a2primeFn_single!
+a2_prime_vals = a2primeFn(installpv_tensor, solarpv_tensor, 0, 0, 0, 0);
+a2_prime_vals = max(a2_grid(1), min(a2_grid(end), a2_prime_vals));
+
+[~, a2_idx] = histc(a2_prime_vals(:), a2_grid);
+a2_idx = max(1, min(a2_idx, length(a2_grid) - 1));
+a2_prob = (a2_grid(a2_idx + 1) - a2_prime_vals(:)) ./ (a2_grid(a2_idx + 1) - a2_grid(a2_idx));
+a2_prob(isnan(a2_prob)) = 1;
+
+a2_idx_tensor  = reshape(a2_idx, [N_d_safe, 1, N_block, 1]);
+a2_prob_tensor = reshape(a2_prob, [N_d_safe, 1, N_block, 1]);
+
+% --- 4. EV Lookup (with Bounds Clamping) using standard choice + deterministic A2 transition ---
+EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
+
+max_idx = numel(EV_flat);
+linear_idx_lower = max(1, min(max_idx, apr_idx_tensor + (a2_idx_tensor - 1) * N_choice + z_offset_local));
+linear_idx_upper = max(1, min(max_idx, apr_idx_tensor + (a2_idx_tensor) * N_choice + z_offset_local));
+
+EV_lower = reshape(EV_flat(linear_idx_lower(:)), size(linear_idx_lower));
+EV_upper = reshape(EV_flat(linear_idx_upper(:)), size(linear_idx_upper));
+EV_bounded = a2_prob_tensor .* EV_lower + (1 - a2_prob_tensor) .* EV_upper;
+
 RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 
 expected_sz = [N_d_safe, N_choice, N_block, N_ze_local];
@@ -733,72 +757,13 @@ RHS_flat = reshape(RHS, [N_d_safe * N_choice, N_block * N_ze_local]);
 [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
 
 d_idx_local   = mod(Pol_sub_idx - 1, N_d_safe) + 1;
-apr_idx_local = ceil(Pol_sub_idx / N_d_safe);
+apr_idx_coarse = ceil(Pol_sub_idx / N_d_safe);
 
-if isempty(loweredge_matrix)
-    apr_idx_coarse = apr_idx_local;
-else
-    loweredge_2d = repmat(reshape(loweredge_matrix, [1, N_ze_local]), [N_block, 1]);
-    apr_idx_local_2d = reshape(apr_idx_local, [N_block, N_ze_local]);
-    apr_idx_coarse = loweredge_2d + apr_idx_local_2d - 1;
-end
-
-apr_idx_coarse = reshape(apr_idx_coarse, [N_block, N_ze_local]);
-d_idx_coarse   = reshape(d_idx_local, [N_block, N_ze_local]);
-
-% --- 4. The Continuous Sub-Grid Refinement (GI1) ---
-if any(gridinterplayer)
-    midpoint = max(min(apr_idx_coarse, N_a - 1), 2);
-    base_idx = midpoint + (midpoint - 1) * n2short;
-    offset   = (-n2short-1 : 1 : n2short+1)';
-
-    % Unscrambled: Compute fine_idx FIRST
-    fine_idx = base_idx(:)' + offset;
-
-    apr_in_fine = cell(1, num_assets);
-    for ia = 1:num_assets
-        if ia == 1
-            % fine_idx natively contains N_block variations because it's based on apr_idx_coarse
-            apr_in_fine{ia} = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
-        else
-            apr_in_fine{ia} = reshape(A_cells{ia}(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
-        end
-    end
-
-    F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine{1:num_a1}, a_in_fine{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-
-    EV_flat_fine = reshape(EV_interp_local, [length(a1prime_grid) * N_ze_local, 1]);
-    fine_idx_tensor = reshape(fine_idx, [1, n2long, N_block, N_ze_local]);
-    linear_idx_fine = fine_idx_tensor + z_offset_fine_local;
-    EV_bounded_fine = reshape(EV_flat_fine(linear_idx_fine(:)), size(linear_idx_fine));
-
-    RHS_fine = Evaluate_Universal_RHS_VFHorz(F_tensor_fine, EV_bounded_fine, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-
-    RHS_fine_flat = reshape(RHS_fine, [N_d_safe * n2long, N_block * N_ze_local]);
-    [V_sub_fine, maxindexL2] = max(RHS_fine_flat, [], 1);
-
-    d_idx_fine    = mod(maxindexL2 - 1, N_d_safe) + 1;
-    apr_step_fine = ceil(maxindexL2 / N_d_safe);
-
-    isInfLower    = (RHS_fine_flat(1:N_d_safe, :) == -Inf);
-    isInfUpper    = (RHS_fine_flat(end-N_d_safe+1:end, :) == -Inf);
-    inLowerStrict = (apr_step_fine >= 2) & (apr_step_fine <= n2short + 1);
-    inUpperStrict = (apr_step_fine >= n2short + 3) & (apr_step_fine <= n2long - 1);
-    linear_win_d  = d_idx_fine + (0:N_block*N_ze_local-1)*N_d_safe;
-    L2flag_fine   = 2 + (inLowerStrict & isInfLower(linear_win_d)) - (inUpperStrict & isInfUpper(linear_win_d));
-
-    V_j_max        = reshape(V_sub_fine,    [N_block, N_ze_local]);
-    Pol_apr_max    = reshape(midpoint,      [N_block, N_ze_local]);
-    Pol_d_max      = reshape(d_idx_fine,    [N_block, N_ze_local]);
-    Pol_L2idx_max  = reshape(apr_step_fine, [N_block, N_ze_local]);
-    Pol_L2flag_max = reshape(L2flag_fine,   [N_block, N_ze_local]);
-else
-    V_j_max        = reshape(V_sub_coarse,   [N_block, N_ze_local]);
-    Pol_apr_max    = reshape(apr_idx_coarse, [N_block, N_ze_local]);
-    Pol_d_max      = d_idx_coarse;
-    Pol_L2idx_max  = [];
-    Pol_L2flag_max = [];
-end
+V_j_max        = reshape(V_sub_coarse,   [N_block, N_ze_local]);
+Pol_apr_max    = reshape(apr_idx_coarse, [N_block, N_ze_local]);
+Pol_d_max      = reshape(d_idx_local,    [N_block, N_ze_local]);
+Pol_L2idx_max  = [];
+Pol_L2flag_max = [];
 
 
 end
