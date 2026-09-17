@@ -454,12 +454,17 @@ for reverse_j = 0:N_j-1
     end
 
     % --- Determine N_a1 and N_a2 for Slicing ---
+    is_exp  = vfoptions.experienceasset > 0;
+    is_expz = vfoptions.experienceassetz > 0;
     if is_exp || is_expz
-        N_a1 = max(1, prod(n_a(1:end-1)));
-        N_a2 = n_a(end);
+        if is_exp; l_a2 = vfoptions.experienceasset; else; l_a2 = vfoptions.experienceassetz; end
+        N_a1 = max(1, prod(n_a(1:end-l_a2)));
+        N_a2 = prod(n_a(end-l_a2+1:end));
+        num_a1_pass = length(n_a) - l_a2;
     else
         N_a1 = max(1, prod(n_a));
         N_a2 = 1;
+        num_a1_pass = length(n_a);
     end
 
     % Determine Experience Asset (A2) Chunking
@@ -561,7 +566,7 @@ for reverse_j = 0:N_j-1
             % Create a localized closure for the Slicer so it only executes pure math
             LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
                 state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
-                Z_cells_local, E_cells_local, D_cells_block, A_cells, ...
+                Z_cells_local, E_cells_local, D_cells_block, A_cells, num_a1_pass, ...
                 vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
                 ReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj));
 
@@ -663,7 +668,7 @@ end
 
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_Case1_TensorBlock(...
     state_idx, loweredge_matrix, maxgap_scalar, N_a, N_d_safe, N_ze_local, ...
-    Z_cells_block, E_cells_block, D_cells_block, A_cells, ...
+    Z_cells_block, E_cells_block, D_cells_block, A_cells, num_a1, ...
     gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
     ReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j)
 
@@ -683,18 +688,17 @@ end
 
 % --- 2. State & Choice Tensor Construction (Multi-Asset) ---
 num_assets = length(A_cells);
-apr_in_fine = cell(1, num_assets);
-a_in_fine   = cell(1, num_assets);
+apr_in_coarse = cell(1, num_assets);
+a_in_fine     = cell(1, num_assets);
+
 for ia = 1:num_assets
-    if ia == 1 && any(gridinterplayer)
-        apr_in_fine{ia} = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
-    else
-        apr_in_fine{ia} = reshape(A_cells{ia}(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
-    end
-    a_in_fine{ia} = reshape(A_cells{ia}(state_idx), [1, 1, N_block, 1]);
+    % apr_idx_tensor lacks N_block (it is invariant to the origin state block).
+    % We preserve its size [1, N_choice, 1, ...] for implicit expansion in the ReturnFn!
+    apr_in_coarse{ia} = reshape(A_cells{ia}(apr_idx_tensor), size(apr_idx_tensor));
+    a_in_fine{ia}     = reshape(A_cells{ia}(state_idx), [1, 1, N_block, 1]);
 end
 
-F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine{:}, a_in_fine{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+F_tensor = ReturnFn(D_cells_block{:}, apr_in_coarse{1:num_a1}, a_in_fine{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
 EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
 linear_idx = apr_idx_tensor + z_offset_local;
@@ -730,20 +734,29 @@ if any(gridinterplayer)
     midpoint = max(min(apr_idx_coarse, N_a - 1), 2);
     base_idx = midpoint + (midpoint - 1) * n2short;
     offset   = (-n2short-1 : 1 : n2short+1)';
+
+    % Unscrambled: Compute fine_idx FIRST
     fine_idx = base_idx(:)' + offset;
 
-    fine_idx_4d = reshape(fine_idx, [1, n2long, N_block, N_ze_local]);
-    apr_in_fine = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
-    a_in_fine   = reshape(a_work_local(state_idx), [1, 1, N_block, 1]);
+    apr_in_fine = cell(1, num_assets);
+    for ia = 1:num_assets
+        if ia == 1
+            % fine_idx natively contains N_block variations because it's based on apr_idx_coarse
+            apr_in_fine{ia} = reshape(a1prime_grid(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
+        else
+            apr_in_fine{ia} = reshape(A_cells{ia}(fine_idx(:)), [1, n2long, N_block, N_ze_local]);
+        end
+    end
 
-    F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine, a_in_fine, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+    F_tensor_fine = ReturnFn(D_cells_block{:}, apr_in_fine{1:num_a1}, a_in_fine{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-    EV_flat = reshape(EV_local, [N_a * N_ze_local, 1]);
-    linear_idx = apr_idx_tensor + z_offset_local;
-    EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
+    EV_flat_fine = reshape(EV_interp_local, [length(a1prime_grid) * N_ze_local, 1]);
+    fine_idx_tensor = reshape(fine_idx, [1, n2long, N_block, N_ze_local]);
+    linear_idx_fine = fine_idx_tensor + z_offset_fine_local;
+    EV_bounded_fine = reshape(EV_flat_fine(linear_idx_fine(:)), size(linear_idx_fine));
 
-    % (Note: ezc1_j is 1 here, since we are doing standard RHS)
-    RHS_fine = Evaluate_Universal_RHS_VFHorz(F_tensor_fine, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+    RHS_fine = Evaluate_Universal_RHS_VFHorz(F_tensor_fine, EV_bounded_fine, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+
     RHS_fine_flat = reshape(RHS_fine, [N_d_safe * n2long, N_block * N_ze_local]);
     [V_sub_fine, maxindexL2] = max(RHS_fine_flat, [], 1);
 
@@ -752,12 +765,10 @@ if any(gridinterplayer)
 
     isInfLower    = (RHS_fine_flat(1:N_d_safe, :) == -Inf);
     isInfUpper    = (RHS_fine_flat(end-N_d_safe+1:end, :) == -Inf);
-
     inLowerStrict = (apr_step_fine >= 2) & (apr_step_fine <= n2short + 1);
     inUpperStrict = (apr_step_fine >= n2short + 3) & (apr_step_fine <= n2long - 1);
-
-    linear_win_d = d_idx_fine + (0:N_block*N_ze_local-1)*N_d_safe;
-    L2flag_fine = 2 + (inLowerStrict & isInfLower(linear_win_d)) - (inUpperStrict & isInfUpper(linear_win_d));
+    linear_win_d  = d_idx_fine + (0:N_block*N_ze_local-1)*N_d_safe;
+    L2flag_fine   = 2 + (inLowerStrict & isInfLower(linear_win_d)) - (inUpperStrict & isInfUpper(linear_win_d));
 
     V_j_max        = reshape(V_sub_fine,    [N_block, N_ze_local]);
     Pol_apr_max    = reshape(midpoint,      [N_block, N_ze_local]);
