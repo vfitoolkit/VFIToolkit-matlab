@@ -266,8 +266,8 @@ end
 %% Semi-exogenous shock gridvals and pi
 if vfoptions.alreadygridvals_semiexo==0
     if prod(vfoptions.n_semiz)>0
-        % Internally, only ever use age-dependent joint-grids
-        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 3);
+        % Force AgeDependence=1 to prevent the 5.8B element allocation crash!
+        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 1);
     end
 end
 
@@ -279,8 +279,20 @@ N_z_safe = max(1, N_z);
 %% Exogenous shock gridvals and pi
 if N_z > 0
     if vfoptions.alreadygridvals == 0
-        % ExogShockSetup_FHorz is called with KeepOriginalGrid==0 here
-        [z_gridvals_J, pi_z_J, vfoptions] = ExogShockSetup_FHorz(n_z, z_grid, pi_z, N_j, Parameters, vfoptions, 3, 0);
+        % Hide pi_semiz_J temporarily to prevent the catastrophic 4.7B element Kronecker product
+        temp_pi_semiz = [];
+        if isfield(vfoptions, 'pi_semiz_J')
+            temp_pi_semiz = vfoptions.pi_semiz_J;
+            vfoptions = rmfield(vfoptions, 'pi_semiz_J');
+        end
+
+        % Force AgeDependence=1
+        [z_gridvals_J, pi_z_J, vfoptions] = ExogShockSetup_FHorz(n_z, z_grid, pi_z, N_j, Parameters, vfoptions, 1, 0);
+
+        % Restore pi_semiz_J
+        if ~isempty(temp_pi_semiz)
+            vfoptions.pi_semiz_J = temp_pi_semiz;
+        end
     else
         z_gridvals_J = z_grid;
         pi_z_J = pi_z;
@@ -413,48 +425,44 @@ for reverse_j = 0:N_j-1
     end
     V_transformed(V_next == 0) = 0;
 
-    % --- 4D pi_z_J Fix & EV Computation ---
-    if N_z > 0
-        N_dsemiz = 1;
-        if has_semiz && length(n_d) > 0
-            N_dsemiz = n_d(end); % SemiZ transitions depend on the last decision
+    % --- Sequential EV Computation (Bypassing Dense Kronecker Product) ---
+    N_dsemiz = 1;
+    if has_semiz && length(n_d) > 0
+        N_dsemiz = n_d(end); % SemiZ transitions depend on the last decision
+    end
+
+    EV = zeros(N_a, n_z_work, n_e_work, N_dsemiz, 'like', V_next);
+
+    for ie = 1:n_e_work
+        V_curr = V_transformed(:,:,ie);
+
+        % 1. Apply Exogenous Z Transition (if it exists)
+        if has_z
+            pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
+            V_slice = reshape(V_curr, [N_a * N_semiz, N_z_exog]);
+            V_z_eval = V_slice * pi_z_j';
+            V_z_eval = reshape(V_z_eval, [N_a, N_semiz, N_z_exog]);
+        else
+            V_z_eval = reshape(V_curr, [N_a, N_semiz, N_z_exog]);
         end
 
-        if N_dsemiz > 1
-            pi_z_j = pi_z_J(:, :, :, min(jj, size(pi_z_J, 4)));
-            EV = zeros(N_a, n_z_work, n_e_work, N_dsemiz, 'like', V_next);
+        % 2. Apply Semi-Exogenous Transition (if it exists)
+        if has_semiz
+            pi_semiz_j = vfoptions.pi_semiz_J(:, :, :, min(jj, size(vfoptions.pi_semiz_J, 4)));
+
+            % Permute to [N_semiz, N_a * N_z_exog] for matrix multiplication
+            V_perm = reshape(permute(V_z_eval, [2, 1, 3]), [N_semiz, N_a * N_z_exog]);
+
             for idsemiz = 1:N_dsemiz
-                pi_z_j_d = pi_z_j(:, :, idsemiz);
-                if n_e_work > 1
-                    for ie = 1:n_e_work
-                        V_slice = reshape(V_transformed(:,:,ie), [N_a * N_semiz, N_z_exog]);
-                        EV_slice = V_slice * pi_z_j_d';
-                        EV(:,:,ie,idsemiz) = reshape(EV_slice, [N_a, n_z_work]);
-                    end
-                else
-                    V_slice = reshape(V_transformed, [N_a * N_semiz, N_z_exog]);
-                    EV_slice = V_slice * pi_z_j_d';
-                    EV(:,:,1,idsemiz) = reshape(EV_slice, [N_a, n_z_work]);
-                end
+                pi_semiz_d = pi_semiz_j(:, :, idsemiz);
+                EV_perm = pi_semiz_d * V_perm; % Matrix multiply across semi-exo states!
+                EV_d = permute(reshape(EV_perm, [N_semiz, N_a, N_z_exog]), [2, 1, 3]);
+                EV(:,:,ie,idsemiz) = reshape(EV_d, [N_a, n_z_work]);
             end
         else
-            pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
-            EV = zeros(N_a, n_z_work, n_e_work, 1, 'like', V_next);
-            if n_e_work > 1
-                for ie = 1:n_e_work
-                    V_slice = reshape(V_transformed(:,:,ie), [N_a * N_semiz, N_z_exog]);
-                    EV_slice = V_slice * pi_z_j';
-                    EV(:,:,ie,1) = reshape(EV_slice, [N_a, n_z_work]);
-                end
-            else
-                V_slice = reshape(V_transformed, [N_a * N_semiz, N_z_exog]);
-                EV_slice = V_slice * pi_z_j';
-                EV(:,:,1,1) = reshape(EV_slice, [N_a, n_z_work]);
-            end
+            % No Semi-Exo, just pass through
+            EV(:,:,ie,1) = reshape(V_z_eval, [N_a, n_z_work]);
         end
-    else
-        EV = V_transformed;
-        N_dsemiz = 1;
     end
 
     % --- EZ Certainty Equivalent Reverse Transformation ---
