@@ -112,10 +112,10 @@ for jj = 1:N_j
 
     % Build full 3D mesh for d2, a2, and semiz
     % This guarantees the output is strictly [N_d2, N_a2, N_semiz_safe]
-    [d2_mesh, a2_mesh, semiz_mesh_1] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,1,jj));
-    [~,       ~,       semiz_mesh_2] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,2,jj));
-    [~,       ~,       semiz_mesh_3] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,3,jj));
-    [~,       ~,       semiz_mesh_4] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,4,jj));
+    [d2_mesh, a2_mesh, semiz_mesh_1] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,1,min(jj, size(simoptions.semiz_gridvals_J, 3))));
+    [~,       ~,       semiz_mesh_2] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,2,min(jj, size(simoptions.semiz_gridvals_J, 3))));
+    [~,       ~,       semiz_mesh_3] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,3,min(jj, size(simoptions.semiz_gridvals_J, 3))));
+    [~,       ~,       semiz_mesh_4] = ndgrid(d2_gridvals(:), a2_grid(:), simoptions.semiz_gridvals_J(:,4,min(jj, size(simoptions.semiz_gridvals_J, 3))));
 
     % Evaluate aprimeFn directly across the completely explicit 3D space
     a2_prime_vals = aprimeFn(d2_mesh, a2_mesh, semiz_mesh_1, semiz_mesh_2, semiz_mesh_3, semiz_mesh_4, aprimeFnParamsCell{:});
