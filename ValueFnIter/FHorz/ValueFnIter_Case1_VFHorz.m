@@ -335,25 +335,32 @@ end
 % --- Standardize Dimensions for the Slicer & Allocator ---
 N_d_safe = max(1, prod(n_d));
 has_d = (N_d_safe > 1) || (length(n_d) > 0 && n_d(1) > 0);
-
 n_a_work = prod(n_a);
 a_work = A_cells{1}(:); % Extract primary asset grid for interpolation
 
 has_semiz = prod(vfoptions.n_semiz) > 0;
-N_semiz = 1;
-n_all_z = n_z;
 if has_semiz
-    N_semiz = prod(vfoptions.n_semiz);
-    n_all_z = [vfoptions.n_semiz, n_z];
+    % Detect if the CPU wrapper already expanded n_z
+    if length(n_z) >= length(vfoptions.n_semiz) && isequal(n_z(1:length(vfoptions.n_semiz)), vfoptions.n_semiz)
+        N_semiz = prod(vfoptions.n_semiz);
+        n_all_z = n_z;
+        N_z_exog = max(1, prod(n_z) / N_semiz);
+    else
+        N_semiz = prod(vfoptions.n_semiz);
+        n_all_z = [vfoptions.n_semiz, n_z];
+        N_z_exog = max(1, prod(n_z));
+    end
+else
+    N_semiz = 1;
+    n_all_z = n_z;
+    N_z_exog = max(1, prod(n_z));
 end
-
-has_z = (N_z > 0);
-N_z_exog = max(1, N_z);
+has_z = (N_z_exog > 0);
 n_z_work = N_semiz * N_z_exog;
 
 n_e_work = max(1, prod(n_e_pass));
 
-if vfoptions.gridinterplayer == 1
+if any(vfoptions.gridinterplayer)
     PolicyKron = zeros(3, n_a_work, n_z_work, n_e_work, N_j, 'like', a_grid);
 else
     PolicyKron = zeros(n_a_work, n_z_work, n_e_work, N_j, 'like', a_grid);
@@ -361,7 +368,7 @@ end
 V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
 
 % --- Grid Interpolation Setup ---
-if vfoptions.gridinterplayer == 1
+if any(vfoptions.gridinterplayer)
     n2short = vfoptions.ngridinterp;
     n2long  = n2short * 2 + 3;
     % Fix: Use a_work instead of a_gridvals(:,1)
@@ -412,19 +419,17 @@ for reverse_j = 0:N_j-1
         if n_e_work > 1
             EV = zeros(N_a, n_z_work, n_e_work, 'like', V_next);
             for ie = 1:n_e_work
-                % Reshape to isolate exogenous z from semiz for the Markov transition
-                V_slice = reshape(V_transformed(:,:,ie), [N_a * N_semiz, N_z_safe]);
+                V_slice = reshape(V_transformed(:,:,ie), [N_a * N_semiz, N_z_exog]);
                 EV_slice = V_slice * pi_z_j';
                 EV(:,:,ie) = reshape(EV_slice, [N_a, n_z_work]);
             end
         else
-            % Reshape to isolate exogenous z from semiz for the Markov transition
-            V_slice = reshape(V_transformed, [N_a * N_semiz, N_z_safe]);
+            V_slice = reshape(V_transformed, [N_a * N_semiz, N_z_exog]);
             EV_slice = V_slice * pi_z_j';
             EV = reshape(EV_slice, [N_a, n_z_work]);
         end
     else
-        EV = V_transformed; % Use V_transformed
+        EV = V_transformed;
     end
 
     % --- EZ Certainty Equivalent Reverse Transformation (ezc6 & ezc8) ---
@@ -450,8 +455,8 @@ for reverse_j = 0:N_j-1
     if ismember(vfoptions.lowmemory, [0, 4])
         ze_chunks = {1:N_ze}; % Full blast (OOM risk)
     elseif vfoptions.lowmemory == 1
-        % Goldilocks Slicer: Process in chunks of 300 ZE states
-        chunk_size = 300;
+        % Goldilocks Slicer: Process in chunks of 500 ZE states
+        chunk_size = 500;
         num_chunks = ceil(N_ze / chunk_size);
         ze_chunks = cell(1, num_chunks);
         for c = 1:num_chunks
@@ -483,11 +488,14 @@ for reverse_j = 0:N_j-1
     end
 
     % --- The Master Orchestrator Pre-Computation ---
-    a_work_local = a_work; % FIX: A_mat is deprecated in the tensor bridge
+    a_work_local = a_work;
 
-    % Dynamically merge semiz and z into a single joint tensor mapping
-    % This guarantees they pass into ReturnFn in the exact order requested
+    % The CPU wrapper already natively fused semiz and z into z_gridvals_J!
     z_gridvals_j_local = [];
+    if n_z_work > 1 && ~isempty(z_gridvals_J)
+        z_gridvals_j_local = z_gridvals_J(:,:,min(jj, size(z_gridvals_J, 3)));
+    end
+
     if has_semiz || has_z
         semiz_j = [];
         if has_semiz
@@ -591,7 +599,7 @@ for reverse_j = 0:N_j-1
             Pol_apr_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_apr, [N_a1 * N_a2_local, N_ze_local]);
             Pol_d_max(start_a_idx:end_a_idx, curr_ze)   = reshape(p_d,   [N_a1 * N_a2_local, N_ze_local]);
 
-            if vfoptions.gridinterplayer == 1
+            if any(vfoptions.gridinterplayer)
                 Pol_L2idx_max(start_a_idx:end_a_idx, curr_ze)  = reshape(p_l2idx,  [N_a1 * N_a2_local, N_ze_local]);
                 Pol_L2flag_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_l2flag, [N_a1 * N_a2_local, N_ze_local]);
             end
@@ -602,13 +610,13 @@ for reverse_j = 0:N_j-1
     V_j_max     = reshape(V_j_max,     [N_a, n_z_work, n_e_work]);
     Pol_apr_max = reshape(Pol_apr_max, [N_a, n_z_work, n_e_work]);
     Pol_d_max   = reshape(Pol_d_max,   [N_a, n_z_work, n_e_work]);
-    if vfoptions.gridinterplayer == 1
+    if any(vfoptions.gridinterplayer)
         Pol_L2idx_max  = reshape(Pol_L2idx_max,  [N_a, n_z_work, n_e_work]);
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_a, n_z_work, n_e_work]);
     end
 
     % --- Pack PolicyKron ---
-    if vfoptions.gridinterplayer == 1
+    if any(vfoptions.gridinterplayer)
         adjust = (Pol_L2idx_max < 1 + n2short + 1);
         lower_grid_pt = Pol_apr_max - adjust;
         subgrid_step  = adjust .* Pol_L2idx_max + (1 - adjust) .* (Pol_L2idx_max - n2short - 1);
@@ -642,7 +650,8 @@ else
     n_daprime = [n_d, n_a];
 end
 
-if vfoptions.gridinterplayer == 0
+% FIX 1: Safe boolean check for arrays like [0,0,0]
+if ~any(vfoptions.gridinterplayer)
     PolicyKron = shiftdim(PolicyKron, -1);
 end
 
@@ -652,26 +661,26 @@ if isfield(vfoptions, 'outputkron') && vfoptions.outputkron == 1
     return
 end
 
+% FIX 2: Stop crushing the native tensor dimensions!
+% Let UnKron output the fully expanded dimensions, and reshape V to match.
 if has_z && has_e
     Policy = UnKronPolicyIndexes1_FHorz_z_e(PolicyKron, n_daprime, n_a, n_all_z, n_e_work, N_j, vfoptions);
-    Policy = reshape(Policy, [size(Policy, 1), n_a_work, n_z_work, n_e_work, N_j]);
-    V = reshape(V, [n_a_work, n_z_work, n_e_work, N_j]);
+    V = reshape(V, [n_a, n_all_z, n_e_pass, N_j]);
 elseif has_z && ~has_e
     Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron, n_daprime, n_a, n_all_z, N_j, vfoptions);
-    Policy = reshape(Policy, [size(Policy, 1), n_a_work, n_z_work, N_j]);
-    V = reshape(V, [n_a_work, n_z_work, N_j]);
+    V = reshape(V, [n_a, n_all_z, N_j]);
 elseif ~has_z && has_e
     Policy = UnKronPolicyIndexes1_FHorz_e(PolicyKron, n_daprime, n_a, n_e_work, N_j, vfoptions);
-    Policy = reshape(Policy, [size(Policy, 1), n_a_work, n_e_work, N_j]);
-    V = reshape(V, [n_a_work, n_e_work, N_j]);
+    V = reshape(V, [n_a, n_e_pass, N_j]);
 else
     Policy = UnKronPolicyIndexes1_FHorz_noz(PolicyKron, n_daprime, n_a, N_j, vfoptions);
-    Policy = reshape(Policy, [size(Policy, 1), n_a_work, N_j]);
-    V = reshape(V, [n_a_work, N_j]);
+    V = reshape(V, [n_a, N_j]);
 end
 
 varargout{1} = V;
 varargout{2} = Policy;
+
+
 end
 
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_Case1_TensorBlock(...
