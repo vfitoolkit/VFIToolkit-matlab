@@ -330,6 +330,7 @@ end
 
 % ONE CALL TO RULE THEM ALL
 [TensorReturnFn, D_cells, A_cells, Z_cells, E_cells] = CreateTensorFnAndCells(ReturnFn, n_d, n_a, n_z, n_e_pass, d_grid, a_grid, z_pass, e_grid_pass);
+TensoraprimeFn = CreateTensorBridge(vfoptions.aprimeFn);
 
 % --- Standardize Dimensions for the Slicer & Allocator ---
 N_d_safe = max(1, prod(n_d));
@@ -608,7 +609,7 @@ for reverse_j = 0:N_j-1
                 Z_cells_local, E_cells_local, D_cells_block, A_cells, num_a1_pass, ...
                 vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
                 TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
-                CreateTensorBridge(vfoptions.aprimeFn), A_cells{end}(:), N_dsemiz, dsemiz_idx_tensor);
+                TensoraprimeFn, A_cells{end}(:), N_dsemiz, dsemiz_idx_tensor);
 
             if vfoptions.divideandconquer == 1
                 vfoptions.level1n = vfoptions.level1n(1);

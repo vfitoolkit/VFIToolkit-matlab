@@ -23,6 +23,10 @@ if ~isempty(z_gridvals) && size(z_gridvals, 1) > 0
 else
     Z_cells = {};
 end
+
+TensorFn = CreateTensorBridge(InputFn);
+
+
 end
 
 function cells_out = PackGrid(n_dims, grid_in, shift_amount)
