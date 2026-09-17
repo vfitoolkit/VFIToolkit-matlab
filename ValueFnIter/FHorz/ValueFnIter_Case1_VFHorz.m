@@ -266,8 +266,8 @@ end
 %% Semi-exogenous shock gridvals and pi
 if vfoptions.alreadygridvals_semiexo==0
     if prod(vfoptions.n_semiz)>0
-        % Force AgeDependence=1 to prevent the 5.8B element allocation crash!
-        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 1);
+        % Catch the two explicit returns and store them cleanly in vfoptions
+        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 0);
     end
 end
 
@@ -278,25 +278,11 @@ N_z_safe = max(1, N_z);
 
 %% Exogenous shock gridvals and pi
 if N_z > 0
-    if vfoptions.alreadygridvals == 0
-        % Hide pi_semiz_J temporarily to prevent the catastrophic 4.7B element Kronecker product
-        temp_pi_semiz = [];
-        if isfield(vfoptions, 'pi_semiz_J')
-            temp_pi_semiz = vfoptions.pi_semiz_J;
-            vfoptions = rmfield(vfoptions, 'pi_semiz_J');
-        end
-
-        % Force AgeDependence=1
-        [z_gridvals_J, pi_z_J, vfoptions] = ExogShockSetup_FHorz(n_z, z_grid, pi_z, N_j, Parameters, vfoptions, 1, 0);
-
-        % Restore pi_semiz_J
-        if ~isempty(temp_pi_semiz)
-            vfoptions.pi_semiz_J = temp_pi_semiz;
-        end
-    else
-        z_gridvals_J = z_grid;
-        pi_z_J = pi_z;
-    end
+    % BYPASS ExogShockSetup_FHorz ENTIRELY!
+    % It secretly detects SemiExoStateFn and mangles the transition matrix.
+    % Since z is a pure AR(1) process, we natively pass the Farmer-Toda arrays.
+    z_gridvals_J = z_grid;
+    pi_z_J = pi_z;
 else
     z_gridvals_J = [];
     pi_z_J = [];
