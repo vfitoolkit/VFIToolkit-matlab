@@ -31,14 +31,6 @@ end
 N_a1 = max(1, prod(n_a1));
 N_a2 = max(1, prod(n_a2));
 N_semiz = max(1, prod(n_semiz));
-
-% --- BYPASS ROGUE n_z ARGUMENT FROM CALLER ---
-if isfield(simoptions, 'n_z') && prod(simoptions.n_z) > 0
-    n_z = simoptions.n_z;
-else
-    n_z = 0;
-end
-
 N_z_safe = max(1, prod(n_z));
 N_d2 = max(1, prod(n_d2));
 N_d3 = max(1, prod(n_d3));
@@ -100,7 +92,7 @@ NumPolicies = size(Policy, 1);
 Policy_reshaped = reshape(Policy, [NumPolicies, N_a1, N_a2, N_semiz, N_z_safe, N_j]);
 
 % --- BYPASS EXOG SHOCK SETUP ---
-if isfield(simoptions, 'n_z') && prod(simoptions.n_z) > 0
+if isfield(simoptions, 'n_z')
     z_gridvals_J = simoptions.z_grid;
 else
     z_gridvals_J = [];
@@ -150,7 +142,15 @@ for jj = 1:N_j
         for iz = 1:length(n_z)
             z_mesh_cells{iz} = z_work_j(z_idx_mesh, iz);
         end
-        a2_prime_vals = TensoraprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, aprimeFnParamsCell{:});
+        
+        % Dynamically calculate dummy variables needed
+        num_expected_args = nargin(aprimeFn);
+        num_provided_args = 2 + length(z_mesh_cells) + length(aprimeFnParamsCell);
+        num_dummy_args    = max(0, num_expected_args - num_provided_args);
+        dummy_padding     = num2cell(zeros(1, num_dummy_args));
+        
+        % Evaluate the bridged tensor function
+        a2_prime_vals = TensoraprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, dummy_padding{:}, aprimeFnParamsCell{:});
     else
         [d2_mesh, a2_mesh] = ndgrid(d2_gridvals(:), a2_grid(:));
 

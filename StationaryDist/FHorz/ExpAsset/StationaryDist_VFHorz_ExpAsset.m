@@ -68,13 +68,6 @@ Z_grid_idx  = Z_idx_grid(:);
 NumPolicies = size(Policy, 1);
 Policy_reshaped = reshape(Policy, [NumPolicies, N_a1, N_a2, N_z_safe, N_j]);
 
-% --- BYPASS ROGUE n_z ARGUMENT FROM CALLER ---
-if isfield(simoptions, 'n_z') && prod(simoptions.n_z) > 0
-    n_z = simoptions.n_z;
-else
-    n_z = 0;
-end
-
 % =========================================================
 % TIME LOOP (FORWARD SIMULATION)
 % =========================================================
@@ -123,10 +116,17 @@ for jj = 1:N_j
         [d2_mesh, a2_mesh, z_idx_mesh] = ndgrid(d2_gridvals(:), a2_grid(:), 1:N_z_safe);
         z_mesh_cells = cell(1, length(n_z));
         for iz = 1:length(n_z)
-            z_val_col = z_work_j(:, iz);
-            z_mesh_cells{iz} = z_val_col(z_idx_mesh);
+            z_mesh_cells{iz} = z_work_j(z_idx_mesh, iz);
         end
-        a2_prime_vals = TensoraprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, aprimeFnParamsCell{:});
+        
+        % Dynamically calculate dummy variables needed
+        num_expected_args = nargin(aprimeFn);
+        num_provided_args = 2 + length(z_mesh_cells) + length(aprimeFnParamsCell);
+        num_dummy_args    = max(0, num_expected_args - num_provided_args);
+        dummy_padding     = num2cell(zeros(1, num_dummy_args));
+        
+        % Evaluate the bridged tensor function
+        a2_prime_vals = TensoraprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, dummy_padding{:}, aprimeFnParamsCell{:});
     else
         [d2_mesh, a2_mesh] = ndgrid(d2_gridvals(:), a2_grid(:));
 
