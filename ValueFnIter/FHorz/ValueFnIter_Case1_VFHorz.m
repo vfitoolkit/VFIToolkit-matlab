@@ -448,9 +448,17 @@ for reverse_j = 0:N_j-1
     % --- Slicer Setup (Multi-Axis) ---
     % Determine Z/E Chunking
     if ismember(vfoptions.lowmemory, [0, 4])
-        ze_chunks = {1:N_ze}; % FIX: Must span the full N_ze width
+        ze_chunks = {1:N_ze}; % Full blast (OOM risk)
+    elseif vfoptions.lowmemory == 1
+        % Goldilocks Slicer: Process in chunks of 300 ZE states
+        chunk_size = 300;
+        num_chunks = ceil(N_ze / chunk_size);
+        ze_chunks = cell(1, num_chunks);
+        for c = 1:num_chunks
+            ze_chunks{c} = (c-1)*chunk_size + 1 : min(c*chunk_size, N_ze);
+        end
     else
-        ze_chunks = num2cell(1:N_ze); % Slice ZE
+        ze_chunks = num2cell(1:N_ze); % Max starvation (1 by 1)
     end
 
     % --- Determine N_a1 and N_a2 for Slicing ---
