@@ -344,6 +344,9 @@ n_e_pass = 0; e_grid_pass = [];
 if has_e
     n_e_pass = vfoptions.n_e;
     e_grid_pass = vfoptions.e_grid;
+    e_work = vfoptions.e_grid;
+else
+    e_work = ones(1, 1, 'like', a_grid);
 end
 
 z_pass = [];
@@ -360,17 +363,13 @@ if vfoptions.experienceassetz > 0; l_a2 = vfoptions.experienceassetz; end
 if l_a2 > 0
     n_a1 = n_a(1:end-l_a2);
     n_a2 = n_a(end-l_a2+1:end);
+    N_a2 = prod(n_a2);
 else
     n_a1 = n_a;
     n_a2 = [];
+    N_a2 = 0;
 end
-
-N_d  = max(1, prod(n_d(n_d > 0)));
-N_a1 = max(1, prod(n_a1(n_a1 > 0)));
-N_a2 = max(1, prod(n_a2(n_a2 > 0)));
-N_a  = N_a1 * N_a2;
-N_z  = max(1, prod(n_z(n_z > 0)));
-if N_z == 0; N_z = 1; end
+N_a1 = prod(n_a1);
 
 % --- 2b. Universal Grid Packing ---
 a1_grid_len = sum(n_a1);
@@ -643,7 +642,6 @@ for reverse_j = 0:N_j-1
     end
 
     % --- The Master Orchestrator Loop ---
-% --- The Master Orchestrator Loop ---
     if vfoptions.divideandconquer == 1
         for i_ze = 1:length(ze_chunks)
             curr_ze = ze_chunks{i_ze};
@@ -715,8 +713,12 @@ for reverse_j = 0:N_j-1
                 curr_ze = ze_chunks{i_ze};
                 N_ze_local = length(curr_ze);
 
-                % Slice A2 locally for the current chunk
-                A2_local = A2_mat(curr_a2, :);
+                if l_a2 > 0
+                    % Slice A2 locally for the current chunk
+                    A2_local = A2_mat(curr_a2, :);
+                else
+                    A2_local = [];
+                end
                 N_a2_local = size(A2_local, 1);
 
                 start_idx = (min(curr_ze) - 1) * N_a + 1;
@@ -768,12 +770,18 @@ for reverse_j = 0:N_j-1
                     [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(start_a_idx:end_a_idx, [], 0);
                 end
 
-                V_j_max(start_a_idx:end_a_idx, curr_ze)     = reshape(v,     [N_a1 * N_a2_local, N_ze_local]);
-                Pol_apr_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_apr, [N_a1 * N_a2_local, N_ze_local]);
-                Pol_d_max(start_a_idx:end_a_idx, curr_ze)   = reshape(p_d,   [N_a1 * N_a2_local, N_ze_local]);
+                if l_a2 > 0
+                    N_a_local = N_a1 * N_a2_local;
+                else
+                    N_a_local = N_a1;
+                end
+
+                V_j_max(start_a_idx:end_a_idx, curr_ze)     = reshape(v,     [N_a_local, N_ze_local]);
+                Pol_apr_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_apr, [N_a_local, N_ze_local]);
+                Pol_d_max(start_a_idx:end_a_idx, curr_ze)   = reshape(p_d,   [N_a_local, N_ze_local]);
                 if vfoptions.gridinterplayer(1) == 1
-                    Pol_L2idx_max(start_a_idx:end_a_idx, curr_ze)  = reshape(p_l2idx,  [N_a1 * N_a2_local, N_ze_local]);
-                    Pol_L2flag_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_l2flag, [N_a1 * N_a2_local, N_ze_local]);
+                    Pol_L2idx_max(start_a_idx:end_a_idx, curr_ze)  = reshape(p_l2idx,  [N_a_local, N_ze_local]);
+                    Pol_L2flag_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_l2flag, [N_a_local, N_ze_local]);
                 end
             end
         end
@@ -951,7 +959,13 @@ end
 
 % --- 4. RHS Evaluation, Choice Optimization, and State Slicing ---
 FLAT_CHOICES = max(1, N_d_safe) * N_a1;
-FLAT_STATES  = N_a1 * N_a2 * N_ze_local;
+if l_a2 > 0
+    N_a = N_a1 * N_a2;
+else
+    N_a = N_a1;
+end
+
+FLAT_STATES  = N_a * N_ze_local;
 
 RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 RHS_flat = reshape(RHS, [FLAT_CHOICES, FLAT_STATES]);
@@ -962,9 +976,9 @@ d_idx_local   = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
 apr_idx_local = ceil(Pol_sub_idx / max(1, N_d_safe));
 
 % Reshape to full grid size first
-V_full        = reshape(V_sub_coarse,   [N_a1 * N_a2, N_ze_local]);
-Pol_apr_full  = reshape(apr_idx_local, [N_a1 * N_a2, N_ze_local]);
-Pol_d_full    = reshape(d_idx_local,   [N_a1 * N_a2, N_ze_local]);
+V_full        = reshape(V_sub_coarse,   [N_a, N_ze_local]);
+Pol_apr_full  = reshape(apr_idx_local, [N_a, N_ze_local]);
+Pol_d_full    = reshape(d_idx_local,   [N_a, N_ze_local]);
 
 % Sub-select ONLY the requested state_idx rows (crucial for D&C compatibility)
 V_j_max        = V_full(state_idx, :);
