@@ -16,6 +16,9 @@ for ii=1:nGEprices
     Parameters.(GEPriceParamNames{ii})=GEpricesvec(ii);
 end
 
+if ~isfield(simoptions,'jequaloneDist_usergrids')
+    simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
+end
 if heteroagentoptions.gridsinGE==1
     % Some of the shock grids depend on parameters that are determined in general eqm
     % The user's own grids are needed if jequaloneDist as a function is given them, or if CustomModelStats is

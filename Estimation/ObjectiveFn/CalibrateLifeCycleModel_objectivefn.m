@@ -34,6 +34,9 @@ if ~isempty(ParametrizeParamsFn)
     Parameters=ParametrizeParamsFn(Parameters);
 end
 
+if ~isfield(simoptions,'jequaloneDist_usergrids')
+    simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
+end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 % The user's own grids are needed if jequaloneDist as a function is given them, or if CustomModelStats is
 KeepOriginalGrid=(simoptions.jequaloneDist_usergrids==1 || (usingcustomstats==1 && caliboptions.CustomModelStats_usergrids==1));

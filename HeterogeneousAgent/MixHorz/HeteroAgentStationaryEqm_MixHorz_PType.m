@@ -167,6 +167,9 @@ end
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
+    if ~isfield(simoptions,'jequaloneDist_usergrids')
+        simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
+    end
     if ~isfield(heteroagentoptions,'CustomModelStats_usergrids')
         heteroagentoptions.CustomModelStats_usergrids=0; % =0: pass internal grids (struct with one field per ptype); =1: pass exactly the z_grid & pi_z the user input
     end
@@ -490,6 +493,12 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
 
     %% jequaloneDist and AgeWeightsParamNames
+    if simoptions.jequaloneDist_usergrids==1 && isfield(PTypeStructure.(iistr).vfoptions,'user_z_grid')
+        % jequaloneDist as a function is given the user's own grids, and for this ptype they must
+        % track the general eqm prices (the per-type setup above rebuilt them)
+        PTypeStructure.(iistr).simoptions.user_z_grid=PTypeStructure.(iistr).vfoptions.user_z_grid;
+        PTypeStructure.(iistr).simoptions.user_pi_z=PTypeStructure.(iistr).vfoptions.user_pi_z;
+    end
     if isfinite(PTypeStructure.(iistr).N_j) % FHorz
         if isstruct(jequaloneDist)
             if isfield(jequaloneDist,PTypeStructure.Names_i{ii})

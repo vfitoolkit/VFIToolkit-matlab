@@ -294,7 +294,14 @@ if ~isfield(simoptions,'jequaloneDist_usergrids')
 end
 if estimoptions.calibrateshocks==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3,simoptions.jequaloneDist_usergrids);
+    % The user's own grids are needed if CustomModelStats is given them
+    KeepOriginalGrid=(simoptions.jequaloneDist_usergrids==1 || (estimoptions.useCustomModelStats==1 && estimoptions.CustomModelStats_usergrids==1));
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3,KeepOriginalGrid);
+    if KeepOriginalGrid==1 && isfield(vfoptions,'user_z_grid')
+        % ExogShockFn builds the user's own grid internally, so take it from there rather than from the z_grid input (which is then just a placeholder)
+        estimoptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
+        estimoptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
+    end
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
