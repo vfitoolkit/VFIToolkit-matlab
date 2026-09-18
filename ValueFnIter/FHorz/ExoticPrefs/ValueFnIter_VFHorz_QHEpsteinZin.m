@@ -96,7 +96,7 @@ end
 
 % --- 3. Slicer Setup (Multi-Axis) ---
 % Determine Z/E Chunking
-if ismember(vfoptions.lowmemory, [0, 4])
+if ismember(vfoptions.lowmemory, [0, 5])
     ze_chunks = {1:N_z}; % Keep ZE vectorized
 elseif vfoptions.lowmemory == 1
     chunk_size = 300; % Safely saturate the RTX 5090!
@@ -205,7 +205,6 @@ for reverse_j = 0:N_j-1
     Pol_j = zeros(N_a, N_z, 'like', a_grid);
     if isNaive; Polalt_j = zeros(N_a, N_z, 'like', a_grid); end
 
-    if ~exist('N_dsemiz', 'var'); N_dsemiz = 1; end
     if N_dsemiz > 1
         if isfield(vfoptions, 'l_dsemiz')
             N_d_prefix = max(1, prod(n_d(1:end-vfoptions.l_dsemiz)));
@@ -218,6 +217,7 @@ for reverse_j = 0:N_j-1
         dsemiz_idx_tensor = ones(N_d, 1, 1, 1, 1);
     end
 
+    % --- The Master Orchestrator Loop ---
     for i_a2 = 1:length(a2_chunks)
         curr_a2 = a2_chunks{i_a2};
         N_a2_local = length(curr_a2);

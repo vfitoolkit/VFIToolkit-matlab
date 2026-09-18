@@ -92,7 +92,7 @@ end
 
 % --- 3. Slicer Setup (Multi-Axis) ---
 % Determine Z/E Chunking
-if ismember(vfoptions.lowmemory, [0, 4])
+if ismember(vfoptions.lowmemory, [0, 5])
     ze_chunks = {1:N_z}; % Keep ZE vectorized
 else
     ze_chunks = num2cell(1:N_z); % Slice ZE
@@ -142,6 +142,7 @@ for reverse_j = 0:N_j-1
     Pol_j = zeros(N_a, N_z, 'like', a_grid);
     if isNaive; Polalt_j = zeros(N_a, N_z, 'like', a_grid); end
 
+    % --- The Master Orchestrator Loop ---
     for i_a2 = 1:length(a2_chunks)
         curr_a2 = a2_chunks{i_a2};
         N_a2_local = length(curr_a2);

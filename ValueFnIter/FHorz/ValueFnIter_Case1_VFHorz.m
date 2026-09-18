@@ -286,20 +286,18 @@ if isfield(vfoptions, 'semiz_gridvals_J') && ~isempty(vfoptions.semiz_gridvals_J
 
     % 2. Get the z grid
     if N_z > 0
-        z_J = repmat(z_grid, [1, 1, num_periods]); % <-- Flattening removed
+        z_J = repmat(z_grid, [1, 1, num_periods]);
         num_z_vars = size(z_grid, 2);
     else
         z_J = [];
         num_z_vars = 0;
     end
-    
+
     % 3. Combine them via Kronecker expansion for each period
     z_gridvals_J = zeros(N_semiz * max(1, N_z), num_semiz_vars + num_z_vars, num_periods, 'like', sz_J);
     for t = 1:num_periods
         if N_z > 0
-            % Repeat semiz for every z
             semiz_expanded = kron(sz_J(:,:,t), ones(N_z, 1));
-            % Repeat z for every semiz
             z_expanded = kron(ones(N_semiz, 1), z_J(:,:,t));
             z_gridvals_J(:,:,t) = [semiz_expanded, z_expanded];
         else
@@ -307,8 +305,7 @@ if isfield(vfoptions, 'semiz_gridvals_J') && ~isempty(vfoptions.semiz_gridvals_J
         end
     end
 
-    % 4. Combine (but not densely) the transition matrices
-    % Pass raw pi_z, QHEZ will decouple and apply it sequentially.
+    % 4. Pass raw transition matrix; decoupled sequential evaluation handles it
     pi_z_J = pi_z;
     n_combined_z = [vfoptions.n_semiz, n_z];
 else
@@ -389,6 +386,8 @@ n_z_work = N_semiz * N_z_exog;
 
 n_e_work = max(1, prod(n_e_pass));
 
+N_ze = n_z_work * n_e_work;
+
 if vfoptions.gridinterplayer(1) == 1
     PolicyKron = zeros(3, n_a_work, n_z_work, n_e_work, N_j, 'like', a_grid);
 else
@@ -422,6 +421,40 @@ else
     ezc8 = ones(N_j,1); sj = ones(N_j,1); warmglow = 0;
 end
 
+% --- Slicer Setup (Multi-Axis) ---
+if ismember(vfoptions.lowmemory, [0, 5])
+    ze_chunks = {1:N_ze};
+elseif vfoptions.lowmemory == 1
+    chunk_size = 300; % Safe to crank back up to 300 with FP32!
+    num_chunks = ceil(N_ze / chunk_size);
+    ze_chunks = cell(1, num_chunks);
+    for c = 1:num_chunks
+        ze_chunks{c} = (c-1)*chunk_size + 1 : min(c*chunk_size, N_ze);
+    end
+else
+    ze_chunks = num2cell(1:N_ze);
+end
+
+% --- Determine N_a1 and N_a2 for Slicing ---
+is_exp  = vfoptions.experienceasset > 0;
+is_expz = vfoptions.experienceassetz > 0;
+if is_exp || is_expz
+    if is_exp; l_a2 = vfoptions.experienceasset; else; l_a2 = vfoptions.experienceassetz; end
+    N_a1 = max(1, prod(n_a(1:end-l_a2)));
+    N_a2 = prod(n_a(end-l_a2+1:end));
+    num_a1_pass = length(n_a) - l_a2;
+else
+    N_a1 = max(1, prod(n_a));
+    N_a2 = 1;
+    num_a1_pass = length(n_a);
+end
+
+if ismember(vfoptions.lowmemory, [4, 5]) && (is_exp || is_expz)
+    a2_chunks = num2cell(1:N_a2);
+else
+    a2_chunks = {1:N_a2};
+end
+
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
     if jj == N_j && isfield(vfoptions, 'V_Jplus1') && ~isempty(vfoptions.V_Jplus1)
@@ -443,45 +476,47 @@ for reverse_j = 0:N_j-1
     V_transformed(V_next == 0) = 0;
 
     % --- Sequential EV Computation (Applying Z and SemiZ transitions) ---
+    N_semiz_local = 1;
     N_dsemiz = 1;
     if has_semiz && length(n_d) > 0
+        N_semiz_local = max(1, prod(vfoptions.n_semiz));
         if isfield(vfoptions, 'l_dsemiz')
             N_dsemiz = prod(n_d(end-vfoptions.l_dsemiz+1:end));
         else
             N_dsemiz = n_d(end); % Default to the last decision variable
         end
     end
+    N_z_exog = max(1, n_z_work / N_semiz_local);
 
-    EV = zeros(N_a, n_z_work, n_e_work, N_dsemiz, 'like', V_next);
+    EV = zeros(N_a, N_semiz_local * N_z_exog, n_e_work, N_dsemiz, 'like', V_next);
 
     for ie = 1:n_e_work
         V_curr = V_transformed(:,:,ie);
 
         % 1. Apply Exogenous Z Transition (if it exists)
-        if has_z
+        if N_z_exog > 1 && has_z
             pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
-            V_slice = reshape(V_curr, [N_a * N_semiz, N_z_exog]);
+            V_slice = reshape(V_curr, [N_a * N_semiz_local, N_z_exog]);
             V_z_eval = V_slice * pi_z_j';
-            V_z_eval = reshape(V_z_eval, [N_a, N_semiz, N_z_exog]);
+            V_z_eval = reshape(V_z_eval, [N_a, N_semiz_local, N_z_exog]);
         else
-            V_z_eval = reshape(V_curr, [N_a, N_semiz, N_z_exog]);
+            V_z_eval = reshape(V_curr, [N_a, N_semiz_local, N_z_exog]);
         end
 
         % 2. Apply Semi-Exogenous Transition (if it exists)
         if has_semiz
             pi_semiz_j = vfoptions.pi_semiz_J(:, :, :, min(jj, size(vfoptions.pi_semiz_J, 4)));
 
-            % Permute to [N_semiz, N_a * N_z_exog] for matrix multiplication
-            V_perm = reshape(permute(V_z_eval, [2, 1, 3]), [N_semiz, N_a * N_z_exog]);
-
+            % Permute to [N_semiz_local, N_a * N_z_exog] for matrix multiplication
+            V_perm = reshape(permute(V_z_eval, [2, 1, 3]), [N_semiz_local, N_a * N_z_exog]);
             for idsemiz = 1:N_dsemiz
                 pi_semiz_d = pi_semiz_j(:, :, idsemiz);
                 EV_perm = pi_semiz_d * V_perm;
-                EV_d = permute(reshape(EV_perm, [N_semiz, N_a, N_z_exog]), [2, 1, 3]);
-                EV(:,:,ie,idsemiz) = reshape(EV_d, [N_a, n_z_work]);
+                EV_d = permute(reshape(EV_perm, [N_semiz_local, N_a, N_z_exog]), [2, 1, 3]);
+                EV(:,:,ie,idsemiz) = reshape(EV_d, [N_a, N_semiz_local * N_z_exog]);
             end
         else
-            EV(:,:,ie,1) = reshape(V_z_eval, [N_a, n_z_work]);
+            EV(:,:,ie,1) = reshape(V_z_eval, [N_a, N_semiz_local * N_z_exog]);
         end
     end
 
@@ -494,47 +529,12 @@ for reverse_j = 0:N_j-1
         EV(valid_EV) = max(EV(valid_EV), 0).^ezc8(jj);
     end
 
-    % --- The ZE Flattening Trick ---
-    N_ze = n_z_work * n_e_work;
+    % Flatten to match the block tensor evaluator structure
     EV_flat_ze = reshape(EV, [N_a, N_ze, N_dsemiz]);
 
     [Z_mesh, E_mesh] = ndgrid(1:n_z_work, 1:n_e_work);
     ZE_z_idx = Z_mesh(:);
     ZE_e_idx = E_mesh(:);
-
-    % --- Slicer Setup (Multi-Axis) ---
-    if ismember(vfoptions.lowmemory, [0, 4])
-        ze_chunks = {1:N_ze};
-    elseif vfoptions.lowmemory == 1
-        chunk_size = 300; % Safe to crank back up to 300 with FP32!
-        num_chunks = ceil(N_ze / chunk_size);
-        ze_chunks = cell(1, num_chunks);
-        for c = 1:num_chunks
-            ze_chunks{c} = (c-1)*chunk_size + 1 : min(c*chunk_size, N_ze);
-        end
-    else
-        ze_chunks = num2cell(1:N_ze);
-    end
-
-    % --- Determine N_a1 and N_a2 for Slicing ---
-    is_exp  = vfoptions.experienceasset > 0;
-    is_expz = vfoptions.experienceassetz > 0;
-    if is_exp || is_expz
-        if is_exp; l_a2 = vfoptions.experienceasset; else; l_a2 = vfoptions.experienceassetz; end
-        N_a1 = max(1, prod(n_a(1:end-l_a2)));
-        N_a2 = prod(n_a(end-l_a2+1:end));
-        num_a1_pass = length(n_a) - l_a2;
-    else
-        N_a1 = max(1, prod(n_a));
-        N_a2 = 1;
-        num_a1_pass = length(n_a);
-    end
-
-    if ismember(vfoptions.lowmemory, [4, 5]) && (is_exp || is_expz)
-        a2_chunks = num2cell(1:N_a2);
-    else
-        a2_chunks = {1:N_a2};
-    end
 
     % --- The Master Orchestrator Pre-Computation ---
     a_work_local = a_work;
@@ -571,6 +571,13 @@ for reverse_j = 0:N_j-1
         D_cells_block = {};
     end
 
+    % Allocate GPU tensors for THIS period's slices
+    V_j_max        = zeros(N_a, N_ze, 'like', V_next);
+    Pol_apr_max    = zeros(N_a, N_ze, 'like', V_next);
+    Pol_d_max      = zeros(N_a, N_ze, 'like', V_next);
+    Pol_L2idx_max  = zeros(N_a, N_ze, 'like', V_next);
+    Pol_L2flag_max = zeros(N_a, N_ze, 'like', V_next);
+
     % --- Pre-build dsemiz index tensor ---
     if N_dsemiz > 1
         if isfield(vfoptions, 'l_dsemiz')
@@ -583,12 +590,6 @@ for reverse_j = 0:N_j-1
     else
         dsemiz_idx_tensor = ones(N_d_safe, 1, 1, 1);
     end
-
-    V_j_max        = zeros(N_a, N_ze, 'like', V_next);
-    Pol_apr_max    = zeros(N_a, N_ze, 'like', V_next);
-    Pol_d_max      = zeros(N_a, N_ze, 'like', V_next);
-    Pol_L2idx_max  = zeros(N_a, N_ze, 'like', V_next);
-    Pol_L2flag_max = zeros(N_a, N_ze, 'like', V_next);
 
     % --- The Master Orchestrator Loop ---
     for i_a2 = 1:length(a2_chunks)
