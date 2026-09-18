@@ -17,13 +17,35 @@ pafter_grid  = semiz_grid(n_semiz(1)+1 : sum(n_semiz(1:2)));
 years_grid   = semiz_grid(sum(n_semiz(1:2))+1 : sum(n_semiz(1:3)));
 down_grid    = semiz_grid(sum(n_semiz(1:3))+1 : end);
 
-% --- 3. Define the 8D State Tensor Shape ---
-dim_shape = [n_a(1), n_a(2), n_a(3), n_semiz(1), n_semiz(2), n_semiz(3), n_semiz(4), n_z(1)];
+% --- 3. Define the Dynamic State Tensor Shape ---
+% Handle multi-dimensional n_z safely
+n_z_dims = n_z(:)';
+dim_shape = [n_a(1), n_a(2), n_a(3), n_semiz(1), n_semiz(2), n_semiz(3), n_semiz(4), n_z_dims];
 
 % --- 4. Create the Universal State Mesh ---
-[A_mesh, H_mesh, Solar_mesh, PB_mesh, PA_mesh, Y_mesh, D_mesh, Z_mesh] = ndgrid(...
-    asset_grid, house_grid, solarpv_grid, ...
-    pbefore_grid, pafter_grid, years_grid, down_grid, z_grid);
+% Construct grid inputs dynamically to support arbitrary z dimensions
+grid_inputs = [{asset_grid, house_grid, solarpv_grid, ...
+    pbefore_grid, pafter_grid, years_grid, down_grid}, ...
+    cellfun(@(v) reshape(v, [], 1), {z_grid}, 'UniformOutput', false)];
+
+% If z_grid is multi-column, we need to extract individual z vectors for ndgrid
+if size(z_grid, 2) > 1
+    z_cell_args = cell(1, size(z_grid, 2));
+    for iz = 1:size(z_grid, 2)
+        % Reconstruct individual AR(1) grids for the mesh
+        unique_z_vals = unique(z_grid(:, iz));
+        z_cell_args{iz} = unique_z_vals(:);
+    end
+    [A_mesh, H_mesh, Solar_mesh, PB_mesh, PA_mesh, Y_mesh, D_mesh, Z_meshes{1:length(z_cell_args)}] = ndgrid(...
+        asset_grid, house_grid, solarpv_grid, ...
+        pbefore_grid, pafter_grid, years_grid, down_grid, z_cell_args{:});
+    % Combine multi-z into the evaluation function or pass individually
+    Z_mesh = Z_meshes{1}; % Primary reference
+else
+    [A_mesh, H_mesh, Solar_mesh, PB_mesh, PA_mesh, Y_mesh, D_mesh, Z_mesh] = ndgrid(...
+        asset_grid, house_grid, solarpv_grid, ...
+        pbefore_grid, pafter_grid, years_grid, down_grid, z_grid(:,1));
+end
 
 % --- 5. Prepare Output Structure ---
 fn_names = fieldnames(FnsToEvaluate);
@@ -35,6 +57,7 @@ end
 NumPolicies = size(Policy, 1);
 Policy_reshaped = reshape(Policy, [NumPolicies, dim_shape, N_j]);
 Dist_reshaped   = reshape(StationaryDist, [dim_shape, N_j]);
+decision_idx = repmat({':'}, 1, ndims(Policy_reshaped)-2);
 
 % --- 6. The Cross-Sectional Age Loop ---
 for jj = 1:N_j
@@ -47,11 +70,11 @@ for jj = 1:N_j
         continue;
     end
 
-    % Extract decisions for this age (Preserve full 8D shape safely)
-    pol_install  = reshape(Policy_reshaped(1,:,:,:,:,:,:,:,:, jj), dim_shape);
-    pol_buyhouse = reshape(Policy_reshaped(2,:,:,:,:,:,:,:,:, jj), dim_shape);
-    pol_aprime   = reshape(Policy_reshaped(3,:,:,:,:,:,:,:,:, jj), dim_shape);
-    pol_hprime   = reshape(Policy_reshaped(4,:,:,:,:,:,:,:,:, jj), dim_shape);
+    % Extract decisions for this age (Using trailing expansion for multi-D safety)
+    pol_install  = reshape(Policy_reshaped(1, decision_idx{:}, jj), dim_shape);
+    pol_buyhouse = reshape(Policy_reshaped(2, decision_idx{:}, jj), dim_shape);
+    pol_aprime   = reshape(Policy_reshaped(3, decision_idx{:}, jj), dim_shape);
+    pol_hprime   = reshape(Policy_reshaped(4, decision_idx{:}, jj), dim_shape);
 
     % Map indexes to actual choice values
     val_install  = installpv_grid(pol_install);
@@ -59,7 +82,7 @@ for jj = 1:N_j
     val_aprime   = asset_grid(pol_aprime);
     val_hprime   = house_grid(pol_hprime);
 
-    % Evaluate all Anonymous Functions across the 511,875 states simultaneously
+    % Evaluate all Anonymous Functions across all states simultaneously
     for i = 1:length(fn_names)
         fn = FnsToEvaluate.(fn_names{i});
 
