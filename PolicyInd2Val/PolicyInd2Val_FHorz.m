@@ -87,7 +87,7 @@ if isfield(vfoptions,'residualasset') && vfoptions.residualasset>0
 end
 
 if isfield(vfoptions,'gridinterplayer')
-    if vfoptions.gridinterplayer==1
+    if vfoptions.gridinterplayer(1)==1
         % Strip trailing PolicyL2flag channel (PolicyInd2Val doesn't need it; only sim does)
         tempsize=size(Policy);
         Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);

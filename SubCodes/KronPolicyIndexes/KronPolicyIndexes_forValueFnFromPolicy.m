@@ -56,7 +56,7 @@ if N_j==0
             end
         end
 
-    elseif vfoptions.gridinterplayer==1
+    elseif vfoptions.gridinterplayer(1)==1
         % Input Policy has a trailing L2flag row; output PolicyKron drops it (callers don't use L2flag).
         % Reshape Policy
         Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
@@ -153,7 +153,7 @@ else % N_j>0: fold N_j into the trailing z-dim, run body, split back
             end
         end
 
-    elseif vfoptions.gridinterplayer==1
+    elseif vfoptions.gridinterplayer(1)==1
         % Input Policy has a trailing L2flag row; output PolicyKron drops it (callers don't use L2flag).
         % Reshape Policy
         Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
