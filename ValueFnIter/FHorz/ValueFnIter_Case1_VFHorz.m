@@ -389,7 +389,7 @@ n_z_work = N_semiz * N_z_exog;
 
 n_e_work = max(1, prod(n_e_pass));
 
-if any(vfoptions.gridinterplayer)
+if vfoptions.gridinterplayer(1) == 1
     PolicyKron = zeros(3, n_a_work, n_z_work, n_e_work, N_j, 'like', a_grid);
 else
     PolicyKron = zeros(n_a_work, n_z_work, n_e_work, N_j, 'like', a_grid);
@@ -397,7 +397,7 @@ end
 V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
 
 % --- Grid Interpolation Setup ---
-if any(vfoptions.gridinterplayer)
+if vfoptions.gridinterplayer(1) == 1
     n2short = vfoptions.ngridinterp;
     n2long  = n2short * 2 + 3;
     % Use a_work instead of a_gridvals(:,1)
@@ -650,7 +650,7 @@ for reverse_j = 0:N_j-1
             V_j_max(start_a_idx:end_a_idx, curr_ze)     = reshape(v,     [N_a1 * N_a2_local, N_ze_local]);
             Pol_apr_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_apr, [N_a1 * N_a2_local, N_ze_local]);
             Pol_d_max(start_a_idx:end_a_idx, curr_ze)   = reshape(p_d,   [N_a1 * N_a2_local, N_ze_local]);
-            if any(vfoptions.gridinterplayer)
+            if vfoptions.gridinterplayer(1) == 1
                 Pol_L2idx_max(start_a_idx:end_a_idx, curr_ze)  = reshape(p_l2idx,  [N_a1 * N_a2_local, N_ze_local]);
                 Pol_L2flag_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_l2flag, [N_a1 * N_a2_local, N_ze_local]);
             end
@@ -660,12 +660,12 @@ for reverse_j = 0:N_j-1
     V_j_max     = reshape(V_j_max,     [N_a, n_z_work, n_e_work]);
     Pol_apr_max = reshape(Pol_apr_max, [N_a, n_z_work, n_e_work]);
     Pol_d_max   = reshape(Pol_d_max,   [N_a, n_z_work, n_e_work]);
-    if any(vfoptions.gridinterplayer)
+    if vfoptions.gridinterplayer(1) == 1
         Pol_L2idx_max  = reshape(Pol_L2idx_max,  [N_a, n_z_work, n_e_work]);
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_a, n_z_work, n_e_work]);
     end
 
-    if any(vfoptions.gridinterplayer)
+    if vfoptions.gridinterplayer(1) == 1
         adjust = (Pol_L2idx_max < 1 + n2short + 1);
         lower_grid_pt = Pol_apr_max - adjust;
         subgrid_step  = adjust .* Pol_L2idx_max + (1 - adjust) .* (Pol_L2idx_max - n2short - 1);
@@ -697,7 +697,7 @@ else
     n_daprime = [n_d, n_a(1:num_a1_pass)];
 end
 
-if ~any(vfoptions.gridinterplayer)
+if vfoptions.gridinterplayer(1) ~= 1
     PolicyKron = shiftdim(PolicyKron, -1);
 end
 

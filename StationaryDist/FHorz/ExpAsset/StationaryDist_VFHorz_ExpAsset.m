@@ -170,7 +170,7 @@ for jj = 1:N_j
     % 4 & 5. Map Mass forward (with Grid Interpolation Support)
     sz_mid = N_a1 * N_a2 * N_z_safe;
 
-    if any(simoptions.gridinterplayer)
+    if simoptions.gridinterplayer(1) == 1
         % Extract L2 index to preserve fractional wealth
         l2_layer = reshape(Policy_reshaped(end-1, :, :, :, jj), [N_a1, N_a2, N_z_safe]);
         a1_prob_upper = (l2_layer(:) - 1) / (simoptions.ngridinterp + 1);

@@ -12,7 +12,7 @@ l_daprime1=length(n_daprime1);
 
 divisors=cumprod([1,n_daprime1(1:end-1)])';   % [l_daprime1,1]
 
-if vfoptions.gridinterplayer==1
+if vfoptions.gridinterplayer(1)==1
     Policy=[mod(floor((PolicyKron(1,:)-1)./divisors),n_daprime1(:))+1;
             PolicyKron(2,:);
             PolicyKron(3,:)];

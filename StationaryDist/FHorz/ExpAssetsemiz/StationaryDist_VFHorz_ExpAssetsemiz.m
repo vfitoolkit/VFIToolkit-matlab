@@ -196,7 +196,7 @@ for jj = 1:N_j
     end
 
     % 5. Map Mass Forward (Tensor-Product of A1, A2, and SemiZ dispersion)
-    is_gridinterp = any(simoptions.gridinterplayer);
+    is_gridinterp = logical(simoptions.gridinterplayer(1));
     if is_gridinterp
         l2_layer = reshape(Policy_reshaped(end-1, :,:,:,:, jj), [N_states, 1]);
         a1_prob_upper = (l2_layer(:) - 1) / (simoptions.ngridinterp + 1);
