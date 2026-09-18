@@ -14,8 +14,8 @@ N_semiz=prod(n_semiz);
 
 V=zeros(N_a,N_semiz,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,a1prime seperately
-Policy=zeros(5,N_a,N_semiz,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policy=zeros(6,N_a,N_semiz,N_j,'gpuArray');
+Policy(6,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -194,7 +194,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(2,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_semiz]);
     Policy(4,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_semiz]);
     Policy(5,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_semiz]);
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
+    Policy(6,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -409,7 +409,7 @@ else
     Policy(2,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_semiz]);
     Policy(4,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_semiz]);
     Policy(5,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_semiz]);
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
+    Policy(6,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 end
 
 %% Iterate backwards through j.
@@ -634,7 +634,7 @@ for reverse_j=1:N_j-1
     Policy(2,:,:,jj)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_semiz]);
     Policy(4,:,:,jj)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_semiz]);
     Policy(5,:,:,jj)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_semiz]);
-    PolicyL2flag(1,:,:,jj)=reshape(flag_ford3_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
+    Policy(6,:,:,jj)=reshape(flag_ford3_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 end
 
 
@@ -647,9 +647,7 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(5,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(4,:,:,:)=Policy(4,:,:,:)-adjust; % lower grid point
-Policy(5,:,:,:)=adjust.*Policy(5,:,:,:)+(1-adjust).*(Policy(5,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy;PolicyL2flag];
+Policy(5,:,:,:)=Policy(5,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 end

@@ -4,7 +4,7 @@ function [V,Policy3]=ValueFnIter_FHorz_ExpAssetSemiExo_DC2A_GI2A_nod1_raw(n_d2, 
 % _nod1: only d2 (which determines experience asset a3) and d3 (which determines semi-exog state semiz).
 % a1 is divide-conquered standard asset; a2 is a folded standard asset (choice a2prime); a3 is the experience asset.
 % z is exogenous Markov, semiz is semi-exogenous; bothz=(semiz,z) with semiz varying fastest.
-% Policy3 rows: 1=d2, 2=d3, 3=joint(a1prime midpoint,a2prime), 4=a1prime L2; PolicyL2flag concatenated as 5th.
+% Policy3 rows: 1=d2, 2=d3, 3=joint(a1prime midpoint,a2prime), 4=a1prime L2; the L2 flag as 5th.
 % lowmemory: 2 shocks {z,semiz} => levels {0,1,2}.
 %   =0 vectorise bothz; =1 outer-loop z / inner semiz vectorised; =2 joint bothz outer loop.
 
@@ -22,8 +22,8 @@ N_bothz=prod(n_bothz);
 
 V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d2,d3,joint(a1prime,a2prime),a1prime L2 seperately
-Policy3=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz*N_z,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policy3=zeros(5,N_a,N_semiz*N_z,N_j,'gpuArray');
+Policy3(5,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
@@ -230,7 +230,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy3(1,:,:,N_j)=reshape(d2_ford3_jj(idx),[1,N_a,N_bothz]); % d2
     Policy3(3,:,:,N_j)=reshape(mid_ford3_jj(idx),[1,N_a,N_bothz]); % joint(a1prime midpoint,a2prime)
     Policy3(4,:,:,N_j)=reshape(L2a1_ford3_jj(idx),[1,N_a,N_bothz]); % a1prime L2
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
+    Policy3(5,:,:,N_j)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
 
 else
     % vfoptions.V_Jplus1 provided
@@ -458,7 +458,7 @@ else
     Policy3(1,:,:,N_j)=reshape(d2_ford3_jj(idx),[1,N_a,N_bothz]); % d2
     Policy3(3,:,:,N_j)=reshape(mid_ford3_jj(idx),[1,N_a,N_bothz]); % joint(a1prime midpoint,a2prime)
     Policy3(4,:,:,N_j)=reshape(L2a1_ford3_jj(idx),[1,N_a,N_bothz]); % a1prime L2
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
+    Policy3(5,:,:,N_j)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
 end
 
 
@@ -695,7 +695,7 @@ for reverse_j=1:N_j-1
     Policy3(1,:,:,jj)=reshape(d2_ford3_jj(idx),[1,N_a,N_bothz]); % d2
     Policy3(3,:,:,jj)=reshape(mid_ford3_jj(idx),[1,N_a,N_bothz]); % joint(a1prime midpoint,a2prime)
     Policy3(4,:,:,jj)=reshape(L2a1_ford3_jj(idx),[1,N_a,N_bothz]); % a1prime L2
-    PolicyL2flag(1,:,:,jj)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
+    Policy3(5,:,:,jj)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
 
 end
 
@@ -705,8 +705,6 @@ end
 % Switch Policy3(3,:) to joint(lower a1prime grid point,a2prime), and Policy3(4,:) to a 1..(n2short+2) offset.
 adjust=(Policy3(4,:,:,:)<1+n2short+1); % is the L2 index below midpoint?
 Policy3(3,:,:,:)=Policy3(3,:,:,:)-adjust; % decrement a1prime component of the joint (midpoint>=2 keeps it within the same a2prime block)
-Policy3(4,:,:,:)=adjust.*Policy3(4,:,:,:)+(1-adjust).*(Policy3(4,:,:,:)-n2short-1);
-
-Policy3=[Policy3;PolicyL2flag];
+Policy3(4,:,:,:)=Policy3(4,:,:,:)-(n2short+1)*(~adjust);
 
 end
