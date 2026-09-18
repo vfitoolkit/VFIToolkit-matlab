@@ -289,12 +289,19 @@ if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either
         estimoptions.calibrateshocks=1;
     end
 end
+if ~isfield(simoptions,'jequaloneDist_usergrids')
+    simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
+end
 if estimoptions.calibrateshocks==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3,0);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3,simoptions.jequaloneDist_usergrids);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
+    if simoptions.jequaloneDist_usergrids==1 % jequaloneDist as a function is given the user's own grids, so pass them through
+        simoptions.user_z_grid=vfoptions.user_z_grid;
+        simoptions.user_pi_z=vfoptions.user_pi_z;
+    end
 else
     % just need some placeholders
     z_gridvals_J=[];
@@ -763,11 +770,7 @@ end
 %% Clean up the first two outputs
 for pp=1:length(EstimParamNames)
     if estimoptions.skipestimation==0
-        % If parameter is constrained, switch it back to the original value
-        [estimparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(estimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
-        if sum(penalty)>0
-            warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
-        end
+        % Note: estimparamsvec was already switched back to the original (constrained) values further above
         % Now store the unconstrained values
         if estimomitparams_counter(pp)>0
             currparamraw=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));

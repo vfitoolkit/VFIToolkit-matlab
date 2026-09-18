@@ -22,6 +22,8 @@ if exist('simoptions','var')==0
     simoptions.outputkron=0; % If 1 then leave output in Kron form
     simoptions.alreadygridvals=0; % =1 when calling as a subcommand
     simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
+    simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
+                                          % Note: default is 1 here, the opposite of CustomModelStats_usergrids, as jequaloneDist functions are written against the user's own grid
     simoptions.jequaloneDistAge=1; % jequaloneDist is the distribution at this age (=1 is the standard first period)
     simoptions.agemass_withCohort=[]; % non-empty when the age weights are cohort masses (set by the withCohorts estimation), so they need not sum to one
 else
@@ -74,6 +76,9 @@ else
     end
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0; % =1 when calling as a subcommand
+    end
+    if ~isfield(simoptions,'jequaloneDist_usergrids')
+        simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
     end
     if ~isfield(simoptions,'alreadygridvals_semiexo')
         simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
@@ -139,7 +144,7 @@ if simoptions.alreadygridvals==0
     if isfield(simoptions,'z_grid')
         % things like experienceassetz and experienceassetze require z_gridvals_J
         % simoptions.experienceassete does not require z_gridvals_J, but we do need to build simoptions.e_gridvals_J
-        [z_gridvals_J, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,simoptions.z_grid,pi_z,N_j,Parameters,simoptions,3,0);
+        [z_gridvals_J, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,simoptions.z_grid,pi_z,N_j,Parameters,simoptions,3,simoptions.jequaloneDist_usergrids); % KeepOriginalGrid, so that jequaloneDist as a function can be given the user's own z_grid
     elseif simoptions.experienceassete>=1
         % Only pi_z_J for any z in the model [and we don't have simoptions.z_grid, so cannot just create even though we don't need)
         [~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions,2,0);
@@ -208,7 +213,15 @@ if isa(jequaloneDist, 'function_handle')
         error('When using jequaloneDist as a function you must put z_grid into simoptions.z_grid')
     end
 
-    jequaloneDist=jequaloneDistFn(simoptions.a_grid,simoptions.z_grid,n_a,n_z,jequaloneParamsCell{:});
+    if simoptions.jequaloneDist_usergrids==1
+        % Give jequaloneDist the z_grid in the form the user input, at age j=1 (which is the age jequaloneDist is for)
+        if ~isfield(simoptions,'user_z_grid')
+            error('When using simoptions.jequaloneDist_usergrids=1 the user z_grid must be in simoptions.user_z_grid (it is created by ExogShockSetup_FHorz with KeepOriginalGrid=1)')
+        end
+        jequaloneDist=jequaloneDistFn(simoptions.a_grid,simoptions.user_z_grid(:,:,1),n_a,n_z,jequaloneParamsCell{:});
+    else
+        jequaloneDist=jequaloneDistFn(simoptions.a_grid,z_gridvals_J,n_a,n_z,jequaloneParamsCell{:});
+    end
 end
 
 % Check that the age one distribution is of mass one

@@ -18,11 +18,15 @@ end
 
 if heteroagentoptions.gridsinGE==1
     % Some of the shock grids depend on parameters that are determined in general eqm
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,0);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,simoptions.jequaloneDist_usergrids);
     % Convert z and e to age-dependent joint-grids and transtion matrix
     % Note: Ignores which, just redoes both z and e
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % if no e, this is just empty anyway
     simoptions.pi_e_J=vfoptions.pi_e_J;
+    if simoptions.jequaloneDist_usergrids==1 % jequaloneDist as a function is given the user's own grids, and they must track the general eqm prices
+        simoptions.user_z_grid=vfoptions.user_z_grid;
+        simoptions.user_pi_z=vfoptions.user_pi_z;
+    end
 end
 
 %%

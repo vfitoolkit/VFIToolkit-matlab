@@ -5,6 +5,10 @@ function [jequaloneDist,idiminj1dist,Parameters]=jequaloneDist_PType(jequaloneDi
 if ~isfield(simoptions,'warnjequaloneptypeasdim')
     simoptions.warnjequaloneptypeasdim=1;
 end
+if ~isfield(simoptions,'jequaloneDist_usergrids')
+    simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
+                                          % Note: default is 1 here, the opposite of CustomModelStats_usergrids, as jequaloneDist functions are written against the user's own grid
+end
 
 % If age one distribution is input as a function, then evaluate it
 if isa(jequaloneDist, 'function_handle')
@@ -28,7 +32,16 @@ if isa(jequaloneDist, 'function_handle')
         error('When using jequaloneDist as a function you must put z_grid into simoptions.z_grid')
     end
 
-    jequaloneDist=jequaloneDistFn(simoptions.a_grid,simoptions.z_grid,n_a,n_z,jequaloneParamsCell{:});
+    if simoptions.jequaloneDist_usergrids==1 && isfield(simoptions,'user_z_grid')
+        % Give jequaloneDist the z_grid in the form the user input, at age j=1 (which is the age jequaloneDist is for).
+        % Note: unlike StationaryDist_FHorz_Case1, the callers of jequaloneDist_PType have not run ExogShockSetup_FHorz
+        % by this point, so simoptions.z_grid is still the user's own grid. user_z_grid is only present when a caller has
+        % rebuilt the grids (shocks depending on parameters being estimated, or on general eqm prices), and it is only
+        % then that simoptions.z_grid would be stale.
+        jequaloneDist=jequaloneDistFn(simoptions.a_grid,simoptions.user_z_grid(:,:,1),n_a,n_z,jequaloneParamsCell{:});
+    else
+        jequaloneDist=jequaloneDistFn(simoptions.a_grid,simoptions.z_grid,n_a,n_z,jequaloneParamsCell{:});
+    end
 end
 
 

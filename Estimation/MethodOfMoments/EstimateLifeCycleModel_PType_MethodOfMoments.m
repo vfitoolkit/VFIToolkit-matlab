@@ -600,6 +600,9 @@ else % estimoptions.skipestimation==1
     estimparamsvec=estimparamsvec0;
 end
 
+%% estimparamsvec contains the (transformed) unconstrained parameters, not the original (constrained) parameter values.
+[estimparamsvec,~]=ParameterConstraints_TransformParamsToOriginal(estimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
+% estimparamsvec is now the original (constrained) parameter values.
 
 
 %% Two-iteration efficient GMM (actually, n-iteration, but just uses this recursively)
@@ -863,13 +866,9 @@ end
 
 
 %% Clean up the first two outputs
-for pp=1:length(estimparamsvec)
+for pp=1:nEstimParams
     if estimoptions.skipestimation==0
-        % Switch estimparamsvec to the constrained (original) parameters
-        [estimparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(estimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
-        if sum(penalty)>0
-            warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
-        end
+        % Note: estimparamsvec was already switched back to the original (constrained) values further above
         % Now store the unconstrained values
         if estimomitparams_counter(pp)>0
             currparamraw=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
@@ -910,19 +909,11 @@ for pp=1:length(estimparamsvec)
 
     if estimoptions.bootstrapStdErrors==0
         estimparamscovarmatrix_diag=diag(estimparamscovarmatrix); % Just the diagonal of the covar matrix of the parameter vector
-        if estimoptions.constrainpositive(pp)==0
-            if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
-                estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-            else
-                estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-            end
-        elseif estimoptions.constrainpositive(pp)==1
-            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
-                estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-            else
-                estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-            end
+        % Note: no longer need to treat constrainpositive separately, as J and Sigma are calculated from the 'external' parameters
+        if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
+            estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+        else
+            estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
         end
         % If bootstrap std errors, then replace the std dev with the bootstrap distribution
     elseif estimoptions.bootstrapStdErrors==1
@@ -954,7 +945,7 @@ end
 % This avoids people focusing on statistical significance and the 'star wars'.
 % Instead they will hopefully focus on what is likely and plausible.
 EstimParamsConfInts.notes='These are 90-percent confidence intervals';
-for pp=1:length(estimparamsvec)
+for pp=1:nEstimParams
     if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
         EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}) + [-1,1]*criticalvalue_normaldist_z_alphadiv2*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)});
     else

@@ -37,10 +37,14 @@ end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,0);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,simoptions.jequaloneDist_usergrids);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
+    if simoptions.jequaloneDist_usergrids==1 % jequaloneDist as a function is given the user's own grids, and they must track the current parameters
+        simoptions.user_z_grid=vfoptions.user_z_grid;
+        simoptions.user_pi_z=vfoptions.user_pi_z;
+    end
 end
 
 
