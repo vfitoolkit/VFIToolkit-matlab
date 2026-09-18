@@ -1,7 +1,6 @@
 function Policy=UnKronPolicyIndexes_InfHorz_CPU(PolicyKron, n_d,n_a, n_z)
-% Can use vfoptions OR simoptions
 % Input: PolicyKron is (2,N_a,N_z) first dim indexes the optimal choice for d and aprime
-%                      (N_a,N_z) if there is no d
+%                      (1,N_a,N_z) if there is no d
 % Output: Policy is (l_d+l_a,n_a,n_z);
 
 N_a=prod(n_a);
