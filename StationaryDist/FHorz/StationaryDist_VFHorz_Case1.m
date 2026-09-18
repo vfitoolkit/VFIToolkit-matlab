@@ -54,7 +54,9 @@ elseif has_semiz
 
 else
     % Future: Route to standard StationaryDist_VFHorz (Base Model)
-    error('V-World: Base Model dispatcher not yet implemented.');
+    StationaryDist=StationaryDist_FHorz_Case1( ...
+        jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z, ...
+        N_j,pi_z_J,Parameters,simoptions);
 end
 
 
