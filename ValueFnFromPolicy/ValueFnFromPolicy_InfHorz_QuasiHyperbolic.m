@@ -69,7 +69,7 @@ end
 
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals
-[z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+[z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,vfoptions,3,0);
 
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 ReturnFnParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames);

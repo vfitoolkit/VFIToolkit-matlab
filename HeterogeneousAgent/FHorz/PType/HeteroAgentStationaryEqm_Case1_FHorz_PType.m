@@ -424,7 +424,9 @@ for ii=1:PTypeStructure.N_i
     % Switch over to joint-grids
     % If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
     if heteroagentoptions.gridsinGE(ii)==0
-        [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,0);
+        % The user's own grids are needed if CustomModelStats is given them
+        KeepOriginalGrid=(heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1);
+        [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,KeepOriginalGrid);
         % Note: these are actually z_gridvals_J and pi_z_J
         if isfield(PTypeStructure.(iistr).simoptions,'z_grid')
             % alreadygridvals=1 is set further below, so any downstream code that
@@ -444,8 +446,8 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'pi_z'); % Should not be used, as now have pi_z_J
     if isfield(PTypeStructure.(iistr).simoptions,'ExogShockFn') % Note: ExogShockSetup_FHorz(,0) removed ExogShockFn from vfoptions but not from simoptions
         if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1
-            heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).z_gridvals_J;
-            heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).pi_z_J;
+            heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).vfoptions.user_z_grid; % this ptype's own grids, as the user gave them
+            heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).vfoptions.user_pi_z;
         end
         PTypeStructure.(iistr).simoptions=rmfield(simoptions,'ExogShockFn');
     end

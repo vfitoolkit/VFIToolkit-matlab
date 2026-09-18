@@ -387,14 +387,16 @@ for ii=1:PTypeStructure.N_i
     % If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
     if heteroagentoptions.gridsinGE(ii)==0
         % Some of the shock grids depend on parameters that are determined in general eqm
-        [PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
+        % The user's own grids are needed if CustomModelStats is given them
+        KeepOriginalGrid=(heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1);
+        [PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,KeepOriginalGrid);
         % Note: these are actually z_gridvals and pi_z
         PTypeStructure.(iistr).simoptions.e_gridvals=PTypeStructure.(iistr).vfoptions.e_gridvals; % Note, will be [] if no e
         PTypeStructure.(iistr).simoptions.pi_e=PTypeStructure.(iistr).vfoptions.pi_e; % Note, will be [] if no e
-        if isfield(PTypeStructure.(iistr).simoptions,'ExogShockFn') % Note: ExogShockSetup_InfHorz() removed ExogShockFn from vfoptions but not from simoptions
+        if isfield(PTypeStructure.(iistr).simoptions,'ExogShockFn') % Note: ExogShockSetup_InfHorz(,0) removed ExogShockFn from vfoptions but not from simoptions
             if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1
-                heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).z_grid;
-                heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).pi_z;
+                heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).vfoptions.user_z_grid; % this ptype's own grids, as the user gave them
+                heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).vfoptions.user_pi_z;
             end
             PTypeStructure.(iistr).simoptions=rmfield(PTypeStructure.(iistr).simoptions,'ExogShockFn');
         end

@@ -6,7 +6,7 @@ function [n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHor
 
 % First z
 if simoptions.alreadygridvals==0
-    [z_gridvals, ~, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,[],Parameters,simoptions,1);
+    [z_gridvals, ~, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,[],Parameters,simoptions,1,0);
 elseif simoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end

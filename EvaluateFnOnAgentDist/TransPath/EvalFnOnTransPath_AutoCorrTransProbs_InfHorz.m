@@ -161,7 +161,7 @@ elseif simoptions.experienceasset>=1
         % aprime_gridvals=CreateGridvals(n_a(1:end-1),a_grid(1:sum(n_a(1:end-1))),1); % omit a2
     end
 end
-[z_gridvals, pi_z, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,3);
+[z_gridvals, pi_z, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,3,0);
 
 
 %%

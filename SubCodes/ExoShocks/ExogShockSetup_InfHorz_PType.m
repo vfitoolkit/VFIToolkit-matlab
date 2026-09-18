@@ -1,4 +1,12 @@
-function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz_PType(n_z,z_grid,pi_z,Names_i,Parameters,options,gridpiboth)
+function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz_PType(n_z,z_grid,pi_z,Names_i,Parameters,options,gridpiboth,KeepOriginalGrid)
+% KeepOriginalGrid=0 gives the original behaviour (it is a required input).
+% KeepOriginalGrid=1 additionally returns options.user_z_grid and options.user_pi_z,
+% which are the grids in the form the user gave them, rather than the internal
+% joint-grid form. Needed because when using ExogShockFn the user's own grid is
+% created inside ExogShockFn and then converted, so it is otherwise never kept.
+% Like every other output of this command they are made dependent on permanent
+% type, so they are structs with a field per Names_i. There is no age dimension
+% here, so each field is just that ptype's grid.
 % Convert z and e to joint-grids and transition matrix
 % options will either be vfoptions or simoptions
 % output: z_gridvals, pi_z, options.e_gridvals, options.pi_e
@@ -138,6 +146,8 @@ end
 
 
 %% Deal with z variables
+user_z_grid_bare=z_grid; % only used when KeepOriginalGrid==1; overwritten below if ExogShockFn is used
+user_pi_z_bare=pi_z;
 if zdependsonptype==0
     if prod(n_z)==0
         z_gridvals=[];
@@ -151,7 +161,14 @@ if zdependsonptype==0
                 for ii=1:length(ExogShockFnParamsVec)
                     ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
-                [z_grid,~]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                if KeepOriginalGrid==1
+                    [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    user_z_grid_bare=z_grid;
+                    user_pi_z_bare=pi_z;
+                    pi_z=[]; % gridpiboth==1 does not return pi_z
+                else
+                    [z_grid,~]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                end
             end
             if all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
                 z_gridvals=z_grid;
@@ -169,7 +186,13 @@ if zdependsonptype==0
                 for ii=1:length(ExogShockFnParamsVec)
                     ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
-                [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                if KeepOriginalGrid==1
+                    [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    user_z_grid_bare=z_grid;
+                    user_pi_z_bare=pi_z;
+                else
+                    [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                end
             end
             pi_z=gather(pi_z); % Agent distribution iteration is performed on cpu
         elseif gridpiboth==3
@@ -181,6 +204,10 @@ if zdependsonptype==0
                     ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
                 [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                if KeepOriginalGrid==1
+                    user_z_grid_bare=z_grid;
+                    user_pi_z_bare=pi_z;
+                end
             end
             if all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
                 z_gridvals=z_grid;
@@ -199,9 +226,17 @@ if zdependsonptype==0
     pi_z_bare=pi_z;
     z_gridvals=struct();
     pi_z=struct();
+    if KeepOriginalGrid==1
+        options.user_z_grid=struct();
+        options.user_pi_z=struct();
+    end
     for ii=1:length(Names_i)
         z_gridvals.(Names_i{ii})=z_gridvals_bare;
         pi_z.(Names_i{ii})=pi_z_bare;
+        if KeepOriginalGrid==1
+            options.user_z_grid.(Names_i{ii})=user_z_grid_bare;
+            options.user_pi_z.(Names_i{ii})=user_pi_z_bare;
+        end
     end
 
 elseif zdependsonptype==1
@@ -222,6 +257,11 @@ elseif zdependsonptype==1
         else
             pi_z_temp=pi_z.(Names_i{ii});
         end
+        if KeepOriginalGrid==1
+            % This ptype's user grids; overwritten below if ExogShockFn is used
+            options.user_z_grid.(Names_i{ii})=z_grid_temp;
+            options.user_pi_z.(Names_i{ii})=pi_z_temp;
+        end
 
         if prod(n_z_temp)==0
             z_gridvals_out.(Names_i{ii})=[];
@@ -236,7 +276,13 @@ elseif zdependsonptype==1
                         ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
                     end
                     temp=options.ExogShockFn.(Names_i{ii});
-                    [z_grid_temp,~]=temp(ExogShockFnParamsCell{:});
+                    if KeepOriginalGrid==1
+                        [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        options.user_z_grid.(Names_i{ii})=z_grid_temp;
+                        options.user_pi_z.(Names_i{ii})=pi_z_temp;
+                    else
+                        [z_grid_temp,~]=temp(ExogShockFnParamsCell{:});
+                    end
                 end
                 if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp)]) % joint grid
                     z_gridvals_temp=z_grid_temp;
@@ -255,7 +301,13 @@ elseif zdependsonptype==1
                         ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
                     end
                     temp=options.ExogShockFn.(Names_i{ii});
-                    [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                    if KeepOriginalGrid==1
+                        [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        options.user_z_grid.(Names_i{ii})=z_grid_temp;
+                        options.user_pi_z.(Names_i{ii})=pi_z_temp;
+                    else
+                        [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                    end
                 end
                 pi_z_out.(Names_i{ii})=gather(pi_z_temp); % Agent distribution iteration is performed on cpu
             elseif gridpiboth==3
@@ -267,6 +319,10 @@ elseif zdependsonptype==1
                     end
                     temp=options.ExogShockFn.(Names_i{ii});
                     [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                    if KeepOriginalGrid==1
+                        options.user_z_grid.(Names_i{ii})=z_grid_temp;
+                        options.user_pi_z.(Names_i{ii})=pi_z_temp;
+                    end
                 end
                 if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp)]) % joint grid
                     z_gridvals_temp=z_grid_temp;
@@ -301,6 +357,11 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
         else
             pi_z_temp=pi_z.(Names_i{ii});
         end
+        if KeepOriginalGrid==1
+            % This ptype's user grids; overwritten below if ExogShockFn is used
+            options.user_z_grid.(Names_i{ii})=z_grid_temp;
+            options.user_pi_z.(Names_i{ii})=pi_z_temp;
+        end
 
         if prod(n_z_temp)==0
             z_gridvals_out.(Names_i{ii})=[];
@@ -315,7 +376,13 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                         ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
                     end
                     temp=options.ExogShockFn.(Names_i{ii});
-                    [z_grid_temp,~]=temp(ExogShockFnParamsCell{:});
+                    if KeepOriginalGrid==1
+                        [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        options.user_z_grid.(Names_i{ii})=z_grid_temp;
+                        options.user_pi_z.(Names_i{ii})=pi_z_temp;
+                    else
+                        [z_grid_temp,~]=temp(ExogShockFnParamsCell{:});
+                    end
                     if all(size(z_grid_temp)==[sum(n_z_temp),1])
                         z_gridvals_temp=CreateGridvals(n_z_temp,z_grid_temp,1);
                     else % already joint-grid
@@ -350,7 +417,13 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                         ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
                     end
                     temp=options.ExogShockFn.(Names_i{ii});
-                    [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                    if KeepOriginalGrid==1
+                        [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        options.user_z_grid.(Names_i{ii})=z_grid_temp;
+                        options.user_pi_z.(Names_i{ii})=pi_z_temp;
+                    else
+                        [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                    end
                 elseif size(pi_z_temp,ndims(pi_z_temp))==N_i
                     otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
                     pi_z_temp=pi_z_temp(otherdims{:},ii);
@@ -365,6 +438,10 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     end
                     temp=options.ExogShockFn.(Names_i{ii});
                     [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                    if KeepOriginalGrid==1
+                        options.user_z_grid.(Names_i{ii})=z_grid_temp;
+                        options.user_pi_z.(Names_i{ii})=pi_z_temp;
+                    end
                     if all(size(z_grid_temp)==[sum(n_z_temp),1])
                         z_gridvals_temp=CreateGridvals(n_z_temp,z_grid_temp,1);
                     else % already joint-grid

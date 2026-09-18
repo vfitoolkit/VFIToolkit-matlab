@@ -50,6 +50,8 @@ end
 %%
 AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
+% The user's own grids are needed if CustomModelStats is given them
+KeepOriginalGrid=(heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1);
 for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.iistr{ii};
@@ -60,7 +62,7 @@ for ii=1:PTypeStructure.N_i
     if heteroagentoptions.gridsinGE(ii)==1
         if isfinite(PTypeStructure.(iistr).N_j)
             % Some of the shock grids depend on parameters that are determined in general eqm
-            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,0);
+            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,KeepOriginalGrid);
             % Convert z and e to age-dependent joint-grids and transtion matrix
             % Note: Ignores which, just redoes both z and e
             PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % if no e, this is just empty anyway
@@ -68,7 +70,7 @@ for ii=1:PTypeStructure.N_i
         else
             % PType actually allows for infinite horizon as well
             % Some of the shock grids depend on parameters that are determined in general eqm
-            [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_gridvals,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
+            [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_gridvals,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,KeepOriginalGrid);
             % Convert z and e to joint-grids and transtion matrix
             % Note: Ignores which, just redoes both z and e
             PTypeStructure.(iistr).simoptions.e_gridvals=PTypeStructure.(iistr).vfoptions.e_gridvals; % if no e, this is just empty anyway
@@ -152,9 +154,14 @@ if heteroagentoptions.useCustomModelStats==1
     if heteroagentoptions.CustomModelStats_usergrids==0
         CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,heteroagentoptions.CustomModelStatsInputs.N_j,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,z_gridvals_PType,pi_z_PType,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
     elseif heteroagentoptions.CustomModelStats_usergrids==1
-        if any(heteroagentoptions.gridsinGE) % grids depend on GE prices (for at least one ptype), so the user input grids are not meaningful
-            heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals_PType;
-            heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z_PType;
+        if any(heteroagentoptions.gridsinGE) % grids depend on GE prices (for at least one ptype), so give the user's own grids as rebuilt from the current prices
+            for ii=1:PTypeStructure.N_i
+                iistr=PTypeStructure.iistr{ii};
+                user_z_grid_PType.(iistr)=PTypeStructure.(iistr).vfoptions.user_z_grid;
+                user_pi_z_PType.(iistr)=PTypeStructure.(iistr).vfoptions.user_pi_z;
+            end
+            heteroagentoptions.CustomModelStatsInputs.z_grid=user_z_grid_PType;
+            heteroagentoptions.CustomModelStatsInputs.pi_z=user_pi_z_PType;
         end
         CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,heteroagentoptions.CustomModelStatsInputs.N_j,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
     end

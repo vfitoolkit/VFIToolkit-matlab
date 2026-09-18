@@ -19,7 +19,9 @@ end
 % If z (and e) are determined in GE
 if heteroagentoptions.gridsinGE==1
     % Some of the shock grids depend on parameters that are determined in general eqm
-    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_gridvals,pi_z,Parameters,vfoptions,3);
+    % The user's own grids are needed if CustomModelStats is given them
+    KeepOriginalGrid=(heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1);
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_gridvals,pi_z,Parameters,vfoptions,3,KeepOriginalGrid);
     % Note: these are actually z_gridvals and pi_z
     simoptions.e_gridvals=vfoptions.e_gridvals; % Note, will be [] if no e
     simoptions.pi_e=vfoptions.pi_e; % Note, will be [] if no e
@@ -46,9 +48,9 @@ if heteroagentoptions.useCustomModelStats==1
     if heteroagentoptions.CustomModelStats_usergrids==0
         CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
     elseif heteroagentoptions.CustomModelStats_usergrids==1
-        if heteroagentoptions.gridsinGE==1 % grids depend on GE prices, so the user input grids are not meaningful
-            heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
-            heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+        if heteroagentoptions.gridsinGE==1 % grids depend on GE prices, so give the user's own grids as rebuilt from the current prices
+            heteroagentoptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
+            heteroagentoptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
         end
         CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,vfoptions,simoptions);
     end

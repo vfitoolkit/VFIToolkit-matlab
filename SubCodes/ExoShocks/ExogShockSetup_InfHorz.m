@@ -1,4 +1,11 @@
-function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,options,gridpiboth)
+function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,options,gridpiboth,KeepOriginalGrid)
+% KeepOriginalGrid=0 gives the original behaviour (it is a required input).
+% KeepOriginalGrid=1 additionally returns options.user_z_grid and options.user_pi_z,
+% which are the grids in the form the user gave them, rather than the internal
+% joint-grid form. Needed because when using ExogShockFn the user's own grid is
+% created inside ExogShockFn and then converted, so it is otherwise never kept.
+% Unlike the finite-horizon version there is no age dimension here, so these are
+% just the grids themselves.
 % Convert z and e to joint-grids and transtion matrix
 % options will either be vfoptions or simoptions
 % output: z_gridvals, pi_z, options.e_gridvals, options.pi_e
@@ -76,6 +83,11 @@ if prod(n_z)==0
     z_gridvals=[];
     pi_z=[];
 else
+    if KeepOriginalGrid==1 && ~isfield(options,'ExogShockFn')
+        % No ExogShockFn, so the user's own grids are just the inputs, keep them as given
+        options.user_z_grid=z_grid;
+        options.user_pi_z=pi_z;
+    end
     if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
         pi_z=[];
         % Now just do z_gridvals
@@ -85,7 +97,14 @@ else
             for ii=1:length(ExogShockFnParamsVec)
                 ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
             end
-            [z_grid,~]=options.ExogShockFn(ExogShockFnParamsCell{:});
+            if KeepOriginalGrid==1
+                [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                options.user_z_grid=z_grid;
+                options.user_pi_z=pi_z;
+                pi_z=[]; % gridpiboth==1 does not return pi_z
+            else
+                [z_grid,~]=options.ExogShockFn(ExogShockFnParamsCell{:});
+            end
         end
         if all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
             z_gridvals=z_grid;
@@ -104,7 +123,13 @@ else
             for ii=1:length(ExogShockFnParamsVec)
                 ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
             end
-            [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+            if KeepOriginalGrid==1
+                [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                options.user_z_grid=z_grid;
+                options.user_pi_z=pi_z;
+            else
+                [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+            end
         end
         pi_z=gather(pi_z); % Agent distribution iteration is performed on cpu
     elseif gridpiboth==3
@@ -116,6 +141,10 @@ else
                 ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
             end
             [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+            if KeepOriginalGrid==1
+                options.user_z_grid=z_grid;
+                options.user_pi_z=pi_z;
+            end
         end
         if all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
             z_gridvals=z_grid;

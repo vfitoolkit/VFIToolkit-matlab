@@ -134,7 +134,7 @@ else
 end
 
 % gridpiboth=1: we only need z_gridvals here (no pi_z)
-[z_gridvals,~,simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,1);
+[z_gridvals,~,simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,1,0);
 
 if simoptions.agententryandexit==1 && isfield(simoptions,'SemiEndogShockFn')
     error('Cannot currently use simoptions.agententryandexit==1 and SemiEndogShockFn together. \n')

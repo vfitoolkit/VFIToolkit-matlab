@@ -55,7 +55,9 @@ end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
     % Internally, only ever use joint-grids (makes all the code much easier to write)
-    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz_PType(n_z,z_gridvals,pi_z,Names_i,Parameters,vfoptions,3);
+    % The user's own grids are needed if CustomModelStats is given them
+    KeepOriginalGrid=(usingcustomstats==1 && caliboptions.CustomModelStats_usergrids==1);
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz_PType(n_z,z_gridvals,pi_z,Names_i,Parameters,vfoptions,3,KeepOriginalGrid);
     % output: z_gridvals (struct keyed by Names_i), pi_z (struct), vfoptions.e_gridvals (struct), vfoptions.pi_e (struct)
     simoptions.e_gridvals=vfoptions.e_gridvals;
     simoptions.pi_e=vfoptions.pi_e;
@@ -71,9 +73,9 @@ if usingcustomstats==1
     if caliboptions.CustomModelStats_usergrids==0
         CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
     elseif caliboptions.CustomModelStats_usergrids==1
-        if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so the user input grids are not meaningful
-            caliboptions.CustomModelStatsInputs.z_grid=z_gridvals;
-            caliboptions.CustomModelStatsInputs.pi_z=pi_z;
+        if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so give the user's own grids as rebuilt from the current parameters
+            caliboptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
+            caliboptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
         end
         CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,Names_i,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
     end
