@@ -64,9 +64,9 @@ StationaryDist=StationaryDist_InfHorz(Policy,n_d,n_a,n_z,pi_z,simoptions,Paramet
 
 %% Custom Model Stats
 if usingcustomstats==1
-    if caliboptions.CustomModelStats_origgrids==0
+    if caliboptions.CustomModelStats_usergrids==0
         CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,caliboptions,vfoptions,simoptions);
-    elseif caliboptions.CustomModelStats_origgrids==1
+    elseif caliboptions.CustomModelStats_usergrids==1
         if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so the user input grids are not meaningful
             caliboptions.CustomModelStatsInputs.z_grid=z_gridvals;
             caliboptions.CustomModelStatsInputs.pi_z=pi_z;

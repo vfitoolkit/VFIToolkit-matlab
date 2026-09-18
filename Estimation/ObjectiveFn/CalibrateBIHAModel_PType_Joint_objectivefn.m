@@ -83,9 +83,9 @@ end
 
 %% Custom Model Stats
 if usingcustomstats==1
-    if caliboptions.CustomModelStats_origgrids==0
+    if caliboptions.CustomModelStats_usergrids==0
         CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
-    elseif caliboptions.CustomModelStats_origgrids==1
+    elseif caliboptions.CustomModelStats_usergrids==1
         if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so the user input grids are not meaningful
             caliboptions.CustomModelStatsInputs.z_grid=z_gridvals;
             caliboptions.CustomModelStatsInputs.pi_z=pi_z;
@@ -95,9 +95,9 @@ if usingcustomstats==1
 end
 % Custom Model Stats can be in heteroagent options or caliboptions so when doing joint-optimization we need to handle both possibilities
 if heteroagentoptions.useCustomModelStats==1
-    if heteroagentoptions.CustomModelStats_origgrids==0
+    if heteroagentoptions.CustomModelStats_usergrids==0
         CustomStats2=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,z_gridvals,pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
-    elseif heteroagentoptions.CustomModelStats_origgrids==1
+    elseif heteroagentoptions.CustomModelStats_usergrids==1
         if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so the user input grids are not meaningful
             heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
             heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;

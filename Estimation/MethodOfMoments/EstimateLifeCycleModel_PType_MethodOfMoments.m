@@ -104,12 +104,12 @@ end
 estimoptions.useCustomModelStats=0;
 if isfield(estimoptions,'CustomModelStats')
     estimoptions.useCustomModelStats=1;
-    if ~isfield(estimoptions,'CustomModelStats_origgrids')
-        estimoptions.CustomModelStats_origgrids=0; % =0: pass internal z_gridvals_J & pi_z_J; =1: pass exactly the z_grid & pi_z the user input
+    if ~isfield(estimoptions,'CustomModelStats_usergrids')
+        estimoptions.CustomModelStats_usergrids=0; % =0: pass internal z_gridvals_J & pi_z_J; =1: pass exactly the z_grid & pi_z the user input
     end
     % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
-    if estimoptions.CustomModelStats_origgrids==1
+    if estimoptions.CustomModelStats_usergrids==1
         estimoptions.CustomModelStatsInputs.z_grid=z_grid;
         estimoptions.CustomModelStatsInputs.pi_z=pi_z;
     end
@@ -399,7 +399,7 @@ if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either
 end
 if estimoptions.calibrateshocks==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz_PType(n_z,z_grid,pi_z,N_j,Names_i,Parameters,vfoptions,3);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz_PType(n_z,z_grid,pi_z,N_j,Names_i,Parameters,vfoptions,3,0);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;

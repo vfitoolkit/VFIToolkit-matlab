@@ -159,8 +159,8 @@ end
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
-    if ~isfield(heteroagentoptions,'CustomModelStats_origgrids')
-        heteroagentoptions.CustomModelStats_origgrids=0; % =0: pass internal grids (struct with one field per ptype); =1: pass exactly the z_grid & pi_z the user input
+    if ~isfield(heteroagentoptions,'CustomModelStats_usergrids')
+        heteroagentoptions.CustomModelStats_usergrids=0; % =0: pass internal grids (struct with one field per ptype); =1: pass exactly the z_grid & pi_z the user input
     end
     % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
@@ -170,7 +170,7 @@ if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.CustomModelStatsInputs.n_z=n_z;
     heteroagentoptions.CustomModelStatsInputs.d_grid=d_grid;
     heteroagentoptions.CustomModelStatsInputs.a_grid=a_grid;
-    if heteroagentoptions.CustomModelStats_origgrids==1
+    if heteroagentoptions.CustomModelStats_usergrids==1
         heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
         heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
     end
@@ -392,7 +392,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).simoptions.e_gridvals=PTypeStructure.(iistr).vfoptions.e_gridvals; % Note, will be [] if no e
         PTypeStructure.(iistr).simoptions.pi_e=PTypeStructure.(iistr).vfoptions.pi_e; % Note, will be [] if no e
         if isfield(PTypeStructure.(iistr).simoptions,'ExogShockFn') % Note: ExogShockSetup_InfHorz() removed ExogShockFn from vfoptions but not from simoptions
-            if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_origgrids==1
+            if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1
                 heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).z_grid;
                 heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).pi_z;
             end

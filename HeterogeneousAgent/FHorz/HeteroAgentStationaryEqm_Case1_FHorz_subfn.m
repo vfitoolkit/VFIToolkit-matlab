@@ -18,7 +18,9 @@ end
 
 if heteroagentoptions.gridsinGE==1
     % Some of the shock grids depend on parameters that are determined in general eqm
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,simoptions.jequaloneDist_usergrids);
+    % The user's own grids are needed if jequaloneDist as a function is given them, or if CustomModelStats is
+    KeepOriginalGrid=(simoptions.jequaloneDist_usergrids==1 || (heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1));
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,KeepOriginalGrid);
     % Convert z and e to age-dependent joint-grids and transtion matrix
     % Note: Ignores which, just redoes both z and e
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % if no e, this is just empty anyway
@@ -48,12 +50,12 @@ end
 
 %% Custom Model Stats
 if heteroagentoptions.useCustomModelStats==1
-    if heteroagentoptions.CustomModelStats_origgrids==0
+    if heteroagentoptions.CustomModelStats_usergrids==0
         CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
-    elseif heteroagentoptions.CustomModelStats_origgrids==1
-        if heteroagentoptions.gridsinGE==1 % grids depend on GE prices, so the user input grids are not meaningful
-            heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals_J;
-            heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z_J;
+    elseif heteroagentoptions.CustomModelStats_usergrids==1
+        if heteroagentoptions.gridsinGE==1 % grids depend on GE prices, so give the user's own grids as rebuilt from the current prices
+            heteroagentoptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
+            heteroagentoptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
         end
         CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
     end

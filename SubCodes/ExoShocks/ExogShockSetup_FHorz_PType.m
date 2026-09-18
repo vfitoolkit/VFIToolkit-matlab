@@ -1,4 +1,14 @@
-function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz_PType(n_z,z_grid,pi_z,N_j,Names_i,Parameters,options,gridpiboth)
+function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz_PType(n_z,z_grid,pi_z,N_j,Names_i,Parameters,options,gridpiboth,KeepOriginalGrid)
+% KeepOriginalGrid=0 gives the original behaviour (it is a required input).
+% KeepOriginalGrid=1 additionally returns options.user_z_grid and options.user_pi_z,
+% which are the grids in the form the user gave them, rather than the internal
+% joint-grid form. Needed because when using ExogShockFn the user's own grid is
+% created inside ExogShockFn and then converted, so it is otherwise never kept.
+% Like every other output of this command they are made dependent on permanent
+% type, so they are structs with a field per Names_i. When using ExogShockFn each
+% field is age-dependent with age as the last dimension (so the j=1 grid, which is
+% what jequaloneDist as a function needs, is user_z_grid.(Names_i{ii})(:,:,1)).
+% Otherwise each field is exactly what the user passed in for that ptype.
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % options will either be vfoptions or simoptions
 % output: z_gridvals_J, pi_z_J, options.e_gridvals_J, options.pi_e_J
@@ -185,10 +195,17 @@ end
 if zdependsonptype==0
     % Convert to z_gridvals_J (age-dependent joint grids) and corresponding
     % pi_z_J (age-dependent transition matrix).
+    user_z_grid_bare=[]; % only used when KeepOriginalGrid==1
+    user_pi_z_bare=[];
     if prod(n_z)==0
         z_gridvals_J=[];
         pi_z_J=[];
     else
+        if KeepOriginalGrid==1 && ~isfield(options,'ExogShockFn')
+            % No ExogShockFn, so the user's own grids are just the inputs, keep them as given
+            user_z_grid_bare=z_grid;
+            user_pi_z_bare=pi_z;
+        end
         if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
             pi_z_J=[];
             % Now just do z_gridvals_J
@@ -200,7 +217,17 @@ if zdependsonptype==0
                     for ii=1:length(ExogShockFnParamsVec)
                         ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                     end
-                    [z_grid,~]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    if KeepOriginalGrid==1
+                        [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                        if jj==1 % preallocate now that the shape the user works in is known
+                            user_z_grid_bare=zeros([size(z_grid),N_j]);
+                            user_pi_z_bare=zeros([size(pi_z),N_j]);
+                        end
+                        user_z_grid_bare(:,:,jj)=z_grid;
+                        user_pi_z_bare(:,:,jj)=pi_z;
+                    else
+                        [z_grid,~]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    end
                     if all(size(z_grid)==[sum(n_z),1])
                         z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
                     else % already joint-grid
@@ -239,7 +266,17 @@ if zdependsonptype==0
                     for ii=1:length(ExogShockFnParamsVec)
                         ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                     end
-                    [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    if KeepOriginalGrid==1
+                        [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                        if jj==1 % preallocate now that the shape the user works in is known
+                            user_z_grid_bare=zeros([size(z_grid),N_jpiz]);
+                            user_pi_z_bare=zeros([size(pi_z),N_jpiz]);
+                        end
+                        user_z_grid_bare(:,:,jj)=z_grid;
+                        user_pi_z_bare(:,:,jj)=pi_z;
+                    else
+                        [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    end
                     pi_z_J(:,:,jj)=gpuArray(pi_z);
                 end
             else
@@ -272,6 +309,16 @@ if zdependsonptype==0
                         ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                     end
                     [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    if KeepOriginalGrid==1
+                        if jj==1 % preallocate now that the shape the user works in is known
+                            user_z_grid_bare=zeros([size(z_grid),N_j]);
+                            user_pi_z_bare=zeros([size(pi_z),N_jpiz]);
+                        end
+                        user_z_grid_bare(:,:,jj)=z_grid;
+                        if jj<=N_jpiz
+                            user_pi_z_bare(:,:,jj)=pi_z;
+                        end
+                    end
                     if jj<=N_jpiz
                         pi_z_J(:,:,jj)=gpuArray(pi_z);
                     end
@@ -318,9 +365,17 @@ if zdependsonptype==0
     pi_z_J_bare=pi_z_J;
     z_gridvals_J=struct();
     pi_z_J=struct();
+    if KeepOriginalGrid==1
+        options.user_z_grid=struct();
+        options.user_pi_z=struct();
+    end
     for ii=1:length(Names_i)
         z_gridvals_J.(Names_i{ii})=z_gridvals_J_bare;
         pi_z_J.(Names_i{ii})=pi_z_J_bare;
+        if KeepOriginalGrid==1
+            options.user_z_grid.(Names_i{ii})=user_z_grid_bare;
+            options.user_pi_z.(Names_i{ii})=user_pi_z_bare;
+        end
     end
 
 elseif zdependsonptype==1
@@ -340,6 +395,15 @@ elseif zdependsonptype==1
             z_grid_temp=z_grid;
         else
             z_grid_temp=z_grid.(Names_i{ii});
+        end
+        if KeepOriginalGrid==1 && ~isfield(options,'ExogShockFn')
+            % No ExogShockFn, so this ptype's user grids are just the inputs, keep them as given
+            options.user_z_grid.(Names_i{ii})=z_grid_temp;
+            if ~isstruct(pi_z)
+                options.user_pi_z.(Names_i{ii})=pi_z;
+            else
+                options.user_pi_z.(Names_i{ii})=pi_z.(Names_i{ii});
+            end
         end
         if ~isstruct(pi_z)
             pi_z_temp=pi_z;
@@ -364,7 +428,17 @@ elseif zdependsonptype==1
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
                         end
                         temp=options.ExogShockFn.(Names_i{ii});
-                        [z_grid_temp,~]=temp(ExogShockFnParamsCell{:});
+                        if KeepOriginalGrid==1
+                            [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                            if jj==1 % preallocate now that the shape the user works in is known
+                                options.user_z_grid.(Names_i{ii})=zeros([size(z_grid_temp),N_j_temp]);
+                                options.user_pi_z.(Names_i{ii})=zeros([size(pi_z_temp),N_j_temp]);
+                            end
+                            options.user_z_grid.(Names_i{ii})(:,:,jj)=z_grid_temp;
+                            options.user_pi_z.(Names_i{ii})(:,:,jj)=pi_z_temp;
+                        else
+                            [z_grid_temp,~]=temp(ExogShockFnParamsCell{:});
+                        end
                         if all(size(z_grid_temp)==[sum(n_z_temp),1])
                             z_gridvals_J_temp(:,:,jj)=gpuArray(CreateGridvals(n_z_temp,z_grid_temp,1));
                         else % already joint-grid
@@ -405,7 +479,17 @@ elseif zdependsonptype==1
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
                         end
                         temp=options.ExogShockFn.(Names_i{ii});
-                        [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        if KeepOriginalGrid==1
+                            [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                            if jj==1 % preallocate now that the shape the user works in is known
+                                options.user_z_grid.(Names_i{ii})=zeros([size(z_grid_temp),N_jpiz_temp]);
+                                options.user_pi_z.(Names_i{ii})=zeros([size(pi_z_temp),N_jpiz_temp]);
+                            end
+                            options.user_z_grid.(Names_i{ii})(:,:,jj)=z_grid_temp;
+                            options.user_pi_z.(Names_i{ii})(:,:,jj)=pi_z_temp;
+                        else
+                            [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        end
                         pi_z_J_temp(:,:,jj)=gpuArray(pi_z_temp);
                     end
                 else
@@ -439,6 +523,16 @@ elseif zdependsonptype==1
                         end
                         temp=options.ExogShockFn.(Names_i{ii});
                         [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        if KeepOriginalGrid==1
+                            if jj==1 % preallocate now that the shape the user works in is known
+                                options.user_z_grid.(Names_i{ii})=zeros([size(z_grid_temp),N_j_temp]);
+                                options.user_pi_z.(Names_i{ii})=zeros([size(pi_z_temp),N_jpiz_temp]);
+                            end
+                            options.user_z_grid.(Names_i{ii})(:,:,jj)=z_grid_temp;
+                            if jj<=N_jpiz_temp
+                                options.user_pi_z.(Names_i{ii})(:,:,jj)=pi_z_temp;
+                            end
+                        end
                         if jj<=N_jpiz_temp
                             pi_z_J_temp(:,:,jj)=gpuArray(pi_z_temp);
                         end
@@ -501,6 +595,15 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
         else
             z_grid_temp=z_grid.(Names_i{ii});
         end
+        if KeepOriginalGrid==1 && ~isfield(options,'ExogShockFn')
+            % No ExogShockFn, so this ptype's user grids are just the inputs, keep them as given
+            options.user_z_grid.(Names_i{ii})=z_grid_temp;
+            if ~isstruct(pi_z)
+                options.user_pi_z.(Names_i{ii})=pi_z;
+            else
+                options.user_pi_z.(Names_i{ii})=pi_z.(Names_i{ii});
+            end
+        end
         if ~isstruct(pi_z)
             pi_z_temp=pi_z;
         else
@@ -524,7 +627,17 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
                         end
                         temp=options.ExogShockFn.(Names_i{ii});
-                        [z_grid_temp,~]=temp(ExogShockFnParamsCell{:});
+                        if KeepOriginalGrid==1
+                            [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                            if jj==1 % preallocate now that the shape the user works in is known
+                                options.user_z_grid.(Names_i{ii})=zeros([size(z_grid_temp),N_j_temp]);
+                                options.user_pi_z.(Names_i{ii})=zeros([size(pi_z_temp),N_j_temp]);
+                            end
+                            options.user_z_grid.(Names_i{ii})(:,:,jj)=z_grid_temp;
+                            options.user_pi_z.(Names_i{ii})(:,:,jj)=pi_z_temp;
+                        else
+                            [z_grid_temp,~]=temp(ExogShockFnParamsCell{:});
+                        end
                         if all(size(z_grid_temp)==[sum(n_z_temp),1])
                             z_gridvals_J_temp(:,:,jj)=gpuArray(CreateGridvals(n_z_temp,z_grid_temp,1));
                         else % already joint-grid
@@ -583,7 +696,17 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
                         end
                         temp=options.ExogShockFn.(Names_i{ii});
-                        [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        if KeepOriginalGrid==1
+                            [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                            if jj==1 % preallocate now that the shape the user works in is known
+                                options.user_z_grid.(Names_i{ii})=zeros([size(z_grid_temp),N_jpiz_temp]);
+                                options.user_pi_z.(Names_i{ii})=zeros([size(pi_z_temp),N_jpiz_temp]);
+                            end
+                            options.user_z_grid.(Names_i{ii})(:,:,jj)=z_grid_temp;
+                            options.user_pi_z.(Names_i{ii})(:,:,jj)=pi_z_temp;
+                        else
+                            [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        end
                         pi_z_J_temp(:,:,jj)=gpuArray(pi_z_temp);
                     end
                 elseif size(pi_z_temp,ndims(pi_z_temp))==N_i
@@ -624,6 +747,16 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                         end
                         temp=options.ExogShockFn.(Names_i{ii});
                         [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        if KeepOriginalGrid==1
+                            if jj==1 % preallocate now that the shape the user works in is known
+                                options.user_z_grid.(Names_i{ii})=zeros([size(z_grid_temp),N_j_temp]);
+                                options.user_pi_z.(Names_i{ii})=zeros([size(pi_z_temp),N_jpiz_temp]);
+                            end
+                            options.user_z_grid.(Names_i{ii})(:,:,jj)=z_grid_temp;
+                            if jj<=N_jpiz_temp
+                                options.user_pi_z.(Names_i{ii})(:,:,jj)=pi_z_temp;
+                            end
+                        end
                         if jj<=N_jpiz_temp
                             pi_z_J_temp(:,:,jj)=gpuArray(pi_z_temp);
                         end

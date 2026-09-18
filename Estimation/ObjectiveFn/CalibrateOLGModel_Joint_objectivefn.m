@@ -35,9 +35,11 @@ if ~isempty(ParametrizeParamsFn)
 end
 
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
+% The user's own grids are needed if either CustomModelStats is given them
+KeepOriginalGrid=((usingcustomstats==1 && caliboptions.CustomModelStats_usergrids==1) || (heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1));
 if caliboptions.calibrateshocks==1
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,0);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,KeepOriginalGrid);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
@@ -64,23 +66,23 @@ end
 
 %% Custom Model Stats
 if usingcustomstats==1
-    if caliboptions.CustomModelStats_origgrids==0
+    if caliboptions.CustomModelStats_usergrids==0
         CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
-    elseif caliboptions.CustomModelStats_origgrids==1
-        if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so the user input grids are not meaningful
-            caliboptions.CustomModelStatsInputs.z_grid=z_gridvals_J;
-            caliboptions.CustomModelStatsInputs.pi_z=pi_z_J;
+    elseif caliboptions.CustomModelStats_usergrids==1
+        if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so give the user's own grids as rebuilt from the current parameters
+            caliboptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
+            caliboptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
         end
         CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
     end
 end
 if heteroagentoptions.useCustomModelStats==1
-    if heteroagentoptions.CustomModelStats_origgrids==0
+    if heteroagentoptions.CustomModelStats_usergrids==0
         CustomStats2=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
-    elseif heteroagentoptions.CustomModelStats_origgrids==1
-        if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so the user input grids are not meaningful
-            heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals_J;
-            heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z_J;
+    elseif heteroagentoptions.CustomModelStats_usergrids==1
+        if caliboptions.calibrateshocks==1 % shock grids depend on parameters being calibrated, so give the user's own grids as rebuilt from the current parameters
+            heteroagentoptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
+            heteroagentoptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
         end
         CustomStats2=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
     end

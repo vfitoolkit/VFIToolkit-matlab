@@ -43,9 +43,9 @@ end
 
 %% Custom Model Stats
 if heteroagentoptions.useCustomModelStats==1
-    if heteroagentoptions.CustomModelStats_origgrids==0
+    if heteroagentoptions.CustomModelStats_usergrids==0
         CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
-    elseif heteroagentoptions.CustomModelStats_origgrids==1
+    elseif heteroagentoptions.CustomModelStats_usergrids==1
         if heteroagentoptions.gridsinGE==1 % grids depend on GE prices, so the user input grids are not meaningful
             heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
             heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;

@@ -197,12 +197,12 @@ end
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
-    if ~isfield(heteroagentoptions,'CustomModelStats_origgrids')
-        heteroagentoptions.CustomModelStats_origgrids=0; % =0: pass internal z_gridvals & pi_z; =1: pass exactly the z_grid & pi_z the user input
+    if ~isfield(heteroagentoptions,'CustomModelStats_usergrids')
+        heteroagentoptions.CustomModelStats_usergrids=0; % =0: pass internal z_gridvals & pi_z; =1: pass exactly the z_grid & pi_z the user input
     end
     % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise override).
     % So that user gets exactly what they input, not any internally reworked things
-    if heteroagentoptions.CustomModelStats_origgrids==1
+    if heteroagentoptions.CustomModelStats_usergrids==1
         heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
         heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
     end
@@ -294,7 +294,7 @@ if heteroagentoptions.gridsinGE==0
         simoptions.e_gridvals=vfoptions.e_gridvals; % Note, will be [] if no e
         simoptions.pi_e=vfoptions.pi_e; % Note, will be [] if no e
         if isfield(simoptions,'ExogShockFn') % Note: ExogShockSetup_InfHorz() removed ExogShockFn from vfoptions but not from simoptions
-            if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_origgrids==1
+            if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1
                 heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
                 heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
             end
@@ -433,7 +433,7 @@ end
 %% If there is entry and exit, then send to relevant command
 if isfield(simoptions,'agententryandexit')==1
     if simoptions.agententryandexit>=1
-        [p_eqm,p_eqm_index, GeneralEqmConditions]=HeteroAgentStationaryEqm_InfHorz_EntryExit(n_d, n_a, n_z, n_p, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
+        [p_eqm,p_eqm_index, GeneralEqmConditions]=HeteroAgentStationaryEqm_InfHorz_EntryExit(GEparamsvec0, n_d, n_a, n_z, n_p, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
         % The EntryExit codes already set p_eqm as a structure.
         varargout={p_eqm,p_eqm_index,GeneralEqmConditions};
         return
