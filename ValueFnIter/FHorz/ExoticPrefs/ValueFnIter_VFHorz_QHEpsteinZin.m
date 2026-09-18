@@ -152,14 +152,51 @@ for reverse_j = 0:N_j-1
         end
         V_transformed(EV_Source == 0) = 0;
 
-        pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
-        EV_Expected = V_transformed * pi_z_j';
+        % --- Decoupled, Decision-Dependent Expectations ---
+        has_semiz = isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz) > 0;
+        N_semiz_local = 1;
+        N_dsemiz = 1;
+        if has_semiz
+            N_semiz_local = max(1, prod(vfoptions.n_semiz));
+            if isfield(vfoptions, 'l_dsemiz')
+                N_dsemiz = max(1, prod(n_d(end-vfoptions.l_dsemiz+1:end)));
+            else
+                N_dsemiz = max(1, n_d(end));
+            end
+        end
+        N_z_exog = max(1, N_z / N_semiz_local);
+
+        EV_Expected = zeros(N_a, N_semiz_local * N_z_exog, N_dsemiz, 'like', V_transformed);
+
+        % 1. Exogenous Z Transition (Shared across all decisions)
+        if N_z_exog > 1
+            pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3))); % Raw pi_z
+            V_slice = reshape(V_transformed, [N_a * N_semiz_local, N_z_exog]);
+            V_z_eval = V_slice * pi_z_j';
+            V_z_eval = reshape(V_z_eval, [N_a, N_semiz_local, N_z_exog]);
+        else
+            V_z_eval = reshape(V_transformed, [N_a, N_semiz_local, N_z_exog]);
+        end
+
+        % 2. Semi-Exogenous Transition (Decision Dependent)
+        if has_semiz
+            pi_semiz_j = vfoptions.pi_semiz_J(:, :, :, min(jj, size(vfoptions.pi_semiz_J, 4)));
+            V_perm = reshape(permute(V_z_eval, [2, 1, 3]), [N_semiz_local, N_a * N_z_exog]);
+            for idsemiz = 1:N_dsemiz
+                pi_semiz_d = pi_semiz_j(:, :, idsemiz);
+                EV_perm = pi_semiz_d * V_perm;
+                EV_d = permute(reshape(EV_perm, [N_semiz_local, N_a, N_z_exog]), [2, 1, 3]);
+                EV_Expected(:,:,idsemiz) = reshape(EV_d, [N_a, N_semiz_local * N_z_exog]);
+            end
+        else
+            EV_Expected(:,:,1) = reshape(V_z_eval, [N_a, N_semiz_local * N_z_exog]);
+        end
 
         valid_EV = isfinite(EV_Expected) & (EV_Expected ~= 0);
         if ezc6(jj) ~= 1; EV_Expected(valid_EV) = max(EV_Expected(valid_EV), 0).^ezc6(jj); end
         if ezc8(jj) ~= 1; EV_Expected(valid_EV) = max(EV_Expected(valid_EV), 0).^ezc8(jj); end
 
-        EV_flat = reshape(EV_Expected, [N_a * N_z, 1]);
+        EV_flat = reshape(EV_Expected, [N_a * N_z, N_dsemiz]);
     end
 
     % Allocate GPU tensors for THIS period's slices
@@ -167,6 +204,19 @@ for reverse_j = 0:N_j-1
     Valt_j = zeros(N_a, N_z, 'like', a_grid);
     Pol_j = zeros(N_a, N_z, 'like', a_grid);
     if isNaive; Polalt_j = zeros(N_a, N_z, 'like', a_grid); end
+
+    if ~exist('N_dsemiz', 'var'); N_dsemiz = 1; end
+    if N_dsemiz > 1
+        if isfield(vfoptions, 'l_dsemiz')
+            N_d_prefix = max(1, prod(n_d(1:end-vfoptions.l_dsemiz)));
+        else
+            N_d_prefix = max(1, prod(n_d(1:end-1)));
+        end
+        dsemiz_idx = ceil((1:N_d)' / N_d_prefix);
+        dsemiz_idx_tensor = reshape(dsemiz_idx, [N_d, 1, 1, 1, 1]);
+    else
+        dsemiz_idx_tensor = ones(N_d, 1, 1, 1, 1);
+    end
 
     for i_a2 = 1:length(a2_chunks)
         curr_a2 = a2_chunks{i_a2};
@@ -194,7 +244,8 @@ for reverse_j = 0:N_j-1
                 N_a1, N_a2_local, N_d, N_ze_local, Z_cells_local, D_cells_block, ...
                 A1_mat, A2_local, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
                 TensorReturnFn, ReturnFnParamsCell, TensoraprimeFn, aprimeFnParamsCell, ...
-                ezc2(jj), ezc3, ezc4, ezc7(jj), isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'));
+                ezc2(jj), ezc3, ezc4, ezc7(jj), isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'), ...
+                N_dsemiz, dsemiz_idx_tensor);
 
             % Map the local slice back into the global V1_j structure
             start_a_idx = (min(curr_a2) - 1) * N_a1 + 1;
@@ -271,7 +322,7 @@ function [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QHEZ_TensorBlock(...
     N_a1, N_a2, N_d_safe, N_ze_local, Z_cells_block, D_cells_block, ...
     A1_mat, A2_mat, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
     TensorReturnFn, ReturnFnParamsCell, TensoraprimeFn, aprimeFnParamsCell, ...
-    ezc2_j, ezc3, ezc4, ezc7_j, isNaive, isTerminal)
+    ezc2_j, ezc3, ezc4, ezc7_j, isNaive, isTerminal, N_dsemiz, dsemiz_idx_tensor)
 
 % 1. Build A1 and A2 Cells dynamically
 num_a1 = size(A1_mat, 2);
@@ -299,16 +350,13 @@ end
 if l_a2 > 0
     % ExpAsset Transition Interpolation
     A2_prime = TensoraprimeFn(D_cells_block{:}, A2_cells{:}, Z_cells_block{:}, aprimeFnParamsCell{:});
-
     a2_grid_1d_vec = a2_grids_1d{1};
     a2_min = a2_grid_1d_vec(1);
     a2_max = a2_grid_1d_vec(end);
     a2_prime_clipped = max(a2_min, min(A2_prime, a2_max));
-
     idx = discretize(a2_prime_clipped, a2_grid_1d_vec);
     idx(isnan(idx)) = N_a2 - 1;
     idx = max(1, min(idx, N_a2 - 1));
-
     a2_left = reshape(a2_grid_1d_vec(idx), size(idx));
     a2_right = reshape(a2_grid_1d_vec(idx+1), size(idx));
     weight = (a2_prime_clipped - a2_left) ./ (a2_right - a2_left);
@@ -316,20 +364,26 @@ if l_a2 > 0
 
     A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
     ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
-
     idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
     idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
 
-    EV_left  = EV_local(idx_left);
-    EV_right = EV_local(idx_right);
+    max_idx_row = N_a1 * N_a2 * N_ze_local;
+    linear_idx_left  = idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row;
+    linear_idx_right = idx_right + (dsemiz_idx_tensor - 1) * max_idx_row;
+
+    EV_left  = EV_local(linear_idx_left);
+    EV_right = EV_local(linear_idx_right);
     EV_bounded = EV_left + weight .* (EV_right - EV_left);
 else
     % Standard Endogenous
-    EV_flat = reshape(EV_local, [N_a1 * N_ze_local, 1]);
     apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
     ZE_idx = reshape(0:N_ze_local-1, [1, 1, 1, 1, N_ze_local]);
-    linear_idx = apr_idx_tensor + ZE_idx * N_a1;
-    EV_bounded = reshape(EV_flat(linear_idx(:)), size(linear_idx));
+    idx_base = apr_idx_tensor + ZE_idx * N_a1;
+
+    max_idx_row = N_a1 * N_ze_local;
+    linear_idx = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
+
+    EV_bounded = reshape(EV_local(linear_idx(:)), size(linear_idx));
 end
 
 % 4. DUAL TRACKING

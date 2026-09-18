@@ -286,13 +286,15 @@ if isfield(vfoptions, 'semiz_gridvals_J') && ~isempty(vfoptions.semiz_gridvals_J
 
     % 2. Get the z grid
     if N_z > 0
-        z_J = repmat(z_grid(:), [1, 1, num_periods]);
+        z_J = repmat(z_grid, [1, 1, num_periods]); % <-- Flattening removed
+        num_z_vars = size(z_grid, 2);
     else
         z_J = [];
+        num_z_vars = 0;
     end
-
+    
     % 3. Combine them via Kronecker expansion for each period
-    z_gridvals_J = zeros(N_semiz * max(1, N_z), num_semiz_vars + (N_z>0), num_periods, 'like', sz_J);
+    z_gridvals_J = zeros(N_semiz * max(1, N_z), num_semiz_vars + num_z_vars, num_periods, 'like', sz_J);
     for t = 1:num_periods
         if N_z > 0
             % Repeat semiz for every z
@@ -305,17 +307,10 @@ if isfield(vfoptions, 'semiz_gridvals_J') && ~isempty(vfoptions.semiz_gridvals_J
         end
     end
 
-    % 4. Combine transition matrices
-    if N_z > 0
-        pi_z_J = zeros(N_semiz * N_z, N_semiz * N_z, num_periods, 'like', vfoptions.pi_semiz_J);
-        for t = 1:num_periods
-            pi_z_J(:,:,t) = kron(vfoptions.pi_semiz_J(:,:,t), pi_z);
-        end
-        n_combined_z = [vfoptions.n_semiz, n_z];
-    else
-        pi_z_J = vfoptions.pi_semiz_J;
-        n_combined_z = vfoptions.n_semiz;
-    end
+    % 4. Combine (but not densely) the transition matrices
+    % Pass raw pi_z, QHEZ will decouple and apply it sequentially.
+    pi_z_J = pi_z;
+    n_combined_z = [vfoptions.n_semiz, n_z];
 else
     % Fallback to standard z
     z_gridvals_J = z_grid;
