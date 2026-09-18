@@ -633,15 +633,21 @@ else % flgresume
     
   % initialize random number generator
   if ischar(opts.Seed)
-    randn('state', eval(opts.Seed));     % random number generator state
+    startseed = eval(opts.Seed);
   else
-    randn('state', opts.Seed);
+    startseed = opts.Seed;
   end
+  startseed = mod(floor(startseed), 2^32); % rng() wants a non-negative integer below 2^32; the default Seed, sum(100*clock), is fractional
+  % Note: this used to be randn('state',startseed). That call switches the ENTIRE MATLAB session
+  % into legacy random number mode, and every later rng() call then errors out -- not just in cmaes,
+  % but in whatever the user runs next in the same session. rng(seed,'twister') seeds just as
+  % deterministically without that side effect. startseed is now the scalar seed itself (it used to
+  % be the legacy 2-element state vector), which is also what a restart actually wants.
+  rng(startseed, 'twister');
   %qqq
 %  load(opts.SaveFilename, 'startseed');
-%  randn('state', startseed);
+%  rng(startseed, 'twister');
 %  disp(['SEED RELOADED FROM ' opts.SaveFilename]);
-  startseed = randn('state');         % for retrieving in saved variables
 
   % Initialize further constants
   chiN=N^0.5*(1-1/(4*N)+1/(21*N^2));  % expectation of 
@@ -667,7 +673,7 @@ else % flgresume
       filenames(end+1) = {'stddev'};
       filenames(end+1) = {'xmean'};
       filenames(end+1) = {'xrecentbest'};
-      str = [' (startseed=' num2str(startseed(2)) ...
+      str = [' (startseed=' num2str(startseed) ...
              ', ' num2str(clock, '%d/%02d/%d %d:%d:%2.2f') ')'];
       for namecell = filenames(:)'
         name = namecell{:};
