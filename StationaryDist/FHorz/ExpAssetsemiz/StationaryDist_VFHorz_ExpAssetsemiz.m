@@ -71,6 +71,7 @@ for j_pi = 1:N_j_pi
     end
 end
 sz_to_idx = cast(sz_to_idx, 'like', pi_semiz_J); % Push to GPU if necessary
+clear pi_semiz_J
 
 % --- 4. Output Allocation ---
 if isscalar(n_a)
@@ -78,7 +79,7 @@ if isscalar(n_a)
 else
     n_a_out = [n_a1, n_a2];
 end
-StationaryDist = zeros([N_a1, N_a2, N_semiz, N_z_safe, N_j], 'like', jequaloneDist);
+StationaryDist = zeros([N_a1, N_a2, N_semiz, N_z_safe, N_j], simoptions.precision);
 Dist_curr = reshape(jequaloneDist, [N_states, 1]);
 
 % Construct full-size state coordinate vectors
@@ -137,6 +138,8 @@ for jj = 1:N_j
     if N_z_safe > 1
         z_work_j = z_gridvals_J(:, :, min(jj, size(z_gridvals_J, 3)));
         [d2_mesh, a2_mesh, z_idx_mesh] = ndgrid(d2_gridvals(:), a2_grid(:), 1:N_z_safe);
+        d2_mesh = gpuArray(d2_mesh);
+        a2_mesh = gpuArray(a2_mesh);
         z_mesh_cells = cell(1, length(n_z));
         for iz = 1:length(n_z)
             z_mesh_cells{iz} = z_work_j(z_idx_mesh, iz);
@@ -216,7 +219,7 @@ for jj = 1:N_j
 
     % Preallocate Accumulation Arrays to prevent dynamic reshaping
     idx_acc = zeros(N_states * max_trans * alloc_mult, 1, 'double');
-    mass_acc = zeros(N_states * max_trans * alloc_mult, 1, 'like', Dist_curr);
+    mass_acc = zeros(N_states * max_trans * alloc_mult, 1, simoptions.precision);
     counter = 0;
 
     for tr = 1:max_trans
