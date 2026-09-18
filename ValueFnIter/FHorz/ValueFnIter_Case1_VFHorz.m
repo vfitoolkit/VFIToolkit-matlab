@@ -264,11 +264,44 @@ if vfoptions.parallel == 2
 end
 
 %% Semi-exogenous shock gridvals and pi
-if vfoptions.alreadygridvals_semiexo==0
-    if prod(vfoptions.n_semiz)>0
-        % Default AgeDependence=1 (Bypassed if master script passes alreadygridvals_semiexo=1)
-        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 1);
+%% Exogenous shock gridvals and pi
+if isfield(vfoptions, 'semiz_gridvals_J') && ~isempty(vfoptions.semiz_gridvals_J)
+    % --- Complex Semi-Exogenous Expansion Path ---
+    sz_J = vfoptions.semiz_gridvals_J;
+    N_semiz = size(sz_J, 1);
+    num_semiz_vars = size(sz_J, 2);
+    num_periods = size(sz_J, 3);
+
+    if N_z > 0
+        z_J = repmat(z_grid, [1, 1, num_periods]);
+        num_z_vars = size(z_grid, 2);
+    else
+        z_J = [];
+        num_z_vars = 0;
     end
+
+    z_gridvals_J = zeros(N_semiz * max(1, N_z), num_semiz_vars + num_z_vars, num_periods, 'like', sz_J);
+    for t = 1:num_periods
+        if N_z > 0
+            semiz_expanded = kron(sz_J(:,:,t), ones(N_z, 1));
+            z_expanded = kron(ones(N_semiz, 1), z_J(:,:,t));
+            z_gridvals_J(:,:,t) = [semiz_expanded, z_expanded];
+        else
+            z_gridvals_J(:,:,t) = sz_J(:,:,t);
+        end
+    end
+    pi_z_J = pi_z;
+    n_combined_z = [vfoptions.n_semiz, n_z];
+else
+    % --- Simple Standard Z Path (Zero Overhead) ---
+    if N_j > 1 && size(z_grid, ndims(z_grid)) ~= N_j
+        % Replicate across periods if static
+        z_gridvals_J = repmat(z_grid, [1, 1, N_j]);
+    else
+        z_gridvals_J = z_grid;
+    end
+    pi_z_J = pi_z;
+    n_combined_z = n_z;
 end
 
 N_d = prod(n_d);
@@ -377,7 +410,7 @@ a1_grid_vals = a_grid(1:a1_grid_len);
 a2_grid_vals = a_grid(a1_grid_len+1:end);
 
 % Pack D and A1 (Endogenous)
-[TensorReturnFn, D_cells_block, A1_cells, Z_cells, E_cells] = CreateTensorFnAndCells(ReturnFn, n_d, n_a1, 0, 0, d_grid, a1_grid_vals, [], []);
+[TensorReturnFn, D_cells_block, A1_cells, Z_cells, E_cells] = CreateTensorFnAndCells(ReturnFn, n_d, n_a1, n_combined_z, n_e_pass, d_grid, a1_grid_vals, [], []);
 
 % Pack A2 (Experience)
 if l_a2 > 0
@@ -527,8 +560,17 @@ end
 
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
-    if jj == N_j && isfield(vfoptions, 'V_Jplus1') && ~isempty(vfoptions.V_Jplus1)
-        V_next = reshape(gpuArray(vfoptions.V_Jplus1), [N_a, N_z_safe]);
+    if jj == N_j && (~isfield(vfoptions, 'V_Jplus1') || isempty(vfoptions.V_Jplus1))
+        if warmglow == 1
+            % Evaluate WarmGlowBequestsFn across terminal asset choices
+            % (Assuming a_grid serves as the terminal asset choice grid for bequests)
+            wg_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
+            % Evaluate terminal warm glow across the asset space
+            V_warmglow = vfoptions.WarmGlowBequestsFn(a_grid, wg_params{:});
+            V_next = repmat(V_warmglow, [1, N_z_safe, n_e_work]);
+        else
+            V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
+        end
     end
 
     ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj, vfoptions.precision);
@@ -596,6 +638,9 @@ for reverse_j = 0:N_j-1
         end
     end
 
+    % sj is ones by default, but vfoptions and Parameters can change that
+    EV = EV * sj(jj);
+
     % --- EZ Certainty Equivalent Reverse Transformation ---
     valid_EV = isfinite(EV) & (EV ~= 0);
     if ezc6(jj) ~= 1
@@ -613,12 +658,6 @@ for reverse_j = 0:N_j-1
     ZE_e_idx = E_mesh(:);
 
     % --- The Master Orchestrator Pre-Computation ---
-    % --- Clean Z Grid Local Setup (Avoiding Kronecker/ndgrid blowups) ---
-    z_gridvals_j_local = [];
-    if n_z_work > 1 && ~isempty(z_gridvals_J)
-        z_gridvals_j_local = z_gridvals_J(:, :, min(jj, size(z_gridvals_J, 3)));
-    end
-
     N_d_safe = max(1, N_d);
 
     % Allocate GPU tensors for THIS period's slices
@@ -653,10 +692,10 @@ for reverse_j = 0:N_j-1
             EV_local  = EV_flat_ze(:, curr_ze, :);
 
             if has_semiz || has_z
-                num_z_vars = size(z_gridvals_j_local, 2);
+                num_z_vars = size(z_gridvals_J, 2);
                 Z_cells_local = cell(1, num_z_vars);
                 for iz = 1:num_z_vars
-                    Z_cells_local{iz} = reshape(z_gridvals_j_local(ZE_z_idx(curr_ze), iz), [1, 1, 1, 1, N_ze_local]);
+                    Z_cells_local{iz} = reshape(z_gridvals_J(ZE_z_idx(curr_ze), iz), [1, 1, 1, 1, N_ze_local]);
                 end
             else
                 Z_cells_local = {};
@@ -726,10 +765,10 @@ for reverse_j = 0:N_j-1
                 EV_local  = EV_flat_ze(start_idx : end_idx);
 
                 if has_semiz || has_z
-                    num_z_vars = size(z_gridvals_j_local, 2);
+                    num_z_vars = size(z_gridvals_J, 2);
                     Z_cells_local = cell(1, num_z_vars);
                     for iz = 1:num_z_vars
-                        Z_cells_local{iz} = reshape(z_gridvals_j_local(ZE_z_idx(curr_ze), iz), [1, 1, 1, 1, N_ze_local]);
+                        Z_cells_local{iz} = reshape(z_gridvals_J(ZE_z_idx(curr_ze), iz), [1, 1, 1, 1, N_ze_local]);
                     end
                 else
                     Z_cells_local = {};
