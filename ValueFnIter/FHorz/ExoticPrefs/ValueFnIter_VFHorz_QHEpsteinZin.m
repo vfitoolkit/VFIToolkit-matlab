@@ -364,12 +364,14 @@ if l_a2 > 0
 
     A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
     ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
+    
+    % --- CORRECTED MULTI-SHOCK INDEXING OFFSET ---
     idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
     idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
 
-    max_idx_row = N_a1 * N_a2 * N_ze_local;
-    linear_idx_left  = idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row;
-    linear_idx_right = idx_right + (dsemiz_idx_tensor - 1) * max_idx_row;
+    max_idx_row = size(EV_local, 1); % Dynamically match EV_local dimensions
+    linear_idx_left  = min(max_idx_row, max(1, idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row));
+    linear_idx_right = min(max_idx_row, max(1, idx_right + (dsemiz_idx_tensor - 1) * max_idx_row));
 
     EV_left  = EV_local(linear_idx_left);
     EV_right = EV_local(linear_idx_right);
