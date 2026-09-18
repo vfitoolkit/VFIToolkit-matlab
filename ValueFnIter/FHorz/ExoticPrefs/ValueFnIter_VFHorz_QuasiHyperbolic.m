@@ -81,7 +81,7 @@ end
 V1 = zeros(N_a, N_z, N_j, 'like', a_grid);
 Valt = zeros(N_a, N_z, N_j, 'like', a_grid);
 
-has_GI = vfoptions.gridinterplayer == 1;
+has_GI = vfoptions.gridinterplayer(1) == 1;
 if has_GI
     Policy = zeros(3, N_a, N_z, N_j, 'like', a_grid);
     if isNaive; Policyalt = zeros(3, N_a, N_z, N_j, 'like', a_grid); else; Policyalt = cast([],vfoptions.precision); end

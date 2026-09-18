@@ -2,7 +2,7 @@ function [V_max, Pol_apr, Pol_d1, Pol_L2idx, Pol_L2flag] = ValueFnIter_DC1_Slice
 % Universal CPU Divide-and-Conquer (n-Monotonicity) Slicer
 % Accepts a function handle (EvalBlockFn) to evaluate dense tensor blocks
 
-gridinterplayer = isfield(vfoptions, 'gridinterplayer') && vfoptions.gridinterplayer == 1;
+gridinterplayer = vfoptions.gridinterplayer(1) == 1;
 
 % 1. Setup Anchors
 level1ii = round(linspace(1, N_a1, vfoptions.level1n));
