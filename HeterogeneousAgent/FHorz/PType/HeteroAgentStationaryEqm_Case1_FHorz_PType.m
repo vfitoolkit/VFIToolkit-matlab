@@ -452,7 +452,7 @@ for ii=1:PTypeStructure.N_i
             heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).vfoptions.user_z_grid; % this ptype's own grids, as the user gave them
             heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).vfoptions.user_pi_z;
         end
-        PTypeStructure.(iistr).simoptions=rmfield(simoptions,'ExogShockFn');
+        PTypeStructure.(iistr).simoptions=rmfield(PTypeStructure.(iistr).simoptions,'ExogShockFn');
     end
     % Regardless of whether they are done here of in _subfn, they will be precomputed by the time we get to the value fn, stationary dist, etc. So
     PTypeStructure.(iistr).vfoptions.alreadygridvals=1;
