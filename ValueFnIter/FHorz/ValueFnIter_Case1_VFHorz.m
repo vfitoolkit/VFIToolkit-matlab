@@ -410,7 +410,7 @@ a1_grid_vals = a_grid(1:a1_grid_len);
 a2_grid_vals = a_grid(a1_grid_len+1:end);
 
 % Pack D and A1 (Endogenous)
-[TensorReturnFn, D_cells_block, A1_cells, Z_cells, E_cells] = CreateTensorFnAndCells(ReturnFn, n_d, n_a1, n_combined_z, n_e_pass, d_grid, a1_grid_vals, [], []);
+[TensorReturnFn, D_cells_block, A1_cells, ~, ~] = CreateTensorFnAndCells(ReturnFn, n_d, n_a1, n_combined_z, n_e_pass, d_grid, a1_grid_vals, [], []);
 
 % Pack A2 (Experience)
 if l_a2 > 0
@@ -560,6 +560,11 @@ end
 
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
+
+    if vfoptions.verbose==1
+        fprintf('Finite horizon: %i of %i \n',jj, N_j)
+    end
+
     if jj == N_j && (~isfield(vfoptions, 'V_Jplus1') || isempty(vfoptions.V_Jplus1))
         if warmglow == 1
             % Evaluate WarmGlowBequestsFn across terminal asset choices
@@ -581,6 +586,29 @@ for reverse_j = 0:N_j-1
         aprimeFnParamsCell = CreateCellFromParams(Parameters, aprimeFnParamNames, jj);
     else
         aprimeFnParamsCell = {};
+    end
+
+    % Pre-cell-ify the full z and e grids once per period rather than calling cellfun/reshape repeatedly
+    if has_semiz || has_z
+        z_current_slice = z_gridvals_J(:,:,min(jj, size(z_gridvals_J,3)));
+        num_z_vars = size(z_current_slice, 2);
+        Z_cells = cell(1, num_z_vars);
+        for iz = 1:num_z_vars
+            Z_cells{iz} = z_current_slice(:, iz);
+        end
+    else
+        Z_cells = {};
+    end
+
+    % Do we need to handle e_gridvals_J?
+    if has_e
+        num_e_vars = size(e_work, 2);
+        E_cells = cell(1, num_e_vars);
+        for ie = 1:num_e_vars
+            E_cells{ie} = e_work(:, ie);
+        end
+    else
+        E_cells = {};
     end
 
     % --- EZ V_next Transformation ---
@@ -691,11 +719,17 @@ for reverse_j = 0:N_j-1
             end_idx   = max(curr_ze) * N_a;
             EV_local  = EV_flat_ze(:, curr_ze, :);
 
+            chunk_z_vals = unique(ZE_z_idx(curr_ze));
+            chunk_e_vals = unique(ZE_e_idx(curr_ze));
+            n_z_loc = length(chunk_z_vals);
+            n_e_loc = length(chunk_e_vals);
+
             if has_semiz || has_z
                 num_z_vars = size(z_gridvals_J, 2);
                 Z_cells_local = cell(1, num_z_vars);
                 for iz = 1:num_z_vars
-                    Z_cells_local{iz} = reshape(z_gridvals_J(ZE_z_idx(curr_ze), iz), [1, 1, 1, 1, N_ze_local]);
+                    % Map z strictly to the 4th dimension: [1, 1, 1, n_z_loc, 1]
+                    Z_cells_local{iz} = reshape(z_gridvals_J(chunk_z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
                 end
             else
                 Z_cells_local = {};
@@ -705,7 +739,8 @@ for reverse_j = 0:N_j-1
                 num_e_vars = size(e_work, 2);
                 E_cells_local = cell(1, num_e_vars);
                 for ie = 1:num_e_vars
-                    E_cells_local{ie} = reshape(e_work(ZE_e_idx(curr_ze), ie), [1, 1, 1, 1, N_ze_local]);
+                    % Map e strictly to the 5th dimension: [1, 1, 1, 1, n_e_loc]
+                    E_cells_local{ie} = reshape(e_work(chunk_e_vals, ie), [1, 1, 1, 1, n_e_loc]);
                 end
             else
                 E_cells_local = {};
@@ -927,8 +962,7 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
     TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor)
 
-% Inside Evaluate_Case1_TensorBlock, when building A2_mat or slicing:
-% Instead of assuming state_idx starts at 1, map state_idx relative to the current chunk:
+% Map state_idx relative to the current chunk for Divide-and-Conquer
 local_state_idx = state_idx - min(state_idx) + 1;
 N_block = length(local_state_idx);
 
@@ -943,11 +977,11 @@ end
 
 % 2. Evaluate ReturnFn with raw numeric arrays for A2
 if l_a2 > 0
-    N_a2 = size(A2_mat, 1);
+    N_a2_dims = size(A2_mat, 1);
     num_a2 = size(A2_mat, 2);
     A2_cells = cell(1, num_a2);
     for ia = 1:num_a2
-        A2_cells{ia} = reshape(A2_mat(:,ia), [1, 1, 1, N_a2, 1]);
+        A2_cells{ia} = reshape(A2_mat(:,ia), [1, 1, 1, N_a2_dims, 1]);
     end
     F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 else
@@ -957,14 +991,14 @@ end
 % 3. Format Expected Values (EV_bounded)
 if l_a2 > 0
     % ExpAsset Transition Interpolation
-    A2_prime = TensoraprimeFn(D_cells_block{:}, A2_cells{:}, Z_cells_block{:}, aprimeFnParamsCell{:});
+    A2_prime = TensoraprimeFn(D_cells_block{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, aprimeFnParamsCell{:});
     a2_grid_1d_vec = a2_grids_1d{1};
     a2_min = a2_grid_1d_vec(1);
     a2_max = a2_grid_1d_vec(end);
     a2_prime_clipped = max(a2_min, min(A2_prime, a2_max));
     idx = discretize(a2_prime_clipped, a2_grid_1d_vec);
-    idx(isnan(idx)) = N_a2 - 1;
-    idx = max(1, min(idx, N_a2 - 1));
+    idx(isnan(idx)) = N_a2_dims - 1;
+    idx = max(1, min(idx, N_a2_dims - 1));
     a2_left = reshape(a2_grid_1d_vec(idx), size(idx));
     a2_right = reshape(a2_grid_1d_vec(idx+1), size(idx));
     weight = (a2_prime_clipped - a2_left) ./ (a2_right - a2_left);
@@ -973,11 +1007,11 @@ if l_a2 > 0
     A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
     ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
 
-    % --- CORRECTED MULTI-SHOCK INDEXING OFFSET ---
-    idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
-    idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
+    % Multi-shock indexing offset for Experience Asset models
+    idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
+    idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
 
-    max_idx_row = size(EV_local, 1); % Dynamically match EV_local dimensions
+    max_idx_row = size(EV_local, 1);
     linear_idx_left  = min(max_idx_row, max(1, idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row));
     linear_idx_right = min(max_idx_row, max(1, idx_right + (dsemiz_idx_tensor - 1) * max_idx_row));
 
@@ -985,44 +1019,55 @@ if l_a2 > 0
     EV_right = EV_local(linear_idx_right);
     EV_bounded = EV_left + weight .* (EV_right - EV_left);
 else
-    % Standard Endogenous
+    % Standard Endogenous (Unmixed Shocks: Z and E orthogonal)
     apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
-    ZE_idx = reshape(0:N_ze_local-1, [1, 1, 1, 1, N_ze_local]);
-    idx_base = apr_idx_tensor + ZE_idx * N_a1;
 
-    max_idx_row = N_a1 * N_ze_local;
+    % If n_z_work and n_e_work are available in scope, use them directly,
+    % or derive them from N_ze_local (e.g., N_z = 21, N_e = 3 -> 21 * 3 = 63)
+    % For a robust fix assuming standard Z and E breakdown:
+    n_z_loc = size(Z_cells_block{1}, 4); % Extracted from Z cell dimension
+    n_e_loc = size(E_cells_block{1}, 5); % Extracted from E cell dimension
+
+    z_idx_tensor = reshape(1:n_z_loc, [1, 1, 1, n_z_loc, 1]);
+    e_idx_tensor = reshape(1:n_e_loc, [1, 1, 1, 1, n_e_loc]);
+
+    % Rebuild index base incorporating both shock dimensions independently
+    % (Assuming standard row-major or column-major stride for z and e)
+    idx_base = apr_idx_tensor + (z_idx_tensor - 1) * N_a1 + (e_idx_tensor - 1) * (N_a1 * n_z_loc);
+
+    max_idx_row = N_a1 * n_z_loc * n_e_loc;
     linear_idx = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
 
-    EV_bounded = reshape(EV_local(linear_idx(:)), size(linear_idx));
+    EV_bounded = reshape(EV_local(linear_idx(:)), [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]);
 end
 
 % --- 4. RHS Evaluation, Choice Optimization, and State Slicing ---
 FLAT_CHOICES = max(1, N_d_safe) * N_a1;
 if l_a2 > 0
-    N_a = N_a1 * N_a2;
+    N_a_total = N_a1 * N_a2;
 else
-    N_a = N_a1;
+    N_a_total = N_a1;
 end
-
-FLAT_STATES  = N_a * N_ze_local;
+FLAT_STATES  = N_a_total * N_ze_local;
 
 RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 RHS_flat = reshape(RHS, [FLAT_CHOICES, FLAT_STATES]);
-
 [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
 
 d_idx_local   = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
 apr_idx_local = ceil(Pol_sub_idx / max(1, N_d_safe));
 
 % Reshape to full grid size first
-V_full        = reshape(V_sub_coarse,   [N_a, N_ze_local]);
-Pol_apr_full  = reshape(apr_idx_local, [N_a, N_ze_local]);
-Pol_d_full    = reshape(d_idx_local,   [N_a, N_ze_local]);
+V_full        = reshape(V_sub_coarse,   [N_a_total, N_ze_local]);
+Pol_apr_full  = reshape(apr_idx_local, [N_a_total, N_ze_local]);
+Pol_d_full    = reshape(d_idx_local,   [N_a_total, N_ze_local]);
 
-% Sub-select ONLY the requested state_idx rows (crucial for D&C compatibility)
+% Sub-select ONLY the requested state_idx rows (crucial for Divide-and-Conquer)
 V_j_max        = V_full(state_idx, :);
 Pol_apr_max    = Pol_apr_full(state_idx, :);
 Pol_d_max      = Pol_d_full(state_idx, :);
 Pol_L2idx_max  = [];
 Pol_L2flag_max = [];
+
+
 end
