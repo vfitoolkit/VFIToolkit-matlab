@@ -514,7 +514,7 @@ if vfoptions.gridinterplayer(1) == 1
     a1_left = a1_work(interp_left_idx);
     a1_right = a1_work(interp_right_idx);
     interp_weights = (a1prime_grid(:) - a1_left) ./ (a1_right - a1_left);
-    interp_weights(a1_right == a1_left) = 0; 
+    interp_weights(a1_right == a1_left) = 0;
 
     % Move to GPU if necessary
     if vfoptions.parallel == 2
@@ -788,34 +788,35 @@ for reverse_j = 0:N_j-1
             z_offset_local = meta.z_offset_local;
             z_offset_fine_local = meta.z_offset_fine_local;
 
-            if has_semiz || has_z
-                % ... reshape Z_cells_local using meta.z_vals
-                Z_cells_local{iz} = reshape(z_gridvals_J(meta.z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
-            end
-            if has_e
-                % ... reshape E_cells_local using meta.e_vals
-                E_cells_local{ie} = reshape(e_work(meta.e_vals, ie), [1, 1, 1, 1, n_e_loc]);
-            end
-
+            % 1. Extract the actual grid indices for this chunk
             curr_ze = ze_chunks{i_ze};
             N_ze_local = length(curr_ze);
 
-            % 1. Slice EV and setup shock cells for this chunk
-            EV_local  = EV_flat_ze(:, curr_ze, :);
+            % 2. Slice EV and setup shock cells for this chunk
+            EV_local = EV_flat_ze(:, curr_ze, :);
 
             if has_semiz || has_z
-                Z_cells_local{iz} = reshape(z_gridvals_J(meta.z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
+                num_z_vars = size(z_gridvals_J, 2);
+                Z_cells_local = cell(1, num_z_vars);
+                for iz = 1:num_z_vars
+                    Z_cells_local{iz} = reshape(z_gridvals_J(meta.z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
+                end
             else
                 Z_cells_local = {};
             end
 
             if has_e
-                E_cells_local{ie} = reshape(e_work(meta.e_vals, ie), [1, 1, 1, 1, n_e_loc]);
+                num_e_vars = size(e_work, 2);
+                E_cells_local = cell(1, num_e_vars);
+                for ie_var = 1:num_e_vars
+                    E_cells_local{ie_var} = reshape(e_work(meta.e_vals, ie_var), [1, 1, 1, 1, n_e_loc]);
+                end
             else
                 E_cells_local = {};
             end
 
-            if vfoptions.gridinterplayer(1) == 1% Flatten EV_local to [N_a, N_cols] for 2D indexing
+            % 3. Flatten EV_local to [N_a, N_cols] for 2D indexing
+            if vfoptions.gridinterplayer(1) == 1
                 N_cols = N_ze_local * N_dsemiz;
                 EV_2d = reshape(EV_local, [N_a, N_cols]);
 
@@ -829,7 +830,7 @@ for reverse_j = 0:N_j-1
                 EV_interp_local = [];
             end
 
-            % 2. Bind LocalBlockFn passing unmixed global dimensions for broadcasting
+            % 4. Bind LocalBlockFn passing unmixed global dimensions for broadcasting
             LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
                 state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
@@ -985,7 +986,7 @@ end
 
 %% Smart Policy Unpacking (System RAM Handoff)
 % MATLAB GPUs enforce a strict 32-bit signed integer limit for array indexing (~2.14B).
-% We check the total size: if safe, we do a high-speed bulk unpack. 
+% We check the total size: if safe, we do a high-speed bulk unpack.
 % If massive, we fall back to the iterative memory-safe loop.
 
 disp('Unpacking Policy tensor to System RAM...');
@@ -994,7 +995,7 @@ n_daprime_col = n_daprime(:);
 divisors = cumprod([1; n_daprime_col(1:end-1)]);
 
 total_elements = num_pol_vars * n_a_work * n_z_work * n_e_work * N_j;
-MAX_INT32 = 2147483647; 
+MAX_INT32 = 2147483647;
 
 if total_elements < (MAX_INT32 * 0.9) % 90% safety margin threshold
     % --- FAST PATH: Single Bulk Operation ---
