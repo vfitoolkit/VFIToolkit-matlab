@@ -72,6 +72,10 @@ end
 TensorReturnFn = CreateTensorBridge(ReturnFn);
 TensorAprimeFn = CreateTensorBridge(aprimeFn);
 
+if warmglow == 1
+    TensorWG_Fn = CreateTensorBridge(vfoptions.WarmGlowBequestsFn);
+end
+
 % =========================================================
 % TIME LOOP
 % =========================================================
@@ -97,10 +101,6 @@ for jj = N_j : -1 : 1
     % ---------------------------------------------------------
     if warmglow == 1
         WG_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
-
-        % FIX: Wrap the Warm Glow function in the Tensor Bridge to guarantee
-        % element-by-element evaluation and prevent scalar -Inf broadcasting!
-        TensorWG_Fn = CreateTensorBridge(vfoptions.WarmGlowBequestsFn);
         WG_raw = TensorWG_Fn(a2_grid, WG_params{:});
 
         if isscalar(WG_raw)
