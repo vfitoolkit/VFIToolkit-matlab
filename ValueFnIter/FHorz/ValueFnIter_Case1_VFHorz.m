@@ -117,45 +117,51 @@ if isempty(ReturnFnParamNames)
     else
         temp = getAnonymousFnInputNames(ReturnFn);
 
-        num_d_vars = length(n_d);
-        if num_d_vars == 1 && n_d(1) == 0; num_d_vars = 0; end
-        num_a_vars = length(n_a);
-        num_z_vars = length(n_z);
-        if num_z_vars == 1 && n_z(1) == 0; num_z_vars = 0; end
-
-        is_exp  = vfoptions.experienceasset > 0;
-        is_expz = vfoptions.experienceassetz > 0;
-        has_semiz = prod(vfoptions.n_semiz) > 0;
-        has_e = prod(vfoptions.n_e) > 0;
-
-        if is_exp || is_expz
-            if is_exp
-                l_a2 = vfoptions.experienceasset;
-            else
-                l_a2 = vfoptions.experienceassetz;
-            end
-            num_a1 = num_a_vars - l_a2;
-            num_a2 = l_a2;
-
-            % ExpAsset structure: D, A1prime, A1, A2, Z
-            num_prefix_args = num_d_vars + 2*num_a1 + num_a2 + num_z_vars;
-            if has_semiz
-                num_prefix_args = num_prefix_args + length(vfoptions.n_semiz);
-            end
-        elseif vfoptions.riskyasset == 1
-            num_u_vars = length(vfoptions.n_u);
-            % RiskyAsset structure: D, A1prime, A2prime, A1, A2, Z, U
-            num_prefix_args = num_d_vars + 4 + num_z_vars + num_u_vars;
-            if has_semiz
-                num_prefix_args = num_prefix_args + length(vfoptions.n_semiz);
-            end
+        % 1. Count Decision Variables (D)
+        % Safely handles scalar 0, empty arrays, or multi-dimensional flags
+        if isequal(n_d, 0) || isempty(n_d)
+            num_d_vars = 0;
         else
-            % Standard Case: D, Aprime, A, Z, E
-            num_prefix_args = num_d_vars + 2*num_a_vars + num_z_vars;
-            if has_e
-                num_prefix_args = num_prefix_args + length(vfoptions.n_e);
-            end
+            num_d_vars = length(n_d);
         end
+
+        % 2. Count Exogenous Variables (Z)
+        if isequal(n_z, 0) || isempty(n_z)
+            num_z_vars = 0;
+        else
+            num_z_vars = length(n_z);
+        end
+
+        % 3. Extract and Split Asset Variables (A1 and A2) early
+        l_a2 = 0;
+        if vfoptions.experienceasset > 0
+            l_a2 = vfoptions.experienceasset;
+        elseif vfoptions.experienceassetz > 0
+            l_a2 = vfoptions.experienceassetz;
+        end
+        num_a2 = l_a2;
+        num_a1 = length(n_a) - num_a2;
+
+        % 4. Count Semi-Exogenous (SemiZ), Transitory (E), and Ambiguity/Risky (U) shocks
+        num_semiz_vars = 0;
+        if isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz) > 0
+            num_semiz_vars = length(vfoptions.n_semiz);
+        end
+
+        num_e_vars = 0;
+        if isfield(vfoptions, 'n_e') && prod(vfoptions.n_e) > 0
+            num_e_vars = length(vfoptions.n_e);
+        end
+
+        num_u_vars = 0;
+        if vfoptions.riskyasset == 1 && isfield(vfoptions, 'n_u')
+            num_u_vars = length(vfoptions.n_u);
+        end
+
+        % 5. Unified Prefix Argument Count
+        % Fundamentally covers all toolkit variants (Standard, ExpAsset, RiskyAsset)
+        % Structure: D + A1prime (num_a1) + A1 (num_a1) + A2 (num_a2) + SemiZ + Z + E + U
+        num_prefix_args = num_d_vars + (2 * num_a1) + num_a2 + num_semiz_vars + num_z_vars + num_e_vars + num_u_vars;
 
         if length(temp) > num_prefix_args
             ReturnFnParamNames = {temp{num_prefix_args + 1 : end}};
@@ -265,7 +271,7 @@ end
 
 %% Exogenous shock gridvals and pi
 if vfoptions.alreadygridvals==0
-    [z_gridvals_J, pi_z_J, vfoptions] = ExogShockSetup_FHorz(n_z, z_grid, pi_z, N_j, Parameters, vfoptions, 2, 0);
+    [z_gridvals_J, pi_z_J, vfoptions] = ExogShockSetup_FHorz(n_z, z_grid, pi_z, N_j, Parameters, vfoptions, 3, 0);
 else
     z_gridvals_J = z_grid;
     pi_z_J = pi_z;
@@ -280,7 +286,7 @@ end
 
 if vfoptions.alreadygridvals_semiexo==0
     if N_semiz > 0
-        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 2);
+        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 3);
     end
 end
 
@@ -670,6 +676,25 @@ for reverse_j = 0:N_j-1
     end
     V_transformed(V_next == 0) = 0;
 
+    % =================================================================
+    % --- i.i.d. Shock (e) Integration ---
+    % =================================================================
+    if has_e
+        % Ensure the probability vector is on the GPU to prevent mtimes crashes
+        if vfoptions.parallel == 2 && ~isa(vfoptions.pi_e, 'gpuArray')
+            vfoptions.pi_e = gpuArray(vfoptions.pi_e);
+        end
+
+        % The agent does not know next period's i.i.d. shock. 
+        % We must integrate out the future e dimension before applying Markov transitions.
+        V_trans_flat = reshape(V_transformed, [N_a * n_z_work, n_e_work]);
+        V_expected_e = V_trans_flat * vfoptions.pi_e(:);
+
+        % Expand back out to [N_a, n_z_work, n_e_work] so the tensor slicing 
+        % implicitly maps the identical expectation across all current e states.
+        V_transformed = repmat(reshape(V_expected_e, [N_a, n_z_work, 1]), [1, 1, n_e_work]);
+    end
+
     % --- Sequential EV Computation (Applying Z and SemiZ transitions) ---
     N_semiz_local = 1;
     N_dsemiz = 1;
@@ -775,10 +800,22 @@ for reverse_j = 0:N_j-1
             EV_local = EV_flat_ze(:, curr_ze, :);
 
             if has_semiz || has_z
-                num_z_vars = size(z_gridvals_J, 2);
+                % STRICT FIX: Lock to the exact passed dimensions, ignore grid shape
+                num_z_vars = length(n_combined_z);
                 Z_cells_local = cell(1, num_z_vars);
-                for iz = 1:num_z_vars
-                    Z_cells_local{iz} = reshape(z_gridvals_J(meta.z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
+
+                % If z_gridvals_J remained a 2D stacked matrix [19x76] due to PType bypass,
+                % we MUST slice it manually into its Cartesian Z-components.
+                if size(z_gridvals_J, 2) ~= num_z_vars
+                    % Recover the 3D tensor shape [34, 2, 76] dynamically
+                    z_inflated = reshape(z_gridvals_J, [N_z, num_z_vars, size(z_gridvals_J, ndims(z_gridvals_J))]);
+                    for iz = 1:num_z_vars
+                        Z_cells_local{iz} = reshape(z_inflated(meta.z_vals, iz, min(jj, size(z_inflated,3))), [1, 1, 1, n_z_loc, 1]);
+                    end
+                else
+                    for iz = 1:num_z_vars
+                        Z_cells_local{iz} = reshape(z_gridvals_J(meta.z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
+                    end
                 end
             else
                 Z_cells_local = {};
@@ -819,8 +856,15 @@ for reverse_j = 0:N_j-1
 
                 % Permute to broadcast shape: [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]
                 EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
+                % By casting this 'like' EV_bounded_pre, it lives permanently on the GPU 
+                % and completely prevents PCIe bus transfers during the DC zoom loop.
+                d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1]);
+                z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1), [1, 1, 1, n_z_loc, 1]);
+                e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1 * n_z_loc), [1, 1, 1, 1, n_e_loc]);
+                static_EV_offset = cast(d_vec + 1 + z_vec + e_vec, 'like', EV_bounded_pre);
             else
                 EV_bounded_pre = [];
+                static_EV_offset = [];
             end
 
             % 5. Bind LocalBlockFn passing unmixed global dimensions for broadcasting
@@ -829,7 +873,7 @@ for reverse_j = 0:N_j-1
                 Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
                 vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                 TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
-                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc);
+                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset);
 
             vfoptions.level1n = vfoptions.level1n(1);
             [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
@@ -853,6 +897,11 @@ for reverse_j = 0:N_j-1
                 curr_ze = ze_chunks{i_ze};
                 N_ze_local = length(curr_ze);
 
+                % We need to pull these for the static offset hoist and the TensorBlock!
+                meta = chunk_meta{i_ze};
+                n_z_loc = meta.n_z_loc;
+                n_e_loc = meta.n_e_loc;
+
                 if l_a2 > 0
                     % Slice A2 locally for the current chunk
                     A2_local = A2_mat(curr_a2, :);
@@ -866,10 +915,17 @@ for reverse_j = 0:N_j-1
                 EV_local  = EV_flat_ze(start_idx : end_idx);
 
                 if has_semiz || has_z
-                    num_z_vars = size(z_gridvals_J, 2);
+                    num_z_vars = length(n_combined_z);
                     Z_cells_local = cell(1, num_z_vars);
-                    for iz = 1:num_z_vars
-                        Z_cells_local{iz} = reshape(z_gridvals_J(ZE_z_idx(curr_ze), iz), [1, 1, 1, 1, N_ze_local]);
+                    if size(z_gridvals_J, 2) ~= num_z_vars
+                        z_inflated = reshape(z_gridvals_J, [N_z, num_z_vars, size(z_gridvals_J, ndims(z_gridvals_J))]);
+                        for iz = 1:num_z_vars
+                            Z_cells_local{iz} = reshape(z_inflated(ZE_z_idx(curr_ze), iz, min(jj, size(z_inflated,3))), [1, 1, 1, 1, N_ze_local]);
+                        end
+                    else
+                        for iz = 1:num_z_vars
+                            Z_cells_local{iz} = reshape(z_gridvals_J(ZE_z_idx(curr_ze), iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, 1, N_ze_local]);
+                        end
                     end
                 else
                     Z_cells_local = {};
@@ -905,8 +961,16 @@ for reverse_j = 0:N_j-1
                     linear_idx_pre = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
 
                     EV_bounded_pre = beta_j .* reshape(EV_local(linear_idx_pre(:)), [N_d_safe, N_a1, 1, 1, N_ze_local]);
+                    % --- NEW: Hoist static offset math for DC Zoom Scenario A ---
+                    % By casting this 'like' EV_bounded_pre, it lives permanently on the GPU 
+                    % and completely prevents PCIe bus transfers during the DC zoom loop.
+                    d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1]);
+                    z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1), [1, 1, 1, n_z_loc, 1]);
+                    e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1 * n_z_loc), [1, 1, 1, 1, n_e_loc]);
+                    static_EV_offset = cast(d_vec + 1 + z_vec + e_vec, 'like', EV_bounded_pre);
                 else
                     EV_bounded_pre = [];
+                    static_EV_offset = [];
                 end
 
                 LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
@@ -914,7 +978,7 @@ for reverse_j = 0:N_j-1
                     Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_local, a2_grids_1d, l_a2, ...
                     vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                     TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
-                    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc);
+                    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset);
 
                 if vfoptions.divideandconquer == 1
                     vfoptions.level1n = vfoptions.level1n(1);
@@ -1047,7 +1111,7 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
     Z_cells_block, E_cells_block, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
     gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
     TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
-    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc)
+    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset)
 
 N_states = length(state_idx);
 
@@ -1164,7 +1228,10 @@ else
 
         Apr_cells = cell(1, num_a1);
         for ia = 1:num_a1
-            Apr_cells{ia} = reshape(A1_mat(choice_idx(:), ia), size(choice_idx));
+            % FAST EXTRACT: Indexing a column vector natively returns an array
+            % of the exact same ND-shape. This completely bypasses reshape().
+            grid_col = A1_mat(:, ia);
+            Apr_cells{ia} = grid_col(choice_idx);
         end
 
         if l_a2 > 0
@@ -1197,15 +1264,9 @@ else
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-            % Extract directly from pre-computed bounded EV tensor
-            % EV_bounded_pre has shape [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]
-            % choice_idx specifies the 1-based index into dimension 2 (N_a1)
+            % 100% Static Offset Extraction
             a_offset = (choice_idx - 1) * N_d_safe;
-            d_offset = reshape((0:N_d_safe-1), [N_d_safe, 1, 1, 1, 1]);
-            z_offset = reshape((0:n_z_loc-1) * (N_d_safe * N_a1), [1, 1, 1, n_z_loc, 1]);
-            e_offset = reshape((0:n_e_loc-1) * (N_d_safe * N_a1 * n_z_loc), [1, 1, 1, 1, n_e_loc]);
-
-            linear_idx = d_offset + a_offset + 1 + z_offset + e_offset;
+            linear_idx = static_EV_offset + a_offset;
             EV_bounded = EV_bounded_pre(linear_idx);
         end
 
@@ -1243,9 +1304,11 @@ else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
             % PENALIZE OUT-OF-BOUNDS CHOICES WITH NaN
-            % This strictly prevents max() from locking onto degenerate clipped boundaries
-            % which would otherwise scramble the relative offset mapping in Pol_L2idx_max.
-            F_tensor(repmat(out_of_bounds, [N_d_safe, 1, 1, 1, 1])) = NaN;
+            % Uses native GPU implicit expansion to completely bypass the massive
+            % memory allocation and deallocation overhead of repmat()
+            penalty = zeros(size(out_of_bounds), 'like', F_tensor);
+            penalty(out_of_bounds) = NaN;
+            F_tensor = F_tensor + penalty;
 
             EV_interp_reshaped = reshape(EV_interp_local, [length(a1prime_grid), n_z_loc, n_e_loc, N_dsemiz]);
             z_offset = reshape((0:n_z_loc-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, 1]);
