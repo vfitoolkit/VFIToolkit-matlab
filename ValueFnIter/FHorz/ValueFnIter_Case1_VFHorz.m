@@ -566,7 +566,7 @@ elseif vfoptions.lowmemory == 1
     for c = 1:num_chunks
         e_start = (c-1)*e_chunk_size + 1;
         e_end   = min(c*e_chunk_size, n_e_work);
-        
+
         % Build exactly the linear indices for this Cartesian block
         [Z_sub, E_sub] = ndgrid(1:n_z_work, e_start:e_end);
         ze_chunks{c} = sub2ind([n_z_work, n_e_work], Z_sub(:), E_sub(:))';
@@ -704,12 +704,12 @@ for reverse_j = 0:N_j-1
             vfoptions.pi_e = gpuArray(vfoptions.pi_e);
         end
 
-        % The agent does not know next period's i.i.d. shock. 
+        % The agent does not know next period's i.i.d. shock.
         % We must integrate out the future e dimension before applying Markov transitions.
         V_trans_flat = reshape(V_transformed, [N_a * n_z_work, n_e_work]);
         V_expected_e = V_trans_flat * vfoptions.pi_e(:);
 
-        % Expand back out to [N_a, n_z_work, n_e_work] so the tensor slicing 
+        % Expand back out to [N_a, n_z_work, n_e_work] so the tensor slicing
         % implicitly maps the identical expectation across all current e states.
         V_transformed = repmat(reshape(V_expected_e, [N_a, n_z_work, 1]), [1, 1, n_e_work]);
     end
@@ -876,7 +876,7 @@ for reverse_j = 0:N_j-1
 
                 % Permute to broadcast shape: [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]
                 EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
-                % By casting this 'like' EV_bounded_pre, it lives permanently on the GPU 
+                % By casting this 'like' EV_bounded_pre, it lives permanently on the GPU
                 % and completely prevents PCIe bus transfers during the DC zoom loop.
                 d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1]);
                 z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1), [1, 1, 1, n_z_loc, 1]);
@@ -983,7 +983,7 @@ for reverse_j = 0:N_j-1
 
                     EV_bounded_pre = beta_j .* reshape(EV_local(linear_idx_pre(:)), [N_d_safe, N_a1, 1, 1, N_ze_local]);
                     % --- NEW: Hoist static offset math for DC Zoom Scenario A ---
-                    % By casting this 'like' EV_bounded_pre, it lives permanently on the GPU 
+                    % By casting this 'like' EV_bounded_pre, it lives permanently on the GPU
                     % and completely prevents PCIe bus transfers during the DC zoom loop.
                     d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1]);
                     z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1), [1, 1, 1, n_z_loc, 1]);
@@ -1104,40 +1104,61 @@ num_pol_vars = length(n_daprime);
 n_daprime_col = n_daprime(:);
 divisors = cumprod([1; n_daprime_col(1:end-1)]);
 
-total_elements = num_pol_vars * n_a_work * n_z_work * n_e_work * N_j;
 MAX_INT32 = 2147483647;
 
-if total_elements < (MAX_INT32 * 0.9) % 90% safety margin threshold
-    % --- FAST PATH: Single Bulk Operation ---
-    % Implicit expansion applies the divisors across the entire 5D tensor at once
-    P_gpu = mod(floor((PolicyKron - 1) ./ divisors), n_daprime_col) + 1;
-    Policy_flat = gather(P_gpu);
+if vfoptions.gridinterplayer(1) == 1
+    % PolicyKron is [3, N_a, N_z, N_e, N_j]
+    % Row 1 is the packed flat index. Rows 2 & 3 are subgrid step and flag.
+    total_elements = (num_pol_vars + 2) * n_a_work * n_z_work * n_e_work * N_j;
+
+    if total_elements < (MAX_INT32 * 0.9)
+        BaseIndexKron = PolicyKron(1, :, :, :, :);
+        P_base_gpu = mod(floor((BaseIndexKron - 1) ./ divisors), n_daprime_col) + 1;
+        P_gpu = [P_base_gpu; PolicyKron(2:3, :, :, :, :)];
+        Policy_flat = gather(P_gpu);
+    else
+        disp('Using memory-safe iterative unpacking due to massive array size...');
+        Policy_flat = zeros([num_pol_vars + 2, n_a_work, n_z_work, n_e_work, N_j], vfoptions.precision);
+        for jj = 1:N_j
+            PK_j = PolicyKron(1, :, :, :, jj);
+            P_base = mod(floor((PK_j - 1) ./ divisors), n_daprime_col) + 1;
+            Policy_flat(:, :, :, :, jj) = gather([P_base; PolicyKron(2:3, :, :, :, jj)]);
+        end
+    end
 else
-    % --- SLOW PATH: Iterative Unpacking ---
-    disp('Using memory-safe iterative unpacking due to massive array size...');
-    Policy_flat = zeros([num_pol_vars, n_a_work, n_z_work, n_e_work, N_j], vfoptions.precision);
-    for jj = 1:N_j
-        PK_j = PolicyKron(:,:,:,:,jj);
-        P_j_gpu = mod(floor((PK_j - 1) ./ divisors), n_daprime_col) + 1;
-        Policy_flat(:,:,:,:,jj) = gather(P_j_gpu);
+    total_elements = num_pol_vars * n_a_work * n_z_work * n_e_work * N_j;
+
+    if total_elements < (MAX_INT32 * 0.9)
+        P_gpu = mod(floor((PolicyKron - 1) ./ divisors), n_daprime_col) + 1;
+        Policy_flat = gather(P_gpu);
+    else
+        disp('Using memory-safe iterative unpacking due to massive array size...');
+        Policy_flat = zeros([num_pol_vars, n_a_work, n_z_work, n_e_work, N_j], vfoptions.precision);
+        for jj = 1:N_j
+            PK_j = PolicyKron(:, :, :, :, jj);
+            P_j_gpu = mod(floor((PK_j - 1) ./ divisors), n_daprime_col) + 1;
+            Policy_flat(:, :, :, :, jj) = gather(P_j_gpu);
+        end
     end
 end
 
 % Gather V to CPU to keep memory domains aligned for StationaryDist
-% V_cpu = gather(V);
-V_cpu = V;
+V_cpu = gather(V);
+
+% Dynamically capture policy output size to prevent dimension crashes
+out_pol_vars = size(Policy_flat, 1);
 
 if has_z && has_e
-    Policy = reshape(Policy_flat, [num_pol_vars, n_a, n_all_z, n_e_pass, N_j]);
+    Policy = reshape(Policy_flat, [out_pol_vars, n_a, n_all_z, n_e_pass, N_j]);
     V = reshape(V_cpu, [n_a, n_all_z, n_e_pass, N_j]);
 elseif has_z && ~has_e
-    Policy = reshape(Policy_flat, [num_pol_vars, n_a, n_all_z, N_j]);
+    Policy = reshape(Policy_flat, [out_pol_vars, n_a, n_all_z, N_j]);
     V = reshape(V_cpu, [n_a, n_all_z, N_j]);
 elseif ~has_z && has_e
-    Policy = reshape(Policy_flat, [num_pol_vars, n_a, n_e_pass, N_j]);
+    Policy = reshape(Policy_flat, [out_pol_vars, n_a, n_e_pass, N_j]);
     V = reshape(V_cpu, [n_a, n_e_pass, N_j]);
 else
-    Policy = reshape(Policy_flat, [num_pol_vars, n_a, N_j]);
+    Policy = reshape(Policy_flat, [out_pol_vars, n_a, N_j]);
     V = reshape(V_cpu, [n_a, N_j]);
 end
 
@@ -1179,99 +1200,78 @@ else
     A2_cells = {};
 end
 
-
 if maxgap_scalar == 0
     % =================================================================
-    % BRANCH 1: COARSE GRID EVALUATION (maxgap_scalar == 0)
+    % BRANCH 1: COARSE OR FULL GRID EVALUATION (maxgap_scalar == 0)
     % =================================================================
-    Apr_cells = cell(1, num_a1);
-    for ia = 1:num_a1
-        Apr_cells{ia} = reshape(A1_mat(:,ia), [1, N_a1, 1, 1, 1]);
-    end
-
-    if l_a2 > 0
-        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-    else
-        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-    end
-
-    if l_a2 > 0
-        % ExpAsset Transition Interpolation
-        A2_prime = TensoraprimeFn(D_cells_block{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, aprimeFnParamsCell{:});
-        a2_grid_1d_vec = a2_grids_1d{1};
-        a2_min = a2_grid_1d_vec(1);
-        a2_max = a2_grid_1d_vec(end);
-        a2_prime_clipped = max(a2_min, min(A2_prime, a2_max));
-        idx = discretize(a2_prime_clipped, a2_grid_1d_vec);
-        idx(isnan(idx)) = N_a2_dims - 1;
-        idx = max(1, min(idx, N_a2_dims - 1));
-        a2_left = reshape(a2_grid_1d_vec(idx), size(idx));
-        a2_right = reshape(a2_grid_1d_vec(idx+1), size(idx));
-        weight = (a2_prime_clipped - a2_left) ./ (a2_right - a2_left);
-        weight(a2_right == a2_left) = 0;
-
-        A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
-        ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
-
-        idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
-        idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
-
-        max_idx_row = size(EV_local, 1);
-        linear_idx_left  = min(max_idx_row, max(1, idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row));
-        linear_idx_right = min(max_idx_row, max(1, idx_right + (dsemiz_idx_tensor - 1) * max_idx_row));
-
-        EV_left  = EV_local(linear_idx_left);
-        EV_right = EV_local(linear_idx_right);
-        EV_bounded = EV_left + weight .* (EV_right - EV_left);
-        EV_bounded = beta_j .* EV_bounded;
-    else
-        EV_bounded = EV_bounded_pre;
-    end
-
-    FLAT_CHOICES = max(1, N_d_safe) * N_a1;
-    FLAT_STATES  = N_states * N_ze_local;
-
-    RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-    RHS_flat = reshape(RHS, [FLAT_CHOICES, FLAT_STATES]);
-    [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
-
-    d_idx_local   = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
-    apr_idx_local = ceil(Pol_sub_idx / max(1, N_d_safe));
-
-    V_j_max        = reshape(V_sub_coarse,  [N_states, N_ze_local]);
-    Pol_apr_max    = reshape(apr_idx_local, [N_states, N_ze_local]);
-    Pol_d_max      = reshape(d_idx_local,   [N_states, N_ze_local]);
-    Pol_L2idx_max  = [];
-    Pol_L2flag_max = [];
-
-else
-    % =================================================================
-    % BRANCH 2: DC ZOOM PHASE (maxgap_scalar > 0)
-    % =================================================================
-
-    num_states_lower = size(loweredge_matrix, 1);
-    if num_states_lower == 1 && N_states > 1
-        loweredge_matrix = repmat(loweredge_matrix, N_states, 1);
-    end
-
-    if gridinterplayer(1) == 0
-        % -------------------------------------------------------------
-        % SCENARIO A: Standard DC Segment Zoom (No Interpolation)
-        % -------------------------------------------------------------
-        num_choices = maxgap_scalar + 1;
-
-        % Base index strictly maps to the coarse grid
-        base_idx = reshape(loweredge_matrix, [1, 1, N_states, n_z_loc, n_e_loc]);
-        offsets = reshape(0:maxgap_scalar, [1, num_choices, 1, 1, 1]);
-        choice_idx = base_idx + offsets;
-        choice_idx = max(1, min(choice_idx, N_a1)); % Safety bound
-
+    if gridinterplayer(1) == 1
+        % --- 1. Evaluate the ENTIRE fine grid (a1prime_grid) ---
+        N_apr = length(a1prime_grid);
         Apr_cells = cell(1, num_a1);
         for ia = 1:num_a1
-            % FAST EXTRACT: Indexing a column vector natively returns an array
-            % of the exact same ND-shape. This completely bypasses reshape().
-            grid_col = A1_mat(:, ia);
-            Apr_cells{ia} = grid_col(choice_idx);
+            Apr_cells{ia} = reshape(a1prime_grid, [1, N_apr, 1, 1, 1]);
+        end
+
+        if l_a2 > 0
+            error('Experience asset with gridinterplayer=1 is not yet supported in full grid evaluation.');
+        else
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+        end
+
+        % --- Map EV_interp_local dynamically based on Cartesian layout ---
+        if isempty(loweredge_matrix)
+            % Non-DC Mode: Z and E are flat on Dimension 5
+            if N_dsemiz > 1
+                apr_idx = reshape(1:N_apr, [1, N_apr, 1, 1, 1]);
+                ze_idx  = reshape((0:N_ze_local-1) * N_apr, [1, 1, 1, 1, N_ze_local]);
+                dsemiz_offset = (dsemiz_idx_tensor - 1) * (N_apr * N_ze_local);
+                L2_linear_idx = apr_idx + ze_idx + dsemiz_offset;
+                EV_bounded = beta_j .* EV_interp_local(L2_linear_idx);
+            else
+                EV_bounded = beta_j .* reshape(EV_interp_local, [1, N_apr, 1, 1, N_ze_local]);
+            end
+        else
+            % DC Mode (Slicer tight bound): Z is Dim 4, E is Dim 5
+            EV_interp_reshaped = reshape(EV_interp_local, [N_apr, n_z_loc, n_e_loc, N_dsemiz]);
+            z_offset = reshape((0:n_z_loc-1) * N_apr, [1, 1, 1, n_z_loc, 1]);
+            e_offset = reshape((0:n_e_loc-1) * (N_apr * n_z_loc), [1, 1, 1, 1, n_e_loc]);
+
+            L2_linear_idx = reshape(1:N_apr, [1, N_apr, 1, 1, 1]) + z_offset + e_offset;
+            if N_dsemiz > 1
+                L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (N_apr * n_z_loc * n_e_loc);
+            end
+
+            EV_bounded = beta_j .* EV_interp_reshaped(L2_linear_idx);
+        end
+
+        % --- 2. Maximize across all interpolated choices ---
+        FLAT_CHOICES = max(1, N_d_safe) * N_apr;
+        FLAT_STATES  = N_states * N_ze_local;
+        RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+        RHS_flat = reshape(RHS, [FLAT_CHOICES, FLAT_STATES]);
+        [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
+
+        d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
+        idx_fine    = ceil(Pol_sub_idx / max(1, N_d_safe)); % Absolute fine grid index
+
+        % --- 3. Remap absolute fine index back to legacy [Base, Step] L2 components ---
+        base_c = floor((idx_fine - 1) / (n2short + 1)) + 1;
+        step   = idx_fine - ((base_c - 1) * (n2short + 1) + 1);
+
+        V_j_max        = reshape(V_sub_fine,  [N_states, N_ze_local]);
+        Pol_apr_max    = reshape(base_c,      [N_states, N_ze_local]);
+        Pol_d_max      = reshape(d_idx_local, [N_states, N_ze_local]);
+
+        Pol_L2idx_max  = reshape(step + n2short + 2, [N_states, N_ze_local]);
+        Pol_L2flag_max = zeros(N_states, N_ze_local, 'like', V_j_max);
+
+    else
+        % =================================================================
+        % Original Coarse Evaluation (gridinterplayer == 0)
+        % =================================================================
+        Apr_cells = cell(1, num_a1);
+        for ia = 1:num_a1
+            Apr_cells{ia} = reshape(A1_mat(:,ia), [1, N_a1, 1, 1, 1]);
         end
 
         if l_a2 > 0
@@ -1291,20 +1291,95 @@ else
             weight = (a2_prime_clipped - a2_left) ./ (a2_right - a2_left);
             weight(a2_right == a2_left) = 0;
 
-            ZE_idx = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
-            idx_left  = choice_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
-            idx_right = choice_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
+            A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
+            ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
+            idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
+            idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
 
             max_idx_row = size(EV_local, 1);
             linear_idx_left  = min(max_idx_row, max(1, idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row));
             linear_idx_right = min(max_idx_row, max(1, idx_right + (dsemiz_idx_tensor - 1) * max_idx_row));
 
-            EV_bounded = EV_local(linear_idx_left) + weight .* (EV_local(linear_idx_right) - EV_local(linear_idx_left));
+            EV_left  = EV_local(linear_idx_left);
+            EV_right = EV_local(linear_idx_right);
+            EV_bounded = EV_left + weight .* (EV_right - EV_left);
             EV_bounded = beta_j .* EV_bounded;
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
             % 100% Static Offset Extraction
+            EV_bounded = EV_bounded_pre;
+        end
+
+        FLAT_CHOICES = max(1, N_d_safe) * N_a1;
+        FLAT_STATES  = N_states * N_ze_local;
+        RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+        RHS_flat = reshape(RHS, [FLAT_CHOICES, FLAT_STATES]);
+        [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
+
+        d_idx_local   = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
+        apr_idx_local = ceil(Pol_sub_idx / max(1, N_d_safe));
+
+        V_j_max        = reshape(V_sub_coarse,  [N_states, N_ze_local]);
+        Pol_apr_max    = reshape(apr_idx_local, [N_states, N_ze_local]);
+        Pol_d_max      = reshape(d_idx_local,   [N_states, N_ze_local]);
+        Pol_L2idx_max  = [];
+        Pol_L2flag_max = [];
+    end
+
+else
+    % =================================================================
+    % BRANCH 2: DC ZOOM PHASE (maxgap_scalar > 0)
+    % =================================================================
+    num_states_lower = size(loweredge_matrix, 1);
+    if num_states_lower == 1 && N_states > 1
+        loweredge_matrix = repmat(loweredge_matrix, N_states, 1);
+    end
+
+    if gridinterplayer(1) == 0
+        % -------------------------------------------------------------
+        % SCENARIO A: Standard DC Segment Zoom (No Interpolation)
+        % -------------------------------------------------------------
+        num_choices = maxgap_scalar + 1;
+
+        % Base index strictly maps to the coarse grid
+        base_idx = reshape(loweredge_matrix, [1, 1, N_states, n_z_loc, n_e_loc]);
+        offsets = reshape(0:maxgap_scalar, [1, num_choices, 1, 1, 1]);
+        choice_idx = base_idx + offsets;
+        choice_idx = max(1, min(choice_idx, N_a1)); % Safety bound
+
+        Apr_cells = cell(1, num_a1);
+        for ia = 1:num_a1
+            grid_col = A1_mat(:, ia);
+            Apr_cells{ia} = grid_col(choice_idx);
+        end
+
+        if l_a2 > 0
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+
+            A2_prime = TensoraprimeFn(D_cells_block{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, aprimeFnParamsCell{:});
+            a2_grid_1d_vec = a2_grids_1d{1};
+            a2_prime_clipped = max(a2_grid_1d_vec(1), min(A2_prime, a2_grid_1d_vec(end)));
+            idx = discretize(a2_prime_clipped, a2_grid_1d_vec);
+            idx(isnan(idx)) = N_a2_dims - 1;
+            idx = max(1, min(idx, N_a2_dims - 1));
+
+            a2_left = reshape(a2_grid_1d_vec(idx), size(idx));
+            a2_right = reshape(a2_grid_1d_vec(idx+1), size(idx));
+            weight = (a2_prime_clipped - a2_left) ./ (a2_right - a2_left);
+            weight(a2_right == a2_left) = 0;
+
+            ZE_idx = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
+            idx_left  = choice_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
+            idx_right = choice_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
+            max_idx_row = size(EV_local, 1);
+            linear_idx_left  = min(max_idx_row, max(1, idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row));
+            linear_idx_right = min(max_idx_row, max(1, idx_right + (dsemiz_idx_tensor - 1) * max_idx_row));
+            EV_bounded = EV_local(linear_idx_left) + weight .* (EV_local(linear_idx_right) - EV_local(linear_idx_left));
+            EV_bounded = beta_j .* EV_bounded;
+        else
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+
             a_offset = (choice_idx - 1) * N_d_safe;
             linear_idx = static_EV_offset + a_offset;
             EV_bounded = EV_bounded_pre(linear_idx);
@@ -1326,11 +1401,7 @@ else
         offsets = reshape(start_offset:end_offset, [1, num_choices, 1, 1, 1]);
 
         raw_choice_idx = base_idx + offsets;
-
-        % Identify out-of-bounds indices so we can penalize them later
         out_of_bounds = (raw_choice_idx < 1) | (raw_choice_idx > length(a1prime_grid));
-
-        % Safely clip to prevent indexing errors in the grid extraction
         choice_idx = max(1, min(raw_choice_idx, length(a1prime_grid)));
 
         Apr_cells = cell(1, num_a1);
@@ -1343,9 +1414,6 @@ else
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-            % PENALIZE OUT-OF-BOUNDS CHOICES WITH NaN
-            % Uses native GPU implicit expansion to completely bypass the massive
-            % memory allocation and deallocation overhead of repmat()
             penalty = zeros(size(out_of_bounds), 'like', F_tensor);
             penalty(out_of_bounds) = NaN;
             F_tensor = F_tensor + penalty;
@@ -1355,7 +1423,6 @@ else
             e_offset = reshape((0:n_e_loc-1) * (length(a1prime_grid) * n_z_loc), [1, 1, 1, 1, n_e_loc]);
 
             L2_linear_idx = choice_idx + z_offset + e_offset;
-
             if N_dsemiz > 1
                 L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (length(a1prime_grid) * n_z_loc * n_e_loc);
             end
@@ -1367,18 +1434,15 @@ else
 
     % --- RHS Evaluation (Universal to both Zoom Scenarios) ---
     FLAT_STATES = N_states * n_z_loc * n_e_loc;
-
     RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
     RHS_flat = reshape(RHS, [max(1, N_d_safe) * num_choices, FLAT_STATES]);
 
     [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
-
     d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
     apr_offset  = ceil(Pol_sub_idx / max(1, N_d_safe));
 
     V_j_max   = reshape(V_sub_fine,  [N_states, n_z_loc * n_e_loc]);
     Pol_d_max = reshape(d_idx_local, [N_states, n_z_loc * n_e_loc]);
-
     if gridinterplayer(1) == 0
         % Standard DC: exact choice maps directly to the coarse grid
         base_idx_flat = reshape(base_idx, [1, FLAT_STATES]);
@@ -1389,10 +1453,12 @@ else
         Pol_L2flag_max = [];
     else
         % CRITICAL FIX 2: Pol_L2idx_max must be the RELATIVE offset (1 to n2long).
-        % Pol_apr_max must be preserved as the coarse grid base index.
         Pol_apr_max    = reshape(loweredge_matrix, [N_states, n_z_loc * n_e_loc]);
         Pol_L2idx_max  = reshape(apr_offset, [N_states, n_z_loc * n_e_loc]);
-        Pol_L2flag_max = ones(N_states, n_z_loc * n_e_loc, 'like', V_j_max);
+
+        % Flag is 1 ONLY if the max hit the edges of the DC zoom window
+        zoom_hit_bound = (apr_offset == 1) | (apr_offset == num_choices);
+        Pol_L2flag_max = reshape(cast(zoom_hit_bound, 'like', V_j_max), [N_states, n_z_loc * n_e_loc]);
     end
 end
 
