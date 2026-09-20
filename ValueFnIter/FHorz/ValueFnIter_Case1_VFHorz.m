@@ -1251,51 +1251,20 @@ if isempty(loweredge_matrix)
         weight = (a2_prime_clipped - a2_left) ./ (a2_right - a2_left);
         weight(a2_right == a2_left) = 0;
 
-        A1pr_idx = reshape(1:N_apr, [1, N_apr, 1, 1, 1]);
-        A2_left_idx = idx;
-        A2_right_idx = idx + 1;
+        A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
+        ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
+        idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
+        idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
 
-        ZE_offset = reshape((0:N_ze_local-1) * (N_apr * N_a2_dims), [1, 1, 1, 1, N_ze_local]);
+        max_idx_row = size(EV_local, 1);
+        linear_idx_left  = min(max_idx_row, max(1, idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row));
+        linear_idx_right = min(max_idx_row, max(1, idx_right + (dsemiz_idx_tensor - 1) * max_idx_row));
 
-        lin_idx_left = A1pr_idx + (A2_left_idx - 1) * N_apr + ZE_offset;
-        lin_idx_right = A1pr_idx + (A2_right_idx - 1) * N_apr + ZE_offset;
-
-        if N_dsemiz > 1
-            dsemiz_offset = (dsemiz_idx_tensor - 1) * (N_apr * N_a2_dims * N_ze_local);
-            lin_idx_left = lin_idx_left + dsemiz_offset;
-            lin_idx_right = lin_idx_right + dsemiz_offset;
-        end
-
-        EV_left = EV_interp_local(lin_idx_left);
-        EV_right = EV_interp_local(lin_idx_right);
-
-        EV_bounded = EV_left + weight .* (EV_right - EV_left);
+        EV_bounded = EV_local(linear_idx_left) + weight .* (EV_local(linear_idx_right) - EV_local(linear_idx_left));
         EV_bounded = beta_j .* EV_bounded;
     else
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-
-        if isempty(loweredge_matrix)
-            % Non-DC Mode: Z and E are flat on Dimension 5
-            if N_dsemiz > 1
-                apr_idx = reshape(1:N_apr, [1, N_apr, 1, 1, 1]);
-                ze_idx  = reshape((0:N_ze_local-1) * N_apr, [1, 1, 1, 1, N_ze_local]);
-                dsemiz_offset = (dsemiz_idx_tensor - 1) * (N_apr * N_ze_local);
-                L2_linear_idx = apr_idx + ze_idx + dsemiz_offset;
-                EV_bounded = beta_j .* EV_interp_local(L2_linear_idx);
-            else
-                EV_bounded = beta_j .* reshape(EV_interp_local, [1, N_apr, 1, 1, N_ze_local]);
-            end
-        else
-            % DC Mode (Slicer tight bound): Z is Dim 4, E is Dim 5
-            EV_interp_reshaped = reshape(EV_interp_local, [N_apr, n_z_loc, n_e_loc, N_dsemiz]);
-            z_offset = reshape((0:n_z_loc-1) * N_apr, [1, 1, 1, n_z_loc, 1]);
-            e_offset = reshape((0:n_e_loc-1) * (N_apr * n_z_loc), [1, 1, 1, 1, n_e_loc]);
-            L2_linear_idx = reshape(1:N_apr, [1, N_apr, 1, 1, 1]) + z_offset + e_offset;
-            if N_dsemiz > 1
-                L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (N_apr * n_z_loc * n_e_loc);
-            end
-            EV_bounded = beta_j .* EV_interp_reshaped(L2_linear_idx);
-        end
+        EV_bounded = EV_bounded_pre;
     end
 
     FLAT_CHOICES = max(1, N_d_safe) * N_a1;
