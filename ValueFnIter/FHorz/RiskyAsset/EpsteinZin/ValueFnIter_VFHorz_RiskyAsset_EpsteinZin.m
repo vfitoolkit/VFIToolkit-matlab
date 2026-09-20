@@ -151,19 +151,42 @@ for jj = N_j : -1 : 1
         temp4 = repmat(reshape(temp4, [1, N_d2*N_d3, 1]), [N_a1, 1, max(N_z,1)]);
     else
         V_next_3D = reshape(V_next, [N_a1, N_a2, max(N_z,1)]);
+
+        % --- PARITY FIX: 1. Z-Expectation FIRST ---
+        temp_V = V_next_3D;
+        temp_V(isfinite(V_next_3D)) = (ezc4 * V_next_3D(isfinite(V_next_3D))) .^ ezc5(jj);
+        temp_V(V_next_3D == 0) = 0;
+
+        if N_z > 0
+            pi_z_j = pi_z_J(:,:,jj);
+            EV_pre_z = zeros(N_a1, N_a2, N_z, 'like', a2_grid);
+            for i_a1 = 1:N_a1
+                slice = squeeze(temp_V(i_a1, :, :));
+                if max(N_z,1) == 1, slice = slice(:); end
+
+                inf_mask_z = (slice == -Inf);
+                slice_safe = slice;
+                slice_safe(inf_mask_z) = 0;
+
+                expected = slice_safe * pi_z_j';
+                inf_infect = double(inf_mask_z) * double(pi_z_j' > 0);
+                expected(inf_infect > 0) = -Inf;
+
+                EV_pre_z(i_a1, :, :) = expected;
+            end
+        else
+            EV_pre_z = temp_V;
+        end
+
+        % --- PARITY FIX: 2. Interpolation SECOND ---
         V_interp = zeros(N_a1, N_d2*N_d3, N_u, max(N_z,1), 'like', a2_grid);
 
         for i_a1 = 1:N_a1
-            V_slice = squeeze(V_next_3D(i_a1, :, :));
+            V_slice = squeeze(EV_pre_z(i_a1, :, :));
             if max(N_z,1) == 1, V_slice = V_slice(:); end
 
-            temp_V = V_slice;
-            % FIX: Match legacy exactly, no becareful variable here!
-            temp_V(isfinite(V_slice)) = (ezc4 * V_slice(isfinite(V_slice))) .^ ezc5(jj);
-            temp_V(V_slice == 0) = 0;
-
-            inf_mask = double(temp_V == -Inf);
-            V_safe = temp_V;
+            inf_mask = double(V_slice == -Inf);
+            V_safe = V_slice;
             V_safe(inf_mask > 0) = 0;
 
             V_int_slice = interp1(a2_grid, V_safe, aprime_clamped(:), 'linear');
@@ -172,33 +195,17 @@ for jj = N_j : -1 : 1
             V_interp(i_a1, :, :, :) = reshape(V_int_slice, [1, N_d2*N_d3, N_u, max(N_z,1)]);
         end
 
+        % --- PARITY FIX: 3. U-Expectation THIRD ---
         pi_u_rs = reshape(pi_u, [1, 1, N_u, 1]);
         inf_mask_u = (V_interp == -Inf);
         V_interp_safe = V_interp;
         V_interp_safe(inf_mask_u) = 0;
-        EV_u = sum(V_interp_safe .* pi_u_rs, 3);
+
+        EV_z = sum(V_interp_safe .* pi_u_rs, 3);
         inf_infect_u = double(inf_mask_u) .* double(pi_u_rs > 0);
-        EV_u(sum(inf_infect_u, 3) > 0) = -Inf;
-        EV_u = reshape(EV_u, [N_a1, N_d2*N_d3, max(N_z,1)]);
+        EV_z(sum(inf_infect_u, 3) > 0) = -Inf;
 
-        if N_z > 0
-            EV_z = zeros(N_a1, N_d2*N_d3, N_z, 'like', a2_grid);
-            pi_z_j = pi_z_J(:,:,jj);
-            for i_a1 = 1:N_a1
-                EV_u_slice = squeeze(EV_u(i_a1, :, :));
-                if N_z == 1, EV_u_slice = EV_u_slice(:)'; end
-                inf_mask_z = (EV_u_slice == -Inf);
-                EV_u_safe = EV_u_slice;
-                EV_u_safe(inf_mask_z) = 0;
-
-                EV_z_slice = EV_u_safe * pi_z_j';
-                inf_infect_z = double(inf_mask_z) * double(pi_z_j' > 0);
-                EV_z_slice(inf_infect_z > 0) = -Inf;
-                EV_z(i_a1, :, :) = EV_z_slice;
-            end
-        else
-            EV_z = EV_u;
-        end
+        EV_z = reshape(EV_z, [N_a1, N_d2*N_d3, max(N_z,1)]);
 
         temp4 = EV_z;
         if warmglow == 1
@@ -235,10 +242,8 @@ for jj = N_j : -1 : 1
     % Re-inject the -Inf penalty so invalid states are correctly ignored by max()
     flipped_temp4(inf_mask) = -Inf;
 
-    % FLOAT-NOISE SANITIZER: Use exact values for V, but round for strict tie-breaking
-    % 1e8 crushes the 1e-14 associativity noise while preventing double-precision overflow
-    [EV_max_d3_raw, ~] = max(flipped_temp4, [], 2);
-    [~, Pol_d2_idx]    = max(round(flipped_temp4 * 1e8), [], 2);
+    % Revert to exact math extraction now that associativity is fixed
+    [EV_max_d3_raw, Pol_d2_idx] = max(flipped_temp4, [], 2);
 
     % Keep it as the raw output to match legacy RHS assembly
     EV_max_d3 = reshape(EV_max_d3_raw, [N_a1, N_d3, max(N_z,1)]);
@@ -352,10 +357,8 @@ RHS(temp5) = entireRHS(temp5) .^ ezc7_j;
 
 RHS_flat = reshape(RHS, [N_d1 * N_d3 * N_a1, N_block * N_z_safe]);
 
-% FLOAT-NOISE SANITIZER: Use exact values for V, but round for strict tie-breaking
-[V_sub_coarse, ~] = max(RHS_flat, [], 1);
-[~, opt_idx_flat] = max(round(RHS_flat * 1e8), [], 1);
-
+% Revert to exact math extraction now that associativity is fixed
+[V_sub_coarse, opt_idx_flat] = max(RHS_flat, [], 1);
 V_sub = V_sub_coarse;
 
 % 5. Simultaneous Compression (Flatten all choices)
