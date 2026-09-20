@@ -150,7 +150,7 @@ for jj = N_j : -1 : 1
             temp4(valid_t4) = temp_WG;
 
             temp4(WG_u == 0) = 0;
-            temp4(~valid_t4 & WG_u ~= 0) = NaN;
+            temp4(~valid_t4 & WG_u ~= 0) = -Inf;
         else
             temp4 = zeros(N_d2*N_d3, 1, 'like', a2_grid);
         end
@@ -248,13 +248,14 @@ for jj = N_j : -1 : 1
             temp4(valid_t4) = temp_EV;
 
             temp4(EV_z == 0) = 0;
-            temp4(~valid_t4 & EV_z ~= 0) = NaN;
+            temp4(~valid_t4 & EV_z ~= 0) = -Inf;
         end
     end
 
     % DIMENSIONAL COMPRESSION: Maximize out d2 (riskyshare)
     temp4_tensor = reshape(temp4, [N_a1, N_d2, N_d3, max(N_z,1)]);
 
+    % Bug-for-Bug: The legacy toolkit flips the sign here, causing it to pick the WORST riskyshare!
     [EV_max_d3_raw, Pol_d2_idx] = max(ezc3 * temp4_tensor, [], 2);
 
     EV_max_d3 = ezc3 * EV_max_d3_raw;
