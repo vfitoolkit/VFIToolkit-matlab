@@ -74,15 +74,53 @@ end
 % 1.39 at the old default. sqrt(znum-1) lands on that saturated value for znum>=31 and stays out
 % of the high-fallback region at small znum.
 %
-% Note the remaining 0.246 is NOT a width problem and no width fixes it. nMoments is hard-coded as
-% 2 for the z block, and matching exactly two conditional moments makes the conditional law
-% near-gaussian, where the truth is a scale mixture of normals with fatter tails. Implementing
-% nMoments=4 here would close the rest of the gap, but NOT with the gaussian fourth-moment target:
-% under stochastic volatility the conditional law is a scale mixture, so the target is
-%    m4 = 3*E[exp(2x')|x] = 3*exp(2*((1-phi)*xBar+phi*x)+2*sigmae^2)
-% and not 3*m2^2, which is short by a factor of exp(sigmae^2). That factor IS the conditional
-% excess kurtosis, so the naive target would look like an improvement while suppressing the very
-% feature the process is chosen for. Measured in P4 of the DiscretizationMethodTests test bank.
+% WHY THE EXCESS KURTOSIS NEVER REACHES THE TRUTH, AND WHY NO GRID FIXES IT. The remaining 0.246
+% is NOT a width problem. It is the product form of the transition built below,
+%    pi_z(ii,:) = kron(p,ones(1,xnum));  pi_z(ii,:) = pi_z(ii,:).*repmat(Px(...),1,znum);
+% which makes z' and x' conditionally independent given (z,x). The model has u' ~ N(0,exp(x')),
+% the NEW volatility, so this construction has to integrate x' out and use
+%    Var(z'|z,x) = E[exp(x')|x] = exp((1-phi)*xBar+phi*x+sigmae^2/2)
+% in its place. Conditional on the whole volatility path z is gaussian with V=sum_k rho^(2k)*s_k,
+% so the excess kurtosis is 3*E[V^2]/E[V]^2-3, and substituting s(x)=E[exp(x')|x] for exp(x)
+% turns the lag-h autocovariance of log volatility from sigmaX*phi^h into sigmaX*phi^(h+2). The
+% construction loses exactly two lags of volatility persistence.
+%
+% That is a CEILING, not a grid error: it is what the method converges TO as both grids refine.
+% On the rho=0.95, phi=0.9, sigmau=0.2, sigmae=0.3 calibration of P4,
+%    truth                                                    0.8285
+%    product-form ceiling (exact x grid, exact z grid)         0.6498
+%    the same with the x block capped at nSigmas=2, as below  ~0.567
+%    measured at xnum=znum=31, 51, 101 (no fall-back rows)     0.279, 0.267, 0.256
+% The mean survives the substitution - sigmae^2/2+phi^2*sigmaX/2 = sigmaX/2 exactly - so
+% E[s]=exp(xBar+sigmaX/2) and Var(z)=E[s]/(1-rho^2) stay right to four digits (0.40873 predicted
+% at xnum=31 against 0.4087 measured). Variance passing while kurtosis fails is the signature.
+%
+% Two consequences. First, xnum does almost nothing, because farmertodaoptions_x.nSigmas is
+% hard-coded to 2 below: the volatility grid is +-2 unconditional sd of log volatility however
+% many x points are asked for. Farmer-Toda still matches x's mean and variance exactly on that
+% truncated grid (P4 measures the Var(x) error at 8e-10 for every xnum), but E[exp(2x)] - the
+% tail functional that kurtosis needs - stays short. Across xnum=5 to 51 at znum=15 the measured
+% kurtosis moves 0.3351 to 0.3368; a twentyfold refinement buys 0.002.
+%
+% Second, an earlier version of this comment blamed nMoments being hard-coded at 2 for the z
+% block, and proposed matching m4 = 3*E[exp(2x')|x] = 3*exp(2*((1-phi)*xBar+phi*x)+2*sigmae^2)
+% rather than the gaussian 3*m2^2, which is short by exp(sigmae^2). That target is correctly
+% derived, and the warning attached to it stands: the naive 3*m2^2 would look like an improvement
+% while suppressing the conditional excess kurtosis that is the whole point of the process. But
+% it is worth 0.021 - it lifts the ceiling from 0.6498 to 0.6711 and no further - because
+% matching conditional moments of z' given x cannot restore the dependence between the size of
+% the z' innovation and x' that the product form threw away.
+%
+% What would actually reach 0.8285 is conditioning the z innovation on x' instead of on
+% E[exp(x')|x]: transition Px(x,x')*p(z'|z,x') with variance target exp(x'), which restores
+% V=sum_k rho^(2k)*exp(x_(t-k)) exactly, at the same number of entropy solves. That is a
+% departure from the published Farmer-Toda construction, so it belongs behind an option rather
+% than as a silent change. NOT IMPLEMENTED.
+%
+% Still unexplained: the fall from the ~0.567 ceiling to the 0.256 measured at znum=101. It is
+% not the fall-back rows, since P4 reports zero of them at znum>=31, so it is something in the
+% z-block entropy fit itself. Measured in P4 of the DiscretizationMethodTests test bank; the
+% ceiling arithmetic above is exact and was cross-checked against P4's own Var(z).
 
 %% Compute some unconditional moments
 
