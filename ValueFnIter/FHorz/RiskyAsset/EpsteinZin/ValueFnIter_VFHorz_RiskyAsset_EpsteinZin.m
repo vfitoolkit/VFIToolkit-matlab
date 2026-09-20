@@ -47,6 +47,25 @@ D2_3D = reshape(d2_grid, [N_d2, 1, 1]);
 D3_3D = reshape(d3_grid, [1, N_d3, 1]);
 U_3D  = reshape(u_grid,  [1, 1, N_u]);
 
+% --- SMART nargin PARSER FOR RISKY ASSET aprimeFn ---
+if isempty(aprimeFnParamNames)
+    if isfield(vfoptions, 'aprimeFnParamNames')
+        aprimeFnParamNames = vfoptions.aprimeFnParamNames;
+    else
+        temp = getAnonymousFnInputNames(aprimeFn);
+        % Risky Asset aprimeFn prefix: d2 + d3 + u
+        num_d2_vars = length(n_d2); if isequal(n_d2, 0) || isempty(n_d2); num_d2_vars = 0; end
+        num_d3_vars = length(n_d3); if isequal(n_d3, 0) || isempty(n_d3); num_d3_vars = 0; end
+        num_prefix = num_d2_vars + num_d3_vars + 1; % +1 for the 'u' shock
+
+        if length(temp) > num_prefix
+            aprimeFnParamNames = {temp{num_prefix + 1 : end}};
+            % Safety filter to prevent state variables from being parsed as parameters
+            aprimeFnParamNames = aprimeFnParamNames(isfield(Parameters, aprimeFnParamNames));
+        end
+    end
+end
+
 % =========================================================
 % TENSOR BRIDGE INTERCEPTS
 % =========================================================
@@ -77,6 +96,10 @@ for jj = N_j : -1 : 1
     if warmglow == 1
         WG_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
         WG_raw = vfoptions.WarmGlowBequestsFn(a2_grid, WG_params{:});
+        if isscalar(WG_raw)
+            WG_raw = WG_raw * ones(size(a2_grid), 'like', a2_grid);
+        end
+        WG_raw = reshape(WG_raw, size(a2_grid));
         WG_temp = WG_raw;
         valid_wg = isfinite(WG_raw) & (WG_raw ~= 0);
         if ezc5(jj) == 1
@@ -235,7 +258,8 @@ if isfield(vfoptions, 'outputkron') && vfoptions.outputkron == 1
     Policy = PolicyKron; return;
 end
 
-n_daprime = [n_d, n_a1];
+% Match legacy toolkit's quirk of appending the asset grid to Policy even for Risky Assets
+n_daprime = [n_d, n_a2];
 PolicyKron_flat = reshape(PolicyKron, [size(PolicyKron,1), N_a, N_z, N_j]);
 Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron_flat, n_daprime, N_a, n_z, N_j, vfoptions);
 
@@ -253,6 +277,8 @@ else
     V = reshape(V, [n_a_full, n_z, N_j]);
     Policy = reshape(Policy, [size(Policy, 1), n_a_full, n_z, N_j]);
 end
+
+
 end
 
 % =========================================================

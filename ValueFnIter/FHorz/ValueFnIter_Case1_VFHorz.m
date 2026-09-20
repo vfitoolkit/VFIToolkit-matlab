@@ -159,14 +159,14 @@ if isempty(ReturnFnParamNames)
         end
 
         % 5. Unified Prefix Argument Count
-        % Fundamentally covers all toolkit variants (Standard, ExpAsset, RiskyAsset)
-        % Structure: D + A1prime (num_a1) + A1 (num_a1) + A2 (num_a2) + SemiZ + Z + E + U
-        num_prefix_args = num_d_vars + (2 * num_a1) + num_a2 + num_semiz_vars + num_z_vars + num_e_vars + num_u_vars;
-
-        if length(temp) > num_prefix_args
-            ReturnFnParamNames = {temp{num_prefix_args + 1 : end}};
+        if vfoptions.riskyasset == 1
+            % RiskyAsset ReturnFn strictly evaluates: d1 + d3 + a + semiz + z
+            num_d1 = 0; if length(vfoptions.refine_d) >= 1; num_d1 = vfoptions.refine_d(1); end
+            num_d3 = 0; if length(vfoptions.refine_d) >= 3; num_d3 = vfoptions.refine_d(3); end
+            num_prefix_args = num_d1 + num_d3 + 1 + num_semiz_vars + num_z_vars;
         else
-            ReturnFnParamNames = {};
+            % Standard Case: D + A1prime (num_a1) + A1 (num_a1) + A2 (num_a2) + SemiZ + Z + E + U
+            num_prefix_args = num_d_vars + (2 * num_a1) + num_a2 + num_semiz_vars + num_z_vars + num_e_vars + num_u_vars;
         end
     end
 end
@@ -409,7 +409,7 @@ for i_d = 1:length(D_cells_block)
 end
 
 % Extract aprimeFn Params for ExpAsset
-if l_a2 > 0
+if l_a2 > 0 || vfoptions.riskyasset == 1
     aprimeFn = vfoptions.aprimeFn;
     if isfield(vfoptions, 'aprimeFnParamNames')
         aprimeFnParamNames = vfoptions.aprimeFnParamNames;
@@ -514,6 +514,38 @@ else
     ezc8 = ones(N_j,1); sj = ones(N_j,1); warmglow = 0;
 end
 
+% --- Risky Asset Tensor Dispatcher ---
+if vfoptions.riskyasset == 1
+    disp('V-World: Dispatching Risky Asset model to Tensor Bridge...');
+
+    % The Risky Asset script interpolates over a2_grid. 
+    % If there's no experience asset (l_a2 == 0), we map the primary asset grid to a2.
+    if l_a2 == 0
+        pass_n_a1 = [];
+        pass_n_a2 = n_a;
+        pass_a1_grid = [];
+        pass_a2_grid = a_grid;
+    else
+        pass_n_a1 = n_a1;
+        pass_n_a2 = n_a2;
+        pass_a1_grid = a1_grid_vals;
+        pass_a2_grid = a2_grid_vals;
+    end
+
+    [V, Policy] = ValueFnIter_VFHorz_RiskyAsset_EpsteinZin(...
+        n_d, pass_n_a1, pass_n_a2, n_combined_z, vfoptions.n_u, N_j, ...
+        d_grid, pass_a1_grid, pass_a2_grid, z_gridvals_J, vfoptions.u_grid, pi_z_J, vfoptions.pi_u, ...
+        ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ...
+        ReturnFnParamNames, aprimeFnParamNames, vfoptions, ...
+        sj, warmglow, ezc2, ezc3, ezc4, ezc5, ezc6, ezc7, ezc8);
+
+    varargout{1} = V;
+    varargout{2} = Policy;
+    if nargout > 2, varargout{3} = []; end % Pad Valt if requested
+    if nargout > 3, varargout{4} = []; end % Pad Policyalt if requested
+    return;
+end
+
 % --- Slicer Setup (Multi-Axis) ---
 if ismember(vfoptions.lowmemory, [0, 5])
     ze_chunks = {1:N_ze};
@@ -608,9 +640,17 @@ for reverse_j = 0:N_j-1
             % Evaluate WarmGlowBequestsFn across terminal asset choices
             % (Assuming a_grid serves as the terminal asset choice grid for bequests)
             wg_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
+
             % Evaluate terminal warm glow across the asset space
             V_warmglow = vfoptions.WarmGlowBequestsFn(a_grid, wg_params{:});
-            V_next = repmat(V_warmglow, [1, N_z_safe, n_e_work]);
+
+            if isscalar(V_warmglow)
+                V_warmglow = V_warmglow * ones(size(a_grid), 'like', a_grid);
+            end
+            V_warmglow = reshape(V_warmglow, [n_a_work, 1, 1]);
+
+            % CRITICAL FIX: Use n_z_work to account for Semi-Exogenous states!
+            V_next = repmat(V_warmglow, [1, n_z_work, n_e_work]);
         else
             V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
         end
