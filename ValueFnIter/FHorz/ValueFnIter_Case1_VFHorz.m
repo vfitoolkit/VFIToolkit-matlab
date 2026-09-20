@@ -867,12 +867,8 @@ for reverse_j = 0:N_j-1
                     EV_interp_flat = EV_left_val + interp_weights .* (EV_right_val - EV_left_val);
                     EV_interp_local = reshape(EV_interp_flat, [length(a1prime_grid), N_ze_local, N_dsemiz]);
                 end
-                if isempty(loweredge_matrix) % Only needed in Non-DC
-                    z_offset_fine_local = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, N_ze_local]);
-                end
             else
                 EV_interp_local = [];
-                z_offset_fine_local = [];
             end
 
             % 4. --- HOIST EV_BOUNDED: Compute once per chunk, not per slice! ---
@@ -988,12 +984,8 @@ for reverse_j = 0:N_j-1
                         EV_interp_flat = EV_left_val + interp_weights .* (EV_right_val - EV_left_val);
                         EV_interp_local = reshape(EV_interp_flat, [length(a1prime_grid), N_ze_local, N_dsemiz]);
                     end
-                    if isempty(loweredge_matrix) % Only needed in Non-DC
-                        z_offset_fine_local = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, N_ze_local]);
-                    end
                 else
                     EV_interp_local = [];
-                    z_offset_fine_local = [];
                 end
 
                 % --- HOIST EV_BOUNDED for non-DC loop ---
