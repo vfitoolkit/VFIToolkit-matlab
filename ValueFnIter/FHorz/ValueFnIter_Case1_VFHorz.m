@@ -526,18 +526,19 @@ end
 if vfoptions.riskyasset == 1
     disp('V-World: Dispatching Risky Asset model to Tensor Bridge...');
 
-    % The Risky Asset script interpolates over a2_grid. 
-    % If there's no experience asset (l_a2 == 0), we map the primary asset grid to a2.
-    if l_a2 == 0
+    % In VFIToolkit, if riskyasset == 1, the LAST endogenous state is the risky asset.
+    % All preceding endogenous states are standard (a1).
+    if length(n_a) > 1
+        pass_n_a1 = n_a(1:end-1);
+        pass_n_a2 = n_a(end);
+        a1_grid_len = sum(pass_n_a1);
+        pass_a1_grid = a_grid(1:a1_grid_len);
+        pass_a2_grid = a_grid(a1_grid_len+1:end);
+    else
         pass_n_a1 = [];
         pass_n_a2 = n_a;
         pass_a1_grid = [];
         pass_a2_grid = a_grid;
-    else
-        pass_n_a1 = n_a1;
-        pass_n_a2 = n_a2;
-        pass_a1_grid = a1_grid_vals;
-        pass_a2_grid = a2_grid_vals;
     end
 
     [V, Policy] = ValueFnIter_VFHorz_RiskyAsset_EpsteinZin(...
@@ -549,8 +550,8 @@ if vfoptions.riskyasset == 1
 
     varargout{1} = V;
     varargout{2} = Policy;
-    if nargout > 2, varargout{3} = []; end % Pad Valt if requested
-    if nargout > 3, varargout{4} = []; end % Pad Policyalt if requested
+    if nargout > 2, varargout{3} = []; end
+    if nargout > 3, varargout{4} = []; end
     return;
 end
 

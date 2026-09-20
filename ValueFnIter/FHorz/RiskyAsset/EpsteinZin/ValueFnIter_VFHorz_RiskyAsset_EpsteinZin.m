@@ -271,7 +271,12 @@ if isfield(vfoptions, 'outputkron') && vfoptions.outputkron == 1
     return;
 end
 
-n_daprime = n_d;
+if has_a1
+    n_daprime = [n_d, n_a1];
+else
+    n_daprime = n_d;
+end
+
 PolicyKron_flat = reshape(PolicyKron, [size(PolicyKron,1), N_a, N_z, N_j]);
 Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron_flat, n_daprime, N_a, n_z, N_j, vfoptions);
 
@@ -288,6 +293,7 @@ else
     V = reshape(V, [n_a_full, n_z, N_j]);
     Policy = reshape(Policy, [size(Policy, 1), n_a_full, n_z, N_j]);
 end
+
 
 end
 
