@@ -830,11 +830,26 @@ for reverse_j = 0:N_j-1
                 EV_interp_local = [];
             end
 
-            % 4. Bind LocalBlockFn passing unmixed global dimensions for broadcasting
-            LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
+            % 4. --- HOIST EV_BOUNDED: Compute once per chunk, not per slice! ---
+            if l_a2 == 0
+                apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
+                z_idx_tensor = reshape(1:n_z_loc, [1, 1, 1, n_z_loc, 1]);
+                e_idx_tensor = reshape(1:n_e_loc, [1, 1, 1, 1, n_e_loc]);
+                idx_base = apr_idx_tensor + (z_idx_tensor - 1) * N_a1 + (e_idx_tensor - 1) * (N_a1 * n_z_work);
+                max_idx_row = N_a1 * n_z_work * n_e_work;
+                linear_idx_pre = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
+
+                % Pre-multiply beta_j so Evaluate_Universal_RHS doesn't have to do it 20x
+                EV_bounded_pre = beta_j .* reshape(EV_local(linear_idx_pre(:)), [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]);
+            else
+                EV_bounded_pre = [];
+            end
+
+            % 5. Bind LocalBlockFn passing unmixed global dimensions for broadcasting
+            LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar, EV_bounded_pre) Evaluate_Case1_TensorBlock(...
                 state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
-                vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
+                vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
                 TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
                 TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_work, n_e_work);
 
@@ -906,7 +921,7 @@ for reverse_j = 0:N_j-1
                 LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
                     state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2_local, N_d_safe, N_ze_local, ...
                     Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_local, a2_grids_1d, l_a2, ...
-                    vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
+                    vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, [], EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
                     TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
                     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor);
 
@@ -1039,7 +1054,7 @@ end
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_Case1_TensorBlock(...
     state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
     Z_cells_block, E_cells_block, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
-    gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
+    gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
     TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_glob, n_e_glob)
 
@@ -1106,6 +1121,7 @@ if l_a2 > 0
     EV_left  = EV_local(linear_idx_left);
     EV_right = EV_local(linear_idx_right);
     EV_bounded = EV_left + weight .* (EV_right - EV_left);
+    EV_bounded = beta_j .* EV_bounded; % Apply beta_j here since it wasn't pre-multiplied
 else
     % Standard Endogenous (Fully Unmixed Shocks with Global Strides)
     apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
@@ -1122,14 +1138,15 @@ else
     linear_idx = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
 
     % EV_bounded natively broadcasts against dimension 3
-    EV_bounded = reshape(EV_local(linear_idx(:)), [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]);
+    EV_bounded = EV_bounded_pre;
 end
 
 % --- 4. RHS Evaluation, Choice Optimization, and State Slicing ---
 FLAT_CHOICES = max(1, N_d_safe) * N_a1;
 FLAT_STATES  = N_states * N_ze_local;  % CRITICAL FIX: Only evaluate sliced states
 
-RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+% Pass beta_j = 1 because it's already baked into EV_bounded
+RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 RHS_flat = reshape(RHS, [FLAT_CHOICES, FLAT_STATES]);
 [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
 
