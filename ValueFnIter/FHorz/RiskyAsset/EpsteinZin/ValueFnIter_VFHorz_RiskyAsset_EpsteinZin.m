@@ -47,13 +47,11 @@ D2_3D = reshape(d2_grid, [N_d2, 1, 1]);
 D3_3D = reshape(d3_grid, [1, N_d3, 1]);
 U_3D  = reshape(u_grid,  [1, 1, N_u]);
 
-% --- DYNAMIC EXTRACTION OF EZC9 ---
 ezc9 = 1;
 if isfield(vfoptions, 'ezc9')
     ezc9 = vfoptions.ezc9;
 end
 
-% --- SMART nargin PARSER FOR RISKY ASSET aprimeFn ---
 if isempty(aprimeFnParamNames)
     if isfield(vfoptions, 'aprimeFnParamNames')
         aprimeFnParamNames = vfoptions.aprimeFnParamNames;
@@ -94,7 +92,21 @@ for jj = N_j : -1 : 1
     end
 
     aprime_tensor = TensorAprimeFn(D2_3D, D3_3D, U_3D, aprimeFnParamsCell{:});
-    aprime_clamped = max(min(aprime_tensor, a2_grid(end)), a2_grid(1));
+
+    % --- EXACT LEGACY INTERPOLATION PRE-COMPUTATION ---
+    a2_prime_clipped = max(min(aprime_tensor, a2_grid(end)), a2_grid(1));
+    idx = discretize(a2_prime_clipped, a2_grid);
+    idx(isnan(idx) | idx == N_a2) = N_a2 - 1;
+
+    a2_left = a2_grid(idx);
+    a2_right = a2_grid(idx+1);
+
+    aprimeProbs = (a2_right - a2_prime_clipped) ./ (a2_right - a2_left);
+    aprimeProbs(a2_right == a2_left) = 0;
+
+    idx_2D = reshape(idx, [N_d2*N_d3, N_u]);
+    aprimeProbs_2D = reshape(aprimeProbs, [N_d2*N_d3, N_u]);
+    pi_u_row = reshape(pi_u, [1, N_u]);
 
     % ---------------------------------------------------------
     % Warm Glow of Bequests
@@ -102,7 +114,6 @@ for jj = N_j : -1 : 1
     if warmglow == 1
         WG_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
         WG_raw = TensorWG_Fn(a2_grid, WG_params{:});
-
         if isscalar(WG_raw)
             WG_raw = WG_raw * ones(size(a2_grid), 'like', a2_grid);
         end
@@ -113,23 +124,22 @@ for jj = N_j : -1 : 1
         WG_temp(valid_wg) = (ezc4 * WG_raw(valid_wg)) .^ ezc5(jj);
         WG_temp(WG_raw == 0) = 0;
 
-        inf_mask_wg = (WG_temp == -Inf);
-        WG_safe = WG_temp;
-        WG_safe(inf_mask_wg) = 0;
+        % Exact bit-for-bit Legacy WG Interpolation
+        skipinterp = (WG_temp(idx) == WG_temp(idx+1));
+        WG_probs = aprimeProbs;
+        WG_probs(skipinterp) = 0;
 
-        WG_interp = interp1(a2_grid, WG_safe, aprime_clamped(:), 'linear');
-        inf_interp_wg = interp1(a2_grid, double(inf_mask_wg), aprime_clamped(:), 'linear');
-        WG_interp(inf_interp_wg > 0) = -Inf;
-        WG_interp = reshape(WG_interp, [N_d2*N_d3, N_u]);
+        WG1 = WG_temp(idx) .* WG_probs;
+        WG2 = WG_temp(idx+1) .* (1 - WG_probs);
 
-        inf_mask_wg_u = (WG_interp == -Inf);
-        WG_safe_u = WG_interp;
-        WG_safe_u(inf_mask_wg_u) = 0;
+        WG1(isnan(WG1)) = 0;
+        WG2(isnan(WG2)) = 0;
 
-        pi_u_rs = reshape(pi_u, [1, N_u]);
-        WG_u = sum(WG_safe_u .* pi_u_rs, 2);
-        inf_infect_wg_u = double(inf_mask_wg_u) .* double(pi_u_rs > 0);
-        WG_u(sum(inf_infect_wg_u, 2) > 0) = -Inf;
+        pi_u_3D = reshape(pi_u, [1, 1, N_u]);
+        WG1_u = WG1 .* pi_u_3D;
+        WG2_u = WG2 .* pi_u_3D;
+
+        WG_u = sum(WG1_u, 3) + sum(WG2_u, 3);
         WG_u = reshape(WG_u, [N_d2*N_d3, 1]);
     else
         WG_u = 0;
@@ -141,7 +151,6 @@ for jj = N_j : -1 : 1
     if jj == N_j
         if warmglow == 1
             temp_WG = WG_u;
-            % FIX: Removed the inverted becareful logic!
             temp_WG(isfinite(WG_u)) = ( (1 - sj(jj)) * WG_u(isfinite(WG_u)).^ezc8(jj) ) .^ ezc6(jj);
             temp_WG(WG_u == 0) = 0;
             temp4 = temp_WG;
@@ -150,71 +159,56 @@ for jj = N_j : -1 : 1
         end
         temp4 = repmat(reshape(temp4, [1, N_d2*N_d3, 1]), [N_a1, 1, max(N_z,1)]);
     else
-        V_next_3D = reshape(V_next, [N_a1, N_a2, max(N_z,1)]);
-
-        % --- PARITY FIX: 1. Z-Expectation FIRST ---
-        temp_V = V_next_3D;
-        temp_V(isfinite(V_next_3D)) = (ezc4 * V_next_3D(isfinite(V_next_3D))) .^ ezc5(jj);
-        temp_V(V_next_3D == 0) = 0;
+        % --- Z-EXPECTATION FIRST (Bit-for-Bit match) ---
+        temp_V = reshape(V_next, [N_a, max(N_z,1)]);
+        temp_V(isfinite(temp_V)) = (ezc4 * temp_V(isfinite(temp_V))) .^ ezc5(jj);
+        temp_V(temp_V == 0) = 0;
 
         if N_z > 0
             pi_z_j = pi_z_J(:,:,jj);
-            EV_pre_z = zeros(N_a1, N_a2, N_z, 'like', a2_grid);
-            for i_a1 = 1:N_a1
-                slice = squeeze(temp_V(i_a1, :, :));
-                if max(N_z,1) == 1, slice = slice(:); end
-
-                inf_mask_z = (slice == -Inf);
-                slice_safe = slice;
-                slice_safe(inf_mask_z) = 0;
-
-                expected = slice_safe * pi_z_j';
-                inf_infect = double(inf_mask_z) * double(pi_z_j' > 0);
-                expected(inf_infect > 0) = -Inf;
-
-                EV_pre_z(i_a1, :, :) = expected;
-            end
+            EV_z_raw = temp_V .* shiftdim(pi_z_j', -1); % [N_a, N_z, N_z]
+            EV_z_raw(isnan(EV_z_raw)) = 0;
+            EV_z_sum = sum(EV_z_raw, 2); % [N_a, 1, N_z]
+            EV_pre_z = reshape(EV_z_sum, [N_a1, N_a2, N_z]);
         else
-            EV_pre_z = temp_V;
+            EV_pre_z = reshape(temp_V, [N_a1, N_a2, 1]);
         end
 
-        % --- PARITY FIX: 2. Interpolation SECOND ---
-        V_interp = zeros(N_a1, N_d2*N_d3, N_u, max(N_z,1), 'like', a2_grid);
+        % --- EXACT LEGACY INTERPOLATION AND U-EXPECTATION ---
+        EV_z = zeros(N_a1, N_d2*N_d3, max(N_z,1), 'like', a2_grid);
+        z_offset = reshape((0:max(N_z,1)-1) * N_a2, [1, 1, max(N_z,1)]);
+        pi_u_3D = repmat(pi_u_row, [N_d2*N_d3, 1, max(N_z,1)]);
 
         for i_a1 = 1:N_a1
             V_slice = squeeze(EV_pre_z(i_a1, :, :));
             if max(N_z,1) == 1, V_slice = V_slice(:); end
 
-            inf_mask = double(V_slice == -Inf);
-            V_safe = V_slice;
-            V_safe(inf_mask > 0) = 0;
+            % Generate linear indices dynamically mapped to Z dimension
+            linear_idx_left = repmat(idx_2D, [1, 1, max(N_z,1)]) + z_offset;
+            linear_idx_right = repmat(idx_2D + 1, [1, 1, max(N_z,1)]) + z_offset;
 
-            V_int_slice = interp1(a2_grid, V_safe, aprime_clamped(:), 'linear');
-            inf_int_slice = interp1(a2_grid, inf_mask, aprime_clamped(:), 'linear');
-            V_int_slice(inf_int_slice > 0) = -Inf;
-            V_interp(i_a1, :, :, :) = reshape(V_int_slice, [1, N_d2*N_d3, N_u, max(N_z,1)]);
+            V_left = V_slice(linear_idx_left);
+            V_right = V_slice(linear_idx_right);
+
+            % Legacy applies skipinterp exact value matching to EV
+            skipinterp = (V_left == V_right);
+            prob_lower = repmat(aprimeProbs_2D, [1, 1, max(N_z,1)]);
+            prob_lower(skipinterp) = 0;
+            prob_upper = 1 - prob_lower;
+
+            EV1 = (V_left .* prob_lower) .* pi_u_3D;
+            EV2 = (V_right .* prob_upper) .* pi_u_3D;
+
+            EV1(isnan(EV1)) = 0;
+            EV2(isnan(EV2)) = 0;
+
+            EV_z(i_a1, :, :) = sum(EV1, 2) + sum(EV2, 2);
         end
-
-        % --- PARITY FIX: 3. U-Expectation THIRD ---
-        pi_u_rs = reshape(pi_u, [1, 1, N_u, 1]);
-        inf_mask_u = (V_interp == -Inf);
-        V_interp_safe = V_interp;
-        V_interp_safe(inf_mask_u) = 0;
-
-        EV_z = sum(V_interp_safe .* pi_u_rs, 3);
-        inf_infect_u = double(inf_mask_u) .* double(pi_u_rs > 0);
-        EV_z(sum(inf_infect_u, 3) > 0) = -Inf;
-
-        EV_z = reshape(EV_z, [N_a1, N_d2*N_d3, max(N_z,1)]);
 
         temp4 = EV_z;
         if warmglow == 1
             WG_u_rs = reshape(WG_u, [1, N_d2*N_d3, 1]);
-
-            % FIX: Explicitly expand the array to perfectly match temp4's dimensions
-            % This prevents implicit expansion OOMs and indexing bound errors on the GPU
             WG_u_expanded = repmat(WG_u_rs, [N_a1, 1, max(N_z,1)]);
-
             becareful = logical(isfinite(temp4) .* isfinite(WG_u_expanded));
             temp4(becareful) = ( sj(jj)*temp4(becareful).^ezc8(jj) + (1-sj(jj))*WG_u_expanded(becareful).^ezc8(jj) ) .^ ezc6(jj);
             temp4((EV_z == 0) & (WG_u_expanded == 0)) = 0;
@@ -230,22 +224,17 @@ for jj = N_j : -1 : 1
     % ---------------------------------------------------------
     temp4_tensor = reshape(temp4, [N_a1, N_d2, N_d3, max(N_z,1)]);
 
-    % The Legacy Toolkit Parity Block: Safe NaN masking and ezc9 * ezc3 flip
-    % By replacing -Inf with 0 BEFORE multiplying, we prevent 0 * -Inf = NaN
     safe_temp4 = temp4_tensor;
     inf_mask = isinf(temp4_tensor);
     safe_temp4(inf_mask) = 0;
 
     masked_temp4 = (~inf_mask) .* safe_temp4;
     flipped_temp4 = ezc9 * ezc3 * masked_temp4;
-
-    % Re-inject the -Inf penalty so invalid states are correctly ignored by max()
     flipped_temp4(inf_mask) = -Inf;
 
-    % Revert to exact math extraction now that associativity is fixed
+    % Exact Math Extraction
     [EV_max_d3_raw, Pol_d2_idx] = max(flipped_temp4, [], 2);
 
-    % Keep it as the raw output to match legacy RHS assembly
     EV_max_d3 = reshape(EV_max_d3_raw, [N_a1, N_d3, max(N_z,1)]);
     Pol_d2_idx = reshape(Pol_d2_idx, [N_a1, N_d3, max(N_z,1)]);
 
@@ -302,7 +291,6 @@ else
     Policy = reshape(Policy, [size(Policy, 1), n_a_full, n_z, N_j]);
 end
 
-
 end
 
 % =========================================================
@@ -315,10 +303,10 @@ function [V_sub, Pol_d_combo, L2idx, L2flag] = Evaluate_EZ_TensorBlock(...
 
 N_block = length(state_idx);
 
-% 1. Setup 5D Choice/State Structures
-    d1_in      = reshape(d1_grid, [N_d1, 1, 1, 1, 1]);
-    d3_in      = reshape(d3_grid, [1, N_d3, 1, 1, 1]); % Swapped to Dim 2 (Fastest)
-    a1prime_in = reshape(a1_grid, [1, 1, N_a1, 1, 1]); % Swapped to Dim 3 (Slowest)
+% 1. Setup 5D Choice/State Structures (Dimension swapped for Tie-Breaking)
+d1_in      = reshape(d1_grid, [N_d1, 1, 1, 1, 1]);
+d3_in      = reshape(d3_grid, [1, N_d3, 1, 1, 1]);
+a1prime_in = reshape(a1_grid, [1, 1, N_a1, 1, 1]);
 
 [a1_idx, a2_idx] = ind2sub([N_a1, N_a2], state_idx);
 A1_cells = reshape(a1_grid(a1_idx), [1, 1, 1, N_block, 1]);
@@ -337,15 +325,14 @@ ReturnFn_Args{end+1} = A2_cells;
 if N_z_safe > 0, ReturnFn_Args{end+1} = Z_cells; end
 ReturnFn_Args = [ReturnFn_Args, ReturnFnParamsCell];
 
-% 3. Evaluate F (5D) matching legacy becareful logic
+% 3. Evaluate F (5D)
 F_tensor = TensorReturnFn(ReturnFn_Args{:});
 temp2 = F_tensor;
 becareful = logical(isfinite(F_tensor) .* (F_tensor ~= 0));
 temp2(becareful) = F_tensor(becareful) .^ ezc2_j;
 temp2(F_tensor == 0) = -Inf;
 
-% 4. Assemble RHS matching legacy summation bugs
-% Permute EV_max_d3 to match F_tensor broadcast dims [1, N_d3, N_a1, 1, N_z_safe]
+% 4. Assemble RHS (EV_bc Permuted for Tie-Breaking)
 EV_bc_perm = permute(EV_max_d3, [2, 1, 3]);
 EV_bc = reshape(EV_bc_perm, [1, N_d3, N_a1, 1, N_z_safe]);
 entireRHS = ezc1_j .* temp2 + ezc9 .* beta_j .* EV_bc;
@@ -353,15 +340,12 @@ entireRHS = ezc1_j .* temp2 + ezc9 .* beta_j .* EV_bc;
 RHS = entireRHS;
 temp5 = logical(isfinite(entireRHS) .* (entireRHS ~= 0));
 RHS(temp5) = entireRHS(temp5) .^ ezc7_j;
-% FIX: Removed the RHS(~isfinite) = -Inf override. Let MATLAB handle NaNs natively!
 
 RHS_flat = reshape(RHS, [N_d1 * N_d3 * N_a1, N_block * N_z_safe]);
-
-% Revert to exact math extraction now that associativity is fixed
 [V_sub_coarse, opt_idx_flat] = max(RHS_flat, [], 1);
 V_sub = V_sub_coarse;
 
-% 5. Simultaneous Compression (Flatten all choices)
+% 5. Simultaneous Compression (d3 before a1prime for Tie-Breaking)
 [d1_opt, d3_opt, a1prime_opt] = ind2sub([N_d1, N_d3, N_a1], opt_idx_flat);
 d1_opt = reshape(d1_opt, [N_block, N_z_safe]);
 a1prime_opt = reshape(a1prime_opt, [N_block, N_z_safe]);
