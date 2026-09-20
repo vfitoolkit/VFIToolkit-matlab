@@ -153,7 +153,9 @@ for jj = N_j : -1 : 1
             if max(N_z,1) == 1, V_slice = V_slice(:); end
 
             temp_V = V_slice;
-            temp_V(isfinite(V_slice)) = (ezc4 * V_slice(isfinite(V_slice))) .^ ezc5(jj);
+            becareful = logical(isfinite(V_slice) .* (V_slice ~= 0));
+            % FIX: Use ezc5(jj) and ezc4, and map 0 to 0 (NOT -Inf!)
+            temp_V(becareful) = (ezc4 * V_slice(becareful)) .^ ezc5(jj);
             temp_V(V_slice == 0) = 0;
 
             inf_mask = double(temp_V == -Inf);
@@ -318,7 +320,7 @@ entireRHS = ezc1_j .* temp2 + ezc9 .* beta_j .* EV_bc;
 RHS = entireRHS;
 temp5 = logical(isfinite(entireRHS) .* (entireRHS ~= 0));
 RHS(temp5) = entireRHS(temp5) .^ ezc7_j;
-RHS(~isfinite(entireRHS)) = -Inf;
+% FIX: Removed the RHS(~isfinite) = -Inf override. Let MATLAB handle NaNs natively!
 
 RHS_flat = reshape(RHS, [N_d1 * N_a1 * N_d3, N_block * N_z_safe]);
 [V_sub_coarse, opt_idx_flat] = max(RHS_flat, [], 1);
