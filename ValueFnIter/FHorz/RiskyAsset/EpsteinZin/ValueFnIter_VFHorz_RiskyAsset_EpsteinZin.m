@@ -258,8 +258,8 @@ if isfield(vfoptions, 'outputkron') && vfoptions.outputkron == 1
     Policy = PolicyKron; return;
 end
 
-% Match legacy toolkit's quirk of appending the asset grid to Policy even for Risky Assets
-n_daprime = [n_d, n_a2];
+% Risky Asset models only choose 'd' (savings and riskyshare), aprime is stochastic
+n_daprime = n_d;
 PolicyKron_flat = reshape(PolicyKron, [size(PolicyKron,1), N_a, N_z, N_j]);
 Policy = UnKronPolicyIndexes1_FHorz_z(PolicyKron_flat, n_daprime, N_a, n_z, N_j, vfoptions);
 
