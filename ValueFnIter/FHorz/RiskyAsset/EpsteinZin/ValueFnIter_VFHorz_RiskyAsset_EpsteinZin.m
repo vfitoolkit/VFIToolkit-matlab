@@ -141,18 +141,16 @@ for jj = N_j : -1 : 1
         if warmglow == 1
             temp_WG = temp4(valid_t4);
             if ezc8(jj) ~= 1
-                % RESTORED: Pure Epstein-Zin Double-Flip
-                temp_WG = ezc3 * ( (ezc3 * temp_WG) .^ ezc8(jj) );
+                temp_WG = max(temp_WG, 0).^ezc8(jj);
             end
             temp_WG = (1 - sj(jj)) * temp_WG;
             if ezc6(jj) ~= 1
-                % RESTORED: Pure Epstein-Zin Double-Flip
-                temp_WG = ezc3 * ( (ezc3 * temp_WG) .^ ezc6(jj) );
+                temp_WG = max(temp_WG, 0).^ezc6(jj);
             end
             temp4(valid_t4) = temp_WG;
 
             temp4(WG_u == 0) = 0;
-            temp4(~valid_t4 & WG_u ~= 0) = -Inf;
+            temp4(~valid_t4 & WG_u ~= 0) = NaN;
         else
             temp4 = zeros(N_d2*N_d3, 1, 'like', a2_grid);
         end
@@ -241,27 +239,25 @@ for jj = N_j : -1 : 1
             valid_t4 = isfinite(EV_z) & (EV_z ~= 0);
             temp_EV = EV_z(valid_t4);
             if ezc8(jj) ~= 1
-                % RESTORED: Pure Epstein-Zin Double-Flip
-                temp_EV = ezc3 * ( (ezc3 * temp_EV) .^ ezc8(jj) );
+                temp_EV = max(temp_EV, 0).^ezc8(jj);
             end
             temp_EV = sj(jj) * temp_EV;
             if ezc6(jj) ~= 1
-                % RESTORED: Pure Epstein-Zin Double-Flip
-                temp_EV = ezc3 * ( (ezc3 * temp_EV) .^ ezc6(jj) );
+                temp_EV = max(temp_EV, 0).^ezc6(jj);
             end
             temp4(valid_t4) = temp_EV;
 
             temp4(EV_z == 0) = 0;
-            temp4(~valid_t4 & EV_z ~= 0) = -Inf;
+            temp4(~valid_t4 & EV_z ~= 0) = NaN;
         end
     end
 
     % DIMENSIONAL COMPRESSION: Maximize out d2 (riskyshare)
     temp4_tensor = reshape(temp4, [N_a1, N_d2, N_d3, max(N_z,1)]);
 
-    % RESTORED: Maximize the true value surface directly without pre-flipping it!
-    [EV_max_d3, Pol_d2_idx] = max(temp4_tensor, [], 2);
+    [EV_max_d3_raw, Pol_d2_idx] = max(ezc3 * temp4_tensor, [], 2);
 
+    EV_max_d3 = ezc3 * EV_max_d3_raw;
     EV_max_d3 = reshape(EV_max_d3, [N_a1, N_d3, max(N_z,1)]);
     Pol_d2_idx = reshape(Pol_d2_idx, [N_a1, N_d3, max(N_z,1)]);
 
@@ -359,12 +355,19 @@ else
 end
 temp2(~isfinite(F_tensor)) = -Inf;
 
-% 4. Assemble RHS
+% Assemble RHS
 EV_bc = reshape(EV_max_d3, [1, N_a1, N_d3, 1, N_z_safe]);
 entireRHS = ezc1_j .* temp2 + beta_j .* EV_bc;
 
-% RESTORED: Maximize directly on the true signed value surface!
-RHS_flat = reshape(entireRHS, [N_d1 * N_a1 * N_d3, N_block * N_z_safe]);
+RHS = entireRHS;
+valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
+if ezc7_j == 1
+    RHS(valid_RHS) = ezc3 * entireRHS(valid_RHS);
+else
+    RHS(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
+end
+
+RHS_flat = reshape(RHS, [N_d1 * N_a1 * N_d3, N_block * N_z_safe]);
 [V_sub_coarse, opt_idx_flat] = max(RHS_flat, [], 1);
 
 % NOW apply ezc7_j ONLY to the winning V_sub_coarse
