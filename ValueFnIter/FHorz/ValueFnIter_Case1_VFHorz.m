@@ -504,6 +504,24 @@ if vfoptions.gridinterplayer(1) == 1
     n2long  = n2short * 2 + 3;
     % Use a_work instead of a_gridvals(:,1)
     a1prime_grid = interp1(1:1:N_a1, a1_work, linspace(1, N_a1, N_a1 + (N_a1 - 1) * n2short))';
+    % Compute interpolation indices and weights ONCE
+    idx = discretize(a1prime_grid, a1_work);
+    idx(isnan(idx) | idx == length(a1_work)) = length(a1_work) - 1;
+
+    interp_left_idx = idx(:);
+    interp_right_idx = idx(:) + 1;
+
+    a1_left = a1_work(interp_left_idx);
+    a1_right = a1_work(interp_right_idx);
+    interp_weights = (a1prime_grid(:) - a1_left) ./ (a1_right - a1_left);
+    interp_weights(a1_right == a1_left) = 0; 
+
+    % Move to GPU if necessary
+    if vfoptions.parallel == 2
+        interp_left_idx = gpuArray(interp_left_idx);
+        interp_right_idx = gpuArray(interp_right_idx);
+        interp_weights = gpuArray(interp_weights);
+    end
 else
     n2short = 0;
     n2long  = 0;
@@ -558,6 +576,48 @@ else
     a2_chunks = {1:N_a2};
 end
 
+% --- PRE-COMPUTE CHUNK METADATA ONCE ---
+chunk_meta = cell(1, length(ze_chunks));
+for i_ze = 1:length(ze_chunks)
+    c_ze = ze_chunks{i_ze};
+
+    % Perform index math on CPU to avoid GPU sorting overhead
+    if isa(c_ze, 'gpuArray'), c_ze_cpu = gather(c_ze); else, c_ze_cpu = c_ze; end
+    [z_ind, e_ind] = ind2sub([n_z_work, n_e_work], c_ze_cpu);
+
+    meta.z_vals = unique(z_ind);
+    meta.e_vals = unique(e_ind);
+    meta.n_z_loc = length(meta.z_vals);
+    meta.n_e_loc = length(meta.e_vals);
+    meta.N_ze_local = length(c_ze);
+    meta.z_offset_local = reshape((0:meta.N_ze_local-1) * N_a, [1, 1, 1, meta.N_ze_local]);
+
+    % If using gridinterplayer, pre-compute fine offset
+    if vfoptions.gridinterplayer(1) == 1
+        meta.z_offset_fine_local = reshape((0:meta.N_ze_local-1) * length(a1prime_grid), [1, 1, 1, meta.N_ze_local]);
+    else
+        meta.z_offset_fine_local = [];
+    end
+
+    chunk_meta{i_ze} = meta;
+end
+
+% Initialize base parameters once
+base_ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, 1, vfoptions.precision);
+
+% Identify which parameters are age-dependent (length == N_j)
+is_age_dependent = false(1, length(ReturnFnParamNames));
+for ip = 1:length(ReturnFnParamNames)
+    if numel(Parameters.(ReturnFnParamNames{ip})) == N_j
+        is_age_dependent(ip) = true;
+    end
+
+    % Force GPU typing on static parameters once
+    if vfoptions.parallel == 2 && isnumeric(base_ReturnFnParamsCell{ip}) && ~isa(base_ReturnFnParamsCell{ip}, 'gpuArray')
+        base_ReturnFnParamsCell{ip} = gpuArray(base_ReturnFnParamsCell{ip});
+    end
+end
+
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
 
@@ -578,8 +638,17 @@ for reverse_j = 0:N_j-1
         end
     end
 
-    ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj, vfoptions.precision);
-    ReturnFnParamsCell=cellfun(@gpuArray, ReturnFnParamsCell, UniformOutput=false);
+    ReturnFnParamsCell = base_ReturnFnParamsCell;
+
+    % Update ONLY the age-dependent parameters
+    for ip = find(is_age_dependent)
+        val = cast(Parameters.(ReturnFnParamNames{ip})(jj), vfoptions.precision);
+        if vfoptions.parallel == 2
+            ReturnFnParamsCell{ip} = gpuArray(val);
+        else
+            ReturnFnParamsCell{ip} = val;
+        end
+    end
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj, vfoptions.precision);
     beta_j = prod(DiscountFactorParamsVec);
 
@@ -712,42 +781,52 @@ for reverse_j = 0:N_j-1
     % --- The Master Orchestrator Loop ---
     if vfoptions.divideandconquer == 1
         for i_ze = 1:length(ze_chunks)
+            % Look up pre-computed bounds instantly
+            meta = chunk_meta{i_ze};
+            n_z_loc = meta.n_z_loc;
+            n_e_loc = meta.n_e_loc;
+            z_offset_local = meta.z_offset_local;
+            z_offset_fine_local = meta.z_offset_fine_local;
+
+            if has_semiz || has_z
+                % ... reshape Z_cells_local using meta.z_vals
+                Z_cells_local{iz} = reshape(z_gridvals_J(meta.z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
+            end
+            if has_e
+                % ... reshape E_cells_local using meta.e_vals
+                E_cells_local{ie} = reshape(e_work(meta.e_vals, ie), [1, 1, 1, 1, n_e_loc]);
+            end
+
             curr_ze = ze_chunks{i_ze};
             N_ze_local = length(curr_ze);
 
             % 1. Slice EV and setup shock cells for this chunk
-            start_idx = (min(curr_ze) - 1) * N_a + 1;
-            end_idx   = max(curr_ze) * N_a;
             EV_local  = EV_flat_ze(:, curr_ze, :);
 
-            % Unmix curr_ze into orthogonal z and e coordinates
-            [curr_z_indices, curr_e_indices] = ind2sub([n_z_work, n_e_work], curr_ze);
-            chunk_z_vals = unique(curr_z_indices);
-            chunk_e_vals = unique(curr_e_indices);
-            n_z_loc = length(chunk_z_vals);
-            n_e_loc = length(chunk_e_vals);
-
             if has_semiz || has_z
-                Z_cells_local = cellfun(@(c) reshape(c(chunk_z_vals, :), [1, 1, 1, n_z_loc, 1]), Z_cells, 'UniformOutput', false);
+                Z_cells_local{iz} = reshape(z_gridvals_J(meta.z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
             else
                 Z_cells_local = {};
             end
 
             if has_e
-                E_cells_local = cellfun(@(c) reshape(c(chunk_e_vals, :), [1, 1, 1, 1, n_e_loc]), E_cells, 'UniformOutput', false);
+                E_cells_local{ie} = reshape(e_work(meta.e_vals, ie), [1, 1, 1, 1, n_e_loc]);
             else
                 E_cells_local = {};
             end
 
-            z_offset_local = reshape((0:N_ze_local-1) * N_a, [1, 1, 1, N_ze_local]);
+            if vfoptions.gridinterplayer(1) == 1% Flatten EV_local to [N_a, N_cols] for 2D indexing
+                N_cols = N_ze_local * N_dsemiz;
+                EV_2d = reshape(EV_local, [N_a, N_cols]);
 
-            if vfoptions.gridinterplayer
-                EV_interp_local = interp1(a1_work, reshape(EV_local, [N_a, N_ze_local * N_dsemiz]), a1prime_grid);
-                EV_interp_local = reshape(EV_interp_local, [length(a1prime_grid), N_ze_local, N_dsemiz]);
-                z_offset_fine_local = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, N_ze_local]);
+                % Fast manual linear interpolation
+                EV_left_val = EV_2d(interp_left_idx, :);
+                EV_right_val = EV_2d(interp_right_idx, :);
+                EV_interp_flat = EV_left_val + interp_weights .* (EV_right_val - EV_left_val);
+
+                EV_interp_local = reshape(EV_interp_flat, [length(a1prime_grid), N_ze_local, N_dsemiz]);
             else
                 EV_interp_local = [];
-                z_offset_fine_local = [];
             end
 
             % 2. Bind LocalBlockFn passing unmixed global dimensions for broadcasting
@@ -904,30 +983,38 @@ if isfield(vfoptions, 'outputkron') && vfoptions.outputkron == 1
     return
 end
 
-%% Iterative Policy Unpacking (System RAM Handoff)
-% MATLAB GPUs enforce a strict 32-bit signed integer limit for array indexing
-% (max 2,147,483,647 elements per array). For high-resolution models exceeding
-% this limit, the Policy tensor is unpacked iteratively by period and assembled
-% safely in 64-bit System RAM.
+%% Smart Policy Unpacking (System RAM Handoff)
+% MATLAB GPUs enforce a strict 32-bit signed integer limit for array indexing (~2.14B).
+% We check the total size: if safe, we do a high-speed bulk unpack. 
+% If massive, we fall back to the iterative memory-safe loop.
 
 disp('Unpacking Policy tensor to System RAM...');
-
 num_pol_vars = length(n_daprime);
 n_daprime_col = n_daprime(:);
 divisors = cumprod([1; n_daprime_col(1:end-1)]);
 
-% Allocate in System RAM ('single', NOT 'like' PolicyKron)
-Policy_flat = zeros([num_pol_vars, n_a_work, n_z_work, n_e_work, N_j], vfoptions.precision);
+total_elements = num_pol_vars * n_a_work * n_z_work * n_e_work * N_j;
+MAX_INT32 = 2147483647; 
 
-for jj = 1:N_j
-    PK_j = PolicyKron(:,:,:,:,jj);
-    % Compute the 148MB chunk on GPU, then gather immediately to CPU RAM
-    P_j_gpu = mod(floor((PK_j - 1) ./ divisors), n_daprime_col) + 1;
-    Policy_flat(:,:,:,:,jj) = gather(P_j_gpu);
+if total_elements < (MAX_INT32 * 0.9) % 90% safety margin threshold
+    % --- FAST PATH: Single Bulk Operation ---
+    % Implicit expansion applies the divisors across the entire 5D tensor at once
+    P_gpu = mod(floor((PolicyKron - 1) ./ divisors), n_daprime_col) + 1;
+    Policy_flat = gather(P_gpu);
+else
+    % --- SLOW PATH: Iterative Unpacking ---
+    disp('Using memory-safe iterative unpacking due to massive array size...');
+    Policy_flat = zeros([num_pol_vars, n_a_work, n_z_work, n_e_work, N_j], vfoptions.precision);
+    for jj = 1:N_j
+        PK_j = PolicyKron(:,:,:,:,jj);
+        P_j_gpu = mod(floor((PK_j - 1) ./ divisors), n_daprime_col) + 1;
+        Policy_flat(:,:,:,:,jj) = gather(P_j_gpu);
+    end
 end
 
 % Gather V to CPU to keep memory domains aligned for StationaryDist
-V_cpu = gather(V);
+% V_cpu = gather(V);
+V_cpu = V;
 
 if has_z && has_e
     Policy = reshape(Policy_flat, [num_pol_vars, n_a, n_all_z, n_e_pass, N_j]);
@@ -955,26 +1042,34 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
     TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_glob, n_e_glob)
 
-% Map state_idx relative to the current chunk for Divide-and-Conquer
-local_state_idx = state_idx - min(state_idx) + 1;
-N_block = length(local_state_idx);
+% Number of states requested by the Divide-and-Conquer slicer
+N_states = length(state_idx);
 
-% 1. Build A1 and A2 Cells dynamically
+% Map state_idx to specific asset subscripts
+if l_a2 > 0
+    N_a2_dims = size(A2_mat, 1);
+    [a1_sub, a2_sub] = ind2sub([N_a1, N_a2_dims], state_idx);
+else
+    a1_sub = state_idx;
+end
+
+% 1. Build A1 Cells dynamically for EXACTLY the states requested
 num_a1 = size(A1_mat, 2);
 Apr_cells = cell(1, num_a1);
 A1_cells  = cell(1, num_a1);
 for ia = 1:num_a1
     Apr_cells{ia} = reshape(A1_mat(:,ia), [1, N_a1, 1, 1, 1]);
-    A1_cells{ia}  = reshape(A1_mat(:,ia), [1, 1, N_a1, 1, 1]);
+
+    % CRITICAL FIX: Only evaluate the sliced states in dimension 3
+    A1_cells{ia}  = reshape(A1_mat(a1_sub, ia), [1, 1, N_states, 1, 1]);
 end
 
-% 2. Evaluate ReturnFn with raw numeric arrays for A2
+% 2. Evaluate ReturnFn on the isolated subset
 if l_a2 > 0
-    N_a2_dims = size(A2_mat, 1);
     num_a2 = size(A2_mat, 2);
     A2_cells = cell(1, num_a2);
     for ia = 1:num_a2
-        A2_cells{ia} = reshape(A2_mat(:,ia), [1, 1, 1, N_a2_dims, 1]);
+        A2_cells{ia} = reshape(A2_mat(a2_sub, ia), [1, 1, N_states, 1, 1]);
     end
     F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 else
@@ -1000,7 +1095,6 @@ if l_a2 > 0
     A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
     ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
 
-    % Multi-shock indexing offset for Experience Asset models
     idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
     idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
 
@@ -1021,23 +1115,18 @@ else
     z_idx_tensor = reshape(1:n_z_loc, [1, 1, 1, n_z_loc, 1]);
     e_idx_tensor = reshape(1:n_e_loc, [1, 1, 1, 1, n_e_loc]);
 
-    % Rebuild index base using global strides for unmixed dimensions
     idx_base = apr_idx_tensor + (z_idx_tensor - 1) * N_a1 + (e_idx_tensor - 1) * (N_a1 * n_z_glob);
 
     max_idx_row = N_a1 * n_z_glob * n_e_glob;
     linear_idx = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
 
+    % EV_bounded natively broadcasts against dimension 3
     EV_bounded = reshape(EV_local(linear_idx(:)), [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]);
 end
 
 % --- 4. RHS Evaluation, Choice Optimization, and State Slicing ---
 FLAT_CHOICES = max(1, N_d_safe) * N_a1;
-if l_a2 > 0
-    N_a_total = N_a1 * N_a2;
-else
-    N_a_total = N_a1;
-end
-FLAT_STATES  = N_a_total * N_ze_local;
+FLAT_STATES  = N_states * N_ze_local;  % CRITICAL FIX: Only evaluate sliced states
 
 RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, beta_j, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 RHS_flat = reshape(RHS, [FLAT_CHOICES, FLAT_STATES]);
@@ -1046,15 +1135,10 @@ RHS_flat = reshape(RHS, [FLAT_CHOICES, FLAT_STATES]);
 d_idx_local   = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
 apr_idx_local = ceil(Pol_sub_idx / max(1, N_d_safe));
 
-% Reshape to full grid size first
-V_full        = reshape(V_sub_coarse,   [N_a_total, N_ze_local]);
-Pol_apr_full  = reshape(apr_idx_local, [N_a_total, N_ze_local]);
-Pol_d_full    = reshape(d_idx_local,   [N_a_total, N_ze_local]);
-
-% Sub-select ONLY the requested state_idx rows (crucial for Divide-and-Conquer)
-V_j_max        = V_full(state_idx, :);
-Pol_apr_max    = Pol_apr_full(state_idx, :);
-Pol_d_max      = Pol_d_full(state_idx, :);
+% Return exactly the subset block requested by the DC Slicer (no throwaway math)
+V_j_max        = reshape(V_sub_coarse,  [N_states, N_ze_local]);
+Pol_apr_max    = reshape(apr_idx_local, [N_states, N_ze_local]);
+Pol_d_max      = reshape(d_idx_local,   [N_states, N_ze_local]);
 Pol_L2idx_max  = [];
 Pol_L2flag_max = [];
 
