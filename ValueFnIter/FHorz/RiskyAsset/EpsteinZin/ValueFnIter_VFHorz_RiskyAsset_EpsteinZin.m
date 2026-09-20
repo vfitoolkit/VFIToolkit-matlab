@@ -149,7 +149,8 @@ for jj = N_j : -1 : 1
             temp4(valid_t4) = temp_WG;
 
             temp4(WG_u == 0) = 0;
-            temp4(~valid_t4 & WG_u ~= 0) = NaN;
+            % FIX: Use -Inf instead of NaN to preserve maximization logic
+            temp4(~valid_t4 & WG_u ~= 0) = -Inf;
         else
             temp4 = zeros(N_d2*N_d3, 1, 'like', a2_grid);
         end
@@ -230,7 +231,8 @@ for jj = N_j : -1 : 1
 
             zero_mask = (EV_z == 0) & repmat(WG_u_rs == 0, [N_a1, 1, max(N_z,1)]);
             temp4(zero_mask) = 0;
-            temp4(~valid_combined & ~zero_mask) = NaN;
+            % FIX: Use -Inf instead of NaN
+            temp4(~valid_combined & ~zero_mask) = -Inf;
         else
             valid_t4 = isfinite(EV_z) & (EV_z ~= 0);
             temp_EV = EV_z(valid_t4);
@@ -244,17 +246,26 @@ for jj = N_j : -1 : 1
             temp4(valid_t4) = temp_EV;
 
             temp4(EV_z == 0) = 0;
-            temp4(~valid_t4 & EV_z ~= 0) = NaN;
+            % FIX: Use -Inf instead of NaN
+            temp4(~valid_t4 & EV_z ~= 0) = -Inf;
         end
     end
 
     % DIMENSIONAL COMPRESSION: Maximize out d2 (riskyshare)
     temp4_tensor = reshape(temp4, [N_a1, N_d2, N_d3, max(N_z,1)]);
-    [EV_max_d2_raw, Pol_d2_idx] = max(ezc3 * temp4_tensor, [], 2);
 
+    % Flip signs for maximization, but aggressively PROTECT invalid states!
+    temp4_eval = ezc3 * temp4_tensor;
+    temp4_eval(temp4_tensor == -Inf) = -Inf;
+
+    [EV_max_d2_raw, Pol_d2_idx] = max(temp4_eval, [], 2);
+
+    % EV_max_d2_raw is currently in utility-units.
+    % Flip it back to positive certainty-equivalent units for the 5D Tensor Block.
     EV_max_d3 = ezc3 * EV_max_d2_raw;
     EV_max_d3 = reshape(EV_max_d3, [N_a1, N_d3, max(N_z,1)]);
-    EV_max_d3(isnan(EV_max_d3)) = -Inf;
+    EV_max_d3(EV_max_d2_raw == -Inf) = -Inf;
+
     Pol_d2_idx = reshape(Pol_d2_idx, [N_a1, N_d3, max(N_z,1)]);
 
     % =========================================================
