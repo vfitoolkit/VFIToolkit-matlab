@@ -579,6 +579,7 @@ for reverse_j = 0:N_j-1
     end
 
     ReturnFnParamsCell = CreateCellFromParams(Parameters, ReturnFnParamNames, jj, vfoptions.precision);
+    ReturnFnParamsCell=cellfun(@gpuArray, ReturnFnParamsCell, UniformOutput=false);
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj, vfoptions.precision);
     beta_j = prod(DiscountFactorParamsVec);
 
@@ -727,21 +728,13 @@ for reverse_j = 0:N_j-1
             n_e_loc = length(chunk_e_vals);
 
             if has_semiz || has_z
-                num_z_vars = size(z_gridvals_J, 2);
-                Z_cells_local = cell(1, num_z_vars);
-                for iz = 1:num_z_vars
-                    Z_cells_local{iz} = reshape(z_gridvals_J(chunk_z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
-                end
+                Z_cells_local = cellfun(@(c) reshape(c(chunk_z_vals, :), [1, 1, 1, n_z_loc, 1]), Z_cells, 'UniformOutput', false);
             else
                 Z_cells_local = {};
             end
 
             if has_e
-                num_e_vars = size(e_work, 2);
-                E_cells_local = cell(1, num_e_vars);
-                for ie = 1:num_e_vars
-                    E_cells_local{ie} = reshape(e_work(chunk_e_vals, ie), [1, 1, 1, 1, n_e_loc]);
-                end
+                E_cells_local = cellfun(@(c) reshape(c(chunk_e_vals, :), [1, 1, 1, 1, n_e_loc]), E_cells, 'UniformOutput', false);
             else
                 E_cells_local = {};
             end

@@ -4,25 +4,37 @@ function RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, beta_j, ezc1_
 
 % --- 1. Apply ezc2 & ezc4 to Return Function ---
 temp2 = F_tensor;
-valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
 
-if ezc2_j == 1
-    temp2(valid_F) = ezc4 * F_tensor(valid_F);
+if ezc2_j == 1 && ezc4 == 1
+    % Relax
 else
-    temp2(valid_F) = max(ezc4 * F_tensor(valid_F), 0).^ezc2_j;
+    if ezc2_j == 1
+        % Don't create and use an index here...will be handled in due course
+        temp2 = ezc4 * F_tensor;
+    else
+        valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
+        temp2(valid_F) = max(ezc4 * F_tensor(valid_F), 0).^ezc2_j;
+    end
 end
 temp2(~isfinite(F_tensor)) = -Inf;
 
 % --- 2. Assemble Coarse RHS ---
-entireRHS = ezc1_j .* temp2 + beta_j .* EV_bounded;
+if ezc1_j ~= 1 || beta_j ~= 0
+    entireRHS = ezc1_j .* temp2 + beta_j .* EV_bounded;
+else
+    entireRHS = temp2;
+end
 
 % --- 3. Apply ezc3 & ezc7 to the combined RHS ---
 RHS = entireRHS;
-valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
 
 if ezc7_j == 1
-    RHS(valid_RHS) = ezc3 * entireRHS(valid_RHS);
+    if ezc3 ~= 1
+        % Don't create and use an index here...will be handled in due course
+        RHS = ezc3 * entireRHS;
+    end
 else
+    valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
     RHS(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
 end
 RHS(~isfinite(entireRHS)) = -Inf;
