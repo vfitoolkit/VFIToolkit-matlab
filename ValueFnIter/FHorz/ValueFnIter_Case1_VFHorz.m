@@ -519,11 +519,17 @@ end
 if ismember(vfoptions.lowmemory, [0, 5])
     ze_chunks = {1:N_ze};
 elseif vfoptions.lowmemory == 1
-    chunk_size = 300; % Safe to crank back up to 300 with FP32!
-    num_chunks = ceil(N_ze / chunk_size);
+    % Chunk perfectly along the E dimension to maintain Cartesian orthogonality
+    e_chunk_size = max(1, floor(300 / n_z_work));
+    num_chunks = ceil(n_e_work / e_chunk_size);
     ze_chunks = cell(1, num_chunks);
     for c = 1:num_chunks
-        ze_chunks{c} = (c-1)*chunk_size + 1 : min(c*chunk_size, N_ze);
+        e_start = (c-1)*e_chunk_size + 1;
+        e_end   = min(c*e_chunk_size, n_e_work);
+        
+        % Build exactly the linear indices for this Cartesian block
+        [Z_sub, E_sub] = ndgrid(1:n_z_work, e_start:e_end);
+        ze_chunks{c} = sub2ind([n_z_work, n_e_work], Z_sub(:), E_sub(:))';
     end
 else
     ze_chunks = num2cell(1:N_ze);
@@ -805,15 +811,14 @@ for reverse_j = 0:N_j-1
 
             % 4. --- HOIST EV_BOUNDED: Compute once per chunk, not per slice! ---
             if l_a2 == 0
-                apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
-                z_idx_tensor = reshape(1:n_z_loc, [1, 1, 1, n_z_loc, 1]);
-                e_idx_tensor = reshape(1:n_e_loc, [1, 1, 1, 1, n_e_loc]);
-                idx_base = apr_idx_tensor + (z_idx_tensor - 1) * N_a1 + (e_idx_tensor - 1) * (N_a1 * n_z_work);
-                max_idx_row = N_a1 * n_z_work * n_e_work;
-                linear_idx_pre = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
+                % Because chunking is perfectly Cartesian, N_ze_local == n_z_loc * n_e_loc
+                EV_reshaped = reshape(EV_local, [N_a1, n_z_loc, n_e_loc, N_dsemiz]);
 
-                % Pre-multiply beta_j so Evaluate_Universal_RHS doesn't have to do it 20x
-                EV_bounded_pre = beta_j .* reshape(EV_local(linear_idx_pre(:)), [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]);
+                % Extract the exact D slices using dsemiz_idx_tensor [N_d_safe, 1, 1, 1]
+                EV_d_sliced = EV_reshaped(:, :, :, dsemiz_idx_tensor(:));
+
+                % Permute to broadcast shape: [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]
+                EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
             else
                 EV_bounded_pre = [];
             end
@@ -1193,11 +1198,14 @@ else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
             % Extract directly from pre-computed bounded EV tensor
-            d_offset = reshape((0:N_d_safe-1) * (N_a1 * n_z_loc * n_e_loc), [N_d_safe, 1, 1, 1, 1]);
-            z_offset = reshape((0:n_z_loc-1) * N_a1, [1, 1, 1, n_z_loc, 1]);
-            e_offset = reshape((0:n_e_loc-1) * (N_a1 * n_z_loc), [1, 1, 1, 1, n_e_loc]);
+            % EV_bounded_pre has shape [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]
+            % choice_idx specifies the 1-based index into dimension 2 (N_a1)
+            a_offset = (choice_idx - 1) * N_d_safe;
+            d_offset = reshape((0:N_d_safe-1), [N_d_safe, 1, 1, 1, 1]);
+            z_offset = reshape((0:n_z_loc-1) * (N_d_safe * N_a1), [1, 1, 1, n_z_loc, 1]);
+            e_offset = reshape((0:n_e_loc-1) * (N_d_safe * N_a1 * n_z_loc), [1, 1, 1, 1, n_e_loc]);
 
-            linear_idx = choice_idx + z_offset + e_offset + d_offset;
+            linear_idx = d_offset + a_offset + 1 + z_offset + e_offset;
             EV_bounded = EV_bounded_pre(linear_idx);
         end
 
@@ -1216,8 +1224,13 @@ else
         end_offset   = (n2short + 1);
         offsets = reshape(start_offset:end_offset, [1, num_choices, 1, 1, 1]);
 
-        choice_idx = base_idx + offsets;
-        choice_idx = max(1, min(choice_idx, length(a1prime_grid)));
+        raw_choice_idx = base_idx + offsets;
+
+        % Identify out-of-bounds indices so we can penalize them later
+        out_of_bounds = (raw_choice_idx < 1) | (raw_choice_idx > length(a1prime_grid));
+
+        % Safely clip to prevent indexing errors in the grid extraction
+        choice_idx = max(1, min(raw_choice_idx, length(a1prime_grid)));
 
         Apr_cells = cell(1, num_a1);
         for ia = 1:num_a1
@@ -1228,6 +1241,11 @@ else
             error('Experience asset with gridinterplayer=1 is not yet supported in the tensor bridge L2 phase.');
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+
+            % PENALIZE OUT-OF-BOUNDS CHOICES WITH NaN
+            % This strictly prevents max() from locking onto degenerate clipped boundaries
+            % which would otherwise scramble the relative offset mapping in Pol_L2idx_max.
+            F_tensor(repmat(out_of_bounds, [N_d_safe, 1, 1, 1, 1])) = NaN;
 
             EV_interp_reshaped = reshape(EV_interp_local, [length(a1prime_grid), n_z_loc, n_e_loc, N_dsemiz]);
             z_offset = reshape((0:n_z_loc-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, 1]);
@@ -1248,7 +1266,7 @@ else
     FLAT_STATES = N_states * n_z_loc * n_e_loc;
 
     RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-    RHS_flat = reshape(RHS, [], FLAT_STATES);
+    RHS_flat = reshape(RHS, [max(1, N_d_safe) * num_choices, FLAT_STATES]);
 
     [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
 
