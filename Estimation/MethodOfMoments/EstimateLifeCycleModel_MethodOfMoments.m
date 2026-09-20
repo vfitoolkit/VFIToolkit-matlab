@@ -22,6 +22,9 @@ if ~isfield(estimoptions,'constrainpositive')
     % Convert constrained positive p into x=log(p) which is unconstrained.
     % Then use p=exp(x) in the model.
 end
+if ~isfield(estimoptions,'constrainpositivemethod')
+    estimoptions.constrainpositivemethod='softplus'; % 'log' (uparam=log(cparam)) or 'softplus' (cparam=log(1+exp(uparam))); see ParameterConstraints_TransformParamsToUnconstrained for which suits which parameter
+end
 if ~isfield(estimoptions,'constrain0to1')
     estimoptions.constrain0to1={}; % names of parameters to be constrained to 0 to 1 (gets converted to binary-valued vector below)
     % Handle 0 to 1 constraints by using log-odds function to switch parameter p into unconstrained x, so x=log(p/(1-p))
@@ -89,6 +92,12 @@ if ~isfield(estimoptions,'efficientW')
 end
 if ~isfield(estimoptions,'skipestimation')
     estimoptions.skipestimation=0; % =1, skips the estimation, is here so you can do estimation, and then rerun later to bootstrap the standard errors without reestimating the whole model
+end
+if ~isfield(estimoptions,'cohortagejshifter')
+    estimoptions.cohortagejshifter=0; % =0 standard, jequaloneDist is the age j=1 distribution
+end
+if ~isfield(simoptions,'agemass_withCohort')
+    simoptions.agemass_withCohort=[]; % ncohorts-by-N_j age weights by cohort (only with cohortagejshifter); [] means cohort c keeps the AgeWeightParamNames value of its entry age at all ages
 end
 % Following are estimoptions used internally, but which the user won't want to set themselves
 estimoptions.vectoroutput=0; % Set to zero to get point estimates, then later set to one as part of computing Jacobian matrix J (needed for Sigma, among other things).
@@ -192,9 +201,71 @@ end
 % Also converts the constraints info in estimoptions to be a vector rather than by name.
 
 
+%% Cohorts entering at different ages (estimoptions.cohortagejshifter)
+if ~(isscalar(estimoptions.cohortagejshifter) && estimoptions.cohortagejshifter==0)
+    % jequaloneDist must have an extra (last) dimension of size N_j: slice j is the cohort entering at age j
+    N_a=prod(n_a); N_z=prod(n_z);
+    if isfield(vfoptions,'n_e')
+        N_e=prod(vfoptions.n_e);
+    else
+        N_e=1;
+    end
+    if numel(jequaloneDist)~=N_a*N_z*N_e*N_j
+        error('estimoptions.cohortagejshifter is being used, so jequaloneDist must have an extra (last) dimension of size N_j: [n_a,n_z,(n_e),N_j]')
+    end
+    if abs(sum(jequaloneDist(:))-1)>10^(-9)
+        error('jequaloneDist must have mass one in total (summing across all the cohort slices)')
+    end
+    jequaloneDist=reshape(jequaloneDist,[N_a*N_z*N_e,N_j]);
+    cohortmasses=gather(sum(jequaloneDist,1)); % mass of each age slice
+    if isscalar(estimoptions.cohortagejshifter) % =1: entry ages are the slices with positive mass
+        estimoptions.cohortagejshifter=find(cohortmasses>0);
+    else % vector of entry ages
+        estimoptions.cohortagejshifter=estimoptions.cohortagejshifter(:)';
+        if any(cohortmasses(setdiff(1:N_j,estimoptions.cohortagejshifter))>0)
+            error('estimoptions.cohortagejshifter gives the entry ages, but jequaloneDist has mass at an age that is not an entry age')
+        end
+        if any(cohortmasses(estimoptions.cohortagejshifter)==0)
+            error('estimoptions.cohortagejshifter gives an entry age at which jequaloneDist has zero mass')
+        end
+    end
+    estimoptions.ncohorts=length(estimoptions.cohortagejshifter);
+    estimoptions.cohortmasses=cohortmasses(estimoptions.cohortagejshifter);
+    % jequaloneDist becomes a cell, one normalized slice per cohort, in the shape StationaryDist_FHorz_Case1 expects
+    temp=jequaloneDist;
+    jequaloneDist=cell(estimoptions.ncohorts,1);
+    for cc=1:estimoptions.ncohorts
+        jj=estimoptions.cohortagejshifter(cc);
+        if N_e==1
+            jequaloneDist{cc}=reshape(temp(:,jj)/cohortmasses(jj),[n_a,n_z]);
+        else
+            jequaloneDist{cc}=reshape(temp(:,jj)/cohortmasses(jj),[n_a,n_z,vfoptions.n_e]);
+        end
+    end
+    % age weights by cohort
+    if ~isempty(simoptions.agemass_withCohort)
+        if ~all(size(simoptions.agemass_withCohort)==[estimoptions.ncohorts,N_j])
+            error('simoptions.agemass_withCohort must be ncohorts-by-N_j')
+        end
+    end
+    if estimoptions.bootstrapStdErrors==1
+        error('estimoptions.bootstrapStdErrors=1 is not implemented together with estimoptions.cohortagejshifter')
+    end
+    if isfield(TargetMoments,'CustomModelStats')
+        error('TargetMoments.CustomModelStats is not implemented together with estimoptions.cohortagejshifter (if you want this, ask on the forum, discourse.vfitoolkit.com)')
+    end
+    if estimoptions.verbose==1
+        fprintf('Cohorts: %i cohorts entering at ages %s with masses %s \n',estimoptions.ncohorts,mat2str(estimoptions.cohortagejshifter),mat2str(estimoptions.cohortmasses,4))
+    end
+end
+
 %% Setup for which moments are being targeted
-% Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats,FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats,FnsToEvaluate_ACStats, cmsmomentnames,cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,0);
+if estimoptions.cohortagejshifter==0
+    % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
+    [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats,FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats,FnsToEvaluate_ACStats, cmsmomentnames,cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,0);
+else
+    [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(TargetMoments,FnsToEvaluate,N_j,estimoptions.cohortagejshifter,0);
+end
 
 
 %% Now, a bunch of things to avoid redoing them every parameter vector we want to try
@@ -301,12 +372,20 @@ end
 
 %% Set up the objective function and the initial calibration parameter vector
 % Note: _objectivefn is shared between Method of Moments Estimation and Calibration
-if estimoptions.fminalgo~=8
-    EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
-elseif estimoptions.fminalgo==8
+if estimoptions.fminalgo==8
     estimoptions.vectoroutput=2;
     estimoptions.weights=chol(estimoptions.weights,'upper'); % To use a weighting matrix in lsqnonlin(), we work with the upper-cholesky decomposition
+end
+% EstimateMoMObjectiveFn is used by the minimization. EstimateMoMObjectiveFn_Jac is the same objective but taking the
+% Parameters and estimoptions as inputs, used below for the Jacobian (estimoptionsJacobian) and the sensitivity to CalibParamsNames
+if estimoptions.cohortagejshifter==0
     EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+    EstimateMoMObjectiveFn_Jac=@(estimparamsvec,Parameters_temp,estimoptions_temp) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters_temp, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions_temp, vfoptions,simoptions);
+else
+    EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_withCohorts_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, targetmomentvec, cohortmoments, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+    EstimateMoMObjectiveFn_Jac=@(estimparamsvec,Parameters_temp,estimoptions_temp) CalibrateLifeCycleModel_withCohorts_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters_temp, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, targetmomentvec, cohortmoments, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions_temp, vfoptions,simoptions);
+end
+if estimoptions.fminalgo==8
     estimoptions.weights=WeightingMatrix; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
 end
 
@@ -498,16 +577,16 @@ if estimoptions.bootstrapStdErrors==0
 
         % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
         epsilonparamvec=modelestimparamsvec; % and using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
-        ObjValue=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+        ObjValue=EstimateMoMObjectiveFn_Jac(epsilonparamvec,Parameters,estimoptionsJacobian);
         for pp=1:length(estimparamsvec)
             epsilonparamvec=modelestimparamsvec;
             if violateconstrainttop(pp)==0 % if ==1, we will just use down
                 epsilonparamvec(pp)=epsilonparamup(pp,ee); % add epsilon*x to the pp-th parameter
-                ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+                ObjValue_upwind(:,pp)=EstimateMoMObjectiveFn_Jac(epsilonparamvec,Parameters,estimoptionsJacobian);
             end
             if violateconstraintbottom(pp)==0 % if ==1, we will just use up
                 epsilonparamvec(pp)=epsilonparamdown(pp,ee); % subtract epsilon*x from the pp-th parameter
-                ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+                ObjValue_downwind(:,pp)=EstimateMoMObjectiveFn_Jac(epsilonparamvec,Parameters,estimoptionsJacobian);
             end
         end
 
@@ -593,7 +672,7 @@ if estimoptions.bootstrapStdErrors==0
     % While we are here, if you do skip estimation, compute the objective function and output this (is useful for checking out alternative estimates)
     if estimoptions.skipestimation==1
         estimoptionsJacobian.vectoroutput=0; % using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
-        ObjValue=CalibrateLifeCycleModel_objectivefn(modelestimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+        ObjValue=EstimateMoMObjectiveFn_Jac(modelestimparamsvec,Parameters,estimoptionsJacobian);
         fval=ObjValue;
         clear estimoptionsJacobian
     end
@@ -646,7 +725,7 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
                 Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilonalt(eedefault))*CalibParams.(estimoptions.CalibParamsNames{pp});  % add epsilonalt*x to the pp-th parameter
             end
             if violateconstrainttop(pp)==0 % if ==1, we will just use down
-                ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions); % use estimoptionsJacobian
+                ObjValue_upwind(:,pp)=EstimateMoMObjectiveFn_Jac(estimparamsvec,Parameters,estimoptionsJacobian); % use estimoptionsJacobian
             end
             % 'Subtract' epsilon
             if floor(log(abs(modelestimparamsvec(pp)))/log(10))>-2 % order of magnitude is greater than 10^(-2)
@@ -657,7 +736,7 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
                 Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilonalt(eedefault))*CalibParams.(estimoptions.CalibParamsNames{pp});  % subtract epsilonalt*x from the pp-th parameter
             end
             if violateconstraintbottom(pp)==0 % if ==1, we will just use up
-                ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions); % use estimoptionsJacobian
+                ObjValue_downwind(:,pp)=EstimateMoMObjectiveFn_Jac(estimparamsvec,Parameters,estimoptionsJacobian); % use estimoptionsJacobian
             end
             % restore calib param
             Parameters.(estimoptions.CalibParamsNames{pp})=CalibParams.(estimoptions.CalibParamsNames{pp});

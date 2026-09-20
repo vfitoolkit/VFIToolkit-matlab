@@ -50,7 +50,7 @@ end
 if ~iscell(PTypeDistParamNames)
     error('PTypeDistParamNames should be a cell, it is not')
 end
-if abs(sum(Parameters.(PTypeDistParamNames{1}))-1)>10^(-15)
+if abs(sum(Parameters.(PTypeDistParamNames{1}))-1)>10^(-12) % allowing for small numerical errors
     warning('The permanent type mass weights must sum to one (PTypeDistParamNames points to weights that do not sum to one)')
 end
 
@@ -114,7 +114,7 @@ for ii=1:N_i
         if isfield(jequaloneDist,Names_i{ii})
             jequaloneDist_temp=jequaloneDist.(iistr);
             % jequaloneDist_temp must be of mass one for the codes to work.
-            if abs(sum(jequaloneDist_temp(:))-1)>10^(-15) % jequaloneDist_temp(:))~=1, but allowing for small numerical errors
+            if abs(sum(jequaloneDist_temp(:))-1)>10^(-12) % jequaloneDist_temp(:))~=1, but allowing for small numerical errors (same tolerance as the non-structure form below)
                 fprintf('Info for following error: sum(jequaloneDist_temp(:))-1=%8.16f (should be zero) \n', sum(jequaloneDist_temp(:))-1)
                 error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
             end

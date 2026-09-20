@@ -41,8 +41,8 @@ if tauchenoptions.parallel==0 || tauchenoptions.parallel==1
     e_grid=mew*ones(enum,1) + linspace(-Tauchen_q*sigma,Tauchen_q*sigma,enum)';
     omega=e_grid(2)-e_grid(1); %Note that all the points are equidistant by construction.
 
-    P_part1=normcdf(e_grid+omega/2,mew,sigma);
-    P_part2=normcdf(e_grid-omega/2,mew,sigma);
+    P_part1=0.5*erfc(-((e_grid+omega/2)-mew)./(sigma*sqrt(2)));
+    P_part2=0.5*erfc(-((e_grid-omega/2)-mew)./(sigma*sqrt(2)));
 
     pi_e=P_part1-P_part2;
     pi_e(1)=P_part1(1);
@@ -52,16 +52,15 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
     e_grid=gpuArray(mew*ones(enum,1) + linspace(-Tauchen_q*sigma,Tauchen_q*sigma,enum)');
     omega=e_grid(2)-e_grid(1); %Note that all the points are equidistant by construction.
 
-    %Note: normcdf is not yet a supported function for use on the gpu in Matlab
-    %However erf is supported, and we can easily construct our own normcdf
-    %from erf (see http://en.wikipedia.org/wiki/Normal_distribution for the
-    %formula for normcdf as function of erf)
+    % Same erfc expression as the cpu branch above, so the two differ only where the cpu and gpu
+    % erfc libraries disagree in the last bit. erfc not 1+erf: the left tail cdf is tiny, and
+    % 1+erf loses all relative precision there (it is exactly zero past about -8.3 sd).
 
-    erfinput=arrayfun(@(ei,omega,mew,sigma) ((ei+omega/2)-mew)/sqrt(2*sigma^2), e_grid,omega,mew,sigma);
-    P_part1=0.5*(1+erf(erfinput));
+    erfcinput=arrayfun(@(ei,omega,mew,sigma) -((ei+omega/2)-mew)/(sigma*sqrt(2)), e_grid,omega,mew,sigma);
+    P_part1=0.5*erfc(erfcinput);
 
-    erfinput=arrayfun(@(ei,omega,mew,sigma) ((ei-omega/2)-mew)/sqrt(2*sigma^2), e_grid,omega,mew,sigma);
-    P_part2=0.5*(1+erf(erfinput));
+    erfcinput=arrayfun(@(ei,omega,mew,sigma) -((ei-omega/2)-mew)/(sigma*sqrt(2)), e_grid,omega,mew,sigma);
+    P_part2=0.5*erfc(erfcinput);
 
     pi_e=P_part1-P_part2;
     pi_e(1)=P_part1(1);

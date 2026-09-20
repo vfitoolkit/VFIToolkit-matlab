@@ -64,9 +64,11 @@ else
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);    % First, switch V_Jplus1 into Kron form
     EV=sum(EV.*pi_e_J(1,1,:,N_j+1),3);
 
-    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+    EVinf=(EV==-Inf);
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=EV*pi_z_J(:,:,N_j)';
+    EV(EVinf*(pi_z_J(:,:,N_j)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=reshape(EV,[N_a,1,N_z]);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Disc_e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
@@ -134,9 +136,11 @@ for reverse_j=1:N_j-1
     EV=V(:,:,:,jj+1);
     EV=sum(EV.*pi_e_J(1,1,:,jj+1),3);
 
-    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+    EVinf=(EV==-Inf);
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=EV*pi_z_J(:,:,jj)';
+    EV(EVinf*(pi_z_J(:,:,jj)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=reshape(EV,[N_a,1,N_z]);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Disc_e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);

@@ -39,6 +39,48 @@ elseif presorted==2
     SortedWeights=Weights;
 end
 
+%% If there are no points with positive weight (e.g., an age at which a cohort has not yet entered the model), all the stats are NaN
+if isempty(SortedValues)
+    if whichstats(1)==1
+        AllStats.Mean=NaN;
+    end
+    if whichstats(2)==1
+        AllStats.Median=NaN;
+        if whichstats(1)==1
+            AllStats.RatioMeanToMedian=NaN;
+        end
+    end
+    if whichstats(3)==1
+        AllStats.Variance=NaN;
+        AllStats.StdDeviation=NaN;
+    end
+    if whichstats(4)>=1
+        AllStats.Gini=NaN;
+        if whichstats(4)<3
+            AllStats.LorenzCurve=nan(npoints,1);
+        end
+    end
+    if whichstats(5)==1
+        AllStats.Minimum=NaN;
+        AllStats.Maximum=NaN;
+    end
+    if whichstats(6)>=1
+        AllStats.QuantileCutoffs=nan(nquantiles+1,1);
+        AllStats.QuantileMeans=nan(nquantiles,1);
+    end
+    if whichstats(7)==1
+        AllStats.MoreInequality.Top1share=NaN;
+        AllStats.MoreInequality.Top5share=NaN;
+        AllStats.MoreInequality.Top10share=NaN;
+        AllStats.MoreInequality.Bottom50share=NaN;
+        AllStats.MoreInequality.Percentile50th=NaN;
+        AllStats.MoreInequality.Percentile90th=NaN;
+        AllStats.MoreInequality.Percentile95th=NaN;
+        AllStats.MoreInequality.Percentile99th=NaN;
+    end
+    return
+end
+
 WeightedSortedValues=SortedValues.*SortedWeights;
 
 if any(whichstats(4:7)>=1) || whichstats(2)==1

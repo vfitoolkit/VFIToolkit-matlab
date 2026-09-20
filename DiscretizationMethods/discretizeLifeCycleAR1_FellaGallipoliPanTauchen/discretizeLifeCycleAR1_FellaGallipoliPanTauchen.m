@@ -234,7 +234,10 @@ if fellagallipolipanoptions.parallel==2
     pi_z_J=gpuArray(pi_z_J);
 end
 
-%% Subfunction cdf_normal [Robert: this seems pointless, why not use inbuilt normcdf()?]
+%% Subfunction cdf_normal
+% Not pointless: normcdf needs the Statistics Toolbox and this does not. The rest of
+% DiscretizationMethods now does the same - every normcdf, normpdf and norminv is written in
+% terms of erfc/erfcinv, which is what MATLAB uses internally anyway. Only mvncdf is left.
 function c = cdf_normal(x)
     % Returns the value of the cdf of the Standard Normal distribution at point x
     c = 0.5 * erfc(-x/sqrt(2));

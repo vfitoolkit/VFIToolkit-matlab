@@ -48,6 +48,7 @@ if ~exist('heteroagentoptions','var')
     heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     % Constrain parameters
     heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    heteroagentoptions.constrainpositivemethod='softplus'; % 'log' (uparam=log(cparam)) or 'softplus' (cparam=log(1+exp(uparam))); see ParameterConstraints_TransformParamsToUnconstrained for which suits which parameter
     heteroagentoptions.constrain0to1={}; % names of parameters to be constrained to 0 to 1 (gets converted to binary-valued vector below)
     heteroagentoptions.constrainAtoB={}; % names of parameters to be constrained to interval A to B (gets converted to binary-valued vector below)
     % Verbose settings (feedback)
@@ -89,6 +90,9 @@ else
         heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
         % Convert constrained positive p into x=log(p) which is unconstrained.
         % Then use p=exp(x) in the model.
+    end
+    if ~isfield(heteroagentoptions,'constrainpositivemethod')
+        heteroagentoptions.constrainpositivemethod='softplus'; % 'log' (uparam=log(cparam)) or 'softplus' (cparam=log(1+exp(uparam))); see ParameterConstraints_TransformParamsToUnconstrained for which suits which parameter
     end
     if ~isfield(heteroagentoptions,'constrain0to1')
         heteroagentoptions.constrain0to1={}; % names of parameters to be constrained to 0 to 1 (gets converted to binary-valued vector below)

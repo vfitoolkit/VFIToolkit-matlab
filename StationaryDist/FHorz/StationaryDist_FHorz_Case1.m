@@ -23,6 +23,7 @@ if exist('simoptions','var')==0
     simoptions.alreadygridvals=0; % =1 when calling as a subcommand
     simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
     simoptions.jequaloneDistAge=1; % jequaloneDist is the distribution at this age (=1 is the standard first period)
+    simoptions.agemass_withCohort=[]; % non-empty when the age weights are cohort masses (set by the withCohorts estimation), so they need not sum to one
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'gridinterplayer')
@@ -80,6 +81,9 @@ else
     if ~isfield(simoptions,'jequaloneDistAge')
         simoptions.jequaloneDistAge=1; % jequaloneDist is the distribution at this age (=1 is the standard first period)
     end
+    if ~isfield(simoptions,'agemass_withCohort')
+        simoptions.agemass_withCohort=[]; % non-empty when the age weights are cohort masses (set by the withCohorts estimation), so they need not sum to one
+    end
     % Some options require certain other inputs, and these have to be on the GPU
     if isfield(simoptions,'d_grid')
         simoptions.d_grid=gpuArray(simoptions.d_grid);
@@ -115,9 +119,12 @@ if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
     Parameters.(AgeWeightParamNames{1})=Parameters.(AgeWeightParamNames{1})';
     % Note: assumed there is only one AgeWeightParamNames
 end
-% And check that the age weights sum to one
-if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
-    warning('StationaryDist: The age-weights do not sum to one')
+% And check that the age weights sum to one (not when the initial distribution is for an age other than j=1,
+% nor when the age weights are cohort masses, as then they are not expected to sum to one)
+if simoptions.jequaloneDistAge==1 && isempty(simoptions.agemass_withCohort)
+    if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
+        warning('StationaryDist: The age-weights do not sum to one')
+    end
 end
 
 %%

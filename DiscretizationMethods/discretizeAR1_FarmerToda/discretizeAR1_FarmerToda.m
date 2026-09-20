@@ -178,7 +178,7 @@ for ii = 1:znum
     if strcmp(farmertodaoptions.method,'gauss-hermite') && farmertodaoptions.usergrid==0  % define prior probabilities
         q = W;
     else
-        q = W.*normpdf(z_grid,condMean,sigma);
+        q = W.*(exp(-0.5*((z_grid-condMean)./sigma).^2)./(sigma*sqrt(2*pi)));
     end
     
     if any(q < kappa)

@@ -23,7 +23,17 @@ divisors4=cumprod([1,n_daprime4(1:end-1)])';   % [l_daprime4,1]
 divisors5=cumprod([1,n_daprime5(1:end-1)])';   % [l_daprime5,1]
 divisors6=cumprod([1,n_daprime6(1:end-1)])';   % [l_daprime6,1]
 
-if vfoptions.gridinterplayer==1
+if l_daprime1==1 && l_daprime2==1 && l_daprime3==1 && l_daprime4==1 && l_daprime5==1 && l_daprime6==1
+    % Fast path: every decision dimension is single, so the mixed-radix un-flatten
+    % is the identity and PolicyKron already holds the un-Kron'd policy indices (the
+    % grid-interp-layer rows pass through). A bare reshape (shares data, no vertcat,
+    % no mod/floor temporaries) reproduces the output below exactly.
+    if vfoptions.gridinterplayer==1
+        Policy=reshape(PolicyKron,[l_daprime1+l_daprime2+l_daprime3+l_daprime4+l_daprime5+l_daprime6+2,n_a,n_z,n_e,N_j]);
+    else
+        Policy=reshape(PolicyKron,[l_daprime1+l_daprime2+l_daprime3+l_daprime4+l_daprime5+l_daprime6,n_a,n_z,n_e,N_j]);
+    end
+elseif vfoptions.gridinterplayer==1
     Policy=[mod(floor((PolicyKron(1,:)-1)./divisors1),n_daprime1(:))+1;
             mod(floor((PolicyKron(2,:)-1)./divisors2),n_daprime2(:))+1;
             mod(floor((PolicyKron(3,:)-1)./divisors3),n_daprime3(:))+1;

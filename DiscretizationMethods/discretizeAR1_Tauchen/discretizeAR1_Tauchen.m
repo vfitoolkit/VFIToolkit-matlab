@@ -112,8 +112,8 @@ if tauchenoptions.parallel==0 || tauchenoptions.parallel==1
     upperj=tauchenoptions.dshift*ones(znum,znum)+ones(znum,1)*upper';
     lowerj=tauchenoptions.dshift*ones(znum,znum)+ones(znum,1)*lower';
 
-    P_part1=normcdf(upperj-rho*zi,mew,sigma);
-    P_part2=normcdf(lowerj-rho*zi,mew,sigma);
+    P_part1=0.5*erfc(-((upperj-rho*zi)-mew)./(sigma*sqrt(2)));
+    P_part2=0.5*erfc(-((lowerj-rho*zi)-mew)./(sigma*sqrt(2)));
 
     pi_z=P_part1-P_part2;
     pi_z(:,1)=P_part1(:,1);
@@ -134,22 +134,17 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
         lower=z_grid-omega/2;
     end
 
-    % NOTE; normcdf NOW WORKS FOR GPU, I SHOULD CHECK IF IT IS FASTER
-    %Note: normcdf is not yet a supported function for use on the gpu in Matlab
-    %(see list of supported functions at http://www.mathworks.es/es/help/distcomp/run-built-in-functions-on-a-gpu.html)
-    %However erf is supported, and we can easily construct our own normcdf
-    %from erf (see http://en.wikipedia.org/wiki/Normal_distribution for the
-    %formula for normcdf as function of erf)
-    %Comparing the output from using erf to that with normpdf the differences are
-    %of the order of machine rounding errors (10e-16).
+    % Same erfc expression as the cpu branch above, so the two differ only where the cpu and gpu
+    % erfc libraries disagree in the last bit. erfc not 1+erf: the left tail cdf is tiny, and
+    % 1+erf loses all relative precision there (it is exactly zero past about -8.3 sd).
 
     tauchenoptions.dshift=gpuArray(tauchenoptions.dshift*ones(1,znum));
 
-    erfinput=arrayfun(@(zi,zj,rho,mew,sigma) ((zj-rho*zi)-mew)/sqrt(2*sigma^2), z_grid,tauchenoptions.dshift+upper', rho,mew,sigma);
-    P_part1=0.5*(1+erf(erfinput));
+    erfcinput=arrayfun(@(zi,zj,rho,mew,sigma) -((zj-rho*zi)-mew)/(sigma*sqrt(2)), z_grid,tauchenoptions.dshift+upper', rho,mew,sigma);
+    P_part1=0.5*erfc(erfcinput);
 
-    erfinput=arrayfun(@(zi,zj,rho,mew,sigma) ((zj-rho*zi)-mew)/sqrt(2*sigma^2), z_grid,tauchenoptions.dshift+lower', rho,mew,sigma);
-    P_part2=0.5*(1+erf(erfinput));
+    erfcinput=arrayfun(@(zi,zj,rho,mew,sigma) -((zj-rho*zi)-mew)/(sigma*sqrt(2)), z_grid,tauchenoptions.dshift+lower', rho,mew,sigma);
+    P_part2=0.5*erfc(erfcinput);
 
     pi_z=P_part1-P_part2;
     pi_z(:,1)=P_part1(:,1);

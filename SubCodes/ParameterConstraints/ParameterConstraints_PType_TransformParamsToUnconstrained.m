@@ -61,6 +61,21 @@ if constraintsbyname==1
             caliboptions.constrainAtoBlimits(pp,:)=caliboptions.constrainAtoBlimitsnames.(CalibParamNames{nCalibParamsFinder(pp,1)});
         end
     end
+
+    % Which of the constrainpositive parameters use softplus rather than log.
+    % Kept as a per-parameter vector (like the constraints themselves) so that a
+    % future per-parameter version of constrainpositivemethod only changes how
+    % this vector gets filled, not the transform code that reads it.
+    if ~isfield(caliboptions,'constrainpositivemethod')
+        caliboptions.constrainpositivemethod='softplus';
+    end
+    if strcmp(caliboptions.constrainpositivemethod,'softplus')
+        caliboptions.constrainpositivesoftplus=caliboptions.constrainpositive;
+    elseif strcmp(caliboptions.constrainpositivemethod,'log')
+        caliboptions.constrainpositivesoftplus=zeros(nCalibParams,1);
+    else
+        error('caliboptions.constrainpositivemethod must be ''log'' or ''softplus'' (check spelling)')
+    end
 end
 
 
@@ -93,8 +108,16 @@ for pp=1:nCalibParams
             fprintf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(nCalibParams),' (',CalibParamNames{nCalibParamsFinder(pp,1)},')\n'])
             error('Initial guess for positive-constrained parameter is negative.');
         end
-        calibparamsvec(pp_index)=min(49.99,max(log(p_val),-49.99));
-        % Note, the max() is because otherwise p=0 returns -Inf, and the min() is because exp() overflows to Inf above about 709. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
+        if caliboptions.constrainpositivesoftplus(pp)==0
+            calibparamsvec(pp_index)=min(49.99,max(log(p_val),-49.99));
+            % Note, the max() is because otherwise p=0 returns -Inf, and the min() is because exp() overflows to Inf above about 709. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
+        else
+            % softplus: uparam=log(exp(cparam)-1), written as cparam+log(1-exp(-cparam))
+            % so that exp(cparam) never overflows for large cparam (uparam->cparam).
+            % Lower cutoff only: see the note in the non-PType version, a +50 cutoff
+            % would silently cap every positive parameter at 50 under softplus.
+            calibparamsvec(pp_index)=max(p_val+log(-expm1(-p_val)),-49.99);
+        end
     end
     if caliboptions.constrainAtoB(pp)==1
         % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as constraint 0 to 1)

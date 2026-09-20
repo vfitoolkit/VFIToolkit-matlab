@@ -8,9 +8,14 @@ function [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal
 % ParameterConstraints_TransformParamsToUnconstrained: transforms cparam to uparam
 % ParameterConstraints_TransformParamsToOriginal: transforms uparam to cparam
 %
-% - Constrain parameter to be positive
+% - Constrain parameter to be positive, caliboptions.constrainpositivemethod='log'
 %     uparam=log(cparam)
 %     cparam=exp(uparam)
+%
+% - Constrain parameter to be positive, caliboptions.constrainpositivemethod='softplus' (default)
+%     uparam=log(exp(cparam)-1)
+%     cparam=log(1+exp(uparam))
+%   See ParameterConstraints_TransformParamsToUnconstrained for which to use when.
 %
 % - Constrain parameter to be zero-to-one
 %     uparam=
@@ -31,9 +36,19 @@ penalty=zeros(length(calibparamsvec),1); % Used to apply penalty to objective fu
 for pp=1:length(CalibParamNames)
     if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
         temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        penalty((calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))=abs(temp/50).*((temp>51)+(temp<-51)); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]
-        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(min(temp,50)); % the min() is because exp() overflows to Inf once the unconstrained parameter gets above about 709, and the model would then be given Inf as a parameter value; same +-50 cutoffs as constrain0to1 uses
+        if caliboptions.constrainpositivesoftplus(pp)==0
+            penalty((calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))=abs(temp/50).*((temp>51)+(temp<-51)); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]
+            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
+            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(min(temp,50)); % the min() is because exp() overflows to Inf once the unconstrained parameter gets above about 709, and the model would then be given Inf as a parameter value; same +-50 cutoffs as constrain0to1 uses
+        else
+            % Only the lower side is out of range for softplus: cparam is roughly uparam
+            % once away from zero, so large positive uparam is a perfectly ordinary large
+            % parameter, not an extreme region to be penalized.
+            penalty((calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))=abs(temp/50).*(temp<-51);
+            % softplus: cparam=log(1+exp(uparam)), written as max(uparam,0)+log1p(exp(-abs(uparam)))
+            % so that exp() never overflows for large uparam (cparam->uparam).
+            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=max(temp,0)+log1p(exp(-abs(temp)));
+        end
     elseif caliboptions.constrain0to1(pp)==1
         temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         penalty((calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))=abs(temp/50).*((temp>51)+(temp<-51)); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]

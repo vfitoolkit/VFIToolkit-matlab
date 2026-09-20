@@ -181,7 +181,7 @@ if exitinpanel==0
                 SimPanel=nan(l_a,simoptions.simperiodsfinal*simoptions.numbersims); % (a)
 
                 SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
-                SimPanel=reshape(SimPanel,[1,simoptions.simperiodsfinal,simoptions.numbersims]);
+                SimPanel=reshape(SimPanel,[l_a,simoptions.simperiodsfinal,simoptions.numbersims]);
             end
 
         else  % No z, with e
@@ -216,9 +216,9 @@ if exitinpanel==0
                 SimPanelKron=reshape(SimPanel,[2,simoptions.simperiodsfinal*simoptions.numbersims]);
                 SimPanel=nan(l_a+l_e,simoptions.simperiodsfinal*simoptions.numbersims); % (a,e)
 
-                SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
-                SimPanel(l_a+1:l_a+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(2,:)); % e
-                SimPanel=reshape(SimPanel,[2,simoptions.simperiodsfinal,simoptions.numbersims]);
+                SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+                SimPanel(l_a+1:l_a+l_e,:)=ind2sub_vec_homemade(simoptions.n_e,SimPanelKron(2,:)')'; % e
+                SimPanel=reshape(SimPanel,[l_a+l_e,simoptions.simperiodsfinal,simoptions.numbersims]);
             else
                 % All exogenous states together
                 % Only e, so already is
@@ -260,7 +260,7 @@ if exitinpanel==0
 
                 SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
                 SimPanel(l_a+1:l_a+l_z,:)=ind2sub_vec_homemade(n_z,SimPanelKron(2,:)')'; % z
-                SimPanel=reshape(SimPanel,[2,simoptions.simperiodsfinal,simoptions.numbersims]);
+                SimPanel=reshape(SimPanel,[l_a+l_z,simoptions.simperiodsfinal,simoptions.numbersims]);
             else
                 % All exogenous states together
                 % Only z, so already is
@@ -298,10 +298,10 @@ if exitinpanel==0
                 SimPanelKron=reshape(SimPanel,[3,simoptions.simperiodsfinal*simoptions.numbersims]);
                 SimPanel=nan(l_a+l_z+l_e,simoptions.simperiodsfinal*simoptions.numbersims); % (a,z,e)
 
-                SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
-                SimPanel(l_a+1:l_a+l_z,:)=ind2sub_homemade(n_z,SimPanelKron(2,:)); % z
-                SimPanel(l_a+l_z+1:l_a+l_z+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(3,:)); % e
-                SimPanel=reshape(SimPanel,[3,simoptions.simperiodsfinal,simoptions.numbersims]);
+                SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+                SimPanel(l_a+1:l_a+l_z,:)=ind2sub_vec_homemade(n_z,SimPanelKron(2,:)')'; % z
+                SimPanel(l_a+l_z+1:l_a+l_z+l_e,:)=ind2sub_vec_homemade(simoptions.n_e,SimPanelKron(3,:)')'; % e
+                SimPanel=reshape(SimPanel,[l_a+l_z+l_e,simoptions.simperiodsfinal,simoptions.numbersims]);
             else
                 % All exogenous states together
                 SimPanel(2,:,:)=SimPanel(2,:,:)+N_z*(SimPanel(3,:,:)-1); % put z and e together

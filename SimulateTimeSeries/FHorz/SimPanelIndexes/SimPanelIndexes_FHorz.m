@@ -63,6 +63,12 @@ else
 end
 
 
+%% Simulations are done on cpu
+Policy_aprime=gather(Policy_aprime);
+if simoptions.gridinterplayer==1
+    CumPolicyProbs=gather(CumPolicyProbs);
+end
+
 %% First do the case without e variables, otherwise do with e variables
 if N_z==0
     if N_e==0  % No z, No e
@@ -161,8 +167,8 @@ if N_z==0
             SimPanelKron=reshape(SimPanel,[3,N_j*simoptions.numbersims]);
             SimPanel=nan(l_a+l_e+1,N_j*simoptions.numbersims); % (a,e,j)
 
-            SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
-            SimPanel(l_a+1:l_a+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(2,:)); % e
+            SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+            SimPanel(l_a+1:l_a+l_e,:)=ind2sub_vec_homemade(simoptions.n_e,SimPanelKron(2,:)')'; % e
             SimPanel(end,:)=SimPanelKron(3,:); % j
 
             SimPanel=reshape(SimPanel,[l_a+l_e+1,N_j,simoptions.numbersims]);
@@ -273,9 +279,9 @@ else % N_z>0
             SimPanelKron=reshape(SimPanel,[4,N_j*simoptions.numbersims]);
             SimPanel=nan(l_a+l_z+l_e+1,N_j*simoptions.numbersims); % (a,z,e,j)
 
-            SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
-            SimPanel(l_a+1:l_a+l_z,:)=ind2sub_homemade(n_z,SimPanelKron(2,:)); % z
-            SimPanel(l_a+l_z+1:l_a+l_z+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(3,:)); % e
+            SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+            SimPanel(l_a+1:l_a+l_z,:)=ind2sub_vec_homemade(n_z,SimPanelKron(2,:)')'; % z
+            SimPanel(l_a+l_z+1:l_a+l_z+l_e,:)=ind2sub_vec_homemade(simoptions.n_e,SimPanelKron(3,:)')'; % e
             SimPanel(end,:)=SimPanelKron(4,:); % j
 
             SimPanel=reshape(SimPanel,[l_a+l_z+l_e+1,N_j,simoptions.numbersims]);

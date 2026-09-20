@@ -144,7 +144,7 @@ if simoptions.gridinterplayer==1
     PolicyProbs(:,:,:,1:2)=PolicyProbs(:,:,:,1:2).*(1-aprimeProbs_upper); % lower a1
     PolicyProbs(:,:,:,3:4)=PolicyProbs(:,:,:,3:4).*aprimeProbs_upper; % upper a1
 end
-CumPolicyProbs=cumsum(PolicyProbs,3);
+CumPolicyProbs=cumsum(PolicyProbs,4); % lower/upper is the FOURTH dimension here: the inheritance asset puts a zprime dimension in front of it, where the experience-asset versions have (a,z,probs) and so cumsum over 3
 
 
 %%
@@ -167,12 +167,12 @@ if N_z>0
         end
 
         if simoptions.simpanelindexkron==0 % Convert results out of kron
-            SimPanelKron=reshape(SimPanel,[3,simoptions.simperiods*simoptions.numbersims]);
-            SimPanel=nan(l_a+l_z+1,simoptions.simperiods*simoptions.numbersims); % (a,z)
+            SimPanelKron=reshape(SimPanel,[2,simoptions.simperiods*simoptions.numbersims]);
+            SimPanel=nan(l_a+l_z,simoptions.simperiods*simoptions.numbersims); % (a,z)
 
             SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
             SimPanel(l_a+1:l_a+l_z,:)=ind2sub_vec_homemade(n_z,SimPanelKron(2,:)')'; % z
-            SimPanel=reshape(SimPanel,[3,simoptions.simperiods,simoptions.numbersims]);
+            SimPanel=reshape(SimPanel,[l_a+l_z,simoptions.simperiods,simoptions.numbersims]);
         else
             % All exogenous states together
             % Only z, so already is

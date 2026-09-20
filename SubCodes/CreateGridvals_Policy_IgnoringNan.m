@@ -37,10 +37,11 @@ if size(d_grid,2)>1
     error('cannot yet handle d_gridvals (joint-grids)')
 end
 
+Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
+
 % Now create those of d_gridvals and aprime_gridvals that are needed
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
 if Case1orCase2==1
-    Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
     if l_d>0
         d_val=zeros(l_d,1);
         if MatrixOrCell==1

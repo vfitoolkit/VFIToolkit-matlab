@@ -20,6 +20,8 @@ function PolicyKron = KronPolicyIndexes_forSimPanelIndexes(Policy, n_d, n_a, N_z
 %
 % L2flag is preserved so downstream simulation can apply the force-to-lower/upper
 % override at -Inf-neighbour cases.
+%
+% PolicyKron is returned on whichever of cpu/gpu Policy was given on.
 
 if ~exist('keep_d','var')
     keep_d = 0;
@@ -64,8 +66,13 @@ end
 if l_a==1
     a_kron_flat = Policy_aprime(1,:);
 else
-    a_offset = [0; ones(l_a-1,1,'gpuArray')];
-    a_stride = [1; gpuArray(cumprod(n_a(1:end-1)'))];
+    if isgpuarray(Policy_aprime)
+        a_offset = [0; ones(l_a-1,1,'gpuArray')];
+        a_stride = [1; gpuArray(cumprod(gather(n_a(1:end-1))'))];
+    else
+        a_offset = [0; ones(l_a-1,1)];
+        a_stride = [1; cumprod(gather(n_a(1:end-1))')];
+    end
     a_rows = Policy_aprime(1:l_a,:);
     a_kron_flat = sum((a_rows - a_offset) .* a_stride, 1);
 end
@@ -75,8 +82,13 @@ if keep_d
     if l_d==1
         d_kron_flat = Policy_d(1,:);
     else
-        d_offset = [0; ones(l_d-1,1,'gpuArray')];
-        d_stride = [1; gpuArray(cumprod(n_d(1:end-1)'))];
+        if isgpuarray(Policy_d)
+            d_offset = [0; ones(l_d-1,1,'gpuArray')];
+            d_stride = [1; gpuArray(cumprod(gather(n_d(1:end-1))'))];
+        else
+            d_offset = [0; ones(l_d-1,1)];
+            d_stride = [1; cumprod(gather(n_d(1:end-1))')];
+        end
         d_kron_flat = sum((Policy_d - d_offset) .* d_stride, 1);
     end
 end

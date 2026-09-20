@@ -388,10 +388,10 @@ parfor jj=1:J-1
 
     TBar=TBar_J(:,jj+1);
 
-    nComp = length(mixprobs_i(:,jj+1)); % number of mixture components
-    temp = zeros(1,1,nComp);
-    temp(1,1,:) = sigmaC2;
-    gmObj = gmdistribution(mu_i(:,jj+1),temp,mixprobs_i(:,jj+1)); % define the Gaussian mixture object
+    % gmdistribution and pdf() need the Statistics Toolbox, and a gaussian mixture density is
+    % one line without them: sum_i p_i*normpdf(x,mu_i,s_i). The component parameters are kept
+    % as plain vectors and the density is written out at each use below.
+    gmmu = mu_i(:,jj+1); gmsd = sqrt(sigmaC2); gmp = mixprobs_i(:,jj+1); % the mixture, as plain vectors
 
     P = NaN(znum,znum); % transition probability matrix
     P1 = NaN(znum,znum); % matrix to store transition probability
@@ -402,15 +402,22 @@ parfor jj=1:J-1
     for z_c = 1:znum % For each value z(jj-1) compute the conditional distribution for z(jj) [the row of the transition matrix]
 
         % First, calculate what Farmer & Toda (2017) call qnn', which are essentially an initial guess for pnn'
-        condMean = rho(jj+1)*zlag_grid(z_c); % z_grid(ii) here is the lag grid point
+        % B30: mew(jj+1) used to be missing here, so the drift never reached the transitions -
+        % it entered only the grid-centring recursion above. The gaussian sibling
+        % discretizeLifeCycleAR1_KFTT has always had it, so this was copy-paste drift into the
+        % mixture version. With mew=0 it is invisible, which is why it survived; with a drift the
+        % chain's mean follows m(j)=rho(j)*m(j-1)+E(e_j) instead of the truth, and on P7's
+        % calibration that put the age-29 mean at 0.081 against a true 0.315, flat across a
+        % tenfold grid refinement.
+        condMean = mew(jj+1)+rho(jj+1)*zlag_grid(z_c); % z_grid(ii) here is the lag grid point
         xPDF = (z_grid-condMean)';
         switch kfttoptions.method
             case 'gauss-hermite'
-                q = W.*(pdf(gmObj,xPDF)./normpdf(xPDF,0,sigma(jj+1)))';
+                q = W.*(sum(gmp'.*exp(-0.5*((xPDF-gmmu')./gmsd').^2)./(gmsd'*sqrt(2*pi)),2)./(exp(-0.5*(xPDF./sigma(jj+1)).^2)./(sigma(jj+1)*sqrt(2*pi))))';
             case 'GMQ'
-                q = W.*(pdf(gmObj,xPDF)./pdf(gmObj,z_grid'))';
+                q = W.*(sum(gmp'.*exp(-0.5*((xPDF-gmmu')./gmsd').^2)./(gmsd'*sqrt(2*pi)),2)./sum(gmp'.*exp(-0.5*((z_grid'-gmmu')./gmsd').^2)./(gmsd'*sqrt(2*pi)),2))';
             otherwise
-                q = W.*(pdf(gmObj,xPDF))';
+                q = W.*(sum(gmp'.*exp(-0.5*((xPDF-gmmu')./gmsd').^2)./(gmsd'*sqrt(2*pi)),2))';
         end
 
         if any(q < kappa)
@@ -491,7 +498,13 @@ if initialj1mixture==1
 elseif isfield(kfttoptions,'initialj1mewz') || isfield(kfttoptions,'initialj1sigmaz')
     % Period 1 was set as a normal distribution
     if sigmaz(1)>0
-        [z_grid_1,pi_z_1] = discretizeAR1wGM_FarmerToda(0,0,1,mewz(1),sigmaz(1),znum,farmertodaoptions_j1);
+        % B31: the mean used to be passed as mu_i, with mew=0. discretizeAR1wGM_FarmerToda
+        % centres its grid on mew/(1-rho) and does not look at the mixture mean, so that built
+        % the period 1 distribution on a grid centred at zero, which was then applied to
+        % z_grid_J(:,1) centred at mewz(1) - the two offsets added and the period 1 mean came
+        % back DOUBLED. The guard below detected it and warned, but the wrong object was
+        % returned anyway. Passing the mean as mew centres the grid where it belongs.
+        [z_grid_1,pi_z_1] = discretizeAR1wGM_FarmerToda(mewz(1),0,1,0,sigmaz(1),znum,farmertodaoptions_j1);
         jequaloneDistz=pi_z_1(1,:)'; % iid, so first row is the dist
     else
         % All grid points are same, so just pick an arbitrary one

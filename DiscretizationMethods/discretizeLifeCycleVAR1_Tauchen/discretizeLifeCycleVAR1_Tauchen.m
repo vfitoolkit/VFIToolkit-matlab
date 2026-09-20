@@ -61,6 +61,20 @@ function [z_grid_J,pi_z_J,jequaloneDistz,otheroutputs]=discretizeLifeCycleVAR1_T
 
 l_z=size(Rho_J,1);
 
+% NORMALISE znum TO A COLUMN HERE, before the options block below, because the default nSigmas is
+% built from znum and is then used as nSigmas.*sigmaz with sigmaz of size l_z-by-J. Until this was
+% moved up, the default was min(sqrt(znum-1)',3) evaluated on whatever shape the caller passed: a
+% scalar stayed scalar and broadcast against anything, a row vector became the l_z-by-1 column that
+% broadcast correctly, and a COLUMN vector - the shape this command's own header documents as
+% (M x 1) - became 1-by-l_z, which has no valid expansion against l_z-by-J unless J happens to
+% equal l_z. So the documented way of calling it errored with "Arrays have incompatible sizes",
+% and only the undocumented row form worked. Found by P8 of the test bank, which passes znum in all
+% three shapes and requires them to agree.
+if isscalar(znum)
+    znum=znum*ones(l_z,1);
+end
+znum=znum(:); % a column, whatever shape it arrived in
+
 warning off MATLAB:singularMatrix % suppress inversion warnings
 
 % mewz=zeros(l_z,J); % period j mean of z
@@ -71,14 +85,14 @@ pi_z_J = zeros(prod(znum),prod(znum),J-1); % period j transition probabilities f
 %% Set options
 if ~exist('tauchenoptions','var')
     tauchenoptions.method='even'; % Informally I have the impression even is more robust
-    tauchenoptions.nSigmas = min(sqrt(znum-1)',3); % Maximum of +-3 standard deviations
+    tauchenoptions.nSigmas = min(sqrt(znum-1),3); % Maximum of +-3 standard deviations (a column, one per variable)
     tauchenoptions.parallel=1+(gpuDeviceCount>0);
 else
     if ~isfield(tauchenoptions,'method')
         tauchenoptions.method='even'; % Informally I have the impression even is more robust
     end
     if ~isfield(tauchenoptions,'nSigmas')
-        tauchenoptions.nSigmas = min(sqrt(znum-1)',3); % Maximum of +-3 standard deviation
+        tauchenoptions.nSigmas = min(sqrt(znum-1),3); % Maximum of +-3 standard deviations (a column, one per variable)
     end
     if ~isfield(tauchenoptions,'parallel')
         tauchenoptions.parallel=1+(gpuDeviceCount>0);
@@ -123,13 +137,19 @@ for jj=1:J
     end
 end
 
-% If znum is scalar, replace with vector where all elements are the same
-if length(znum)==1
-    znum=znum*ones(l_z,1);
-end
+% znum was normalised to a column at the top of the file, before the options block that reads it
 % Check that znum is a valid number of grid points
 if ~all(isnumeric(znum)) || any(znum < 3) || any(rem(znum,1) ~= 0)
     error('znum must be a (vector of) positive integer greater than 3')
+end
+
+% A user-supplied nSigmas has to be a column for the same reason the default is: it multiplies
+% sigmaz, which is l_z-by-J. A scalar is fine and broadcasts.
+if ~isscalar(tauchenoptions.nSigmas)
+    tauchenoptions.nSigmas=tauchenoptions.nSigmas(:);
+    if length(tauchenoptions.nSigmas)~=l_z
+        error('tauchenoptions.nSigmas must be a scalar, or a vector with one element per variable of the VAR (which is size(Rho_J,1))')
+    end
 end
 
 
@@ -270,9 +290,20 @@ for jj=1:J-1
         z_gridspacing_down=CreateGridvals(znum,[z1_gridspacing_down;z2_gridspacing_down;z3_gridspacing_down;z4_gridspacing_down;z5_gridspacing_down],1);
     end
 
+    % THE PARAMETERS ARE INDEXED jj+1, NOT jj. Slice jj is the transition INTO age jj+1, and the
+    % process is Z(j)=Mew(:,j)+Rho(:,:,j)*Z(j-1)+e(j), so the step from jj to jj+1 is governed by
+    % age jj+1's parameters - which is the same convention the mean recursion above uses when it
+    % writes mewz(:,jj)=Mew_J(:,jj)+Rho_J(:,:,jj)*mewz(:,jj-1). All three were indexed jj until
+    % 2026-09-16, one age too early, while the destination grid z_grid_J(:,jj+1) was already right.
+    %
+    % It is silent whenever the parameters do not vary with age, which is why it survived: the
+    % frozen-parameter identity against discretizeVAR1_Tauchen cannot see it, and neither can a
+    % driftless calibration. P8 of the test bank found it with age-varying Mew and Rho - the chain's
+    % mean followed m(j+1)=Mew(:,j)+Rho(:,:,j)*m(j) instead of the truth, giving a mean error of
+    % 3.1e-02 at age 15 that did not shrink with either grid refinement or grid width.
     for z_c=1:prod(znum) % lag of z
-        conditionalmean=(Mew_J(:,jj)+Rho_J(:,:,jj)*z_gridvals_lag(z_c,:)')';
-        pi_z_J(z_c,:,jj)=mvncdf(z_gridvals-z_gridspacing_down,z_gridvals+z_gridspacing_up,conditionalmean,SigmaSq_J(:,:,jj))';
+        conditionalmean=(Mew_J(:,jj+1)+Rho_J(:,:,jj+1)*z_gridvals_lag(z_c,:)')';
+        pi_z_J(z_c,:,jj)=mvncdf(z_gridvals-z_gridspacing_down,z_gridvals+z_gridspacing_up,conditionalmean,SigmaSq_J(:,:,jj+1))';
     end
 
 

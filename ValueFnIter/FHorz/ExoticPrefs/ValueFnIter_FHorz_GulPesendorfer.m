@@ -30,8 +30,9 @@ N_e=prod(vfoptions.n_e);
 
 % Reject asset types this dispatcher does not handle: every asset type it does handle is
 % dispatched below and returns, so an unsupported flag would otherwise be silently ignored.
-if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1 || vfoptions.experienceassetsemiz>=1
-    error('GulPesendorfer preferences are not implemented for the experience assets (only for the standard endogenous states)')
+% (experienceasset itself IS handled: it is dispatched to the GulPesendorferExpAsset family below)
+if vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1 || vfoptions.experienceassetsemiz>=1
+    error('GulPesendorfer preferences are not implemented for the u/z/e/ze/semiz experience-asset variants (only experienceasset and the standard endogenous states)')
 end
 if vfoptions.riskyasset==1
     error('GulPesendorfer preferences are not implemented for riskyasset (only for the standard endogenous states)')
@@ -45,6 +46,20 @@ end
 %% Some Gul-Pesendorfer specific options need to be set if they are not already declared
 if ~isfield(vfoptions,'temptationFn')
     error('When using Gul-Pesendorfer preferences you must declare vfoptions.temptationFn (the temptation function)')
+end
+
+%% Experience asset: hand off to the GulPesendorferExpAsset dispatcher
+if vfoptions.experienceasset>=1
+    if prod(vfoptions.n_semiz)>0
+        error('GulPesendorfer with experienceasset is not yet implemented with a semi-exogenous state')
+    end
+    % The d/a splits (n_d1/n_d2/n_a1/n_a2 and their grids) were computed by
+    % SetupNonStandardEndoStates_FHorz. ReturnFnParamNamesFn knows the experience-asset
+    % signature conventions, so use it to get the temptation fn's parameters (the temptation
+    % fn has the same leading model args as the return fn).
+    TemptationFnParamNames=ReturnFnParamNamesFn(vfoptions.temptationFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
+    [V,Policy]=ValueFnIter_FHorz_GulPesendorferExpAsset(vfoptions.n_d1,vfoptions.n_d2,vfoptions.n_a1,vfoptions.n_a2,n_z, N_j, vfoptions.d1_grid, vfoptions.d2_grid, vfoptions.a1_grid, vfoptions.a2_grid, z_gridvals_J, pi_z_J, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
+    return
 end
 
 % Get the temptation function and the parameters needed to evaluate it

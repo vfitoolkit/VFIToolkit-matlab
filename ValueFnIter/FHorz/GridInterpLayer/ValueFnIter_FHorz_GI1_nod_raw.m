@@ -4,8 +4,8 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(2,N_a,N_z,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
-PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
+Policy(3,:,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 % When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
 
 %%
@@ -50,7 +50,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
         inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-        PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(3,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
         V(:,:,N_j)=shiftdim(Vtempii,1);
         Policy(1,:,:,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
@@ -77,7 +77,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
             inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-            PolicyL2flag(1,:,z_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(3,:,z_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,z_c,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
@@ -92,9 +92,12 @@ else
     EVpre=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
 
     % Use sparse for a few lines until sum over zprime
-    EV=EVpre.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+    EVinf=(EVpre==-Inf);
+    EV=EVpre;
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=EV*pi_z_J(:,:,N_j)';
+    EV(EVinf*(pi_z_J(:,:,N_j)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=reshape(EV,[N_a,1,N_z]);
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
@@ -122,7 +125,7 @@ else
         isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
         inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-        PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(3,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
         V(:,:,N_j)=shiftdim(Vtempii,1);
         Policy(1,:,:,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
@@ -154,7 +157,7 @@ else
             isInfUpper    = (ReturnMatrix_ii_z(n2long,:) == -Inf);
             inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-            PolicyL2flag(1,:,z_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(3,:,z_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,z_c,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
@@ -180,9 +183,12 @@ for reverse_j=1:N_j-1
 
     EVpre=V(:,:,jj+1);
 
-    EV=EVpre.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+    EVinf=(EVpre==-Inf);
+    EV=EVpre;
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=EV*pi_z_J(:,:,jj)';
+    EV(EVinf*(pi_z_J(:,:,jj)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=reshape(EV,[N_a,1,N_z]);
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
@@ -210,7 +216,7 @@ for reverse_j=1:N_j-1
         isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
         inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-        PolicyL2flag(1,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(3,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
         V(:,:,jj)=shiftdim(Vtempii,1);
         Policy(1,:,:,jj)=shiftdim(squeeze(midpoint),-1); % midpoint
@@ -242,7 +248,7 @@ for reverse_j=1:N_j-1
             isInfUpper    = (ReturnMatrix_ii_z(n2long,:) == -Inf);
             inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-            PolicyL2flag(1,:,z_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(3,:,z_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
             V(:,z_c,jj)=shiftdim(Vtempii,1);
             Policy(1,:,z_c,jj)=shiftdim(squeeze(midpoint),-1); % midpoint
@@ -257,11 +263,9 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(2,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(1,:,:,:)=Policy(1,:,:,:)-adjust; % lower grid point
-Policy(2,:,:,:)=adjust.*Policy(2,:,:,:)+(1-adjust).*(Policy(2,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+Policy(2,:,:,:)=Policy(2,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-Policy=[Policy;PolicyL2flag];
-
-% Policy=Policy(1,:,:,:)+N_a*(Policy(2,:,:,:)-1)+N_a*(n2short+2)*(PolicyL2flag-1);
+% Policy=Policy(1,:,:,:)+N_a*(Policy(2,:,:,:)-1)+N_a*(n2short+2)*(Policy(3,:,:,:)-1);
 
 
 end

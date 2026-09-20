@@ -298,11 +298,7 @@ parfor jj=1:J-1
         if strcmp(kfttoptions.method,'gauss-hermite')  % define prior probabilities
             q = W;
         else
-            q = W.*normpdf(z_grid,condMean,sigma(jj+1));
-            % % This command discretizes based on normal innovations, so use Tauchen to get initial guess
-            % midpoints=z_grid(1:end-1)+(z_grid(2:end)-z_grid(1:end-1))/2;
-            % Tauchen=normcdf(midpoints-condMean,0,sigma(jj+1));
-            % q=[Tauchen(1),Tauchen(2:end)-Tauchen(1:end-1),1-Tauchen(end)];
+            q = W.*(exp(-0.5*((z_grid-condMean)./sigma(jj+1)).^2)./(sigma(jj+1)*sqrt(2*pi)));
         end
 
         if any(q < kappa)

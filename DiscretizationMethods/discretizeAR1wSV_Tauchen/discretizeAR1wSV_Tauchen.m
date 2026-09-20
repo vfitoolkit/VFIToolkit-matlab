@@ -126,8 +126,8 @@ if tauchenoptions.parallel==0 || tauchenoptions.parallel==1
     for xj_c=1:xnum
         sigmau_xj=sqrt(exp(x_grid(xj_c))); % the realized standard deviation of u in state x_j
 
-        P_part1=normcdf(upperj-rho*zi,0,sigmau_xj);
-        P_part2=normcdf(lowerj-rho*zi,0,sigmau_xj);
+        P_part1=0.5*erfc(-(upperj-rho*zi)./(sigmau_xj*sqrt(2)));
+        P_part2=0.5*erfc(-(lowerj-rho*zi)./(sigmau_xj*sqrt(2)));
         Pz=P_part1-P_part2;
         Pz(:,1)=P_part1(:,1);
         Pz(:,znum)=1-P_part2(:,znum);
@@ -138,10 +138,9 @@ if tauchenoptions.parallel==0 || tauchenoptions.parallel==1
     end
 
 elseif tauchenoptions.parallel==2 %Parallelize on GPU
-    %Note: normcdf is not yet a supported function for use on the gpu in Matlab
-    %However erf is supported, and we can easily construct our own normcdf
-    %from erf (see http://en.wikipedia.org/wiki/Normal_distribution for the
-    %formula for normcdf as function of erf)
+    % Same erfc expression as the cpu branch above, so the two differ only where the cpu and gpu
+    % erfc libraries disagree in the last bit. erfc not 1+erf: the left tail cdf is tiny, and
+    % 1+erf loses all relative precision there (it is exactly zero past about -8.3 sd).
     z_grid=gpuArray(z_grid);
     upper=gpuArray(upper);
     lower=gpuArray(lower);
@@ -150,11 +149,11 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
     for xj_c=1:xnum
         sigmau_xj=sqrt(exp(x_grid(xj_c)));
 
-        erfinput=arrayfun(@(zi,zj,rho,sigmai) ((zj-rho*zi))/sqrt(2*sigmai^2), z_grid,upper', rho,sigmau_xj);
-        P_part1=0.5*(1+erf(erfinput));
+        erfcinput=arrayfun(@(zi,zj,rho,sigmai) -(zj-rho*zi)/(sigmai*sqrt(2)), z_grid,upper', rho,sigmau_xj);
+        P_part1=0.5*erfc(erfcinput);
 
-        erfinput=arrayfun(@(zi,zj,rho,sigmai) ((zj-rho*zi))/sqrt(2*sigmai^2), z_grid,lower', rho,sigmau_xj);
-        P_part2=0.5*(1+erf(erfinput));
+        erfcinput=arrayfun(@(zi,zj,rho,sigmai) -(zj-rho*zi)/(sigmai*sqrt(2)), z_grid,lower', rho,sigmau_xj);
+        P_part2=0.5*erfc(erfcinput);
 
         Pz=P_part1-P_part2;
         Pz(:,1)=P_part1(:,1);

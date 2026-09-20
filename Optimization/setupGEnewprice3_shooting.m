@@ -18,16 +18,21 @@ GEeqnNames=fieldnames(GeneralEqmEqns);
 nGeneralEqmEqns=length(GEeqnNames);
 
 %% Set up GEnewprice==3 (if relevant)
-shootingfield=''; % stationary-eqm shooting field holding howtoupdate: 'fminalgo5' or 'fminalgo9'
+shootingfield=''; % the field holding howtoupdate when it is not GEnewprice3: 'fminalgo5' or 'fminalgo9' (stationary eqm), or 'GEnewprice2' (transition path)
 if isfield(options,'fminalgo') && options.fminalgo==5 % fminalgo5 is stationary shooting
     shootingfield='fminalgo5';
     options.GEnewprice3=options.fminalgo5;
 elseif isfield(options,'fminalgo') && options.fminalgo==9 % fminalgo9 (Anderson accel.) accelerates the same shooting map
     shootingfield='fminalgo9';
     options.GEnewprice3=options.fminalgo9;
+elseif isfield(options,'GEnewprice') && options.GEnewprice==2 && isfield(options,'GEnewprice2') % transition path Anderson accel., again accelerating the same shooting map. The isfield() is so that the families where GEnewprice=2 is not implemented yet still fall through to the return below, and give their own 'not implemented' message rather than one about a missing field
+    shootingfield='GEnewprice2';
+    options.GEnewprice3=options.GEnewprice2;
 elseif options.GEnewprice~=3
     return % Not being used
 end
+
+oldpathweightexisted=isfield(options,'oldpathweight'); % so that the clean up at the end only removes it if it was put there by the line below
 if ~isfield(options,'oldpathweight')
     options.oldpathweight=0; % Not actually used for anything
 end
@@ -81,8 +86,8 @@ end
 % Anderson acceleration accelerates a FIXED point map p<-G(p), and a factor that changes from one
 % iteration to the next makes G time-varying, so the acceleration would no longer be solving the
 % problem it assumes. f_add=1 is the identity, so only an actual ramp is rejected here.
-if strcmp(shootingfield,'fminalgo9') && any(options.GEnewprice3.additionalfactor(:,1)~=1)
-    error('heteroagentoptions.fminalgo9.additionalfactor: the additional-factor ramp cannot be used with fminalgo9 (Anderson acceleration)')
+if (strcmp(shootingfield,'fminalgo9') || strcmp(shootingfield,'GEnewprice2')) && any(options.GEnewprice3.additionalfactor(:,1)~=1)
+    error('%s.additionalfactor: the additional-factor ramp cannot be used with Anderson acceleration, as Anderson builds its step from the history of iterates and so needs the same fixed-point map at every iteration',shootingfield)
 end
 options.GEnewprice3.howtoupdate(:,5)=num2cell(options.GEnewprice3.additionalfactor(:,1)); % f_add
 options.GEnewprice3.howtoupdate(:,6)=num2cell(options.GEnewprice3.additionalfactor(:,2)); % t1_add
@@ -251,11 +256,14 @@ else
 end
 
 
-%% If doing stationary general eqm, write output back into the shooting field (fminalgo5 or fminalgo9) instead of GEnewprice3
+%% If howtoupdate came from somewhere other than GEnewprice3, write the output back into that field
+% (fminalgo5 or fminalgo9 for stationary general eqm, GEnewprice2 for the transition path)
 if ~isempty(shootingfield)
     options.(shootingfield)=options.GEnewprice3;
     options=rmfield(options,'GEnewprice3');
-    options=rmfield(options,'oldpathweight');
+    if oldpathweightexisted==0
+        options=rmfield(options,'oldpathweight'); % it is not used for anything, and for stationary general eqm it has no business being in heteroagentoptions
+    end
 end
 
 

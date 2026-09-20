@@ -114,7 +114,7 @@ kappa = 1e-8; % small positive constant for numerical stability
 
 for ii = 1:Nm
     
-    q = normpdf(z_grid,rho*zx_grid(ii,1),sqrt(exp((1-phi)*xBar+phi*zx_grid(ii,2)+(sigmae^2)/2)));
+    q = exp(-0.5*((z_grid-rho*zx_grid(ii,1))./(sqrt(exp((1-phi)*xBar+phi*zx_grid(ii,2)+(sigmae^2)/2)))).^2)./((sqrt(exp((1-phi)*xBar+phi*zx_grid(ii,2)+(sigmae^2)/2)))*sqrt(2*pi));
     if sum(q<kappa) > 0
         q(q<kappa) = kappa;
     end

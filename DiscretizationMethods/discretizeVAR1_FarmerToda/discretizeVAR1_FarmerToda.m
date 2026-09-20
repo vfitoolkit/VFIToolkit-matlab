@@ -205,8 +205,8 @@ switch farmertodaoptions.method
     case 'quantile'
         y1DBounds = zeros(M,znum+1);
         for ii = 1:M
-            y1D(ii,:) = norminv((2*(1:znum)-1)./(2*znum),0,sigmas(ii));
-            y1DBounds(ii,:) = [-Inf, norminv((1:znum-1)./znum,0,sigmas(ii)), Inf];
+            y1D(ii,:) = 0-sigmas(ii)*sqrt(2).*erfcinv(2*((2*(1:znum)-1)./(2*znum)));
+            y1DBounds(ii,:) = [-Inf, 0-sigmas(ii)*sqrt(2).*erfcinv(2*((1:znum-1)./znum)), Inf];
         end
     case 'gauss-hermite'
         [nodes,weights] = GaussHermite(znum);
@@ -233,12 +233,12 @@ for ii = 1:(znum^M)
     % Construct prior guesses for maximum entropy optimizations
     switch farmertodaoptions.method
         case 'even'
-            q = normpdf(y1D,repmat(condMean(:,ii),1,znum),1);
+            q = exp(-0.5*(y1D-repmat(condMean(:,ii),1,znum)).^2)./sqrt(2*pi);
         case 'quantile'
-            q = normcdf(y1DBounds(:,2:end),repmat(condMean(:,ii),1,znum),1)...
-                - normcdf(y1DBounds(:,1:end-1),repmat(condMean(:,ii),1,znum),1);
+            q = (0.5*erfc(-(y1DBounds(:,2:end)-repmat(condMean(:,ii),1,znum))./sqrt(2)))...
+                - (0.5*erfc(-(y1DBounds(:,1:end-1)-repmat(condMean(:,ii),1,znum))./sqrt(2)));
         case 'gauss-hermite'
-            q = bsxfun(@times,(normpdf(y1D,repmat(condMean(:,ii),1,znum),1)./normpdf(y1D,0,1)),...
+            q = bsxfun(@times,((exp(-0.5*(y1D-repmat(condMean(:,ii),1,znum)).^2)./sqrt(2*pi))./(exp(-0.5*y1D.^2)./sqrt(2*pi))),...
                 (weights'./sqrt(pi)));
     end
     

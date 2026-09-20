@@ -138,10 +138,10 @@ T4 = mixprobs_i'*(mu_i.^4+6*(mu_i.^2).*sigmaC2+3*sigmaC2.^2); % uncentered fourt
 
 TBar = [T1 T2 T3 T4]';
 
-nComp = length(mixprobs_i); % number of mixture components
-temp = zeros(1,1,nComp);
-temp(1,1,:) = sigmaC2;
-gmObj = gmdistribution(mu_i,temp,mixprobs_i); % define the Gaussian mixture object
+% gmdistribution and pdf() need the Statistics Toolbox, and a gaussian mixture density is
+% one line without them: sum_i p_i*normpdf(x,mu_i,s_i). The component parameters are kept
+% as plain vectors and the density is written out at each use below.
+gmmu = mu_i; gmsd = sqrt(sigmaC2); gmp = mixprobs_i; % the mixture, as plain vectors
 
 sigma = sqrt(T2-T1^2); % conditional standard deviation
 temp = (eye(1^2)-kron(rho,rho))\eye(1^2);
@@ -196,11 +196,11 @@ for z_c = 1:znum
     xPDF = (X1-condMean)';
     switch farmertodaoptions.method
         case 'gauss-hermite'
-            q = W.*(pdf(gmObj,xPDF)./normpdf(xPDF,0,sigma))';
+            q = W.*(sum(gmp'.*exp(-0.5*((xPDF-gmmu')./gmsd').^2)./(gmsd'*sqrt(2*pi)),2)./(exp(-0.5*(xPDF./sigma).^2)./(sigma*sqrt(2*pi))))';
         case 'GMQ'
-            q = W.*(pdf(gmObj,xPDF)./pdf(gmObj,X1'))';
+            q = W.*(sum(gmp'.*exp(-0.5*((xPDF-gmmu')./gmsd').^2)./(gmsd'*sqrt(2*pi)),2)./sum(gmp'.*exp(-0.5*((X1'-gmmu')./gmsd').^2)./(gmsd'*sqrt(2*pi)),2))';
         otherwise
-            q = W.*(pdf(gmObj,xPDF))';
+            q = W.*(sum(gmp'.*exp(-0.5*((xPDF-gmmu')./gmsd').^2)./(gmsd'*sqrt(2*pi)),2))';
     end
     
     if any(q < kappa)
