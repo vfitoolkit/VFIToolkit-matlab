@@ -97,7 +97,12 @@ for jj = N_j : -1 : 1
     % ---------------------------------------------------------
     if warmglow == 1
         WG_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
-        WG_raw = vfoptions.WarmGlowBequestsFn(a2_grid, WG_params{:});
+
+        % FIX: Wrap the Warm Glow function in the Tensor Bridge to guarantee
+        % element-by-element evaluation and prevent scalar -Inf broadcasting!
+        TensorWG_Fn = CreateTensorBridge(vfoptions.WarmGlowBequestsFn);
+        WG_raw = TensorWG_Fn(a2_grid, WG_params{:});
+
         if isscalar(WG_raw)
             WG_raw = WG_raw * ones(size(a2_grid), 'like', a2_grid);
         end
@@ -198,9 +203,14 @@ for jj = N_j : -1 : 1
         temp4 = EV_z;
         if warmglow == 1
             WG_u_rs = reshape(WG_u, [1, N_d2*N_d3, 1]);
-            becareful = logical(isfinite(temp4) .* isfinite(WG_u_rs));
-            temp4(becareful) = ( sj(jj)*temp4(becareful).^ezc8(jj) + (1-sj(jj))*WG_u_rs(becareful).^ezc8(jj) ) .^ ezc6(jj);
-            temp4((EV_z == 0) & (WG_u_rs == 0)) = 0;
+
+            % FIX: Explicitly expand the array to perfectly match temp4's dimensions
+            % This prevents implicit expansion OOMs and indexing bound errors on the GPU
+            WG_u_expanded = repmat(WG_u_rs, [N_a1, 1, max(N_z,1)]);
+
+            becareful = logical(isfinite(temp4) .* isfinite(WG_u_expanded));
+            temp4(becareful) = ( sj(jj)*temp4(becareful).^ezc8(jj) + (1-sj(jj))*WG_u_expanded(becareful).^ezc8(jj) ) .^ ezc6(jj);
+            temp4((EV_z == 0) & (WG_u_expanded == 0)) = 0;
         else
             becareful = isfinite(temp4);
             temp4(becareful) = ( sj(jj)*temp4(becareful).^ezc8(jj) ) .^ ezc6(jj);
