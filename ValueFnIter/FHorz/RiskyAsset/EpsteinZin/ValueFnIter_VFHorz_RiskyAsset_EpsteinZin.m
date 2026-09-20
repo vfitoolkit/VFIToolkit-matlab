@@ -213,13 +213,21 @@ for jj = N_j : -1 : 1
     % ---------------------------------------------------------
     temp4_tensor = reshape(temp4, [N_a1, N_d2, N_d3, max(N_z,1)]);
 
-    % The Legacy Toolkit Parity Block: NaN masking and ezc9 * ezc3 flip
-    masked_temp4 = (~isinf(temp4_tensor)) .* temp4_tensor;
+    % The Legacy Toolkit Parity Block: Safe NaN masking and ezc9 * ezc3 flip
+    % By replacing -Inf with 0 BEFORE multiplying, we prevent 0 * -Inf = NaN
+    safe_temp4 = temp4_tensor;
+    inf_mask = isinf(temp4_tensor);
+    safe_temp4(inf_mask) = 0;
+
+    masked_temp4 = (~inf_mask) .* safe_temp4;
     flipped_temp4 = ezc9 * ezc3 * masked_temp4;
+
+    % Re-inject the -Inf penalty so invalid states are correctly ignored by max()
+    flipped_temp4(inf_mask) = -Inf;
 
     [EV_max_d3_raw, Pol_d2_idx] = max(flipped_temp4, [], 2);
 
-    % Keep it as the raw positive output to match legacy RHS assembly
+    % Keep it as the raw output to match legacy RHS assembly
     EV_max_d3 = reshape(EV_max_d3_raw, [N_a1, N_d3, max(N_z,1)]);
     Pol_d2_idx = reshape(Pol_d2_idx, [N_a1, N_d3, max(N_z,1)]);
 
