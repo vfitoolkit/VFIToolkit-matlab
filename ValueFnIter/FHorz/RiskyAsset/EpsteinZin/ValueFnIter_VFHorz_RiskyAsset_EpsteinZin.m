@@ -138,7 +138,16 @@ for jj = N_j : -1 : 1
         temp4 = WG_u;
         valid_t4 = isfinite(temp4) & (temp4 ~= 0);
         if warmglow == 1
-            temp4(valid_t4) = ((1 - sj(jj)) * max(temp4(valid_t4), 0).^ezc8(jj)).^ezc6(jj);
+            temp_WG = temp4(valid_t4);
+            if ezc8(jj) ~= 1
+                temp_WG = max(temp_WG, 0).^ezc8(jj);
+            end
+            temp_WG = (1 - sj(jj)) * temp_WG;
+            if ezc6(jj) ~= 1
+                temp_WG = max(temp_WG, 0).^ezc6(jj);
+            end
+            temp4(valid_t4) = temp_WG;
+
             temp4(WG_u == 0) = 0;
             temp4(~valid_t4 & WG_u ~= 0) = NaN;
         else
@@ -159,6 +168,7 @@ for jj = N_j : -1 : 1
             else
                 V_slice(valid_V) = max(ezc4 * V_slice(valid_V), 0).^ezc5(jj);
             end
+
             V_slice(V_next_3D(i_a1,:,:) == 0) = 0;
 
             inf_mask = double(V_slice == -Inf);
@@ -168,7 +178,6 @@ for jj = N_j : -1 : 1
             V_int_slice = interp1(a2_grid, V_safe, aprime_clamped(:), 'linear');
             inf_int_slice = interp1(a2_grid, inf_mask, aprime_clamped(:), 'linear');
             V_int_slice(inf_int_slice > 0) = -Inf;
-
             V_interp(i_a1, :, :, :) = reshape(V_int_slice, [1, N_d2*N_d3, N_u, max(N_z,1)]);
         end
 
@@ -187,7 +196,6 @@ for jj = N_j : -1 : 1
             for i_a1 = 1:N_a1
                 EV_u_slice = squeeze(EV_u(i_a1, :, :));
                 if N_z == 1, EV_u_slice = EV_u_slice(:)'; end
-
                 inf_mask_z = (EV_u_slice == -Inf);
                 EV_u_safe = EV_u_slice;
                 EV_u_safe(inf_mask_z) = 0;
@@ -195,7 +203,6 @@ for jj = N_j : -1 : 1
                 EV_z_slice = EV_u_safe * pi_z_j';
                 inf_infect_z = double(inf_mask_z) * double(pi_z_j' > 0);
                 EV_z_slice(inf_infect_z > 0) = -Inf;
-
                 EV_z(i_a1, :, :) = EV_z_slice;
             end
         else
@@ -203,19 +210,39 @@ for jj = N_j : -1 : 1
         end
 
         temp4 = EV_z;
-
         if warmglow == 1
-            WG_u_rs = reshape(WG_u, [1, N_d2*N_d3, 1]); % <-- MOVED INSIDE
+            WG_u_rs = reshape(WG_u, [1, N_d2*N_d3, 1]);
             valid_combined = isfinite(EV_z) & repmat(isfinite(WG_u_rs), [N_a1, 1, max(N_z,1)]) & ...
                 ~((EV_z == 0) & repmat(WG_u_rs == 0, [N_a1, 1, max(N_z,1)]));
-            temp4(valid_combined) = (sj(jj) * max(EV_z(valid_combined), 0).^ezc8(jj) + ...
-                (1-sj(jj)) * max(WG_u_rs(valid_combined), 0).^ezc8(jj)).^ezc6(jj);
+
+            temp_EV = EV_z(valid_combined);
+            temp_WG = WG_u_rs(valid_combined);
+            if ezc8(jj) ~= 1
+                temp_EV = max(temp_EV, 0).^ezc8(jj);
+                temp_WG = max(temp_WG, 0).^ezc8(jj);
+            end
+
+            temp_combined = sj(jj) * temp_EV + (1 - sj(jj)) * temp_WG;
+            if ezc6(jj) ~= 1
+                temp_combined = max(temp_combined, 0).^ezc6(jj);
+            end
+            temp4(valid_combined) = temp_combined;
+
             zero_mask = (EV_z == 0) & repmat(WG_u_rs == 0, [N_a1, 1, max(N_z,1)]);
             temp4(zero_mask) = 0;
             temp4(~valid_combined & ~zero_mask) = NaN;
         else
             valid_t4 = isfinite(EV_z) & (EV_z ~= 0);
-            temp4(valid_t4) = (sj(jj) * max(EV_z(valid_t4), 0).^ezc8(jj)).^ezc6(jj);
+            temp_EV = EV_z(valid_t4);
+            if ezc8(jj) ~= 1
+                temp_EV = max(temp_EV, 0).^ezc8(jj);
+            end
+            temp_EV = sj(jj) * temp_EV;
+            if ezc6(jj) ~= 1
+                temp_EV = max(temp_EV, 0).^ezc6(jj);
+            end
+            temp4(valid_t4) = temp_EV;
+
             temp4(EV_z == 0) = 0;
             temp4(~valid_t4 & EV_z ~= 0) = NaN;
         end
