@@ -1211,7 +1211,11 @@ else
         L2_base = (loweredge_matrix - 1) * (n2short + 1) + 1;
         base_idx = reshape(L2_base, [1, 1, N_states, n_z_loc, n_e_loc]);
 
-        offsets = reshape(0:n2long-1, [1, num_choices, 1, 1, 1]);
+        % CRITICAL FIX 1: Offsets must be perfectly symmetric around the L2 base index
+        start_offset = -(n2short + 1);
+        end_offset   = (n2short + 1);
+        offsets = reshape(start_offset:end_offset, [1, num_choices, 1, 1, 1]);
+
         choice_idx = base_idx + offsets;
         choice_idx = max(1, min(choice_idx, length(a1prime_grid)));
 
@@ -1251,22 +1255,23 @@ else
     d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
     apr_offset  = ceil(Pol_sub_idx / max(1, N_d_safe));
 
-    base_idx_flat = reshape(base_idx, [1, FLAT_STATES]);
-    absolute_idx_flat = base_idx_flat + apr_offset - 1;
-
     V_j_max   = reshape(V_sub_fine,  [N_states, n_z_loc * n_e_loc]);
     Pol_d_max = reshape(d_idx_local, [N_states, n_z_loc * n_e_loc]);
 
     if gridinterplayer(1) == 0
         % Standard DC: exact choice maps directly to the coarse grid
+        base_idx_flat = reshape(base_idx, [1, FLAT_STATES]);
+        absolute_idx_flat = base_idx_flat + apr_offset - 1;
+
         Pol_apr_max    = reshape(absolute_idx_flat, [N_states, n_z_loc * n_e_loc]);
         Pol_L2idx_max  = [];
         Pol_L2flag_max = [];
     else
-        % Grid Interp DC: choice maps to L2 index (Pol_apr_max resolved later)
-        Pol_apr_max    = [];
-        Pol_L2idx_max  = reshape(absolute_idx_flat, [N_states, n_z_loc * n_e_loc]);
-        Pol_L2flag_max = ones(N_states, size(V_j_max, 2), 'like', V_j_max);
+        % CRITICAL FIX 2: Pol_L2idx_max must be the RELATIVE offset (1 to n2long).
+        % Pol_apr_max must be preserved as the coarse grid base index.
+        Pol_apr_max    = reshape(loweredge_matrix, [N_states, n_z_loc * n_e_loc]);
+        Pol_L2idx_max  = reshape(apr_offset, [N_states, n_z_loc * n_e_loc]);
+        Pol_L2flag_max = ones(N_states, n_z_loc * n_e_loc, 'like', V_j_max);
     end
 end
 
