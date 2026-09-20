@@ -263,88 +263,56 @@ if vfoptions.parallel == 2
     if ~isempty(pi_z),   pi_z   = gpuArray(pi_z);   end
 end
 
-%% Semi-exogenous shock gridvals and pi
 %% Exogenous shock gridvals and pi
-if isfield(vfoptions, 'semiz_gridvals_J') && ~isempty(vfoptions.semiz_gridvals_J)
-    % --- Complex Semi-Exogenous Expansion Path ---
-    sz_J = vfoptions.semiz_gridvals_J;
-    N_semiz = size(sz_J, 1);
-    num_semiz_vars = size(sz_J, 2);
-    num_periods = size(sz_J, 3);
-
-    if N_z > 0
-        z_J = repmat(z_grid, [1, 1, num_periods]);
-        num_z_vars = size(z_grid, 2);
-    else
-        z_J = [];
-        num_z_vars = 0;
-    end
-
-    z_gridvals_J = zeros(N_semiz * max(1, N_z), num_semiz_vars + num_z_vars, num_periods, 'like', sz_J);
-    for t = 1:num_periods
-        if N_z > 0
-            semiz_expanded = kron(sz_J(:,:,t), ones(N_z, 1));
-            z_expanded = kron(ones(N_semiz, 1), z_J(:,:,t));
-            z_gridvals_J(:,:,t) = [semiz_expanded, z_expanded];
-        else
-            z_gridvals_J(:,:,t) = sz_J(:,:,t);
-        end
-    end
-    pi_z_J = pi_z;
-    n_combined_z = [vfoptions.n_semiz, n_z];
+if vfoptions.alreadygridvals==0
+    [z_gridvals_J, pi_z_J, vfoptions] = ExogShockSetup_FHorz(n_z, z_grid, pi_z, N_j, Parameters, vfoptions, 2, 0);
 else
-    % --- Simple Standard Z Path (Zero Overhead) ---
-    if N_j > 1 && size(z_grid, ndims(z_grid)) ~= N_j
-        % Replicate across periods if static
-        z_gridvals_J = repmat(z_grid, [1, 1, N_j]);
-    else
-        z_gridvals_J = z_grid;
-    end
+    z_gridvals_J = z_grid;
     pi_z_J = pi_z;
-    n_combined_z = n_z;
 end
 
+%% Semi-exogenous shock gridvals and pi
+if isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz) > 0
+    N_semiz = prod(vfoptions.n_semiz);
+else
+    N_semiz = 0;
+end
+
+if vfoptions.alreadygridvals_semiexo==0
+    if N_semiz > 0
+        vfoptions = SemiExogShockSetup_FHorz(n_d, N_j, d_grid, Parameters, vfoptions, 2);
+    end
+end
+
+% --- Tensor Bridge: Combine Z and SemiZ into a single Cartesian state space ---
 N_d = prod(n_d);
 N_a = prod(n_a);
 N_z = prod(n_z);
 N_z_safe = max(1, N_z);
 
-%% Exogenous shock gridvals and pi
-if isfield(vfoptions, 'semiz_gridvals_J') && ~isempty(vfoptions.semiz_gridvals_J)
-    % 1. Extract the pre-computed static semiz tensor
+if N_semiz > 0 && isfield(vfoptions, 'semiz_gridvals_J')
     sz_J = vfoptions.semiz_gridvals_J;
-    N_semiz = size(sz_J, 1);
     num_semiz_vars = size(sz_J, 2);
     num_periods = size(sz_J, 3);
-
-    % 2. Get the z grid
     if N_z > 0
-        z_J = repmat(z_grid, [1, 1, num_periods]);
-        num_z_vars = size(z_grid, 2);
+        num_z_vars = size(z_gridvals_J, 2);
     else
-        z_J = [];
         num_z_vars = 0;
     end
 
-    % 3. Combine them via Kronecker expansion for each period
-    z_gridvals_J = zeros(N_semiz * max(1, N_z), num_semiz_vars + num_z_vars, num_periods, 'like', sz_J);
+    z_gridvals_J_combined = zeros(N_semiz * max(1, N_z), num_semiz_vars + num_z_vars, num_periods, 'like', sz_J);
     for t = 1:num_periods
         if N_z > 0
             semiz_expanded = kron(sz_J(:,:,t), ones(N_z, 1));
-            z_expanded = kron(ones(N_semiz, 1), z_J(:,:,t));
-            z_gridvals_J(:,:,t) = [semiz_expanded, z_expanded];
+            z_expanded = kron(ones(N_semiz, 1), z_gridvals_J(:,:,t));
+            z_gridvals_J_combined(:,:,t) = [semiz_expanded, z_expanded];
         else
-            z_gridvals_J(:,:,t) = sz_J(:,:,t);
+            z_gridvals_J_combined(:,:,t) = sz_J(:,:,t);
         end
     end
-
-    % 4. Pass raw transition matrix; decoupled sequential evaluation handles it
-    pi_z_J = pi_z;
+    z_gridvals_J = z_gridvals_J_combined;
     n_combined_z = [vfoptions.n_semiz, n_z];
 else
-    % Fallback to standard z
-    z_gridvals_J = z_grid;
-    pi_z_J = pi_z;
     n_combined_z = n_z;
 end
 
@@ -846,12 +814,12 @@ for reverse_j = 0:N_j-1
             end
 
             % 5. Bind LocalBlockFn passing unmixed global dimensions for broadcasting
-            LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar, EV_bounded_pre) Evaluate_Case1_TensorBlock(...
+            LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
                 state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
-                vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
+                vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                 TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
-                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_work, n_e_work);
+                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor);
 
             vfoptions.level1n = vfoptions.level1n(1);
             [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
@@ -918,10 +886,23 @@ for reverse_j = 0:N_j-1
                     z_offset_fine_local = [];
                 end
 
+                % --- HOIST EV_BOUNDED for non-DC loop ---
+                if l_a2 == 0
+                    apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
+                    z_offset_broadcast = reshape((0:N_ze_local-1) * N_a, [1, 1, 1, 1, N_ze_local]);
+                    idx_base = apr_idx_tensor + z_offset_broadcast;
+                    max_idx_row = N_a1 * n_z_work * n_e_work;
+                    linear_idx_pre = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
+
+                    EV_bounded_pre = beta_j .* reshape(EV_local(linear_idx_pre(:)), [N_d_safe, N_a1, 1, 1, N_ze_local]);
+                else
+                    EV_bounded_pre = [];
+                end
+
                 LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
                     state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2_local, N_d_safe, N_ze_local, ...
                     Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_local, a2_grids_1d, l_a2, ...
-                    vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, [], EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
+                    vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                     TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
                     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor);
 
@@ -1054,9 +1035,9 @@ end
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Evaluate_Case1_TensorBlock(...
     state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
     Z_cells_block, E_cells_block, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
-    gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
+    gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
     TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
-    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_glob, n_e_glob)
+    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor)
 
 % Number of states requested by the Divide-and-Conquer slicer
 N_states = length(state_idx);
@@ -1123,27 +1104,13 @@ if l_a2 > 0
     EV_bounded = EV_left + weight .* (EV_right - EV_left);
     EV_bounded = beta_j .* EV_bounded; % Apply beta_j here since it wasn't pre-multiplied
 else
-    % Standard Endogenous (Fully Unmixed Shocks with Global Strides)
-    apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
-
-    n_z_loc = size(Z_cells_block{1}, 4);
-    n_e_loc = size(E_cells_block{1}, 5);
-
-    z_idx_tensor = reshape(1:n_z_loc, [1, 1, 1, n_z_loc, 1]);
-    e_idx_tensor = reshape(1:n_e_loc, [1, 1, 1, 1, n_e_loc]);
-
-    idx_base = apr_idx_tensor + (z_idx_tensor - 1) * N_a1 + (e_idx_tensor - 1) * (N_a1 * n_z_glob);
-
-    max_idx_row = N_a1 * n_z_glob * n_e_glob;
-    linear_idx = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
-
-    % EV_bounded natively broadcasts against dimension 3
+    % Standard Endogenous (Zero Overhead)
     EV_bounded = EV_bounded_pre;
 end
 
 % --- 4. RHS Evaluation, Choice Optimization, and State Slicing ---
 FLAT_CHOICES = max(1, N_d_safe) * N_a1;
-FLAT_STATES  = N_states * N_ze_local;  % CRITICAL FIX: Only evaluate sliced states
+FLAT_STATES  = N_states * N_ze_local;
 
 % Pass beta_j = 1 because it's already baked into EV_bounded
 RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);

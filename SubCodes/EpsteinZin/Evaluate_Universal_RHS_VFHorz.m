@@ -9,14 +9,12 @@ if ezc2_j == 1 && ezc4 == 1
     % Relax
 else
     if ezc2_j == 1
-        % Don't create and use an index here...will be handled in due course
         temp2 = ezc4 * F_tensor;
     else
         valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
         temp2(valid_F) = max(ezc4 * F_tensor(valid_F), 0).^ezc2_j;
     end
 end
-temp2(~isfinite(F_tensor)) = -Inf;
 
 % --- 2. Assemble Coarse RHS ---
 if ezc1_j ~= 1 || beta_j ~= 0
@@ -30,14 +28,12 @@ RHS = entireRHS;
 
 if ezc7_j == 1
     if ezc3 ~= 1
-        % Don't create and use an index here...will be handled in due course
         RHS = ezc3 * entireRHS;
     end
 else
     valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
     RHS(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
 end
-RHS(~isfinite(entireRHS)) = -Inf;
 
 
 end
