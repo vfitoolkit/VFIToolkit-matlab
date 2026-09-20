@@ -308,9 +308,9 @@ function [V_sub, Pol_d_combo, L2idx, L2flag] = Evaluate_EZ_TensorBlock(...
 N_block = length(state_idx);
 
 % 1. Setup 5D Choice/State Structures
-d1_in      = reshape(d1_grid, [N_d1, 1, 1, 1, 1]);
-a1prime_in = reshape(a1_grid, [1, N_a1, 1, 1, 1]);
-d3_in      = reshape(d3_grid, [1, 1, N_d3, 1, 1]);
+    d1_in      = reshape(d1_grid, [N_d1, 1, 1, 1, 1]);
+    d3_in      = reshape(d3_grid, [1, N_d3, 1, 1, 1]); % Swapped to Dim 2 (Fastest)
+    a1prime_in = reshape(a1_grid, [1, 1, N_a1, 1, 1]); % Swapped to Dim 3 (Slowest)
 
 [a1_idx, a2_idx] = ind2sub([N_a1, N_a2], state_idx);
 A1_cells = reshape(a1_grid(a1_idx), [1, 1, 1, N_block, 1]);
@@ -337,7 +337,9 @@ temp2(becareful) = F_tensor(becareful) .^ ezc2_j;
 temp2(F_tensor == 0) = -Inf;
 
 % 4. Assemble RHS matching legacy summation bugs
-EV_bc = reshape(EV_max_d3, [1, N_a1, N_d3, 1, N_z_safe]);
+% Permute EV_max_d3 to match F_tensor broadcast dims [1, N_d3, N_a1, 1, N_z_safe]
+EV_bc_perm = permute(EV_max_d3, [2, 1, 3]);
+EV_bc = reshape(EV_bc_perm, [1, N_d3, N_a1, 1, N_z_safe]);
 entireRHS = ezc1_j .* temp2 + ezc9 .* beta_j .* EV_bc;
 
 RHS = entireRHS;
@@ -345,12 +347,12 @@ temp5 = logical(isfinite(entireRHS) .* (entireRHS ~= 0));
 RHS(temp5) = entireRHS(temp5) .^ ezc7_j;
 % FIX: Removed the RHS(~isfinite) = -Inf override. Let MATLAB handle NaNs natively!
 
-RHS_flat = reshape(RHS, [N_d1 * N_a1 * N_d3, N_block * N_z_safe]);
+RHS_flat = reshape(RHS, [N_d1 * N_d3 * N_a1, N_block * N_z_safe]);
 [V_sub_coarse, opt_idx_flat] = max(RHS_flat, [], 1);
 V_sub = V_sub_coarse;
 
 % 5. Simultaneous Compression (Flatten all choices)
-[d1_opt, a1prime_opt, d3_opt] = ind2sub([N_d1, N_a1, N_d3], opt_idx_flat);
+[d1_opt, d3_opt, a1prime_opt] = ind2sub([N_d1, N_d3, N_a1], opt_idx_flat);
 d1_opt = reshape(d1_opt, [N_block, N_z_safe]);
 a1prime_opt = reshape(a1prime_opt, [N_block, N_z_safe]);
 d3_opt = reshape(d3_opt, [N_block, N_z_safe]);
