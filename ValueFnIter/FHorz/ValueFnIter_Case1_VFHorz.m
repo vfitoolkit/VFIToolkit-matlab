@@ -356,12 +356,6 @@ else
     e_work = ones(1, 1, 'like', a_grid);
 end
 
-z_pass = [];
-if N_z > 0
-    % Pass period 1 for initial sizing; dynamic time-varying Z is handled in the reverse_j loop
-    z_pass = z_gridvals_J(:,:,1);
-end
-
 % --- 2. Dimension and ExpAsset Slicing ---
 l_a2 = 0;
 if vfoptions.experienceasset > 0; l_a2 = vfoptions.experienceasset; end
@@ -437,7 +431,6 @@ end
 
 % --- Standardize Dimensions for the Slicer & Allocator ---
 N_d_safe = max(1, prod(n_d));
-has_d = sum(n_d) > 0;
 n_a_work = prod(n_a);
 a1_work = A1_cells{1}(:); % Extract primary asset grid for interpolation
 
@@ -643,29 +636,6 @@ for reverse_j = 0:N_j-1
         aprimeFnParamsCell = {};
     end
 
-    % Pre-cell-ify the full z and e grids once per period rather than calling cellfun/reshape repeatedly
-    if has_semiz || has_z
-        z_current_slice = z_gridvals_J(:,:,min(jj, size(z_gridvals_J,3)));
-        num_z_vars = size(z_current_slice, 2);
-        Z_cells = cell(1, num_z_vars);
-        for iz = 1:num_z_vars
-            Z_cells{iz} = z_current_slice(:, iz);
-        end
-    else
-        Z_cells = {};
-    end
-
-    % Do we need to handle e_gridvals_J?
-    if has_e
-        num_e_vars = size(e_work, 2);
-        E_cells = cell(1, num_e_vars);
-        for ie = 1:num_e_vars
-            E_cells{ie} = e_work(:, ie);
-        end
-    else
-        E_cells = {};
-    end
-
     % --- EZ V_next Transformation ---
     valid_V = isfinite(V_next) & (V_next ~= 0);
     V_transformed = V_next;
@@ -784,6 +754,7 @@ for reverse_j = 0:N_j-1
 
     % --- The Master Orchestrator Loop ---
     if vfoptions.divideandconquer == 1
+        % DC Block
         for i_ze = 1:length(ze_chunks)
             % Look up pre-computed bounds instantly
             meta = chunk_meta{i_ze};
@@ -887,6 +858,7 @@ for reverse_j = 0:N_j-1
             end
         end
     else
+        % Non-DC block
         for i_a2 = 1:length(a2_chunks)
             curr_a2 = a2_chunks{i_a2};
             N_a2_local = length(curr_a2);
@@ -980,12 +952,31 @@ for reverse_j = 0:N_j-1
                     TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
                     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset);
 
-                if vfoptions.divideandconquer == 1
-                    vfoptions.level1n = vfoptions.level1n(1);
-                    [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(start_a_idx:end_a_idx, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
-                else
-                    [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(start_a_idx:end_a_idx, [], 0);
+                % CHUNKER: Prevent GPU OOM on massive Cartesian expansions in Non-DC mode
+                state_list = start_a_idx:end_a_idx;
+                total_states = length(state_list);
+
+                % Cap memory at ~50 million elements per arrayfun call
+                flat_choices = max(1, N_d_safe) * N_a1;
+                max_states_per_chunk = max(1, floor(50000000 / (flat_choices * N_ze_local)));
+
+                v_concat = []; p_apr_concat = []; p_d_concat = []; p_l2idx_concat = []; p_l2flag_concat = [];
+
+                for chunk_start = 1:max_states_per_chunk:total_states
+                    chunk_end = min(total_states, chunk_start + max_states_per_chunk - 1);
+                    state_chunk = state_list(chunk_start:chunk_end);
+
+                    [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0);
+
+                    v_concat = [v_concat; v_c];
+                    p_apr_concat = [p_apr_concat; p_apr_c];
+                    p_d_concat = [p_d_concat; p_d_c];
+                    if vfoptions.gridinterplayer(1) == 1
+                        p_l2idx_concat = [p_l2idx_concat; p_l2idx_c];
+                        p_l2flag_concat = [p_l2flag_concat; p_l2flag_c];
+                    end
                 end
+                v = v_concat; p_apr = p_apr_concat; p_d = p_d_concat; p_l2idx = p_l2idx_concat; p_l2flag = p_l2flag_concat;
 
                 if l_a2 > 0
                     N_a_local = N_a1 * N_a2_local;
