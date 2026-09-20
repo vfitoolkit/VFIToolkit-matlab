@@ -186,88 +186,88 @@ usinglcp=1;
 % Go through FnsToEvaluate to fill in all the names, and then put all the possible moment-types into this as well.
 fnnames=fieldnames(FnsToEvaluate);
 % First, do those in AllStats
-allstatmomentnames={};
+allstatmomentnames=cell(1,3); % third column is for a third level of the stat, empty here
 allstatmomentcounter=0;
 allstatmomentsizes=0;
 % Second, do those in AgeConditionalStats
-acsmomentnames={};
+acsmomentnames=cell(1,3); % third column is for a third level of the stat, empty here
 acsmomentcounter=0;
 acsmomentsizes=0;
 for ff=1:length(fnnames)
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=1;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'Mean'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'Mean'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=1;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'Median'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'Median'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=1;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'RatioMeanToMedian'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'RatioMeanToMedian'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=1;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'Variance'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'Variance'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=1;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'StdDeviation'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'StdDeviation'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=simoptions.npercentiles;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'LorenzCurve'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'LorenzCurve'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=1;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'Gini'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'Gini'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=1;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'Maximum'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'Maximum'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=1;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'Minimum'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'Minimum'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=simoptions.nquantiles+1;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'QuantileCutoffs'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'QuantileCutoffs'};
     allstatmomentcounter=allstatmomentcounter+1;
     allstatmomentsizes(allstatmomentcounter)=simoptions.nquantiles;
-    allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'QuantileMeans'};
+    allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'QuantileMeans'};
     % allstatmomentcounter=allstatmomentcounter+1;
     % allstatmomentsizes(allstatmomentcounter)=1;
-    % allstatmomentnames(allstatmomentcounter,:)={fnnames{ff},'MoreInequality'};
+    % allstatmomentnames(allstatmomentcounter,1:2)={fnnames{ff},'MoreInequality'};
 
 
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'Mean'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'Mean'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'Median'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'Median'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'RatioMeanToMedian'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'RatioMeanToMedian'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'Variance'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'Variance'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'StdDeviation'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'StdDeviation'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j*simoptions.npercentiles;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'LorenzCurve'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'LorenzCurve'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'Gini'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'Gini'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'Maximum'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'Maximum'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'Minimum'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'Minimum'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j*(simoptions.nquantiles+1);
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'QuantileCutoffs'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'QuantileCutoffs'};
     acsmomentcounter=acsmomentcounter+1;
     acsmomentsizes(acsmomentcounter)=N_j*simoptions.nquantiles;
-    acsmomentnames(acsmomentcounter,:)={fnnames{ff},'QuantileMeans'};
+    acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'QuantileMeans'};
     % acsmomentcounter=acsmomentcounter+1;
     % acsmomentsizes(acsmomentcounter)=N_j;
-    % acsmomentnames(acsmomentcounter,:)={fnnames{ff},'MoreInequality'};
+    % acsmomentnames(acsmomentcounter,1:2)={fnnames{ff},'MoreInequality'};
 
 end
 allstatcummomentsizes=cumsum(allstatmomentsizes); % Note: this is zero is AllStats is unused
@@ -275,6 +275,13 @@ acscummomentsizes=cumsum(acsmomentsizes); % Note: this is zero is AllStats is un
 % To do AllStats faster, we use simoptions.whichstats so that we only compute the stats we want.
 AllStats_whichstats=ones(7,1);
 ACStats_whichstats=ones(7,1);
+% CustomModelStats is not used here
+usingcustomstats=0;
+cmsmomentnames=cell(1,1);
+cmscummomentsizes=0;
+% All of FnsToEvaluate is used, for both AllStats and the life-cycle profiles
+FnsToEvaluate_AllStats=FnsToEvaluate;
+FnsToEvaluate_ACStats=FnsToEvaluate;
 
 
 
@@ -336,7 +343,7 @@ end
 
 %% Set up the objective function and the initial calibration parameter vector
 % Note: _objectivefn is shared between Method of Moments Estimation and Calibration
-EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp, usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames, allstatcummomentsizes, acscummomentsizes, cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
 
 %% We are not estimating, so just use initial values
 estimparamsvec=estimparamsvec0;
@@ -361,7 +368,7 @@ estimoptionsJacobian.constrainAtoB=zeros(length(EstimParamNames),1); % eliminate
 estimoptionsJacobian.vectoroutput=1; % Was set to zero to get point estimates, now set to one as part of computing std deviations.
 
 % To change the estimoptions, we have to reset EstimateMoMObjectiveFn
-EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptionsJacobian, vfoptions,simoptions);
+EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp, usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames, allstatcummomentsizes, acscummomentsizes, cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
 
 % According to https://en.wikipedia.org/wiki/Numerical_differentiation#Step_size
 % A good step size to compute the derivative of f(x) is epsilon*x with
@@ -458,13 +465,13 @@ for ee=1:length(epsilonmodvec)
 
     % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
     epsilonparamvec=modelestimparamsvec; % and using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
-    ObjValue=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+    ObjValue=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp, usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames, allstatcummomentsizes, acscummomentsizes, cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
     for pp=1:length(estimparamsvec)
         epsilonparamvec=modelestimparamsvec;
         epsilonparamvec(pp)=epsilonparamup(pp,ee); % add epsilon*x to the pp-th parameter
-        ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+        ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp, usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames, allstatcummomentsizes, acscummomentsizes, cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
         epsilonparamvec(pp)=epsilonparamdown(pp,ee); % subtract epsilon*x from the pp-th parameter
-        ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+        ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp, usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames, allstatcummomentsizes, acscummomentsizes, cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
     end
     epsilonparamvec=modelestimparamsvec; % and using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
 
