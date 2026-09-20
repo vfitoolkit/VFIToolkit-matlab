@@ -719,8 +719,10 @@ for reverse_j = 0:N_j-1
             end_idx   = max(curr_ze) * N_a;
             EV_local  = EV_flat_ze(:, curr_ze, :);
 
-            chunk_z_vals = unique(ZE_z_idx(curr_ze));
-            chunk_e_vals = unique(ZE_e_idx(curr_ze));
+            % Unmix curr_ze into orthogonal z and e coordinates
+            [curr_z_indices, curr_e_indices] = ind2sub([n_z_work, n_e_work], curr_ze);
+            chunk_z_vals = unique(curr_z_indices);
+            chunk_e_vals = unique(curr_e_indices);
             n_z_loc = length(chunk_z_vals);
             n_e_loc = length(chunk_e_vals);
 
@@ -728,7 +730,6 @@ for reverse_j = 0:N_j-1
                 num_z_vars = size(z_gridvals_J, 2);
                 Z_cells_local = cell(1, num_z_vars);
                 for iz = 1:num_z_vars
-                    % Map z strictly to the 4th dimension: [1, 1, 1, n_z_loc, 1]
                     Z_cells_local{iz} = reshape(z_gridvals_J(chunk_z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
                 end
             else
@@ -739,7 +740,6 @@ for reverse_j = 0:N_j-1
                 num_e_vars = size(e_work, 2);
                 E_cells_local = cell(1, num_e_vars);
                 for ie = 1:num_e_vars
-                    % Map e strictly to the 5th dimension: [1, 1, 1, 1, n_e_loc]
                     E_cells_local{ie} = reshape(e_work(chunk_e_vals, ie), [1, 1, 1, 1, n_e_loc]);
                 end
             else
@@ -757,13 +757,13 @@ for reverse_j = 0:N_j-1
                 z_offset_fine_local = [];
             end
 
-            % 2. Bind LocalBlockFn for the full asset space (N_a1 * N_a2) using N_ze_local
+            % 2. Bind LocalBlockFn passing unmixed global dimensions for broadcasting
             LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
                 state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
                 vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
                 TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
-                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor);
+                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_work, n_e_work);
 
             vfoptions.level1n = vfoptions.level1n(1);
             [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
@@ -960,7 +960,7 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max] = Eval
     Z_cells_block, E_cells_block, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
     gridinterplayer, n2short, n2long, beta_j, EV_local, EV_interp_local, z_offset_local, z_offset_fine_local, a1prime_grid, ...
     TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
-    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor)
+    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_glob, n_e_glob)
 
 % Map state_idx relative to the current chunk for Divide-and-Conquer
 local_state_idx = state_idx - min(state_idx) + 1;
@@ -1019,23 +1019,19 @@ if l_a2 > 0
     EV_right = EV_local(linear_idx_right);
     EV_bounded = EV_left + weight .* (EV_right - EV_left);
 else
-    % Standard Endogenous (Unmixed Shocks: Z and E orthogonal)
+    % Standard Endogenous (Fully Unmixed Shocks with Global Strides)
     apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
 
-    % If n_z_work and n_e_work are available in scope, use them directly,
-    % or derive them from N_ze_local (e.g., N_z = 21, N_e = 3 -> 21 * 3 = 63)
-    % For a robust fix assuming standard Z and E breakdown:
-    n_z_loc = size(Z_cells_block{1}, 4); % Extracted from Z cell dimension
-    n_e_loc = size(E_cells_block{1}, 5); % Extracted from E cell dimension
+    n_z_loc = size(Z_cells_block{1}, 4);
+    n_e_loc = size(E_cells_block{1}, 5);
 
     z_idx_tensor = reshape(1:n_z_loc, [1, 1, 1, n_z_loc, 1]);
     e_idx_tensor = reshape(1:n_e_loc, [1, 1, 1, 1, n_e_loc]);
 
-    % Rebuild index base incorporating both shock dimensions independently
-    % (Assuming standard row-major or column-major stride for z and e)
-    idx_base = apr_idx_tensor + (z_idx_tensor - 1) * N_a1 + (e_idx_tensor - 1) * (N_a1 * n_z_loc);
+    % Rebuild index base using global strides for unmixed dimensions
+    idx_base = apr_idx_tensor + (z_idx_tensor - 1) * N_a1 + (e_idx_tensor - 1) * (N_a1 * n_z_glob);
 
-    max_idx_row = N_a1 * n_z_loc * n_e_loc;
+    max_idx_row = N_a1 * n_z_glob * n_e_glob;
     linear_idx = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
 
     EV_bounded = reshape(EV_local(linear_idx(:)), [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]);

@@ -1,4 +1,4 @@
-function [V_max, Pol_apr, Pol_d1, Pol_L2idx, Pol_L2flag] = ValueFnIter_DC1_Slicer(N_a1, N_choice, N_a2, N_z, vfoptions, EvalBlockFn)
+function [V_max, Pol_apr, Pol_d1, Pol_L2idx, Pol_L2flag] = ValueFnIter_DC1_Slicer(N_a1, N_choice, N_a2, N_ze, vfoptions, EvalBlockFn)
 % Universal CPU Divide-and-Conquer (n-Monotonicity) Slicer
 % Accepts a function handle (EvalBlockFn) to evaluate dense tensor blocks
 
@@ -9,12 +9,12 @@ level1ii = round(linspace(1, N_a1, vfoptions.level1n));
 num_anchors = length(level1ii);
 
 % Preallocate global outputs
-V_max   = -inf(N_a1, N_a2, N_z, 'gpuArray');
-Pol_apr = ones(N_a1, N_a2, N_z, 'gpuArray');
-Pol_d1  = ones(N_a1, N_a2, N_z, 'gpuArray');
+V_max   = -inf(N_a1, N_a2, N_ze, 'gpuArray');
+Pol_apr = ones(N_a1, N_a2, N_ze, 'gpuArray');
+Pol_d1  = ones(N_a1, N_a2, N_ze, 'gpuArray');
 if gridinterplayer
-    Pol_L2idx  = ones(N_a1, N_a2, N_z, 'gpuArray');
-    Pol_L2flag = 2 * ones(N_a1, N_a2, N_z, 'gpuArray');
+    Pol_L2idx  = ones(N_a1, N_a2, N_ze, 'gpuArray');
+    Pol_L2flag = 2 * ones(N_a1, N_a2, N_ze, 'gpuArray');
 else
     Pol_L2idx = []; Pol_L2flag = [];
 end
