@@ -132,6 +132,8 @@ for jj = 1:N_j
         a2_prime_vals = TensoraprimeFn(d2_mesh, a2_mesh, z_mesh_cells{:}, dummy_padding{:}, aprimeFnParamsCell{:});
     else
         [d2_mesh, a2_mesh] = ndgrid(d2_gridvals(:), a2_grid(:));
+        d2_mesh = gpuArray(d2_mesh);
+        a2_mesh = gpuArray(a2_mesh);
 
         % Dynamically calculate how many dummy variables are needed to satisfy the wrapper
         num_expected_args = nargin(aprimeFn);
@@ -233,7 +235,7 @@ end
 % =========================================================
 % OUTPUT UNPACKING
 % =========================================================
-if N_z_safe > 1
+if ~isempty(n_z)
     StationaryDist = reshape(StationaryDist, [n_a_out, n_z, N_j]);
 else
     StationaryDist = reshape(StationaryDist, [n_a_out, N_j]);
