@@ -118,7 +118,6 @@ if isempty(ReturnFnParamNames)
         temp = getAnonymousFnInputNames(ReturnFn);
 
         % 1. Count Decision Variables (D)
-        % Safely handles scalar 0, empty arrays, or multi-dimensional flags
         if isequal(n_d, 0) || isempty(n_d)
             num_d_vars = 0;
         else
@@ -168,6 +167,15 @@ if isempty(ReturnFnParamNames)
             % Standard Case: D + A1prime (num_a1) + A1 (num_a1) + A2 (num_a2) + SemiZ + Z + E + U
             num_prefix_args = num_d_vars + (2 * num_a1) + num_a2 + num_semiz_vars + num_z_vars + num_e_vars + num_u_vars;
         end
+
+        if length(temp) > num_prefix_args
+            ReturnFnParamNames = {temp{num_prefix_args + 1 : end}};
+        else
+            ReturnFnParamNames = {};
+        end
+
+        % --- TENSOR BRIDGE FIX: Filter out state variables misidentified as parameters ---
+        ReturnFnParamNames = ReturnFnParamNames(isfield(Parameters, ReturnFnParamNames));
     end
 end
 
