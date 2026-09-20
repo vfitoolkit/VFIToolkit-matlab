@@ -136,9 +136,9 @@ for jj = N_j : -1 : 1
     if jj == N_j
         if warmglow == 1
             temp_WG = WG_u;
-            becareful = (WG_u == 0);
+            % FIX: Removed the inverted becareful logic!
             temp_WG(isfinite(WG_u)) = ( (1 - sj(jj)) * WG_u(isfinite(WG_u)).^ezc8(jj) ) .^ ezc6(jj);
-            temp_WG(becareful) = 0;
+            temp_WG(WG_u == 0) = 0;
             temp4 = temp_WG;
         else
             temp4 = zeros(N_d2*N_d3, 1, 'like', a2_grid);
@@ -153,9 +153,8 @@ for jj = N_j : -1 : 1
             if max(N_z,1) == 1, V_slice = V_slice(:); end
 
             temp_V = V_slice;
-            becareful = logical(isfinite(V_slice) .* (V_slice ~= 0));
-            % FIX: Use ezc5(jj) and ezc4, and map 0 to 0 (NOT -Inf!)
-            temp_V(becareful) = (ezc4 * V_slice(becareful)) .^ ezc5(jj);
+            % FIX: Match legacy exactly, no becareful variable here!
+            temp_V(isfinite(V_slice)) = (ezc4 * V_slice(isfinite(V_slice))) .^ ezc5(jj);
             temp_V(V_slice == 0) = 0;
 
             inf_mask = double(temp_V == -Inf);
