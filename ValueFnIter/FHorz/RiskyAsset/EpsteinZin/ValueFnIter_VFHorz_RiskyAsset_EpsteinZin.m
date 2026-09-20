@@ -136,9 +136,9 @@ for jj = N_j : -1 : 1
     if jj == N_j
         if warmglow == 1
             temp_WG = WG_u;
-            becareful = isfinite(WG_u);
-            temp_WG(becareful) = ( (1 - sj(jj)) * WG_u(becareful).^ezc8(jj) ) .^ ezc6(jj);
-            temp_WG(WG_u == 0) = 0;
+            becareful = (WG_u == 0);
+            temp_WG(isfinite(WG_u)) = ( (1 - sj(jj)) * WG_u(isfinite(WG_u)).^ezc8(jj) ) .^ ezc6(jj);
+            temp_WG(becareful) = 0;
             temp4 = temp_WG;
         else
             temp4 = zeros(N_d2*N_d3, 1, 'like', a2_grid);
@@ -197,7 +197,7 @@ for jj = N_j : -1 : 1
         temp4 = EV_z;
         if warmglow == 1
             WG_u_rs = reshape(WG_u, [1, N_d2*N_d3, 1]);
-            becareful = isfinite(temp4) & isfinite(WG_u_rs);
+            becareful = logical(isfinite(temp4) .* isfinite(WG_u_rs));
             temp4(becareful) = ( sj(jj)*temp4(becareful).^ezc8(jj) + (1-sj(jj))*WG_u_rs(becareful).^ezc8(jj) ) .^ ezc6(jj);
             temp4((EV_z == 0) & (WG_u_rs == 0)) = 0;
         else
@@ -307,7 +307,7 @@ ReturnFn_Args = [ReturnFn_Args, ReturnFnParamsCell];
 % 3. Evaluate F (5D) matching legacy becareful logic
 F_tensor = TensorReturnFn(ReturnFn_Args{:});
 temp2 = F_tensor;
-becareful = isfinite(F_tensor) & (F_tensor ~= 0);
+becareful = logical(isfinite(F_tensor) .* (F_tensor ~= 0));
 temp2(becareful) = F_tensor(becareful) .^ ezc2_j;
 temp2(F_tensor == 0) = -Inf;
 
@@ -316,8 +316,9 @@ EV_bc = reshape(EV_max_d3, [1, N_a1, N_d3, 1, N_z_safe]);
 entireRHS = ezc1_j .* temp2 + ezc9 .* beta_j .* EV_bc;
 
 RHS = entireRHS;
-temp5 = isfinite(entireRHS) & (entireRHS ~= 0);
+temp5 = logical(isfinite(entireRHS) .* (entireRHS ~= 0));
 RHS(temp5) = entireRHS(temp5) .^ ezc7_j;
+RHS(~isfinite(entireRHS)) = -Inf;
 
 RHS_flat = reshape(RHS, [N_d1 * N_a1 * N_d3, N_block * N_z_safe]);
 [V_sub_coarse, opt_idx_flat] = max(RHS_flat, [], 1);
