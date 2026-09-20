@@ -47,6 +47,12 @@ D2_3D = reshape(d2_grid, [N_d2, 1, 1]);
 D3_3D = reshape(d3_grid, [1, N_d3, 1]);
 U_3D  = reshape(u_grid,  [1, 1, N_u]);
 
+% --- DYNAMIC EXTRACTION OF EZC9 ---
+ezc9 = 1;
+if isfield(vfoptions, 'ezc9')
+    ezc9 = vfoptions.ezc9;
+end
+
 % --- SMART nargin PARSER FOR RISKY ASSET aprimeFn ---
 if isempty(aprimeFnParamNames)
     if isfield(vfoptions, 'aprimeFnParamNames')
@@ -98,17 +104,9 @@ for jj = N_j : -1 : 1
         WG_raw = reshape(WG_raw, size(a2_grid));
 
         WG_temp = WG_raw;
-        valid_wg = isfinite(WG_raw) & (WG_raw ~= 0);
-
-        if ezc5(jj) == 1
-            WG_temp(valid_wg) = ezc4 * WG_raw(valid_wg);
-        else
-            % RESTORED: Pure Epstein-Zin Double-Flip
-            WG_temp(valid_wg) = ezc3 * ( (ezc3 * ezc4 * WG_raw(valid_wg)) .^ ezc5(jj) );
-        end
-
+        valid_wg = isfinite(WG_raw);
+        WG_temp(valid_wg) = (ezc4 * WG_raw(valid_wg)) .^ ezc5(jj);
         WG_temp(WG_raw == 0) = 0;
-        WG_temp(~isfinite(WG_raw)) = -Inf;
 
         inf_mask_wg = (WG_temp == -Inf);
         WG_safe = WG_temp;
@@ -136,21 +134,12 @@ for jj = N_j : -1 : 1
     % Multi-State Interpolation & Expectations
     % ---------------------------------------------------------
     if jj == N_j
-        temp4 = WG_u;
-        valid_t4 = isfinite(temp4) & (temp4 ~= 0);
         if warmglow == 1
-            temp_WG = temp4(valid_t4);
-            if ezc8(jj) ~= 1
-                temp_WG = max(temp_WG, 0).^ezc8(jj);
-            end
-            temp_WG = (1 - sj(jj)) * temp_WG;
-            if ezc6(jj) ~= 1
-                temp_WG = max(temp_WG, 0).^ezc6(jj);
-            end
-            temp4(valid_t4) = temp_WG;
-
-            temp4(WG_u == 0) = 0;
-            temp4(~valid_t4 & WG_u ~= 0) = -Inf;
+            temp_WG = WG_u;
+            becareful = isfinite(WG_u);
+            temp_WG(becareful) = ( (1 - sj(jj)) * WG_u(becareful).^ezc8(jj) ) .^ ezc6(jj);
+            temp_WG(WG_u == 0) = 0;
+            temp4 = temp_WG;
         else
             temp4 = zeros(N_d2*N_d3, 1, 'like', a2_grid);
         end
@@ -163,18 +152,12 @@ for jj = N_j : -1 : 1
             V_slice = squeeze(V_next_3D(i_a1, :, :));
             if max(N_z,1) == 1, V_slice = V_slice(:); end
 
-            valid_V = isfinite(V_slice) & (V_slice ~= 0);
-            if ezc5(jj) == 1
-                V_slice(valid_V) = ezc4 * V_slice(valid_V);
-            else
-                % RESTORED: Pure Epstein-Zin Double-Flip
-                V_slice(valid_V) = ezc3 * ( (ezc3 * ezc4 * V_slice(valid_V)) .^ ezc5(jj) );
-            end
+            temp_V = V_slice;
+            temp_V(isfinite(V_slice)) = (ezc4 * V_slice(isfinite(V_slice))) .^ ezc5(jj);
+            temp_V(V_slice == 0) = 0;
 
-            V_slice(V_next_3D(i_a1,:,:) == 0) = 0;
-
-            inf_mask = double(V_slice == -Inf);
-            V_safe = V_slice;
+            inf_mask = double(temp_V == -Inf);
+            V_safe = temp_V;
             V_safe(inf_mask > 0) = 0;
 
             V_int_slice = interp1(a2_grid, V_safe, aprime_clamped(:), 'linear');
@@ -214,52 +197,29 @@ for jj = N_j : -1 : 1
         temp4 = EV_z;
         if warmglow == 1
             WG_u_rs = reshape(WG_u, [1, N_d2*N_d3, 1]);
-            valid_combined = isfinite(EV_z) & repmat(isfinite(WG_u_rs), [N_a1, 1, max(N_z,1)]) & ...
-                ~((EV_z == 0) & repmat(WG_u_rs == 0, [N_a1, 1, max(N_z,1)]));
-
-            temp_EV = EV_z(valid_combined);
-            temp_WG = WG_u_rs(valid_combined);
-            if ezc8(jj) ~= 1
-                % RESTORED: Pure Epstein-Zin Double-Flip
-                temp_EV = ezc3 * ( (ezc3 * temp_EV) .^ ezc8(jj) );
-                temp_WG = ezc3 * ( (ezc3 * temp_WG) .^ ezc8(jj) );
-            end
-
-            temp_combined = sj(jj) * temp_EV + (1 - sj(jj)) * temp_WG;
-            if ezc6(jj) ~= 1
-                % RESTORED: Pure Epstein-Zin Double-Flip
-                temp_combined = ezc3 * ( (ezc3 * temp_combined) .^ ezc6(jj) );
-            end
-            temp4(valid_combined) = temp_combined;
-
-            zero_mask = (EV_z == 0) & repmat(WG_u_rs == 0, [N_a1, 1, max(N_z,1)]);
-            temp4(zero_mask) = 0;
-            temp4(~valid_combined & ~zero_mask) = -Inf;
+            becareful = isfinite(temp4) & isfinite(WG_u_rs);
+            temp4(becareful) = ( sj(jj)*temp4(becareful).^ezc8(jj) + (1-sj(jj))*WG_u_rs(becareful).^ezc8(jj) ) .^ ezc6(jj);
+            temp4((EV_z == 0) & (WG_u_rs == 0)) = 0;
         else
-            valid_t4 = isfinite(EV_z) & (EV_z ~= 0);
-            temp_EV = EV_z(valid_t4);
-            if ezc8(jj) ~= 1
-                temp_EV = max(temp_EV, 0).^ezc8(jj);
-            end
-            temp_EV = sj(jj) * temp_EV;
-            if ezc6(jj) ~= 1
-                temp_EV = max(temp_EV, 0).^ezc6(jj);
-            end
-            temp4(valid_t4) = temp_EV;
-
+            becareful = isfinite(temp4);
+            temp4(becareful) = ( sj(jj)*temp4(becareful).^ezc8(jj) ) .^ ezc6(jj);
             temp4(EV_z == 0) = 0;
-            temp4(~valid_t4 & EV_z ~= 0) = -Inf;
         end
     end
 
+    % ---------------------------------------------------------
     % DIMENSIONAL COMPRESSION: Maximize out d2 (riskyshare)
+    % ---------------------------------------------------------
     temp4_tensor = reshape(temp4, [N_a1, N_d2, N_d3, max(N_z,1)]);
 
-    % Bug-for-Bug: The legacy toolkit flips the sign here, causing it to pick the WORST riskyshare!
-    [EV_max_d3_raw, Pol_d2_idx] = max(ezc3 * temp4_tensor, [], 2);
+    % The Legacy Toolkit Parity Block: NaN masking and ezc9 * ezc3 flip
+    masked_temp4 = (~isinf(temp4_tensor)) .* temp4_tensor;
+    flipped_temp4 = ezc9 * ezc3 * masked_temp4;
 
-    EV_max_d3 = ezc3 * EV_max_d3_raw;
-    EV_max_d3 = reshape(EV_max_d3, [N_a1, N_d3, max(N_z,1)]);
+    [EV_max_d3_raw, Pol_d2_idx] = max(flipped_temp4, [], 2);
+
+    % Keep it as the raw positive output to match legacy RHS assembly
+    EV_max_d3 = reshape(EV_max_d3_raw, [N_a1, N_d3, max(N_z,1)]);
     Pol_d2_idx = reshape(Pol_d2_idx, [N_a1, N_d3, max(N_z,1)]);
 
     % =========================================================
@@ -269,7 +229,7 @@ for jj = N_j : -1 : 1
         state_idx, N_d1, N_d2, N_d3, N_a1, N_a2, max(N_z,1), ...
         beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, a1_grid, a2_grid, ...
         z_gridvals(:,:,jj), TensorReturnFn, ReturnFnParamsCell, ...
-        ezc1_j, ezc2(jj), ezc7(jj), ezc4, ezc3, has_d1, has_a1);
+        ezc1_j, ezc2(jj), ezc7(jj), ezc4, ezc9, has_d1, has_a1);
 
     if isfield(vfoptions, 'divideandconquer') && vfoptions.divideandconquer == 1
         vfopts_dc = vfoptions;
@@ -318,7 +278,7 @@ end
 function [V_sub, Pol_d_combo, L2idx, L2flag] = Evaluate_EZ_TensorBlock(...
     state_idx, N_d1, N_d2, N_d3, N_a1, N_a2, N_z_safe, ...
     beta_j, EV_max_d3, Pol_d2_idx, d1_grid, d3_grid, a1_grid, a2_grid, z_gridvals, ...
-    TensorReturnFn, ReturnFnParamsCell, ezc1_j, ezc2_j, ezc7_j, ezc4, ezc3, has_d1, has_a1)
+    TensorReturnFn, ReturnFnParamsCell, ezc1_j, ezc2_j, ezc7_j, ezc4, ezc9, has_d1, has_a1)
 
 N_block = length(state_idx);
 
@@ -344,43 +304,24 @@ ReturnFn_Args{end+1} = A2_cells;
 if N_z_safe > 0, ReturnFn_Args{end+1} = Z_cells; end
 ReturnFn_Args = [ReturnFn_Args, ReturnFnParamsCell];
 
-% 3. Evaluate F (5D) and apply ezc4
+% 3. Evaluate F (5D) matching legacy becareful logic
 F_tensor = TensorReturnFn(ReturnFn_Args{:});
 temp2 = F_tensor;
-valid_F = isfinite(F_tensor) & (F_tensor ~= 0);
-if ezc2_j == 1
-    temp2(valid_F) = ezc4 * F_tensor(valid_F);
-else
-    % RESTORED: Pure Epstein-Zin Double-Flip
-    temp2(valid_F) = ezc3 * ( (ezc3 * ezc4 * F_tensor(valid_F)) .^ ezc2_j );
-end
-temp2(~isfinite(F_tensor)) = -Inf;
+becareful = isfinite(F_tensor) & (F_tensor ~= 0);
+temp2(becareful) = F_tensor(becareful) .^ ezc2_j;
+temp2(F_tensor == 0) = -Inf;
 
-% Assemble RHS
+% 4. Assemble RHS matching legacy summation bugs
 EV_bc = reshape(EV_max_d3, [1, N_a1, N_d3, 1, N_z_safe]);
-entireRHS = ezc1_j .* temp2 + beta_j .* EV_bc;
+entireRHS = ezc1_j .* temp2 + ezc9 .* beta_j .* EV_bc;
 
 RHS = entireRHS;
-valid_RHS = isfinite(entireRHS) & (entireRHS ~= 0);
-if ezc7_j == 1
-    RHS(valid_RHS) = ezc3 * entireRHS(valid_RHS);
-else
-    RHS(valid_RHS) = ezc3 * (entireRHS(valid_RHS).^ezc7_j);
-end
+temp5 = isfinite(entireRHS) & (entireRHS ~= 0);
+RHS(temp5) = entireRHS(temp5) .^ ezc7_j;
 
 RHS_flat = reshape(RHS, [N_d1 * N_a1 * N_d3, N_block * N_z_safe]);
 [V_sub_coarse, opt_idx_flat] = max(RHS_flat, [], 1);
-
-% NOW apply ezc7_j ONLY to the winning V_sub_coarse
-valid_V = isfinite(V_sub_coarse) & (V_sub_coarse ~= 0);
 V_sub = V_sub_coarse;
-if ezc7_j ~= 1
-    % RESTORED: Pure Epstein-Zin Double-Flip
-    temp_V = ezc3 * V_sub_coarse(valid_V);
-    temp_V = temp_V .^ ezc7_j;
-    V_sub(valid_V) = ezc3 * temp_V;
-end
-V_sub(~isfinite(V_sub_coarse)) = -Inf;
 
 % 5. Simultaneous Compression (Flatten all choices)
 [d1_opt, a1prime_opt, d3_opt] = ind2sub([N_d1, N_a1, N_d3], opt_idx_flat);
