@@ -235,7 +235,10 @@ for jj = N_j : -1 : 1
     % Re-inject the -Inf penalty so invalid states are correctly ignored by max()
     flipped_temp4(inf_mask) = -Inf;
 
-    [EV_max_d3_raw, Pol_d2_idx] = max(flipped_temp4, [], 2);
+    % FLOAT-NOISE SANITIZER: Use exact values for V, but round for strict tie-breaking
+    % 1e8 crushes the 1e-14 associativity noise while preventing double-precision overflow
+    [EV_max_d3_raw, ~] = max(flipped_temp4, [], 2);
+    [~, Pol_d2_idx]    = max(round(flipped_temp4 * 1e8), [], 2);
 
     % Keep it as the raw output to match legacy RHS assembly
     EV_max_d3 = reshape(EV_max_d3_raw, [N_a1, N_d3, max(N_z,1)]);
@@ -348,7 +351,11 @@ RHS(temp5) = entireRHS(temp5) .^ ezc7_j;
 % FIX: Removed the RHS(~isfinite) = -Inf override. Let MATLAB handle NaNs natively!
 
 RHS_flat = reshape(RHS, [N_d1 * N_d3 * N_a1, N_block * N_z_safe]);
-[V_sub_coarse, opt_idx_flat] = max(RHS_flat, [], 1);
+
+% FLOAT-NOISE SANITIZER: Use exact values for V, but round for strict tie-breaking
+[V_sub_coarse, ~] = max(RHS_flat, [], 1);
+[~, opt_idx_flat] = max(round(RHS_flat * 1e8), [], 1);
+
 V_sub = V_sub_coarse;
 
 % 5. Simultaneous Compression (Flatten all choices)
