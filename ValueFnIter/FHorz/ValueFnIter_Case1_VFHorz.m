@@ -663,6 +663,19 @@ for reverse_j = 0:N_j-1
 
     ReturnFnParamsCell = base_ReturnFnParamsCell;
 
+    % --- TENSOR BRIDGE UPGRADE: Dynamic Age-Specific Exogenous Shocks ---
+    if isfield(vfoptions, 'ExogShockFn')
+        [curr_z_grid, curr_pi_z] = vfoptions.ExogShockFn(jj, Params.Jr);
+        if vfoptions.parallel == 2
+            curr_z_grid = gpuArray(curr_z_grid);
+            curr_pi_z = gpuArray(curr_pi_z);
+        end
+        % Update local transition matrix for this age
+        pi_z_j = curr_pi_z;
+    else
+        pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
+    end
+
     % Update ONLY the age-dependent parameters
     for ip = find(is_age_dependent)
         val = cast(Parameters.(ReturnFnParamNames{ip})(jj), vfoptions.precision);
@@ -756,7 +769,6 @@ for reverse_j = 0:N_j-1
 
             % 1. Apply Exogenous Z Transition (if it exists)
             if N_z_exog > 1 && has_z
-                pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
                 V_slice = reshape(V_curr, [N_a * N_semiz_local, N_z_exog]);
                 V_z_eval = V_slice * pi_z_j';
                 V_z_eval = reshape(V_z_eval, [N_a, N_semiz_local, N_z_exog]);
