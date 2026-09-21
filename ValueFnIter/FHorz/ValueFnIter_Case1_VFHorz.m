@@ -1364,7 +1364,8 @@ if isempty(loweredge_matrix)
 
         Apr_cells = cell(1, num_a1);
         for ia = 1:num_a1
-            Apr_cells{ia} = a1prime_grid(choice_idx);
+            % Force the 5D shape to prevent column-vector collapse
+            Apr_cells{ia} = reshape(a1prime_grid, [1, num_choices, 1, 1, 1]);
         end
 
         if l_a2 > 0
@@ -1516,7 +1517,8 @@ else
 
         Apr_cells = cell(1, num_a1);
         for ia = 1:num_a1
-            Apr_cells{ia} = a1prime_grid(choice_idx);
+            % Force the 5D shape to prevent column-vector collapse
+            Apr_cells{ia} = reshape(a1prime_grid(choice_idx), [1, num_choices, N_states, 1, N_ze_local]);
         end
 
         if l_a2 > 0
