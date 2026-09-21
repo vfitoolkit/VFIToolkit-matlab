@@ -180,11 +180,36 @@ if isempty(ReturnFnParamNames)
 end
 
 is_EZ = strcmp(vfoptions.exoticpreferences, 'EpsteinZin') || strcmp(vfoptions.exoticpreferences, 'QHEpsteinZin');
+
+% =========================================================
+% UNIVERSAL PARSING: Survival & Warm Glow
+% =========================================================
+if isfield(vfoptions,'survivalprobability')
+    sj=Parameters.(vfoptions.survivalprobability);
+    if length(sj)~=N_j
+        error('Survival probabilities must be of the same length as N_j')
+    end
+elseif isfield(vfoptions,'WarmGlowBequestsFn')
+    sj=ones(N_j,1);
+    sj(end)=0;
+    warning('You have used vfoptions.WarmGlowBequestsFn, but have not set vfoptions.survivalprobability, it is assumed you only want to have the warm-glow at the end of the final period')
+else
+    sj=ones(N_j,1);
+end
+
+if isfield(vfoptions,'WarmGlowBequestsFn')
+    warmglow=1;
+    temp=getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
+    vfoptions.WarmGlowBequestsFnParamsNames={temp{2:end}};
+else
+    warmglow=0;
+end
+
+% =========================================================
+% EPSTEIN-ZIN SPECIFIC SETUP
+% =========================================================
 if is_EZ
-    % Reject asset types this dispatcher does not handle: every asset type it does handle is
-    % dispatched below and returns, so an unsupported flag would otherwise be silently ignored.
     if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1 || vfoptions.experienceassetsemiz>=1
-        % Bypass this legacy restriction for our vectorized QHEpsteinZin tensor
         if strcmp(vfoptions.exoticpreferences, 'EpsteinZin')
             error('Epstein-Zin preferences are not implemented for the experience assets (only for riskyasset, or for the standard endogenous states)')
         end
@@ -196,54 +221,26 @@ if is_EZ
         error('Epstein-Zin preferences are not implemented for dynasty')
     end
 
-    %% Some Epstein-Zin specific options need to be set if they are not already declared
     if ~isfield(vfoptions,'EZriskaversion')
         error('When using Epstein-Zin preferences you must declare vfoptions.EZriskaversion (coefficient controlling risk aversion)')
     end
     if ~isfield(vfoptions,'EZutils')
-        vfoptions.EZutils=1; % Use EZ preferences with general utility function (0 gives traditional EZ with exogenous labor, 2 gives traditional EZ with endogenous labor)
+        vfoptions.EZutils=1;
     end
     if vfoptions.EZutils==1
-        % Have to do EZ preferences differently depending on whether the utility function is >=0 or <=0.
-        % vfoptions.EZpositiveutility=1 if utility is positive; Note, in this case when EZriskaversion is higher, the risk aversion is larger (EZriskaversion>0 is risk averse)
-        % vfoptions.EZpositiveutility=0 if utility is negative; Note, in this case when EZriskaversion is lower, the risk aversion is larger  (EZriskaversion<0 is risk averse)
         if ~isfield(vfoptions,'EZpositiveutility')
             warning('Using Epstein-Zin preferences it is assumed the utility/return function is negative valued, if not you need to set vfoptions.EZpositiveutility=1')
-            vfoptions.EZpositiveutility=0; % User did not specify. Guess that it is negative as most common things (like CES) are negative valued.
+            vfoptions.EZpositiveutility=0;
         end
     else
-        % Traditional EZ preferences requires you to specify the EIS parameter
         if ~isfield(vfoptions,'EZeis')
             error('When using Epstein-Zin preferences you must declare vfoptions.EZeis (elasticity of intertemporal substitution)')
         end
     end
     if ~isfield(vfoptions,'EZoneminusbeta')
-        vfoptions.EZoneminusbeta=0; % default essentially does nothing
-        %=1 Put a (1-beta)* term on the this period return
-        %=2 Put a (1-sj*beta)* term on the this period return
+        vfoptions.EZoneminusbeta=0;
     end
-    % Set up sj
-    if isfield(vfoptions,'survivalprobability')
-        sj=Parameters.(vfoptions.survivalprobability);
-        if length(sj)~=N_j
-            error('Survival probabilities must be of the same length as N_j')
-        end
-    elseif isfield(vfoptions,'WarmGlowBequestsFn')
-        % If you have warm-glow but do not specify survival probabilities it is assumed you only get it at end of final period
-        sj=ones(N_j,1); % conditional survival probabilities
-        sj(end)=0;
-        warning('You have used vfoptions.WarmGlowBequestsFn, but have not set vfoptions.survivalprobability, it is assumed you only want to have the warm-glow at the end of the final period')
-    else
-        sj=ones(N_j,1); % conditional survival probabilities
-    end
-    % Declare warmglow indicator
-    if isfield(vfoptions,'WarmGlowBequestsFn')
-        warmglow=1;
-        temp=getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
-        vfoptions.WarmGlowBequestsFnParamsNames={temp{2:end}};
-    else
-        warmglow=0;
-    end
+
     vfoptions = EpsteinZinSetup_VFHorz(N_j, Parameters, ReturnFnParamNames, DiscountFactorParamNames, vfoptions);
 end
 
@@ -512,14 +509,22 @@ end
 % UNIVERSAL MIX-IN: EPSTEIN-ZIN VS CRRA (Base Orchestrator)
 % =========================================================
 if is_EZ
-    ezc2 = vfoptions.ezc2; ezc3 = vfoptions.ezc3; ezc4 = vfoptions.ezc4;
-    ezc5 = vfoptions.ezc5; ezc6 = vfoptions.ezc6; ezc7 = vfoptions.ezc7;
-    ezc8 = vfoptions.ezc8; sj = vfoptions.sj; warmglow = vfoptions.warmglow;
+    ezc2 = vfoptions.ezc2;
+    ezc3 = vfoptions.ezc3;
+    ezc4 = vfoptions.ezc4;
+    ezc5 = vfoptions.ezc5;
+    ezc6 = vfoptions.ezc6;
+    ezc7 = vfoptions.ezc7;
+    ezc8 = vfoptions.ezc8;
 else
     % Neutral CRRA fallbacks (collapses EZ math to standard)
-    ezc2 = ones(N_j,1); ezc3 = 1; ezc4 = 1;
-    ezc5 = ones(N_j,1); ezc6 = ones(N_j,1); ezc7 = ones(N_j,1);
-    ezc8 = ones(N_j,1); sj = ones(N_j,1); warmglow = 0;
+    ezc2 = ones(N_j,1);
+    ezc3 = 1;
+    ezc4 = 1;
+    ezc5 = ones(N_j,1);
+    ezc6 = ones(N_j,1);
+    ezc7 = ones(N_j,1);
+    ezc8 = ones(N_j,1);
 end
 
 % --- Risky Asset Tensor Dispatcher ---
@@ -639,14 +644,17 @@ end
 
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
-
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
-
     if jj == N_j && (~isfield(vfoptions, 'V_Jplus1') || isempty(vfoptions.V_Jplus1))
         % Warm glow is now universally handled during the EV step below.
         V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
+    end
+
+    % --- TENSOR BRIDGE UPGRADE: Dynamic Age-Dependent i.i.d. Grids ---
+    if has_e && isfield(vfoptions, 'e_gridvals_J')
+        e_work = vfoptions.e_gridvals_J(:, :, min(jj, size(vfoptions.e_gridvals_J, 3)));
     end
 
     ReturnFnParamsCell = base_ReturnFnParamsCell;
@@ -683,15 +691,21 @@ for reverse_j = 0:N_j-1
     % --- i.i.d. Shock (e) Integration ---
     % =================================================================
     if has_e
+        if isfield(vfoptions, 'pi_e_J')
+            pi_e_j = vfoptions.pi_e_J(:, min(jj, size(vfoptions.pi_e_J, 2)));
+        else
+            pi_e_j = vfoptions.pi_e;
+        end
+
         % Ensure the probability vector is on the GPU to prevent mtimes crashes
-        if vfoptions.parallel == 2 && ~isa(vfoptions.pi_e, 'gpuArray')
-            vfoptions.pi_e = gpuArray(vfoptions.pi_e);
+        if vfoptions.parallel == 2 && ~isa(pi_e_j, 'gpuArray')
+            pi_e_j = gpuArray(pi_e_j);
         end
 
         % The agent does not know next period's i.i.d. shock.
         % We must integrate out the future e dimension before applying Markov transitions.
         V_trans_flat = reshape(V_transformed, [N_a * n_z_work, n_e_work]);
-        V_expected_e = V_trans_flat * vfoptions.pi_e(:);
+        V_expected_e = V_trans_flat * pi_e_j(:);
 
         % Expand back out to [N_a, n_z_work, n_e_work] so the tensor slicing
         % implicitly maps the identical expectation across all current e states.
