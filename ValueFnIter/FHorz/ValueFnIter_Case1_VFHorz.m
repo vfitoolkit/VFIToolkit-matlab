@@ -468,6 +468,9 @@ if vfoptions.gridinterplayer(1) == 1
 else
     PolicyKron = zeros(n_a_work, n_z_work, n_e_work, N_j, 'like', a_grid);
 end
+
+% Preallocate the Master Value Function Tensor
+V = zeros(n_a_work, n_z_work, n_e_work, N_j, 'like', a_grid);
 V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
 
 % --- Grid Interpolation Setup ---
@@ -1148,9 +1151,17 @@ for reverse_j = 0:N_j-1
     end
 
     if vfoptions.gridinterplayer(1) == 1
-        adjust = (Pol_L2idx_max < 1 + n2short + 1);
-        lower_grid_pt = Pol_apr_max - adjust;
-        subgrid_step  = adjust .* Pol_L2idx_max + (1 - adjust) .* (Pol_L2idx_max - n2short - 1);
+        if vfoptions.divideandconquer == 1
+            % Legacy DC mapping logic
+            adjust = (Pol_L2idx_max < 1 + n2short + 1);
+            lower_grid_pt = Pol_apr_max - adjust;
+            subgrid_step  = adjust .* Pol_L2idx_max + (1 - adjust) .* (Pol_L2idx_max - n2short - 1);
+        else
+            % Branch 1B Direct mapping
+            lower_grid_pt = Pol_apr_max;
+            subgrid_step  = Pol_L2idx_max;
+        end
+
         if N_d > 0
             PolicyKron(1, :, :, :, jj) = (lower_grid_pt - 1) * N_d + Pol_d_max;
         else
@@ -1360,11 +1371,12 @@ if isempty(loweredge_matrix)
         % BRANCH 1B: FULL FINE GRID EVALUATION (Sidesteps 2-Step Trap)
         % =================================================================
         num_choices = length(a1prime_grid);
+
+        % ALIGNMENT FIX: choice_idx must broadcast exactly across N_states
         choice_idx = reshape(1:num_choices, [1, num_choices, 1, 1, 1]);
 
         Apr_cells = cell(1, num_a1);
         for ia = 1:num_a1
-            % Force the 5D shape to prevent column-vector collapse
             Apr_cells{ia} = reshape(a1prime_grid, [1, num_choices, 1, 1, 1]);
         end
 
@@ -1424,9 +1436,10 @@ if isempty(loweredge_matrix)
         V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]);
         Pol_d_max = reshape(d_idx_local, [N_states, N_ze_local]);
 
-        % Map the absolute fine index back to Legacy Coarse/Subgrid logic
-        Pol_apr_max    = reshape(floor((apr_offset - 1) / (n2short + 1)) + 2, [N_states, N_ze_local]);
-        Pol_L2idx_max  = reshape(mod(apr_offset - 1, n2short + 1) + 1, [N_states, N_ze_local]);
+        % EXACT UNKRON MAPPING FIX
+        % Directly compute lower grid point and subgrid step from absolute a1prime_grid index
+        Pol_apr_max    = reshape(floor((apr_offset - 1) / (n2short + 1)) + 1, [N_states, N_ze_local]);
+        Pol_L2idx_max  = reshape(mod(apr_offset - 1, n2short + 1), [N_states, N_ze_local]);
         Pol_L2flag_max = 2 * ones(N_states, N_ze_local, 'like', V_j_max);
     end
 
