@@ -1172,8 +1172,16 @@ for reverse_j = 0:N_j-1
                     chunk_end = min(total_states, chunk_start + max_states_per_chunk - 1);
                     state_chunk = state_list(chunk_start:chunk_end);
 
-                    % Standard Non-DC Evaluation (Drops into Branch 1A or 1B depending on GI)
-                    [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 0);
+                    if vfoptions.gridinterplayer(1) == 1
+                        % STAGE 1: FAST COARSE PASS (Force Branch 1A via dc_mode_override = 2)
+                        [~, p_apr_coarse, ~, ~, ~] = LocalBlockFn(state_chunk, [], 0, 2);
+
+                        % STAGE 2: ZOOM PASS (Branch 2B)
+                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, p_apr_coarse, n2long - 1, 0);
+                    else
+                        % Standard Non-DC Coarse Evaluation
+                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 0);
+                    end
 
                     v_concat = [v_concat; v_c];
                     p_apr_concat = [p_apr_concat; p_apr_c];
@@ -1488,7 +1496,7 @@ if isempty(loweredge_matrix)
         V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]);
         Pol_d_max = reshape(d_idx_local, [N_states, N_ze_local]);
 
-        % EXACT UNKRON MAPPING FIX: Clamp to prevent implicit expansion bomb in StationaryDist
+        % EXACT UNKRON MAPPING FIX: Clamp to prevent out-of-bounds in StationaryDist
         Pol_apr_max = floor((apr_offset - 1) / (n2short + 1)) + 1;
         Pol_apr_max = min(Pol_apr_max, N_a1 - 1);
         Pol_L2idx_max = apr_offset - (Pol_apr_max - 1) * (n2short + 1);
@@ -1509,12 +1517,13 @@ if isempty(loweredge_matrix)
         isInfLower = (RHS_flat(lin_lower) == -Inf);
         isInfUpper = (RHS_flat(lin_upper) == -Inf);
 
-        % We only flag strict inner points that sit between the two coarse nodes
-        isStrictInner = (Pol_L2idx_max(:)' > 1) & (Pol_L2idx_max(:)' < n2short + 2);
+        % TENSOR BRIDGE FIX: Relax the strict inner condition to properly repel mass
+        % away from -Inf boundaries, even at the absolute edges of the grid.
+        isInnerOrUpper = (Pol_L2idx_max(:)' > 1);
+        isInnerOrLower = (Pol_L2idx_max(:)' < n2short + 2);
 
-        % Legacy avoids pushing mass into -Inf bounds by shifting all weight to the safe node
-        Pol_L2flag_max(isStrictInner & isInfLower) = 3;
-        Pol_L2flag_max(isStrictInner & isInfUpper) = 1;
+        Pol_L2flag_max(isInnerOrUpper & isInfLower) = 3;
+        Pol_L2flag_max(isInnerOrLower & isInfUpper) = 1;
 
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
