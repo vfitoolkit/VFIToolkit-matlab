@@ -969,12 +969,11 @@ for reverse_j = 0:N_j-1
             if l_a2 == 0
                 % Because chunking is perfectly Cartesian, N_ze_local == n_z_loc * n_e_loc
                 EV_reshaped = reshape(EV_local, [N_a1, n_z_loc, n_e_loc, N_dsemiz]);
-
                 % Extract the exact D slices using dsemiz_idx_tensor [N_d_safe, 1, 1, 1]
                 EV_d_sliced = EV_reshaped(:, :, :, dsemiz_idx_tensor(:));
-
                 % Permute to broadcast shape: [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]
                 EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
+
                 % By casting this 'like' EV_bounded_pre, it lives permanently on the GPU
                 % and completely prevents PCIe bus transfers during the DC zoom loop.
                 d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1]);
@@ -986,16 +985,45 @@ for reverse_j = 0:N_j-1
                 static_EV_offset = [];
             end
 
-            % 5. Bind LocalBlockFn passing unmixed global dimensions for broadcasting
-            LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
-                state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
-                Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
-                vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
-                TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
-                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, 1);
-
+            % 5. Two-Stage DC+GI Routing
             vfoptions.level1n = vfoptions.level1n(1);
-            [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
+
+            if vfoptions.gridinterplayer(1) == 1
+                % STAGE 1: Pure Coarse DC Pass to find bounds
+                % Temporarily pass 0 for gridinterplayer to force Branch 1A/2A and prevent Slicer assignment crashes
+                temp_vfoptions = vfoptions;
+                temp_vfoptions.gridinterplayer = 0;
+
+                LocalBlockFn_Coarse = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
+                    state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
+                    Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
+                    0, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
+                    TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
+                    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, 1);
+
+                [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
+
+                % STAGE 2: Unified Zoom Pass (Branch 2B) on ALL states
+                LocalBlockFn_Zoom = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
+                    state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
+                    Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
+                    vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
+                    TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
+                    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, 1);
+
+                full_state_chunk = 1:(N_a1 * N_a2);
+                [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn_Zoom(full_state_chunk, p_apr_coarse, n2long - 1);
+            else
+                % Standard Non-GI DC
+                LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
+                    state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
+                    Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
+                    vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
+                    TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
+                    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, 1);
+
+                [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
+            end
 
             V_j_max(:, curr_ze)     = reshape(v,     [N_a1 * N_a2, N_ze_local]);
             Pol_apr_max(:, curr_ze) = reshape(p_apr, [N_a1 * N_a2, N_ze_local]);
@@ -1130,10 +1158,13 @@ for reverse_j = 0:N_j-1
                 state_list = start_a_idx:end_a_idx;
                 total_states = length(state_list);
 
-                % TENSOR BRIDGE FIX: The Coarse Pass is always the memory bottleneck because it
-                % searches all N_a1 choices. We must chunk based on the Coarse Pass size.
-                flat_choices_coarse = max(1, N_d_safe) * N_a1;
-                max_states_per_chunk = max(1, floor(50000000 / (flat_choices_coarse * N_ze_local)));
+                % TENSOR BRIDGE FIX: Memory chunking must match the actual grid being searched
+                if vfoptions.gridinterplayer(1) == 1
+                    flat_choices = max(1, N_d_safe) * length(a1prime_grid);
+                else
+                    flat_choices = max(1, N_d_safe) * N_a1;
+                end
+                max_states_per_chunk = max(1, floor(50000000 / (flat_choices * n_z_loc * n_e_loc)));
 
                 v_concat = []; p_apr_concat = []; p_d_concat = []; p_l2idx_concat = []; p_l2flag_concat = [];
 
@@ -1141,16 +1172,8 @@ for reverse_j = 0:N_j-1
                     chunk_end = min(total_states, chunk_start + max_states_per_chunk - 1);
                     state_chunk = state_list(chunk_start:chunk_end);
 
-                    if vfoptions.gridinterplayer(1) == 1
-                        % 1. FAST COARSE PASS (Force Branch 1A via dc_mode_override = 2)
-                        [~, p_apr_coarse, ~, ~, ~] = LocalBlockFn(state_chunk, [], 0, 2);
-
-                        % 2. ZOOM PASS (Branch 2B)
-                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, p_apr_coarse, n2long-1, 0);
-                    else
-                        % Standard Non-DC Coarse Evaluation
-                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 0);
-                    end
+                    % Standard Non-DC Evaluation (Drops into Branch 1A or 1B depending on GI)
+                    [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 0);
 
                     v_concat = [v_concat; v_c];
                     p_apr_concat = [p_apr_concat; p_apr_c];
@@ -1160,6 +1183,7 @@ for reverse_j = 0:N_j-1
                         p_l2flag_concat = [p_l2flag_concat; p_l2flag_c];
                     end
                 end
+
                 v = v_concat; p_apr = p_apr_concat; p_d = p_d_concat; p_l2idx = p_l2idx_concat; p_l2flag = p_l2flag_concat;
 
                 if l_a2 > 0
@@ -1464,10 +1488,13 @@ if isempty(loweredge_matrix)
         V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]);
         Pol_d_max = reshape(d_idx_local, [N_states, N_ze_local]);
 
-        % EXACT UNKRON MAPPING FIX
-        % Directly compute lower grid point and subgrid step from absolute a1prime_grid index
-        Pol_apr_max    = reshape(floor((apr_offset - 1) / (n2short + 1)) + 1, [N_states, N_ze_local]);
-        Pol_L2idx_max  = reshape(mod(apr_offset - 1, n2short + 1) + 1, [N_states, N_ze_local]);
+        % EXACT UNKRON MAPPING FIX: Clamp to prevent implicit expansion bomb in StationaryDist
+        Pol_apr_max = floor((apr_offset - 1) / (n2short + 1)) + 1;
+        Pol_apr_max = min(Pol_apr_max, N_a1 - 1);
+        Pol_L2idx_max = apr_offset - (Pol_apr_max - 1) * (n2short + 1);
+
+        Pol_apr_max    = reshape(Pol_apr_max, [N_states, N_ze_local]);
+        Pol_L2idx_max  = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
         Pol_L2flag_max = 2 * ones(N_states, N_ze_local, 'like', V_j_max);
     end
 
@@ -1648,13 +1675,17 @@ else
         Pol_L2idx_max  = [];
         Pol_L2flag_max = [];
     else
-        % EXACT UNKRON MAPPING FIX: Convert relative offset directly to absolute fine-grid index
+        % EXACT UNKRON MAPPING FIX: Clamp to prevent implicit expansion bomb in StationaryDist
         loweredge_matrix_flat = reshape(loweredge_matrix, [1, FLAT_STATES]);
         chosen_offset = start_offset + apr_offset - 1;
         abs_fine_idx_flat = (loweredge_matrix_flat - 1) * (n2short + 1) + 1 + chosen_offset;
 
-        Pol_apr_max    = reshape(floor((abs_fine_idx_flat - 1) / (n2short + 1)) + 1, [N_states, N_ze_local]);
-        Pol_L2idx_max  = reshape(mod(abs_fine_idx_flat - 1, n2short + 1) + 1, [N_states, N_ze_local]);
+        Pol_apr_max = floor((abs_fine_idx_flat - 1) / (n2short + 1)) + 1;
+        Pol_apr_max = min(Pol_apr_max, N_a1 - 1);
+        Pol_L2idx_max = abs_fine_idx_flat - (Pol_apr_max - 1) * (n2short + 1);
+
+        Pol_apr_max    = reshape(Pol_apr_max, [N_states, N_ze_local]);
+        Pol_L2idx_max  = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
 
         % --- CRITICAL FIX: Match Legacy L2flag behavior ---
         Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
