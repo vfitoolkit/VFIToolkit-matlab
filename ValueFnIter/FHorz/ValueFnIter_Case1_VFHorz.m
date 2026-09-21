@@ -1119,31 +1119,38 @@ for reverse_j = 0:N_j-1
                     static_EV_offset = [];
                 end
 
-                LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_Case1_TensorBlock(...
+                LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar, dc_mode_override) Evaluate_Case1_TensorBlock(...
                     state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2_local, N_d_safe, N_ze_local, ...
                     Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_local, a2_grids_1d, l_a2, ...
                     vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                     TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
-                    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, 0);
+                    TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, dc_mode_override);
 
                 % CHUNKER: Prevent GPU OOM on massive Cartesian expansions in Non-DC mode
                 state_list = start_a_idx:end_a_idx;
                 total_states = length(state_list);
 
-                if vfoptions.gridinterplayer(1) == 1
-                    flat_choices = max(1, N_d_safe) * length(a1prime_grid);
-                else
-                    flat_choices = max(1, N_d_safe) * N_a1;
-                end
-                max_states_per_chunk = max(1, floor(50000000 / (flat_choices * N_ze_local)));
+                % TENSOR BRIDGE FIX: The Coarse Pass is always the memory bottleneck because it
+                % searches all N_a1 choices. We must chunk based on the Coarse Pass size.
+                flat_choices_coarse = max(1, N_d_safe) * N_a1;
+                max_states_per_chunk = max(1, floor(50000000 / (flat_choices_coarse * N_ze_local)));
 
                 v_concat = []; p_apr_concat = []; p_d_concat = []; p_l2idx_concat = []; p_l2flag_concat = [];
+
                 for chunk_start = 1:max_states_per_chunk:total_states
                     chunk_end = min(total_states, chunk_start + max_states_per_chunk - 1);
                     state_chunk = state_list(chunk_start:chunk_end);
 
-                    % Full Evaluation (Handles both Coarse and Full Fine Grid dynamically)
-                    [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0);
+                    if vfoptions.gridinterplayer(1) == 1
+                        % 1. FAST COARSE PASS (Force Branch 1A via dc_mode_override = 2)
+                        [~, p_apr_coarse, ~, ~, ~] = LocalBlockFn(state_chunk, [], 0, 2);
+
+                        % 2. ZOOM PASS (Branch 2B)
+                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, p_apr_coarse, n2long-1, 0);
+                    else
+                        % Standard Non-DC Coarse Evaluation
+                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 0);
+                    end
 
                     v_concat = [v_concat; v_c];
                     p_apr_concat = [p_apr_concat; p_apr_c];
@@ -1327,7 +1334,7 @@ else
 end
 
 if isempty(loweredge_matrix)
-    if gridinterplayer(1) == 0
+    if gridinterplayer(1) == 0 || is_dc_mode == 2
         % =================================================================
         % BRANCH 1A: COARSE EVALUATION (DC Level 1 or Standard Non-DC)
         % =================================================================
@@ -1536,6 +1543,9 @@ else
         % SCENARIO 2B: Grid Interpolation Zoom (a1prime_grid)
         % -------------------------------------------------------------
         num_choices = n2long;
+
+        % EXACT LEGACY BOUNDARY FIX: Clamp the anchor to guarantee a full zoom window
+        loweredge_matrix = max(2, min(loweredge_matrix, N_a1 - 1));
 
         L2_base = (loweredge_matrix - 1) * (n2short + 1) + 1;
         base_idx = reshape(L2_base, [1, 1, N_states, n_z_loc, n_e_loc]);
