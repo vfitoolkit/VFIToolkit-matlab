@@ -1495,7 +1495,28 @@ if isempty(loweredge_matrix)
 
         Pol_apr_max    = reshape(Pol_apr_max, [N_states, N_ze_local]);
         Pol_L2idx_max  = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
-        Pol_L2flag_max = 2 * ones(N_states, N_ze_local, 'like', V_j_max);
+
+        % --- CRITICAL FIX: Match Legacy L2flag behavior for 1-Step Brute Force ---
+        Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
+
+        % Map the chosen lower coarse point to its absolute fine grid index
+        idx_lower_coarse = (Pol_apr_max(:)' - 1) * (n2short + 1) + 1;
+        idx_upper_coarse = min(num_choices, idx_lower_coarse + (n2short + 1));
+
+        lin_lower = d_idx_local(:)' + (idx_lower_coarse - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
+        lin_upper = d_idx_local(:)' + (idx_upper_coarse - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
+
+        isInfLower = (RHS_flat(lin_lower) == -Inf);
+        isInfUpper = (RHS_flat(lin_upper) == -Inf);
+
+        % We only flag strict inner points that sit between the two coarse nodes
+        isStrictInner = (Pol_L2idx_max(:)' > 1) & (Pol_L2idx_max(:)' < n2short + 2);
+
+        % Legacy avoids pushing mass into -Inf bounds by shifting all weight to the safe node
+        Pol_L2flag_max(isStrictInner & isInfLower) = 3;
+        Pol_L2flag_max(isStrictInner & isInfUpper) = 1;
+
+        Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
 
 else
