@@ -1590,14 +1590,25 @@ else
             EV_bounded = beta_j .* EV_bounded;
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+
+            % TENSOR BRIDGE FIX: Flatten choice and offset to prevent 5D transposition misalignment
             ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, n_e_loc]);
-            L2_linear_idx = choice_idx + ze_offset;
+
+            % Broadcast to identical shapes before flattening
+            choice_idx_cast = repmat(choice_idx, [1, 1, 1, 1, 1]);
+            ze_offset_cast  = repmat(ze_offset, [1, num_choices, N_states, 1, 1]);
+
+            L2_linear_idx = choice_idx_cast(:) + ze_offset_cast(:);
 
             if N_dsemiz > 1
-                L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (length(a1prime_grid) * N_ze_local);
+                dsemiz_stride = (dsemiz_idx_tensor - 1) * (length(a1prime_grid) * N_ze_local);
+                L2_linear_idx = L2_linear_idx + repmat(dsemiz_stride(:), [1, num_choices, N_states, n_z_loc, n_e_loc]);
             end
 
-            EV_bounded = EV_interp_local(L2_linear_idx);
+            % Extract in 1D, then restore the perfect 5D tensor shape for RHS addition
+            EV_raw = EV_interp_local(L2_linear_idx);
+            EV_bounded = reshape(EV_raw, [1, num_choices, N_states, n_z_loc, n_e_loc]);
+
             EV_bounded(out_of_bounds) = -Inf; % In-place boundary penalty
             EV_bounded = beta_j .* EV_bounded;
         end
