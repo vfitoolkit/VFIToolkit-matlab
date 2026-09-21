@@ -1158,12 +1158,8 @@ for reverse_j = 0:N_j-1
                 state_list = start_a_idx:end_a_idx;
                 total_states = length(state_list);
 
-                % TENSOR BRIDGE FIX: Memory chunking must match the actual grid being searched
-                if vfoptions.gridinterplayer(1) == 1
-                    flat_choices = max(1, N_d_safe) * length(a1prime_grid);
-                else
-                    flat_choices = max(1, N_d_safe) * N_a1;
-                end
+                % TENSOR BRIDGE FIX: Memory chunking must match the actual max grid being searched!
+                flat_choices = max(1, N_d_safe) * N_a1;
                 max_states_per_chunk = max(1, floor(50000000 / (flat_choices * n_z_loc * n_e_loc)));
 
                 v_concat = []; p_apr_concat = []; p_d_concat = []; p_l2idx_concat = []; p_l2flag_concat = [];
@@ -1717,25 +1713,21 @@ else
         Pol_apr_max    = reshape(Pol_apr_max, [N_states, N_ze_local]);
         Pol_L2idx_max  = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
 
-        % --- CRITICAL FIX: Match 1-Step Brute Force L2flag behavior ---
+        % --- CRITICAL FIX: Match Legacy L2flag behavior directly on the 43-point window ---
+        % Legacy strictly checks only the absolute outer edges of the 43-point zoom window
+        linidx_lower = d_idx_local(:)' + (1 - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
+        linidx_upper = d_idx_local(:)' + (n2long - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
+
+        isInfLower = (RHS_flat(linidx_lower) == -Inf);
+        isInfUpper = (RHS_flat(linidx_upper) == -Inf);
+
+        % apr_offset matches Legacy's L2offset exactly (1 to 43)
+        inLowerStrict = (apr_offset(:)' >= 2) & (apr_offset(:)' <= n2short + 1);
+        inUpperStrict = (apr_offset(:)' >= n2short + 3) & (apr_offset(:)' <= n2long - 1);
+
         Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
-
-        % Dynamically locate the absolute coarse nodes inside the 43-point relative RHS_flat
-        lower_coarse_offset = (Pol_apr_max(:)' - loweredge_matrix_flat) * (n2short + 1);
-        rel_lower_apr = lower_coarse_offset - start_offset + 1;
-        rel_upper_apr = min(num_choices, rel_lower_apr + (n2short + 1));
-
-        lin_lower = d_idx_local(:)' + (rel_lower_apr - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
-        lin_upper = d_idx_local(:)' + (rel_upper_apr - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
-
-        isInfLower = (RHS_flat(lin_lower) == -Inf);
-        isInfUpper = (RHS_flat(lin_upper) == -Inf);
-
-        isInnerOrUpper = (Pol_L2idx_max(:)' > 1);
-        isInnerOrLower = (Pol_L2idx_max(:)' < n2short + 2);
-
-        Pol_L2flag_max(isInnerOrUpper & isInfLower) = 3;
-        Pol_L2flag_max(isInnerOrLower & isInfUpper) = 1;
+        Pol_L2flag_max(inLowerStrict & isInfLower) = 3;
+        Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
 
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
