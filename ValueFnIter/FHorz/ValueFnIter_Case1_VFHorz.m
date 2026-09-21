@@ -642,19 +642,23 @@ for ip = 1:length(ReturnFnParamNames)
     end
 end
 
+% --- Sequential EV Computation (Applying Z and SemiZ transitions) ---
+N_semiz_local = 1;
+N_dsemiz = 1;
+if has_semiz && length(n_d) > 0
+    N_semiz_local = max(1, prod(vfoptions.n_semiz));
+    if isfield(vfoptions, 'l_dsemiz')
+        N_dsemiz = prod(n_d(end-vfoptions.l_dsemiz+1:end));
+    else
+        N_dsemiz = n_d(end); % Default to the last decision variable
+    end
+end
+N_z_exog = max(1, n_z_work / N_semiz_local);
+
 for reverse_j = 0:N_j-1
     jj = N_j - reverse_j;
     if vfoptions.verbose==1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
-    end
-    if jj == N_j && (~isfield(vfoptions, 'V_Jplus1') || isempty(vfoptions.V_Jplus1))
-        % Warm glow is now universally handled during the EV step below.
-        V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
-    end
-
-    % --- TENSOR BRIDGE UPGRADE: Dynamic Age-Dependent i.i.d. Grids ---
-    if has_e && isfield(vfoptions, 'e_gridvals_J')
-        e_work = vfoptions.e_gridvals_J(:, :, min(jj, size(vfoptions.e_gridvals_J, 3)));
     end
 
     ReturnFnParamsCell = base_ReturnFnParamsCell;
@@ -677,113 +681,134 @@ for reverse_j = 0:N_j-1
         aprimeFnParamsCell = {};
     end
 
-    % --- EZ V_next Transformation ---
-    valid_V = isfinite(V_next) & (V_next ~= 0);
-    V_transformed = V_next;
-    if ezc5(jj) == 1
-        V_transformed(valid_V) = ezc4 * V_next(valid_V);
-    else
-        V_transformed(valid_V) = max(ezc4 * V_next(valid_V), 0).^ezc5(jj);
-    end
-    V_transformed(V_next == 0) = 0;
-
-    % =================================================================
-    % --- i.i.d. Shock (e) Integration ---
-    % =================================================================
-    if has_e
-        if isfield(vfoptions, 'pi_e_J')
-            pi_e_j = vfoptions.pi_e_J(:, min(jj, size(vfoptions.pi_e_J, 2)));
-        else
-            pi_e_j = vfoptions.pi_e;
-        end
-
-        % Ensure the probability vector is on the GPU to prevent mtimes crashes
-        if vfoptions.parallel == 2 && ~isa(pi_e_j, 'gpuArray')
-            pi_e_j = gpuArray(pi_e_j);
-        end
-
-        % The agent does not know next period's i.i.d. shock.
-        % We must integrate out the future e dimension before applying Markov transitions.
-        V_trans_flat = reshape(V_transformed, [N_a * n_z_work, n_e_work]);
-        V_expected_e = V_trans_flat * pi_e_j(:);
-
-        % Expand back out to [N_a, n_z_work, n_e_work] so the tensor slicing
-        % implicitly maps the identical expectation across all current e states.
-        V_transformed = repmat(reshape(V_expected_e, [N_a, n_z_work, 1]), [1, 1, n_e_work]);
-    end
-
-    % --- Sequential EV Computation (Applying Z and SemiZ transitions) ---
-    N_semiz_local = 1;
-    N_dsemiz = 1;
-    if has_semiz && length(n_d) > 0
-        N_semiz_local = max(1, prod(vfoptions.n_semiz));
-        if isfield(vfoptions, 'l_dsemiz')
-            N_dsemiz = prod(n_d(end-vfoptions.l_dsemiz+1:end));
-        else
-            N_dsemiz = n_d(end); % Default to the last decision variable
-        end
-    end
-    N_z_exog = max(1, n_z_work / N_semiz_local);
-
-    EV = zeros(N_a, N_semiz_local * N_z_exog, n_e_work, N_dsemiz, 'like', V_next);
-
-    for ie = 1:n_e_work
-        V_curr = V_transformed(:,:,ie);
-
-        % 1. Apply Exogenous Z Transition (if it exists)
-        if N_z_exog > 1 && has_z
-            pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
-            V_slice = reshape(V_curr, [N_a * N_semiz_local, N_z_exog]);
-            V_z_eval = V_slice * pi_z_j';
-            V_z_eval = reshape(V_z_eval, [N_a, N_semiz_local, N_z_exog]);
-        else
-            V_z_eval = reshape(V_curr, [N_a, N_semiz_local, N_z_exog]);
-        end
-
-        % 2. Apply Semi-Exogenous Transition (if it exists)
-        if has_semiz
-            pi_semiz_j = vfoptions.pi_semiz_J(:, :, :, min(jj, size(vfoptions.pi_semiz_J, 4)));
-
-            % Permute to [N_semiz_local, N_a * N_z_exog] for matrix multiplication
-            V_perm = reshape(permute(V_z_eval, [2, 1, 3]), [N_semiz_local, N_a * N_z_exog]);
-            for idsemiz = 1:N_dsemiz
-                pi_semiz_d = pi_semiz_j(:, :, idsemiz);
-                EV_perm = pi_semiz_d * V_perm;
-                EV_d = permute(reshape(EV_perm, [N_semiz_local, N_a, N_z_exog]), [2, 1, 3]);
-                EV(:,:,ie,idsemiz) = reshape(EV_d, [N_a, N_semiz_local * N_z_exog]);
+    if jj == N_j && (~isfield(vfoptions, 'V_Jplus1') || isempty(vfoptions.V_Jplus1))
+        % --- TERMINAL PERIOD: Skip normal EV and handle via Warm Glow ---
+        if warmglow == 1
+            wg_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
+            WG_eval = vfoptions.WarmGlowBequestsFn(a_grid, wg_params{:});
+            if isscalar(WG_eval)
+                WG_eval = WG_eval * ones(size(a_grid), 'like', a_grid);
             end
+            if is_EZ
+                valid_wg = isfinite(WG_eval) & (WG_eval ~= 0);
+                WG_transformed = WG_eval;
+                if ezc5(jj) == 1
+                    WG_transformed(valid_wg) = ezc4 * WG_eval(valid_wg);
+                else
+                    WG_transformed(valid_wg) = max(ezc4 * WG_eval(valid_wg), 0).^ezc5(jj);
+                end
+                WG_transformed(WG_eval == 0) = 0;
+                WG_eval = WG_transformed;
+            end
+            % Terminal EV is strictly the Warm Glow evaluated across all Z states
+            EV = repmat(reshape(WG_eval, [N_a, 1, 1, 1]), [1, N_semiz_local * N_z_exog, n_e_work, N_dsemiz]);
         else
-            EV(:,:,ie,1) = reshape(V_z_eval, [N_a, N_semiz_local * N_z_exog]);
-        end
-    end
-
-    % --- Apply Survival Probabilities and Warm Glow ---
-    if warmglow == 1
-        wg_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
-        % Evaluate Warm Glow strictly on the 1D coarse asset grid
-        WG_eval = vfoptions.WarmGlowBequestsFn(a_grid, wg_params{:});
-        if isscalar(WG_eval)
-            WG_eval = WG_eval * ones(size(a_grid), 'like', a_grid);
+            EV = zeros(N_a, N_semiz_local * N_z_exog, n_e_work, N_dsemiz, 'like', a_grid);
         end
 
-        % --- TENSOR BRIDGE FIX: Transform WarmGlow to EZ Space ---
-        if is_EZ
-            valid_wg = isfinite(WG_eval) & (WG_eval ~= 0);
-            WG_transformed = WG_eval;
-            if ezc5(jj) == 1
-                WG_transformed(valid_wg) = ezc4 * WG_eval(valid_wg);
+        V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
+    else
+
+        % --- TENSOR BRIDGE UPGRADE: Dynamic Age-Dependent i.i.d. Grids ---
+        if has_e && isfield(vfoptions, 'e_gridvals_J')
+            e_work = vfoptions.e_gridvals_J(:, :, min(jj, size(vfoptions.e_gridvals_J, 3)));
+        end
+
+        % --- EZ V_next Transformation ---
+        valid_V = isfinite(V_next) & (V_next ~= 0);
+        V_transformed = V_next;
+        if ezc5(jj) == 1
+            V_transformed(valid_V) = ezc4 * V_next(valid_V);
+        else
+            V_transformed(valid_V) = max(ezc4 * V_next(valid_V), 0).^ezc5(jj);
+        end
+        V_transformed(V_next == 0) = 0;
+
+        % =================================================================
+        % --- i.i.d. Shock (e) Integration ---
+        % =================================================================
+        if has_e
+            if isfield(vfoptions, 'pi_e_J')
+                pi_e_j = vfoptions.pi_e_J(:, min(jj, size(vfoptions.pi_e_J, 2)));
             else
-                WG_transformed(valid_wg) = max(ezc4 * WG_eval(valid_wg), 0).^ezc5(jj);
+                pi_e_j = vfoptions.pi_e;
             end
-            WG_transformed(WG_eval == 0) = 0;
-            WG_eval = WG_transformed;
+
+            % Ensure the probability vector is on the GPU to prevent mtimes crashes
+            if vfoptions.parallel == 2 && ~isa(pi_e_j, 'gpuArray')
+                pi_e_j = gpuArray(pi_e_j);
+            end
+
+            % The agent does not know next period's i.i.d. shock.
+            % We must integrate out the future e dimension before applying Markov transitions.
+            V_trans_flat = reshape(V_transformed, [N_a * n_z_work, n_e_work]);
+            V_expected_e = V_trans_flat * pi_e_j(:);
+
+            % Expand back out to [N_a, n_z_work, n_e_work] so the tensor slicing
+            % implicitly maps the identical expectation across all current e states.
+            V_transformed = repmat(reshape(V_expected_e, [N_a, n_z_work, 1]), [1, 1, n_e_work]);
         end
 
-        % Reshape to broadcast across (a, semiz_z, e, dsemiz)
-        WG_eval = reshape(WG_eval, [N_a, 1, 1, 1]);
-        EV = EV * sj(jj) + (1 - sj(jj)) * WG_eval;
-    else
-        EV = EV * sj(jj);
+        EV = zeros(N_a, N_semiz_local * N_z_exog, n_e_work, N_dsemiz, 'like', V_next);
+
+        for ie = 1:n_e_work
+            V_curr = V_transformed(:,:,ie);
+
+            % 1. Apply Exogenous Z Transition (if it exists)
+            if N_z_exog > 1 && has_z
+                pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
+                V_slice = reshape(V_curr, [N_a * N_semiz_local, N_z_exog]);
+                V_z_eval = V_slice * pi_z_j';
+                V_z_eval = reshape(V_z_eval, [N_a, N_semiz_local, N_z_exog]);
+            else
+                V_z_eval = reshape(V_curr, [N_a, N_semiz_local, N_z_exog]);
+            end
+
+            % 2. Apply Semi-Exogenous Transition (if it exists)
+            if has_semiz
+                pi_semiz_j = vfoptions.pi_semiz_J(:, :, :, min(jj, size(vfoptions.pi_semiz_J, 4)));
+
+                % Permute to [N_semiz_local, N_a * N_z_exog] for matrix multiplication
+                V_perm = reshape(permute(V_z_eval, [2, 1, 3]), [N_semiz_local, N_a * N_z_exog]);
+                for idsemiz = 1:N_dsemiz
+                    pi_semiz_d = pi_semiz_j(:, :, idsemiz);
+                    EV_perm = pi_semiz_d * V_perm;
+                    EV_d = permute(reshape(EV_perm, [N_semiz_local, N_a, N_z_exog]), [2, 1, 3]);
+                    EV(:,:,ie,idsemiz) = reshape(EV_d, [N_a, N_semiz_local * N_z_exog]);
+                end
+            else
+                EV(:,:,ie,1) = reshape(V_z_eval, [N_a, N_semiz_local * N_z_exog]);
+            end
+        end
+
+        % --- Apply Survival Probabilities and Warm Glow ---
+        if warmglow == 1
+            wg_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
+            % Evaluate Warm Glow strictly on the 1D coarse asset grid
+            WG_eval = vfoptions.WarmGlowBequestsFn(a_grid, wg_params{:});
+            if isscalar(WG_eval)
+                WG_eval = WG_eval * ones(size(a_grid), 'like', a_grid);
+            end
+
+            % --- TENSOR BRIDGE FIX: Transform WarmGlow to EZ Space ---
+            if is_EZ
+                valid_wg = isfinite(WG_eval) & (WG_eval ~= 0);
+                WG_transformed = WG_eval;
+                if ezc5(jj) == 1
+                    WG_transformed(valid_wg) = ezc4 * WG_eval(valid_wg);
+                else
+                    WG_transformed(valid_wg) = max(ezc4 * WG_eval(valid_wg), 0).^ezc5(jj);
+                end
+                WG_transformed(WG_eval == 0) = 0;
+                WG_eval = WG_transformed;
+            end
+
+            % Reshape to broadcast across (a, semiz_z, e, dsemiz)
+            WG_eval = reshape(WG_eval, [N_a, 1, 1, 1]);
+            EV = EV * sj(jj) + (1 - sj(jj)) * WG_eval;
+        else
+            EV = EV * sj(jj);
+        end
     end
 
     % --- EZ Certainty Equivalent Reverse Transformation ---
