@@ -677,7 +677,7 @@ for reverse_j = 0:N_j-1
             ReturnFnParamsCell{ip} = val;
         end
     end
-    DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj, vfoptions.precision);
+     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj, vfoptions.precision);
     beta_j = prod(DiscountFactorParamsVec);
 
     if l_a2 > 0
@@ -1098,12 +1098,15 @@ for reverse_j = 0:N_j-1
                 % --- HOIST EV_BOUNDED for non-DC loop ---
                 if l_a2 == 0
                     apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
-                    z_offset_broadcast = reshape((0:N_ze_local-1) * N_a, [1, 1, 1, 1, N_ze_local]);
+                    % FIX: Broadcast using Cartesian Z and E dimensions
+                    z_offset_broadcast = reshape((0:N_ze_local-1) * N_a, [1, 1, 1, n_z_loc, n_e_loc]);
                     idx_base = apr_idx_tensor + z_offset_broadcast;
+
                     max_idx_row = N_a1 * n_z_work * n_e_work;
                     linear_idx_pre = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
 
-                    EV_bounded_pre = beta_j .* reshape(EV_local(linear_idx_pre(:)), [N_d_safe, N_a1, 1, 1, N_ze_local]);
+                    % FIX: Reshape the hoisted EV precisely to [D, A, 1, Z, E]
+                    EV_bounded_pre = beta_j .* reshape(EV_local(linear_idx_pre(:)), [N_d_safe, N_a1, 1, n_z_loc, n_e_loc]);
                     % --- NEW: Hoist static offset math for DC Zoom Scenario A ---
                     % By casting this 'like' EV_bounded_pre, it lives permanently on the GPU
                     % and completely prevents PCIe bus transfers during the DC zoom loop.
