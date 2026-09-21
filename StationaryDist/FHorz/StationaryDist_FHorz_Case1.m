@@ -438,6 +438,7 @@ else
         aprimeProbs_upper = reshape(shiftdim((Policy(end-1,:,:,:)-1) / simoptions.ngridinterp, 1), [N_a, N_ze, 1, N_j]);
         aprimeProbs_upper = min(max(aprimeProbs_upper, 0), 1);
         PolicyProbs(:,:,1,:)=PolicyProbs(:,:,1,:).*(1-aprimeProbs_upper); % lower a1
+        PolicyProbs(:,:,2,:)=PolicyProbs(:,:,2,:).*aprimeProbs_upper;     % <--- THE MISSING LINK
         Policy_aprime(:,:,2,:) = min(Policy_aprime(:,:,2,:) + 1, N_a);
 
         if N_z==0 && N_e==0 % handled separately above
