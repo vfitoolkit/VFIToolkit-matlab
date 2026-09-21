@@ -1031,11 +1031,11 @@ for reverse_j = 0:N_j-1
                     if size(z_gridvals_J, 2) ~= num_z_vars
                         z_inflated = reshape(z_gridvals_J, [N_z, num_z_vars, size(z_gridvals_J, ndims(z_gridvals_J))]);
                         for iz = 1:num_z_vars
-                            Z_cells_local{iz} = reshape(z_inflated(ZE_z_idx(curr_ze), iz, min(jj, size(z_inflated,3))), [1, 1, 1, 1, N_ze_local]);
+                            Z_cells_local{iz} = reshape(z_inflated(meta.z_vals, iz, min(jj, size(z_inflated,3))), [1, 1, 1, n_z_loc, 1]);
                         end
                     else
                         for iz = 1:num_z_vars
-                            Z_cells_local{iz} = reshape(z_gridvals_J(ZE_z_idx(curr_ze), iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, 1, N_ze_local]);
+                            Z_cells_local{iz} = reshape(z_gridvals_J(meta.z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]);
                         end
                     end
                 else
@@ -1046,7 +1046,7 @@ for reverse_j = 0:N_j-1
                     num_e_vars = size(e_work, 2);
                     E_cells_local = cell(1, num_e_vars);
                     for ie = 1:num_e_vars
-                        E_cells_local{ie} = reshape(e_work(ZE_e_idx(curr_ze), ie), [1, 1, 1, 1, N_ze_local]);
+                        E_cells_local{ie} = reshape(e_work(meta.e_vals, ie), [1, 1, 1, 1, n_e_loc]);
                     end
                 else
                     E_cells_local = {};
@@ -1170,8 +1170,7 @@ for reverse_j = 0:N_j-1
     end
 
     if vfoptions.gridinterplayer(1) == 1
-        % TENSOR BRIDGE FIX: Branch 1B evaluates the full fine grid directly.
-        % We must bypass the legacy DC zoom-mapping logic entirely to prevent mangling.
+        % Branch 1B and Branch 2B now both output absolute mapping directly
         lower_grid_pt = Pol_apr_max;
         subgrid_step  = Pol_L2idx_max;
 
@@ -1317,7 +1316,7 @@ else
 end
 
 if isempty(loweredge_matrix)
-    if gridinterplayer(1) == 0 || is_dc_mode == 1
+    if gridinterplayer(1) == 0
         % =================================================================
         % BRANCH 1A: COARSE EVALUATION (DC Level 1 or Standard Non-DC)
         % =================================================================
@@ -1343,7 +1342,7 @@ if isempty(loweredge_matrix)
             weight(a2_right == a2_left) = 0;
 
             A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
-            ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
+            ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, n_z_loc, n_e_loc]);
             N_a2_global = max(1, prod(cellfun(@length, a2_grids_1d)));
             idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_global);
             idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_global);
@@ -1408,7 +1407,7 @@ if isempty(loweredge_matrix)
             weight(a2_right == a2_left) = 0;
 
             A1pr_idx = choice_idx;
-            ZE_offset = reshape((0:N_ze_local-1) * (length(a1prime_grid) * N_a2_dims), [1, 1, 1, 1, N_ze_local]);
+            ZE_offset = reshape((0:N_ze_local-1) * (length(a1prime_grid) * N_a2_dims), [1, 1, 1, n_z_loc, n_e_loc]);
             lin_idx_left = A1pr_idx + (idx - 1) * length(a1prime_grid) + ZE_offset;
             lin_idx_right = A1pr_idx + (idx) * length(a1prime_grid) + ZE_offset;
 
@@ -1427,7 +1426,7 @@ if isempty(loweredge_matrix)
             EV_bounded = beta_j .* EV_bounded;
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-            ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, 1, N_ze_local]);
+            ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, n_e_loc]);
             L2_linear_idx = choice_idx + ze_offset;
             if N_dsemiz > 1
                 L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (length(a1prime_grid) * N_ze_local);
@@ -1465,7 +1464,7 @@ else
 
     if gridinterplayer(1) == 0
         % -------------------------------------------------------------
-        % SCENARIO A: Standard DC Segment Zoom (No Interpolation)
+        % SCENARIO 2A: Standard DC Segment Zoom (No Interpolation)
         % -------------------------------------------------------------
         num_choices = maxgap_scalar + 1;
 
@@ -1497,7 +1496,7 @@ else
             weight = (a2_prime_clipped - a2_left) ./ (a2_right - a2_left);
             weight(a2_right == a2_left) = 0;
 
-            ZE_idx = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
+            ZE_idx = reshape(1:N_ze_local, [1, 1, 1, n_z_loc, n_e_loc]);
 
             % FIX: Use Global N_a2 for stride offsets
             N_a2_global = max(1, prod(cellfun(@length, a2_grids_1d)));
@@ -1523,18 +1522,15 @@ else
 
     else
         % -------------------------------------------------------------
-        % SCENARIO B: Grid Interpolation Zoom (a1prime_grid)
+        % SCENARIO 2B: Grid Interpolation Zoom (a1prime_grid)
         % -------------------------------------------------------------
         num_choices = n2long;
 
-        % FIX: We are in Non-DC mode: Z and E are flat on Dimension 5 (N_ze_local)
         L2_base = (loweredge_matrix - 1) * (n2short + 1) + 1;
-        base_idx = reshape(L2_base, [1, 1, N_states, 1, N_ze_local]);
-
+        base_idx = reshape(L2_base, [1, 1, N_states, n_z_loc, n_e_loc]);
         start_offset = -(n2short + 1);
         end_offset   = (n2short + 1);
         offsets = reshape(start_offset:end_offset, [1, num_choices, 1, 1, 1]);
-
         raw_choice_idx = base_idx + offsets;
         out_of_bounds = (raw_choice_idx < 1) | (raw_choice_idx > length(a1prime_grid));
         choice_idx = max(1, min(raw_choice_idx, length(a1prime_grid)));
@@ -1542,7 +1538,7 @@ else
         Apr_cells = cell(1, num_a1);
         for ia = 1:num_a1
             % Force the 5D shape to prevent column-vector collapse
-            Apr_cells{ia} = reshape(a1prime_grid(choice_idx), [1, num_choices, N_states, 1, N_ze_local]);
+            Apr_cells{ia} = reshape(a1prime_grid(choice_idx), [1, num_choices, N_states, n_z_loc, n_e_loc]);
         end
 
         if l_a2 > 0
@@ -1561,12 +1557,12 @@ else
             weight = (a2_prime_clipped - a2_left) ./ (a2_right - a2_left);
             weight(a2_right == a2_left) = 0;
 
-            A1pr_idx = choice_idx; % Absolute fine grid index
+            A1pr_idx = choice_idx;
+            % Absolute fine grid index
             A2_left_idx = idx;
             A2_right_idx = idx + 1;
 
-            ZE_offset = reshape((0:N_ze_local-1) * (length(a1prime_grid) * N_a2_dims), [1, 1, 1, 1, N_ze_local]);
-
+            ZE_offset = reshape((0:N_ze_local-1) * (length(a1prime_grid) * N_a2_dims), [1, 1, 1, n_z_loc, n_e_loc]);
             lin_idx_left = A1pr_idx + (A2_left_idx - 1) * length(a1prime_grid) + ZE_offset;
             lin_idx_right = A1pr_idx + (A2_right_idx - 1) * length(a1prime_grid) + ZE_offset;
 
@@ -1578,7 +1574,6 @@ else
 
             EV_left = EV_interp_local(lin_idx_left);
             EV_right = EV_interp_local(lin_idx_right);
-
             EV_bounded = EV_left + weight .* (EV_right - EV_left);
             EV_bounded(weight == 0) = EV_left(weight == 0);
             EV_bounded(weight == 1) = EV_right(weight == 1);
@@ -1587,8 +1582,7 @@ else
             EV_bounded = beta_j .* EV_bounded;
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-
-            ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, 1, N_ze_local]);
+            ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, n_e_loc]);
             L2_linear_idx = choice_idx + ze_offset;
 
             if N_dsemiz > 1
@@ -1622,9 +1616,12 @@ else
         Pol_L2idx_max  = [];
         Pol_L2flag_max = [];
     else
-        % CRITICAL FIX 2: Pol_L2idx_max must be the RELATIVE offset (1 to n2long).
-        Pol_apr_max    = reshape(loweredge_matrix, [N_states, N_ze_local]);
-        Pol_L2idx_max  = reshape(apr_offset, [N_states, N_ze_local]);
+        % EXACT UNKRON MAPPING FIX: Convert relative offset directly to absolute fine-grid index
+        chosen_offset = start_offset + apr_offset - 1;
+        abs_fine_idx = (loweredge_matrix - 1) * (n2short + 1) + 1 + chosen_offset;
+
+        Pol_apr_max    = reshape(floor((abs_fine_idx - 1) / (n2short + 1)) + 1, [N_states, N_ze_local]);
+        Pol_L2idx_max  = reshape(mod(abs_fine_idx - 1, n2short + 1) + 1, [N_states, N_ze_local]);
 
         % --- CRITICAL FIX: Match Legacy L2flag behavior ---
         Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
