@@ -739,18 +739,21 @@ for reverse_j = 0:N_j-1
                 pi_e_j = vfoptions.pi_e;
             end
 
-            % Ensure the probability vector is on the GPU to prevent mtimes crashes
             if vfoptions.parallel == 2 && ~isa(pi_e_j, 'gpuArray')
                 pi_e_j = gpuArray(pi_e_j);
             end
 
-            % The agent does not know next period's i.i.d. shock.
-            % We must integrate out the future e dimension before applying Markov transitions.
             V_trans_flat = reshape(V_transformed, [N_a * n_z_work, n_e_work]);
-            V_expected_e = V_trans_flat * pi_e_j(:);
 
-            % Expand back out to [N_a, n_z_work, n_e_work] so the tensor slicing
-            % implicitly maps the identical expectation across all current e states.
+            % TENSOR BRIDGE FIX: Prevent -Inf * 0 -> NaN in expectation
+            V_inf_mask = (V_trans_flat == -Inf);
+            V_safe = V_trans_flat;
+            V_safe(V_inf_mask) = -1e250;
+
+            V_expected_e = V_safe * pi_e_j(:);
+            inf_restore = (V_inf_mask * (pi_e_j(:) > 0)) > 0;
+            V_expected_e(inf_restore) = -Inf;
+
             V_transformed = repmat(reshape(V_expected_e, [N_a, n_z_work, 1]), [1, 1, n_e_work]);
         end
 
@@ -762,7 +765,16 @@ for reverse_j = 0:N_j-1
             % 1. Apply Exogenous Z Transition (if it exists)
             if N_z_exog > 1 && has_z
                 V_slice = reshape(V_curr, [N_a * N_semiz_local, N_z_exog]);
-                V_z_eval = V_slice * pi_z_j';
+
+                % TENSOR BRIDGE FIX: Prevent -Inf * 0 -> NaN in expectation
+                V_inf_mask = (V_slice == -Inf);
+                V_safe = V_slice;
+                V_safe(V_inf_mask) = -1e250;
+
+                V_z_eval = V_safe * pi_z_j';
+                inf_restore = (V_inf_mask * (pi_z_j' > 0)) > 0;
+                V_z_eval(inf_restore) = -Inf;
+
                 V_z_eval = reshape(V_z_eval, [N_a, N_semiz_local, N_z_exog]);
             else
                 V_z_eval = reshape(V_curr, [N_a, N_semiz_local, N_z_exog]);
@@ -771,12 +783,20 @@ for reverse_j = 0:N_j-1
             % 2. Apply Semi-Exogenous Transition (if it exists)
             if has_semiz
                 pi_semiz_j = vfoptions.pi_semiz_J(:, :, :, min(jj, size(vfoptions.pi_semiz_J, 4)));
-
-                % Permute to [N_semiz_local, N_a * N_z_exog] for matrix multiplication
                 V_perm = reshape(permute(V_z_eval, [2, 1, 3]), [N_semiz_local, N_a * N_z_exog]);
+
+                % TENSOR BRIDGE FIX: Prevent -Inf * 0 -> NaN in expectation
+                V_inf_mask = (V_perm == -Inf);
+                V_safe = V_perm;
+                V_safe(V_inf_mask) = -1e250;
+
                 for idsemiz = 1:N_dsemiz
                     pi_semiz_d = pi_semiz_j(:, :, idsemiz);
-                    EV_perm = pi_semiz_d * V_perm;
+
+                    EV_perm = pi_semiz_d * V_safe;
+                    inf_restore = (pi_semiz_d > 0) * V_inf_mask > 0;
+                    EV_perm(inf_restore) = -Inf;
+
                     EV_d = permute(reshape(EV_perm, [N_semiz_local, N_a, N_z_exog]), [2, 1, 3]);
                     EV(:,:,ie,idsemiz) = reshape(EV_d, [N_a, N_semiz_local * N_z_exog]);
                 end
@@ -784,7 +804,6 @@ for reverse_j = 0:N_j-1
                 EV(:,:,ie,1) = reshape(V_z_eval, [N_a, N_semiz_local * N_z_exog]);
             end
         end
-
         % --- Apply Survival Probabilities and Warm Glow ---
         if warmglow == 1
             wg_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
@@ -855,7 +874,7 @@ for reverse_j = 0:N_j-1
     end
 
     % --- The Master Orchestrator Loop ---
-    if vfoptions.divideandconquer == 1 && vfoptions.gridinterplayer(1) == 0
+    if vfoptions.divideandconquer == 1
         % DC Block
         for i_ze = 1:length(ze_chunks)
             % Look up pre-computed bounds instantly
@@ -1151,16 +1170,10 @@ for reverse_j = 0:N_j-1
     end
 
     if vfoptions.gridinterplayer(1) == 1
-        if vfoptions.divideandconquer == 1
-            % Legacy DC mapping logic
-            adjust = (Pol_L2idx_max < 1 + n2short + 1);
-            lower_grid_pt = Pol_apr_max - adjust;
-            subgrid_step  = adjust .* Pol_L2idx_max + (1 - adjust) .* (Pol_L2idx_max - n2short - 1);
-        else
-            % Branch 1B Direct mapping
-            lower_grid_pt = Pol_apr_max;
-            subgrid_step  = Pol_L2idx_max;
-        end
+        % TENSOR BRIDGE FIX: Branch 1B evaluates the full fine grid directly.
+        % We must bypass the legacy DC zoom-mapping logic entirely to prevent mangling.
+        lower_grid_pt = Pol_apr_max;
+        subgrid_step  = Pol_L2idx_max;
 
         if N_d > 0
             PolicyKron(1, :, :, :, jj) = (lower_grid_pt - 1) * N_d + Pol_d_max;
@@ -1216,7 +1229,6 @@ if vfoptions.gridinterplayer(1) == 1
     % PolicyKron is [3, N_a, N_z, N_e, N_j]
     % Row 1 is the packed flat index. Rows 2 & 3 are subgrid step and flag.
     total_elements = (num_pol_vars + 2) * n_a_work * n_z_work * n_e_work * N_j;
-
     if total_elements < (MAX_INT32 * 0.9)
         BaseIndexKron = PolicyKron(1, :, :, :, :);
         P_base_gpu = mod(floor((BaseIndexKron - 1) ./ divisors), n_daprime_col) + 1;
@@ -1233,7 +1245,6 @@ if vfoptions.gridinterplayer(1) == 1
     end
 else
     total_elements = num_pol_vars * n_a_work * n_z_work * n_e_work * N_j;
-
     if total_elements < (MAX_INT32 * 0.9)
         P_gpu = mod(floor((PolicyKron - 1) ./ divisors), n_daprime_col) + 1;
         Policy_flat = gather(P_gpu);
@@ -1306,7 +1317,7 @@ else
 end
 
 if isempty(loweredge_matrix)
-    if gridinterplayer(1) == 0
+    if gridinterplayer(1) == 0 || is_dc_mode == 1
         % =================================================================
         % BRANCH 1A: COARSE EVALUATION (DC Level 1 or Standard Non-DC)
         % =================================================================
@@ -1439,7 +1450,7 @@ if isempty(loweredge_matrix)
         % EXACT UNKRON MAPPING FIX
         % Directly compute lower grid point and subgrid step from absolute a1prime_grid index
         Pol_apr_max    = reshape(floor((apr_offset - 1) / (n2short + 1)) + 1, [N_states, N_ze_local]);
-        Pol_L2idx_max  = reshape(mod(apr_offset - 1, n2short + 1), [N_states, N_ze_local]);
+        Pol_L2idx_max  = reshape(mod(apr_offset - 1, n2short + 1) + 1, [N_states, N_ze_local]);
         Pol_L2flag_max = 2 * ones(N_states, N_ze_local, 'like', V_j_max);
     end
 
