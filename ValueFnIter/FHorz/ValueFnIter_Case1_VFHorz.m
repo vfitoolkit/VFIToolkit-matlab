@@ -663,18 +663,7 @@ for reverse_j = 0:N_j-1
 
     ReturnFnParamsCell = base_ReturnFnParamsCell;
 
-    % --- TENSOR BRIDGE UPGRADE: Dynamic Age-Specific Exogenous Shocks ---
-    if isfield(vfoptions, 'ExogShockFn')
-        [curr_z_grid, curr_pi_z] = vfoptions.ExogShockFn(jj, Params.Jr);
-        if vfoptions.parallel == 2
-            curr_z_grid = gpuArray(curr_z_grid);
-            curr_pi_z = gpuArray(curr_pi_z);
-        end
-        % Update local transition matrix for this age
-        pi_z_j = curr_pi_z;
-    else
-        pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
-    end
+    pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
 
     % Update ONLY the age-dependent parameters
     for ip = find(is_age_dependent)
@@ -915,17 +904,31 @@ for reverse_j = 0:N_j-1
             % 3. Flatten EV_local to [N_a, N_cols] for 2D indexing
             if vfoptions.gridinterplayer(1) == 1
                 N_cols = N_ze_local * N_dsemiz;
+                zero_weights = (interp_weights == 0);
+                one_weights = (interp_weights == 1);
                 if l_a2 > 0
                     EV_2d = reshape(EV_local, [N_a1, N_a2 * N_cols]);
                     EV_left_val = EV_2d(interp_left_idx, :);
                     EV_right_val = EV_2d(interp_right_idx, :);
                     EV_interp_flat = EV_left_val + interp_weights .* (EV_right_val - EV_left_val);
+
+                    % Fix GPU NaN propagation from Inf boundary collisions
+                    EV_interp_flat(zero_weights, :) = EV_left_val(zero_weights, :);
+                    EV_interp_flat(one_weights, :) = EV_right_val(one_weights, :);
+                    EV_interp_flat(isnan(EV_interp_flat)) = -Inf;
+
                     EV_interp_local = reshape(EV_interp_flat, [length(a1prime_grid), N_a2, N_ze_local, N_dsemiz]);
                 else
                     EV_2d = reshape(EV_local, [N_a1, N_cols]);
                     EV_left_val = EV_2d(interp_left_idx, :);
                     EV_right_val = EV_2d(interp_right_idx, :);
                     EV_interp_flat = EV_left_val + interp_weights .* (EV_right_val - EV_left_val);
+
+                    % Fix GPU NaN propagation from Inf boundary collisions
+                    EV_interp_flat(zero_weights, :) = EV_left_val(zero_weights, :);
+                    EV_interp_flat(one_weights, :) = EV_right_val(one_weights, :);
+                    EV_interp_flat(isnan(EV_interp_flat)) = -Inf;
+
                     EV_interp_local = reshape(EV_interp_flat, [length(a1prime_grid), N_ze_local, N_dsemiz]);
                 end
             else
@@ -1031,17 +1034,28 @@ for reverse_j = 0:N_j-1
 
                 if vfoptions.gridinterplayer(1) == 1
                     N_cols = N_ze_local * N_dsemiz;
+                    zero_weights = (interp_weights == 0);
                     if l_a2 > 0
                         EV_2d = reshape(EV_local, [N_a1, N_a2 * N_cols]);
                         EV_left_val = EV_2d(interp_left_idx, :);
                         EV_right_val = EV_2d(interp_right_idx, :);
                         EV_interp_flat = EV_left_val + interp_weights .* (EV_right_val - EV_left_val);
+
+                        % Fix GPU NaN propagation from Inf boundary collisions
+                        EV_interp_flat(zero_weights, :) = EV_left_val(zero_weights, :);
+                        EV_interp_flat(isnan(EV_interp_flat)) = -Inf;
+
                         EV_interp_local = reshape(EV_interp_flat, [length(a1prime_grid), N_a2, N_ze_local, N_dsemiz]);
                     else
                         EV_2d = reshape(EV_local, [N_a1, N_cols]);
                         EV_left_val = EV_2d(interp_left_idx, :);
                         EV_right_val = EV_2d(interp_right_idx, :);
                         EV_interp_flat = EV_left_val + interp_weights .* (EV_right_val - EV_left_val);
+
+                        % Fix GPU NaN propagation from Inf boundary collisions
+                        EV_interp_flat(zero_weights, :) = EV_left_val(zero_weights, :);
+                        EV_interp_flat(isnan(EV_interp_flat)) = -Inf;
+
                         EV_interp_local = reshape(EV_interp_flat, [length(a1prime_grid), N_ze_local, N_dsemiz]);
                     end
                 else
@@ -1324,6 +1338,9 @@ if isempty(loweredge_matrix)
         linear_idx_right = min(max_idx_row, max(1, idx_right + (dsemiz_idx_tensor - 1) * max_idx_row));
 
         EV_bounded = EV_local(linear_idx_left) + weight .* (EV_local(linear_idx_right) - EV_local(linear_idx_left));
+        EV_bounded(weight == 0) = EV_local(linear_idx_left(weight == 0));
+        EV_bounded(weight == 1) = EV_local(linear_idx_right(weight == 1));
+        EV_bounded(isnan(EV_bounded)) = -Inf;
         EV_bounded = beta_j .* EV_bounded;
     else
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
@@ -1407,6 +1424,9 @@ else
             linear_idx_right = min(max_idx_row, max(1, idx_right + (dsemiz_idx_tensor - 1) * max_idx_row));
 
             EV_bounded = EV_local(linear_idx_left) + weight .* (EV_local(linear_idx_right) - EV_local(linear_idx_left));
+            EV_bounded(weight == 0) = EV_local(linear_idx_left(weight == 0));
+            EV_bounded(weight == 1) = EV_local(linear_idx_right(weight == 1));
+            EV_bounded(isnan(EV_bounded)) = -Inf;
             EV_bounded = beta_j .* EV_bounded;
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
@@ -1474,7 +1494,10 @@ else
             EV_right = EV_interp_local(lin_idx_right);
 
             EV_bounded = EV_left + weight .* (EV_right - EV_left);
-            EV_bounded(out_of_bounds) = -Inf; % In-place boundary penalty
+            EV_bounded(weight == 0) = EV_left(weight == 0);
+            EV_bounded(weight == 1) = EV_right(weight == 1);
+            EV_bounded(out_of_bounds) = -Inf;
+            EV_bounded(isnan(EV_bounded)) = -Inf;
             EV_bounded = beta_j .* EV_bounded;
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
