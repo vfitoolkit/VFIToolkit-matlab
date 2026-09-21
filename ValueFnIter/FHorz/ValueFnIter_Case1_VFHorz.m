@@ -1035,6 +1035,7 @@ for reverse_j = 0:N_j-1
                 if vfoptions.gridinterplayer(1) == 1
                     N_cols = N_ze_local * N_dsemiz;
                     zero_weights = (interp_weights == 0);
+                    one_weights = (interp_weights == 1);
                     if l_a2 > 0
                         EV_2d = reshape(EV_local, [N_a1, N_a2 * N_cols]);
                         EV_left_val = EV_2d(interp_left_idx, :);
@@ -1043,6 +1044,7 @@ for reverse_j = 0:N_j-1
 
                         % Fix GPU NaN propagation from Inf boundary collisions
                         EV_interp_flat(zero_weights, :) = EV_left_val(zero_weights, :);
+                        EV_interp_flat(one_weights, :) = EV_right_val(one_weights, :);
                         EV_interp_flat(isnan(EV_interp_flat)) = -Inf;
 
                         EV_interp_local = reshape(EV_interp_flat, [length(a1prime_grid), N_a2, N_ze_local, N_dsemiz]);
@@ -1054,6 +1056,7 @@ for reverse_j = 0:N_j-1
 
                         % Fix GPU NaN propagation from Inf boundary collisions
                         EV_interp_flat(zero_weights, :) = EV_left_val(zero_weights, :);
+                        EV_interp_flat(one_weights, :) = EV_right_val(one_weights, :);
                         EV_interp_flat(isnan(EV_interp_flat)) = -Inf;
 
                         EV_interp_local = reshape(EV_interp_flat, [length(a1prime_grid), N_ze_local, N_dsemiz]);

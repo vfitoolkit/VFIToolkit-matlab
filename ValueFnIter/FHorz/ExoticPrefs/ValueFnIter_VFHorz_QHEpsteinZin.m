@@ -424,6 +424,9 @@ if l_a2 > 0
     EV_left  = EV_local(linear_idx_left);
     EV_right = EV_local(linear_idx_right);
     EV_bounded = EV_left + weight .* (EV_right - EV_left);
+    EV_bounded(weight == 0) = EV_left(weight == 0);
+    EV_bounded(weight == 1) = EV_right(weight == 1);
+    EV_bounded(isnan(EV_bounded)) = -Inf;
 else
     % Standard Endogenous
     apr_idx_tensor = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
