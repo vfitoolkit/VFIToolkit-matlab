@@ -1617,11 +1617,12 @@ else
         Pol_L2flag_max = [];
     else
         % EXACT UNKRON MAPPING FIX: Convert relative offset directly to absolute fine-grid index
+        loweredge_matrix_flat = reshape(loweredge_matrix, [1, FLAT_STATES]);
         chosen_offset = start_offset + apr_offset - 1;
-        abs_fine_idx = (loweredge_matrix - 1) * (n2short + 1) + 1 + chosen_offset;
+        abs_fine_idx_flat = (loweredge_matrix_flat - 1) * (n2short + 1) + 1 + chosen_offset;
 
-        Pol_apr_max    = reshape(floor((abs_fine_idx - 1) / (n2short + 1)) + 1, [N_states, N_ze_local]);
-        Pol_L2idx_max  = reshape(mod(abs_fine_idx - 1, n2short + 1) + 1, [N_states, N_ze_local]);
+        Pol_apr_max    = reshape(floor((abs_fine_idx_flat - 1) / (n2short + 1)) + 1, [N_states, N_ze_local]);
+        Pol_L2idx_max  = reshape(mod(abs_fine_idx_flat - 1, n2short + 1) + 1, [N_states, N_ze_local]);
 
         % --- CRITICAL FIX: Match Legacy L2flag behavior ---
         Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
@@ -1637,7 +1638,6 @@ else
 
         Pol_L2flag_max(inLowerStrict & isInfLower) = 3;
         Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
-
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
 end
