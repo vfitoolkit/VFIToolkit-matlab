@@ -615,9 +615,9 @@ if estimoptions.bootstrapStdErrors==0
         % If epsilon changes pushed us outside the parameter constraints, then we just use the one-sided finite-differences
         for pp=1:length(estimparamsvec)
             if violateconstraintbottom(pp)==1 % 'subtracting epsilon' violates lower bound on parameter value, so just use J_up
-                J_full(pp,:)=J_up(pp,:);
+                J_full(:,pp)=J_up(:,pp);
             elseif violateconstrainttop(pp)==1 % 'adding epsilon' violates upper bound on parameter value, so just use J_down
-                J_full(pp,:)=J_down(pp,:);
+                J_full(:,pp)=J_down(:,pp);
             end
         end
 
@@ -650,21 +650,6 @@ if estimoptions.bootstrapStdErrors==0
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).violateconstrainttop=violateconstrainttop;
         if ee==eedefault
             J=J_full; % This is the one used to report Sigma (parameter std deviations) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
-
-            disp('temp print')
-            dbstack
-            ee
-            J_up
-            J_down
-            J_centered
-
-            modelestimparamsvec
-            epsilonparamup(:,ee)
-            epsilonparamdown(:,ee)
-
-            ObjValue
-            ObjValue_upwind
-            ObjValue_downwind
         end
     end
 
