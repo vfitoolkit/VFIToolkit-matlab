@@ -686,6 +686,14 @@ for reverse_j = 0:N_j-1
         aprimeFnParamsCell = {};
     end
 
+    % --- TENSOR BRIDGE FIX: Inject Infinite Horizon Continuation ---
+    if jj == N_j && isfield(vfoptions, 'V_Jplus1') && ~isempty(vfoptions.V_Jplus1)
+        V_next = reshape(vfoptions.V_Jplus1, [n_a_work, n_z_work, n_e_work]);
+        if vfoptions.parallel == 2 && ~isa(V_next, 'gpuArray')
+            V_next = gpuArray(V_next);
+        end
+    end
+
     if jj == N_j && (~isfield(vfoptions, 'V_Jplus1') || isempty(vfoptions.V_Jplus1))
         % --- TERMINAL PERIOD: Skip normal EV and handle via Warm Glow ---
         if warmglow == 1
@@ -734,7 +742,7 @@ for reverse_j = 0:N_j-1
         % =================================================================
         if has_e
             if isfield(vfoptions, 'pi_e_J')
-                pi_e_j = vfoptions.pi_e_J(:, min(jj, size(vfoptions.pi_e_J, 2)));
+                pi_e_j = vfoptions.pi_e_J(:, min(jj + 1, size(vfoptions.pi_e_J, 2)));
             else
                 pi_e_j = vfoptions.pi_e;
             end
@@ -829,9 +837,9 @@ for reverse_j = 0:N_j-1
             % Reshape to broadcast across (a, semiz_z, e, dsemiz)
             WG_eval = reshape(WG_eval, [N_a, 1, 1, 1]);
             EV = EV * sj(jj) + (1 - sj(jj)) * WG_eval;
-        else
-            EV = EV * sj(jj);
         end
+
+        % --- EZ Certainty Equivalent Reverse Transformation ---
     end
 
     % --- EZ Certainty Equivalent Reverse Transformation ---

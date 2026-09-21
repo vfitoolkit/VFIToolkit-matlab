@@ -226,11 +226,12 @@ for reverse_j = 0:N_j-1
         end
         WG_transformed(WG_eval == 0) = 0;
 
-        WG_eval = reshape(WG_transformed, [N_a, 1, 1]);
-        EV_Expected = EV_Expected * sj(jj) + (1 - sj(jj)) * WG_eval;
-    else
-        EV_Expected = EV_Expected * sj(jj);
+        % Reshape to broadcast across (a, semiz_z, e, dsemiz)
+        WG_eval = reshape(WG_eval, [N_a, 1, 1, 1]);
+        EV = EV * sj(jj) + (1 - sj(jj)) * WG_eval;
     end
+
+    % --- EZ Certainty Equivalent Reverse Transformation ---
 
     valid_EV = isfinite(EV_Expected) & (EV_Expected ~= 0);
     if ezc6(jj) ~= 1; EV_Expected(valid_EV) = max(EV_Expected(valid_EV), 0).^ezc6(jj); end
