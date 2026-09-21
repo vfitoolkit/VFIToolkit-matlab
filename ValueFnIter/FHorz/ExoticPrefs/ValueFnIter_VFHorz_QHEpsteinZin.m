@@ -233,8 +233,6 @@ for reverse_j = 0:N_j-1
     end
 
     valid_EV = isfinite(EV_Expected) & (EV_Expected ~= 0);
-
-    valid_EV = isfinite(EV_Expected) & (EV_Expected ~= 0);
     if ezc6(jj) ~= 1; EV_Expected(valid_EV) = max(EV_Expected(valid_EV), 0).^ezc6(jj); end
     if ezc8(jj) ~= 1; EV_Expected(valid_EV) = max(EV_Expected(valid_EV), 0).^ezc8(jj); end
 
@@ -279,7 +277,14 @@ for i_a2 = 1:length(a2_chunks)
 
         start_idx = (min(curr_ze) - 1) * N_a + 1;
         end_idx   = max(curr_ze) * N_a;
-        EV_local  = EV_flat(start_idx : end_idx);
+        % Slice A2 locally for the current chunk
+        A2_local = A2_mat(curr_a2, :);
+        N_a2_local = size(A2_local, 1);
+
+        start_idx = (min(curr_ze) - 1) * N_a + 1;
+        end_idx   = max(curr_ze) * N_a;
+        % FIX: Ensure we extract all SemiZ decision columns
+        EV_local  = EV_flat(start_idx : end_idx, :);
 
         % Launch the QHEZ Bridge TensorBlock
         [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QHEZ_TensorBlock(...
@@ -361,7 +366,7 @@ end
 % THE QHEZ TENSOR-ARRAYFUN BRIDGE
 % =========================================================================
 function [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QHEZ_TensorBlock(...
-    N_a1, N_a2, N_d_safe, N_ze_local, Z_cells_block, D_cells_block, ...
+    N_a1, N_a2_local, N_d_safe, N_ze_local, Z_cells_block, D_cells_block, ...
     A1_mat, A2_mat, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
     TensorReturnFn, ReturnFnParamsCell, TensoraprimeFn, aprimeFnParamsCell, ...
     ezc2_j, ezc3, ezc4, ezc7_j, isNaive, isTerminal, N_dsemiz, dsemiz_idx_tensor)
@@ -407,11 +412,12 @@ if l_a2 > 0
     A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
     ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
 
-    % --- CORRECTED MULTI-SHOCK INDEXING OFFSET ---
-    idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
-    idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
+    % FIX: Stride must use the global N_a2 dimension, not the chunked local dimension
+    N_a2_global = max(1, prod(cellfun(@length, a2_grids_1d)));
+    idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_global);
+    idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_global);
 
-    max_idx_row = size(EV_local, 1); % Dynamically match EV_local dimensions
+    max_idx_row = size(EV_local, 1);
     linear_idx_left  = min(max_idx_row, max(1, idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row));
     linear_idx_right = min(max_idx_row, max(1, idx_right + (dsemiz_idx_tensor - 1) * max_idx_row));
 
@@ -424,15 +430,15 @@ else
     ZE_idx = reshape(0:N_ze_local-1, [1, 1, 1, 1, N_ze_local]);
     idx_base = apr_idx_tensor + ZE_idx * N_a1;
 
-    max_idx_row = N_a1 * N_ze_local;
+    % FIX: Dynamically read memory depth to safely support SemiZ offsets
+    max_idx_row = size(EV_local, 1);
     linear_idx = idx_base + (dsemiz_idx_tensor - 1) * max_idx_row;
-
     EV_bounded = reshape(EV_local(linear_idx(:)), size(linear_idx));
 end
 
 % 4. DUAL TRACKING
 FLAT_CHOICES = max(1, N_d_safe) * N_a1;
-FLAT_STATES  = N_a1 * N_a2 * N_ze_local;
+FLAT_STATES  = N_a1 * N_a2_local * N_ze_local;
 
 if isTerminal
     [V_hat, Pol_hat] = max(reshape(F_tensor, [FLAT_CHOICES, FLAT_STATES]), [], 1);

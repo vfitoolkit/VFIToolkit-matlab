@@ -946,9 +946,8 @@ for reverse_j = 0:N_j-1
                 end
                 N_a2_local = size(A2_local, 1);
 
-                start_idx = (min(curr_ze) - 1) * N_a + 1;
-                end_idx   = max(curr_ze) * N_a;
-                EV_local  = EV_flat_ze(start_idx : end_idx);
+                % FIX: Cleanly extract the 3D tensor slice for all SemiZ decisions
+                EV_local = EV_flat_ze(:, curr_ze, :);
 
                 if has_semiz || has_z
                     num_z_vars = length(n_combined_z);
@@ -1263,8 +1262,11 @@ if isempty(loweredge_matrix)
 
         A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
         ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
-        idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
-        idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
+
+        % FIX: Use Global N_a2 for stride offsets
+        N_a2_global = max(1, prod(cellfun(@length, a2_grids_1d)));
+        idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_global);
+        idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_global);
 
         max_idx_row = size(EV_local, 1);
         linear_idx_left  = min(max_idx_row, max(1, idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row));
@@ -1343,8 +1345,11 @@ else
             weight(a2_right == a2_left) = 0;
 
             ZE_idx = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
-            idx_left  = choice_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
-            idx_right = choice_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_dims);
+
+            % FIX: Use Global N_a2 for stride offsets
+            N_a2_global = max(1, prod(cellfun(@length, a2_grids_1d)));
+            idx_left  = choice_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_global);
+            idx_right = choice_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2_global);
 
             max_idx_row = size(EV_local, 1);
             linear_idx_left  = min(max_idx_row, max(1, idx_left  + (dsemiz_idx_tensor - 1) * max_idx_row));
