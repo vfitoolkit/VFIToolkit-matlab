@@ -375,7 +375,7 @@ else
     n_a2 = [];
     N_a2 = 0;
 end
-N_a1 = prod(n_a1);
+N_a1 = prod(max(1, n_a1));
 
 % --- 2b. Universal Grid Packing ---
 a1_grid_len = sum(n_a1);
@@ -990,7 +990,9 @@ for reverse_j = 0:N_j-1
 
             if vfoptions.gridinterplayer(1) == 1
                 % STAGE 1: Pure Coarse DC Pass to find bounds
-                % Temporarily pass 0 for gridinterplayer to force Branch 1A/2A and prevent Slicer assignment crashes
+                % ARCHITECTURE NOTE: We temporarily mask the GI flag to force Branch 1A.
+                % This guarantees a pure coarse search and prevents the generalized ND-Slicer
+                % from crashing when attempting to assign fine-grid L2 flag arrays prematurely.
                 temp_vfoptions = vfoptions;
                 temp_vfoptions.gridinterplayer = 0;
 
@@ -1307,22 +1309,29 @@ end
 % Gather V to CPU to keep memory domains aligned for StationaryDist
 V_cpu = gather(V);
 
-% Dynamically capture policy output size to prevent dimension crashes
 out_pol_vars = size(Policy_flat, 1);
 
-if has_z && has_e
-    Policy = reshape(Policy_flat, [out_pol_vars, n_a, n_all_z, n_e_pass, N_j]);
-    V = reshape(V_cpu, [n_a, n_all_z, n_e_pass, N_j]);
-elseif has_z && ~has_e
-    Policy = reshape(Policy_flat, [out_pol_vars, n_a, n_all_z, N_j]);
-    V = reshape(V_cpu, [n_a, n_all_z, N_j]);
-elseif ~has_z && has_e
-    Policy = reshape(Policy_flat, [out_pol_vars, n_a, n_e_pass, N_j]);
-    V = reshape(V_cpu, [n_a, n_e_pass, N_j]);
-else
-    Policy = reshape(Policy_flat, [out_pol_vars, n_a, N_j]);
-    V = reshape(V_cpu, [n_a, N_j]);
+% Filter out 0 placeholders for the final reshape dimensions
+out_n_a = n_a(n_a > 0);
+if isempty(out_n_a); out_n_a = 1; end
+
+% In VFHorz, n_all_z handles both Z and SemiZ. We must filter the combined array.
+out_n_all_z = n_all_z(n_all_z > 0);
+if isempty(out_n_all_z); out_n_all_z = 1; end
+
+% Dynamically build the state dimension vector
+state_shape = out_n_a;
+if has_z || has_semiz  % Safely covers Z-only, SemiZ-only, and Z+SemiZ models
+    state_shape = [state_shape, out_n_all_z];
 end
+if has_e
+    state_shape = [state_shape, n_e_pass];
+end
+state_shape = [state_shape, N_j]; % Append the time dimension
+
+% Execute clean, single-call unpacks
+Policy = reshape(Policy_flat, [out_pol_vars, state_shape]);
+V = reshape(V_cpu, state_shape);
 
 varargout{1} = V;
 varargout{2} = Policy;
@@ -1424,8 +1433,12 @@ if isempty(loweredge_matrix)
 
     else
         % =================================================================
-        % BRANCH 1B: FULL FINE GRID EVALUATION (Sidesteps 2-Step Trap)
+        % BRANCH 1B: FULL FINE GRID EVALUATION (1-Step Brute Force)
         % =================================================================
+        % ARCHITECTURE NOTE: This branch executes an unconstrained global search
+        % across the entire fine grid. It is mathematically pure but highly VRAM/compute
+        % intensive. It is currently bypassed by the 2-Stage orchestrators to mimic
+        % Legacy VFIToolkit's speed, but remains intact as a mathematical fallback.
         num_choices = length(a1prime_grid);
 
         % ALIGNMENT FIX: choice_idx must broadcast exactly across N_states
@@ -1657,25 +1670,27 @@ else
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-            % TENSOR BRIDGE FIX: Flatten choice and offset to prevent 5D transposition misalignment
+            % TENSOR BRIDGE FIX: Use native implicit expansion to build the 5D index tensor
             ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, n_e_loc]);
-
-            % Broadcast to identical shapes before flattening
-            choice_idx_cast = repmat(choice_idx, [1, 1, 1, 1, 1]);
-            ze_offset_cast  = repmat(ze_offset, [1, num_choices, N_states, 1, 1]);
-
-            L2_linear_idx = choice_idx_cast(:) + ze_offset_cast(:);
+            L2_linear_idx = choice_idx + ze_offset;
 
             if N_dsemiz > 1
                 dsemiz_stride = (dsemiz_idx_tensor - 1) * (length(a1prime_grid) * N_ze_local);
-                L2_linear_idx = L2_linear_idx + repmat(dsemiz_stride(:), [1, num_choices, N_states, n_z_loc, n_e_loc]);
+                L2_linear_idx = L2_linear_idx + dsemiz_stride;
             end
 
-            % Extract in 1D, then restore the perfect 5D tensor shape for RHS addition
-            EV_raw = EV_interp_local(L2_linear_idx);
-            EV_bounded = reshape(EV_raw, [1, num_choices, N_states, n_z_loc, n_e_loc]);
+            % Extract the ND tensor perfectly. Output shape matches L2_linear_idx exactly.
+            EV_bounded = EV_interp_local(L2_linear_idx);
 
-            EV_bounded(out_of_bounds) = -Inf; % In-place boundary penalty
+            % Broadcast out_of_bounds to match EV_bounded if N_dsemiz expands the first dimension
+            if N_dsemiz > 1
+                out_of_bounds_exp = repmat(out_of_bounds, [N_d_safe, 1, 1, 1, 1]);
+                EV_bounded(out_of_bounds_exp) = -Inf;
+            else
+                EV_bounded(out_of_bounds) = -Inf;
+            end
+
+            % In-place boundary penalty
             EV_bounded = beta_j .* EV_bounded;
         end
     end
@@ -1718,10 +1733,14 @@ else
         linidx_lower = d_idx_local(:)' + (1 - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
         linidx_upper = d_idx_local(:)' + (n2long - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
 
-        isInfLower = (RHS_flat(linidx_lower) == -Inf);
-        isInfUpper = (RHS_flat(linidx_upper) == -Inf);
+        % TENSOR BRIDGE FIX: Legacy checks the Return Function (ReturnMatrix_ii) for -Inf,
+        % NOT the entire RHS. This prevents EV from falsely triggering the boundary repeller.
+        F_flat = reshape(F_tensor, [max(1, N_d_safe) * num_choices, FLAT_STATES]);
+        isInfLower = (F_flat(linidx_lower) == -Inf);
+        isInfUpper = (F_flat(linidx_upper) == -Inf);
+        clear F_flat; % Free VRAM immediately to prevent GPU memory pressure
 
-        % apr_offset matches Legacy's L2offset exactly (1 to 43)
+        % apr_offset matches Legacy's L2offset exactly (along n2long)
         inLowerStrict = (apr_offset(:)' >= 2) & (apr_offset(:)' <= n2short + 1);
         inUpperStrict = (apr_offset(:)' >= n2short + 3) & (apr_offset(:)' <= n2long - 1);
 
