@@ -4,7 +4,7 @@ function [V,Policy]=ValueFnIter_FHorz_ExpAssetu_GI2A_nod1_raw(n_d2, n_a1, n_a2, 
 % experience asset as the last endogenous state (n_a3, scalar).
 % _nod1: only d2 (no d1).
 % Policy is 4-channel: 1=d2, 2=a1prime midpoint, 3=a2prime, 4=a1prime L2.
-% A 5th channel PolicyL2flag is concatenated at the end.
+% A 5th channel holds the L2 flag.
 
 N_d2=prod(n_d2);
 N_a1=prod(n_a1);
@@ -15,8 +15,8 @@ N_a=N_a1*N_a2*N_a3;
 N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_z,N_j,'gpuArray'); % 1=d2, 2=a1prime midpoint, 3=a2prime, 4=a1prime L2 fine
-PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_z,N_j,'gpuArray'); % 1=d2, 2=a1prime midpoint, 3=a2prime, 4=a1prime L2 fine
+Policy(5,:,:,:)=2;
 
 %% GI setup
 n2short=vfoptions.ngridinterp;
@@ -68,7 +68,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         aind_z=gpuArray(0:1:N_a-1);
@@ -98,7 +98,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper   =(ReturnMatrix_ii_z(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 
@@ -166,7 +166,7 @@ else
         isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         aind_z=gpuArray(0:1:N_a-1);
@@ -203,7 +203,7 @@ else
             isInfUpper   =(ReturnMatrix_ii_z(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 end
@@ -274,7 +274,7 @@ for reverse_j=1:N_j-1
         isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         aind_z=gpuArray(0:1:N_a-1);
@@ -311,7 +311,7 @@ for reverse_j=1:N_j-1
             isInfUpper   =(ReturnMatrix_ii_z(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,z_c,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 end
@@ -322,8 +322,6 @@ end
 % Switch Policy(2,:) to 'lower grid point', and Policy(4,:) to a 1..(n2short+2) offset.
 adjust=(Policy(4,:,:,:)<1+n2short+1); % is the L2 index below midpoint?
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
-Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(4,:,:,:)=Policy(4,:,:,:)-(n2short+1)*(~adjust);
 
 end

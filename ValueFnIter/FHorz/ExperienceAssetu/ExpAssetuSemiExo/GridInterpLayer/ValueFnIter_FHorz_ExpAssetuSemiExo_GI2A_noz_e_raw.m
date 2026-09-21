@@ -22,8 +22,8 @@ N_e=prod(n_e);
 
 V=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,joint(a1prime,a2prime),a1primeL2ind seperately
-Policy4=zeros(5,N_a,N_semiz,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+Policy4=zeros(6,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy4(6,:,:,:,:)=2; % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 
 %%
 d2ind_vec=repelem((1:1:N_d2)',N_d1,1); % [N_d12,1]; maps d12-index to d2-component
@@ -171,7 +171,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy4(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]); % d2
     Policy4(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]); % joint(a1prime,a2prime)
     Policy4(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_semiz,N_e]); % a1primeL2ind
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy4(6,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -344,7 +344,7 @@ else
     Policy4(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]); % d2
     Policy4(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]); % joint(a1prime,a2prime)
     Policy4(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_semiz,N_e]); % a1primeL2ind
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy4(6,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 end
 
 
@@ -527,7 +527,7 @@ for reverse_j=1:N_j-1
     Policy4(2,:,:,:,jj)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]); % d2
     Policy4(4,:,:,:,jj)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]); % joint(a1prime,a2prime)
     Policy4(5,:,:,:,jj)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_semiz,N_e]); % a1primeL2ind
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_jj((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy4(6,:,:,:,jj)=reshape(flag_ford3_jj((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 end
 
 
@@ -538,9 +538,7 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy4(5,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy4(4,:,:,:,:)=Policy4(4,:,:,:,:)-adjust; % a1prime part of joint -> lower grid point
-Policy4(5,:,:,:,:)=adjust.*Policy4(5,:,:,:,:)+(1-adjust).*(Policy4(5,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy4=[Policy4;PolicyL2flag];
+Policy4(5,:,:,:,:)=Policy4(5,:,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 end

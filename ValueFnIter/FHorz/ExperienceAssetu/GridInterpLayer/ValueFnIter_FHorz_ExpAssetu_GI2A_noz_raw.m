@@ -11,8 +11,8 @@ N_u=prod(n_u);
 N_a=N_a1*N_a2*N_a3;
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_j,'gpuArray'); % 1=d (joint), 2=a1prime midpoint, 3=a2prime, 4=a1prime L2 fine
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_j,'gpuArray'); % 1=d (joint), 2=a1prime midpoint, 3=a2prime, 4=a1prime L2 fine
+Policy(5,:,:)=2;
 
 %% GI setup
 n2short=vfoptions.ngridinterp;
@@ -54,7 +54,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -112,7 +112,7 @@ else
     isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 %% Iterate backwards through j
@@ -177,15 +177,13 @@ for reverse_j=1:N_j-1
     isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 
 %% Post-process
 adjust=(Policy(4,:,:)<1+n2short+1);
 Policy(2,:,:)=Policy(2,:,:)-adjust;
-Policy(4,:,:)=adjust.*Policy(4,:,:)+(1-adjust).*(Policy(4,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(4,:,:)=Policy(4,:,:)-(n2short+1)*(~adjust);
 
 end

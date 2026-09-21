@@ -17,8 +17,8 @@ N_u=prod(n_u);
 
 V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d2,d3,a1prime seperately
-Policy=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz*N_z,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policy=zeros(5,N_a,N_semiz*N_z,N_j,'gpuArray');
+Policy(5,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
@@ -262,7 +262,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(3,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz]);
     Policy(4,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz]);
     flat_idx=(1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1);
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_jj(flat_idx),[1,N_a,N_bothz]);
+    Policy(5,:,:,N_j)=reshape(flag_ford3_jj(flat_idx),[1,N_a,N_bothz]);
 
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -570,7 +570,7 @@ else
     Policy(3,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz]);
     Policy(4,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz]);
     flat_idx=(1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1);
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_jj(flat_idx),[1,N_a,N_bothz]);
+    Policy(5,:,:,N_j)=reshape(flag_ford3_jj(flat_idx),[1,N_a,N_bothz]);
 end
 
 
@@ -891,7 +891,7 @@ for reverse_j=1:N_j-1
     Policy(3,:,:,jj)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz]);
     Policy(4,:,:,jj)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz]);
     flat_idx=(1:1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1);
-    PolicyL2flag(1,:,:,jj)=reshape(flag_ford3_jj(flat_idx),[1,N_a,N_bothz]);
+    Policy(5,:,:,jj)=reshape(flag_ford3_jj(flat_idx),[1,N_a,N_bothz]);
 
 end
 
@@ -904,8 +904,6 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(4,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(3,:,:,:)=Policy(3,:,:,:)-adjust; % lower grid point
-Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy; PolicyL2flag];
+Policy(4,:,:,:)=Policy(4,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 end

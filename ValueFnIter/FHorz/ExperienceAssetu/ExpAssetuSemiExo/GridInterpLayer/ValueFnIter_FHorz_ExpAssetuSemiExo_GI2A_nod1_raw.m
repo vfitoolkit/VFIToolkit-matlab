@@ -23,8 +23,8 @@ N_bothz=prod(n_bothz);
 
 V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d2,d3,joint(a1prime,a2prime) seperately
-Policy3=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % 1=d2, 2=d3, 3=joint(a1prime,a2prime), 4=a1prime L2
-PolicyL2flag=2*ones(1,N_a,N_semiz*N_z,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+Policy3=zeros(5,N_a,N_semiz*N_z,N_j,'gpuArray'); % 1=d2, 2=d3, 3=joint(a1prime,a2prime), 4=a1prime L2
+Policy3(5,:,:,:)=2; % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 
 %%
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
@@ -167,7 +167,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy3(1,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_bothz]); % d2
     Policy3(3,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz]); % joint(a1prime midpoint,a2prime)
     Policy3(4,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz]); % a1prime L2
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+    Policy3(5,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
 
 else
     % vfoptions.V_Jplus1 provided
@@ -341,7 +341,7 @@ else
     Policy3(1,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_bothz]);
     Policy3(3,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz]);
     Policy3(4,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz]);
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+    Policy3(5,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
 end
 
 
@@ -524,7 +524,7 @@ for reverse_j=1:N_j-1
     Policy3(1,:,:,jj)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_bothz]);
     Policy3(3,:,:,jj)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz]);
     Policy3(4,:,:,jj)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz]);
-    PolicyL2flag(1,:,:,jj)=reshape(flag_ford3_jj((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+    Policy3(5,:,:,jj)=reshape(flag_ford3_jj((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
 
 end
 
@@ -534,8 +534,6 @@ end
 % Switch Policy3(3,:) to joint(lower a1prime grid point,a2prime), and Policy3(4,:) to a 1..(n2short+2) offset.
 adjust=(Policy3(4,:,:,:)<1+n2short+1); % is the L2 index below midpoint?
 Policy3(3,:,:,:)=Policy3(3,:,:,:)-adjust; % decrement a1prime component of the joint (midpoint>=2 keeps it within the same a2prime block)
-Policy3(4,:,:,:)=adjust.*Policy3(4,:,:,:)+(1-adjust).*(Policy3(4,:,:,:)-n2short-1);
-
-Policy3=[Policy3;PolicyL2flag];
+Policy3(4,:,:,:)=Policy3(4,:,:,:)-(n2short+1)*(~adjust);
 
 end

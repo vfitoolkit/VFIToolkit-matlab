@@ -3,7 +3,7 @@ function [V,Policy4]=ValueFnIter_FHorz_ExpAssetuSemiExo_DC2A_GI2A_raw(n_d1, n_d2
 % d1 is any other decision, d2 determines experience asset (a3), d3 determines semi-exog state (semiz).
 % a1 is divide-conquered+grid-interp standard asset; a2 is a folded standard asset (choice a2prime); a3 is the experience asset.
 % z is exogenous Markov, semiz is semi-exogenous; bothz=(semiz,z) with semiz varying fastest.
-% Policy4 is 5-channel: 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint->lower grid point after post-process, a2prime), 5=a1prime L2; PolicyL2flag appended as 6th.
+% Policy4 is 5-channel: 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint->lower grid point after post-process, a2prime), 5=a1prime L2; the L2 flag as 6th.
 % lowmemory: 2 shocks {z,semiz} => levels {0,1,2}.
 %   =0 vectorise bothz; =1 split: outer-loop z / semiz parallel; =2 joint: loop over bothz.
 
@@ -25,8 +25,8 @@ N_bothz=N_semiz*N_z;
 
 V=zeros(N_a,N_bothz,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,joint(a1prime(mid),a2prime),a1primeL2ind seperately
-Policy4=zeros(5,N_a,N_bothz,N_j,'gpuArray'); % 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint,a2prime), 5=a1prime L2
-PolicyL2flag=2*ones(1,N_a,N_bothz,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policy4=zeros(6,N_a,N_bothz,N_j,'gpuArray'); % 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint,a2prime), 5=a1prime L2
+Policy4(6,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 % For the return function we just want the full d=(d1,d2,d3) grid (used in the no-EV section which vectorises over d3)
@@ -118,7 +118,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy4(6,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         % split: parallelise over semiz, loop over z
@@ -170,7 +170,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,zind,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy4(6,:,zind,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
 
     elseif vfoptions.lowmemory==2
@@ -221,7 +221,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy4(6,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 
@@ -458,7 +458,7 @@ else
     Policy4(2,:,:,N_j)=ceil(d12sel/N_d1); % d2
     Policy4(4,:,:,N_j)=reshape(joint_ford3_jj(idx),[1,N_a,N_bothz]); % joint(a1prime midpoint,a2prime)
     Policy4(5,:,:,N_j)=reshape(L2a1_ford3_jj(idx),[1,N_a,N_bothz]); % a1primeL2ind
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
+    Policy4(6,:,:,N_j)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
 end
 
 
@@ -703,7 +703,7 @@ for reverse_j=1:N_j-1
     Policy4(2,:,:,jj)=ceil(d12sel/N_d1); % d2
     Policy4(4,:,:,jj)=reshape(joint_ford3_jj(idx),[1,N_a,N_bothz]); % joint(a1prime midpoint,a2prime)
     Policy4(5,:,:,jj)=reshape(L2a1_ford3_jj(idx),[1,N_a,N_bothz]); % a1primeL2ind
-    PolicyL2flag(1,:,:,jj)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
+    Policy4(6,:,:,jj)=reshape(L2flag_ford3_jj(idx),[1,N_a,N_bothz]);
 end
 
 
@@ -711,8 +711,6 @@ end
 % Policy4(4,:) is joint(a1prime midpoint,a2prime) and Policy4(5,:) the second layer (ranges -n2short-1:1:1+n2short).
 adjust=(Policy4(5,:,:,:)<1+n2short+1);
 Policy4(4,:,:,:)=Policy4(4,:,:,:)-adjust; % a1prime part of joint -> lower grid point
-Policy4(5,:,:,:)=adjust.*Policy4(5,:,:,:)+(1-adjust).*(Policy4(5,:,:,:)-n2short-1);
-
-Policy4=[Policy4;PolicyL2flag];
+Policy4(5,:,:,:)=Policy4(5,:,:,:)-(n2short+1)*(~adjust);
 
 end
