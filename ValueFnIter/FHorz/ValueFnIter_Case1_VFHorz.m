@@ -752,6 +752,19 @@ for reverse_j = 0:N_j-1
             WG_eval = WG_eval * ones(size(a_grid), 'like', a_grid);
         end
 
+        % --- TENSOR BRIDGE FIX: Transform WarmGlow to EZ Space ---
+        if is_EZ
+            valid_wg = isfinite(WG_eval) & (WG_eval ~= 0);
+            WG_transformed = WG_eval;
+            if ezc5(jj) == 1
+                WG_transformed(valid_wg) = ezc4 * WG_eval(valid_wg);
+            else
+                WG_transformed(valid_wg) = max(ezc4 * WG_eval(valid_wg), 0).^ezc5(jj);
+            end
+            WG_transformed(WG_eval == 0) = 0;
+            WG_eval = WG_transformed;
+        end
+
         % Reshape to broadcast across (a, semiz_z, e, dsemiz)
         WG_eval = reshape(WG_eval, [N_a, 1, 1, 1]);
         EV = EV * sj(jj) + (1 - sj(jj)) * WG_eval;
