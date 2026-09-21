@@ -10,6 +10,24 @@ isNaive = strcmp(vfoptions.quasi_hyperbolic, 'Naive');
 ezc2 = vfoptions.ezc2; ezc3 = vfoptions.ezc3; ezc4 = vfoptions.ezc4;
 ezc5 = vfoptions.ezc5; ezc6 = vfoptions.ezc6; ezc7 = vfoptions.ezc7; ezc8 = vfoptions.ezc8;
 
+% --- Parse Survival and Warm Glow ---
+if isfield(vfoptions, 'survivalprobability')
+    sj = Parameters.(vfoptions.survivalprobability);
+else
+    sj = ones(N_j, 1);
+    if isfield(vfoptions, 'WarmGlowBequestsFn')
+        sj(end) = 0;
+    end
+end
+
+warmglow = 0;
+if isfield(vfoptions, 'WarmGlowBequestsFn')
+    warmglow = 1;
+    temp = getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
+    WGParamNames = {temp{2:end}};
+    WGParamNames = WGParamNames(isfield(Parameters, WGParamNames));
+end
+
 % --- 2. Dimension and ExpAsset Slicing ---
 l_a2 = 0;
 if vfoptions.experienceasset > 0; l_a2 = vfoptions.experienceasset; end
@@ -131,152 +149,176 @@ for reverse_j = 0:N_j-1
         aprimeFnParamsCell = {};
     end
 
-    % --- TERMINAL PERIOD ---
+    % --- TERMINAL & CONTINUATION PERIODS ---
     if jj == N_j && ~isfield(vfoptions, 'V_Jplus1')
-        EV_flat = zeros(N_a * N_z, 1, 'like', a_grid);
+        EV_Source = zeros(N_a, N_z, 'like', a_grid);
+    elseif jj == N_j
+        EV_Source = reshape(gpuArray(vfoptions.V_Jplus1), [N_a, N_z]);
     else
-        % --- CONTINUATION PERIODS ---
-        if jj == N_j
-            EV_Source = reshape(gpuArray(vfoptions.V_Jplus1), [N_a, N_z]);
-        else
-            % Pull the slice back from CPU RAM to the GPU for this period's math
-            EV_Source = gpuArray(reshape(Valt(:,:,jj+1), [N_a, N_z]));
-        end
-
-        valid_V = isfinite(EV_Source) & (EV_Source ~= 0);
-        V_transformed = EV_Source;
-        if ezc5(jj) == 1
-            V_transformed(valid_V) = ezc4 * EV_Source(valid_V);
-        else
-            V_transformed(valid_V) = max(ezc4 * EV_Source(valid_V), 0).^ezc5(jj);
-        end
-        V_transformed(EV_Source == 0) = 0;
-
-        % --- Decoupled, Decision-Dependent Expectations ---
-        has_semiz = isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz) > 0;
-        N_semiz_local = 1;
-        N_dsemiz = 1;
-        if has_semiz
-            N_semiz_local = max(1, prod(vfoptions.n_semiz));
-            if isfield(vfoptions, 'l_dsemiz')
-                N_dsemiz = max(1, prod(n_d(end-vfoptions.l_dsemiz+1:end)));
-            else
-                N_dsemiz = max(1, n_d(end));
-            end
-        end
-        N_z_exog = max(1, N_z / N_semiz_local);
-
-        EV_Expected = zeros(N_a, N_semiz_local * N_z_exog, N_dsemiz, 'like', V_transformed);
-
-        % 1. Exogenous Z Transition (Shared across all decisions)
-        if N_z_exog > 1
-            pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3))); % Raw pi_z
-            V_slice = reshape(V_transformed, [N_a * N_semiz_local, N_z_exog]);
-            V_z_eval = V_slice * pi_z_j';
-            V_z_eval = reshape(V_z_eval, [N_a, N_semiz_local, N_z_exog]);
-        else
-            V_z_eval = reshape(V_transformed, [N_a, N_semiz_local, N_z_exog]);
-        end
-
-        % 2. Semi-Exogenous Transition (Decision Dependent)
-        if has_semiz
-            pi_semiz_j = vfoptions.pi_semiz_J(:, :, :, min(jj, size(vfoptions.pi_semiz_J, 4)));
-            V_perm = reshape(permute(V_z_eval, [2, 1, 3]), [N_semiz_local, N_a * N_z_exog]);
-            for idsemiz = 1:N_dsemiz
-                pi_semiz_d = pi_semiz_j(:, :, idsemiz);
-                EV_perm = pi_semiz_d * V_perm;
-                EV_d = permute(reshape(EV_perm, [N_semiz_local, N_a, N_z_exog]), [2, 1, 3]);
-                EV_Expected(:,:,idsemiz) = reshape(EV_d, [N_a, N_semiz_local * N_z_exog]);
-            end
-        else
-            EV_Expected(:,:,1) = reshape(V_z_eval, [N_a, N_semiz_local * N_z_exog]);
-        end
-
-        valid_EV = isfinite(EV_Expected) & (EV_Expected ~= 0);
-        if ezc6(jj) ~= 1; EV_Expected(valid_EV) = max(EV_Expected(valid_EV), 0).^ezc6(jj); end
-        if ezc8(jj) ~= 1; EV_Expected(valid_EV) = max(EV_Expected(valid_EV), 0).^ezc8(jj); end
-
-        EV_flat = reshape(EV_Expected, [N_a * N_z, N_dsemiz]);
+        % Pull the slice back from CPU RAM to the GPU for this period's math
+        EV_Source = gpuArray(reshape(Valt(:,:,jj+1), [N_a, N_z]));
     end
 
-    % Allocate GPU tensors for THIS period's slices
-    V1_j = zeros(N_a, N_z, 'like', a_grid);
-    Valt_j = zeros(N_a, N_z, 'like', a_grid);
-    Pol_j = zeros(N_a, N_z, 'like', a_grid);
-    if isNaive; Polalt_j = zeros(N_a, N_z, 'like', a_grid); end
+    valid_V = isfinite(EV_Source) & (EV_Source ~= 0);
 
-    if N_dsemiz > 1
+    V_transformed = EV_Source;
+    if ezc5(jj) == 1
+        V_transformed(valid_V) = ezc4 * EV_Source(valid_V);
+    else
+        V_transformed(valid_V) = max(ezc4 * EV_Source(valid_V), 0).^ezc5(jj);
+    end
+    V_transformed(EV_Source == 0) = 0;
+
+    % --- Decoupled, Decision-Dependent Expectations ---
+    has_semiz = isfield(vfoptions, 'n_semiz') && prod(vfoptions.n_semiz) > 0;
+    N_semiz_local = 1;
+    N_dsemiz = 1;
+    if has_semiz
+        N_semiz_local = max(1, prod(vfoptions.n_semiz));
         if isfield(vfoptions, 'l_dsemiz')
-            N_d_prefix = max(1, prod(n_d(1:end-vfoptions.l_dsemiz)));
+            N_dsemiz = max(1, prod(n_d(end-vfoptions.l_dsemiz+1:end)));
         else
-            N_d_prefix = max(1, prod(n_d(1:end-1)));
+            N_dsemiz = max(1, n_d(end));
         end
-        dsemiz_idx = ceil((1:N_d)' / N_d_prefix);
-        dsemiz_idx_tensor = reshape(dsemiz_idx, [N_d, 1, 1, 1, 1]);
+    end
+    N_z_exog = max(1, N_z / N_semiz_local);
+
+    EV_Expected = zeros(N_a, N_semiz_local * N_z_exog, N_dsemiz, 'like', V_transformed);
+
+    % 1. Exogenous Z Transition (Shared across all decisions)
+    if N_z_exog > 1
+        pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3))); % Raw pi_z
+        V_slice = reshape(V_transformed, [N_a * N_semiz_local, N_z_exog]);
+        V_z_eval = V_slice * pi_z_j';
+        V_z_eval = reshape(V_z_eval, [N_a, N_semiz_local, N_z_exog]);
     else
-        dsemiz_idx_tensor = ones(N_d, 1, 1, 1, 1);
+        V_z_eval = reshape(V_transformed, [N_a, N_semiz_local, N_z_exog]);
     end
 
-    % --- The Master Orchestrator Loop ---
-    for i_a2 = 1:length(a2_chunks)
-        curr_a2 = a2_chunks{i_a2};
-        N_a2_local = length(curr_a2);
-
-        for i_ze = 1:length(ze_chunks)
-            curr_ze = ze_chunks{i_ze};
-            N_ze_local = length(curr_ze);
-
-            Z_cells_local = cell(1, size(z_gridvals_J, 2));
-            for iz = 1:size(z_gridvals_J, 2)
-                Z_cells_local{iz} = reshape(z_gridvals_J(curr_ze, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, 1, N_ze_local]);
-            end
-
-            % Slice A2 locally for the current chunk
-            A2_local = A2_mat(curr_a2, :);
-            N_a2_local = size(A2_local, 1);
-
-            start_idx = (min(curr_ze) - 1) * N_a + 1;
-            end_idx   = max(curr_ze) * N_a;
-            EV_local  = EV_flat(start_idx : end_idx);
-
-            % Launch the QHEZ Bridge TensorBlock
-            [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QHEZ_TensorBlock(...
-                N_a1, N_a2_local, N_d, N_ze_local, Z_cells_local, D_cells_block, ...
-                A1_mat, A2_local, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
-                TensorReturnFn, ReturnFnParamsCell, TensoraprimeFn, aprimeFnParamsCell, ...
-                ezc2(jj), ezc3, ezc4, ezc7(jj), isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'), ...
-                N_dsemiz, dsemiz_idx_tensor);
-
-            % Map the local slice back into the global V1_j structure
-            start_a_idx = (min(curr_a2) - 1) * N_a1 + 1;
-            end_a_idx   = max(curr_a2) * N_a1;
-
-            V1_j( start_a_idx : end_a_idx, curr_ze ) = reshape(V_hat, [N_a1 * N_a2_local, N_ze_local]);
-            Valt_j( start_a_idx : end_a_idx, curr_ze ) = reshape(V_underbar, [N_a1 * N_a2_local, N_ze_local]);
-            Pol_j( start_a_idx : end_a_idx, curr_ze ) = reshape(Pol_hat, [N_a1 * N_a2_local, N_ze_local]);
-            if isNaive
-                Polalt_j( start_a_idx : end_a_idx, curr_ze ) = reshape(Pol_alt, [N_a1 * N_a2_local, N_ze_local]);
-            end
+    % 2. Semi-Exogenous Transition (Decision Dependent)
+    if has_semiz
+        pi_semiz_j = vfoptions.pi_semiz_J(:, :, :, min(jj, size(vfoptions.pi_semiz_J, 4)));
+        V_perm = reshape(permute(V_z_eval, [2, 1, 3]), [N_semiz_local, N_a * N_z_exog]);
+        for idsemiz = 1:N_dsemiz
+            pi_semiz_d = pi_semiz_j(:, :, idsemiz);
+            EV_perm = pi_semiz_d * V_perm;
+            EV_d = permute(reshape(EV_perm, [N_semiz_local, N_a, N_z_exog]), [2, 1, 3]);
+            EV_Expected(:,:,idsemiz) = reshape(EV_d, [N_a, N_semiz_local * N_z_exog]);
         end
+    else
+        EV_Expected(:,:,1) = reshape(V_z_eval, [N_a, N_semiz_local * N_z_exog]);
     end
 
-    % Gather from GPU to System RAM
-    V1(:,:,jj) = gather(V1_j);
-    Valt(:,:,jj) = gather(Valt_j);
-    if has_GI
-        Policy(1,:,:,jj) = gather(Pol_j);
-        Policy(2,:,:,jj) = 0;
-        Policy(3,:,:,jj) = 2;
+    % --- Apply Survival Probabilities and Warm Glow ---
+    if warmglow == 1
+        wg_params = CreateCellFromParams(Parameters, WGParamNames, jj, vfoptions.precision);
+        WG_eval = vfoptions.WarmGlowBequestsFn(a_grid, wg_params{:});
+        if isscalar(WG_eval)
+            WG_eval = WG_eval * ones(size(a_grid), 'like', a_grid);
+        end
+
+        valid_wg = isfinite(WG_eval) & (WG_eval ~= 0);
+        WG_transformed = WG_eval;
+        if ezc5(jj) == 1
+            WG_transformed(valid_wg) = ezc4 * WG_eval(valid_wg);
+        else
+            WG_transformed(valid_wg) = max(ezc4 * WG_eval(valid_wg), 0).^ezc5(jj);
+        end
+        WG_transformed(WG_eval == 0) = 0;
+
+        WG_eval = reshape(WG_transformed, [N_a, 1, 1]);
+        EV_Expected = EV_Expected * sj(jj) + (1 - sj(jj)) * WG_eval;
+    else
+        EV_Expected = EV_Expected * sj(jj);
+    end
+
+    valid_EV = isfinite(EV_Expected) & (EV_Expected ~= 0);
+
+    valid_EV = isfinite(EV_Expected) & (EV_Expected ~= 0);
+    if ezc6(jj) ~= 1; EV_Expected(valid_EV) = max(EV_Expected(valid_EV), 0).^ezc6(jj); end
+    if ezc8(jj) ~= 1; EV_Expected(valid_EV) = max(EV_Expected(valid_EV), 0).^ezc8(jj); end
+
+    EV_flat = reshape(EV_Expected, [N_a * N_z, N_dsemiz]);
+end
+
+% Allocate GPU tensors for THIS period's slices
+V1_j = zeros(N_a, N_z, 'like', a_grid);
+Valt_j = zeros(N_a, N_z, 'like', a_grid);
+Pol_j = zeros(N_a, N_z, 'like', a_grid);
+if isNaive; Polalt_j = zeros(N_a, N_z, 'like', a_grid); end
+
+if N_dsemiz > 1
+    if isfield(vfoptions, 'l_dsemiz')
+        N_d_prefix = max(1, prod(n_d(1:end-vfoptions.l_dsemiz)));
+    else
+        N_d_prefix = max(1, prod(n_d(1:end-1)));
+    end
+    dsemiz_idx = ceil((1:N_d)' / N_d_prefix);
+    dsemiz_idx_tensor = reshape(dsemiz_idx, [N_d, 1, 1, 1, 1]);
+else
+    dsemiz_idx_tensor = ones(N_d, 1, 1, 1, 1);
+end
+
+% --- The Master Orchestrator Loop ---
+for i_a2 = 1:length(a2_chunks)
+    curr_a2 = a2_chunks{i_a2};
+    N_a2_local = length(curr_a2);
+
+    for i_ze = 1:length(ze_chunks)
+        curr_ze = ze_chunks{i_ze};
+        N_ze_local = length(curr_ze);
+
+        Z_cells_local = cell(1, size(z_gridvals_J, 2));
+        for iz = 1:size(z_gridvals_J, 2)
+            Z_cells_local{iz} = reshape(z_gridvals_J(curr_ze, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, 1, N_ze_local]);
+        end
+
+        % Slice A2 locally for the current chunk
+        A2_local = A2_mat(curr_a2, :);
+        N_a2_local = size(A2_local, 1);
+
+        start_idx = (min(curr_ze) - 1) * N_a + 1;
+        end_idx   = max(curr_ze) * N_a;
+        EV_local  = EV_flat(start_idx : end_idx);
+
+        % Launch the QHEZ Bridge TensorBlock
+        [V_hat, Pol_hat, V_underbar, Pol_alt] = Evaluate_QHEZ_TensorBlock(...
+            N_a1, N_a2_local, N_d, N_ze_local, Z_cells_local, D_cells_block, ...
+            A1_mat, A2_local, a2_grids_1d, l_a2, beta_j, beta0beta_j, EV_local, ...
+            TensorReturnFn, ReturnFnParamsCell, TensoraprimeFn, aprimeFnParamsCell, ...
+            ezc2(jj), ezc3, ezc4, ezc7(jj), isNaive, jj == N_j && ~isfield(vfoptions, 'V_Jplus1'), ...
+            N_dsemiz, dsemiz_idx_tensor);
+
+        % Map the local slice back into the global V1_j structure
+        start_a_idx = (min(curr_a2) - 1) * N_a1 + 1;
+        end_a_idx   = max(curr_a2) * N_a1;
+
+        V1_j( start_a_idx : end_a_idx, curr_ze ) = reshape(V_hat, [N_a1 * N_a2_local, N_ze_local]);
+        Valt_j( start_a_idx : end_a_idx, curr_ze ) = reshape(V_underbar, [N_a1 * N_a2_local, N_ze_local]);
+        Pol_j( start_a_idx : end_a_idx, curr_ze ) = reshape(Pol_hat, [N_a1 * N_a2_local, N_ze_local]);
         if isNaive
-            Policyalt(1,:,:,jj) = gather(Polalt_j);
-            Policyalt(2,:,:,jj) = 0;
-            Policyalt(3,:,:,jj) = 2;
+            Polalt_j( start_a_idx : end_a_idx, curr_ze ) = reshape(Pol_alt, [N_a1 * N_a2_local, N_ze_local]);
         end
-    else
-        Policy(:,:,jj) = gather(Pol_j);
-        if isNaive; Policyalt(:,:,jj) = gather(Polalt_j); end
     end
 end
+
+% Gather from GPU to System RAM
+V1(:,:,jj) = gather(V1_j);
+Valt(:,:,jj) = gather(Valt_j);
+if has_GI
+    Policy(1,:,:,jj) = gather(Pol_j);
+    Policy(2,:,:,jj) = 0;
+    Policy(3,:,:,jj) = 2;
+    if isNaive
+        Policyalt(1,:,:,jj) = gather(Polalt_j);
+        Policyalt(2,:,:,jj) = 0;
+        Policyalt(3,:,:,jj) = 2;
+    end
+else
+    Policy(:,:,jj) = gather(Pol_j);
+    if isNaive; Policyalt(:,:,jj) = gather(Polalt_j); end
+end
+
 
 % --- 5. UnKron Policies and Final Reshape ---
 out_dims = [n_a, n_z, N_j];
@@ -364,7 +406,7 @@ if l_a2 > 0
 
     A1pr_idx = reshape(1:N_a1, [1, N_a1, 1, 1, 1]);
     ZE_idx   = reshape(1:N_ze_local, [1, 1, 1, 1, N_ze_local]);
-    
+
     % --- CORRECTED MULTI-SHOCK INDEXING OFFSET ---
     idx_left  = A1pr_idx + (idx - 1) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
     idx_right = A1pr_idx + (idx) * N_a1 + (ZE_idx - 1) * (N_a1 * N_a2);
