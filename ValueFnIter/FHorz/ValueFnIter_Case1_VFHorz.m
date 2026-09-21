@@ -645,24 +645,8 @@ for reverse_j = 0:N_j-1
     end
 
     if jj == N_j && (~isfield(vfoptions, 'V_Jplus1') || isempty(vfoptions.V_Jplus1))
-        if warmglow == 1
-            % Evaluate WarmGlowBequestsFn across terminal asset choices
-            % (Assuming a_grid serves as the terminal asset choice grid for bequests)
-            wg_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
-
-            % Evaluate terminal warm glow across the asset space
-            V_warmglow = vfoptions.WarmGlowBequestsFn(a_grid, wg_params{:});
-
-            if isscalar(V_warmglow)
-                V_warmglow = V_warmglow * ones(size(a_grid), 'like', a_grid);
-            end
-            V_warmglow = reshape(V_warmglow, [n_a_work, 1, 1]);
-
-            % CRITICAL FIX: Use n_z_work to account for Semi-Exogenous states!
-            V_next = repmat(V_warmglow, [1, n_z_work, n_e_work]);
-        else
-            V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
-        end
+        % Warm glow is now universally handled during the EV step below.
+        V_next = zeros(n_a_work, n_z_work, n_e_work, 'like', a_grid);
     end
 
     ReturnFnParamsCell = base_ReturnFnParamsCell;
@@ -759,8 +743,21 @@ for reverse_j = 0:N_j-1
         end
     end
 
-    % sj is ones by default, but vfoptions and Parameters can change that
-    EV = EV * sj(jj);
+    % --- Apply Survival Probabilities and Warm Glow ---
+    if warmglow == 1
+        wg_params = CreateCellFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames, jj);
+        % Evaluate Warm Glow strictly on the 1D coarse asset grid
+        WG_eval = vfoptions.WarmGlowBequestsFn(a_grid, wg_params{:});
+        if isscalar(WG_eval)
+            WG_eval = WG_eval * ones(size(a_grid), 'like', a_grid);
+        end
+
+        % Reshape to broadcast across (a, semiz_z, e, dsemiz)
+        WG_eval = reshape(WG_eval, [N_a, 1, 1, 1]);
+        EV = EV * sj(jj) + (1 - sj(jj)) * WG_eval;
+    else
+        EV = EV * sj(jj);
+    end
 
     % --- EZ Certainty Equivalent Reverse Transformation ---
     valid_EV = isfinite(EV) & (EV ~= 0);
