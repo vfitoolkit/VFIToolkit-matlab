@@ -1717,20 +1717,26 @@ else
         Pol_apr_max    = reshape(Pol_apr_max, [N_states, N_ze_local]);
         Pol_L2idx_max  = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
 
-        % --- CRITICAL FIX: Match Legacy L2flag behavior ---
+        % --- CRITICAL FIX: Match 1-Step Brute Force L2flag behavior ---
         Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
 
-        inLowerStrict = (apr_offset >= 2) & (apr_offset <= n2short + 1);
-        inUpperStrict = (apr_offset >= n2short + 3) & (apr_offset <= n2long - 1);
+        % Dynamically locate the absolute coarse nodes inside the 43-point relative RHS_flat
+        lower_coarse_offset = (Pol_apr_max(:)' - loweredge_matrix_flat) * (n2short + 1);
+        rel_lower_apr = lower_coarse_offset - start_offset + 1;
+        rel_upper_apr = min(num_choices, rel_lower_apr + (n2short + 1));
 
-        lin_lower = d_idx_local + (0:FLAT_STATES-1) * size(RHS_flat, 1);
-        lin_upper = d_idx_local + (num_choices - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
+        lin_lower = d_idx_local(:)' + (rel_lower_apr - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
+        lin_upper = d_idx_local(:)' + (rel_upper_apr - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
 
         isInfLower = (RHS_flat(lin_lower) == -Inf);
         isInfUpper = (RHS_flat(lin_upper) == -Inf);
 
-        Pol_L2flag_max(inLowerStrict & isInfLower) = 3;
-        Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
+        isInnerOrUpper = (Pol_L2idx_max(:)' > 1);
+        isInnerOrLower = (Pol_L2idx_max(:)' < n2short + 2);
+
+        Pol_L2flag_max(isInnerOrUpper & isInfLower) = 3;
+        Pol_L2flag_max(isInnerOrLower & isInfUpper) = 1;
+
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
 end
