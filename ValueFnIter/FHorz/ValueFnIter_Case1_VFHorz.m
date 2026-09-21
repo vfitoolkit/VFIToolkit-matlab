@@ -314,8 +314,11 @@ if N_semiz > 0 && isfield(vfoptions, 'semiz_gridvals_J')
     z_gridvals_J_combined = zeros(N_semiz * max(1, N_z), num_semiz_vars + num_z_vars, num_periods, 'like', sz_J);
     for t = 1:num_periods
         if N_z > 0
-            semiz_expanded = kron(sz_J(:,:,t), ones(N_z, 1));
-            z_expanded = kron(ones(N_semiz, 1), z_gridvals_J(:,:,t));
+            % TENSOR BRIDGE FIX: Align Kron ordering to [a, semiz, z] memory layout.
+            % semiz must vary faster than z, so semiz cycles (kron with ones on left)
+            % and z repeats (kron with ones on right).
+            semiz_expanded = kron(ones(N_z, 1), sz_J(:,:,t));
+            z_expanded = kron(z_gridvals_J(:,:,t), ones(N_semiz, 1));
             z_gridvals_J_combined(:,:,t) = [semiz_expanded, z_expanded];
         else
             z_gridvals_J_combined(:,:,t) = sz_J(:,:,t);

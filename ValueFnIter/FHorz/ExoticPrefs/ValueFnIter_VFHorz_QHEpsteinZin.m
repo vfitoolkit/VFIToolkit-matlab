@@ -24,7 +24,7 @@ N_a2 = prod(max(1, n_a2));
 N_a  = prod(max(1, n_a));
 N_d  = prod(n_d); % Leave raw for boolean checks (N_d > 0)
 N_d_safe = prod(max(1, n_d));
-N_z  = prod(n_z); 
+N_z  = prod(n_z);
 N_z_safe = prod(max(1, n_z));
 
 % Build grids and cells
@@ -477,7 +477,7 @@ else; A2_cells = {}; end
 if isempty(loweredge_matrix)
     if gridinterplayer(1) == 0 || is_dc_mode == 2
         % =================================================================
-        % BRANCH 1A: COARSE EVALUATION
+        % BRANCH 1A: COARSE EVALUATION (DC Level 1 or Standard Non-DC)
         % =================================================================
         Apr_cells = cell(1, num_a1);
         for ia = 1:num_a1; Apr_cells{ia} = reshape(A1_mat(:,ia), [1, N_a1, 1, 1, 1]); end
@@ -511,8 +511,14 @@ if isempty(loweredge_matrix)
         % =================================================================
         % BRANCH 1B: FULL FINE GRID EVALUATION (1-Step Brute Force)
         % =================================================================
-        num_choices = length(a1prime_grid); choice_idx = reshape(1:num_choices, [1, num_choices, 1, 1, 1]);
-        Apr_cells = cell(1, num_a1); for ia = 1:num_a1; Apr_cells{ia} = reshape(a1prime_grid, [1, num_choices, 1, 1, 1]); end
+        % ARCHITECTURE NOTE: This branch executes an unconstrained global search
+        % across the entire fine grid. It is mathematically pure but highly VRAM/compute
+        % intensive. It is currently bypassed by the 2-Stage orchestrators to mimic
+        % Legacy VFIToolkit's speed, but remains intact as a mathematical fallback.
+        num_choices = length(a1prime_grid);
+        choice_idx = reshape(1:num_choices, [1, num_choices, 1, 1, 1]);
+        Apr_cells = cell(1, num_a1);
+        for ia = 1:num_a1; Apr_cells{ia} = reshape(a1prime_grid, [1, num_choices, 1, 1, 1]); end
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, n_e_loc]);
@@ -562,15 +568,23 @@ else
     % =================================================================
     num_states_lower = size(loweredge_matrix, 1);
     if num_states_lower == 1 && N_states > 1; loweredge_matrix = repmat(loweredge_matrix, N_states, 1); end
+
     if gridinterplayer(1) == 0
+        % -------------------------------------------------------------
+        % SCENARIO 2A: Standard DC Segment Zoom (No Interpolation)
+        % -------------------------------------------------------------
         num_choices = maxgap_scalar + 1;
         base_idx = reshape(loweredge_matrix, [1, 1, N_states, n_z_loc, n_e_loc]);
         choice_idx = max(1, min(base_idx + reshape(0:maxgap_scalar, [1, num_choices, 1, 1, 1]), N_a1));
-        Apr_cells = cell(1, num_a1); for ia = 1:num_a1; Apr_cells{ia} = A1_mat(choice_idx, ia); end
+        Apr_cells = cell(1, num_a1);
+        for ia = 1:num_a1; Apr_cells{ia} = A1_mat(choice_idx, ia); end
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         EV_bounded_base = EV_bounded_pre(static_EV_offset + (choice_idx - 1) * N_d_safe);
     else
+        % -------------------------------------------------------------
+        % SCENARIO 2B: Grid Interpolation Zoom (a1prime_grid)
+        % -------------------------------------------------------------
         num_choices = n2long;
         loweredge_matrix = max(2, min(loweredge_matrix, N_a1 - 1));
         base_idx = reshape((loweredge_matrix - 1) * (n2short + 1) + 1, [1, 1, N_states, n_z_loc, n_e_loc]);
@@ -578,17 +592,30 @@ else
         raw_choice_idx = base_idx + reshape(start_offset:(n2short + 1), [1, num_choices, 1, 1, 1]);
         out_of_bounds = (raw_choice_idx < 1) | (raw_choice_idx > length(a1prime_grid));
         choice_idx = max(1, min(raw_choice_idx, length(a1prime_grid)));
-        Apr_cells = cell(1, num_a1); for ia = 1:num_a1; Apr_cells{ia} = reshape(a1prime_grid(choice_idx), [1, num_choices, N_states, n_z_loc, n_e_loc]); end
+        Apr_cells = cell(1, num_a1);
+        for ia = 1:num_a1; Apr_cells{ia} = reshape(a1prime_grid(choice_idx), [1, num_choices, N_states, n_z_loc, n_e_loc]); end
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+
+        % TENSOR BRIDGE FIX: Native implicit expansion for 5D EV extraction
         ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, n_e_loc]);
-        choice_idx_cast = repmat(choice_idx, [1, 1, 1, 1, 1]); ze_offset_cast = repmat(ze_offset, [1, num_choices, N_states, 1, 1]);
-        L2_linear_idx = choice_idx_cast(:) + ze_offset_cast(:);
-        if N_dsemiz > 1; L2_linear_idx = L2_linear_idx + repmat((dsemiz_idx_tensor - 1) * (length(a1prime_grid) * N_ze_local), [1, num_choices, N_states, n_z_loc, n_e_loc]); end
-        EV_bounded_base = reshape(EV_interp_local(L2_linear_idx), [1, num_choices, N_states, n_z_loc, n_e_loc]);
-        EV_bounded_base(out_of_bounds) = -Inf;
+        L2_linear_idx = choice_idx + ze_offset;
+        if N_dsemiz > 1
+            dsemiz_stride = (dsemiz_idx_tensor - 1) * (length(a1prime_grid) * N_ze_local);
+            L2_linear_idx = L2_linear_idx + dsemiz_stride;
+        end
+
+        EV_bounded_base = EV_interp_local(L2_linear_idx);
+
+        if N_dsemiz > 1
+            out_of_bounds_exp = repmat(out_of_bounds, [N_d_safe, 1, 1, 1, 1]);
+            EV_bounded_base(out_of_bounds_exp) = -Inf;
+        else
+            EV_bounded_base(out_of_bounds) = -Inf;
+        end
     end
 
+    % --- RHS Evaluation (Universal to both Zoom Scenarios) ---
     FLAT_CHOICES = max(1, N_d_safe) * num_choices; FLAT_STATES = N_states * N_ze_local;
 
     EV_bounded_V = (beta_j * delta_j) .* EV_bounded_base;
