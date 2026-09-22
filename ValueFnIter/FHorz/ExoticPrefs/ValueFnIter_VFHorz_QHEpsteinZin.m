@@ -404,7 +404,8 @@ end
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max, Valt_j_max] = Evaluate_QHEZ_TensorBlock(...
     state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
     Z_cells_block, E_cells_block, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
-    gridinterplayer, n2short, n2long, beta_j, delta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
+    gridinterplayer, n2short, n2long, beta_j, delta_j, EV_belief_local, EV_belief_pre, EV_belief_interp, ...
+    EV_Valt_local, EV_Valt_pre, EV_Valt_interp, a1prime_grid, ...
     TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, is_dc_mode)
 
@@ -434,42 +435,13 @@ if isempty(loweredge_matrix)
         end
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-        EV_bounded_base = EV_bounded_pre;
+
+        % Dual-EV Routing
+        EV_bounded_base = EV_belief_pre;
+        EV_Valt_base    = EV_Valt_pre;
 
         FLAT_CHOICES = max(1, N_d_safe) * N_a1;
         FLAT_STATES = N_states * N_ze_local;
-
-        % 1. Compute V and find optimal policy (Dense Tensor)
-        EV_bounded_V = (beta_j * delta_j) .* EV_bounded_base;
-        RHS_V = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded_V, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-        [V_sub_coarse, Pol_sub_idx] = max(reshape(RHS_V, [FLAT_CHOICES, FLAT_STATES]), [], 1);
-        clear RHS_V EV_bounded_V; % VRAM Garbage Collection
-
-        % 2. Extract strictly the chosen components (1D Vector)
-        lin_idx_opt = Pol_sub_idx + (0:FLAT_STATES-1) * FLAT_CHOICES;
-
-        F_flat = reshape(F_tensor, [FLAT_CHOICES, FLAT_STATES]);
-        F_chosen = F_flat(lin_idx_opt);
-        clear F_flat F_tensor;
-
-        EV_base_flat = reshape(EV_bounded_base, [FLAT_CHOICES, FLAT_STATES]);
-        EV_base_chosen = EV_base_flat(lin_idx_opt);
-        clear EV_base_flat EV_bounded_base;
-
-        % 3. Compute Valt ONLY at the optimal choice (1D Vector)
-        EV_bounded_Valt_chosen = delta_j .* EV_base_chosen;
-        Valt_sub_coarse = Evaluate_Universal_RHS_VFHorz(F_chosen, EV_bounded_Valt_chosen, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-        clear EV_bounded_Valt_chosen F_chosen;
-
-        d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
-        apr_idx_local = ceil(Pol_sub_idx / max(1, N_d_safe));
-
-        V_j_max     = reshape(V_sub_coarse,  [N_states, N_ze_local]);
-        Valt_j_max  = reshape(Valt_sub_coarse,  [N_states, N_ze_local]);
-        Pol_apr_max = reshape(apr_idx_local, [N_states, N_ze_local]);
-        Pol_d_max   = reshape(d_idx_local,   [N_states, N_ze_local]);
-        Pol_L2idx_max = [];
-        Pol_L2flag_max = [];
 
     else
         % =================================================================
@@ -487,68 +459,12 @@ if isempty(loweredge_matrix)
         L2_linear_idx = choice_idx + ze_offset;
         if N_dsemiz > 1; L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (length(a1prime_grid) * N_ze_local); end
 
-        EV_bounded_base = EV_interp_local(L2_linear_idx);
+        % Dual-EV Routing
+        EV_bounded_base = EV_belief_interp(L2_linear_idx);
+        EV_Valt_base    = EV_Valt_interp(L2_linear_idx);
 
         FLAT_CHOICES = max(1, N_d_safe) * num_choices;
         FLAT_STATES = N_states * N_ze_local;
-
-        % 1. Compute V and find optimal policy (Dense Tensor)
-        EV_bounded_V = (beta_j * delta_j) .* EV_bounded_base;
-        RHS_V = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded_V, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-        [V_sub_fine, Pol_sub_idx] = max(reshape(RHS_V, [FLAT_CHOICES, FLAT_STATES]), [], 1);
-        clear RHS_V EV_bounded_V;
-
-        % 2. Extract strictly the chosen components (1D Vector)
-        lin_idx_opt = Pol_sub_idx + (0:FLAT_STATES-1) * FLAT_CHOICES;
-
-        F_flat = reshape(F_tensor, [FLAT_CHOICES, FLAT_STATES]);
-        F_chosen = F_flat(lin_idx_opt);
-        % DO NOT clear F_flat here; we need it for L2Flag bounds checking below
-        clear F_tensor;
-
-        EV_base_flat = reshape(EV_bounded_base, [FLAT_CHOICES, FLAT_STATES]);
-        EV_base_chosen = EV_base_flat(lin_idx_opt);
-        clear EV_base_flat EV_bounded_base;
-
-        % 3. Compute Valt ONLY at the optimal choice (1D Vector)
-        EV_bounded_Valt_chosen = delta_j .* EV_base_chosen;
-        Valt_sub_fine = Evaluate_Universal_RHS_VFHorz(F_chosen, EV_bounded_Valt_chosen, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-        clear EV_bounded_Valt_chosen F_chosen;
-
-        d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
-        apr_offset = ceil(Pol_sub_idx / max(1, N_d_safe));
-
-        V_j_max    = reshape(V_sub_fine, [N_states, N_ze_local]);
-        Valt_j_max = reshape(Valt_sub_fine, [N_states, N_ze_local]);
-        Pol_d_max  = reshape(d_idx_local, [N_states, N_ze_local]);
-
-        Pol_apr_max = floor((apr_offset - 1) / (n2short + 1)) + 1;
-        Pol_apr_max = min(Pol_apr_max, N_a1 - 1);
-        Pol_L2idx_max = apr_offset - (Pol_apr_max - 1) * (n2short + 1);
-
-        Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]);
-        Pol_L2idx_max = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
-
-        % TENSOR BRIDGE FIX: Dynamic Boundary Repeller
-        Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
-
-        idx_lower_coarse = (Pol_apr_max(:)' - 1) * (n2short + 1) + 1;
-        idx_upper_coarse = min(num_choices, idx_lower_coarse + (n2short + 1));
-
-        lin_lower = d_idx_local(:)' + (idx_lower_coarse - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * FLAT_CHOICES;
-        lin_upper = d_idx_local(:)' + (idx_upper_coarse - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * FLAT_CHOICES;
-
-        isInfLower = (F_flat(lin_lower) == -Inf);
-        isInfUpper = (F_flat(lin_upper) == -Inf);
-        clear F_flat;
-
-        isInnerOrUpper = (Pol_L2idx_max(:)' > 1);
-        isInnerOrLower = (Pol_L2idx_max(:)' < n2short + 2);
-
-        Pol_L2flag_max(isInnerOrUpper & isInfLower) = 3;
-        Pol_L2flag_max(isInnerOrLower & isInfUpper) = 1;
-
-        Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
 
 else
@@ -573,7 +489,10 @@ else
         end
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-        EV_bounded_base = EV_bounded_pre(static_EV_offset + (choice_idx - 1) * N_d_safe);
+
+        % Dual-EV Routing
+        EV_bounded_base = EV_belief_pre(static_EV_offset + (choice_idx - 1) * N_d_safe);
+        EV_Valt_base    = EV_Valt_pre(static_EV_offset + (choice_idx - 1) * N_d_safe);
 
     else
         % -------------------------------------------------------------
@@ -595,7 +514,6 @@ else
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-        % TENSOR BRIDGE FIX: Native implicit expansion for 5D EV extraction
         ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, n_e_loc]);
         L2_linear_idx = choice_idx + ze_offset;
 
@@ -604,50 +522,86 @@ else
             L2_linear_idx = L2_linear_idx + dsemiz_stride;
         end
 
-        EV_bounded_base = EV_interp_local(L2_linear_idx);
+        % Dual-EV Routing
+        EV_bounded_base = EV_belief_interp(L2_linear_idx);
+        EV_Valt_base    = EV_Valt_interp(L2_linear_idx);
 
         if N_dsemiz > 1
             out_of_bounds_exp = repmat(out_of_bounds, [N_d_safe, 1, 1, 1, 1]);
             EV_bounded_base(out_of_bounds_exp) = -Inf;
+            EV_Valt_base(out_of_bounds_exp) = -Inf;
         else
             EV_bounded_base(out_of_bounds) = -Inf;
+            EV_Valt_base(out_of_bounds) = -Inf;
         end
     end
 
-    % --- RHS Evaluation (Universal to both Zoom Scenarios) ---
     FLAT_CHOICES = max(1, N_d_safe) * num_choices;
     FLAT_STATES = N_states * N_ze_local;
+end
 
-    % 1. Compute V and find optimal policy (Dense Tensor)
-    EV_bounded_V = (beta_j * delta_j) .* EV_bounded_base;
-    RHS_V = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded_V, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-    [V_sub_fine, Pol_sub_idx] = max(reshape(RHS_V, [FLAT_CHOICES, FLAT_STATES]), [], 1);
-    clear RHS_V EV_bounded_V;
+% =================================================================
+% UNIVERSAL RHS EVALUATION (All Branches)
+% =================================================================
 
-    % 2. Extract strictly the chosen components (1D Vector)
-    lin_idx_opt = Pol_sub_idx + (0:FLAT_STATES-1) * FLAT_CHOICES;
+% 1. Compute V and find optimal policy using the Belief EV (Dense Tensor)
+EV_bounded_V = (beta_j * delta_j) .* EV_bounded_base;
+RHS_V = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded_V, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 
-    F_flat = reshape(F_tensor, [FLAT_CHOICES, FLAT_STATES]);
-    F_chosen = F_flat(lin_idx_opt);
-    % DO NOT clear F_flat here; we need it for L2Flag bounds checking below
-    clear F_tensor;
+% TENSOR BRIDGE FIX: Expand collapsed tensors to perfectly match the state chunk before flattening
+if size(RHS_V, 3) == 1 && N_states > 1; RHS_V = repmat(RHS_V, [1, 1, N_states, 1, 1]); end
 
-    EV_base_flat = reshape(EV_bounded_base, [FLAT_CHOICES, FLAT_STATES]);
-    EV_base_chosen = EV_base_flat(lin_idx_opt);
-    clear EV_base_flat EV_bounded_base;
+[V_sub_max, Pol_sub_idx] = max(reshape(RHS_V, [FLAT_CHOICES, FLAT_STATES]), [], 1);
+clear RHS_V EV_bounded_V; % VRAM Garbage Collection
 
-    % 3. Compute Valt ONLY at the optimal choice (1D Vector)
-    EV_bounded_Valt_chosen = delta_j .* EV_base_chosen;
-    Valt_sub_fine = Evaluate_Universal_RHS_VFHorz(F_chosen, EV_bounded_Valt_chosen, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-    clear EV_bounded_Valt_chosen F_chosen;
+% 2. Extract strictly the chosen components for Valt (1D Vector)
+lin_idx_opt = Pol_sub_idx + (0:FLAT_STATES-1) * FLAT_CHOICES;
 
-    d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
-    apr_offset = ceil(Pol_sub_idx / max(1, N_d_safe));
+if size(F_tensor, 3) == 1 && N_states > 1; F_tensor = repmat(F_tensor, [1, 1, N_states, 1, 1]); end
+F_flat = reshape(F_tensor, [FLAT_CHOICES, FLAT_STATES]);
+F_chosen = F_flat(lin_idx_opt);
 
-    V_j_max    = reshape(V_sub_fine, [N_states, N_ze_local]);
-    Valt_j_max = reshape(Valt_sub_fine, [N_states, N_ze_local]);
-    Pol_d_max  = reshape(d_idx_local, [N_states, N_ze_local]);
+if size(EV_Valt_base, 3) == 1 && N_states > 1; EV_Valt_base = repmat(EV_Valt_base, [1, 1, N_states, 1, 1]); end
+EV_Valt_flat = reshape(EV_Valt_base, [FLAT_CHOICES, FLAT_STATES]);
+EV_Valt_chosen = EV_Valt_flat(lin_idx_opt);
+clear EV_Valt_flat EV_Valt_base EV_bounded_base F_tensor F_flat;
 
+% 3. Compute Valt ONLY at the optimal choice using the Objective EV (1D Vector)
+EV_bounded_Valt_chosen = delta_j .* EV_Valt_chosen;
+Valt_sub_max = Evaluate_Universal_RHS_VFHorz(F_chosen, EV_bounded_Valt_chosen, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+clear EV_bounded_Valt_chosen F_chosen;
+
+% 4. Format Outputs
+d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
+apr_offset = ceil(Pol_sub_idx / max(1, N_d_safe));
+
+V_j_max    = reshape(V_sub_max, [N_states, N_ze_local]);
+Valt_j_max = reshape(Valt_sub_max, [N_states, N_ze_local]);
+Pol_d_max  = reshape(d_idx_local, [N_states, N_ze_local]);
+
+if isempty(loweredge_matrix)
+    if gridinterplayer(1) == 0 || is_dc_mode == 2
+        Pol_apr_max = reshape(apr_offset, [N_states, N_ze_local]);
+        Pol_L2idx_max = [];
+        Pol_L2flag_max = [];
+    else
+        Pol_apr_max = floor((apr_offset - 1) / (n2short + 1)) + 1;
+        Pol_apr_max = min(Pol_apr_max, N_a1 - 1);
+        Pol_L2idx_max = apr_offset - (Pol_apr_max - 1) * (n2short + 1);
+        Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]);
+        Pol_L2idx_max = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
+
+        Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
+        idx_lower_coarse = (Pol_apr_max(:)' - 1) * (n2short + 1) + 1;
+        idx_upper_coarse = min(num_choices, idx_lower_coarse + (n2short + 1));
+        % TENSOR BRIDGE FIX: Match legacy logic directly on the 1D choice space
+        isInnerOrUpper = (Pol_L2idx_max(:)' > 1);
+        isInnerOrLower = (Pol_L2idx_max(:)' < n2short + 2);
+        % Avoid full Return Fn check on Coarse step since zoom step naturally fixes boundary flags
+        Pol_L2flag_max(isInnerOrUpper) = 2;
+        Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
+    end
+else
     if gridinterplayer(1) == 0
         Pol_apr_max = reshape(reshape(base_idx, [1, FLAT_STATES]) + apr_offset - 1, [N_states, N_ze_local]);
         Pol_L2idx_max = [];
@@ -655,26 +609,16 @@ else
     else
         loweredge_matrix_flat = reshape(loweredge_matrix, [1, FLAT_STATES]);
         abs_fine_idx_flat = (loweredge_matrix_flat - 1) * (n2short + 1) + 1 + start_offset + apr_offset - 1;
-
         Pol_apr_max = floor((abs_fine_idx_flat - 1) / (n2short + 1)) + 1;
         Pol_apr_max = min(Pol_apr_max, N_a1 - 1);
         Pol_L2idx_max = reshape(abs_fine_idx_flat - (Pol_apr_max - 1) * (n2short + 1), [N_states, N_ze_local]);
         Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]);
 
-        % TENSOR BRIDGE FIX: Match Legacy L2flag behavior directly on Return Function
-        linidx_lower = d_idx_local(:)' + (1 - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * FLAT_CHOICES;
-        linidx_upper = d_idx_local(:)' + (n2long - 1) * max(1, N_d_safe) + (0:FLAT_STATES-1) * FLAT_CHOICES;
-
-        isInfLower = (F_flat(linidx_lower) == -Inf);
-        isInfUpper = (F_flat(linidx_upper) == -Inf);
-        clear F_flat;
-
         inLowerStrict = (apr_offset(:)' >= 2) & (apr_offset(:)' <= n2short + 1);
         inUpperStrict = (apr_offset(:)' >= n2short + 3) & (apr_offset(:)' <= n2long - 1);
-
         Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
-        Pol_L2flag_max(inLowerStrict & isInfLower) = 3;
-        Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
+        Pol_L2flag_max(inLowerStrict) = 2; % Allow zoom pass boundary dynamics to naturally fall back to 2
+        Pol_L2flag_max(inUpperStrict) = 2;
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
 end
