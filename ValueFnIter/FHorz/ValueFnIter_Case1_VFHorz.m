@@ -923,6 +923,18 @@ else
     RHS_flat = reshape(RHS, [max(1, N_d_safe) * num_choices_total, FLAT_STATES]);
     [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
 
+    if nargout > 5
+        RHS_max_d = max(RHS, [], 1);
+        if gridinterplayer(1) == 0
+            RHS_4D = reshape(RHS_max_d, [maxgap_scalar + 1, N_a2_endo, N_states, N_ze_local]);
+        else
+            leadRHS_4D = reshape(RHS_max_d, [n2long, N_a2_endo, N_states, N_ze_local]);
+        end
+        [~, max_a1_idx_rel] = max(RHS_4D, [], 1);
+        max_a1_idx_rel = reshape(max_a1_idx_rel, [N_a2_endo, N_states, N_ze_local]);
+        Pol_a1_per_a2 = min(loweredge_matrix + max_a1_idx_rel - 1, N_a1_dc);
+    end
+
     d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
     apr_offset  = ceil(Pol_sub_idx / max(1, N_d_safe));
     V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]);
