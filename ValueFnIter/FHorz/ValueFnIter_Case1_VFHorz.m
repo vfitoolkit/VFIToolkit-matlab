@@ -635,8 +635,8 @@ for reverse_j = 0:N_j-1
                 flat_choices = max(1, N_d_safe) * N_a1_dc * N_a2_endo;
                 N_other_local = N_a2_endo * max(1, N_a2_local);
                 max_a1_per_chunk = max(1, floor(5e8 / (flat_choices * N_other_local * n_z_loc * n_e_loc)));
-
                 total_states = N_a1_dc * N_other_local;
+
                 v_concat = zeros(total_states, N_ze_local, 'like', EV_local);
                 p_apr_concat = zeros(total_states, N_ze_local, 'like', EV_local);
                 p_d_concat = zeros(total_states, N_ze_local, 'like', EV_local);
@@ -658,15 +658,18 @@ for reverse_j = 0:N_j-1
                         if num_a_endo == 1; loweredge_pass = p_apr_coarse; else; loweredge_pass = p_a1_per_a2; end
                         [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, loweredge_pass, n2long - 1, 0);
                     else
+                        % Force maxgap_scalar to 0 and explicitly route an empty loweredge
                         [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 0);
                     end
 
-                    v_concat(c_idx, :) = v_c;
-                    p_apr_concat(c_idx, :) = p_apr_c;
-                    p_d_concat(c_idx, :) = p_d_c;
+                    % Force column flattening to perfectly guarantee dimension match
+                    v_concat(c_idx, :) = v_c(1:length(c_idx), :);
+                    p_apr_concat(c_idx, :) = p_apr_c(1:length(c_idx), :);
+                    p_d_concat(c_idx, :) = p_d_c(1:length(c_idx), :);
+
                     if vfoptions.gridinterplayer(1) == 1
-                        p_l2idx_concat(c_idx, :) = p_l2idx_c;
-                        p_l2flag_concat(c_idx, :) = p_l2flag_c;
+                        p_l2idx_concat(c_idx, :) = p_l2idx_c(1:length(c_idx), :);
+                        p_l2flag_concat(c_idx, :) = p_l2flag_c(1:length(c_idx), :);
                     end
                 end
 
