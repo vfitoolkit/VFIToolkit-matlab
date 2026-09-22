@@ -1,11 +1,7 @@
-function [V_max, Pol_apr, Pol_d1, Pol_L2idx, Pol_L2flag] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_other_states, N_choice_a1_dc, N_ze, vfoptions, EvalBlockFn)
+function [V_max, Pol_apr, Pol_d1, Pol_L2idx, Pol_L2flag] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_other_states, N_choice_a1_dc, N_ze, vfoptions, EvalBlockFn)
 % Multi-Axis Divide-and-Conquer Slicer (DC2A Architecture)
-% N_a1_dc: Number of states in the primary DC dimension
-% N_other_states: Total size of all secondary discrete endogenous + experience states
-% N_choice_a1_dc: Number of primary choices evaluated (n_a1_dc for coarse, n2long for zoom)
 
 gridinterplayer = vfoptions.gridinterplayer(1) == 1;
-
 level1ii = round(linspace(1, N_a1_dc, vfoptions.level1n(1)));
 num_anchors = length(level1ii);
 
@@ -17,18 +13,15 @@ if gridinterplayer
     Pol_L2idx  = ones(N_a1_dc, N_other_states, N_ze, 'gpuArray');
     Pol_L2flag = 2 * ones(N_a1_dc, N_other_states, N_ze, 'gpuArray');
 else
-    Pol_L2idx = [];
-    Pol_L2flag = [];
+    Pol_L2idx = []; Pol_L2flag = [];
 end
 
-% ---------------------------------------------------------
-% PHASE 1: The Anchor Pass
-% ---------------------------------------------------------
-% Generate the absolute Cartesian state coordinates for the anchors across all secondary states
+% --- PHASE 1: The Anchor Pass ---
 anch_state_chunk = level1ii(:) + (0:N_other_states-1) * N_a1_dc;
 anch_state_chunk = anch_state_chunk(:)';
 
-[V_anch, Pol_apr_anch, Pol_d1_anch, L2idx_anch, L2flag_anch] = EvalBlockFn(anch_state_chunk, [], 0);
+% Request the 6th output: Pol_a1_per_a2 [N_a2_endo, num_anchors * N_other_states, N_ze]
+[V_anch, Pol_apr_anch, Pol_d1_anch, L2idx_anch, L2flag_anch, Pol_a1_per_a2] = EvalBlockFn(anch_state_chunk, [], 0);
 
 V_max(level1ii, :, :)   = reshape(V_anch, [num_anchors, N_other_states, N_ze]);
 Pol_apr(level1ii, :, :) = reshape(Pol_apr_anch, [num_anchors, N_other_states, N_ze]);
@@ -38,36 +31,35 @@ if gridinterplayer
     Pol_L2flag(level1ii, :, :) = reshape(L2flag_anch, [num_anchors, N_other_states, N_ze]);
 end
 
-% ---------------------------------------------------------
-% PHASE 2: Multi-Axis Bounding Logic
-% ---------------------------------------------------------
-% Extract ONLY the primary asset (a1) choice index from the absolute fused choice tensor
-Pol_a1_idx_anch = mod(Pol_apr(level1ii, :, :) - 1, N_choice_a1_dc) + 1;
+% --- PHASE 2: Conditional Multi-Axis Bounding ---
+Pol_a1_per_a2 = reshape(Pol_a1_per_a2, [N_a2_endo, num_anchors, N_other_states, N_ze]);
+Pol_a1_per_a2 = permute(Pol_a1_per_a2, [2, 1, 3, 4]); % [num_anchors, N_a2_endo, N_other_states, N_ze]
 
-% Evaluate maxgap strictly along the a1 state dimension, holding a2 constant
-maxgap = squeeze(max(max(Pol_a1_idx_anch(2:end, :, :) - Pol_a1_idx_anch(1:end-1, :, :), [], 3), [], 2));
+maxgap = max(max(max(Pol_a1_per_a2(2:end,:,:,:) - Pol_a1_per_a2(1:end-1,:,:,:), [], 4), [], 3), [], 2);
+maxgap = squeeze(maxgap);
 if iscolumn(maxgap); maxgap = maxgap'; end
 
-% ---------------------------------------------------------
-% PHASE 3: Micro-Batch Dispatch
-% ---------------------------------------------------------
+% --- PHASE 3: Micro-Batch Segment Dispatch ---
 for ii = 1:(num_anchors - 1)
     segment_a1_states = (level1ii(ii) + 1) : (level1ii(ii+1) - 1);
     if isempty(segment_a1_states); continue; end
 
-    % Generate absolute Cartesian states for this bounded segment
     seg_state_chunk = segment_a1_states(:) + (0:N_other_states-1) * N_a1_dc;
     seg_state_chunk = seg_state_chunk(:)';
+    num_seg = length(segment_a1_states);
+
+    % Replicate the lower edge bounds for every state in the segment
+    loweredge_a1 = repmat(Pol_a1_per_a2(ii, :, :, :), [num_seg, 1, 1, 1]);
+    loweredge_a1 = permute(loweredge_a1, [2, 1, 3, 4]); % [N_a2_endo, num_seg, N_other_states, N_ze]
+    loweredge_a1 = reshape(loweredge_a1, [N_a2_endo, num_seg * N_other_states, N_ze]);
 
     if maxgap(ii) > 0
-        loweredge_a1 = min(Pol_a1_idx_anch(ii, :, :), N_choice_a1_dc - maxgap(ii));
+        loweredge_a1 = min(loweredge_a1, N_choice_a1_dc - maxgap(ii));
         [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, maxgap(ii));
     else
-        loweredge_a1 = Pol_a1_idx_anch(ii, :, :);
         [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, 0);
     end
 
-    num_seg = length(segment_a1_states);
     V_max(segment_a1_states, :, :)   = reshape(V_seg, [num_seg, N_other_states, N_ze]);
     Pol_apr(segment_a1_states, :, :) = reshape(Pol_apr_seg, [num_seg, N_other_states, N_ze]);
     Pol_d1(segment_a1_states, :, :)  = reshape(Pol_d1_seg, [num_seg, N_other_states, N_ze]);
@@ -77,7 +69,6 @@ for ii = 1:(num_anchors - 1)
     end
 end
 
-% Flatten back to standard format for the master orchestrator
 N_total_states = N_a1_dc * N_other_states;
 V_max = reshape(V_max, [N_total_states, N_ze]);
 Pol_apr = reshape(Pol_apr, [N_total_states, N_ze]);
