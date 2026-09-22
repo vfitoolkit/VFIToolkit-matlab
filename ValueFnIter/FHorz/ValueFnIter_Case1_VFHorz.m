@@ -495,8 +495,8 @@ for reverse_j = 0:N_j-1
                     [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC1_Slicer(N_a1_dc * N_a2_exp, N_a, 1, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
                     loweredge_pass = p_apr_coarse;
                 else
-                    [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_endo * N_a2_exp, N_a1_dc, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
-                    loweredge_pass = p_apr_coarse;
+                    [~, ~, ~, ~, ~, p_a1_per_a2] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_endo * N_a2_exp, N_a1_dc, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
+                    loweredge_pass = p_a1_per_a2;
                 end
                 [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, loweredge_pass, n2long - 1, 0);
             else
@@ -580,8 +580,9 @@ for reverse_j = 0:N_j-1
                     chunk_end = min(total_states, chunk_start + max_states_per_chunk - 1);
                     state_chunk = state_list(chunk_start:chunk_end);
                     if vfoptions.gridinterplayer(1) == 1
-                        [~, p_apr_coarse, ~, ~, ~] = LocalBlockFn(state_chunk, [], 0, 2);
-                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, p_apr_coarse, n2long - 1, 0);
+                        [~, p_apr_coarse, ~, ~, ~, p_a1_per_a2] = LocalBlockFn(state_chunk, [], 0, 2);
+                        if num_a_endo == 1; loweredge_pass = p_apr_coarse; else; loweredge_pass = p_a1_per_a2; end
+                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, loweredge_pass, n2long - 1, 0);
                     else
                         [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 0);
                     end
