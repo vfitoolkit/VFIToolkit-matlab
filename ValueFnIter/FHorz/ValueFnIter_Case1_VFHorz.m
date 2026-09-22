@@ -810,6 +810,12 @@ if isempty(loweredge_matrix)
     else
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
     end
+    % --- SANITIZE INVALID STATES (Complex/NaN to -Inf) ---
+    if ~isreal(F_tensor)
+        F_tensor(imag(F_tensor) ~= 0) = -Inf;
+        F_tensor = real(F_tensor);
+    end
+    F_tensor(isnan(F_tensor)) = -Inf;
 
     choice_idx_eval = reshape(1:num_choices, [1, num_choices, 1, 1, 1, 1, 1]);
 
@@ -906,6 +912,12 @@ else
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         end
+        % --- SANITIZE INVALID STATES (Complex/NaN to -Inf) ---
+        if ~isreal(F_tensor)
+            F_tensor(imag(F_tensor) ~= 0) = -Inf;
+            F_tensor = real(F_tensor);
+        end
+        F_tensor(isnan(F_tensor)) = -Inf;
 
         EV_flat = EV_local(:);
         s_a1 = 1;
@@ -961,7 +973,7 @@ else
         lin_idx_loweredge = a2_offset_factor(:)' + (0:FLAT_STATES-1) * N_a2_endo;
         chosen_loweredge = low_2d(lin_idx_loweredge);
 
-        a1_Pol_apr = chosen_loweredge + a1_apr_offset - 1;
+        a1_Pol_apr = min(chosen_loweredge + a1_apr_offset - 1, double(N_a1_dc));
         Pol_apr_max = a1_Pol_apr + (a2_offset_factor - 1) * N_a1_dc;
 
         V_j_max   = reshape(V_sub_fine,  [], N_ze_local);
@@ -987,6 +999,12 @@ else
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         end
+        % --- SANITIZE INVALID STATES (Complex/NaN to -Inf) ---
+        if ~isreal(F_tensor)
+            F_tensor(imag(F_tensor) ~= 0) = -Inf;
+            F_tensor = real(F_tensor);
+        end
+        F_tensor(isnan(F_tensor)) = -Inf;
 
         EV_flat = EV_interp_local(:);
         s_a1 = 1;
