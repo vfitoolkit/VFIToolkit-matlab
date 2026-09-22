@@ -498,20 +498,31 @@ for reverse_j = 0:N_j-1
 
                 % --- VRAM Protection: Chunk the Grid Interp Fine Pass ---
                 flat_choices = max(1, N_d_safe) * n2long * max(1, N_a2_endo);
-                max_states_per_chunk = max(1, floor(15000000 / (flat_choices * N_ze_local)));
-                v = []; p_apr = []; p_d = []; p_l2idx = []; p_l2flag = [];
+                max_states_per_chunk = max(1, floor(40000000 / (flat_choices * N_ze_local)));
+
+                v = zeros(N_a, N_ze_local, 'like', EV_local);
+                p_apr = zeros(N_a, N_ze_local, 'like', EV_local);
+                p_d = zeros(N_a, N_ze_local, 'like', EV_local);
+                p_l2idx = zeros(N_a, N_ze_local, 'like', EV_local);
+                p_l2flag = zeros(N_a, N_ze_local, 'like', EV_local);
 
                 for chunk_start = 1:max_states_per_chunk:N_a
                     chunk_end = min(N_a, chunk_start + max_states_per_chunk - 1);
                     state_chunk = chunk_start:chunk_end;
+                    c_idx = chunk_start:chunk_end;
+
                     if num_a_endo == 1
                         loweredge_chunk = loweredge_pass(state_chunk, :);
                     else
                         loweredge_chunk = loweredge_pass(:, state_chunk, :);
                     end
                     [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, loweredge_chunk, n2long - 1, 0);
-                    v = [v; v_c]; p_apr = [p_apr; p_apr_c]; p_d = [p_d; p_d_c];
-                    p_l2idx = [p_l2idx; p_l2idx_c]; p_l2flag = [p_l2flag; p_l2flag_c];
+
+                    v(c_idx, :) = v_c;
+                    p_apr(c_idx, :) = p_apr_c;
+                    p_d(c_idx, :) = p_d_c;
+                    p_l2idx(c_idx, :) = p_l2idx_c;
+                    p_l2flag(c_idx, :) = p_l2flag_c;
                 end
             else
                 LocalBlockFn_Standard = @(state_idx, loweredge_matrix, maxgap_scalar) LocalBlockFn(state_idx, loweredge_matrix, maxgap_scalar, 0);
@@ -589,11 +600,19 @@ for reverse_j = 0:N_j-1
 
                 state_list = start_a_idx:end_a_idx; total_states = length(state_list);
                 flat_choices = max(1, N_d_safe) * N_a1_dc * N_a2_endo;
-                max_states_per_chunk = max(1, floor(50000000 / (flat_choices * n_z_loc * n_e_loc)));
-                v_concat = []; p_apr_concat = []; p_d_concat = []; p_l2idx_concat = []; p_l2flag_concat = [];
+                max_states_per_chunk = max(1, floor(40000000 / (flat_choices * n_z_loc * n_e_loc)));
+
+                v_concat = zeros(total_states, N_ze_local, 'like', EV_local);
+                p_apr_concat = zeros(total_states, N_ze_local, 'like', EV_local);
+                p_d_concat = zeros(total_states, N_ze_local, 'like', EV_local);
+                p_l2idx_concat = zeros(total_states, N_ze_local, 'like', EV_local);
+                p_l2flag_concat = zeros(total_states, N_ze_local, 'like', EV_local);
+
                 for chunk_start = 1:max_states_per_chunk:total_states
                     chunk_end = min(total_states, chunk_start + max_states_per_chunk - 1);
                     state_chunk = state_list(chunk_start:chunk_end);
+                    c_idx = chunk_start:chunk_end;
+
                     if vfoptions.gridinterplayer(1) == 1
                         [~, p_apr_coarse, ~, ~, ~, p_a1_per_a2] = LocalBlockFn(state_chunk, [], 0, 2);
                         if num_a_endo == 1; loweredge_pass = p_apr_coarse; else; loweredge_pass = p_a1_per_a2; end
@@ -601,8 +620,14 @@ for reverse_j = 0:N_j-1
                     else
                         [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 0);
                     end
-                    v_concat = [v_concat; v_c]; p_apr_concat = [p_apr_concat; p_apr_c]; p_d_concat = [p_d_concat; p_d_c];
-                    if vfoptions.gridinterplayer(1) == 1; p_l2idx_concat = [p_l2idx_concat; p_l2idx_c]; p_l2flag_concat = [p_l2flag_concat; p_l2flag_c]; end
+
+                    v_concat(c_idx, :) = v_c;
+                    p_apr_concat(c_idx, :) = p_apr_c;
+                    p_d_concat(c_idx, :) = p_d_c;
+                    if vfoptions.gridinterplayer(1) == 1
+                        p_l2idx_concat(c_idx, :) = p_l2idx_c;
+                        p_l2flag_concat(c_idx, :) = p_l2flag_c;
+                    end
                 end
                 V_j_max(start_a_idx:end_a_idx, curr_ze)     = reshape(v_concat,     [length(state_list), N_ze_local]);
                 Pol_apr_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_apr_concat, [length(state_list), N_ze_local]);

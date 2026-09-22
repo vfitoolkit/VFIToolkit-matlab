@@ -66,10 +66,16 @@ if num_seg > 0
 
     % --- VRAM Protection: Chunk the massive batched segment pass ---
     flat_choices = global_maxgap + 1;
-    max_states_per_chunk = max(1, floor(15000000 / (flat_choices * N_ze)));
+    max_states_per_chunk = max(1, floor(40000000 / (flat_choices * N_ze)));
     total_seg = length(seg_state_chunk);
 
-    V_seg = []; Pol_apr_seg = []; Pol_d1_seg = []; L2idx_seg = []; L2flag_seg = [];
+    V_seg = zeros(total_seg, N_ze, 'like', V_max);
+    Pol_apr_seg = zeros(total_seg, N_ze, 'like', V_max);
+    Pol_d1_seg = zeros(total_seg, N_ze, 'like', V_max);
+    if gridinterplayer
+        L2idx_seg = zeros(total_seg, N_ze, 'like', V_max);
+        L2flag_seg = zeros(total_seg, N_ze, 'like', V_max);
+    end
 
     for chunk_start = 1:max_states_per_chunk:total_seg
         chunk_end = min(total_seg, chunk_start + max_states_per_chunk - 1);
@@ -84,9 +90,12 @@ if num_seg > 0
             [v_c, pa_c, pd_c, l2i_c, l2f_c] = EvalBlockFn(st_chunk, low_chunk, 0);
         end
 
-        V_seg = [V_seg; v_c]; Pol_apr_seg = [Pol_apr_seg; pa_c]; Pol_d1_seg = [Pol_d1_seg; pd_c];
+        V_seg(c_idx, :) = v_c;
+        Pol_apr_seg(c_idx, :) = pa_c;
+        Pol_d1_seg(c_idx, :) = pd_c;
         if gridinterplayer
-            L2idx_seg = [L2idx_seg; l2i_c]; L2flag_seg = [L2flag_seg; l2f_c];
+            L2idx_seg(c_idx, :) = l2i_c;
+            L2flag_seg(c_idx, :) = l2f_c;
         end
     end
 
