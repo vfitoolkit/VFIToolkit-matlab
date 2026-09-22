@@ -495,7 +495,7 @@ for reverse_j = 0:N_j-1
                     [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC1_Slicer(N_a1_dc * N_a2_exp, N_a, 1, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
                     loweredge_pass = p_apr_coarse;
                 else
-                    [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_exp, N_a1_dc, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
+                    [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_endo * N_a2_exp, N_a1_dc, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
                     loweredge_pass = p_apr_coarse;
                 end
                 [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, loweredge_pass, n2long - 1, 0);
@@ -504,7 +504,7 @@ for reverse_j = 0:N_j-1
                 if num_a_endo == 1
                     [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a1_dc * N_a2_exp, N_a, 1, N_ze_local, vfoptions, LocalBlockFn_Standard);
                 else
-                    [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_exp, N_a1_dc, N_ze_local, vfoptions, LocalBlockFn_Standard);
+                    [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_endo * N_a2_exp, N_a1_dc, N_ze_local, vfoptions, LocalBlockFn_Standard);
                 end
             end
             V_j_max(:, curr_ze)     = reshape(v,     [N_a, N_ze_local]);
