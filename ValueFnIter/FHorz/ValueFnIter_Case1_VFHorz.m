@@ -794,6 +794,15 @@ if isempty(loweredge_matrix)
 else
     % BRANCH 2: ZOOM PHASE (loweredge_matrix provided)
     Pol_a1_per_a2 = [];
+
+    % Normalize loweredge_matrix expansion for DC1 vs DC2A architecture
+    if numel(loweredge_matrix) < N_a2_endo * N_states * N_ze_local
+        num_seg = N_states / N_a_exp;
+        loweredge_matrix = reshape(loweredge_matrix, [1, N_a_exp, N_ze_local]);
+        loweredge_matrix = repmat(loweredge_matrix, [num_seg, 1, 1]);
+    end
+    loweredge_matrix = reshape(loweredge_matrix, [N_a2_endo, N_states, N_ze_local]);
+
     if gridinterplayer(1) == 0
         % SCENARIO 2A: Standard DC Segment Zoom
         base_idx_a1 = reshape(loweredge_matrix, [1, N_a2_endo, N_states, n_z_loc, n_e_loc]);
@@ -838,9 +847,9 @@ else
         end
     else
         % SCENARIO 2B: Grid Interpolation Zoom
-        loweredge_matrix = max(2, min(loweredge_matrix, length(A1_grids_1d{1}) - 1));
+        loweredge_matrix_bounds = max(2, min(loweredge_matrix, length(A1_grids_1d{1}) - 1));
 
-        L2_base = (loweredge_matrix - 1) * (n2short + 1) + 1;
+        L2_base = (loweredge_matrix_bounds - 1) * (n2short + 1) + 1;
         base_idx_a1 = reshape(L2_base, [1, N_a2_endo, N_states, n_z_loc, n_e_loc]);
         start_offset = -(n2short + 1); end_offset   = (n2short + 1);
 
@@ -896,27 +905,53 @@ else
             EV_bounded = beta_j .* EV_bounded;
         end
     end
-    FLAT_STATES = N_states * N_ze_local; RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+
+    FLAT_STATES = N_states * N_ze_local;
+    RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
     RHS_flat = reshape(RHS, [max(1, N_d_safe) * num_choices_total, FLAT_STATES]);
     [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
-    d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1; apr_offset  = ceil(Pol_sub_idx / max(1, N_d_safe));
-    V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]); Pol_d_max = reshape(d_idx_local, [N_states, N_ze_local]);
+
+    d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
+    apr_offset  = ceil(Pol_sub_idx / max(1, N_d_safe));
+    V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]);
+    Pol_d_max = reshape(d_idx_local, [N_states, N_ze_local]);
+
     if gridinterplayer(1) == 0
-        a1_apr_offset = mod(apr_offset - 1, maxgap_scalar + 1) + 1; a2_offset_factor = ceil(apr_offset / (maxgap_scalar + 1));
-        a1_Pol_apr = reshape(loweredge_matrix, [1, FLAT_STATES]) + a1_apr_offset - 1;
+        a1_apr_offset = mod(apr_offset - 1, maxgap_scalar + 1) + 1;
+        a2_offset_factor = ceil(apr_offset / (maxgap_scalar + 1));
+
+        % Extract corresponding conditional bound from the 2D matrix
+        loweredge_matrix_2d = reshape(loweredge_matrix, [N_a2_endo, FLAT_STATES]);
+        lin_idx_loweredge = a2_offset_factor + (0:FLAT_STATES-1) * N_a2_endo;
+        chosen_loweredge = loweredge_matrix_2d(lin_idx_loweredge);
+
+        a1_Pol_apr = chosen_loweredge + a1_apr_offset - 1;
         Pol_apr_max = a1_Pol_apr + (a2_offset_factor - 1) * N_a1_dc;
-        Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]); Pol_L2idx_max = []; Pol_L2flag_max = [];
+        Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]);
+        Pol_L2idx_max = []; Pol_L2flag_max = [];
     else
-        a1_apr_offset = mod(apr_offset - 1, n2long) + 1; a2_offset_factor = ceil(apr_offset / n2long);
-        chosen_offset = start_offset + a1_apr_offset - 1; abs_fine_idx_flat = (reshape(loweredge_matrix, [1, FLAT_STATES]) - 1) * (n2short + 1) + 1 + chosen_offset;
-        a1_Pol_apr = floor((abs_fine_idx_flat - 1) / (n2short + 1)) + 1; a1_Pol_apr = min(a1_Pol_apr, N_a1_dc - 1);
+        a1_apr_offset = mod(apr_offset - 1, n2long) + 1;
+        a2_offset_factor = ceil(apr_offset / n2long);
+        chosen_offset = start_offset + a1_apr_offset - 1;
+
+        % Extract corresponding conditional bound from the 2D matrix
+        loweredge_matrix_2d = reshape(loweredge_matrix_bounds, [N_a2_endo, FLAT_STATES]);
+        lin_idx_loweredge = a2_offset_factor + (0:FLAT_STATES-1) * N_a2_endo;
+        chosen_loweredge = loweredge_matrix_2d(lin_idx_loweredge);
+
+        abs_fine_idx_flat = (chosen_loweredge - 1) * (n2short + 1) + 1 + chosen_offset;
+        a1_Pol_apr = floor((abs_fine_idx_flat - 1) / (n2short + 1)) + 1;
+        a1_Pol_apr = min(a1_Pol_apr, N_a1_dc - 1);
         Pol_L2idx_max = abs_fine_idx_flat - (a1_Pol_apr - 1) * (n2short + 1);
+
         Pol_apr_max = a1_Pol_apr + (a2_offset_factor - 1) * N_a1_dc;
-        Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]); Pol_L2idx_max = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
+        Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]);
+        Pol_L2idx_max = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
 
         inLowerStrict = (a1_apr_offset(:)' >= 2) & (a1_apr_offset(:)' <= n2short + 1);
         inUpperStrict = (a1_apr_offset(:)' >= n2short + 3) & (a1_apr_offset(:)' <= n2long - 1);
-        Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max); Pol_L2flag_max(inLowerStrict) = 2; Pol_L2flag_max(inUpperStrict) = 2;
+        Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
+        Pol_L2flag_max(inLowerStrict) = 2; Pol_L2flag_max(inUpperStrict) = 2;
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
 end

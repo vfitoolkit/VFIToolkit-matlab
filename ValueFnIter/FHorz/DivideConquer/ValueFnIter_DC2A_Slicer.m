@@ -1,4 +1,4 @@
-function [V_max, Pol_apr, Pol_d1, Pol_L2idx, Pol_L2flag] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_other_states, N_choice_a1_dc, N_ze, vfoptions, EvalBlockFn)
+function [V_max, Pol_apr, Pol_d1, Pol_L2idx, Pol_L2flag, Pol_a1_per_a2_full] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_other_states, N_choice_a1_dc, N_ze, vfoptions, EvalBlockFn)
 % Multi-Axis Divide-and-Conquer Slicer (DC2A Architecture)
 
 gridinterplayer = vfoptions.gridinterplayer(1) == 1;
@@ -8,6 +8,7 @@ num_anchors = length(level1ii);
 V_max   = -inf(N_a1_dc, N_other_states, N_ze, 'gpuArray');
 Pol_apr = ones(N_a1_dc, N_other_states, N_ze, 'gpuArray');
 Pol_d1  = ones(N_a1_dc, N_other_states, N_ze, 'gpuArray');
+Pol_a1_per_a2_full = zeros(N_a1_dc, N_other_states, N_ze, N_a2_endo, 'like', V_max);
 
 if gridinterplayer
     Pol_L2idx  = ones(N_a1_dc, N_other_states, N_ze, 'gpuArray');
@@ -33,11 +34,15 @@ end
 
 % --- PHASE 2: Conditional Multi-Axis Bounding ---
 Pol_a1_per_a2 = reshape(Pol_a1_per_a2, [N_a2_endo, num_anchors, N_other_states, N_ze]);
-Pol_a1_per_a2 = permute(Pol_a1_per_a2, [2, 1, 3, 4]); % [num_anchors, N_a2_endo, N_other_states, N_ze]
+Pol_a1_per_a2_reshaped = permute(Pol_a1_per_a2, [2, 3, 4, 1]); % [num_anchors, N_other_states, N_ze, N_a2_endo]
+Pol_a1_per_a2_full(level1ii, :, :, :) = Pol_a1_per_a2_reshaped;
 
-maxgap = max(max(max(Pol_a1_per_a2(2:end,:,:,:) - Pol_a1_per_a2(1:end-1,:,:,:), [], 4), [], 3), [], 2);
+Pol_a1_anch_for_gap = permute(Pol_a1_per_a2_reshaped, [1, 4, 2, 3]); % [num_anchors, N_a2_endo, N_other_states, N_ze]
+
+maxgap = max(max(max(Pol_a1_anch_for_gap(2:end,:,:,:) - Pol_a1_anch_for_gap(1:end-1,:,:,:), [], 4), [], 3), [], 2);
 maxgap = squeeze(maxgap);
 if iscolumn(maxgap); maxgap = maxgap'; end
+if isempty(maxgap) && num_anchors == 1; maxgap = 0; end
 
 % --- PHASE 3: Micro-Batch Segment Dispatch ---
 for ii = 1:(num_anchors - 1)
@@ -49,15 +54,15 @@ for ii = 1:(num_anchors - 1)
     num_seg = length(segment_a1_states);
 
     % Replicate the lower edge bounds for every state in the segment
-    loweredge_a1 = repmat(Pol_a1_per_a2(ii, :, :, :), [num_seg, 1, 1, 1]);
+    loweredge_a1 = repmat(Pol_a1_anch_for_gap(ii, :, :, :), [num_seg, 1, 1, 1]);
     loweredge_a1 = permute(loweredge_a1, [2, 1, 3, 4]); % [N_a2_endo, num_seg, N_other_states, N_ze]
     loweredge_a1 = reshape(loweredge_a1, [N_a2_endo, num_seg * N_other_states, N_ze]);
 
     if maxgap(ii) > 0
         loweredge_a1 = min(loweredge_a1, N_choice_a1_dc - maxgap(ii));
-        [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, maxgap(ii));
+        [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg, Pol_a1_per_a2_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, maxgap(ii));
     else
-        [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, 0);
+        [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg, Pol_a1_per_a2_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, 0);
     end
 
     V_max(segment_a1_states, :, :)   = reshape(V_seg, [num_seg, N_other_states, N_ze]);
@@ -67,6 +72,9 @@ for ii = 1:(num_anchors - 1)
         Pol_L2idx(segment_a1_states, :, :)  = reshape(L2idx_seg, [num_seg, N_other_states, N_ze]);
         Pol_L2flag(segment_a1_states, :, :) = reshape(L2flag_seg, [num_seg, N_other_states, N_ze]);
     end
+
+    Pol_a1_per_a2_seg = reshape(Pol_a1_per_a2_seg, [N_a2_endo, num_seg, N_other_states, N_ze]);
+    Pol_a1_per_a2_full(segment_a1_states, :, :, :) = permute(Pol_a1_per_a2_seg, [2, 3, 4, 1]);
 end
 
 N_total_states = N_a1_dc * N_other_states;
@@ -77,6 +85,9 @@ if gridinterplayer
     Pol_L2idx = reshape(Pol_L2idx, [N_total_states, N_ze]);
     Pol_L2flag = reshape(Pol_L2flag, [N_total_states, N_ze]);
 end
+
+Pol_a1_per_a2_full = reshape(Pol_a1_per_a2_full, [N_total_states, N_ze, N_a2_endo]);
+Pol_a1_per_a2_full = permute(Pol_a1_per_a2_full, [3, 1, 2]); % [N_a2_endo, N_total_states, N_ze]
 
 
 end
