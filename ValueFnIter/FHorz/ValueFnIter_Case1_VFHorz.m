@@ -910,20 +910,28 @@ else
     % =================================================================
     Pol_a1_per_a2 = [];
 
-    % DYNAMIC SHAPE ROUTING
+    % --- DYNAMIC SHAPE ROUTING FOR DC/GI LOWEREDGE ---
+    base_shape = ones(1, 7);
+    base_shape(dim_A1) = num_seg;
+    base_shape(dim_A2) = N_other_states;
+    base_shape(dim_Z)  = n_z_loc;
+    base_shape(dim_E)  = n_e_loc;
+    if N_a2_endo > 1; base_shape(3) = double(N_a2_endo); end
+
     N_states = length(state_idx);
     if size(loweredge_matrix, 1) == N_states && N_a2_endo == 1
         is_gi_pass = true;
-        low_mat = reshape(loweredge_matrix, [1, 1, 1, num_seg, N_other_states, n_z_loc, n_e_loc]);
+        low_mat = reshape(loweredge_matrix, base_shape);
     elseif size(loweredge_matrix, 1) == N_a2_endo && N_a2_endo > 1
         is_gi_pass = true;
-        low_mat = reshape(loweredge_matrix, [1, 1, N_a2_endo, num_seg, N_other_states, n_z_loc, n_e_loc]);
+        low_mat = reshape(loweredge_matrix, base_shape);
     elseif size(loweredge_matrix, 1) == 1 && size(loweredge_matrix, 2) == N_a2_endo && N_a2_endo > 1
         is_gi_pass = false;
-        low_mat = reshape(loweredge_matrix, [1, 1, N_a2_endo, 1, N_other_states, n_z_loc, n_e_loc]);
+        tmp_shape = base_shape; tmp_shape(dim_A1) = 1;
+        low_mat = reshape(loweredge_matrix, tmp_shape);
     else
         is_gi_pass = false;
-        low_mat = reshape(loweredge_matrix, [1, 1, 1, num_seg, N_other_states, n_z_loc, n_e_loc]);
+        low_mat = reshape(loweredge_matrix, base_shape);
     end
 
     if ~is_gi_pass
@@ -991,7 +999,7 @@ else
         if nargout > 5
             RHS_for_d = max(reshape(RHS, double(N_d_safe), []), [], 1);
             [~, max_a1_idx_rel] = max(reshape(RHS_for_d, num_choices * double(N_a2_endo), []), [], 1);
-            low_expanded = low_mat + zeros([1, 1, double(N_a2_endo), num_seg, N_other_states, n_z_loc, n_e_loc]);
+            low_expanded = low_mat + zeros(base_shape);
             Pol_a1_per_a2 = min(low_expanded + double(max_a1_idx_rel) - 1, double(N_a1_dc));
             Pol_a1_per_a2 = reshape(Pol_a1_per_a2, double(N_a2_endo), []);
         end
@@ -1001,7 +1009,7 @@ else
         a1_apr_offset = mod(apr_offset - 1, num_choices) + 1;
         a2_offset_factor = double(idivide(int32(apr_offset - 1), int32(num_choices), 'floor')) + 1;
 
-        low_expanded = low_mat + zeros([1, 1, N_a2_endo, num_seg, N_other_states, n_z_loc, n_e_loc]);
+        low_expanded = low_mat + zeros(base_shape);
         low_2d = reshape(low_expanded, N_a2_endo, []);
         lin_idx_loweredge = a2_offset_factor(:)' + (0:FLAT_STATES-1) * N_a2_endo;
         chosen_loweredge = low_2d(lin_idx_loweredge);
@@ -1084,7 +1092,7 @@ else
         a1_apr_offset = mod(apr_offset - 1, num_choices) + 1;
         a2_offset_factor = double(idivide(int32(apr_offset - 1), int32(num_choices), 'floor')) + 1;
 
-        L2_expanded = L2_base + zeros([1, 1, N_a2_endo, num_seg, N_other_states, n_z_loc, n_e_loc]);
+        L2_expanded = L2_base + zeros(base_shape);
         L2_base_2d = reshape(L2_expanded, N_a2_endo, []);
         lin_idx_loweredge = a2_offset_factor(:)' + (0:FLAT_STATES-1) * N_a2_endo;
         chosen_loweredge = L2_base_2d(lin_idx_loweredge);
