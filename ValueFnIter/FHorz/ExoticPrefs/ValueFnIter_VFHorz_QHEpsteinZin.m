@@ -341,9 +341,155 @@ for reverse_j = 0:N_j-1
         end
     else
         % --- SCENARIO 4B: Full Tensor Evaluation Active ---
-        % (Fallback branch follows standard Cartesian loop as built)
-        % [Standard memory-chunked non-DC pass would go here, identical mapping of Belief/Valt variables as above]
-        error('Non-DC branch execution logic omitted for brevity in dual-pass rewrite');
+        for i_a2 = 1:length(a2_chunks)
+            curr_a2 = a2_chunks{i_a2};
+            N_a2_local = length(curr_a2);
+            start_a_idx = (min(curr_a2) - 1) * N_a1 + 1;
+            end_a_idx   = max(curr_a2) * N_a1;
+
+            for i_ze = 1:length(ze_chunks)
+                meta = chunk_meta{i_ze};
+                n_z_loc = meta.n_z_loc;
+                n_e_loc = meta.n_e_loc;
+                curr_ze = ze_chunks{i_ze};
+                N_ze_local = length(curr_ze);
+
+                if l_a2 > 0
+                    A2_local = A2_mat(curr_a2, :);
+                else
+                    A2_local = [];
+                end
+
+                EV_belief_local = EV_belief_flat_ze(:, curr_ze, :);
+                EV_Valt_local = EV_Valt_flat_ze(:, curr_ze, :);
+
+                num_z_vars = length(n_z);
+                Z_cells_local = cell(1, num_z_vars);
+                if size(z_gridvals_J, 2) ~= num_z_vars
+                    z_inflated = reshape(z_gridvals_J, [prod(n_z), num_z_vars, size(z_gridvals_J, ndims(z_gridvals_J))]);
+                    for iz = 1:num_z_vars; Z_cells_local{iz} = reshape(z_inflated(meta.z_vals, iz, min(jj, size(z_inflated,3))), [1, 1, 1, n_z_loc, 1]); end
+                else
+                    for iz = 1:num_z_vars; Z_cells_local{iz} = reshape(z_gridvals_J(meta.z_vals, iz, min(jj, size(z_gridvals_J,3))), [1, 1, 1, n_z_loc, 1]); end
+                end
+
+                if has_e
+                    num_e_vars = size(e_work, 2); E_cells_local = cell(1, num_e_vars);
+                    for ie_var = 1:num_e_vars; E_cells_local{ie_var} = reshape(e_work(meta.e_vals, ie_var), [1, 1, 1, 1, n_e_loc]); end
+                else; E_cells_local = {}; end
+
+                if vfoptions.gridinterplayer(1) == 1
+                    N_cols = N_ze_local * N_dsemiz;
+                    zero_weights = (interp_weights == 0); one_weights = (interp_weights == 1);
+
+                    if l_a2 > 0
+                        % Belief Interpolation
+                        EV_2d_b = reshape(EV_belief_local, [N_a1, N_a2_local * N_cols]);
+                        EV_left_b = EV_2d_b(interp_left_idx, :); EV_right_b = EV_2d_b(interp_right_idx, :);
+                        EV_interp_flat_b = EV_left_b + interp_weights .* (EV_right_b - EV_left_b);
+                        EV_interp_flat_b(zero_weights, :) = EV_left_b(zero_weights, :); EV_interp_flat_b(one_weights, :) = EV_right_b(one_weights, :);
+                        EV_interp_flat_b(isnan(EV_interp_flat_b)) = -Inf;
+                        EV_belief_interp = reshape(EV_interp_flat_b, [length(a1prime_grid), N_a2_local, N_ze_local, N_dsemiz]);
+
+                        % Valt Interpolation
+                        EV_2d_v = reshape(EV_Valt_local, [N_a1, N_a2_local * N_cols]);
+                        EV_left_v = EV_2d_v(interp_left_idx, :); EV_right_v = EV_2d_v(interp_right_idx, :);
+                        EV_interp_flat_v = EV_left_v + interp_weights .* (EV_right_v - EV_left_v);
+                        EV_interp_flat_v(zero_weights, :) = EV_left_v(zero_weights, :); EV_interp_flat_v(one_weights, :) = EV_right_v(one_weights, :);
+                        EV_interp_flat_v(isnan(EV_interp_flat_v)) = -Inf;
+                        EV_Valt_interp = reshape(EV_interp_flat_v, [length(a1prime_grid), N_a2_local, N_ze_local, N_dsemiz]);
+                    else
+                        % Belief Interpolation
+                        EV_2d_b = reshape(EV_belief_local, [N_a1, N_cols]);
+                        EV_left_b = EV_2d_b(interp_left_idx, :); EV_right_b = EV_2d_b(interp_right_idx, :);
+                        EV_interp_flat_b = EV_left_b + interp_weights .* (EV_right_b - EV_left_b);
+                        EV_interp_flat_b(zero_weights, :) = EV_left_b(zero_weights, :); EV_interp_flat_b(one_weights, :) = EV_right_b(one_weights, :);
+                        EV_interp_flat_b(isnan(EV_interp_flat_b)) = -Inf;
+                        EV_belief_interp = reshape(EV_interp_flat_b, [length(a1prime_grid), N_ze_local, N_dsemiz]);
+
+                        % Valt Interpolation
+                        EV_2d_v = reshape(EV_Valt_local, [N_a1, N_cols]);
+                        EV_left_v = EV_2d_v(interp_left_idx, :); EV_right_v = EV_2d_v(interp_right_idx, :);
+                        EV_interp_flat_v = EV_left_v + interp_weights .* (EV_right_v - EV_left_v);
+                        EV_interp_flat_v(zero_weights, :) = EV_left_v(zero_weights, :); EV_interp_flat_v(one_weights, :) = EV_right_v(one_weights, :);
+                        EV_interp_flat_v(isnan(EV_interp_flat_v)) = -Inf;
+                        EV_Valt_interp = reshape(EV_interp_flat_v, [length(a1prime_grid), N_ze_local, N_dsemiz]);
+                    end
+                else
+                    EV_belief_interp = []; EV_Valt_interp = [];
+                end
+
+                if l_a2 == 0
+                    EV_b_slice = reshape(EV_belief_local, [N_a1, n_z_loc, n_e_loc, N_dsemiz]);
+                    EV_belief_pre = permute(EV_b_slice(:, :, :, dsemiz_idx_tensor(:)), [4, 1, 5, 2, 3]);
+
+                    EV_v_slice = reshape(EV_Valt_local, [N_a1, n_z_loc, n_e_loc, N_dsemiz]);
+                    EV_Valt_pre = permute(EV_v_slice(:, :, :, dsemiz_idx_tensor(:)), [4, 1, 5, 2, 3]);
+
+                    d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1]);
+                    z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1), [1, 1, 1, n_z_loc, 1]);
+                    e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1 * n_z_loc), [1, 1, 1, 1, n_e_loc]);
+                    static_EV_offset = cast(d_vec + 1 + z_vec + e_vec, 'like', EV_belief_pre);
+                else
+                    EV_belief_pre = []; EV_Valt_pre = []; static_EV_offset = [];
+                end
+
+                % Chunker setup to protect GPU from OOM
+                state_list = start_a_idx:end_a_idx;
+                total_states = length(state_list);
+                flat_choices = max(1, N_d_safe) * N_a1;
+                max_states_per_chunk = max(1, floor(50000000 / (flat_choices * n_z_loc * n_e_loc)));
+
+                v_concat = []; p_apr_concat = []; p_d_concat = []; valt_concat = [];
+                p_l2idx_concat = []; p_l2flag_concat = [];
+
+                for chunk_start = 1:max_states_per_chunk:total_states
+                    chunk_end = min(total_states, chunk_start + max_states_per_chunk - 1);
+                    state_chunk = state_list(chunk_start:chunk_end);
+
+                    % --- PASS 1: Belief Pass ---
+                    if is_naive
+                        [v_exp_c, ~, ~, ~, ~, ~] = Evaluate_QHEZ_TensorBlock(...
+                            state_chunk, [], 0, N_a1, N_a2_local, N_d_safe, N_ze_local, ...
+                            Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_local, a2_grids_1d, l_a2, ...
+                            vfoptions.gridinterplayer, n2short, n2long, 1.0, delta_j, EV_belief_local, EV_belief_pre, EV_belief_interp, ...
+                            EV_belief_local, EV_belief_pre, EV_belief_interp, a1prime_grid, ...
+                            TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
+                            TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, 0);
+
+                        V_exp_j_max(state_chunk, curr_ze) = reshape(v_exp_c, [length(state_chunk), N_ze_local]);
+                    end
+
+                    % --- PASS 2: Reality Pass ---
+                    [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c, valt_c] = Evaluate_QHEZ_TensorBlock(...
+                        state_chunk, [], 0, N_a1, N_a2_local, N_d_safe, N_ze_local, ...
+                        Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_local, a2_grids_1d, l_a2, ...
+                        vfoptions.gridinterplayer, n2short, n2long, beta0_j(jj), delta_j, EV_belief_local, EV_belief_pre, EV_belief_interp, ...
+                        EV_Valt_local, EV_Valt_pre, EV_Valt_interp, a1prime_grid, ...
+                        TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
+                        TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, 0);
+
+                    v_concat = [v_concat; v_c];
+                    valt_concat = [valt_concat; valt_c];
+                    p_apr_concat = [p_apr_concat; p_apr_c];
+                    p_d_concat = [p_d_concat; p_d_c];
+                    if vfoptions.gridinterplayer(1) == 1
+                        p_l2idx_concat = [p_l2idx_concat; p_l2idx_c];
+                        p_l2flag_concat = [p_l2flag_concat; p_l2flag_c];
+                    end
+                end
+
+                if l_a2 > 0; N_a_local = N_a1 * N_a2_local; else; N_a_local = N_a1; end
+                V_j_max(start_a_idx:end_a_idx, curr_ze)     = reshape(v_concat,     [N_a_local, N_ze_local]);
+                Valt_j_max(start_a_idx:end_a_idx, curr_ze)  = reshape(valt_concat,  [N_a_local, N_ze_local]);
+                Pol_apr_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_apr_concat, [N_a_local, N_ze_local]);
+                Pol_d_max(start_a_idx:end_a_idx, curr_ze)   = reshape(p_d_concat,   [N_a_local, N_ze_local]);
+
+                if vfoptions.gridinterplayer(1) == 1
+                    Pol_L2idx_max(start_a_idx:end_a_idx, curr_ze)  = reshape(p_l2idx_concat,  [N_a_local, N_ze_local]);
+                    Pol_L2flag_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_l2flag_concat, [N_a_local, N_ze_local]);
+                end
+            end
+        end
     end
 
     % Prepare for next iteration
