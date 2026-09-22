@@ -330,17 +330,9 @@ else
     n_combined_z = n_z;
 end
 
-%% Quasi-Hyperbolic dispatcher (no divide-and-conquer)
-if strcmp(vfoptions.exoticpreferences, 'QuasiHyperbolic')
-    if nargout == 4
-        [V, Policy, Valt, Policyalt] = ValueFnIter_VFHorz_QuasiHyperbolic(n_d, n_a, n_combined_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        varargout = {V, Policy, Valt, Policyalt};
-    else
-        [V, Policy, Valt] = ValueFnIter_VFHorz_QuasiHyperbolic(n_d, n_a, n_combined_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        varargout = {V, Policy, Valt, []};
-    end
-    return;
-elseif strcmp(vfoptions.exoticpreferences, 'QHEpsteinZin')
+%% Quasi-Hyperbolic / QHEpsteinZin Dispatcher
+% QH may violate divide-and-conquer monotonicity assumptions--use at your own risk
+if strcmp(vfoptions.exoticpreferences, 'QuasiHyperbolic') || strcmp(vfoptions.exoticpreferences, 'QHEpsteinZin')
     if nargout == 4
         [V, Policy, Valt, Policyalt] = ValueFnIter_VFHorz_QHEpsteinZin(n_d, n_a, n_combined_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         varargout = {V, Policy, Valt, Policyalt};

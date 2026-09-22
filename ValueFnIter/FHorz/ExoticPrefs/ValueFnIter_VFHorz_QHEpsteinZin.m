@@ -3,10 +3,34 @@ function [V, Policy, Valt, Policyalt] = ValueFnIter_VFHorz_QHEpsteinZin(n_d, n_a
 %% 1. Pre-computation and Setup
 vfoptions.precision = underlyingType(a_grid);
 
-% Ensure EZ Parameters are properly initialized
-vfoptions = EpsteinZinSetup_VFHorz(N_j, Parameters, ReturnFnParamNames, DiscountFactorParamNames, vfoptions);
-ezc2 = vfoptions.ezc2; ezc3 = vfoptions.ezc3; ezc4 = vfoptions.ezc4;
-ezc5 = vfoptions.ezc5; ezc6 = vfoptions.ezc6; ezc7 = vfoptions.ezc7; ezc8 = vfoptions.ezc8;
+% Ensure EZ Parameters or Neutral CRRA Defaults are Initialized
+if strcmp(vfoptions.exoticpreferences, 'QHEpsteinZin')
+    vfoptions = EpsteinZinSetup_VFHorz(N_j, Parameters, ReturnFnParamNames, DiscountFactorParamNames, vfoptions);
+    ezc2 = vfoptions.ezc2; ezc3 = vfoptions.ezc3; ezc4 = vfoptions.ezc4;
+    ezc5 = vfoptions.ezc5; ezc6 = vfoptions.ezc6; ezc7 = vfoptions.ezc7; ezc8 = vfoptions.ezc8;
+    % --- Quasi-Hyperbolic Discount Factor Setup ---
+    % Extract present-bias parameter beta0
+    if isfield(vfoptions, 'QHadditionaldiscount') && isfield(Parameters, vfoptions.QHadditionaldiscount)
+        beta0_val = cast(Parameters.(vfoptions.QHadditionaldiscount), 'like', a_grid);
+        if isscalar(beta0_val)
+            beta0_j = beta0_val * ones(N_j, 1, 'like', a_grid);
+        else
+            beta0_j = beta0_val;
+        end
+    else
+        beta0_j = ones(N_j, 1, 'like', a_grid);
+    end
+else
+    % Neutral CRRA Fallbacks: Exact collapse to standard QH expected utility
+    ezc2 = ones(N_j, 1, 'like', a_grid);
+    ezc3 = cast(1, vfoptions.precision);
+    ezc4 = cast(1, vfoptions.precision);
+    ezc5 = ones(N_j, 1, 'like', a_grid);
+    ezc6 = ones(N_j, 1, 'like', a_grid);
+    ezc7 = ones(N_j, 1, 'like', a_grid);
+    ezc8 = ones(N_j, 1, 'like', a_grid);
+    beta0_j = ones(N_j, 1, 'like', a_grid);
+end
 
 % Universal Packer Setup
 l_a2 = 0;
@@ -140,8 +164,7 @@ for reverse_j = 0:N_j-1
 
     % QHEZ specific Discount Factors extraction
     DiscountFactorParamsVec = CreateVectorFromParams(Parameters, DiscountFactorParamNames, jj, vfoptions.precision);
-    beta_j = DiscountFactorParamsVec(1);
-    delta_j = DiscountFactorParamsVec(2);
+    delta_j = prod(DiscountFactorParamsVec);
     sj_val = sj(jj);
 
     pi_z_j = pi_z_J(:, :, min(jj, size(pi_z_J, 3)));
@@ -290,7 +313,7 @@ for reverse_j = 0:N_j-1
             LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar, dc_mode_override) Evaluate_QHEZ_TensorBlock(...
                 state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
-                vfoptions.gridinterplayer, n2short, n2long, beta_j, delta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
+                vfoptions.gridinterplayer, n2short, n2long, beta0_j(jj), delta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                 TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
                 TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, dc_mode_override);
 
@@ -364,7 +387,7 @@ for reverse_j = 0:N_j-1
                 LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar, dc_mode_override) Evaluate_QHEZ_TensorBlock(...
                     state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2_local, N_d_safe, N_ze_local, ...
                     Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_local, a2_grids_1d, l_a2, ...
-                    vfoptions.gridinterplayer, n2short, n2long, beta_j, delta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
+                    vfoptions.gridinterplayer, n2short, n2long, beta0_j(jj), delta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                     TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
                     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, dc_mode_override);
 
