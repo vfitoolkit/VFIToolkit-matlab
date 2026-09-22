@@ -761,28 +761,53 @@ N_other_states = double(N_a2_endo) * double(max(1, N_a_exp));
 num_seg = length(state_idx) / N_other_states;
 FLAT_STATES = num_seg * N_other_states * double(N_ze_local);
 
-% Dim 4: A1 States
+% --- DYNAMIC TENSOR COMPRESSION ---
+% Collapse Dimension 3 if N_a2_endo == 1 to perfectly align arrayfun geometry
+if N_a2_endo == 1
+    dim_A1 = 3;
+    dim_A2 = 4;
+    dim_Z  = 5;
+    dim_E  = 6;
+else
+    dim_A1 = 4;
+    dim_A2 = 5;
+    dim_Z  = 6;
+    dim_E  = 7;
+end
+
+% Dim: A1 States
 a1_states = mod(state_idx(1:num_seg) - 1, double(N_a1_dc)) + 1;
 A1_cells = cell(1, length(A1_grids_1d));
-A1_cells{1} = reshape(A1_grids_1d{1}(a1_states), [1, 1, 1, num_seg, 1, 1, 1]);
+A1_shape = ones(1, 7); A1_shape(dim_A1) = num_seg;
+A1_cells{1} = reshape(A1_grids_1d{1}(a1_states), A1_shape);
 
-% Dim 5: A2 States
+% Dim: A2 States
 if length(A1_grids_1d) > 1
-    A1_cells{2} = reshape(A1_grids_1d{2}(1:N_a2_endo), [1, 1, 1, 1, N_a2_endo, 1, 1]);
+    A1_shape_2 = ones(1, 7); A1_shape_2(dim_A1 + 1) = N_a2_endo;
+    A1_cells{2} = reshape(A1_grids_1d{2}(1:N_a2_endo), A1_shape_2);
 end
+
 if N_a_exp > 1
     a2_exp_idx = floor(((1:N_other_states) - 1) / N_a2_endo) + 1;
     A2_cells = cell(1, size(A2_mat, 2));
+    A2_shape = ones(1, 7); A2_shape(dim_A2) = N_other_states;
     for ia = 1:length(A2_cells)
-        A2_cells{ia} = reshape(A2_mat(a2_exp_idx, ia), [1, 1, 1, 1, N_other_states, 1, 1]);
+        A2_cells{ia} = reshape(A2_mat(a2_exp_idx, ia), A2_shape);
     end
 else
     A2_cells = {};
 end
 
-% Dims 6 & 7: Shocks
-for iz = 1:length(Z_cells_block); Z_cells_block{iz} = reshape(Z_cells_block{iz}, [1, 1, 1, 1, 1, n_z_loc, 1]); end
-for ie = 1:length(E_cells_block); E_cells_block{ie} = reshape(E_cells_block{ie}, [1, 1, 1, 1, 1, 1, n_e_loc]); end
+% Dims: Shocks
+Z_shape = ones(1, 7); Z_shape(dim_Z) = n_z_loc;
+for iz = 1:length(Z_cells_block);
+    Z_cells_block{iz} = reshape(Z_cells_block{iz}, Z_shape);
+end
+
+E_shape = ones(1, 7); E_shape(dim_E) = n_e_loc;
+for ie = 1:length(E_cells_block);
+    E_cells_block{ie} = reshape(E_cells_block{ie}, E_shape);
+end
 
 stride_d = double(N_d_safe);
 d_idx  = reshape(1:N_d_safe, [N_d_safe, 1, 1, 1, 1, 1, 1]);
