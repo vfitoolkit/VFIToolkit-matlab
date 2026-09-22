@@ -850,10 +850,10 @@ if isempty(loweredge_matrix)
         EV_bounded = beta_j .* (weight_left .* EV_flat(idx_left) + weight_right .* EV_flat(idx_right));
     else
         lin_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
-        EV_bounded = beta_j .* EV_flat(lin_idx);
+        EV_bounded = cast(beta_j .* EV_flat(lin_idx), 'like', F_tensor);
     end
 
-    RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+    RHS = cast(Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j), 'like', F_tensor);
     clear F_tensor EV_bounded;
 
     % --- STRICT DIMENSIONAL BOUNDING ---
@@ -950,10 +950,10 @@ else
             EV_bounded = beta_j .* (weight_left .* EV_flat(idx_left) + weight_right .* EV_flat(idx_right));
         else
             lin_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
-            EV_bounded = beta_j .* EV_flat(lin_idx);
+            EV_bounded = cast(beta_j .* EV_flat(lin_idx), 'like', F_tensor);
         end
 
-        RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+        RHS = cast(Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j), 'like', F_tensor);
         clear F_tensor EV_bounded;
 
         % --- STRICT DIMENSIONAL BOUNDING ---
@@ -1043,10 +1043,10 @@ else
             EV_bounded = beta_j .* (weight_left .* EV_flat(idx_left) + weight_right .* EV_flat(idx_right));
         else
             lin_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
-            EV_bounded = beta_j .* EV_flat(lin_idx);
+            EV_bounded = cast(beta_j .* EV_flat(lin_idx), 'like', F_tensor);
         end
 
-        RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+        RHS = cast(Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j), 'like', F_tensor);
         clear F_tensor EV_bounded;
 
         % --- STRICT DIMENSIONAL BOUNDING ---
