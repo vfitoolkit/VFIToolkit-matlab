@@ -714,6 +714,7 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max, Pol_a1
     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, is_dc_mode)
 
 N_states = length(state_idx); num_a1_vars = length(A1_grids_1d);
+FLAT_STATES = N_states * N_ze_local;
 
 % --- Dims 4, 5, 6: States & Shocks ---
 if N_a_exp > 1; [a1_sub, a2_sub] = ind2sub([N_a1_dc * N_a2_endo, N_a_exp], state_idx); else; a1_sub = state_idx; end
@@ -748,7 +749,6 @@ if isempty(loweredge_matrix)
     % Pure 6D Broadcast
     if N_a_exp > 1
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-        % (Handle Experience Asset EV scaling here if needed, keeping it omitted for housing model clarity)
     else
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
     end
@@ -761,20 +761,23 @@ if isempty(loweredge_matrix)
     RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
     clear F_tensor EV_bounded;
 
-    RHS_flat = reshape(RHS, [N_d_safe * num_choices_total, N_a2_endo * N_states * N_ze_local]);
+    % Combine d, a1prime, and a2prime into the choice axis!
+    RHS_flat = reshape(RHS, [N_d_safe * num_choices_total * N_a2_endo, FLAT_STATES]);
     [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
 
     if nargout > 5
-        RHS_for_d = reshape(RHS_flat, [N_d_safe, num_choices_total, N_a2_endo * N_states * N_ze_local]);
-        [~, max_a1_idx_rel] = max(max(RHS_for_d, [], 1), [], 2);
+        RHS_for_d = reshape(RHS, [N_d_safe, num_choices_total, N_a2_endo, N_states, N_ze_local]);
+        RHS_max_d = max(RHS_for_d, [], 1);
+        [~, max_a1_idx_rel] = max(RHS_max_d, [], 2);
         Pol_a1_per_a2 = reshape(max_a1_idx_rel, [N_a2_endo, N_states, N_ze_local]);
     else
         Pol_a1_per_a2 = [];
     end
-    clear RHS_flat RHS_for_d RHS;
+    clear RHS_flat RHS_for_d RHS RHS_max_d;
 
     d_idx_local   = mod(Pol_sub_idx - 1, N_d_safe) + 1;
     apr_idx_local = ceil(Pol_sub_idx / N_d_safe);
+
     V_j_max        = reshape(V_sub_coarse,  [N_states, N_ze_local]);
     Pol_apr_max    = reshape(apr_idx_local, [N_states, N_ze_local]);
     Pol_d_max      = reshape(d_idx_local,   [N_states, N_ze_local]);
@@ -786,57 +789,95 @@ else
     % =================================================================
     Pol_a1_per_a2 = [];
 
-    % The magic of the Slicer loop: loweredge is strictly orthogonal to N_states!
-    low_mat = reshape(loweredge_matrix, [1, 1, N_a2_endo, 1, n_z_loc, n_e_loc]);
+    % Safely orient the conditional bounds to match FLAT_STATES (6D Architecture)
+    a1_idx = mod(loweredge_matrix - 1, N_a1_dc) + 1;
+    numel_low = numel(a1_idx);
+
+    if numel_low == N_a2_endo * N_states * N_ze_local
+        % 2D Full Interpolation Bounds
+        low_mat = reshape(a1_idx, [1, 1, N_a2_endo, N_states, n_z_loc, n_e_loc]);
+    elseif numel_low == N_states * N_ze_local
+        % 1D Full Interpolation Bounds
+        low_mat = repmat(reshape(a1_idx, [1, 1, 1, N_states, n_z_loc, n_e_loc]), [1, 1, N_a2_endo, 1, 1, 1]);
+    else
+        % DC Slicer Anchor Bounds (Segment Eval)
+        if size(a1_idx, 2) == N_a2_endo && N_a2_endo > 1
+            % DC2A Slicer: a1_idx is [1, N_a2_endo, N_other_states, N_ze]
+            N_other = numel_low / (N_a2_endo * N_ze_local);
+            num_seg = N_states / N_other;
+            low_squeeze = reshape(a1_idx, [N_a2_endo, 1, N_other, n_z_loc, n_e_loc]);
+            low_rep = repmat(low_squeeze, [1, num_seg, 1, 1, 1]);
+            low_mat = reshape(low_rep, [1, 1, N_a2_endo, N_states, n_z_loc, n_e_loc]);
+        else
+            % DC1 Slicer: a1_idx is [1, N_other_states, N_ze]
+            N_other = numel_low / N_ze_local;
+            num_seg = N_states / N_other;
+            low_squeeze = reshape(a1_idx, [1, 1, N_other, n_z_loc, n_e_loc]);
+            low_rep = repmat(low_squeeze, [1, num_seg, 1, 1, 1]);
+            low_mat = repmat(reshape(low_rep, [1, 1, 1, N_states, n_z_loc, n_e_loc]), [1, 1, N_a2_endo, 1, 1, 1]);
+        end
+    end
+    low_mat = cast(low_mat, 'like', EV_local);
 
     if gridinterplayer(1) == 0 || is_dc_mode == 2
-        offsets = reshape(0:maxgap_scalar, [1, maxgap_scalar + 1, 1, 1, 1, 1]);
-        choice_idx_a1 = max(1, min(low_mat + offsets, length(A1_grids_1d{1})));
+        % -------------------------------------------------------------
+        % SCENARIO 2A: Standard DC Segment Zoom
+        % -------------------------------------------------------------
+        num_choices = maxgap_scalar + 1;
+        offsets = cast(reshape(0:maxgap_scalar, [1, num_choices, 1, 1, 1, 1]), 'like', low_mat);
+        choice_idx_a1 = max(1, min(low_mat + offsets, cast(length(A1_grids_1d{1}), 'like', low_mat)));
 
         Apr_cells = {A1_grids_1d{1}(choice_idx_a1)};
         if num_a1_vars > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1]); end
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-        lin_idx_EV = d_idx + (choice_idx_a1 - 1)*N_d_safe + (a2_idx - 1)*N_d_safe*N_a1_dc + ...
-            (z_idx - 1)*N_d_safe*N_a1_dc*N_a2_endo*max(1, N_a_exp);
+        lin_idx_EV = d_idx + (choice_idx_a1 - 1)*cast(N_d_safe, 'like', choice_idx_a1) + (a2_idx - 1)*cast(N_d_safe*N_a1_dc, 'like', choice_idx_a1) + ...
+            (z_idx - 1)*cast(N_d_safe*N_a1_dc*N_a2_endo*max(1, N_a_exp), 'like', choice_idx_a1);
 
         EV_bounded = beta_j .* EV_local(lin_idx_EV);
         RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
         clear F_tensor EV_bounded;
 
-        num_choices = maxgap_scalar + 1;
-        RHS_flat = reshape(RHS, [N_d_safe * num_choices, N_a2_endo * N_states * N_ze_local]);
+        RHS_flat = reshape(RHS, [N_d_safe * num_choices * N_a2_endo, FLAT_STATES]);
         [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
 
         if nargout > 5
-            RHS_for_d = reshape(RHS_flat, [N_d_safe, num_choices, N_a2_endo * N_states * N_ze_local]);
-            [~, max_a1_idx_rel] = max(max(RHS_for_d, [], 1), [], 2);
-            max_a1_idx_rel = reshape(max_a1_idx_rel, [1, 1, N_a2_endo, 1, n_z_loc, n_e_loc]);
-            Pol_a1_per_a2 = min(low_mat + max_a1_idx_rel - 1, N_a1_dc);
+            RHS_for_d = reshape(RHS, [N_d_safe, num_choices, N_a2_endo, N_states, N_ze_local]);
+            RHS_max_d = max(RHS_for_d, [], 1);
+            [~, max_a1_idx_rel] = max(RHS_max_d, [], 2);
+
+            low_3d = reshape(low_mat, [1, 1, N_a2_endo, N_states, N_ze_local]);
+            Pol_a1_per_a2 = min(low_3d + cast(max_a1_idx_rel - 1, 'like', low_3d), cast(N_a1_dc, 'like', low_3d));
             Pol_a1_per_a2 = reshape(Pol_a1_per_a2, [N_a2_endo, N_states, N_ze_local]);
         end
-        clear RHS_flat RHS_for_d;
+        clear RHS_flat RHS_for_d RHS RHS_max_d;
 
         d_idx_local = mod(Pol_sub_idx - 1, N_d_safe) + 1;
-        apr_offset  = ceil(Pol_sub_idx / N_d_safe);
+        apr_offset  = ceil(Pol_sub_idx / N_d_safe); % Combined a1/a2 choice index
+
+        a1_apr_offset = mod(apr_offset - 1, num_choices) + 1;
+        a2_offset_factor = ceil(apr_offset / num_choices);
+
+        loweredge_matrix_2d = reshape(low_mat, [N_a2_endo, FLAT_STATES]);
+        lin_idx_loweredge = a2_offset_factor(:)' + (0:FLAT_STATES-1) * N_a2_endo;
+        chosen_loweredge = loweredge_matrix_2d(lin_idx_loweredge);
+
+        a1_Pol_apr = chosen_loweredge + cast(a1_apr_offset - 1, 'like', chosen_loweredge);
+        Pol_apr_max = a1_Pol_apr + cast(a2_offset_factor - 1, 'like', chosen_loweredge) * cast(N_a1_dc, 'like', chosen_loweredge);
+
         V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]);
         Pol_d_max = reshape(d_idx_local, [N_states, N_ze_local]);
-
-        low_mat_flat = reshape(low_mat, [N_a2_endo, 1, N_ze_local]);
-        low_mat_exp = repmat(low_mat_flat, [1, N_states, 1]);
-        a1_Pol_apr = reshape(low_mat_exp(:)', [1, N_a2_endo * N_states * N_ze_local]) + apr_offset - 1;
-        a2_offset_factor = reshape(repmat((1:N_a2_endo)', [1, N_states, N_ze_local]), [1, N_a2_endo * N_states * N_ze_local]);
-
-        Pol_apr_max = a1_Pol_apr + (a2_offset_factor - 1) * N_a1_dc;
         Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]);
         Pol_L2idx_max = []; Pol_L2flag_max = [];
 
     else
-        % Scenario 2B: Grid Interpolation
-        L2_base = (max(2, min(low_mat, length(A1_grids_1d{1}) - 1)) - 1) * (n2short + 1) + 1;
-        offsets = reshape(-(n2short + 1):(n2short + 1), [1, n2long, 1, 1, 1, 1]);
-        choice_idx_a1 = max(1, min(L2_base + offsets, length(a1prime_grid)));
+        % -------------------------------------------------------------
+        % SCENARIO 2B: Grid Interpolation Zoom
+        % -------------------------------------------------------------
+        L2_base = (max(2, min(low_mat, cast(length(A1_grids_1d{1}) - 1, 'like', low_mat))) - 1) * cast(n2short + 1, 'like', low_mat) + 1;
+        offsets = cast(reshape(-(n2short + 1):(n2short + 1), [1, n2long, 1, 1, 1, 1]), 'like', L2_base);
+        choice_idx_a1 = max(1, min(L2_base + offsets, cast(length(a1prime_grid), 'like', L2_base)));
 
         Apr_cells = {a1prime_grid(choice_idx_a1)};
         if num_a1_vars > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1]); end
@@ -844,51 +885,52 @@ else
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
         EV_local = reshape(EV_interp_local, [N_d_safe, length(a1prime_grid), N_a2_endo, max(1, N_a_exp), n_z_loc, n_e_loc]);
-        lin_idx_EV = d_idx + (choice_idx_a1 - 1)*N_d_safe + (a2_idx - 1)*N_d_safe*length(a1prime_grid) + ...
-            (z_idx - 1)*N_d_safe*length(a1prime_grid)*N_a2_endo*max(1, N_a_exp);
+        lin_idx_EV = d_idx + (choice_idx_a1 - 1)*cast(N_d_safe, 'like', choice_idx_a1) + (a2_idx - 1)*cast(N_d_safe*length(a1prime_grid), 'like', choice_idx_a1) + ...
+            (z_idx - 1)*cast(N_d_safe*length(a1prime_grid)*N_a2_endo*max(1, N_a_exp), 'like', choice_idx_a1);
 
         EV_bounded = beta_j .* EV_local(lin_idx_EV);
         RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
         clear F_tensor EV_bounded EV_local;
 
-        RHS_flat = reshape(RHS, [N_d_safe * n2long, N_a2_endo * N_states * N_ze_local]);
+        RHS_flat = reshape(RHS, [N_d_safe * n2long * N_a2_endo, FLAT_STATES]);
         [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
 
         d_idx_local = mod(Pol_sub_idx - 1, N_d_safe) + 1;
         apr_offset  = ceil(Pol_sub_idx / N_d_safe);
-        V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]);
-        Pol_d_max = reshape(d_idx_local, [N_states, N_ze_local]);
 
         a1_apr_offset = mod(apr_offset - 1, n2long) + 1;
         a2_offset_factor = ceil(apr_offset / n2long);
 
-        low_mat_flat = reshape(L2_base, [N_a2_endo, 1, N_ze_local]);
-        low_mat_exp = repmat(low_mat_flat, [1, N_states, 1]);
-        chosen_loweredge = reshape(low_mat_exp(:)', [1, N_a2_endo * N_states * N_ze_local]);
+        L2_base_2d = reshape(L2_base, [N_a2_endo, FLAT_STATES]);
+        lin_idx_loweredge = a2_offset_factor(:)' + (0:FLAT_STATES-1) * N_a2_endo;
+        chosen_loweredge = L2_base_2d(lin_idx_loweredge);
 
-        abs_fine_idx_flat = (chosen_loweredge - 1) + 1 + (-(n2short + 1)) + a1_apr_offset - 1;
-        a1_Pol_apr = floor((abs_fine_idx_flat - 1) / (n2short + 1)) + 1;
-        a1_Pol_apr = min(a1_Pol_apr, N_a1_dc - 1);
-        Pol_L2idx_max = abs_fine_idx_flat - (a1_Pol_apr - 1) * (n2short + 1);
+        abs_fine_idx_flat = (chosen_loweredge - 1) + 1 + cast(-(n2short + 1), 'like', chosen_loweredge) + cast(a1_apr_offset - 1, 'like', chosen_loweredge);
+        a1_Pol_apr = floor((abs_fine_idx_flat - 1) / cast(n2short + 1, 'like', chosen_loweredge)) + 1;
+        a1_Pol_apr = min(a1_Pol_apr, cast(N_a1_dc - 1, 'like', chosen_loweredge));
+        Pol_L2idx_max = abs_fine_idx_flat - (a1_Pol_apr - 1) * cast(n2short + 1, 'like', chosen_loweredge);
 
-        Pol_apr_max = a1_Pol_apr + (a2_offset_factor - 1) * N_a1_dc;
+        Pol_apr_max = a1_Pol_apr + cast(a2_offset_factor - 1, 'like', chosen_loweredge) * cast(N_a1_dc, 'like', chosen_loweredge);
+
+        V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]);
+        Pol_d_max = reshape(d_idx_local, [N_states, N_ze_local]);
         Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]);
         Pol_L2idx_max = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
 
-        row_lower = d_idx_local + (1 - 1) * N_d_safe + (a2_offset_factor - 1) * (n2long * N_d_safe);
-        row_upper = d_idx_local + (n2long - 1) * N_d_safe + (a2_offset_factor - 1) * (n2long * N_d_safe);
-        lin_lower = row_lower + (0:(N_a2_endo * N_states * N_ze_local)-1) * (N_d_safe * n2long);
-        lin_upper = row_upper + (0:(N_a2_endo * N_states * N_ze_local)-1) * (N_d_safe * n2long);
+        % Robust fast arithmetic constraint flags
+        row_lower = d_idx_local(:)' + (1 - 1)*N_d_safe + (a2_offset_factor(:)' - 1)*N_d_safe*n2long;
+        row_upper = d_idx_local(:)' + (n2long - 1)*N_d_safe + (a2_offset_factor(:)' - 1)*N_d_safe*n2long;
+        lin_lower = row_lower + (0:FLAT_STATES-1) * (N_d_safe * n2long * N_a2_endo);
+        lin_upper = row_upper + (0:FLAT_STATES-1) * (N_d_safe * n2long * N_a2_endo);
 
         isInfLower = (RHS(lin_lower) == -Inf); isInfUpper = (RHS(lin_upper) == -Inf);
         clear RHS;
 
         inLowerStrict = (a1_apr_offset >= 2) & (a1_apr_offset <= n2short + 1);
         inUpperStrict = (a1_apr_offset >= n2short + 3) & (a1_apr_offset <= n2long - 1);
-        Pol_L2flag_max = 2 * ones(1, N_a2_endo * N_states * N_ze_local, 'like', V_j_max);
+        Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
         Pol_L2flag_max(inLowerStrict & isInfLower) = 3; Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
-        Pol_L2flag_max = reshape(Pol_L2flag_max, [N_a2_endo, N_states, N_ze_local]);
-        Pol_L2flag_max = squeeze(max(Pol_L2flag_max, [], 1)); % Collapse housing checks to states
+        Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
 end
 
