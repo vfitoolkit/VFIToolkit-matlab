@@ -1088,31 +1088,33 @@ else
         RHS = cast(Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j), 'like', F_tensor);
         clear F_tensor EV_bounded;
 
-        % --- STRICT DIMENSIONAL BOUNDING ---
-        RHS_padded = reshape(RHS, double(N_d_safe), num_choices, double(N_a2_endo), []);
-        RHS_3D = reshape(RHS_padded, double(N_d_safe), num_choices * double(N_a2_endo), []);
+        % --- RAW FLAT TENSOR UNPACKING (Strict Column Geometry) ---
+        stride_flat = double(N_d_safe) * num_choices * double(N_a2_endo);
+        RHS_flat = reshape(RHS, stride_flat, []);
+        [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
 
-        [RHS_max_apr, Pol_apr_rel] = max(RHS_3D, [], 2);
-        [V_sub_fine, d_idx_local] = max(RHS_max_apr, [], 1);
+        Pol_sub_idx = Pol_sub_idx(:);
+        V_sub_fine = V_sub_fine(:);
 
-        num_states_actual = size(RHS_3D, 3);
-        win_idx = d_idx_local(:)' + (0:num_states_actual-1) * double(N_d_safe);
-        apr_offset = Pol_apr_rel(win_idx);
+        d_idx_local = mod(Pol_sub_idx - 1, double(N_d_safe)) + 1;
+        apr_offset  = double(idivide(int32(Pol_sub_idx - 1), int32(N_d_safe), 'floor')) + 1;
 
         a1_apr_offset = mod(apr_offset - 1, num_choices) + 1;
         a2_offset_factor = double(idivide(int32(apr_offset - 1), int32(num_choices), 'floor')) + 1;
 
         L2_expanded = L2_base + zeros(base_shape);
         L2_base_2d = reshape(L2_expanded, N_a2_endo, []);
-        lin_idx_loweredge = a2_offset_factor(:)' + (0:FLAT_STATES-1) * N_a2_endo;
-        chosen_loweredge = L2_base_2d(lin_idx_loweredge);
 
-        abs_fine_idx_flat = (chosen_loweredge - 1) + 1 - (n2short_d + 1) + a1_apr_offset - 1;
+        % Force strict linear mapping to prevent grid explosions
+        lin_idx_loweredge = a2_offset_factor(:) + (0:FLAT_STATES-1)' * N_a2_endo;
+        chosen_loweredge = L2_base_2d(lin_idx_loweredge(:));
+
+        abs_fine_idx_flat = (chosen_loweredge(:) - 1) + 1 - (n2short_d + 1) + a1_apr_offset(:) - 1;
         a1_Pol_apr = double(idivide(int32(abs_fine_idx_flat - 1), int32(n2short_d + 1), 'floor')) + 1;
-        a1_Pol_apr = min(a1_Pol_apr, N_a1_dc - 1);
-        Pol_L2idx_max = abs_fine_idx_flat - (a1_Pol_apr - 1) * (n2short_d + 1);
+        a1_Pol_apr = min(a1_Pol_apr, double(N_a1_dc - 1));
 
-        Pol_apr_max = a1_Pol_apr + (a2_offset_factor - 1) * N_a1_dc;
+        Pol_L2idx_max = abs_fine_idx_flat - (a1_Pol_apr - 1) * (n2short_d + 1);
+        Pol_apr_max = a1_Pol_apr + (a2_offset_factor(:) - 1) * double(N_a1_dc);
 
         V_j_max   = reshape(V_sub_fine,  [], N_ze_local);
         Pol_d_max = reshape(d_idx_local, [], N_ze_local);
