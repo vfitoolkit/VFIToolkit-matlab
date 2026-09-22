@@ -66,7 +66,7 @@ if num_seg > 0
 
     % --- VRAM Protection: Chunk the massive batched segment pass ---
     flat_choices = global_maxgap + 1;
-    max_states_per_chunk = max(1, floor(40000000 / (flat_choices * N_ze)));
+    max_states_per_chunk = max(1, floor(5e8 / (flat_choices * N_ze)));
     total_seg = length(seg_state_chunk);
 
     V_seg = zeros(total_seg, N_ze, 'like', V_max);
