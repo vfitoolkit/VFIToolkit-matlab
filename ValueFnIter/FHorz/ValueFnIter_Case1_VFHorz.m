@@ -498,7 +498,7 @@ for reverse_j = 0:N_j-1
             if l_a_exp == 0
                 EV_reshaped = reshape(EV_local, [N_a1_dc * N_a2_endo, n_z_loc, n_e_loc, N_dsemiz]);
                 EV_d_sliced = EV_reshaped(:, :, :, dsemiz_idx_tensor(:));
-                EV_bounded_pre = permute(EV_d_sliced, [4, 1, 5, 2, 3]);
+                EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
                 d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1, 1]);
                 z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo), [1, 1, 1, 1, n_z_loc, 1]);
                 e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo * n_z_loc), [1, 1, 1, 1, 1, n_e_loc]);
@@ -617,7 +617,7 @@ for reverse_j = 0:N_j-1
                 if l_a_exp == 0
                     EV_reshaped = reshape(EV_local, [N_a1_dc * N_a2_endo, n_z_loc, n_e_loc, N_dsemiz]);
                     EV_d_sliced = EV_reshaped(:, :, :, dsemiz_idx_tensor(:));
-                    EV_bounded_pre = permute(EV_d_sliced, [4, 1, 5, 2, 3]);
+                    EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
                     d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1, 1]);
                     z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo), [1, 1, 1, 1, n_z_loc, 1]);
                     e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo * n_z_loc), [1, 1, 1, 1, 1, n_e_loc]);
@@ -749,6 +749,8 @@ Policy = reshape(Policy_flat, [out_pol_vars, state_shape]);
 V = reshape(V_cpu, state_shape);
 varargout{1} = V; varargout{2} = Policy;
 end
+
+
 function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max, Pol_a1_per_a2] = Evaluate_Case1_TensorBlock(...
     state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, N_a_exp, N_d_safe, N_ze_local, ...
     Z_cells_block, E_cells_block, D_cells_block, A1_mat, A2_mat, A1_grids_1d, a2_grids_1d, ...
@@ -821,12 +823,14 @@ z_idx  = reshape(1:n_z_loc, z_shape);
 e_shape = ones(1, 7); e_shape(dim_E) = n_e_loc;
 e_idx  = reshape(1:n_e_loc, e_shape);
 
+
 if isempty(loweredge_matrix)
     % =================================================================
     % BRANCH 1: COARSE / FULL EVALUATION
     % =================================================================
     num_choices = double(length(A1_grids_1d{1}));
     use_gi = false;
+
     if gridinterplayer(1) == 1 && is_dc_mode ~= 2
         num_choices = double(length(a1prime_grid));
         A1_grids_1d{1} = a1prime_grid;
@@ -836,36 +840,16 @@ if isempty(loweredge_matrix)
     Apr_cells = {reshape(A1_grids_1d{1}, [1, num_choices, 1, 1, 1, 1, 1])};
     if length(A1_grids_1d) > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1, 1]); end
 
-    % --- PTX COMPILER FMA PARITY (Explicit Meshing) ---
-    % VFIToolkit uses ndgrid to explicitly expand arrays in memory before evaluation.
-    % We replicate that here to prevent GPU PTX implicit-expansion rounding differences
-    % from shifting the optimal policy by 1 index in the smooth unconstrained interior.
-    Apr_mesh = cell(size(Apr_cells));
-    A1_mesh  = cell(size(A1_cells));
-
-    rep_Apr = ones(1, 7); rep_Apr(dim_A1) = num_seg;
-    rep_A1  = ones(1, 7); rep_A1(2)       = num_choices;
-
-    for i = 1:length(Apr_cells)
-        Apr_mesh{i} = repmat(Apr_cells{i}, rep_Apr);
-        A1_mesh{i}  = repmat(A1_cells{i}, rep_A1);
-    end
-
+    % --- PURE IMPLICIT EXPANSION ---
     if N_a_exp > 1
-        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
     else
-        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
     end
-    % --- SANITIZE INVALID STATES (Complex/NaN to -Inf) ---
-    if false && ~isreal(F_tensor)
-        F_tensor(imag(F_tensor) ~= 0) = -Inf;
-        F_tensor = real(F_tensor);
-    end
-    if false; F_tensor(isnan(F_tensor)) = -Inf; end
 
     choice_idx_eval = reshape(1:num_choices, [1, num_choices, 1, 1, 1, 1, 1]);
 
-    % UNIVERSAL FLAT EV LOOKUP (Zero reshape crashes)
+    % UNIVERSAL FLAT EV LOOKUP
     if use_gi
         EV_flat = EV_interp_local(:);
         s_a2 = double(length(a1prime_grid));
@@ -873,6 +857,7 @@ if isempty(loweredge_matrix)
         EV_flat = EV_local(:);
         s_a2 = double(N_a1_dc);
     end
+
     s_a1 = 1;
     s_aexp = s_a2 * double(N_a2_endo);
     s_z = s_aexp * double(max(1, N_a_exp));
@@ -893,23 +878,14 @@ if isempty(loweredge_matrix)
         base_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
         idx_left = base_idx + (idx_exp - 1)*s_aexp;
         idx_right = base_idx + (idx_exp)*s_aexp;
+
         EV_bounded = beta_j .* (weight_left .* EV_flat(idx_left) + weight_right .* EV_flat(idx_right));
     else
         lin_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
-        EV_bounded = beta_j .* EV_flat(lin_idx);
-
-        % Force EV_bounded to mirror the strict precision of the evaluation before implicit expansion
-        if isa(F_tensor, 'gpuArray')
-            EV_bounded = gpuArray(cast(gather(EV_bounded), classUnderlying(F_tensor)));
-        else
-            EV_bounded = cast(EV_bounded, class(F_tensor));
-        end
+        EV_bounded = cast(beta_j .* EV_flat(lin_idx), 'like', F_tensor);
     end
 
     RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-    % Explicitly clamp RHS NaNs to -Inf to guarantee max() ignores invalid states safely
-    % even if vectorizedreturnfn generates floating point residues
-    RHS(isnan(RHS)) = -Inf;
     clear F_tensor EV_bounded;
 
     % --- RAW FLAT TENSOR UNPACKING ---
@@ -939,7 +915,8 @@ if isempty(loweredge_matrix)
     V_j_max        = reshape(V_sub_coarse,  [], N_ze_local);
     Pol_apr_max    = reshape(apr_idx_local, [], N_ze_local);
     Pol_d_max      = reshape(d_idx_local,   [], N_ze_local);
-    Pol_L2idx_max  = []; Pol_L2flag_max = [];
+    Pol_L2idx_max  = [];
+    Pol_L2flag_max = [];
 
 else
     % =================================================================
@@ -976,32 +953,12 @@ else
         Apr_cells = {A1_grids_1d{1}(choice_idx_eval)};
         if length(A1_grids_1d) > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1, 1]); end
 
-        % --- PTX COMPILER FMA PARITY (Explicit Meshing) ---
-        % VFIToolkit uses ndgrid to explicitly expand arrays in memory before evaluation.
-        % We replicate that here to prevent GPU PTX implicit-expansion rounding differences
-        % from shifting the optimal policy by 1 index in the smooth unconstrained interior.
-        Apr_mesh = cell(size(Apr_cells));
-        A1_mesh  = cell(size(A1_cells));
-
-        rep_Apr = ones(1, 7); rep_Apr(dim_A1) = num_seg;
-        rep_A1  = ones(1, 7); rep_A1(2)       = num_choices;
-
-        for i = 1:length(Apr_cells)
-            Apr_mesh{i} = repmat(Apr_cells{i}, rep_Apr);
-            A1_mesh{i}  = repmat(A1_cells{i}, rep_A1);
-        end
-
+        % --- PURE IMPLICIT EXPANSION ---
         if N_a_exp > 1
-            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         else
-            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         end
-        % --- SANITIZE INVALID STATES (Complex/NaN to -Inf) ---
-        if false && ~isreal(F_tensor)
-            F_tensor(imag(F_tensor) ~= 0) = -Inf;
-            F_tensor = real(F_tensor);
-        end
-        if false; F_tensor(isnan(F_tensor)) = -Inf; end;
 
         EV_flat = EV_local(:);
         s_a1 = 1;
@@ -1025,6 +982,7 @@ else
             base_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
             idx_left = base_idx + (idx_exp - 1)*s_aexp;
             idx_right = base_idx + (idx_exp)*s_aexp;
+
             EV_bounded = beta_j .* (weight_left .* EV_flat(idx_left) + weight_right .* EV_flat(idx_right));
         else
             lin_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
@@ -1041,13 +999,12 @@ else
 
         d_idx_local   = mod(Pol_sub_idx - 1, double(N_d_safe)) + 1;
         apr_idx_local = double(idivide(int32(Pol_sub_idx - 1), int32(N_d_safe), 'floor')) + 1;
-        
+
         % --- FLAT-PACK ROBUSTNESS ---
-        % Reshape to guarantee assignment parity in the chunk loop if n_z > 1
-        V_sub_coarse  = reshape(V_sub_coarse, [], n_z_loc * n_e_loc);
+        V_sub_fine    = reshape(V_sub_fine, [], n_z_loc * n_e_loc);
         apr_idx_local = reshape(apr_idx_local, [], n_z_loc * n_e_loc);
         d_idx_local   = reshape(d_idx_local, [], n_z_loc * n_e_loc);
-        
+
         if nargout > 5
             RHS_for_d = max(reshape(RHS, double(N_d_safe), []), [], 1);
             [~, max_a1_idx_rel] = max(reshape(RHS_for_d, num_choices * double(N_a2_endo), []), [], 1);
@@ -1058,27 +1015,30 @@ else
 
         clear RHS RHS_flat RHS_for_d;
 
-        a1_apr_offset = mod(apr_offset - 1, num_choices) + 1;
-        a2_offset_factor = double(idivide(int32(apr_offset - 1), int32(num_choices), 'floor')) + 1;
+        a1_apr_offset = mod(apr_idx_local - 1, num_choices) + 1;
+        a2_offset_factor = double(idivide(int32(apr_idx_local - 1), int32(num_choices), 'floor')) + 1;
 
         low_expanded = low_mat + zeros(base_shape);
         low_2d = reshape(low_expanded, N_a2_endo, []);
         lin_idx_loweredge = a2_offset_factor(:)' + (0:FLAT_STATES-1) * N_a2_endo;
         chosen_loweredge = low_2d(lin_idx_loweredge);
 
-        a1_Pol_apr = min(chosen_loweredge + a1_apr_offset - 1, double(N_a1_dc));
-        Pol_apr_max = a1_Pol_apr + (a2_offset_factor - 1) * N_a1_dc;
+        a1_Pol_apr = min(chosen_loweredge + a1_apr_offset(:)' - 1, double(N_a1_dc));
+        Pol_apr_max = a1_Pol_apr + (a2_offset_factor(:)' - 1) * N_a1_dc;
 
-        V_j_max   = reshape(V_sub_fine,  [], N_ze_local);
-        Pol_d_max = reshape(d_idx_local, [], N_ze_local);
+        V_j_max     = reshape(V_sub_fine,  [], N_ze_local);
+        Pol_d_max   = reshape(d_idx_local, [], N_ze_local);
         Pol_apr_max = reshape(Pol_apr_max, [], N_ze_local);
-        Pol_L2idx_max = []; Pol_L2flag_max = [];
+
+        Pol_L2idx_max  = [];
+        Pol_L2flag_max = [];
 
     else
+        % =================================================================
         % Branch 2B: Grid Interpolation Fine Zoom
+        % =================================================================
         n2short_d = double(n2short);
         n2long_d  = double(n2long);
-
         L2_base = (max(2, min(low_mat, double(length(A1_grids_1d{1}) - 1))) - 1) * (n2short_d + 1) + 1;
         num_choices = n2long_d;
         offsets = reshape(-(n2short_d + 1) : (n2short_d + 1), [1, num_choices, 1, 1, 1, 1, 1]);
@@ -1087,32 +1047,12 @@ else
         Apr_cells = {a1prime_grid(choice_idx_eval)};
         if length(A1_grids_1d) > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1, 1]); end
 
-        % --- PTX COMPILER FMA PARITY (Explicit Meshing) ---
-        % VFIToolkit uses ndgrid to explicitly expand arrays in memory before evaluation.
-        % We replicate that here to prevent GPU PTX implicit-expansion rounding differences
-        % from shifting the optimal policy by 1 index in the smooth unconstrained interior.
-        Apr_mesh = cell(size(Apr_cells));
-        A1_mesh  = cell(size(A1_cells));
-
-        rep_Apr = ones(1, 7); rep_Apr(dim_A1) = num_seg;
-        rep_A1  = ones(1, 7); rep_A1(2)       = num_choices;
-
-        for i = 1:length(Apr_cells)
-            Apr_mesh{i} = repmat(Apr_cells{i}, rep_Apr);
-            A1_mesh{i}  = repmat(A1_cells{i}, rep_A1);
-        end
-
+        % --- PURE IMPLICIT EXPANSION ---
         if N_a_exp > 1
-            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         else
-            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         end
-        % --- SANITIZE INVALID STATES (Complex/NaN to -Inf) ---
-        if false && ~isreal(F_tensor)
-            F_tensor(imag(F_tensor) ~= 0) = -Inf;
-            F_tensor = real(F_tensor);
-        end
-        if false; F_tensor(isnan(F_tensor)) = -Inf; end;
 
         EV_flat = EV_interp_local(:);
         s_a1 = 1;
@@ -1136,6 +1076,7 @@ else
             base_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
             idx_left = base_idx + (idx_exp - 1)*s_aexp;
             idx_right = base_idx + (idx_exp)*s_aexp;
+
             EV_bounded = beta_j .* (weight_left .* EV_flat(idx_left) + weight_right .* EV_flat(idx_right));
         else
             lin_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
@@ -1143,6 +1084,7 @@ else
         end
 
         RHS = cast(Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j), 'like', F_tensor);
+
         clear F_tensor EV_bounded;
 
         % --- RAW FLAT TENSOR UNPACKING (Strict Column Geometry) ---
@@ -1185,13 +1127,17 @@ else
         lin_lower = row_lower + (0:FLAT_STATES-1) * stride_flat;
         lin_upper = row_upper + (0:FLAT_STATES-1) * stride_flat;
 
-        isInfLower = (RHS(lin_lower) == -Inf); isInfUpper = (RHS(lin_upper) == -Inf);
+        isInfLower = (RHS(lin_lower) == -Inf);
+        isInfUpper = (RHS(lin_upper) == -Inf);
+
         clear RHS RHS_padded RHS_3D RHS_max_apr;
 
         inLowerStrict = (a1_apr_offset >= 2) & (a1_apr_offset <= n2short_d + 1);
         inUpperStrict = (a1_apr_offset >= n2short_d + 3) & (a1_apr_offset <= n2long_d - 1);
+
         Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
-        Pol_L2flag_max(inLowerStrict & isInfLower) = 3; Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
+        Pol_L2flag_max(inLowerStrict & isInfLower) = 3;
+        Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
         Pol_L2flag_max = reshape(Pol_L2flag_max, [], N_ze_local);
     end
 end
