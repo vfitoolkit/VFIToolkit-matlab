@@ -804,10 +804,10 @@ if isempty(loweredge_matrix)
             choice_idx_exp = reshape(repmat(choice_idx_linear.', N_d_safe, 1), [FLAT_CHOICES, 1]);
 
             stride_z = int32(N_d_safe * N_a1_dc * N_a2_endo);
-            ze_base = int32((0:n_z_loc-1)' * stride_z + (0:n_e_loc-1) * stride_z * n_z_loc);
+            ze_base = (int32(0):n_z_loc-1)' * stride_z + (int32(0):n_e_loc-1) * stride_z * int32(n_z_loc);
             ze_expanded = reshape(repmat(reshape(ze_base, [1, N_ze_local]), [N_states, 1]), [1, FLAT_STATES]);
 
-            d_expanded = repmat(int32((1:N_d_safe)'), [num_choices_total, 1]);
+            d_expanded = repmat((int32(1):N_d_safe)', [num_choices_total, 1]);
             linear_idx_EV = d_expanded + (choice_idx_exp - 1) * int32(N_d_safe) + ze_expanded;
             EV_bounded = EV_bounded_pre(linear_idx_EV);
             clear choice_idx_exp ze_expanded d_expanded linear_idx_EV;
@@ -888,7 +888,7 @@ if isempty(loweredge_matrix)
         else
             F_tensor = TensorReturnFn(D_flat{:}, Apr_flat{:}, A1_flat{:}, Z_flat{:}, E_flat{:}, ReturnFnParamsCell{:});
             stride_z = int32(length(a1prime_grid) * N_a2_endo);
-            ze_base = int32((0:n_z_loc-1)' * stride_z + (0:n_e_loc-1) * stride_z * n_z_loc);
+            ze_base = (int32(0):n_z_loc-1)' * stride_z + (int32(0):n_e_loc-1) * stride_z * int32(n_z_loc);
             ze_expanded = reshape(repmat(reshape(ze_base, [1, N_ze_local]), [N_states, 1]), [1, FLAT_STATES]);
 
             choice_idx_exp = reshape(repmat(choice_idx_linear.', N_d_safe, 1), [FLAT_CHOICES, 1]);
@@ -1014,10 +1014,10 @@ else
             F_tensor = TensorReturnFn(D_flat{:}, Apr_flat{:}, A1_flat{:}, Z_flat{:}, E_flat{:}, ReturnFnParamsCell{:});
 
             stride_z = int32(N_d_safe * N_a1_dc * N_a2_endo);
-            ze_base = int32((0:n_z_loc-1)' * stride_z + (0:n_e_loc-1) * stride_z * n_z_loc);
+            ze_base = (int32(0):n_z_loc-1)' * stride_z + (int32(0):n_e_loc-1) * stride_z * int32(n_z_loc);
             ze_expanded = reshape(repmat(reshape(ze_base, [1, N_ze_local]), [N_states, 1]), [1, FLAT_STATES]);
 
-            d_expanded = repmat(int32((1:N_d_safe)'), [num_choices_total, FLAT_STATES]);
+            d_expanded = repmat((int32(1):N_d_safe)', [num_choices_total, FLAT_STATES]);
             choice_idx_exp = reshape(repmat(reshape(choice_idx_linear, 1, num_choices_total, FLAT_STATES), N_d_safe, 1, 1), [FLAT_CHOICES, FLAT_STATES]);
             linear_idx_EV = d_expanded + (choice_idx_exp - 1) * int32(N_d_safe) + ze_expanded;
             EV_bounded = EV_bounded_pre(linear_idx_EV);
@@ -1096,7 +1096,7 @@ else
             F_tensor = TensorReturnFn(D_flat{:}, Apr_flat{:}, A1_flat{:}, Z_flat{:}, E_flat{:}, ReturnFnParamsCell{:});
 
             stride_z = int32(length(a1prime_grid) * N_a2_endo);
-            ze_base = int32((0:n_z_loc-1)' * stride_z + (0:n_e_loc-1) * stride_z * n_z_loc);
+            ze_base = (int32(0):n_z_loc-1)' * stride_z + (int32(0):n_e_loc-1) * stride_z * int32(n_z_loc);
             ze_expanded = reshape(repmat(reshape(ze_base, [1, N_ze_local]), [N_states, 1]), [1, FLAT_STATES]);
 
             choice_idx_exp = reshape(repmat(reshape(choice_idx_linear, 1, num_choices_total, FLAT_STATES), N_d_safe, 1, 1), [FLAT_CHOICES, FLAT_STATES]);
