@@ -3,6 +3,10 @@ function AllStats=StatsFromWeightedGrid(Values,Weights,npoints,nquantiles,tolera
 % Weights is assumed to be of mass 1 (so you will get wrong answers if it is not)
 
 % 1. Establish the active precision
+% Protect floating-point operations from logical/integer evaluation functions
+if islogical(Values) || isinteger(Values)
+    Values = double(Values);
+end
 single_1 = cast(1, 'like', Values);
 single_0 = cast(0, 'like', Values);
 tol_eps  = eps(single_1) * 100; % Dynamic tolerance based on single/double
