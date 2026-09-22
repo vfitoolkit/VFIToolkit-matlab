@@ -22,8 +22,8 @@ N_d23=N_d2*N_d3;
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(5,N_a,N_j,'gpuArray'); % (1)=d1, (2)=d2, (3)=d3, (4)=midpoint, (5)=L2ind
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray');
+Policy=zeros(6,N_a,N_j,'gpuArray'); % (1)=d1, (2)=d2, (3)=d3, (4)=midpoint, (5)=L2ind
+Policy(6,:,:)=2;
 % We will refine away d2 out of EV before combining with ReturnFn
 
 %%
@@ -73,7 +73,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(6,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % d2, which was not in ReturnFn
     Policy(2,:,N_j)=ones(1,N_a,'gpuArray'); % d2 (terminal: d2 doesn't matter, only in expectations)
@@ -148,7 +148,7 @@ else % V_Jplus1
     isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(6,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % Get the d2Policy
     a1mid=midpoint_jj(allind);
@@ -231,7 +231,7 @@ for reverse_j=1:N_j-1
     isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(6,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % Get the d2Policy
     a1mid=midpoint_jj(allind);
@@ -242,8 +242,6 @@ end
 %% Switch Policy(4,:) from 'midpoint' to 'lower grid index' (using L2ind side)
 adjust=(Policy(5,:,:)<1+n2short+1);                                              % L2ind strictly < n2short+2
 Policy(4,:,:)=Policy(4,:,:)-adjust;                                              % decrement midpoint when chosen-below
-Policy(5,:,:)=adjust.*Policy(5,:,:)+(1-adjust).*(Policy(5,:,:)-n2short-1);       % rebase L2ind to [1..n2short+2]
-
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:)=Policy(5,:,:)-(n2short+1)*(~adjust);       % rebase L2ind to [1..n2short+2]
 
 end

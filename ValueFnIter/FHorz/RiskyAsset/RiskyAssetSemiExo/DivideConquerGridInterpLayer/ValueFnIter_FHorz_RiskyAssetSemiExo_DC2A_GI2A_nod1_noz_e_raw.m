@@ -637,7 +637,7 @@ end
 % within the same a2prime block because midpoint>=2.
 adjust=(Policy3(3,:,:,:,:)<1+n2short+1);
 Policy3(2,:,:,:,:)=Policy3(2,:,:,:,:)-adjust;
-Policy3(3,:,:,:,:)=adjust.*Policy3(3,:,:,:,:)+(1-adjust).*(Policy3(3,:,:,:,:)-n2short-1);
+Policy3(3,:,:,:,:)=Policy3(3,:,:,:,:)-(n2short+1)*(~adjust);
 
 %% Component-form Policy (no d1, no z, with e): rows (d2,d3,d4,a1prime,a2prime,L2,L2flag)
 Policy=zeros(7,N_a,N_semiz,N_e,N_j,'gpuArray');

@@ -10,7 +10,7 @@ function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_GI2A_noz_raw(n_d1,n_d2,n_d3,n_a
 % a3: the riskyasset, a3prime=aprimeFn(d2,d3,u)
 %
 % Policy is 6-channel: 1=d1, 2=d2, 3=d3, 4=a1prime midpoint, 5=a2prime, 6=a1prime L2.
-% A 7th channel PolicyL2flag is concatenated at the end.
+% A 7th channel holds the L2 flag.
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -31,8 +31,8 @@ N_d23=N_d2*N_d3;
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(6,N_a,N_j,'gpuArray'); % (1)=d1, (2)=d2, (3)=d3, (4)=a1prime midpoint, (5)=a2prime, (6)=L2ind
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray');
+Policy=zeros(7,N_a,N_j,'gpuArray'); % (1)=d1, (2)=d2, (3)=d3, (4)=a1prime midpoint, (5)=a2prime, (6)=L2ind
+Policy(7,:,:)=2;
 % We will refine away d2 out of EV before combining with ReturnFn
 
 %%
@@ -86,7 +86,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(7,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % d2, which was not in ReturnFn
     Policy(2,:,N_j)=ones(1,N_a,'gpuArray'); % d2 (terminal: d2 doesn't matter, only in expectations)
@@ -162,7 +162,7 @@ else % V_Jplus1
     isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(7,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % Get the d2Policy
     a1mid=midpoint_jj(allind);
@@ -245,7 +245,7 @@ for reverse_j=1:N_j-1
     isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(7,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % Get the d2Policy
     a1mid=midpoint_jj(allind);
@@ -256,8 +256,6 @@ end
 %% Switch Policy(4,:) from 'midpoint' to 'lower grid index' (using L2ind side)
 adjust=(Policy(6,:,:)<1+n2short+1);                                              % L2ind strictly < n2short+2
 Policy(4,:,:)=Policy(4,:,:)-adjust;                                              % decrement midpoint when chosen-below
-Policy(6,:,:)=adjust.*Policy(6,:,:)+(1-adjust).*(Policy(6,:,:)-n2short-1);       % rebase L2ind to [1..n2short+2]
-
-Policy=[Policy; PolicyL2flag];
+Policy(6,:,:)=Policy(6,:,:)-(n2short+1)*(~adjust);       % rebase L2ind to [1..n2short+2]
 
 end

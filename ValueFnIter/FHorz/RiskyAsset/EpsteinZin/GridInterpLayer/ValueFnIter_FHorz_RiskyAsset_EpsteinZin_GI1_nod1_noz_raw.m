@@ -29,8 +29,8 @@ N_d23=N_d2*N_d3;
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_j,'gpuArray'); % (1)=d2, (2)=d3, (3)=midpoint, (4)=L2ind
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_j,'gpuArray'); % (1)=d2, (2)=d3, (3)=midpoint, (4)=L2ind
+Policy(5,:,:)=2;
 % We will refine away d2 out of EV before combining with ReturnFn
 
 %%
@@ -146,7 +146,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper    = (temp2_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % d2, which was not in ReturnFn
     if warmglow==1
@@ -260,7 +260,7 @@ else % V_Jplus1
     isInfUpper    = (temp2_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % Get the d2Policy (read off the fine refine at the chosen fine a1prime point)
     a1mid=midpoint_jj(allind);
@@ -404,7 +404,7 @@ for reverse_j=1:N_j-1
     isInfUpper    = (temp2_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % Get the d2Policy (read off the fine refine at the chosen fine a1prime point)
     a1mid=midpoint_jj(allind);
@@ -416,8 +416,6 @@ end
 %% Switch Policy(3,:) from 'midpoint' to 'lower grid index' (using L2ind side)
 adjust=(Policy(4,:,:)<1+n2short+1);                                              % L2ind strictly < n2short+2
 Policy(3,:,:)=Policy(3,:,:)-adjust;                                              % decrement midpoint when chosen-below
-Policy(4,:,:)=adjust.*Policy(4,:,:)+(1-adjust).*(Policy(4,:,:)-n2short-1);       % rebase L2ind to [1..n2short+2]
-
-Policy=[Policy; PolicyL2flag];
+Policy(4,:,:)=Policy(4,:,:)-(n2short+1)*(~adjust);       % rebase L2ind to [1..n2short+2]
 
 end

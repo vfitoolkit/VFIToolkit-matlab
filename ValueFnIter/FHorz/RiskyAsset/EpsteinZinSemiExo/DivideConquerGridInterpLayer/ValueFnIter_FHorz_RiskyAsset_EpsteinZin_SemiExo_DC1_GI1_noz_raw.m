@@ -764,7 +764,7 @@ end
 %% Switch Policy3(2,:) from 'midpoint' to 'lower grid index'
 adjust=(Policy3(3,:,:,:)<1+n2short+1);
 Policy3(2,:,:,:)=Policy3(2,:,:,:)-adjust;
-Policy3(3,:,:,:)=adjust.*Policy3(3,:,:,:)+(1-adjust).*(Policy3(3,:,:,:)-n2short-1);
+Policy3(3,:,:,:)=Policy3(3,:,:,:)-(n2short+1)*(~adjust);
 
 %% Encode Policy as component rows (with d1, no z)
 Policy=zeros(7,N_a,N_semiz,N_j,'gpuArray');

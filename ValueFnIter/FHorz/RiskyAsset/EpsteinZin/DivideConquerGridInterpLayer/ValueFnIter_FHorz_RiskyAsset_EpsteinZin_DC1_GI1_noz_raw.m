@@ -35,8 +35,8 @@ N_d23=N_d2*N_d3;
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(5,N_a,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray');
+Policy=zeros(6,N_a,N_j,'gpuArray');
+Policy(6,:,:)=2;
 % We will refine away d2 out of EV before combining with ReturnFn
 
 %%
@@ -190,7 +190,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+    Policy(6,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
     % d2, which was not in ReturnFn
     if warmglow==1
@@ -336,7 +336,7 @@ else % V_Jplus1
     isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+    Policy(6,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
     % Get the d2Policy (read off the fine refine at the chosen fine a1prime point)
     d3part=rem(ceil(d3_ind/N_d1)-1,N_d3)+1; % [1,N_a]
@@ -511,7 +511,7 @@ for reverse_j=1:N_j-1
     isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+    Policy(6,:,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
     % Get the d2Policy (read off the fine refine at the chosen fine a1prime point)
     d3part=rem(ceil(d3_ind/N_d1)-1,N_d3)+1; % [1,N_a]
@@ -526,8 +526,6 @@ end
 %% Switch Policy(4,:) from 'midpoint' to 'lower grid index'
 adjust=(Policy(5,:,:)<1+n2short+1);
 Policy(4,:,:)=Policy(4,:,:)-adjust;
-Policy(5,:,:)=adjust.*Policy(5,:,:)+(1-adjust).*(Policy(5,:,:)-n2short-1);
-
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:)=Policy(5,:,:)-(n2short+1)*(~adjust);
 
 end

@@ -27,8 +27,8 @@ N_d23=N_d2*N_d3;
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(5,N_a,N_j,'gpuArray'); % (1)=d2, (2)=d3, (3)=a1prime midpoint, (4)=a2prime, (5)=a1prime L2
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray');
+Policy=zeros(6,N_a,N_j,'gpuArray'); % (1)=d2, (2)=d3, (3)=a1prime midpoint, (4)=a2prime, (5)=a1prime L2
+Policy(6,:,:)=2;
 % We will refine away d2 out of EV before combining with ReturnFn
 
 %%
@@ -103,7 +103,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(6,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % d2, which was not in ReturnFn
     Policy(1,:,N_j)=ones(1,N_a,'gpuArray'); % d2 (terminal: d2 doesn't matter since it's only in the expectations term)
@@ -195,7 +195,7 @@ else % V_Jplus1
     isInfUpper=(ReturnMatrix_ii_flat(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(6,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % Get the d2Policy
     lin=d3_ind+N_d3*(a1mid-1)+N_d3*N_a1*(maxindexL2a2-1);
@@ -294,7 +294,7 @@ for reverse_j=1:N_j-1
     isInfUpper=(ReturnMatrix_ii_flat(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(6,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     % Get the d2Policy
     lin=d3_ind+N_d3*(a1mid-1)+N_d3*N_a1*(maxindexL2a2-1);
@@ -306,8 +306,6 @@ end
 %% Switch Policy(3,:) from 'midpoint' to 'lower grid index'
 adjust=(Policy(5,:,:)<1+n2short+1);
 Policy(3,:,:)=Policy(3,:,:)-adjust;
-Policy(5,:,:)=adjust.*Policy(5,:,:)+(1-adjust).*(Policy(5,:,:)-n2short-1);
-
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:)=Policy(5,:,:)-(n2short+1)*(~adjust);
 
 end

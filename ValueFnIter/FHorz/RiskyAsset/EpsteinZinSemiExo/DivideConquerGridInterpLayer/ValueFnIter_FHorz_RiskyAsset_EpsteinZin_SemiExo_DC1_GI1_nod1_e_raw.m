@@ -1149,7 +1149,7 @@ end
 %% Switch Policy3(2,:) from 'midpoint' to 'lower grid index'
 adjust=(Policy3(3,:,:,:,:)<1+n2short+1);
 Policy3(2,:,:,:,:)=Policy3(2,:,:,:,:)-adjust;
-Policy3(3,:,:,:,:)=adjust.*Policy3(3,:,:,:,:)+(1-adjust).*(Policy3(3,:,:,:,:)-n2short-1);
+Policy3(3,:,:,:,:)=Policy3(3,:,:,:,:)-(n2short+1)*(~adjust);
 
 %% Split into separate Policy entries (no d1, with z, with e)
 Policy=zeros(6,N_a,N_bothz,N_e,N_j,'gpuArray'); % rows: (d2,d3,d4,a1prime_low,L2,L2flag)

@@ -19,8 +19,8 @@ N_d23=N_d2*N_d3;
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_z,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_z,N_e,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_z,N_e,N_j,'gpuArray');
+Policy(5,:,:,:,:)=2;
 % We will refine away d2 out of EV before combining with ReturnFn
 
 %%
@@ -107,7 +107,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+        Policy(5,:,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -155,7 +155,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+            Policy(5,:,:,e_c,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
@@ -206,7 +206,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+                Policy(5,:,z_c,e_c,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
             end
         end
     end
@@ -338,7 +338,7 @@ else % V_Jplus1
         isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+        Policy(5,:,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
         % Get the d2Policy
         d3part=shiftdim(d3_ind,1); % [N_a,N_z,N_e]
@@ -400,7 +400,7 @@ else % V_Jplus1
             isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+            Policy(5,:,:,e_c,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
             % Get the d2Policy
             d3part=shiftdim(d3_ind,1);
@@ -468,7 +468,7 @@ else % V_Jplus1
                 isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+                Policy(5,:,z_c,e_c,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
                 % Get the d2Policy
                 d3part=d3_ind;
@@ -611,7 +611,7 @@ for reverse_j=1:N_j-1
         isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,:,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+        Policy(5,:,:,:,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
         % Get the d2Policy
         d3part=shiftdim(d3_ind,1); % [N_a,N_z,N_e]
@@ -673,7 +673,7 @@ for reverse_j=1:N_j-1
             isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+            Policy(5,:,:,e_c,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
             % Get the d2Policy
             d3part=shiftdim(d3_ind,1);
@@ -741,7 +741,7 @@ for reverse_j=1:N_j-1
                 isInfUpper    = (ReturnMatrix_ii_resh(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+                Policy(5,:,z_c,e_c,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
                 % Get the d2Policy
                 d3part=d3_ind;
@@ -757,8 +757,6 @@ end
 %% Switch Policy(3,:) from 'midpoint' to 'lower grid index'
 adjust=(Policy(4,:,:,:,:)<1+n2short+1);
 Policy(3,:,:,:,:)=Policy(3,:,:,:,:)-adjust;
-Policy(4,:,:,:,:)=adjust.*Policy(4,:,:,:,:)+(1-adjust).*(Policy(4,:,:,:,:)-n2short-1);
-
-Policy=[Policy; PolicyL2flag];
+Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-(n2short+1)*(~adjust);
 
 end

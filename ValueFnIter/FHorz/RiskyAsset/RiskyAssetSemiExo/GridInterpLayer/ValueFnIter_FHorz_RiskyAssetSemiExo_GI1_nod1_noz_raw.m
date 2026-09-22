@@ -127,7 +127,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     L2offset=ceil(tmp/N_a1);
     adjust=(L2offset<1+n2short+1);
     a1prime_low=midpart-adjust;
-    L2ind=adjust.*L2offset+(1-adjust).*(L2offset-n2short-1);
+    L2ind=L2offset-(n2short+1)*(~adjust);
     Policy(1,:,:,N_j)=reshape(d2winner,[1,N_a,N_semiz]);
     Policy(2,:,:,N_j)=reshape(d3part,[1,N_a,N_semiz]);
     Policy(3,:,:,N_j)=reshape(d4winner,[1,N_a,N_semiz]);
@@ -294,7 +294,7 @@ else
     L2offset=ceil(tmp/N_a1);
     adjust=(L2offset<1+n2short+1);
     a1prime_low=midpart-adjust;
-    L2ind=adjust.*L2offset+(1-adjust).*(L2offset-n2short-1);
+    L2ind=L2offset-(n2short+1)*(~adjust);
     Policy(1,:,:,N_j)=reshape(d2winner,[1,N_a,N_semiz]);
     Policy(2,:,:,N_j)=reshape(d3part,[1,N_a,N_semiz]);
     Policy(3,:,:,N_j)=reshape(d4winner,[1,N_a,N_semiz]);
@@ -472,7 +472,7 @@ for reverse_j=1:N_j-1
     L2offset=ceil(tmp/N_a1);
     adjust=(L2offset<1+n2short+1);
     a1prime_low=midpart-adjust;
-    L2ind=adjust.*L2offset+(1-adjust).*(L2offset-n2short-1);
+    L2ind=L2offset-(n2short+1)*(~adjust);
     Policy(1,:,:,jj)=reshape(d2winner,[1,N_a,N_semiz]);
     Policy(2,:,:,jj)=reshape(d3part,[1,N_a,N_semiz]);
     Policy(3,:,:,jj)=reshape(d4winner,[1,N_a,N_semiz]);

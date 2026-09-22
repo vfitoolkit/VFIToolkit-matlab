@@ -479,7 +479,7 @@ end
 %% Switch Policy3(2,:) from 'midpoint' to 'lower grid index'
 adjust=(Policy3(3,:,:,:)<1+n2short+1);
 Policy3(2,:,:,:)=Policy3(2,:,:,:)-adjust;
-Policy3(3,:,:,:)=adjust.*Policy3(3,:,:,:)+(1-adjust).*(Policy3(3,:,:,:)-n2short-1);
+Policy3(3,:,:,:)=Policy3(3,:,:,:)-(n2short+1)*(~adjust);
 
 %% Component-form Policy (no d1, no z): rows (d2,d3,d4,a1prime_low,L2,L2flag)
 Policy=zeros(6,N_a,N_semiz,N_j,'gpuArray');

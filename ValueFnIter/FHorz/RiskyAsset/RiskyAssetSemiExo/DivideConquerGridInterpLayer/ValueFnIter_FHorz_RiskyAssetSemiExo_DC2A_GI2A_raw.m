@@ -665,7 +665,7 @@ end
 % within the same a2prime block because midpoint>=2.
 adjust=(Policy3(3,:,:,:)<1+n2short+1);
 Policy3(2,:,:,:)=Policy3(2,:,:,:)-adjust;
-Policy3(3,:,:,:)=adjust.*Policy3(3,:,:,:)+(1-adjust).*(Policy3(3,:,:,:)-n2short-1);
+Policy3(3,:,:,:)=Policy3(3,:,:,:)-(n2short+1)*(~adjust);
 
 %% Encode Policy (8 rows: d1,d2,d3,d4,a1prime,a2prime,L2,L2flag)
 Policy=zeros(8,N_a,N_bothz,N_j,'gpuArray');
