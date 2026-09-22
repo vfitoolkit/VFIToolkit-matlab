@@ -19,8 +19,8 @@ N_bothz=N_semiz*N_z;
 N_e=prod(n_e);
 
 V=zeros(N_a,N_bothz,N_e,N_j,'gpuArray');
-Policy=zeros(5,N_a,N_bothz,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_bothz,N_e,N_j,'gpuArray');
+Policy=zeros(6,N_a,N_bothz,N_e,N_j,'gpuArray');
+Policy(6,:,:,:,:)=2;
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -198,7 +198,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
     Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_bothz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(6,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
 
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -484,7 +484,7 @@ else
     Policy(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
     Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_bothz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(6,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
 
 end
 
@@ -777,16 +777,14 @@ for reverse_j=1:N_j-1
     Policy(2,:,:,:,jj)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,jj)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]);
     Policy(5,:,:,:,jj)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_bothz,N_e]);
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(6,:,:,:,jj)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
 end
 
 
 %% Switch from midpoint to lower grid index
 adjust=(Policy(5,:,:,:,:)<1+n2short+1);
 Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-adjust;
-Policy(5,:,:,:,:)=adjust.*Policy(5,:,:,:,:)+(1-adjust).*(Policy(5,:,:,:,:)-n2short-1);
-
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:,:,:)=Policy(5,:,:,:,:)-(n2short+1)*(~adjust);
 
 
 end

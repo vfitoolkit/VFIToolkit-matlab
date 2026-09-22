@@ -3,7 +3,7 @@ function [V,Policy]=ValueFnIter_FHorz_ExpAssetsemiz_DC2A_GI2A_noz_e_raw(n_d1, n_
 % d1 is any other decision, d2 determines experience asset (a3), d3 determines semi-exog state (semiz).
 % a1 is divide-conquered + grid-interp-layer standard asset; a2 is a folded standard asset (choice a2prime); a3 is the experience asset.
 % semiz is semi-exogenous (there is no z).
-% Policy stores (d1, d2, d3, joint(a1prime,a2prime), a1primeL2ind) with PolicyL2flag appended as a 6th row; the joint row is a1prime+N_a1*(a2prime-1), a1prime being the lower grid point.
+% Policy stores (d1, d2, d3, joint(a1prime,a2prime), a1primeL2ind) with the L2 flag as a 6th row; the joint row is a1prime+N_a1*(a2prime-1), a1prime being the lower grid point.
 % lowmemory: 2 shocks {semiz,e} => levels {0,1,2}.
 %   =0 vectorise semiz and e; =1 loop e (semiz parallel); =2 outer-loop semiz / inner-loop e.
 
@@ -20,8 +20,8 @@ N_e=prod(n_e);
 
 V=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,joint(a1prime,a2prime),a1primeL2ind seperately
-Policy=zeros(5,N_a,N_semiz,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_e,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policy=zeros(6,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy(6,:,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 d2ind_vec=repelem((1:1:N_d2)',N_d1,1); % [N_d12,1]; maps d12-index to d2-component (used inside the d3 loop where d=d12)
@@ -205,7 +205,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]); % d2
     Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]); % joint(a1prime,a2prime)
     Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_semiz,N_e]); % a1primeL2ind
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy(6,:,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -431,7 +431,7 @@ else
     Policy(2,:,:,:,N_j)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]); % d2
     Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]); % joint(a1prime,a2prime)
     Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_semiz,N_e]); % a1primeL2ind
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy(6,:,:,:,N_j)=reshape(flag_ford3_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 end
 
 
@@ -667,7 +667,7 @@ for reverse_j=1:N_j-1
     Policy(2,:,:,:,jj)=reshape(Policy4_ford3_jj(2+temp),[1,N_a,N_semiz,N_e]); % d2
     Policy(4,:,:,:,jj)=reshape(Policy4_ford3_jj(3+temp),[1,N_a,N_semiz,N_e]); % joint(a1prime,a2prime)
     Policy(5,:,:,:,jj)=reshape(Policy4_ford3_jj(4+temp),[1,N_a,N_semiz,N_e]); % a1primeL2ind
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy(6,:,:,:,jj)=reshape(flag_ford3_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 end
 
 
@@ -678,8 +678,6 @@ end
 % 0:nshort+1 up from this.
 adjust=(Policy(5,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-adjust; % a1prime part of joint -> lower grid point (a1prime is the low-order part, stays within its a2prime block)
-Policy(5,:,:,:,:)=adjust.*Policy(5,:,:,:,:)+(1-adjust).*(Policy(5,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy;PolicyL2flag];
+Policy(5,:,:,:,:)=Policy(5,:,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 end

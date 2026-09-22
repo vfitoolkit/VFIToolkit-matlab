@@ -23,8 +23,8 @@ N_e=prod(n_e);
 
 V=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d2,d3,joint(a1prime-midpoint,a2prime),a1primeL2ind
-Policy=zeros(4,N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz*N_z,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+Policy=zeros(5,N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
+Policy(5,:,:,:,:)=2; % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 
 %%
 % For the no-V_Jplus1 (period N_j) section we vectorise over the full d=(d2,d3) grid
@@ -112,7 +112,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -160,7 +160,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper   =(ReturnMatrix_ii_e(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,:,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
 
     elseif vfoptions.lowmemory==2
@@ -212,7 +212,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 isInfUpper   =(ReturnMatrix_ii_ze(linidx_upper)==-Inf);
                 inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
                 inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-                PolicyL2flag(1,:,zind,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+                Policy(5,:,zind,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             end
         end
 
@@ -264,7 +264,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 isInfUpper   =(ReturnMatrix_ii_ze(linidx_upper)==-Inf);
                 inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
                 inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+                Policy(5,:,z_c,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             end
         end
     end
@@ -578,7 +578,7 @@ else
     Policy(1,:,:,:,N_j)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]); % d2
     Policy(3,:,:,:,N_j)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]); % joint(a1prime midpoint,a2prime)
     Policy(4,:,:,:,N_j)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]); % a1primeL2ind
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
 end
 
 
@@ -899,7 +899,7 @@ for reverse_j=1:N_j-1
     Policy(1,:,:,:,jj)=reshape(Policy3_ford3_jj(1+temp),[1,N_a,N_bothz,N_e]); % d2
     Policy(3,:,:,:,jj)=reshape(Policy3_ford3_jj(2+temp),[1,N_a,N_bothz,N_e]); % joint(a1prime midpoint,a2prime)
     Policy(4,:,:,:,jj)=reshape(Policy3_ford3_jj(3+temp),[1,N_a,N_bothz,N_e]); % a1primeL2ind
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,jj)=reshape(flag_ford3_jj((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
 
 end
 
@@ -911,9 +911,7 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(4,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(3,:,:,:,:)=Policy(3,:,:,:,:)-adjust; % decrement a1prime component of the joint (midpoint>=2 keeps it within the same a2prime block)
-Policy(4,:,:,:,:)=adjust.*Policy(4,:,:,:,:)+(1-adjust).*(Policy(4,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy; PolicyL2flag];
+Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 end
