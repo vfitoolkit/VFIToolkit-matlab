@@ -517,7 +517,7 @@ for reverse_j = 0:N_j-1
                 temp_vfoptions = vfoptions; temp_vfoptions.gridinterplayer = 0;
                 LocalBlockFn_Coarse = @(state_idx, loweredge_matrix, maxgap_scalar) LocalBlockFn(state_idx, loweredge_matrix, maxgap_scalar, 2);
                 if num_a_endo == 1
-                    [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC1_Slicer(N_a1_dc * N_a2_exp, N_a, 1, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
+                    [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC1_Slicer(N_a1_dc, N_a2_exp, N_a1_dc, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
                     loweredge_pass = p_apr_coarse;
                 else
                     [~, ~, ~, ~, ~, p_a1_per_a2] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_endo * N_a2_exp, N_a1_dc, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
@@ -558,7 +558,7 @@ for reverse_j = 0:N_j-1
             else
                 LocalBlockFn_Standard = @(state_idx, loweredge_matrix, maxgap_scalar) LocalBlockFn(state_idx, loweredge_matrix, maxgap_scalar, 0);
                 if num_a_endo == 1
-                    [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a1_dc * N_a2_exp, N_a, 1, N_ze_local, vfoptions, LocalBlockFn_Standard);
+                    [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC1_Slicer(N_a1_dc, N_a2_exp, N_a1_dc, N_ze_local, vfoptions, LocalBlockFn_Standard);
                 else
                     [v, p_apr, p_d, p_l2idx, p_l2flag] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_endo * N_a2_exp, N_a1_dc, N_ze_local, vfoptions, LocalBlockFn_Standard);
                 end
@@ -615,7 +615,9 @@ for reverse_j = 0:N_j-1
                 else; EV_interp_local = []; end
 
                 if l_a_exp == 0
-                    EV_bounded_pre = beta_j .* reshape(EV_local(:), [N_d_safe, N_a1_dc * N_a2_endo, 1, n_z_loc, n_e_loc]);
+                    EV_reshaped = reshape(EV_local, [N_a1_dc * N_a2_endo, n_z_loc, n_e_loc, N_dsemiz]);
+                    EV_d_sliced = EV_reshaped(:, :, :, dsemiz_idx_tensor(:));
+                    EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
                     d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1, 1]);
                     z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo), [1, 1, 1, 1, n_z_loc, 1]);
                     e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo * n_z_loc), [1, 1, 1, 1, 1, n_e_loc]);
@@ -623,7 +625,7 @@ for reverse_j = 0:N_j-1
                 else; EV_bounded_pre = []; static_EV_offset = []; end
 
                 LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar, dc_mode_override) Evaluate_Case1_TensorBlock(...
-                    state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, max(1, N_a2_exp), N_d_safe, N_ze_local, ...
+                    state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, max(1, N_a2_local), N_d_safe, N_ze_local, ...
                     Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, A1_grids_1d, a2_grids_1d, ...
                     vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                     TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
@@ -668,12 +670,12 @@ for reverse_j = 0:N_j-1
                     end
                 end
 
-                V_j_max(start_a_idx:end_a_idx, curr_ze)     = reshape(v_concat,     [length(state_list), N_ze_local]);
-                Pol_apr_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_apr_concat, [length(state_list), N_ze_local]);
-                Pol_d_max(start_a_idx:end_a_idx, curr_ze)   = reshape(p_d_concat,   [length(state_list), N_ze_local]);
+                V_j_max(start_a_idx:end_a_idx, curr_ze)     = reshape(v_concat,     [total_states, N_ze_local]);
+                Pol_apr_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_apr_concat, [total_states, N_ze_local]);
+                Pol_d_max(start_a_idx:end_a_idx, curr_ze)   = reshape(p_d_concat,   [total_states, N_ze_local]);
                 if vfoptions.gridinterplayer(1) == 1
-                    Pol_L2idx_max(start_a_idx:end_a_idx, curr_ze)  = reshape(p_l2idx_concat,  [length(state_list), N_ze_local]);
-                    Pol_L2flag_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_l2flag_concat, [length(state_list), N_ze_local]);
+                    Pol_L2idx_max(start_a_idx:end_a_idx, curr_ze)  = reshape(p_l2idx_concat,  [total_states, N_ze_local]);
+                    Pol_L2flag_max(start_a_idx:end_a_idx, curr_ze) = reshape(p_l2flag_concat, [total_states, N_ze_local]);
                 end
             end
         end
@@ -872,17 +874,19 @@ else
     % =================================================================
     Pol_a1_per_a2 = [];
 
-    if size(loweredge_matrix, 1) == N_a2_endo && N_a2_endo > 1
+    % DYNAMIC SHAPE ROUTING
+    N_states = length(state_idx);
+    if size(loweredge_matrix, 1) == N_states && N_a2_endo == 1
+        is_gi_pass = true;
+        low_mat = reshape(loweredge_matrix, [1, 1, 1, num_seg, N_other_states, n_z_loc, n_e_loc]);
+    elseif size(loweredge_matrix, 1) == N_a2_endo && N_a2_endo > 1
         is_gi_pass = true;
         low_mat = reshape(loweredge_matrix, [1, 1, N_a2_endo, num_seg, N_other_states, n_z_loc, n_e_loc]);
     elseif size(loweredge_matrix, 1) == 1 && size(loweredge_matrix, 2) == N_a2_endo && N_a2_endo > 1
         is_gi_pass = false;
         low_mat = reshape(loweredge_matrix, [1, 1, N_a2_endo, 1, N_other_states, n_z_loc, n_e_loc]);
-    elseif size(loweredge_matrix, 1) == 1 && N_a2_endo == 1
-        is_gi_pass = false;
-        low_mat = reshape(loweredge_matrix, [1, 1, 1, num_seg, N_other_states, n_z_loc, n_e_loc]);
     else
-        is_gi_pass = true;
+        is_gi_pass = false;
         low_mat = reshape(loweredge_matrix, [1, 1, 1, num_seg, N_other_states, n_z_loc, n_e_loc]);
     end
 
