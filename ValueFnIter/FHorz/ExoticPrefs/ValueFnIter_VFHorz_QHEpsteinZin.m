@@ -409,6 +409,11 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max, Valt_j
     TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, is_dc_mode)
 
+% --- VALT BYPASS OPTIMIZATION ---
+% The Slicer only requests the 6th argument (Valt) during the final Reality Zoom pass.
+% We skip the massive EV_Valt allocation and 2nd RHS evaluation for the other 3 passes.
+compute_valt = (nargout > 5);
+
 N_states = length(state_idx);
 
 if l_a2 > 0; [a1_sub, a2_sub] = ind2sub([N_a1, size(A2_mat, 1)], state_idx);
@@ -424,8 +429,10 @@ if l_a2 > 0
     for ia = 1:num_a2; A2_cells{ia} = reshape(A2_mat(a2_sub, ia), [1, 1, N_states, 1, 1]); end
 else; A2_cells = {}; end
 
+is_branch_1a = isempty(loweredge_matrix) && (gridinterplayer(1) == 0 || is_dc_mode == 2);
+
 if isempty(loweredge_matrix)
-    if gridinterplayer(1) == 0 || is_dc_mode == 2
+    if is_branch_1a
         % =================================================================
         % BRANCH 1A: COARSE EVALUATION (DC Level 1 or Standard Non-DC)
         % =================================================================
@@ -434,7 +441,7 @@ if isempty(loweredge_matrix)
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         EV_bounded_base = EV_belief_pre;
-        EV_Valt_base    = EV_Valt_pre;
+        EV_Index_Tensor = []; % Fast-tracked native collapse
 
         FLAT_CHOICES = max(1, N_d_safe) * N_a1;
         FLAT_STATES = N_states * N_ze_local;
@@ -455,7 +462,7 @@ if isempty(loweredge_matrix)
         if N_dsemiz > 1; L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (length(a1prime_grid) * N_ze_local); end
 
         EV_bounded_base = EV_belief_interp(L2_linear_idx);
-        EV_Valt_base    = EV_Valt_interp(L2_linear_idx);
+        EV_Index_Tensor = L2_linear_idx;
 
         FLAT_CHOICES = max(1, N_d_safe) * num_choices;
         FLAT_STATES = N_states * N_ze_local;
@@ -484,8 +491,8 @@ else
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
-        EV_bounded_base = EV_belief_pre(static_EV_offset + (choice_idx - 1) * N_d_safe);
-        EV_Valt_base    = EV_Valt_pre(static_EV_offset + (choice_idx - 1) * N_d_safe);
+        EV_Index_Tensor = static_EV_offset + (choice_idx - 1) * N_d_safe;
+        EV_bounded_base = EV_belief_pre(EV_Index_Tensor);
 
     else
         % -------------------------------------------------------------
@@ -507,22 +514,19 @@ else
 
         ze_offset = reshape((0:N_ze_local-1) * length(a1prime_grid), [1, 1, 1, n_z_loc, n_e_loc]);
         L2_linear_idx = choice_idx + ze_offset;
-
         if N_dsemiz > 1
             dsemiz_stride = (dsemiz_idx_tensor - 1) * (length(a1prime_grid) * N_ze_local);
             L2_linear_idx = L2_linear_idx + dsemiz_stride;
         end
 
         EV_bounded_base = EV_belief_interp(L2_linear_idx);
-        EV_Valt_base    = EV_Valt_interp(L2_linear_idx);
+        EV_Index_Tensor = L2_linear_idx;
 
         if N_dsemiz > 1
             out_of_bounds_exp = repmat(out_of_bounds, [N_d_safe, 1, 1, 1, 1]);
             EV_bounded_base(out_of_bounds_exp) = -Inf;
-            EV_Valt_base(out_of_bounds_exp) = -Inf;
         else
             EV_bounded_base(out_of_bounds) = -Inf;
-            EV_Valt_base(out_of_bounds) = -Inf;
         end
     end
 
@@ -531,7 +535,7 @@ else
 end
 
 % =================================================================
-% UNIVERSAL RHS EVALUATION (All Branches)
+% UNIVERSAL RHS EVALUATION
 % =================================================================
 
 % 1. Compute V and find optimal policy using the Belief EV
@@ -539,73 +543,109 @@ EV_bounded_V = (beta_j * delta_j) .* EV_bounded_base;
 RHS_V = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded_V, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 
 FLAT_CHOICES_CAST = cast(FLAT_CHOICES, 'like', RHS_V);
-
-% --- FAST COLLAPSED TRACK ---
 is_RHS_collapsed = (size(RHS_V, 3) == 1 && N_states > 1);
+
 if is_RHS_collapsed
-    % Radically reduces workload by evaluating Valt ONLY on unique (a', z) combinations
+    % --- Fast Collapsed Track (Requires Branch 1A native structures) ---
     RHS_V_flat = reshape(RHS_V, [FLAT_CHOICES, N_ze_local]);
     [V_sub_col, Pol_col] = max(RHS_V_flat, [], 1);
 
     lin_idx_col = Pol_col + (0:N_ze_local-1) * FLAT_CHOICES_CAST;
-
     F_flat_col = reshape(F_tensor, [FLAT_CHOICES, N_ze_local]);
-    F_chosen_col = F_flat_col(lin_idx_col);
 
-    EV_Valt_flat_col = reshape(EV_Valt_base, [FLAT_CHOICES, N_ze_local]);
-    EV_Valt_chosen_col = EV_Valt_flat_col(lin_idx_col);
+    % Save the tiny objects for Valt before broadcasting
+    V_sub_max_tiny = V_sub_col;
+    F_chosen_tiny = F_flat_col(lin_idx_col);
 
-    EV_bounded_Valt_chosen_col = delta_j .* EV_Valt_chosen_col;
-    Valt_sub_col = Evaluate_Universal_RHS_VFHorz(F_chosen_col, EV_bounded_Valt_chosen_col, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
-
-    % Broadcast tiny vectors back up to full [1, FLAT_STATES] size
-    V_sub_max    = repmat(V_sub_col,    [N_states, 1]); V_sub_max    = V_sub_max(:)';
-    Valt_sub_max = repmat(Valt_sub_col, [N_states, 1]); Valt_sub_max = Valt_sub_max(:)';
-    Pol_sub_idx  = repmat(Pol_col,      [N_states, 1]); Pol_sub_idx  = Pol_sub_idx(:)';
-
-    % --- STANDARD FULL TRACK ---
+    % Broadcast
+    V_sub_max    = repmat(V_sub_max_tiny, [N_states, 1]); V_sub_max = V_sub_max(:)';
+    Pol_sub_idx  = repmat(Pol_col, [N_states, 1]);        Pol_sub_idx = Pol_sub_idx(:)';
+    F_chosen     = repmat(F_chosen_tiny, [N_states, 1]);  F_chosen = F_chosen(:)';
 else
+    % --- Standard Full Track ---
     RHS_V_flat = reshape(RHS_V, [FLAT_CHOICES, FLAT_STATES]);
     [V_sub_max, Pol_sub_idx] = max(RHS_V_flat, [], 1);
 
-    % 2D Implicit Expansion to perfectly extract collapsed vectors without memory allocation
+    lin_idx_full = Pol_sub_idx + (0:FLAT_STATES-1) * FLAT_CHOICES_CAST;
+
     is_F_collapsed = (size(F_tensor, 3) == 1 && N_states > 1);
     if is_F_collapsed
         F_flat_col = reshape(F_tensor, [FLAT_CHOICES, N_ze_local]);
         ze_offsets = cast(0:N_ze_local-1, 'like', Pol_sub_idx) * FLAT_CHOICES_CAST;
         lin_idx_2d = reshape(Pol_sub_idx, [N_states, N_ze_local]) + ze_offsets;
         F_chosen_2d = F_flat_col(lin_idx_2d);
-        F_chosen_full = F_chosen_2d(:)';
+        F_chosen = F_chosen_2d(:)';
     else
-        lin_idx_full = Pol_sub_idx + (0:FLAT_STATES-1) * FLAT_CHOICES_CAST;
         F_flat_full = reshape(F_tensor, [FLAT_CHOICES, FLAT_STATES]);
-        F_chosen_full = F_flat_full(lin_idx_full);
+        F_chosen = F_flat_full(lin_idx_full);
     end
-
-    is_EV_collapsed = (size(EV_Valt_base, 3) == 1 && N_states > 1);
-    if is_EV_collapsed
-        EV_Valt_flat_col = reshape(EV_Valt_base, [FLAT_CHOICES, N_ze_local]);
-        ze_offsets = cast(0:N_ze_local-1, 'like', Pol_sub_idx) * FLAT_CHOICES_CAST;
-        lin_idx_2d = reshape(Pol_sub_idx, [N_states, N_ze_local]) + ze_offsets;
-        EV_Valt_chosen_2d = EV_Valt_flat_col(lin_idx_2d);
-        EV_Valt_chosen_full = EV_Valt_chosen_2d(:)';
-    else
-        lin_idx_full = Pol_sub_idx + (0:FLAT_STATES-1) * FLAT_CHOICES_CAST;
-        EV_Valt_flat_full = reshape(EV_Valt_base, [FLAT_CHOICES, FLAT_STATES]);
-        EV_Valt_chosen_full = EV_Valt_flat_full(lin_idx_full);
-    end
-
-    EV_bounded_Valt_chosen_full = delta_j .* EV_Valt_chosen_full;
-    Valt_sub_max = Evaluate_Universal_RHS_VFHorz(F_chosen_full, EV_bounded_Valt_chosen_full, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
 end
-clear RHS_V EV_bounded_V EV_Valt_base F_tensor;
+clear RHS_V EV_bounded_V EV_bounded_base F_tensor;
 
-% 4. Format Outputs
+% =================================================================
+% SELECTIVE VALT EXTRACTION (Deferred Computation)
+% =================================================================
+if compute_valt
+    if is_RHS_collapsed
+        % Tiny Grid Math: Only execute for Branch 1A
+        EV_Valt_flat = reshape(EV_Valt_pre, [FLAT_CHOICES, N_ze_local]);
+        EV_Valt_chosen_tiny = EV_Valt_flat(lin_idx_col);
+
+        EV_bounded_Valt_chosen_tiny = delta_j .* EV_Valt_chosen_tiny;
+        Valt_sub_max_tiny = Evaluate_Universal_RHS_VFHorz(F_chosen_tiny, EV_bounded_Valt_chosen_tiny, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+
+        Valt_sub_max = repmat(Valt_sub_max_tiny, [N_states, 1]);
+        Valt_sub_max = Valt_sub_max(:)';
+    else
+        % Full Grid Math
+        if is_branch_1a
+            EV_Valt_flat = reshape(EV_Valt_pre, [FLAT_CHOICES, N_ze_local]);
+            is_EV_col_collapsed = (size(EV_Valt_pre, 3) == 1 && N_states > 1);
+            if is_EV_col_collapsed
+                ze_offsets = cast(0:N_ze_local-1, 'like', Pol_sub_idx) * FLAT_CHOICES_CAST;
+                lin_idx_2d = reshape(Pol_sub_idx, [N_states, N_ze_local]) + ze_offsets;
+                EV_Valt_chosen_2d = EV_Valt_flat(lin_idx_2d);
+                EV_Valt_chosen = EV_Valt_chosen_2d(:)';
+            else
+                EV_Valt_flat_full = reshape(EV_Valt_pre, [FLAT_CHOICES, FLAT_STATES]);
+                EV_Valt_chosen = EV_Valt_flat_full(lin_idx_full);
+            end
+        else
+            % Branch 1B, 2A, 2B index logic
+            is_idx_collapsed = (size(EV_Index_Tensor, 3) == 1 && N_states > 1);
+            if is_idx_collapsed
+                idx_flat_col = reshape(EV_Index_Tensor, [FLAT_CHOICES, N_ze_local]);
+                ze_offsets = cast(0:N_ze_local-1, 'like', Pol_sub_idx) * FLAT_CHOICES_CAST;
+                lin_idx_2d = reshape(Pol_sub_idx, [N_states, N_ze_local]) + ze_offsets;
+                idx_chosen_2d = idx_flat_col(lin_idx_2d);
+                idx_chosen = idx_chosen_2d(:)';
+            else
+                idx_flat = reshape(EV_Index_Tensor, [FLAT_CHOICES, FLAT_STATES]);
+                idx_chosen = idx_flat(lin_idx_full);
+            end
+
+            if gridinterplayer(1) == 0
+                EV_Valt_chosen = EV_Valt_pre(idx_chosen);
+            else
+                EV_Valt_chosen = EV_Valt_interp(idx_chosen);
+            end
+        end
+
+        EV_bounded_Valt_chosen = delta_j .* EV_Valt_chosen;
+        Valt_sub_max = Evaluate_Universal_RHS_VFHorz(F_chosen, EV_bounded_Valt_chosen, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+    end
+    Valt_j_max = reshape(Valt_sub_max, [N_states, N_ze_local]);
+else
+    Valt_j_max = [];
+end
+
+% =================================================================
+% Output Formatters
+% =================================================================
 d_idx_local = mod(Pol_sub_idx - 1, max(1, N_d_safe)) + 1;
 apr_offset = ceil(Pol_sub_idx / max(1, N_d_safe));
 
 V_j_max    = reshape(V_sub_max, [N_states, N_ze_local]);
-Valt_j_max = reshape(Valt_sub_max, [N_states, N_ze_local]);
 Pol_d_max  = reshape(d_idx_local, [N_states, N_ze_local]);
 
 if isempty(loweredge_matrix)
