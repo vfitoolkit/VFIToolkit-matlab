@@ -856,27 +856,27 @@ if isempty(loweredge_matrix)
     RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
     clear F_tensor EV_bounded;
 
-    % --- FIX TIE-BREAKING: Sequential Max to match VFIToolkit ---
-    RHS_3D = reshape(RHS, stride_d, num_choices * double(N_a2_endo), []);
+    % --- STRICT DIMENSIONAL BOUNDING ---
+    % Force RHS to explicitly acknowledge Dimension 3 even if N_a2_endo == 1
+    RHS_padded = reshape(RHS, double(N_d_safe), num_choices, double(N_a2_endo), []);
+    RHS_3D = reshape(RHS_padded, double(N_d_safe), num_choices * double(N_a2_endo), []);
+
     [RHS_max_apr, Pol_apr_rel] = max(RHS_3D, [], 2);
     [V_sub_coarse, d_idx_local] = max(RHS_max_apr, [], 1);
 
     num_states_actual = size(RHS_3D, 3);
-    win_idx = d_idx_local(:)' + (0:num_states_actual-1) * stride_d;
+    win_idx = d_idx_local(:)' + (0:num_states_actual-1) * double(N_d_safe);
     apr_idx_local = Pol_apr_rel(win_idx);
 
     if nargout > 5
-        RHS_for_d = max(RHS, [], 1);
-        [~, max_a1_idx_rel] = max(RHS_for_d, [], 2);
+        RHS_for_d = max(RHS_padded, [], 1);
+        [~, max_a1_idx_rel] = max(reshape(RHS_for_d, num_choices * double(N_a2_endo), []), [], 1);
         Pol_a1_per_a2 = reshape(max_a1_idx_rel, N_a2_endo, []);
     else
         Pol_a1_per_a2 = [];
     end
 
-    clear RHS RHS_3D RHS_max_apr RHS_for_d;
-
-    d_idx_local   = mod(Pol_sub_idx - 1, stride_d) + 1;
-    apr_idx_local = double(idivide(int32(Pol_sub_idx - 1), int32(stride_d), 'floor')) + 1;
+    clear RHS RHS_padded RHS_3D RHS_max_apr RHS_for_d;
 
     V_j_max        = reshape(V_sub_coarse,  [], N_ze_local);
     Pol_apr_max    = reshape(apr_idx_local, [], N_ze_local);
@@ -956,27 +956,26 @@ else
         RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
         clear F_tensor EV_bounded;
 
-        % --- FIX TIE-BREAKING: Sequential Max to match VFIToolkit ---
-        RHS_3D = reshape(RHS, stride_d, num_choices * double(N_a2_endo), []);
+        % --- STRICT DIMENSIONAL BOUNDING ---
+        RHS_padded = reshape(RHS, double(N_d_safe), num_choices, double(N_a2_endo), []);
+        RHS_3D = reshape(RHS_padded, double(N_d_safe), num_choices * double(N_a2_endo), []);
+
         [RHS_max_apr, Pol_apr_rel] = max(RHS_3D, [], 2);
         [V_sub_fine, d_idx_local] = max(RHS_max_apr, [], 1);
 
         num_states_actual = size(RHS_3D, 3);
-        win_idx = d_idx_local(:)' + (0:num_states_actual-1) * stride_d;
+        win_idx = d_idx_local(:)' + (0:num_states_actual-1) * double(N_d_safe);
         apr_offset = Pol_apr_rel(win_idx);
 
         if nargout > 5
-            RHS_for_d = max(RHS, [], 1);
-            [~, max_a1_idx_rel] = max(RHS_for_d, [], 2);
+            RHS_for_d = max(RHS_padded, [], 1);
+            [~, max_a1_idx_rel] = max(reshape(RHS_for_d, num_choices * double(N_a2_endo), []), [], 1);
             low_expanded = low_mat + zeros([1, 1, N_a2_endo, num_seg, N_other_states, n_z_loc, n_e_loc]);
             Pol_a1_per_a2 = min(low_expanded + double(max_a1_idx_rel) - 1, N_a1_dc);
             Pol_a1_per_a2 = reshape(Pol_a1_per_a2, N_a2_endo, []);
         end
 
-        clear RHS RHS_3D RHS_max_apr RHS_for_d;
-
-        d_idx_local = mod(Pol_sub_idx - 1, stride_d) + 1;
-        apr_offset  = double(idivide(int32(Pol_sub_idx - 1), int32(stride_d), 'floor')) + 1;
+        clear RHS RHS_padded RHS_3D RHS_max_apr RHS_for_d;
 
         a1_apr_offset = mod(apr_offset - 1, num_choices) + 1;
         a2_offset_factor = double(idivide(int32(apr_offset - 1), int32(num_choices), 'floor')) + 1;
@@ -1050,13 +1049,15 @@ else
         RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
         clear F_tensor EV_bounded;
 
-        % --- FIX TIE-BREAKING: Sequential Max to match VFIToolkit ---
-        RHS_3D = reshape(RHS, stride_d, num_choices * double(N_a2_endo), []);
+        % --- STRICT DIMENSIONAL BOUNDING ---
+        RHS_padded = reshape(RHS, double(N_d_safe), num_choices, double(N_a2_endo), []);
+        RHS_3D = reshape(RHS_padded, double(N_d_safe), num_choices * double(N_a2_endo), []);
+
         [RHS_max_apr, Pol_apr_rel] = max(RHS_3D, [], 2);
         [V_sub_fine, d_idx_local] = max(RHS_max_apr, [], 1);
 
         num_states_actual = size(RHS_3D, 3);
-        win_idx = d_idx_local(:)' + (0:num_states_actual-1) * stride_d;
+        win_idx = d_idx_local(:)' + (0:num_states_actual-1) * double(N_d_safe);
         apr_offset = Pol_apr_rel(win_idx);
 
         a1_apr_offset = mod(apr_offset - 1, num_choices) + 1;
@@ -1087,7 +1088,7 @@ else
         lin_upper = row_upper + (0:FLAT_STATES-1) * stride_flat;
 
         isInfLower = (RHS(lin_lower) == -Inf); isInfUpper = (RHS(lin_upper) == -Inf);
-        clear RHS RHS_3D RHS_max_apr;
+        clear RHS RHS_padded RHS_3D RHS_max_apr;
 
         inLowerStrict = (a1_apr_offset >= 2) & (a1_apr_offset <= n2short_d + 1);
         inUpperStrict = (a1_apr_offset >= n2short_d + 3) & (a1_apr_offset <= n2long_d - 1);
