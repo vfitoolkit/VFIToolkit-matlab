@@ -856,9 +856,14 @@ if isempty(loweredge_matrix)
     RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
     clear F_tensor EV_bounded;
 
-    % SAFEGUARD: Dynamic flattening completely bypasses dimension-drop crashes
-    RHS_flat = reshape(RHS, stride_d * num_choices * N_a2_endo, []);
-    [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
+    % --- FIX TIE-BREAKING: Sequential Max to match VFIToolkit ---
+    RHS_3D = reshape(RHS, stride_d, num_choices * double(N_a2_endo), []);
+    [RHS_max_apr, Pol_apr_rel] = max(RHS_3D, [], 2);
+    [V_sub_coarse, d_idx_local] = max(RHS_max_apr, [], 1);
+
+    num_states_actual = size(RHS_3D, 3);
+    win_idx = d_idx_local(:)' + (0:num_states_actual-1) * stride_d;
+    apr_idx_local = Pol_apr_rel(win_idx);
 
     if nargout > 5
         RHS_for_d = max(RHS, [], 1);
@@ -867,7 +872,8 @@ if isempty(loweredge_matrix)
     else
         Pol_a1_per_a2 = [];
     end
-    clear RHS RHS_flat RHS_for_d;
+
+    clear RHS RHS_3D RHS_max_apr RHS_for_d;
 
     d_idx_local   = mod(Pol_sub_idx - 1, stride_d) + 1;
     apr_idx_local = double(idivide(int32(Pol_sub_idx - 1), int32(stride_d), 'floor')) + 1;
@@ -950,8 +956,14 @@ else
         RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
         clear F_tensor EV_bounded;
 
-        RHS_flat = reshape(RHS, stride_d * num_choices * N_a2_endo, []);
-        [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
+        % --- FIX TIE-BREAKING: Sequential Max to match VFIToolkit ---
+        RHS_3D = reshape(RHS, stride_d, num_choices * double(N_a2_endo), []);
+        [RHS_max_apr, Pol_apr_rel] = max(RHS_3D, [], 2);
+        [V_sub_fine, d_idx_local] = max(RHS_max_apr, [], 1);
+
+        num_states_actual = size(RHS_3D, 3);
+        win_idx = d_idx_local(:)' + (0:num_states_actual-1) * stride_d;
+        apr_offset = Pol_apr_rel(win_idx);
 
         if nargout > 5
             RHS_for_d = max(RHS, [], 1);
@@ -960,7 +972,8 @@ else
             Pol_a1_per_a2 = min(low_expanded + double(max_a1_idx_rel) - 1, N_a1_dc);
             Pol_a1_per_a2 = reshape(Pol_a1_per_a2, N_a2_endo, []);
         end
-        clear RHS_flat RHS_for_d RHS;
+
+        clear RHS RHS_3D RHS_max_apr RHS_for_d;
 
         d_idx_local = mod(Pol_sub_idx - 1, stride_d) + 1;
         apr_offset  = double(idivide(int32(Pol_sub_idx - 1), int32(stride_d), 'floor')) + 1;
@@ -1037,11 +1050,14 @@ else
         RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
         clear F_tensor EV_bounded;
 
-        RHS_flat = reshape(RHS, stride_d * num_choices * N_a2_endo, []);
-        [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
+        % --- FIX TIE-BREAKING: Sequential Max to match VFIToolkit ---
+        RHS_3D = reshape(RHS, stride_d, num_choices * double(N_a2_endo), []);
+        [RHS_max_apr, Pol_apr_rel] = max(RHS_3D, [], 2);
+        [V_sub_fine, d_idx_local] = max(RHS_max_apr, [], 1);
 
-        d_idx_local = mod(Pol_sub_idx - 1, stride_d) + 1;
-        apr_offset  = double(idivide(int32(Pol_sub_idx - 1), int32(stride_d), 'floor')) + 1;
+        num_states_actual = size(RHS_3D, 3);
+        win_idx = d_idx_local(:)' + (0:num_states_actual-1) * stride_d;
+        apr_offset = Pol_apr_rel(win_idx);
 
         a1_apr_offset = mod(apr_offset - 1, num_choices) + 1;
         a2_offset_factor = double(idivide(int32(apr_offset - 1), int32(num_choices), 'floor')) + 1;
@@ -1066,12 +1082,12 @@ else
         row_lower = d_idx_local(:)' + (a2_offset_factor(:)' - 1)*stride_d*num_choices;
         row_upper = d_idx_local(:)' + (num_choices - 1)*stride_d + (a2_offset_factor(:)' - 1)*stride_d*num_choices;
 
-        stride_flat = stride_d * num_choices * N_a2_endo;
+        stride_flat = stride_d * num_choices * double(N_a2_endo);
         lin_lower = row_lower + (0:FLAT_STATES-1) * stride_flat;
         lin_upper = row_upper + (0:FLAT_STATES-1) * stride_flat;
 
         isInfLower = (RHS(lin_lower) == -Inf); isInfUpper = (RHS(lin_upper) == -Inf);
-        clear RHS RHS_flat;
+        clear RHS RHS_3D RHS_max_apr;
 
         inLowerStrict = (a1_apr_offset >= 2) & (a1_apr_offset <= n2short_d + 1);
         inUpperStrict = (a1_apr_offset >= n2short_d + 3) & (a1_apr_offset <= n2long_d - 1);
