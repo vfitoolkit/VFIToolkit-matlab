@@ -815,7 +815,7 @@ else
         loweredge_matrix = repmat(reshape(a1_idx, [1, N_states, N_ze_local]), [N_a2_endo, 1, 1]);
     end
 
-    if gridinterplayer(1) == 0
+    if gridinterplayer(1) == 0|| is_dc_mode == 2
         % SCENARIO 2A: Standard DC Segment Zoom
         base_idx_a1 = reshape(loweredge_matrix, [1, N_a2_endo, N_states, n_z_loc, n_e_loc]);
         offsets_a1 = reshape(0:maxgap_scalar, [maxgap_scalar + 1, 1, 1, 1, 1]);
@@ -925,7 +925,7 @@ else
 
     if nargout > 5
         RHS_max_d = max(RHS, [], 1);
-        if gridinterplayer(1) == 0
+        if gridinterplayer(1) == 0 || is_dc_mode == 2
             RHS_4D = reshape(RHS_max_d, [maxgap_scalar + 1, N_a2_endo, N_states, N_ze_local]);
         else
             leadRHS_4D = reshape(RHS_max_d, [n2long, N_a2_endo, N_states, N_ze_local]);
@@ -940,7 +940,7 @@ else
     V_j_max   = reshape(V_sub_fine,  [N_states, N_ze_local]);
     Pol_d_max = reshape(d_idx_local, [N_states, N_ze_local]);
 
-    if gridinterplayer(1) == 0
+    if gridinterplayer(1) == 0 || is_dc_mode == 2
         a1_apr_offset = mod(apr_offset - 1, maxgap_scalar + 1) + 1;
         a2_offset_factor = ceil(apr_offset / (maxgap_scalar + 1));
 
