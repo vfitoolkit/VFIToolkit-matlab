@@ -310,25 +310,31 @@ for reverse_j = 0:N_j-1
                 EV_bounded_pre = []; static_EV_offset = [];
             end
 
-            LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar, dc_mode_override) Evaluate_QHEZ_TensorBlock(...
+            % STAGE 1: DC Slicer handle (dc_mode_override = 1 for DC evaluation)
+            LocalBlockFn_Coarse = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_QHEZ_TensorBlock(...
+                state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
+                Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
+                0, n2short, n2long, beta0_j(jj), delta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
+                TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
+                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, 1);
+
+            % STAGE 2: Direct full-grid Zoom handle (Branch 2B)
+            LocalBlockFn_Zoom = @(state_idx, loweredge_matrix, maxgap_scalar) Evaluate_QHEZ_TensorBlock(...
                 state_idx, loweredge_matrix, maxgap_scalar, N_a1, N_a2, N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, a2_grids_1d, l_a2, ...
                 vfoptions.gridinterplayer, n2short, n2long, beta0_j(jj), delta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                 TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
-                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, dc_mode_override);
+                TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, 1);
 
             full_state_chunk = 1:(N_a1 * N_a2);
-            vfoptions.level1n = vfoptions.level1n(1);
-
             if vfoptions.gridinterplayer(1) == 1
-                % TENSOR BRIDGE FIX: Stage 1 DC+GI Override
-                temp_vfoptions = vfoptions; temp_vfoptions.gridinterplayer = 0;
-                [~, p_apr_coarse] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, temp_vfoptions, LocalBlockFn);
-                [v, p_apr, p_d, p_l2idx, p_l2flag, valt] = LocalBlockFn(full_state_chunk, p_apr_coarse, n2long - 1, 0);
+                temp_vfoptions = vfoptions;
+                temp_vfoptions.gridinterplayer = 0;
+                [~, p_apr_coarse] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
+                [v, p_apr, p_d, p_l2idx, p_l2flag, valt] = LocalBlockFn_Zoom(full_state_chunk, p_apr_coarse, n2long - 1);
             else
-                [v, p_apr, p_d] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, vfoptions, LocalBlockFn);
-                % QHEZ Counterfactual Fix: Evaluate Valt exactly at the chosen DC policy
-                [~, ~, ~, p_l2idx, p_l2flag, valt] = LocalBlockFn(full_state_chunk, p_apr, 0, 0);
+                [v, p_apr, p_d] = ValueFnIter_DC1_Slicer(N_a1 * N_a2, N_a, 1, N_ze_local, vfoptions, LocalBlockFn_Coarse);
+                [~, ~, ~, p_l2idx, p_l2flag, valt] = LocalBlockFn_Coarse(full_state_chunk, p_apr, 0);
             end
 
             V_j_max(:, curr_ze)     = reshape(v,     [N_a1 * N_a2, N_ze_local]);
@@ -503,7 +509,9 @@ if isempty(loweredge_matrix)
         % BRANCH 1A: COARSE EVALUATION (DC Level 1 or Standard Non-DC)
         % =================================================================
         Apr_cells = cell(1, num_a1);
-        for ia = 1:num_a1; Apr_cells{ia} = reshape(A1_mat(:,ia), [1, N_a1, 1, 1, 1]); end
+        for ia = 1:num_a1
+            Apr_cells{ia} = reshape(A1_mat(:, ia), [1, N_a1, 1, 1, 1]);
+        end
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         EV_bounded_base = EV_bounded_pre;
@@ -600,7 +608,10 @@ else
         base_idx = reshape(loweredge_matrix, [1, 1, N_states, n_z_loc, n_e_loc]);
         choice_idx = max(1, min(base_idx + reshape(0:maxgap_scalar, [1, num_choices, 1, 1, 1]), N_a1));
         Apr_cells = cell(1, num_a1);
-        for ia = 1:num_a1; Apr_cells{ia} = A1_mat(choice_idx, ia); end
+        for ia = 1:num_a1
+            grid_col = A1_mat(:, ia);
+            Apr_cells{ia} = reshape(grid_col(choice_idx), [1, num_choices, N_states, n_z_loc, n_e_loc]);
+        end
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         EV_bounded_base = EV_bounded_pre(static_EV_offset + (choice_idx - 1) * N_d_safe);
@@ -616,7 +627,9 @@ else
         out_of_bounds = (raw_choice_idx < 1) | (raw_choice_idx > length(a1prime_grid));
         choice_idx = max(1, min(raw_choice_idx, length(a1prime_grid)));
         Apr_cells = cell(1, num_a1);
-        for ia = 1:num_a1; Apr_cells{ia} = reshape(a1prime_grid(choice_idx), [1, num_choices, N_states, n_z_loc, n_e_loc]); end
+        for ia = 1:num_a1
+            Apr_cells{ia} = reshape(a1prime_grid(choice_idx), [1, num_choices, N_states, n_z_loc, n_e_loc]);
+        end
 
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
 
