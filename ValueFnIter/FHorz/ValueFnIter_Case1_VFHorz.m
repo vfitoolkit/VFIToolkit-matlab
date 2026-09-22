@@ -955,10 +955,25 @@ else
         Apr_cells = {A1_grids_1d{1}(choice_idx_eval)};
         if length(A1_grids_1d) > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1, 1]); end
 
+        % --- PTX COMPILER FMA PARITY ---
+        % Force explicit contiguous memory expansion to match VFIToolkit's ndgrid.
+        % Implicit expansion (stride broadcasting) causes the GPU PTX compiler to generate
+        % a different FMA instruction sequence, shifting ties by 1e-16 on dense curves.
+        Apr_mesh = cell(size(Apr_cells));
+        A1_mesh = cell(size(A1_cells));
+
+        rep_Apr = ones(1, 7); rep_Apr(dim_A1) = num_seg;
+        rep_A1 = ones(1, 7); rep_A1(2) = num_choices;
+
+        for i = 1:length(Apr_cells)
+            Apr_mesh{i} = repmat(Apr_cells{i}, rep_Apr);
+            A1_mesh{i} = repmat(A1_cells{i}, rep_A1);
+        end
+
         if N_a_exp > 1
-            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         else
-            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         end
         % --- SANITIZE INVALID STATES (Complex/NaN to -Inf) ---
         if false && ~isreal(F_tensor)
