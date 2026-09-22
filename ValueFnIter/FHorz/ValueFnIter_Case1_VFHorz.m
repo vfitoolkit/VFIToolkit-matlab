@@ -482,7 +482,7 @@ for reverse_j = 0:N_j-1
 
             vfoptions.level1n = vfoptions.level1n(1);
             LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar, dc_mode_override) Evaluate_Case1_TensorBlock(...
-                state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, N_a2_exp, N_d_safe, N_ze_local, ...
+                state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, max(1, N_a2_exp), N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, A1_grids_1d, a2_grids_1d, ...
                 vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                 TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
@@ -493,10 +493,12 @@ for reverse_j = 0:N_j-1
                 LocalBlockFn_Coarse = @(state_idx, loweredge_matrix, maxgap_scalar) LocalBlockFn(state_idx, loweredge_matrix, maxgap_scalar, 2);
                 if num_a_endo == 1
                     [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC1_Slicer(N_a1_dc * N_a2_exp, N_a, 1, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
+                    loweredge_pass = p_apr_coarse;
                 else
                     [~, p_apr_coarse, ~, ~, ~] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_exp, N_a1_dc, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
+                    loweredge_pass = p_apr_coarse;
                 end
-                [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, p_apr_coarse, n2long - 1, 0);
+                [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, loweredge_pass, n2long - 1, 0);
             else
                 LocalBlockFn_Standard = @(state_idx, loweredge_matrix, maxgap_scalar) LocalBlockFn(state_idx, loweredge_matrix, maxgap_scalar, 0);
                 if num_a_endo == 1
@@ -564,7 +566,7 @@ for reverse_j = 0:N_j-1
                 else; EV_bounded_pre = []; static_EV_offset = []; end
 
                 LocalBlockFn = @(state_idx, loweredge_matrix, maxgap_scalar, dc_mode_override) Evaluate_Case1_TensorBlock(...
-                    state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, N_a2_local, N_d_safe, N_ze_local, ...
+                    state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, max(1, N_a2_local), N_d_safe, N_ze_local, ...
                     Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_local, A1_grids_1d, a2_grids_1d, ...
                     vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
                     TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
@@ -715,9 +717,11 @@ if isempty(loweredge_matrix)
         [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
 
         if nargout > 5
-            RHS_4D = reshape(RHS_flat, [N_a1_dc, max(1, num_choices_total / N_a1_dc), N_states, N_ze_local]);
+            % Extract optimal a1 for each a2, maximizing safely over d
+            RHS_max_d = max(RHS, [], 1);
+            RHS_4D = reshape(RHS_max_d, [N_a1_dc, N_a2_endo, N_states, N_ze_local]);
             [~, max_a1_idx] = max(RHS_4D, [], 1);
-            Pol_a1_per_a2 = reshape(max_a1_idx, [max(1, num_choices_total / N_a1_dc), N_states, N_ze_local]);
+            Pol_a1_per_a2 = reshape(max_a1_idx, [N_a2_endo, N_states, N_ze_local]);
         else
             Pol_a1_per_a2 = [];
         end
@@ -795,13 +799,20 @@ else
     % BRANCH 2: ZOOM PHASE (loweredge_matrix provided)
     Pol_a1_per_a2 = [];
 
-    % Normalize loweredge_matrix expansion for DC1 vs DC2A architecture
-    if numel(loweredge_matrix) < N_a2_endo * N_states * N_ze_local
-        num_seg = N_states / N_a_exp;
-        loweredge_matrix = reshape(loweredge_matrix, [1, N_a_exp, N_ze_local]);
-        loweredge_matrix = repmat(loweredge_matrix, [num_seg, 1, 1]);
+    % Normalize loweredge_matrix expansion universally
+    a1_idx = mod(loweredge_matrix - 1, N_a1_dc) + 1;
+    if numel(a1_idx) == N_states * N_ze_local
+        % Orchestrator GI Zoom
+        loweredge_matrix = repmat(reshape(a1_idx, [1, N_states, N_ze_local]), [N_a2_endo, 1, 1]);
+    elseif numel(a1_idx) == N_a2_endo * N_states * N_ze_local
+        % DC2A Slicer Zoom
+        loweredge_matrix = reshape(a1_idx, [N_a2_endo, N_states, N_ze_local]);
+    else
+        % DC1 Slicer Zoom
+        a1_idx = reshape(a1_idx, [1, N_a_exp, N_ze_local]);
+        a1_idx = repmat(a1_idx, [N_states / N_a_exp, 1, 1]);
+        loweredge_matrix = repmat(reshape(a1_idx, [1, N_states, N_ze_local]), [N_a2_endo, 1, 1]);
     end
-    loweredge_matrix = reshape(loweredge_matrix, [N_a2_endo, N_states, N_ze_local]);
 
     if gridinterplayer(1) == 0
         % SCENARIO 2A: Standard DC Segment Zoom
@@ -920,7 +931,6 @@ else
         a1_apr_offset = mod(apr_offset - 1, maxgap_scalar + 1) + 1;
         a2_offset_factor = ceil(apr_offset / (maxgap_scalar + 1));
 
-        % Extract corresponding conditional bound from the 2D matrix
         loweredge_matrix_2d = reshape(loweredge_matrix, [N_a2_endo, FLAT_STATES]);
         lin_idx_loweredge = a2_offset_factor + (0:FLAT_STATES-1) * N_a2_endo;
         chosen_loweredge = loweredge_matrix_2d(lin_idx_loweredge);
@@ -934,7 +944,6 @@ else
         a2_offset_factor = ceil(apr_offset / n2long);
         chosen_offset = start_offset + a1_apr_offset - 1;
 
-        % Extract corresponding conditional bound from the 2D matrix
         loweredge_matrix_2d = reshape(loweredge_matrix_bounds, [N_a2_endo, FLAT_STATES]);
         lin_idx_loweredge = a2_offset_factor + (0:FLAT_STATES-1) * N_a2_endo;
         chosen_loweredge = loweredge_matrix_2d(lin_idx_loweredge);
