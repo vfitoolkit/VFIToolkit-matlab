@@ -498,7 +498,7 @@ for reverse_j = 0:N_j-1
             if l_a_exp == 0
                 EV_reshaped = reshape(EV_local, [N_a1_dc * N_a2_endo, n_z_loc, n_e_loc, N_dsemiz]);
                 EV_d_sliced = EV_reshaped(:, :, :, dsemiz_idx_tensor(:));
-                EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
+                EV_bounded_pre = permute(EV_d_sliced, [4, 1, 5, 2, 3]);
                 d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1, 1]);
                 z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo), [1, 1, 1, 1, n_z_loc, 1]);
                 e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo * n_z_loc), [1, 1, 1, 1, 1, n_e_loc]);
@@ -617,7 +617,7 @@ for reverse_j = 0:N_j-1
                 if l_a_exp == 0
                     EV_reshaped = reshape(EV_local, [N_a1_dc * N_a2_endo, n_z_loc, n_e_loc, N_dsemiz]);
                     EV_d_sliced = EV_reshaped(:, :, :, dsemiz_idx_tensor(:));
-                    EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
+                    EV_bounded_pre = permute(EV_d_sliced, [4, 1, 5, 2, 3]);
                     d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1, 1]);
                     z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo), [1, 1, 1, 1, n_z_loc, 1]);
                     e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo * n_z_loc), [1, 1, 1, 1, 1, n_e_loc]);
@@ -836,10 +836,25 @@ if isempty(loweredge_matrix)
     Apr_cells = {reshape(A1_grids_1d{1}, [1, num_choices, 1, 1, 1, 1, 1])};
     if length(A1_grids_1d) > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1, 1]); end
 
+    % --- PTX COMPILER FMA PARITY (Explicit Meshing) ---
+    % VFIToolkit uses ndgrid to explicitly expand arrays in memory before evaluation.
+    % We replicate that here to prevent GPU PTX implicit-expansion rounding differences
+    % from shifting the optimal policy by 1 index in the smooth unconstrained interior.
+    Apr_mesh = cell(size(Apr_cells));
+    A1_mesh  = cell(size(A1_cells));
+
+    rep_Apr = ones(1, 7); rep_Apr(dim_A1) = num_seg;
+    rep_A1  = ones(1, 7); rep_A1(2)       = num_choices;
+
+    for i = 1:length(Apr_cells)
+        Apr_mesh{i} = repmat(Apr_cells{i}, rep_Apr);
+        A1_mesh{i}  = repmat(A1_cells{i}, rep_A1);
+    end
+
     if N_a_exp > 1
-        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
     else
-        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+        F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
     end
     % --- SANITIZE INVALID STATES (Complex/NaN to -Inf) ---
     if false && ~isreal(F_tensor)
@@ -905,6 +920,12 @@ if isempty(loweredge_matrix)
     d_idx_local   = mod(Pol_sub_idx - 1, double(N_d_safe)) + 1;
     apr_idx_local = double(idivide(int32(Pol_sub_idx - 1), int32(N_d_safe), 'floor')) + 1;
 
+    % --- FLAT-PACK ROBUSTNESS ---
+    % Reshape to guarantee assignment parity in the chunk loop if n_z > 1
+    V_sub_coarse  = reshape(V_sub_coarse, [], n_z_loc * n_e_loc);
+    apr_idx_local = reshape(apr_idx_local, [], n_z_loc * n_e_loc);
+    d_idx_local   = reshape(d_idx_local, [], n_z_loc * n_e_loc);
+
     if nargout > 5
         RHS_for_d = max(reshape(RHS, double(N_d_safe), []), [], 1);
         [~, max_a1_idx_rel] = max(reshape(RHS_for_d, num_choices * double(N_a2_endo), []), [], 1);
@@ -955,19 +976,19 @@ else
         Apr_cells = {A1_grids_1d{1}(choice_idx_eval)};
         if length(A1_grids_1d) > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1, 1]); end
 
-        % --- PTX COMPILER FMA PARITY ---
-        % Force explicit contiguous memory expansion to match VFIToolkit's ndgrid.
-        % Implicit expansion (stride broadcasting) causes the GPU PTX compiler to generate
-        % a different FMA instruction sequence, shifting ties by 1e-16 on dense curves.
+        % --- PTX COMPILER FMA PARITY (Explicit Meshing) ---
+        % VFIToolkit uses ndgrid to explicitly expand arrays in memory before evaluation.
+        % We replicate that here to prevent GPU PTX implicit-expansion rounding differences
+        % from shifting the optimal policy by 1 index in the smooth unconstrained interior.
         Apr_mesh = cell(size(Apr_cells));
-        A1_mesh = cell(size(A1_cells));
+        A1_mesh  = cell(size(A1_cells));
 
         rep_Apr = ones(1, 7); rep_Apr(dim_A1) = num_seg;
-        rep_A1 = ones(1, 7); rep_A1(2) = num_choices;
+        rep_A1  = ones(1, 7); rep_A1(2)       = num_choices;
 
         for i = 1:length(Apr_cells)
             Apr_mesh{i} = repmat(Apr_cells{i}, rep_Apr);
-            A1_mesh{i} = repmat(A1_cells{i}, rep_A1);
+            A1_mesh{i}  = repmat(A1_cells{i}, rep_A1);
         end
 
         if N_a_exp > 1
@@ -1018,9 +1039,15 @@ else
         RHS_flat = reshape(RHS, stride_flat, []);
         [V_sub_fine, Pol_sub_idx] = max(RHS_flat, [], 1);
 
-        d_idx_local = mod(Pol_sub_idx - 1, double(N_d_safe)) + 1;
-        apr_offset  = double(idivide(int32(Pol_sub_idx - 1), int32(N_d_safe), 'floor')) + 1;
-
+        d_idx_local   = mod(Pol_sub_idx - 1, double(N_d_safe)) + 1;
+        apr_idx_local = double(idivide(int32(Pol_sub_idx - 1), int32(N_d_safe), 'floor')) + 1;
+        
+        % --- FLAT-PACK ROBUSTNESS ---
+        % Reshape to guarantee assignment parity in the chunk loop if n_z > 1
+        V_sub_coarse  = reshape(V_sub_coarse, [], n_z_loc * n_e_loc);
+        apr_idx_local = reshape(apr_idx_local, [], n_z_loc * n_e_loc);
+        d_idx_local   = reshape(d_idx_local, [], n_z_loc * n_e_loc);
+        
         if nargout > 5
             RHS_for_d = max(reshape(RHS, double(N_d_safe), []), [], 1);
             [~, max_a1_idx_rel] = max(reshape(RHS_for_d, num_choices * double(N_a2_endo), []), [], 1);
@@ -1060,10 +1087,25 @@ else
         Apr_cells = {a1prime_grid(choice_idx_eval)};
         if length(A1_grids_1d) > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1, 1]); end
 
+        % --- PTX COMPILER FMA PARITY (Explicit Meshing) ---
+        % VFIToolkit uses ndgrid to explicitly expand arrays in memory before evaluation.
+        % We replicate that here to prevent GPU PTX implicit-expansion rounding differences
+        % from shifting the optimal policy by 1 index in the smooth unconstrained interior.
+        Apr_mesh = cell(size(Apr_cells));
+        A1_mesh  = cell(size(A1_cells));
+
+        rep_Apr = ones(1, 7); rep_Apr(dim_A1) = num_seg;
+        rep_A1  = ones(1, 7); rep_A1(2)       = num_choices;
+
+        for i = 1:length(Apr_cells)
+            Apr_mesh{i} = repmat(Apr_cells{i}, rep_Apr);
+            A1_mesh{i}  = repmat(A1_cells{i}, rep_A1);
+        end
+
         if N_a_exp > 1
-            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         else
-            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
+            F_tensor = TensorReturnFn(D_cells_block{:}, Apr_mesh{:}, A1_mesh{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
         end
         % --- SANITIZE INVALID STATES (Complex/NaN to -Inf) ---
         if false && ~isreal(F_tensor)
