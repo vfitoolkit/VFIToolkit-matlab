@@ -547,7 +547,7 @@ for reverse_j = 0:N_j-1
                     else
                         loweredge_chunk = loweredge_pass(:, state_chunk, :);
                     end
-                    [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, loweredge_chunk, n2long - 1, 0);
+                    [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, loweredge_chunk, n2long - 1, 1);
 
                     v(state_chunk, :) = v_c;
                     p_apr(state_chunk, :) = p_apr_c;
@@ -659,7 +659,7 @@ for reverse_j = 0:N_j-1
                         [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, loweredge_pass, n2long - 1, 0);
                     else
                         % Force maxgap_scalar to 0 and explicitly route an empty loweredge
-                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 0);
+                        [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, [], 0, 1);
                     end
 
                     % Force column flattening to perfectly guarantee dimension match
@@ -875,10 +875,20 @@ if isempty(loweredge_matrix)
         EV_bounded = beta_j .* (weight_left .* EV_flat(idx_left) + weight_right .* EV_flat(idx_right));
     else
         lin_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
-        EV_bounded = cast(beta_j .* EV_flat(lin_idx), 'like', F_tensor);
+        EV_bounded = beta_j .* EV_flat(lin_idx);
+
+        % Force EV_bounded to mirror the strict precision of the evaluation before implicit expansion
+        if isa(F_tensor, 'gpuArray')
+            EV_bounded = gpuArray(cast(gather(EV_bounded), classUnderlying(F_tensor)));
+        else
+            EV_bounded = cast(EV_bounded, class(F_tensor));
+        end
     end
 
     RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
+    % Explicitly clamp RHS NaNs to -Inf to guarantee max() ignores invalid states safely
+    % even if vectorizedreturnfn generates floating point residues
+    RHS(isnan(RHS)) = -Inf;
     clear F_tensor EV_bounded;
 
     % --- RAW FLAT TENSOR UNPACKING ---
@@ -918,19 +928,16 @@ else
     base_shape(dim_E)  = n_e_loc;
     if N_a2_endo > 1; base_shape(3) = double(N_a2_endo); end
 
-    N_states = length(state_idx);
-    if size(loweredge_matrix, 1) == N_states && N_a2_endo == 1
-        is_gi_pass = true;
-        low_mat = reshape(loweredge_matrix, base_shape);
-    elseif size(loweredge_matrix, 1) == N_a2_endo && N_a2_endo > 1
-        is_gi_pass = true;
-        low_mat = reshape(loweredge_matrix, base_shape);
-    elseif size(loweredge_matrix, 1) == 1 && size(loweredge_matrix, 2) == N_a2_endo && N_a2_endo > 1
-        is_gi_pass = false;
-        tmp_shape = base_shape; tmp_shape(dim_A1) = 1;
-        low_mat = reshape(loweredge_matrix, tmp_shape);
+    is_gi_pass = (is_dc_mode == 1);
+
+    if is_gi_pass
+        if size(loweredge_matrix, 1) == 1 && size(loweredge_matrix, 2) == N_a2_endo && N_a2_endo > 1
+            tmp_shape = base_shape; tmp_shape(dim_A1) = 1;
+            low_mat = reshape(loweredge_matrix, tmp_shape);
+        else
+            low_mat = reshape(loweredge_matrix, base_shape);
+        end
     else
-        is_gi_pass = false;
         low_mat = reshape(loweredge_matrix, base_shape);
     end
 
