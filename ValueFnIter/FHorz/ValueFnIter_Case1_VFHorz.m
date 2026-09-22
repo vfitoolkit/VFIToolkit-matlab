@@ -811,9 +811,15 @@ end
 
 stride_d = double(N_d_safe);
 d_idx  = reshape(1:N_d_safe, [N_d_safe, 1, 1, 1, 1, 1, 1]);
-a2_idx = reshape(1:N_a2_endo, [1, 1, N_a2_endo, 1, 1, 1, 1]);
-z_idx  = reshape(1:n_z_loc, [1, 1, 1, 1, 1, n_z_loc, 1]);
-e_idx  = reshape(1:n_e_loc, [1, 1, 1, 1, 1, 1, n_e_loc]);
+
+a2_shape = ones(1, 7); a2_shape(3) = N_a2_endo;
+a2_idx = reshape(1:N_a2_endo, a2_shape);
+
+z_shape = ones(1, 7); z_shape(dim_Z) = n_z_loc;
+z_idx  = reshape(1:n_z_loc, z_shape);
+
+e_shape = ones(1, 7); e_shape(dim_E) = n_e_loc;
+e_idx  = reshape(1:n_e_loc, e_shape);
 
 if isempty(loweredge_matrix)
     % =================================================================
@@ -988,9 +994,6 @@ else
             lin_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
             EV_bounded = cast(beta_j .* EV_flat(lin_idx), 'like', F_tensor);
         end
-
-        RHS = cast(Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j), 'like', F_tensor);
-        clear F_tensor EV_bounded;
 
         RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
         clear F_tensor EV_bounded;
