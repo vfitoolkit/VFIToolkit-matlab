@@ -720,9 +720,8 @@ if isempty(loweredge_matrix)
         [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
 
         if nargout > 5
-            % Extract optimal a1 conditional on each a2 by strictly insulating the d dimension
             RHS_for_d = reshape(RHS, [max(1, N_d_safe), num_choices_total, FLAT_STATES]);
-            RHS_max_d = max(RHS_for_d, [], 1); % [1, num_choices_total, FLAT_STATES]
+            RHS_max_d = max(RHS_for_d, [], 1);
             RHS_4D = reshape(RHS_max_d, [N_a1_dc, N_a2_endo, N_states, N_ze_local]);
             [~, max_a1_idx] = max(RHS_4D, [], 1);
             Pol_a1_per_a2 = reshape(max_a1_idx, [N_a2_endo, N_states, N_ze_local]);
@@ -768,9 +767,10 @@ if isempty(loweredge_matrix)
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
             choice_idx_linear = reshape(1:num_choices_total, [1, num_choices_total, 1, 1, 1]);
-            ze_offset = reshape((0:N_ze_local-1) * num_choices_total, [1, 1, 1, n_z_loc, n_e_loc]);
+            stride_z = length(a1prime_grid) * N_a2_endo;
+            ze_offset = reshape((0:N_ze_local-1) * stride_z, [1, 1, 1, n_z_loc, n_e_loc]);
             L2_linear_idx = choice_idx_linear + ze_offset;
-            if N_dsemiz > 1; L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (num_choices_total * N_ze_local); end
+            if N_dsemiz > 1; L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (stride_z * N_ze_local); end
             EV_bounded = beta_j .* EV_interp_local(L2_linear_idx);
         end
         FLAT_CHOICES = max(1, N_d_safe) * num_choices_total; FLAT_STATES  = N_states * N_ze_local;
@@ -831,17 +831,18 @@ else
             choice_idx_linear = choice_idx_a1_base; num_choices_total = maxgap_scalar + 1;
         else
             num_choices_total = (maxgap_scalar + 1) * N_a2_endo;
-            loweredge_rep = repmat(reshape(loweredge_matrix, [1, N_a2_endo, N_states, n_z_loc, n_e_loc]), [maxgap_scalar + 1, 1, 1, 1, 1]);
-            offsets_rep = repmat(reshape(0:maxgap_scalar, [maxgap_scalar + 1, 1, 1, 1, 1]), [1, N_a2_endo, 1, 1, 1]);
-            choice_idx_a1_matrix = max(1, min(loweredge_rep + offsets_rep, length(A1_grids_1d{1})));
+
+            base_idx_a1 = reshape(loweredge_matrix, [1, N_a2_endo, N_states, n_z_loc, n_e_loc]);
+            offsets_a1 = reshape(0:maxgap_scalar, [maxgap_scalar + 1, 1, 1, 1, 1]);
+            choice_idx_a1_matrix = max(1, min(base_idx_a1 + offsets_a1, length(A1_grids_1d{1})));
             choice_idx_a1 = reshape(choice_idx_a1_matrix, [1, num_choices_total, N_states, n_z_loc, n_e_loc]);
 
-            a2_base_matrix = repmat(reshape(1:N_a2_endo, [1, N_a2_endo, 1, 1, 1]), [maxgap_scalar + 1, 1, 1, 1, 1]);
-            choice_idx_a2 = repmat(reshape(a2_base_matrix, [1, num_choices_total, 1, 1, 1]), [1, 1, N_states, n_z_loc, n_e_loc]);
+            a2_base_matrix = reshape(1:N_a2_endo, [1, N_a2_endo, 1, 1, 1]);
+            choice_idx_a2 = cast(reshape(a2_base_matrix, [1, num_choices_total, 1, 1, 1]), 'like', choice_idx_a1);
 
             Apr_cells = cell(1, num_a1_vars); Apr_cells{1} = A1_grids_1d{1}(choice_idx_a1);
             if num_a1_vars > 2; [mesh_a2{1:num_a1_vars-1}] = ndgrid(A1_grids_1d{2:end}); else; mesh_a2{1} = A1_grids_1d{2}; end
-            for ia = 2:num_a1_vars; flat_grid = mesh_a2{ia-1}(:); Apr_cells{ia} = flat_grid(choice_idx_a2); end
+            for ia = 2:num_a1_vars; flat_grid = mesh_a2{ia-1}(:); Apr_cells{ia} = reshape(flat_grid(choice_idx_a2), [1, num_choices_total, 1, 1, 1]); end
             choice_idx_linear = choice_idx_a1 + (choice_idx_a2 - 1) * length(A1_grids_1d{1});
         end
 
@@ -888,21 +889,20 @@ else
             num_choices_total = n2long * N_a2_endo;
             start_offset = -(n2short + 1); end_offset = (n2short + 1);
 
-            L2_base_rep = repmat(reshape(L2_base, [1, N_a2_endo, N_states, n_z_loc, n_e_loc]), [n2long, 1, 1, 1, 1]);
-            offsets_rep = repmat(reshape(start_offset:end_offset, [n2long, 1, 1, 1, 1]), [1, N_a2_endo, 1, 1, 1]);
-            raw_choice_idx_a1_matrix = L2_base_rep + offsets_rep;
+            base_idx_a1 = reshape(L2_base, [1, N_a2_endo, N_states, n_z_loc, n_e_loc]);
+            offsets_a1 = reshape(start_offset:end_offset, [n2long, 1, 1, 1, 1]);
+            raw_choice_idx_a1_matrix = base_idx_a1 + offsets_a1;
 
             raw_choice_idx_a1 = reshape(raw_choice_idx_a1_matrix, [1, num_choices_total, N_states, n_z_loc, n_e_loc]);
             out_of_bounds = (raw_choice_idx_a1 < 1) | (raw_choice_idx_a1 > length(a1prime_grid));
             choice_idx_a1 = max(1, min(raw_choice_idx_a1, length(a1prime_grid)));
 
-            a2_base_matrix = repmat(reshape(1:N_a2_endo, [1, N_a2_endo, 1, 1, 1]), [n2long, 1, 1, 1, 1]);
-            choice_idx_a2 = repmat(reshape(a2_base_matrix, [1, num_choices_total, 1, 1, 1]), [1, 1, N_states, n_z_loc, n_e_loc]);
+            a2_base_matrix = reshape(1:N_a2_endo, [1, N_a2_endo, 1, 1, 1]);
+            choice_idx_a2 = cast(reshape(a2_base_matrix, [1, num_choices_total, 1, 1, 1]), 'like', choice_idx_a1);
 
             Apr_cells = cell(1, num_a1_vars); Apr_cells{1} = reshape(a1prime_grid(choice_idx_a1), size(choice_idx_a1));
             if num_a1_vars > 2; [mesh_a2{1:num_a1_vars-1}] = ndgrid(A1_grids_1d{2:end}); else; mesh_a2{1} = A1_grids_1d{2}; end
-            for ia = 2:num_a1_vars; flat_grid = mesh_a2{ia-1}(:); Apr_cells{ia} = flat_grid(choice_idx_a2); end
-
+            for ia = 2:num_a1_vars; flat_grid = mesh_a2{ia-1}(:); Apr_cells{ia} = reshape(flat_grid(choice_idx_a2), [1, num_choices_total, 1, 1, 1]); end
             choice_idx_linear = choice_idx_a1 + (choice_idx_a2 - 1) * length(a1prime_grid);
         end
 
@@ -928,9 +928,10 @@ else
             EV_bounded(isnan(EV_bounded)) = -Inf; EV_bounded = beta_j .* EV_bounded;
         else
             F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
-            ze_offset = reshape((0:N_ze_local-1) * num_choices_total, [1, 1, 1, n_z_loc, n_e_loc]);
+            stride_z = length(a1prime_grid) * N_a2_endo;
+            ze_offset = reshape((0:N_ze_local-1) * stride_z, [1, 1, 1, n_z_loc, n_e_loc]);
             L2_linear_idx = choice_idx_linear + ze_offset;
-            if N_dsemiz > 1; L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (num_choices_total * N_ze_local); end
+            if N_dsemiz > 1; L2_linear_idx = L2_linear_idx + (dsemiz_idx_tensor - 1) * (stride_z * N_ze_local); end
 
             EV_bounded = EV_interp_local(L2_linear_idx);
             if N_dsemiz > 1; out_of_bounds_exp = repmat(out_of_bounds, [N_d_safe, 1, 1, 1, 1]); EV_bounded(out_of_bounds_exp) = -Inf; else; EV_bounded(out_of_bounds) = -Inf; end
@@ -992,10 +993,13 @@ else
         Pol_apr_max = reshape(Pol_apr_max, [N_states, N_ze_local]);
         Pol_L2idx_max = reshape(Pol_L2idx_max, [N_states, N_ze_local]);
 
+        lin_lower = d_idx_local(:)' + (1 - 1) * max(1, N_d_safe) + (a2_offset_factor(:)' - 1) * (n2long * max(1, N_d_safe)) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
+        lin_upper = d_idx_local(:)' + (n2long - 1) * max(1, N_d_safe) + (a2_offset_factor(:)' - 1) * (n2long * max(1, N_d_safe)) + (0:FLAT_STATES-1) * size(RHS_flat, 1);
+        isInfLower = (RHS_flat(lin_lower) == -Inf); isInfUpper = (RHS_flat(lin_upper) == -Inf);
         inLowerStrict = (a1_apr_offset(:)' >= 2) & (a1_apr_offset(:)' <= n2short + 1);
         inUpperStrict = (a1_apr_offset(:)' >= n2short + 3) & (a1_apr_offset(:)' <= n2long - 1);
         Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
-        Pol_L2flag_max(inLowerStrict) = 2; Pol_L2flag_max(inUpperStrict) = 2;
+        Pol_L2flag_max(inLowerStrict & isInfLower) = 3; Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
 end
