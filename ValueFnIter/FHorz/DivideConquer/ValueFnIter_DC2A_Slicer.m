@@ -35,30 +35,42 @@ end
 
 % --- PHASE 2: Conditional Multi-Axis Bounding ---
 Pol_a1_per_a2_reshaped = reshape(Pol_a1_per_a2, [N_a2_endo, num_anchors, N_other_states, N_ze]);
-Pol_a1_per_a2_reshaped = permute(Pol_a1_per_a2_reshaped, [2, 3, 4, 1]); % [num_anchors, N_other_states, N_ze, N_a2_endo]
-Pol_a1_anch_for_gap = permute(Pol_a1_per_a2_reshaped, [1, 4, 2, 3]); % [num_anchors, N_a2_endo, N_other_states, N_ze]
+Pol_a1_per_a2_reshaped = permute(Pol_a1_per_a2_reshaped, [2, 3, 4, 1]);
+Pol_a1_anch_for_gap = permute(Pol_a1_per_a2_reshaped, [1, 4, 2, 3]);
 
 maxgap = max(max(max(Pol_a1_anch_for_gap(2:end,:,:,:) - Pol_a1_anch_for_gap(1:end-1,:,:,:), [], 4), [], 3), [], 2);
 maxgap = squeeze(maxgap);
 if iscolumn(maxgap); maxgap = maxgap'; end
 if isempty(maxgap) && num_anchors == 1; maxgap = 0; end
 
-% --- PHASE 3: Micro-Batch Segment Dispatch ---
+% --- PHASE 3: Massive Segment Batching ---
+anchor_map = zeros(1, N_a1_dc);
 for ii = 1:(num_anchors - 1)
-    segment_a1_states = (level1ii(ii) + 1) : (level1ii(ii+1) - 1);
-    if isempty(segment_a1_states); continue; end
+    anchor_map((level1ii(ii) + 1) : (level1ii(ii+1) - 1)) = ii;
+end
 
-    seg_state_chunk = segment_a1_states(:) + (0:N_other_states-1) * N_a1_dc;
-    seg_state_chunk = seg_state_chunk(:)';
-    num_seg = length(segment_a1_states);
+segment_a1_states = find(anchor_map > 0);
+num_seg = length(segment_a1_states);
 
-    loweredge_a1 = repmat(Pol_a1_anch_for_gap(ii, :, :, :), [num_seg, 1, 1, 1]);
+if num_seg > 0
+    % Extract bounds for all states simultaneously based on their anchor mapping
+    mapped_anchors = anchor_map(segment_a1_states);
+    loweredge_a1 = Pol_a1_anch_for_gap(mapped_anchors, :, :, :); % [num_seg, N_a2_endo, N_other_states, N_ze]
     loweredge_a1 = permute(loweredge_a1, [2, 1, 3, 4]); % [N_a2_endo, num_seg, N_other_states, N_ze]
     loweredge_a1 = reshape(loweredge_a1, [N_a2_endo, num_seg * N_other_states, N_ze]);
 
-    if maxgap(ii) > 0
-        loweredge_a1 = min(loweredge_a1, N_choice_a1_dc - maxgap(ii));
-        [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg, Pol_a1_per_a2_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, maxgap(ii));
+    global_maxgap = max(maxgap);
+    if isempty(global_maxgap); global_maxgap = 0; end
+
+    % Shift bounds downward safely so the maxgap window doesn't exceed grid size
+    loweredge_a1 = min(loweredge_a1, N_choice_a1_dc - global_maxgap);
+
+    seg_state_chunk = segment_a1_states(:) + (0:N_other_states-1) * N_a1_dc;
+    seg_state_chunk = seg_state_chunk(:)';
+
+    % One massive batched call for every segment state
+    if global_maxgap > 0
+        [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg, Pol_a1_per_a2_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, global_maxgap);
     else
         [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg, Pol_a1_per_a2_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, 0);
     end
