@@ -471,8 +471,9 @@ for reverse_j = 0:N_j-1
                 EV_reshaped = reshape(EV_local, [N_a1_dc * N_a2_endo, n_z_loc, n_e_loc, N_dsemiz]);
                 EV_d_sliced = EV_reshaped(:, :, :, dsemiz_idx_tensor(:));
                 EV_bounded_pre = beta_j .* permute(EV_d_sliced, [4, 1, 5, 2, 3]);
-                d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1]); z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo), [1, 1, 1, n_z_loc, 1]);
-                e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo * n_z_loc), [1, 1, 1, 1, n_e_loc]);
+                d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1, 1]); 
+                z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo), [1, 1, 1, 1, n_z_loc, 1]);
+                e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo * n_z_loc), [1, 1, 1, 1, 1, n_e_loc]);
                 static_EV_offset = cast(d_vec + 1 + z_vec + e_vec, 'like', EV_bounded_pre);
             else; EV_bounded_pre = []; static_EV_offset = []; end
 
@@ -556,8 +557,9 @@ for reverse_j = 0:N_j-1
 
                 if l_a_exp == 0
                     EV_bounded_pre = beta_j .* reshape(EV_local(:), [N_d_safe, N_a1_dc * N_a2_endo, 1, n_z_loc, n_e_loc]);
-                    d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1]); z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo), [1, 1, 1, n_z_loc, 1]);
-                    e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo * n_z_loc), [1, 1, 1, 1, n_e_loc]);
+                    d_vec = reshape(0:N_d_safe-1, [N_d_safe, 1, 1, 1, 1, 1]); 
+                    z_vec = reshape((0:n_z_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo), [1, 1, 1, 1, n_z_loc, 1]);
+                    e_vec = reshape((0:n_e_loc-1) * (N_d_safe * N_a1_dc * N_a2_endo * n_z_loc), [1, 1, 1, 1, 1, n_e_loc]);
                     static_EV_offset = cast(d_vec + 1 + z_vec + e_vec, 'like', EV_bounded_pre);
                 else; EV_bounded_pre = []; static_EV_offset = []; end
 
