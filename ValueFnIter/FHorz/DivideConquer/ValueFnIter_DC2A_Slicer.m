@@ -68,11 +68,32 @@ if num_seg > 0
     seg_state_chunk = segment_a1_states(:) + (0:N_other_states-1) * N_a1_dc;
     seg_state_chunk = seg_state_chunk(:)';
 
-    % One massive batched call for every segment state
-    if global_maxgap > 0
-        [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg, Pol_a1_per_a2_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, global_maxgap);
-    else
-        [V_seg, Pol_apr_seg, Pol_d1_seg, L2idx_seg, L2flag_seg, Pol_a1_per_a2_seg] = EvalBlockFn(seg_state_chunk, loweredge_a1, 0);
+    % --- VRAM Protection: Chunk the massive batched segment pass ---
+    flat_choices = (global_maxgap + 1) * N_a2_endo;
+    max_states_per_chunk = max(1, floor(15000000 / (flat_choices * N_ze)));
+    total_seg = length(seg_state_chunk);
+
+    V_seg = []; Pol_apr_seg = []; Pol_d1_seg = [];
+    L2idx_seg = []; L2flag_seg = []; Pol_a1_per_a2_seg = [];
+
+    for chunk_start = 1:max_states_per_chunk:total_seg
+        chunk_end = min(total_seg, chunk_start + max_states_per_chunk - 1);
+        c_idx = chunk_start:chunk_end;
+
+        st_chunk = seg_state_chunk(c_idx);
+        low_chunk = loweredge_a1(:, c_idx, :);
+
+        if global_maxgap > 0
+            [v_c, pa_c, pd_c, l2i_c, l2f_c, pa1_c] = EvalBlockFn(st_chunk, low_chunk, global_maxgap);
+        else
+            [v_c, pa_c, pd_c, l2i_c, l2f_c, pa1_c] = EvalBlockFn(st_chunk, low_chunk, 0);
+        end
+
+        V_seg = [V_seg; v_c]; Pol_apr_seg = [Pol_apr_seg; pa_c]; Pol_d1_seg = [Pol_d1_seg; pd_c];
+        if gridinterplayer
+            L2idx_seg = [L2idx_seg; l2i_c]; L2flag_seg = [L2flag_seg; l2f_c];
+        end
+        Pol_a1_per_a2_seg = cat(2, Pol_a1_per_a2_seg, pa1_c);
     end
 
     V_max(segment_a1_states, :, :)   = reshape(V_seg, [num_seg, N_other_states, N_ze]);

@@ -495,7 +495,24 @@ for reverse_j = 0:N_j-1
                     [~, ~, ~, ~, ~, p_a1_per_a2] = ValueFnIter_DC2A_Slicer(N_a1_dc, N_a2_endo, N_a2_endo * N_a2_exp, N_a1_dc, N_ze_local, temp_vfoptions, LocalBlockFn_Coarse);
                     loweredge_pass = p_a1_per_a2;
                 end
-                [v, p_apr, p_d, p_l2idx, p_l2flag] = LocalBlockFn(1:N_a, loweredge_pass, n2long - 1, 0);
+
+                % --- VRAM Protection: Chunk the Grid Interp Fine Pass ---
+                flat_choices = max(1, N_d_safe) * n2long * max(1, N_a2_endo);
+                max_states_per_chunk = max(1, floor(15000000 / (flat_choices * N_ze_local)));
+                v = []; p_apr = []; p_d = []; p_l2idx = []; p_l2flag = [];
+
+                for chunk_start = 1:max_states_per_chunk:N_a
+                    chunk_end = min(N_a, chunk_start + max_states_per_chunk - 1);
+                    state_chunk = chunk_start:chunk_end;
+                    if num_a_endo == 1
+                        loweredge_chunk = loweredge_pass(state_chunk, :);
+                    else
+                        loweredge_chunk = loweredge_pass(:, state_chunk, :);
+                    end
+                    [v_c, p_apr_c, p_d_c, p_l2idx_c, p_l2flag_c] = LocalBlockFn(state_chunk, loweredge_chunk, n2long - 1, 0);
+                    v = [v; v_c]; p_apr = [p_apr; p_apr_c]; p_d = [p_d; p_d_c];
+                    p_l2idx = [p_l2idx; p_l2idx_c]; p_l2flag = [p_l2flag; p_l2flag_c];
+                end
             else
                 LocalBlockFn_Standard = @(state_idx, loweredge_matrix, maxgap_scalar) LocalBlockFn(state_idx, loweredge_matrix, maxgap_scalar, 0);
                 if num_a_endo == 1
@@ -1122,18 +1139,24 @@ else
 
         idx_lower_coarse = (a1_apr_offset(:)' - 1) * (n2short + 1) + 1;
         idx_upper_coarse = min(length(a1prime_grid), idx_lower_coarse + (n2short + 1));
-        row_lower = d_idx_local + (idx_lower_coarse - 1) * N_d_safe + (a2_offset_factor - 1) * (length(a1prime_grid) * N_d_safe);
-        row_upper = d_idx_local + (idx_upper_coarse - 1) * N_d_safe + (a2_offset_factor - 1) * (length(a1prime_grid) * N_d_safe);
+        % The RHS matrix in Zoom Phase only has n2long asset choices.
+        % The lower bound is local index 1, the upper bound is local index n2long.
+        row_lower = d_idx_local + (1 - 1) * N_d_safe + (a2_offset_factor - 1) * (n2long * N_d_safe);
+        row_upper = d_idx_local + (n2long - 1) * N_d_safe + (a2_offset_factor - 1) * (n2long * N_d_safe);
+
         lin_lower = row_lower + (0:FLAT_STATES-1) * FLAT_CHOICES;
         lin_upper = row_upper + (0:FLAT_STATES-1) * FLAT_CHOICES;
 
-        isInfLower = (RHS(lin_lower) == -Inf); isInfUpper = (RHS(lin_upper) == -Inf);
-        clear RHS;
+        isInfLower = (RHS(lin_lower) == -Inf);
+        isInfUpper = (RHS(lin_upper) == -Inf);
+        clear RHS; % Memory Hoist
 
         inLowerStrict = (a1_apr_offset >= 2) & (a1_apr_offset <= n2short + 1);
         inUpperStrict = (a1_apr_offset >= n2short + 3) & (a1_apr_offset <= n2long - 1);
+
         Pol_L2flag_max = 2 * ones(1, FLAT_STATES, 'like', V_j_max);
-        Pol_L2flag_max(inLowerStrict & isInfLower) = 3; Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
+        Pol_L2flag_max(inLowerStrict & isInfLower) = 3;
+        Pol_L2flag_max(inUpperStrict & isInfUpper) = 1;
         Pol_L2flag_max = reshape(Pol_L2flag_max, [N_states, N_ze_local]);
     end
 end
