@@ -10,11 +10,11 @@ N_a=prod(n_a);
 N_e=prod(n_e);
 
 Valt=zeros(N_a,N_e,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_e,N_j,'gpuArray'); % first dim is (a1prime midpoint,a2prime,a1prime L2)
-PolicyL2flag=2*ones(1,N_a,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+Policy=zeros(4,N_a,N_e,N_j,'gpuArray'); % first dim is (a1prime midpoint,a2prime,a1prime L2)
+Policy(4,:,:,:)=2; % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 % When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
-Policyalt=zeros(3,N_a,N_e,N_j,'gpuArray'); % exponential discounter optimal choice
-PolicyL2flagalt=2*ones(1,N_a,N_e,N_j,'gpuArray');
+Policyalt=zeros(4,N_a,N_e,N_j,'gpuArray'); % exponential discounter optimal choice
+Policyalt(4,:,:,:)=2;
 
 %%
 n_a1=n_a(1);
@@ -69,7 +69,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
     inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
-    PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(4,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     Valt(:,:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,:,N_j)=midpoint(maxindexL2a2+N_a2*a12ind+N_a2*N_a*eind); % a1prime midpoint
@@ -78,7 +78,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     Vtilde=Valt;
     Policyalt(:,:,:,N_j)=Policy(:,:,:,N_j); % terminal: QH and exp discounter coincide
-    PolicyL2flagalt(1,:,:,N_j)=PolicyL2flag(1,:,:,N_j);
+    Policyalt(4,:,:,N_j)=Policy(4,:,:,N_j);
 
 else
     % Using V_Jplus1 (Valt for naive)
@@ -121,7 +121,7 @@ else
     isInfUpperalt    = (ReturnMatrix_iialt(linidx_upperalt) == -Inf);
     inLowerStrictalt = (maxindexL2a1alt >= 2)         & (maxindexL2a1alt <= n2short+1);
     inUpperStrictalt = (maxindexL2a1alt >= n2short+3) & (maxindexL2a1alt <= n2long-1);
-    PolicyL2flagalt(1,:,:,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+    Policyalt(4,:,:,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
 
     Valt(:,:,N_j)=shiftdim(Vtempii,1);
     Policyalt(1,:,:,N_j)=midpointalt(maxindexL2a2alt+N_a2*a12ind+N_a2*N_a*eind); % a1prime midpoint
@@ -152,7 +152,7 @@ else
     isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
     inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
-    PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(4,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     Vtilde(:,:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,:,N_j)=midpoint(maxindexL2a2+N_a2*a12ind+N_a2*N_a*eind); % a1prime midpoint
@@ -209,7 +209,7 @@ for reverse_j=1:N_j-1
     isInfUpperalt    = (ReturnMatrix_iialt(linidx_upperalt) == -Inf);
     inLowerStrictalt = (maxindexL2a1alt >= 2)         & (maxindexL2a1alt <= n2short+1);
     inUpperStrictalt = (maxindexL2a1alt >= n2short+3) & (maxindexL2a1alt <= n2long-1);
-    PolicyL2flagalt(1,:,:,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+    Policyalt(4,:,:,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
 
     Valt(:,:,jj)=shiftdim(Vtempii,1);
     Policyalt(1,:,:,jj)=midpointalt(maxindexL2a2alt+N_a2*a12ind+N_a2*N_a*eind); % a1prime midpoint
@@ -240,7 +240,7 @@ for reverse_j=1:N_j-1
     isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
     inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
-    PolicyL2flag(1,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(4,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     Vtilde(:,:,jj)=shiftdim(Vtempii,1);
     Policy(1,:,:,jj)=midpoint(maxindexL2a2+N_a2*a12ind+N_a2*N_a*eind); % a1prime midpoint
@@ -256,15 +256,11 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(1,:,:,:)=Policy(1,:,:,:)-adjust; % lower grid point
-Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy;PolicyL2flag];
+Policy(3,:,:,:)=Policy(3,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 adjustalt=(Policyalt(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policyalt(1,:,:,:)=Policyalt(1,:,:,:)-adjustalt; % lower grid point
-Policyalt(3,:,:,:)=adjustalt.*Policyalt(3,:,:,:)+(1-adjustalt).*(Policyalt(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policyalt=[Policyalt;PolicyL2flagalt];
+Policyalt(3,:,:,:)=Policyalt(3,:,:,:)-(n2short+1)*(~adjustalt); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 

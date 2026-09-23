@@ -11,10 +11,10 @@ N_bothz=prod(n_bothz);
 
 Valt=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_semiz*N_z,N_j,'gpuArray'); % first dim: d2, midpoint, aprimeL2ind
-PolicyL2flag=2*ones(1,N_a,N_semiz*N_z,N_j,'gpuArray');
-Policyalt=zeros(3,N_a,N_semiz*N_z,N_j,'gpuArray'); % exponential discounter optimal [d2; midpoint; aprimeL2ind]
-PolicyL2flagalt=2*ones(1,N_a,N_semiz*N_z,N_j,'gpuArray');
+Policy=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % first dim: d2, midpoint, aprimeL2ind
+Policy(4,:,:,:)=2;
+Policyalt=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % exponential discounter optimal [d2; midpoint; aprimeL2ind]
+Policyalt(4,:,:,:)=2;
 
 %%
 special_n_d2=ones(1,length(n_d2));
@@ -84,12 +84,12 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+    Policy(4,:,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
     Vtilde(:,:,N_j)=Valt(:,:,N_j);
     % terminal: QH and exponential discounter coincide
     Policyalt(:,:,:,N_j)=Policy(:,:,:,N_j);
-    PolicyL2flagalt(1,:,:,N_j)=PolicyL2flag(1,:,:,N_j);
+    Policyalt(4,:,:,N_j)=Policy(4,:,:,N_j);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -194,12 +194,12 @@ else
     aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
     Policy(2,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
     Policy(3,:,:,N_j)=aprimeL2_ind;
-    PolicyL2flag(1,:,:,N_j)=reshape(PolicyL2flag_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
+    Policy(4,:,:,N_j)=reshape(PolicyL2flag_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
     Policyalt(1,:,:,N_j)=shiftdim(maxindexalt_d2,-1);
     maxindexalt_lin=reshape(maxindexalt_d2,[N_a*N_semiz*N_z,1]);
     Policyalt(2,:,:,N_j)=reshape(midpointV_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);
     Policyalt(3,:,:,N_j)=reshape(Policy_V_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);
-    PolicyL2flagalt(1,:,:,N_j)=reshape(PolicyL2flagV_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);
+    Policyalt(4,:,:,N_j)=reshape(PolicyL2flagV_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);
 end
 
 %% Iterate backwards through j.
@@ -313,26 +313,22 @@ for reverse_j=1:N_j-1
     aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
     Policy(2,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
     Policy(3,:,:,jj)=aprimeL2_ind;
-    PolicyL2flag(1,:,:,jj)=reshape(PolicyL2flag_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
+    Policy(4,:,:,jj)=reshape(PolicyL2flag_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
     Policyalt(1,:,:,jj)=shiftdim(maxindexalt_d2,-1);
     maxindexalt_lin=reshape(maxindexalt_d2,[N_a*N_semiz*N_z,1]);
     Policyalt(2,:,:,jj)=reshape(midpointV_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);
     Policyalt(3,:,:,jj)=reshape(Policy_V_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);
-    PolicyL2flagalt(1,:,:,jj)=reshape(PolicyL2flagV_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);
+    Policyalt(4,:,:,jj)=reshape(PolicyL2flagV_ford2_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindexalt_lin-1)),[1,N_a,N_semiz*N_z]);
 end
 
 %% Post-process Policy
 adjust=(Policy(3,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
-Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(3,:,:,:)=Policy(3,:,:,:)-(n2short+1)*(~adjust);
 
 adjustalt=(Policyalt(3,:,:,:)<1+n2short+1);
 Policyalt(2,:,:,:)=Policyalt(2,:,:,:)-adjustalt;
-Policyalt(3,:,:,:)=adjustalt.*Policyalt(3,:,:,:)+(1-adjustalt).*(Policyalt(3,:,:,:)-n2short-1);
-
-Policyalt=[Policyalt;PolicyL2flagalt];
+Policyalt(3,:,:,:)=Policyalt(3,:,:,:)-(n2short+1)*(~adjustalt);
 
 
 end

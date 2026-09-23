@@ -11,10 +11,10 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 Valt=zeros(N_a,N_z,N_e,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); % [d_ind; midpoint; aprimeL2ind]
-PolicyL2flag=2*ones(1,N_a,N_z,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
-Policyalt=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); % exponential discounter optimal choice
-PolicyL2flagalt=2*ones(1,N_a,N_z,N_e,N_j,'gpuArray');
+Policy=zeros(4,N_a,N_z,N_e,N_j,'gpuArray'); % [d_ind; midpoint; aprimeL2ind]
+Policy(4,:,:,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+Policyalt=zeros(4,N_a,N_z,N_e,N_j,'gpuArray'); % exponential discounter optimal choice
+Policyalt(4,:,:,:,:)=2;
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
@@ -56,7 +56,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(4,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind;
         Policy(1,:,:,:,N_j)=d_ind;
         Policy(2,:,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -79,7 +79,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(4,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             allind=d_ind+N_d*aind+N_d*N_a*zind;
             Policy(1,:,:,e_c,N_j)=d_ind;
             Policy(2,:,:,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -105,7 +105,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+                Policy(4,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
                 allind=d_ind+N_d*aind;
                 Policy(1,:,z_c,e_c,N_j)=d_ind;
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -116,7 +116,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     Vtilde=Valt;
     Policyalt(:,:,:,:,N_j)=Policy(:,:,:,:,N_j); % terminal: QH and exp discounter coincide
-    PolicyL2flagalt(1,:,:,:,N_j)=PolicyL2flag(1,:,:,:,N_j);
+    Policyalt(4,:,:,:,N_j)=Policy(4,:,:,:,N_j);
 
 else
     % Using V_Jplus1 (Valt for naive)
@@ -154,7 +154,7 @@ else
         isInfUpperalt = (ReturnMatrix_L2alt(linidx_upperalt) == -Inf);
         inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
         inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-        PolicyL2flagalt(1,:,:,:,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+        Policyalt(4,:,:,:,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
         allindalt=d_indalt+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind;
         Policyalt(1,:,:,:,N_j)=d_indalt;
         Policyalt(2,:,:,:,N_j)=shiftdim(squeeze(midpointalt(allindalt)),-1);
@@ -177,7 +177,7 @@ else
         isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(4,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind;
         Policy(1,:,:,:,N_j)=d_ind;
         Policy(2,:,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -206,7 +206,7 @@ else
             isInfUpperalt = (ReturnMatrix_L2alt(linidx_upperalt) == -Inf);
             inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
             inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-            PolicyL2flagalt(1,:,:,e_c,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+            Policyalt(4,:,:,e_c,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
             allindalt=d_indalt+N_d*aind+N_d*N_a*zind;
             Policyalt(1,:,:,e_c,N_j)=d_indalt;
             Policyalt(2,:,:,e_c,N_j)=shiftdim(squeeze(midpointalt(allindalt)),-1);
@@ -229,7 +229,7 @@ else
             isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(4,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             allind=d_ind+N_d*aind+N_d*N_a*zind;
             Policy(1,:,:,e_c,N_j)=d_ind;
             Policy(2,:,:,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -262,7 +262,7 @@ else
                 isInfUpperalt = (ReturnMatrix_L2alt(linidx_upperalt) == -Inf);
                 inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
                 inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-                PolicyL2flagalt(1,:,z_c,e_c,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+                Policyalt(4,:,z_c,e_c,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
                 allindalt=d_indalt+N_d*aind;
                 Policyalt(1,:,z_c,e_c,N_j)=d_indalt;
                 Policyalt(2,:,z_c,e_c,N_j)=shiftdim(squeeze(midpointalt(allindalt)),-1);
@@ -284,7 +284,7 @@ else
                 isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+                Policy(4,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
                 allind=d_ind+N_d*aind;
                 Policy(1,:,z_c,e_c,N_j)=d_ind;
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -336,7 +336,7 @@ for reverse_j=1:N_j-1
         isInfUpperalt = (ReturnMatrix_L2alt(linidx_upperalt) == -Inf);
         inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
         inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-        PolicyL2flagalt(1,:,:,:,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+        Policyalt(4,:,:,:,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
         allindalt=d_indalt+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind;
         Policyalt(1,:,:,:,jj)=d_indalt;
         Policyalt(2,:,:,:,jj)=shiftdim(squeeze(midpointalt(allindalt)),-1);
@@ -359,7 +359,7 @@ for reverse_j=1:N_j-1
         isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(4,:,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind;
         Policy(1,:,:,:,jj)=d_ind;
         Policy(2,:,:,:,jj)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -388,7 +388,7 @@ for reverse_j=1:N_j-1
             isInfUpperalt = (ReturnMatrix_L2alt(linidx_upperalt) == -Inf);
             inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
             inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-            PolicyL2flagalt(1,:,:,e_c,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+            Policyalt(4,:,:,e_c,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
             allindalt=d_indalt+N_d*aind+N_d*N_a*zind;
             Policyalt(1,:,:,e_c,jj)=d_indalt;
             Policyalt(2,:,:,e_c,jj)=shiftdim(squeeze(midpointalt(allindalt)),-1);
@@ -411,7 +411,7 @@ for reverse_j=1:N_j-1
             isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(4,:,:,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             allind=d_ind+N_d*aind+N_d*N_a*zind;
             Policy(1,:,:,e_c,jj)=d_ind;
             Policy(2,:,:,e_c,jj)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -444,7 +444,7 @@ for reverse_j=1:N_j-1
                 isInfUpperalt = (ReturnMatrix_L2alt(linidx_upperalt) == -Inf);
                 inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
                 inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-                PolicyL2flagalt(1,:,z_c,e_c,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+                Policyalt(4,:,z_c,e_c,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
                 allindalt=d_indalt+N_d*aind;
                 Policyalt(1,:,z_c,e_c,jj)=d_indalt;
                 Policyalt(2,:,z_c,e_c,jj)=shiftdim(squeeze(midpointalt(allindalt)),-1);
@@ -466,7 +466,7 @@ for reverse_j=1:N_j-1
                 isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+                Policy(4,:,z_c,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
                 allind=d_ind+N_d*aind;
                 Policy(1,:,z_c,e_c,jj)=d_ind;
                 Policy(2,:,z_c,e_c,jj)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -482,14 +482,10 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:,:,:)<1+n2short+1);
 Policy(2,:,:,:,:)=Policy(2,:,:,:,:)-adjust;
-Policy(3,:,:,:,:)=adjust.*Policy(3,:,:,:,:)+(1-adjust).*(Policy(3,:,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(3,:,:,:,:)=Policy(3,:,:,:,:)-(n2short+1)*(~adjust);
 
 adjustalt=(Policyalt(3,:,:,:,:)<1+n2short+1);
 Policyalt(2,:,:,:,:)=Policyalt(2,:,:,:,:)-adjustalt;
-Policyalt(3,:,:,:,:)=adjustalt.*Policyalt(3,:,:,:,:)+(1-adjustalt).*(Policyalt(3,:,:,:,:)-n2short-1);
-
-Policyalt=[Policyalt;PolicyL2flagalt];
+Policyalt(3,:,:,:,:)=Policyalt(3,:,:,:,:)-(n2short+1)*(~adjustalt);
 
 end

@@ -8,10 +8,10 @@ function [Vtilde,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicN_DC1_G
 N_a=prod(n_a);
 
 Valt=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(2,N_a,N_j,'gpuArray'); % [midpoint; aprimeL2ind]
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
-Policyalt=zeros(2,N_a,N_j,'gpuArray'); % exponential discounter optimal (midpoint, L2ind)
-PolicyL2flagalt=2*ones(1,N_a,N_j,'gpuArray');
+Policy=zeros(3,N_a,N_j,'gpuArray'); % [midpoint; aprimeL2ind]
+Policy(3,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+Policyalt=zeros(3,N_a,N_j,'gpuArray'); % exponential discounter optimal (midpoint, L2ind)
+Policyalt(3,:,:)=2;
 
 midpoints_jj=zeros(1,N_a,'gpuArray');
 
@@ -46,12 +46,12 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
     inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(3,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     Vtilde=Valt;
     % terminal: QH and exponential discounter coincide
     Policyalt(:,:,N_j)=Policy(:,:,N_j);
-    PolicyL2flagalt(1,:,N_j)=PolicyL2flag(1,:,N_j);
+    Policyalt(3,:,N_j)=Policy(3,:,N_j);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -88,7 +88,7 @@ else
     isInfUpperalt    = (ReturnMatrix_L2(n2long,:) == -Inf);
     inLowerStrictalt = (maxindexL2alt >= 2)         & (maxindexL2alt <= n2short+1);
     inUpperStrictalt = (maxindexL2alt >= n2short+3) & (maxindexL2alt <= n2long-1);
-    PolicyL2flagalt(1,:,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+    Policyalt(3,:,N_j) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
     %% Vtilde (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
     [~,maxindex]=max(entireRHS_ii,[],1);
@@ -113,7 +113,7 @@ else
     isInfUpper    = (ReturnMatrix_L2(n2long,:) == -Inf);
     inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(3,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 %% Iterate backwards through j.
@@ -158,7 +158,7 @@ for reverse_j=1:N_j-1
     isInfUpperalt    = (ReturnMatrix_L2(n2long,:) == -Inf);
     inLowerStrictalt = (maxindexL2alt >= 2)         & (maxindexL2alt <= n2short+1);
     inUpperStrictalt = (maxindexL2alt >= n2short+3) & (maxindexL2alt <= n2long-1);
-    PolicyL2flagalt(1,:,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+    Policyalt(3,:,jj) = 2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
     %% Vtilde (beta0*beta)
     entireRHS_ii=ReturnMatrix_ii+beta0beta*EV;
     [~,maxindex]=max(entireRHS_ii,[],1);
@@ -183,7 +183,7 @@ for reverse_j=1:N_j-1
     isInfUpper    = (ReturnMatrix_L2(n2long,:) == -Inf);
     inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(3,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 %% Currently Policy(1,:) is the midpoint, and Policy(2,:) the second layer
@@ -192,14 +192,10 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(2,:,:)<1+n2short+1);
 Policy(1,:,:)=Policy(1,:,:)-adjust;
-Policy(2,:,:)=adjust.*Policy(2,:,:)+(1-adjust).*(Policy(2,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(2,:,:)=Policy(2,:,:)-(n2short+1)*(~adjust);
 
 adjustalt=(Policyalt(2,:,:)<1+n2short+1);
 Policyalt(1,:,:)=Policyalt(1,:,:)-adjustalt;
-Policyalt(2,:,:)=adjustalt.*Policyalt(2,:,:)+(1-adjustalt).*(Policyalt(2,:,:)-n2short-1);
-
-Policyalt=[Policyalt;PolicyL2flagalt];
+Policyalt(2,:,:)=Policyalt(2,:,:)-(n2short+1)*(~adjustalt);
 
 end

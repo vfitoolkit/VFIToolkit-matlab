@@ -9,8 +9,8 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 
 Vhat=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_j,'gpuArray'); % [d_ind; midpoint; aprimeL2ind]
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+Policy=zeros(4,N_a,N_j,'gpuArray'); % [d_ind; midpoint; aprimeL2ind]
+Policy(4,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 
 aind=gpuArray(0:1:N_a-1);
 
@@ -38,7 +38,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(4,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
     allind=d_ind+N_d*aind;
     Policy(1,:,N_j)=d_ind;
     Policy(2,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -77,7 +77,7 @@ else
     isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(4,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
     allind=d_ind+N_d*aind;
     Policy(1,:,N_j)=d_ind;
     Policy(2,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -125,7 +125,7 @@ for reverse_j=1:N_j-1
     isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(4,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
     allind=d_ind+N_d*aind;
     Policy(1,:,jj)=d_ind;
     Policy(2,:,jj)=shiftdim(squeeze(midpoint(allind)),-1);
@@ -141,8 +141,6 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:)<1+n2short+1);
 Policy(2,:,:)=Policy(2,:,:)-adjust;
-Policy(3,:,:)=adjust.*Policy(3,:,:)+(1-adjust).*(Policy(3,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(3,:,:)=Policy(3,:,:)-(n2short+1)*(~adjust);
 
 end

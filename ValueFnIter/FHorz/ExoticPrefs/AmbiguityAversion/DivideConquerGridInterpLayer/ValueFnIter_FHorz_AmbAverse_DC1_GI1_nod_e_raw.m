@@ -6,8 +6,8 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
-Policy=zeros(2,N_a,N_z,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
-PolicyL2flag=2*ones(1,N_a,N_z,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+Policy=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
+Policy(3,:,:,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 % When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
 
 %%
@@ -97,7 +97,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper    = (ReturnMatrix_ii(n2long,:,:,:) == -Inf);
         inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-        PolicyL2flag(1,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(3,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -144,7 +144,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
             inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(3,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
 
     elseif vfoptions.lowmemory==2
@@ -194,7 +194,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
                 inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
                 inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+                Policy(3,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
             end
         end
@@ -276,7 +276,7 @@ else
         isInfUpper    = (ReturnMatrix_ii(n2long,:,:,:) == -Inf);
         inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-        PolicyL2flag(1,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(3,:,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 
     elseif vfoptions.lowmemory==1
@@ -330,7 +330,7 @@ else
             isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
             inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(3,:,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
 
     elseif vfoptions.lowmemory==2
@@ -386,7 +386,7 @@ else
                 isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
                 inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
                 inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+                Policy(3,:,z_c,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             end
         end
     end
@@ -480,7 +480,7 @@ for reverse_j=1:N_j-1
         isInfUpper    = (ReturnMatrix_ii(n2long,:,:,:) == -Inf);
         inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-        PolicyL2flag(1,:,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(3,:,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -533,7 +533,7 @@ for reverse_j=1:N_j-1
             isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
             inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(3,:,:,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
         end
     elseif vfoptions.lowmemory==2
@@ -590,7 +590,7 @@ for reverse_j=1:N_j-1
                 isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
                 inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
                 inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+                Policy(3,:,z_c,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
             end
         end
@@ -605,11 +605,9 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(2,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(1,:,:,:,:)=Policy(1,:,:,:,:)-adjust; % lower grid point
-Policy(2,:,:,:,:)=adjust.*Policy(2,:,:,:,:)+(1-adjust).*(Policy(2,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+Policy(2,:,:,:,:)=Policy(2,:,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-Policy=[Policy; PolicyL2flag];
-
-% Policy=squeeze(Policy(1,:,:,:,:)+N_a*(Policy(2,:,:,:,:)-1)+N_a*(n2short+2)*(PolicyL2flag-1));
+% Policy=squeeze(Policy(1,:,:,:,:)+N_a*(Policy(2,:,:,:,:)-1)+N_a*(n2short+2)*(Policy(3,:,:,:,:)-1));
 
 
 end

@@ -11,8 +11,8 @@ function [V,Policy]=ValueFnIter_FHorz_GulPesendorfer_DC1_GI1_nod_noz_raw(n_a, N_
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(2,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+Policy=zeros(3,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+Policy(3,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 % When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
 
 %%
@@ -86,7 +86,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper    = (Ftemp_ii(n2long,:) == -Inf);
     inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(3,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -148,7 +148,7 @@ else
     isInfUpper    = (Ftemp_ii(n2long,:) == -Inf);
     inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(3,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 
@@ -222,7 +222,7 @@ for reverse_j=1:N_j-1
     isInfUpper    = (Ftemp_ii(n2long,:) == -Inf);
     inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(3,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 
@@ -233,8 +233,6 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(2,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(1,:,:)=Policy(1,:,:)-adjust; % lower grid point
-Policy(2,:,:)=adjust.*Policy(2,:,:)+(1-adjust).*(Policy(2,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy; PolicyL2flag];
+Policy(2,:,:)=Policy(2,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 end

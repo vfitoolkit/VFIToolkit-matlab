@@ -13,10 +13,10 @@ N_semiz=prod(n_semiz);
 Valt=zeros(N_a,N_semiz,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_semiz,N_j,'gpuArray');
 % Policy: 5 channels [d1, d2, a1prime midpoint, a2prime, a1prime L2]
-Policy=zeros(5,N_a,N_semiz,N_j,'gpuArray');
-Policyalt=zeros(5,N_a,N_semiz,N_j,'gpuArray'); % exponential discounter's optimal choice
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
-PolicyL2flagalt=2*ones(1,N_a,N_semiz,N_j,'gpuArray');
+Policy=zeros(6,N_a,N_semiz,N_j,'gpuArray');
+Policy(6,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policyalt=zeros(6,N_a,N_semiz,N_j,'gpuArray'); % exponential discounter's optimal choice
+Policyalt(6,:,:,:)=2;
 
 %% Split a
 n_a1=n_a(1);
@@ -187,12 +187,12 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(3,:,:,N_j)=reshape(mid_ford2(idx),[1,N_a,N_semiz]);
     Policy(4,:,:,N_j)=reshape(L2a2_ford2(idx),[1,N_a,N_semiz]);
     Policy(5,:,:,N_j)=reshape(L2a1_ford2(idx),[1,N_a,N_semiz]);
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_semiz]);
 
     % Terminal period: QH agent and exponential discounter coincide
     Vtilde(:,:,N_j)=Valt(:,:,N_j);
     Policyalt(:,:,:,N_j)=Policy(:,:,:,N_j);
-    PolicyL2flagalt(1,:,:,N_j)=PolicyL2flag(1,:,:,N_j);
+    Policyalt(6,:,:,N_j)=Policy(6,:,:,N_j);
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames, N_j);
     beta=prod(DiscountFactorParamsVec);
@@ -457,7 +457,7 @@ else
     Policyalt(3,:,:,N_j)=reshape(mid_ford2alt(idxalt),[1,N_a,N_semiz]);
     Policyalt(4,:,:,N_j)=reshape(L2a2_ford2alt(idxalt),[1,N_a,N_semiz]);
     Policyalt(5,:,:,N_j)=reshape(L2a1_ford2alt(idxalt),[1,N_a,N_semiz]);
-    PolicyL2flagalt(1,:,:,N_j)=reshape(L2flag_ford2alt(idxalt),[1,N_a,N_semiz]);
+    Policyalt(6,:,:,N_j)=reshape(L2flag_ford2alt(idxalt),[1,N_a,N_semiz]);
 
     [V_jj,d2_max]=max(V_ford2,[],3);
     Vtilde(:,:,N_j)=V_jj;
@@ -469,7 +469,7 @@ else
     Policy(3,:,:,N_j)=reshape(mid_ford2(idx),[1,N_a,N_semiz]);
     Policy(4,:,:,N_j)=reshape(L2a2_ford2(idx),[1,N_a,N_semiz]);
     Policy(5,:,:,N_j)=reshape(L2a1_ford2(idx),[1,N_a,N_semiz]);
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_semiz]);
 end
 
 %% Backward iteration
@@ -745,7 +745,7 @@ for reverse_j=1:N_j-1
     Policyalt(3,:,:,jj)=reshape(mid_ford2alt(idxalt),[1,N_a,N_semiz]);
     Policyalt(4,:,:,jj)=reshape(L2a2_ford2alt(idxalt),[1,N_a,N_semiz]);
     Policyalt(5,:,:,jj)=reshape(L2a1_ford2alt(idxalt),[1,N_a,N_semiz]);
-    PolicyL2flagalt(1,:,:,jj)=reshape(L2flag_ford2alt(idxalt),[1,N_a,N_semiz]);
+    Policyalt(6,:,:,jj)=reshape(L2flag_ford2alt(idxalt),[1,N_a,N_semiz]);
 
     [V_jj,d2_max]=max(V_ford2,[],3);
     Vtilde(:,:,jj)=V_jj;
@@ -757,24 +757,20 @@ for reverse_j=1:N_j-1
     Policy(3,:,:,jj)=reshape(mid_ford2(idx),[1,N_a,N_semiz]);
     Policy(4,:,:,jj)=reshape(L2a2_ford2(idx),[1,N_a,N_semiz]);
     Policy(5,:,:,jj)=reshape(L2a1_ford2(idx),[1,N_a,N_semiz]);
-    PolicyL2flag(1,:,:,jj)=reshape(L2flag_ford2(idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,jj)=reshape(L2flag_ford2(idx),[1,N_a,N_semiz]);
 end
 
 
 %% Convert Policy(3) from midpoint to lower grid point, Policy(5) from -n2short-1:1+n2short to 1:n2short+2
 adjust=(Policy(5,:,:,:)<1+n2short+1);
 Policy(3,:,:,:)=Policy(3,:,:,:)-adjust;
-Policy(5,:,:,:)=adjust.*Policy(5,:,:,:)+(1-adjust).*(Policy(5,:,:,:)-n2short-1);
-
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:,:)=Policy(5,:,:,:)-(n2short+1)*(~adjust);
 
 adjustalt=(Policyalt(5,:,:,:)<1+n2short+1);
 Policyalt(3,:,:,:)=Policyalt(3,:,:,:)-adjustalt;
-Policyalt(5,:,:,:)=adjustalt.*Policyalt(5,:,:,:)+(1-adjustalt).*(Policyalt(5,:,:,:)-n2short-1);
+Policyalt(5,:,:,:)=Policyalt(5,:,:,:)-(n2short+1)*(~adjustalt);
 
-Policyalt=[Policyalt; PolicyL2flagalt];
-
-% Policy=Policy(1,:,:,:)+N_d1*(Policy(2,:,:,:)-1)+N_d*(Policy(3,:,:,:)-1)+N_d*N_a1*(Policy(4,:,:,:)-1)+N_d*N_a1*N_a2*(Policy(5,:,:,:)-1)+N_d*N_a1*N_a2*(n2short+2)*(PolicyL2flag-1);
+% Policy=Policy(1,:,:,:)+N_d1*(Policy(2,:,:,:)-1)+N_d*(Policy(3,:,:,:)-1)+N_d*N_a1*(Policy(4,:,:,:)-1)+N_d*N_a1*N_a2*(Policy(5,:,:,:)-1)+N_d*N_a1*N_a2*(n2short+2)*(Policy(6,:,:,:)-1);
 
 
 end

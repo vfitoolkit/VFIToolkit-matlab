@@ -14,8 +14,8 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_j,'gpuArray'); % first dim is (d,a1prime midpoint,a2prime,a1prime L2)
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policy=zeros(5,N_a,N_j,'gpuArray'); % first dim is (d,a1prime midpoint,a2prime,a1prime L2)
+Policy(5,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 n_a1=n_a(1);
@@ -121,7 +121,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper = (Ftemp_ii(linidx_upper) == -Inf);
     inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
     inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -208,7 +208,7 @@ else
     isInfUpper = (Ftemp_ii(linidx_upper) == -Inf);
     inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
     inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
 end
 
@@ -307,7 +307,7 @@ for reverse_j=1:N_j-1
     isInfUpper = (Ftemp_ii(linidx_upper) == -Inf);
     inLowerStrict = (maxindexL2a1 >= 2)         & (maxindexL2a1 <= n2short+1);
     inUpperStrict = (maxindexL2a1 >= n2short+3) & (maxindexL2a1 <= n2long-1);
-    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 
@@ -319,9 +319,7 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(4,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(2,:,:)=Policy(2,:,:)-adjust; % lower grid point
-Policy(4,:,:)=adjust.*Policy(4,:,:)+(1-adjust).*(Policy(4,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy; PolicyL2flag];
+Policy(4,:,:)=Policy(4,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 

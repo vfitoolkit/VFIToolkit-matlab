@@ -10,8 +10,8 @@ N_a=prod(n_a);
 N_e=prod(n_e);
 
 Vhat=zeros(N_a,N_e,N_j,'gpuArray');
-Policy=zeros(2,N_a,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+Policy=zeros(3,N_a,N_e,N_j,'gpuArray');
+Policy(3,:,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 
 if vfoptions.lowmemory==0
     midpoints_jj=zeros(1,N_a,N_e,'gpuArray');
@@ -61,7 +61,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper    = (ReturnMatrix_ii(n2long,:,:) == -Inf);
         inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-        PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(3,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
         Vunderbar=Vhat;
 
@@ -96,7 +96,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
             inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-            PolicyL2flag(1,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(3,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
         Vunderbar=Vhat;
     end
@@ -146,7 +146,7 @@ else
         isInfUpper    = (ReturnMatrix_L2(n2long,:,:) == -Inf);
         inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-        PolicyL2flag(1,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(3,:,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
         linidx=reshape(maxindexL2,[1,N_a*N_e])+n2long*(0:N_a*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_e]);
@@ -190,7 +190,7 @@ else
             isInfUpper    = (ReturnMatrix_L2_e(n2long,:) == -Inf);
             inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-            PolicyL2flag(1,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(3,:,e_c,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
             linidx_e=reshape(maxindexL2,[1,N_a])+n2long*(0:N_a-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,1]);
@@ -251,7 +251,7 @@ for reverse_j=1:N_j-1
         isInfUpper    = (ReturnMatrix_L2(n2long,:,:) == -Inf);
         inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
         inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-        PolicyL2flag(1,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(3,:,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
         linidx=reshape(maxindexL2,[1,N_a*N_e])+n2long*(0:N_a*N_e-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_e]);
@@ -295,7 +295,7 @@ for reverse_j=1:N_j-1
             isInfUpper    = (ReturnMatrix_L2_e(n2long,:) == -Inf);
             inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
             inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-            PolicyL2flag(1,:,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(3,:,e_c,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
             linidx_e=reshape(maxindexL2,[1,N_a])+n2long*(0:N_a-1);
             EV_at_policy_e=reshape(EVfine_e(linidx_e),[N_a,1]);
@@ -310,8 +310,6 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(2,:,:,:)<1+n2short+1);
 Policy(1,:,:,:)=Policy(1,:,:,:)-adjust;
-Policy(2,:,:,:)=adjust.*Policy(2,:,:,:)+(1-adjust).*(Policy(2,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(2,:,:,:)=Policy(2,:,:,:)-(n2short+1)*(~adjust);
 
 end

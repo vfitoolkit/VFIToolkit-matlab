@@ -8,8 +8,8 @@ function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicS_DC1_GI1_nod_
 N_a=prod(n_a);
 
 Vhat=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(2,N_a,N_j,'gpuArray'); % [midpoint; aprimeL2ind]
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+Policy=zeros(3,N_a,N_j,'gpuArray'); % [midpoint; aprimeL2ind]
+Policy(3,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 
 midpoints_jj=zeros(1,N_a,'gpuArray');
 
@@ -41,7 +41,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper    = (ReturnMatrix_ii(n2long,:) == -Inf);
     inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(3,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     Vhat(:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,N_j)=shiftdim(squeeze(midpoints_jj),-1);
@@ -83,7 +83,7 @@ else
     isInfUpper    = (ReturnMatrix_L2(n2long,:) == -Inf);
     inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-    PolicyL2flag(1,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(3,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     Vhat(:,N_j)=shiftdim(Vtempii,1);
     Policy(1,:,N_j)=shiftdim(squeeze(midpoints_jj),-1);
@@ -134,7 +134,7 @@ for reverse_j=1:N_j-1
     isInfUpper    = (ReturnMatrix_L2(n2long,:) == -Inf);
     inLowerStrict = (maxindexL2 >= 2)         & (maxindexL2 <= n2short+1);
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
-    PolicyL2flag(1,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(3,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     Vhat(:,jj)=shiftdim(Vtempii,1);
     Policy(1,:,jj)=shiftdim(squeeze(midpoints_jj),-1);
@@ -150,8 +150,6 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(2,:,:)<1+n2short+1);
 Policy(1,:,:)=Policy(1,:,:)-adjust;
-Policy(2,:,:)=adjust.*Policy(2,:,:)+(1-adjust).*(Policy(2,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(2,:,:)=Policy(2,:,:)-(n2short+1)*(~adjust);
 
 end

@@ -15,8 +15,8 @@ N_e=prod(n_e);
 Vhat=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 % Policy: 4 channels [d2, a1prime midpoint, a2prime, a1prime L2]
-Policy=zeros(4,N_a,N_semiz,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+Policy=zeros(5,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy(5,:,:,:,:)=2; % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 
 %% Split a into a1 and a2
 n_a1=n_a(1);
@@ -170,7 +170,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(2,:,:,:,N_j)=reshape(mid_ford2(idx), [1,N_a,N_semiz,N_e]);
     Policy(3,:,:,:,N_j)=reshape(L2a2_ford2(idx),[1,N_a,N_semiz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(L2a1_ford2(idx),[1,N_a,N_semiz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford2(idx),[1,N_a,N_semiz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(flag_ford2(idx),[1,N_a,N_semiz,N_e]);
 
     Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j); % terminal period: no continuation
 else
@@ -323,7 +323,7 @@ else
     Policy(2,:,:,:,N_j)=reshape(mid_ford2(idx), [1,N_a,N_semiz,N_e]);
     Policy(3,:,:,:,N_j)=reshape(L2a2_ford2(idx),[1,N_a,N_semiz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(L2a1_ford2(idx),[1,N_a,N_semiz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford2(idx),[1,N_a,N_semiz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(flag_ford2(idx),[1,N_a,N_semiz,N_e]);
     Vunderbar(:,:,:,N_j)=reshape(Vunderbar_ford2(idx),[N_a,N_semiz,N_e]);
 end
 
@@ -486,7 +486,7 @@ for reverse_j=1:N_j-1
     Policy(2,:,:,:,jj)=reshape(mid_ford2(idx), [1,N_a,N_semiz,N_e]);
     Policy(3,:,:,:,jj)=reshape(L2a2_ford2(idx),[1,N_a,N_semiz,N_e]);
     Policy(4,:,:,:,jj)=reshape(L2a1_ford2(idx),[1,N_a,N_semiz,N_e]);
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford2(idx),[1,N_a,N_semiz,N_e]);
+    Policy(5,:,:,:,jj)=reshape(flag_ford2(idx),[1,N_a,N_semiz,N_e]);
     Vunderbar(:,:,:,jj)=reshape(Vunderbar_ford2(idx),[N_a,N_semiz,N_e]);
 end
 
@@ -494,10 +494,8 @@ end
 %% Convert Policy(2) from midpoint to lower grid point, Policy(4) from -n2short-1:1+n2short to 1:n2short+2
 adjust=(Policy(4,:,:,:,:)<1+n2short+1);
 Policy(2,:,:,:,:)=Policy(2,:,:,:,:)-adjust;
-Policy(4,:,:,:,:)=adjust.*Policy(4,:,:,:,:)+(1-adjust).*(Policy(4,:,:,:,:)-n2short-1);
+Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-(n2short+1)*(~adjust);
 
-Policy=[Policy; PolicyL2flag];
-
-% Policy=Policy(1,:,:,:,:)+N_d2*(Policy(2,:,:,:,:)-1)+N_d2*N_a1*(Policy(3,:,:,:,:)-1)+N_d2*N_a1*N_a2*(Policy(4,:,:,:,:)-1)+N_d2*N_a1*N_a2*(n2short+2)*(PolicyL2flag-1);
+% Policy=Policy(1,:,:,:,:)+N_d2*(Policy(2,:,:,:,:)-1)+N_d2*N_a1*(Policy(3,:,:,:,:)-1)+N_d2*N_a1*N_a2*(Policy(4,:,:,:,:)-1)+N_d2*N_a1*N_a2*(n2short+2)*(Policy(5,:,:,:,:)-1);
 
 end

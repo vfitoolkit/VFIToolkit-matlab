@@ -16,8 +16,8 @@ N_bothz=N_semiz*N_z;
 
 Vunderbar=zeros(N_a,N_bothz,N_j,'gpuArray');
 Vhat=zeros(N_a,N_bothz,N_j,'gpuArray');
-Policy=zeros(5,N_a,N_bothz,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_bothz,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policy=zeros(6,N_a,N_bothz,N_j,'gpuArray');
+Policy(6,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %% Split a
 n_a1=n_a(1);
@@ -238,7 +238,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(3,:,:,N_j)=reshape(mid_ford2(idx),[1,N_a,N_bothz]);
     Policy(4,:,:,N_j)=reshape(L2a2_ford2(idx),[1,N_a,N_bothz]);
     Policy(5,:,:,N_j)=reshape(L2a1_ford2(idx),[1,N_a,N_bothz]);
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_bothz]);
+    Policy(6,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_bothz]);
 
     % Terminal period: QH agent and exponential discounter coincide
     Vunderbar(:,:,N_j)=Vhat(:,:,N_j);
@@ -467,7 +467,7 @@ else
     Policy(3,:,:,N_j)=reshape(mid_ford2(idx),[1,N_a,N_bothz]);
     Policy(4,:,:,N_j)=reshape(L2a2_ford2(idx),[1,N_a,N_bothz]);
     Policy(5,:,:,N_j)=reshape(L2a1_ford2(idx),[1,N_a,N_bothz]);
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_bothz]);
+    Policy(6,:,:,N_j)=reshape(L2flag_ford2(idx),[1,N_a,N_bothz]);
 end
 
 %% Backward iteration
@@ -704,20 +704,18 @@ for reverse_j=1:N_j-1
     Policy(3,:,:,jj)=reshape(mid_ford2(idx),[1,N_a,N_bothz]);
     Policy(4,:,:,jj)=reshape(L2a2_ford2(idx),[1,N_a,N_bothz]);
     Policy(5,:,:,jj)=reshape(L2a1_ford2(idx),[1,N_a,N_bothz]);
-    PolicyL2flag(1,:,:,jj)=reshape(L2flag_ford2(idx),[1,N_a,N_bothz]);
+    Policy(6,:,:,jj)=reshape(L2flag_ford2(idx),[1,N_a,N_bothz]);
 end
 
 
 %% Convert Policy(3) from midpoint to lower grid point, Policy(5) from -n2short-1:1+n2short to 1:n2short+2
 adjust=(Policy(5,:,:,:)<1+n2short+1);
 Policy(3,:,:,:)=Policy(3,:,:,:)-adjust;
-Policy(5,:,:,:)=adjust.*Policy(5,:,:,:)+(1-adjust).*(Policy(5,:,:,:)-n2short-1);
-
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:,:)=Policy(5,:,:,:)-(n2short+1)*(~adjust);
 
 
 
-% Policy=Policy(1,:,:,:)+N_d1*(Policy(2,:,:,:)-1)+N_d*(Policy(3,:,:,:)-1)+N_d*N_a1*(Policy(4,:,:,:)-1)+N_d*N_a1*N_a2*(Policy(5,:,:,:)-1)+N_d*N_a1*N_a2*(n2short+2)*(PolicyL2flag-1);
+% Policy=Policy(1,:,:,:)+N_d1*(Policy(2,:,:,:)-1)+N_d*(Policy(3,:,:,:)-1)+N_d*N_a1*(Policy(4,:,:,:)-1)+N_d*N_a1*N_a2*(Policy(5,:,:,:)-1)+N_d*N_a1*N_a2*(n2short+2)*(Policy(6,:,:,:)-1);
 
 
 end
