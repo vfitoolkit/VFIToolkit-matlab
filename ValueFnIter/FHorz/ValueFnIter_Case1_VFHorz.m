@@ -510,7 +510,7 @@ for reverse_j = 0:N_j-1
                 state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, max(1, N_a2_exp), N_d_safe, N_ze_local, ...
                 Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_mat, A1_grids_1d, a2_grids_1d, ...
                 vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
-                TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
+                ReturnFn, TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
                 TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, dc_mode_override);
 
             if vfoptions.gridinterplayer(1) == 1
@@ -628,7 +628,7 @@ for reverse_j = 0:N_j-1
                     state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, max(1, N_a2_local), N_d_safe, N_ze_local, ...
                     Z_cells_local, E_cells_local, D_cells_block, A1_mat, A2_local, A1_grids_1d, a2_grids_1d, ...
                     vfoptions.gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
-                    TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
+                    ReturnFn, TensorReturnFn, ReturnFnParamsCell, ezc2(jj), ezc3, ezc4, ezc7(jj), ...
                     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, dc_mode_override);
 
                 % --- VRAM Protection: Cartesian Chunking for the Non-DC Pass ---
@@ -755,7 +755,7 @@ function [V_j_max, Pol_apr_max, Pol_d_max, Pol_L2idx_max, Pol_L2flag_max, Pol_a1
     state_idx, loweredge_matrix, maxgap_scalar, N_a1_dc, N_a2_endo, N_a_exp, N_d_safe, N_ze_local, ...
     Z_cells_block, E_cells_block, D_cells_block, A1_mat, A2_mat, A1_grids_1d, a2_grids_1d, ...
     gridinterplayer, n2short, n2long, beta_j, EV_local, EV_bounded_pre, EV_interp_local, a1prime_grid, ...
-    TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
+    ReturnFn, TensorReturnFn, ReturnFnParamsCell, ezc2_j, ezc3, ezc4, ezc7_j, ...
     TensoraprimeFn, aprimeFnParamsCell, N_dsemiz, dsemiz_idx_tensor, n_z_loc, n_e_loc, static_EV_offset, is_dc_mode)
 
 % --- PURE DOUBLE GEOMETRY ---
@@ -840,7 +840,7 @@ if isempty(loweredge_matrix)
     Apr_cells = {reshape(A1_grids_1d{1}, [1, num_choices, 1, 1, 1, 1, 1])};
     if length(A1_grids_1d) > 1; Apr_cells{2} = reshape(A1_grids_1d{2}, [1, 1, N_a2_endo, 1, 1, 1, 1]); end
 
-    % --- PURE IMPLICIT EXPANSION ---
+    % --- PURE IMPLICIT EXPANSION (No arrayfun, no Cartesian bloat) ---
     if N_a_exp > 1
         F_tensor = TensorReturnFn(D_cells_block{:}, Apr_cells{:}, A1_cells{:}, A2_cells{:}, Z_cells_block{:}, E_cells_block{:}, ReturnFnParamsCell{:});
     else
@@ -882,25 +882,28 @@ if isempty(loweredge_matrix)
         EV_bounded = beta_j .* (weight_left .* EV_flat(idx_left) + weight_right .* EV_flat(idx_right));
     else
         lin_idx = (choice_idx_eval - 1) + (a2_idx - 1)*s_a2 + (z_idx - 1)*s_z + (e_idx - 1)*s_e + (double(dsemiz_idx_tensor) - 1)*s_d + 1;
-        EV_bounded = cast(beta_j .* EV_flat(lin_idx), 'like', F_tensor);
+        EV_bounded = beta_j .* EV_flat(lin_idx);
     end
 
     RHS = Evaluate_Universal_RHS_VFHorz(F_tensor, EV_bounded, 1, 1, ezc2_j, ezc3, ezc4, ezc7_j);
     clear F_tensor EV_bounded;
 
-    % --- RAW FLAT TENSOR UNPACKING ---
-    stride_flat = double(N_d_safe) * num_choices * double(N_a2_endo);
-    RHS_flat = reshape(RHS, stride_flat, []);
-    [V_sub_coarse, Pol_sub_idx] = max(RHS_flat, [], 1);
+    % --- NATIVE DIMENSIONAL EXTRACTION (No Flat-Pack, No int32 division) ---
+    % 1. Max over aprime (Dimension 2)
+    [V_max, Pol_apr] = max(RHS, [], 2);
 
-    d_idx_local   = mod(Pol_sub_idx - 1, double(N_d_safe)) + 1;
-    apr_idx_local = double(idivide(int32(Pol_sub_idx - 1), int32(N_d_safe), 'floor')) + 1;
+    % 2. Max over d (Dimension 1)
+    [V_sub_coarse, Pol_d] = max(V_max, [], 1);
 
-    % --- FLAT-PACK ROBUSTNESS ---
-    % Reshape to guarantee assignment parity in the chunk loop if n_z > 1
-    V_sub_coarse  = reshape(V_sub_coarse, [], n_z_loc * n_e_loc);
-    apr_idx_local = reshape(apr_idx_local, [], n_z_loc * n_e_loc);
-    d_idx_local   = reshape(d_idx_local, [], n_z_loc * n_e_loc);
+    % 3. Extract the optimal aprime corresponding to the winning d
+    if N_d_safe == 1
+        Pol_apr_max = Pol_apr;
+    else
+        Pol_apr_flat = reshape(Pol_apr, N_d_safe, []);
+        d_idx_flat = reshape(Pol_d, 1, []);
+        lin_idx_d = d_idx_flat + (0:(length(d_idx_flat)-1)) * double(N_d_safe);
+        Pol_apr_max = Pol_apr_flat(lin_idx_d);
+    end
 
     if nargout > 5
         RHS_for_d = max(reshape(RHS, double(N_d_safe), []), [], 1);
@@ -910,11 +913,12 @@ if isempty(loweredge_matrix)
         Pol_a1_per_a2 = [];
     end
 
-    clear RHS RHS_flat RHS_for_d;
+    clear RHS RHS_for_d Pol_apr V_max;
 
-    V_j_max        = reshape(V_sub_coarse,  [], N_ze_local);
-    Pol_apr_max    = reshape(apr_idx_local, [], N_ze_local);
-    Pol_d_max      = reshape(d_idx_local,   [], N_ze_local);
+    % 4. Reshape directly to final target geometry
+    V_j_max        = reshape(V_sub_coarse, [], N_ze_local);
+    Pol_apr_max    = reshape(Pol_apr_max,  [], N_ze_local);
+    Pol_d_max      = reshape(Pol_d,        [], N_ze_local);
     Pol_L2idx_max  = [];
     Pol_L2flag_max = [];
 
