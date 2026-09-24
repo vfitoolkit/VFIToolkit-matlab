@@ -14,7 +14,7 @@ function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetSemiEx
 % SemiExo graft of ValueFnIter_FHorz_ExpAsset_DC2A_GI2A_nod1_noz_raw (no d1, no exogenous z, no e; only shock is semiz).
 % DC on first standard endo state a1 (divide-conquer), folded standard middle endo state a2, experience asset a3, plus the grid interpolation layer fine pass.
 % d2 determines experience asset (a3); d3 determines semi-exog state (semiz).
-% bothz=semiz (there is no z). Policy rows: 1=d2, 2=d3, 3=joint(a1prime midpoint,a2prime), 4=a1prime L2; PolicyL2flag concatenated as 5th.
+% bothz=semiz (there is no z). Policy rows: 1=d2, 2=d3, 3=joint(a1prime midpoint,a2prime), 4=a1prime L2; the L2 flag as 5th.
 % lowmemory: 1 shock {semiz} => levels {0,1}.
 %   =0 vectorise semiz; =1 loop semiz.
 
@@ -29,8 +29,8 @@ N_semiz=prod(n_semiz);
 Vhat=zeros(N_a,N_semiz,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_semiz,N_j,'gpuArray'); % the beta-discounted value gathered at the hat argmax
 % For semiz it turns out to be easier to go straight to constructing policy that stores d2,d3,joint(a1prime,a2prime),a1prime L2 seperately
-Policy=zeros(4,N_a,N_semiz,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policy=zeros(5,N_a,N_semiz,N_j,'gpuArray');
+Policy(5,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 aind=gpuArray(0:1:N_a-1); % already includes -1
@@ -180,7 +180,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(1,:,:,N_j)=reshape(d2_ford3_hat(idx),[1,N_a,N_semiz]); % d2
     Policy(3,:,:,N_j)=reshape(mid_ford3_hat(idx),[1,N_a,N_semiz]); % joint(a1prime midpoint,a2prime)
     Policy(4,:,:,N_j)=reshape(L2a1_ford3_hat(idx),[1,N_a,N_semiz]); % a1prime L2
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
+    Policy(5,:,:,N_j)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
 
 
     % Terminal period has no continuation, so Vunderbar coincides with Vhat
@@ -356,7 +356,7 @@ else
     Policy(1,:,:,N_j)=reshape(d2_ford3_hat(idx),[1,N_a,N_semiz]); % d2
     Policy(3,:,:,N_j)=reshape(mid_ford3_hat(idx),[1,N_a,N_semiz]); % joint(a1prime midpoint,a2prime)
     Policy(4,:,:,N_j)=reshape(L2a1_ford3_hat(idx),[1,N_a,N_semiz]); % a1prime L2
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
+    Policy(5,:,:,N_j)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
     % Vunderbar at the d3 chosen by the hat max
     Vunderbar(:,:,N_j)=reshape(V_ford3_under(idx),[N_a,N_semiz]);
 end
@@ -540,7 +540,7 @@ for reverse_j=1:N_j-1
     Policy(1,:,:,jj)=reshape(d2_ford3_hat(idx),[1,N_a,N_semiz]); % d2
     Policy(3,:,:,jj)=reshape(mid_ford3_hat(idx),[1,N_a,N_semiz]); % joint(a1prime midpoint,a2prime)
     Policy(4,:,:,jj)=reshape(L2a1_ford3_hat(idx),[1,N_a,N_semiz]); % a1prime L2
-    PolicyL2flag(1,:,:,jj)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
+    Policy(5,:,:,jj)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
     % Vunderbar at the d3 chosen by the hat max
     Vunderbar(:,:,jj)=reshape(V_ford3_under(idx),[N_a,N_semiz]);
 
@@ -552,8 +552,6 @@ end
 % Switch Policy(3,:) to joint(lower a1prime grid point,a2prime), and Policy(4,:) to a 1..(n2short+2) offset.
 adjust=(Policy(4,:,:,:)<1+n2short+1); % is the L2 index below midpoint?
 Policy(3,:,:,:)=Policy(3,:,:,:)-adjust; % decrement a1prime component of the joint (midpoint>=2 keeps it within the same a2prime block)
-Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(4,:,:,:)=Policy(4,:,:,:)-(n2short+1)*(~adjust);
 
 end

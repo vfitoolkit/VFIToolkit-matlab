@@ -27,11 +27,11 @@ N_bothz=prod(n_bothz);
 
 Vtilde=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,a1prime seperately
-Policy=zeros(5,N_a,N_semiz*N_z,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz*N_z,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+Policy=zeros(6,N_a,N_semiz*N_z,N_j,'gpuArray');
+Policy(6,:,:,:)=2; % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 Valt=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
-Policyalt=zeros(5,N_a,N_semiz*N_z,N_j,'gpuArray'); % exponential discounter optimal choice
-PolicyL2flagalt=2*ones(1,N_a,N_semiz*N_z,N_j,'gpuArray');
+Policyalt=zeros(6,N_a,N_semiz*N_z,N_j,'gpuArray'); % exponential discounter optimal choice
+Policyalt(6,:,:,:)=2;
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -205,11 +205,11 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(2,:,:,N_j)=reshape(Policy4_ford3_tilde(2+temp),[1,N_a,N_bothz]); % d2
     Policy(4,:,:,N_j)=reshape(Policy4_ford3_tilde(3+temp),[1,N_a,N_bothz]); % a1prime midpoint
     Policy(5,:,:,N_j)=reshape(Policy4_ford3_tilde(4+temp),[1,N_a,N_bothz]); % a1primeL2ind
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_tilde((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+    Policy(6,:,:,N_j)=reshape(flag_ford3_tilde((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
     % Terminal period: no continuation, so the exponential and the QH-perceived problems coincide
     Valt(:,:,N_j)=Vtilde(:,:,N_j);
     Policyalt(:,:,:,N_j)=Policy(:,:,:,N_j);
-    PolicyL2flagalt(1,:,:,N_j)=PolicyL2flag(1,:,:,N_j);
+    Policyalt(6,:,:,N_j)=Policy(6,:,:,N_j);
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
@@ -554,7 +554,7 @@ else
     Policyalt(2,:,:,N_j)=reshape(Policy4_ford3_alt(2+tempalt),[1,N_a,N_bothz]); % d2
     Policyalt(4,:,:,N_j)=reshape(Policy4_ford3_alt(3+tempalt),[1,N_a,N_bothz]); % a1prime midpoint
     Policyalt(5,:,:,N_j)=reshape(Policy4_ford3_alt(4+tempalt),[1,N_a,N_bothz]); % a1primeL2ind
-    PolicyL2flagalt(1,:,:,N_j)=reshape(flag_ford3_alt((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindexalt-1)),[1,N_a,N_bothz]);
+    Policyalt(6,:,:,N_j)=reshape(flag_ford3_alt((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindexalt-1)),[1,N_a,N_bothz]);
 
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
     [V_jj,maxindex]=max(V_ford3_tilde,[],3); % max over d3
@@ -566,7 +566,7 @@ else
     Policy(2,:,:,N_j)=reshape(Policy4_ford3_tilde(2+temp),[1,N_a,N_bothz]); % d2
     Policy(4,:,:,N_j)=reshape(Policy4_ford3_tilde(3+temp),[1,N_a,N_bothz]); % a1prime midpoint
     Policy(5,:,:,N_j)=reshape(Policy4_ford3_tilde(4+temp),[1,N_a,N_bothz]); % a1primeL2ind
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_tilde((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+    Policy(6,:,:,N_j)=reshape(flag_ford3_tilde((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
 end
 
 %% Iterate backwards through j.
@@ -921,7 +921,7 @@ for reverse_j=1:N_j-1
     Policyalt(2,:,:,jj)=reshape(Policy4_ford3_alt(2+tempalt),[1,N_a,N_bothz]); % d2
     Policyalt(4,:,:,jj)=reshape(Policy4_ford3_alt(3+tempalt),[1,N_a,N_bothz]); % a1prime midpoint
     Policyalt(5,:,:,jj)=reshape(Policy4_ford3_alt(4+tempalt),[1,N_a,N_bothz]); % a1primeL2ind
-    PolicyL2flagalt(1,:,:,jj)=reshape(flag_ford3_alt((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindexalt-1)),[1,N_a,N_bothz]);
+    Policyalt(6,:,:,jj)=reshape(flag_ford3_alt((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindexalt-1)),[1,N_a,N_bothz]);
 
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
     [V_jj,maxindex]=max(V_ford3_tilde,[],3); % max over d3
@@ -933,7 +933,7 @@ for reverse_j=1:N_j-1
     Policy(2,:,:,jj)=reshape(Policy4_ford3_tilde(2+temp),[1,N_a,N_bothz]); % d2
     Policy(4,:,:,jj)=reshape(Policy4_ford3_tilde(3+temp),[1,N_a,N_bothz]); % a1prime midpoint
     Policy(5,:,:,jj)=reshape(Policy4_ford3_tilde(4+temp),[1,N_a,N_bothz]); % a1primeL2ind
-    PolicyL2flag(1,:,:,jj)=reshape(flag_ford3_tilde((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
+    Policy(6,:,:,jj)=reshape(flag_ford3_tilde((1:N_a*N_bothz)'+(N_a*N_bothz)*(maxindex-1)),[1,N_a,N_bothz]);
 end
 
 
@@ -945,14 +945,10 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(5,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(4,:,:,:)=Policy(4,:,:,:)-adjust; % lower grid point
-Policy(5,:,:,:)=adjust.*Policy(5,:,:,:)+(1-adjust).*(Policy(5,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:,:)=Policy(5,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 adjustalt=(Policyalt(5,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policyalt(4,:,:,:)=Policyalt(4,:,:,:)-adjustalt; % lower grid point
-Policyalt(5,:,:,:)=adjustalt.*Policyalt(5,:,:,:)+(1-adjustalt).*(Policyalt(5,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policyalt=[Policyalt; PolicyL2flagalt];
+Policyalt(5,:,:,:)=Policyalt(5,:,:,:)-(n2short+1)*(~adjustalt); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 end

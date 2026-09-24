@@ -3,7 +3,7 @@ function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetS_GI2A
 % a1=standard endogenous state carrying the grid interpolation layer, a2=folded
 % standard endogenous state(s), a3=experience asset. GPU only.
 % Policy is 4-channel: 1=d, 2=a1prime midpoint, 3=a2prime, 4=a1prime L2;
-% PolicyL2flag is appended as channel 5.
+% the L2 flag is channel 5.
 %
 % Sophisticated: Vhat_j      = max u + beta_0*beta*E[Vunderbar_{j+1}]
 %                Vunderbar_j = Vhat_j + (beta - beta_0*beta)*EVfine_at_optimal_choice
@@ -19,8 +19,8 @@ N_z=prod(n_z);
 
 Vhat=zeros(N_a,N_z,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_z,N_j,'gpuArray'); % exponential value at the QH policy
-Policy=zeros(4,N_a,N_z,N_j,'gpuArray'); % 1=d2, 2=a1prime midpoint, 3=a2prime, 4=a1prime L2 fine
-PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_z,N_j,'gpuArray'); % 1=d2, 2=a1prime midpoint, 3=a2prime, 4=a1prime L2 fine
+Policy(5,:,:,:)=2;
 
 
 %% GI setup
@@ -71,7 +71,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         aind_z=gpuArray(0:1:N_a-1);
@@ -101,7 +101,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper   =(ReturnMatrix_ii_z(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 
@@ -173,7 +173,7 @@ else
         isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         % --- Vunderbar: exponential value at the QH-chosen (interpolated) point ---
         linidx=reshape(maxindexL2,[1,N_a*N_z])+size(EVfine,1)*(0:N_a*N_z-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z]);
@@ -216,7 +216,7 @@ else
             isInfUpper   =(ReturnMatrix_ii_z(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             % --- Vunderbar: exponential value at the QH-chosen (interpolated) point ---
             linidx_z=reshape(maxindexL2,[1,N_a])+size(EVfine_z,1)*(0:N_a-1);
             EV_at_policy_z=reshape(EVfine_z(linidx_z),[N_a,1]);
@@ -293,7 +293,7 @@ for reverse_j=1:N_j-1
         isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         % --- Vunderbar: exponential value at the QH-chosen (interpolated) point ---
         linidx=reshape(maxindexL2,[1,N_a*N_z])+size(EVfine,1)*(0:N_a*N_z-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z]);
@@ -336,7 +336,7 @@ for reverse_j=1:N_j-1
             isInfUpper   =(ReturnMatrix_ii_z(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,z_c,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             % --- Vunderbar: exponential value at the QH-chosen (interpolated) point ---
             linidx_z=reshape(maxindexL2,[1,N_a])+size(EVfine_z,1)*(0:N_a-1);
             EV_at_policy_z=reshape(EVfine_z(linidx_z),[N_a,1]);
@@ -351,8 +351,6 @@ end
 % Switch Policy(2,:) to 'lower grid point', and Policy(4,:) to a 1..(n2short+2) offset.
 adjust=(Policy(4,:,:,:)<1+n2short+1); % is the L2 index below midpoint?
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
-Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(4,:,:,:)=Policy(4,:,:,:)-(n2short+1)*(~adjust);
 
 end
