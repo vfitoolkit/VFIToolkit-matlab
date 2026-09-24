@@ -99,9 +99,13 @@ end
 
 Policy_aprime=KronPolicyIndexes_forSimPanelIndexes(Policy,n_d,n_a,N_semizze,N_j,simoptions);
 if simoptions.gridinterplayer==1
+    % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+    L2index=reshape(Policy_aprime(2,:,:,:),[N_a,N_semizze,1,N_j]); % L2 index
+    L2flag=reshape(Policy_aprime(3,:,:,:),[N_a,N_semizze,1,N_j]);
+    L2index(L2flag==1)=1;                        % force all weight to lower grid point
+    L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
     CumPolicyProbs=ones([N_a,N_semizze,2,N_j]);
-    CumPolicyProbs(:,:,1,:)=reshape(Policy_aprime(2,:,:,:),[N_a,N_semizze,1,N_j]); % L2 index
-    CumPolicyProbs(:,:,1,:)=1-(CumPolicyProbs(:,:,1,:)-1)/(simoptions.ngridinterp+1); % prob of lower index
+    CumPolicyProbs(:,:,1,:)=1-(L2index-1)/(simoptions.ngridinterp+1); % prob of lower index
     % CumPolicyProbs(:,:,2,:) just leave this as ones
     Policy_aprime=repmat(reshape(Policy_aprime(1,:,:,:),[N_a,N_semizze,1,N_j]),1,1,2,1); % lower grid index
     Policy_aprime(:,:,2,:)=Policy_aprime(:,:,2,:)+1; % upper grid index

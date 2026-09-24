@@ -42,21 +42,27 @@ Policy_aprime=KronPolicyIndexes_forSimPanelIndexes(Policy,n_d,n_a,N_bothze,N_j,s
 
 if N_bothze==0
     if simoptions.gridinterplayer==1
+        % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+        L2index=reshape(Policy_aprime(2,:,:),[N_a,1,N_j]); % L2 index
+        L2flag=reshape(Policy_aprime(3,:,:),[N_a,1,N_j]);
+        L2index(L2flag==1)=1;                        % force all weight to lower grid point
+        L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
         CumPolicyProbs=ones([N_a,2,N_j]);
-        CumPolicyProbs(:,1,:)=reshape(Policy_aprime(2,:,:),[N_a,1,N_j]); % L2 index
-        CumPolicyProbs(:,1,:)=1-(CumPolicyProbs(:,1,:)-1)/(simoptions.ngridinterp+1); % prob of lower index
+        CumPolicyProbs(:,1,:)=1-(L2index-1)/(simoptions.ngridinterp+1); % prob of lower index
         % CumPolicyProbs(:,2,:) just leave this as ones
-        % Policy_aprime(3,:,:) is L2flag — preserved by the new Kron but not yet applied here
         Policy_aprime=repmat(reshape(Policy_aprime(1,:,:),[N_a,1,N_j]),1,2,1); % lower grid index
         Policy_aprime(:,2,:)=Policy_aprime(:,2,:)+1; % upper grid index
     end
 else
     if simoptions.gridinterplayer==1
+        % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+        L2index=reshape(Policy_aprime(2,:,:,:),[N_a,N_bothze,1,N_j]); % L2 index
+        L2flag=reshape(Policy_aprime(3,:,:,:),[N_a,N_bothze,1,N_j]);
+        L2index(L2flag==1)=1;                        % force all weight to lower grid point
+        L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
         CumPolicyProbs=ones([N_a,N_bothze,2,N_j]);
-        CumPolicyProbs(:,:,1,:)=reshape(Policy_aprime(2,:,:,:),[N_a,N_bothze,1,N_j]); % L2 index
-        CumPolicyProbs(:,:,1,:)=1-(CumPolicyProbs(:,:,1,:)-1)/(simoptions.ngridinterp+1); % prob of lower index
+        CumPolicyProbs(:,:,1,:)=1-(L2index-1)/(simoptions.ngridinterp+1); % prob of lower index
         % CumPolicyProbs(:,:,2,:) just leave this as ones
-        % Policy_aprime(3,:,:,:) is L2flag — preserved by the new Kron but not yet applied here
         Policy_aprime=repmat(reshape(Policy_aprime(1,:,:,:),[N_a,N_bothze,1,N_j]),1,1,2,1); % lower grid index
         Policy_aprime(:,:,2,:)=Policy_aprime(:,:,2,:)+1; % upper grid index
     end
