@@ -101,11 +101,15 @@ if N_bothze==0
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
             temp2=gpuArray(cumprod(n_a')); % column vector
             PolicyTemp=(reshape(Policy_aprime(1:end-2,:,:),[l_a,N_a])-temp*ones(1,N_a,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a,'gpuArray'));
-            Policy_aprime=[reshape(sum(PolicyTemp,1),[1,N_a]); Policy_aprime(end-1,:)]; % end-1 is the L2 index; end is the L2flag
+            Policy_aprime=[reshape(sum(PolicyTemp,1),[1,N_a]); Policy_aprime(end-1,:); Policy_aprime(end,:)]; % end-1 is the L2 index; end is the L2flag (kept, the override below needs it)
         end
+        % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+        L2index=reshape(Policy_aprime(2,:),[N_a,1]); % L2 index
+        L2flag=reshape(Policy_aprime(3,:),[N_a,1]);
+        L2index(L2flag==1)=1;                        % force all weight to lower grid point
+        L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
         CumPolicyProbs=ones([N_a,2]);
-        CumPolicyProbs(:,1)=reshape(Policy_aprime(2,:),[N_a,1]); % L2 index
-        CumPolicyProbs(:,1)=1-(CumPolicyProbs(:,1)-1)/(simoptions.ngridinterp+1); % prob of lower index
+        CumPolicyProbs(:,1)=1-(L2index-1)/(simoptions.ngridinterp+1); % prob of lower index
         % CumPolicyProbs(:,2) just leave this as ones
         Policy_aprime=repmat(reshape(Policy_aprime(1,:),[N_a,1]),1,2); % lower grid index
         Policy_aprime(:,2)=Policy_aprime(:,2)+1; % upper grid index
@@ -127,11 +131,15 @@ else
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
             temp2=gpuArray(cumprod(n_a')); % column vector
             PolicyTemp=(reshape(Policy_aprime(1:end-2,:,:,:),[l_a,N_a*N_bothze])-temp*ones(1,N_a*N_bothze,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a*N_bothze,'gpuArray'));
-            Policy_aprime=[reshape(sum(PolicyTemp,1),[1,N_a,N_bothze]); Policy_aprime(end-1,:,:)]; % end-1 is the L2 index; end is the L2flag
+            Policy_aprime=[reshape(sum(PolicyTemp,1),[1,N_a,N_bothze]); Policy_aprime(end-1,:,:); Policy_aprime(end,:,:)]; % end-1 is the L2 index; end is the L2flag (kept, the override below needs it)
         end
+        % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+        L2index=reshape(Policy_aprime(2,:,:),[N_a,N_bothze,1]); % L2 index
+        L2flag=reshape(Policy_aprime(3,:,:),[N_a,N_bothze,1]);
+        L2index(L2flag==1)=1;                        % force all weight to lower grid point
+        L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
         CumPolicyProbs=ones([N_a,N_bothze,2]);
-        CumPolicyProbs(:,:,1)=reshape(Policy_aprime(2,:,:),[N_a,N_bothze,1]); % L2 index
-        CumPolicyProbs(:,:,1)=1-(CumPolicyProbs(:,:,1)-1)/(simoptions.ngridinterp+1); % prob of lower index
+        CumPolicyProbs(:,:,1)=1-(L2index-1)/(simoptions.ngridinterp+1); % prob of lower index
         % CumPolicyProbs(:,:,2) just leave this as ones
         Policy_aprime=repmat(reshape(Policy_aprime(1,:,:),[N_a,N_bothze,1]),1,1,2); % lower grid index
         Policy_aprime(:,:,2)=Policy_aprime(:,:,2)+1; % upper grid index
