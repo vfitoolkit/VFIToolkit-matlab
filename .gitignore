@@ -1,2 +1,5 @@
 # matlab auxiliary files
 *.asv
+*.m~
+ValueFnIter/FHorz/RiskyAsset/LifeCycleModel31_aprimeFn_AutoBridge.m
+ValueFnIter/FHorz/RiskyAsset/LifeCycleModel31_ReturnFn_AutoBridge.m

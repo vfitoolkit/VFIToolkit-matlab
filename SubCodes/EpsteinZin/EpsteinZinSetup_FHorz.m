@@ -1,0 +1,191 @@
+function [ezc2, ezc3, ezc4, ezc5, ezc6, ezc7, ezc8, sj, warmglow] = ...
+    EpsteinZinSetup_FHorz(N_j, Parameters, ReturnFnParamNames, DiscountFactorParamNames, vfoptions)
+
+% Reject asset types this dispatcher does not handle: every asset type it does handle is
+% dispatched below and returns, so an unsupported flag would otherwise be silently ignored.
+if vfoptions.experienceasset>=1 || vfoptions.experienceassetu>=1 || vfoptions.experienceassetz>=1 || vfoptions.experienceassete>=1 || vfoptions.experienceassetze>=1 || vfoptions.experienceassetsemiz>=1
+    if strcmp(vfoptions.exoticpreferences, 'EpsteinZin')
+        error('Epstein-Zin preferences are not implemented for the experience assets (only for riskyasset, or for the standard endogenous states)')
+    end
+end
+if vfoptions.residualasset==1
+    error('Epstein-Zin preferences are not implemented for residualasset')
+end
+if vfoptions.dynasty==1
+    error('Epstein-Zin preferences are not implemented for dynasty')
+end
+
+%% Some Epstein-Zin specific options need to be set if they are not already declared
+if ~isfield(vfoptions,'EZriskaversion')
+    error('When using Epstein-Zin preferences you must declare vfoptions.EZriskaversion (coefficient controlling risk aversion)')
+end
+if ~isfield(vfoptions,'EZutils')
+    vfoptions.EZutils=1; % Use EZ preferences with general utility function (0 gives traditional EZ with exogenous labor, 2 gives traditional EZ with endogenous labor)
+end
+if vfoptions.EZutils==1
+    % Have to do EZ preferences differently depending on whether the utility function is >=0 or <=0.
+    % vfoptions.EZpositiveutility=1 if utility is positive; Note, in this case when EZriskaversion is higher, the risk aversion is larger (EZriskaversion>0 is risk averse)
+    % vfoptions.EZpositiveutility=0 if utility is negative; Note, in this case when EZriskaversion is lower, the risk aversion is larger  (EZriskaversion<0 is risk averse)
+    if ~isfield(vfoptions,'EZpositiveutility')
+        warning('Using Epstein-Zin preferences it is assumed the utility/return function is negative valued, if not you need to set vfoptions.EZpositiveutility=1')
+        vfoptions.EZpositiveutility=0; % User did not specify. Guess that it is negative as most common things (like CES) are negative valued.
+    end
+else
+    % Traditional EZ preferences requires you to specify the EIS parameter
+    if ~isfield(vfoptions,'EZeis')
+        error('When using Epstein-Zin preferences you must declare vfoptions.EZeis (elasticity of intertemporal substitution)')
+    end
+end
+if ~isfield(vfoptions,'EZoneminusbeta')
+    vfoptions.EZoneminusbeta=0; % default essentially does nothing
+    %=1 Put a (1-beta)* term on the this period return
+    %=2 Put a (1-sj*beta)* term on the this period return
+end
+% Set up sj
+if isfield(vfoptions,'survivalprobability')
+    sj=Parameters.(vfoptions.survivalprobability);
+    if length(sj)~=N_j
+        error('Survival probabilities must be of the same length as N_j')
+    end
+elseif isfield(vfoptions,'WarmGlowBequestsFn')
+    % If you have warm-glow but do not specify survival probabilities it is assumed you only get it at end of final period
+    sj=ones(N_j,1); % conditional survival probabilities
+    sj(end)=0;
+    warning('You have used vfoptions.WarmGlowBequestsFn, but have not set vfoptions.survivalprobability, it is assumed you only want to have the warm-glow at the end of the final period')
+else
+    sj=ones(N_j,1); % conditional survival probabilities
+end
+% Declare warmglow indicator
+if isfield(vfoptions,'WarmGlowBequestsFn')
+    warmglow=1;
+    temp=getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
+    vfoptions.WarmGlowBequestsFnParamsNames={temp{2:end}};
+else
+    warmglow=0;
+end
+
+
+%% Based on the settings, define a bunch of variables that are used to implement the EZ preferences
+% Note that the discount factor and survival probabilities can depend on jj (age/period)
+% But the 'relative risk aversion' and 'elasticity of intertemporal substitution' cannot depend on jj
+crisk=Parameters.(vfoptions.EZriskaversion);
+if vfoptions.EZutils==0
+    ceis=Parameters.(vfoptions.EZeis);
+    % Traditional EZ in consumption units
+    ezc1=1; % used if vfoptions.EZoneminusbeta=1
+    ezc2=1-1./ceis; % ezc3 is same in both cases
+    ezc3=1;
+    ezc4=1;
+    ezc5=1-crisk;
+    ezc6=(1-1./ceis)./(1-crisk);
+    ezc7=1./(1-1./ceis);
+elseif vfoptions.EZutils==1
+    % EZ in utility-units
+    ezc1=1; % used if vfoptions.EZoneminusbeta=1
+    ezc2=1; % ezc3 is same in both cases
+    % If the utility is negative you need to multiply it by -1 in two places
+    if vfoptions.EZpositiveutility==1
+        ezc3=1; % will be -1 if vfoptions.EZpositiveutility=0
+        ezc4=1; % will be -1 if vfoptions.EZpositiveutility=0
+    elseif vfoptions.EZpositiveutility==0
+        ezc3=-1;
+        ezc4=-1;
+    end
+    % If the utility is negative use 1+crisk instead of 1-crisk. This way
+    % the interpretation of crisk is identical in both cases
+    if vfoptions.EZpositiveutility==1
+        ezc5=1-crisk;
+        ezc6=1./(1-crisk);
+    elseif vfoptions.EZpositiveutility==0
+        ezc5=1+crisk; % essentially, just use crisk as being - what it would otherwise be
+        ezc6=1./(1+crisk);
+    end
+    ezc7=1;
+end
+% Can do a double Epstein-Zin, this involves changing a fair few of these
+% (inner EZ is about risk, outer EZ is about mortality-risk)
+if isfield(vfoptions,'EZmortalityriskaversion')
+    mrisk=Parameters.(vfoptions.EZmortalityriskaversion);
+    if vfoptions.EZutils==0
+    ezc6=(1-1./ceis)./(1-mrisk);
+    ezc8=(1-mrisk)./(1-crisk);
+    elseif vfoptions.EZutils==1
+        if vfoptions.EZpositiveutility==1
+            ezc6=1./(1-mrisk);
+            ezc8=(1-mrisk)./(1-crisk);
+        elseif vfoptions.EZpositiveutility==0
+            ezc6=1./(1+mrisk);
+            ezc8=(1+mrisk)./(1+crisk);
+        end
+    end
+    % Note: the baseline codes apply ezc5 to the warm-glow, so we also want
+    % to use ezc8 on the warm-glow to get rid of this (even though in Case1
+    % raising to ezc5 and then getting rid of it as part of ezc8 is just a
+    % waste, I don't feel like recoding the whole thing)
+else
+    % This wont do anything
+    ezc8=1;
+end
+% When doing the refine (only used by riskyasset), if ezc7 is negative, need to take min(X)
+% instead of max(X) as part of Refine. I do this by taking ezc9*max(ezc9*X) and having
+% ezc9=1 normally but ezc9=-1 when ezc7 is negative.
+ezc9=1;
+if ezc7(1)<0
+    ezc9=-1; % Not allowed to vary by age
+end
+if vfoptions.riskyasset==1 && ~isscalar(ezc7)
+    % Only refine (riskyasset) needs a constant sign of ezc7 across ages; the standard solvers
+    % apply ^ezc7(jj) before every max and so handle mixed signs age-by-age.
+    temp1=any(ezc7<0);
+    temp2=any(ezc7>0);
+    if temp1 && temp2
+        error('Epstein-Zin preferences: you have set the elasticity-of-intertemporal-substution parameter (vfoptions.EZeis) to depend on age. When using vfoptions.riskyasset you must have it either <1 or >1 for all ages (cannot be <1 at some ages and >1 at other ages, which is what you currently have).')
+    end
+end
+
+% setup to permit age-dependence of these (and make them column vectors if they are not already)
+% Note: the only ones that need to permit this are ezc2, ezc5, ezc6, ezc7, ezc8
+if size(ezc2,1)==1
+    ezc2=ezc2';
+end
+ezc2=ezc2.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
+if size(ezc5,1)==1
+    ezc5=ezc5';
+end
+ezc5=ezc5.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
+if size(ezc6,1)==1
+    ezc6=ezc6';
+end
+ezc6=ezc6.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
+if size(ezc7,1)==1
+    ezc7=ezc7';
+end
+ezc7=ezc7.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
+if size(ezc8,1)==1
+    ezc8=ezc8';
+end
+ezc8=ezc8.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
+
+if vfoptions.EZoneminusbeta==1
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    ezc1=1-prod(DiscountFactorParamsVec); % (This will be changed later if it depends on age)
+elseif vfoptions.EZoneminusbeta==2
+    % Some formulations using bequests multiply the period utility function by (1-sj*beta)
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    ezc1=1-sj(N_j)*prod(DiscountFactorParamsVec);
+end
+
+if vfoptions.EZutils==0
+    if crisk<1
+        error('Cannot use EZriskaversion parameter less than one (must be risk averse) with Epstein-Zin preferences')
+    end
+    if ceis<=0
+        error('Cannot use EZeis parameter less than zero with Epstein-Zin preferences')
+    end
+    if ceis==1
+        error('Cannot use EZeis parameter equal to one with Epstein-Zin preferences (look at formula, it would mean having to raise to the power of zero; you can always put 0.99 or 1.01)')
+    end
+end
+
+
+end

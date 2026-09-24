@@ -133,7 +133,7 @@ Policy_dsemiexo=shiftdim(Policy_dsemiexo,1);
 %% Do the Tan improvement on the CPU (is possible on GPU, but gives out of memory errors to easily)
 
 %%
-if simoptions.gridinterplayer==0
+if simoptions.gridinterplayer(1)==0
     if N_z==0 && N_e==0
         StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,2,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,Parameters);
     elseif N_e==0 % just z
@@ -143,7 +143,7 @@ if simoptions.gridinterplayer==0
     else % both z and e
         StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,2,N_dsemiz,N_a,N_semiz,N_z,N_e,N_j,pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters);
     end
-elseif simoptions.gridinterplayer==1
+elseif simoptions.gridinterplayer(1)==1
     % (a,z,2,j)
     Policy_aprime=repmat(Policy_aprime,1,1,2,1);
     PolicyProbs=repmat(PolicyProbs,1,1,2,1);

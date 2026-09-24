@@ -87,7 +87,7 @@ if isfield(vfoptions,'residualasset') && vfoptions.residualasset>0
 end
 
 if isfield(vfoptions,'gridinterplayer')
-    if vfoptions.gridinterplayer==1
+    if vfoptions.gridinterplayer(1)==1
         % Strip trailing PolicyL2flag channel (PolicyInd2Val doesn't need it; only sim does)
         tempsize=size(Policy);
         Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]);
@@ -105,7 +105,8 @@ if isfield(vfoptions,'gridinterplayer')
         % Put the last two parts of Policy together to get the aprime index
         tempsize=size(Policy);
         Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(tempsize)
-        Policy(end-l_aprime,:)=(vfoptions.ngridinterp+1)*(Policy(end-l_aprime,:)-1)+Policy(end,:); % combine (lower grid point and 2nd layer point) to get aprime index [lower grid point is in the first n_a, it is NOT end-l_a+1 because we then have another -1 for the 2nd layer index]
+        % Policy(end-l_aprime,:)=(vfoptions.ngridinterp+1)*(Policy(end-l_aprime,:)-1)+Policy(end,:); % combine (lower grid point and 2nd layer point) to get aprime index [lower grid point is in the first n_a, it is NOT end-l_a+1 because we then have another -1 for the 2nd layer index]
+        Policy(end-l_aprime,:)=(vfoptions.ngridinterp)*(Policy(end-l_aprime,:)-1)+Policy(end,:);
         tempsize(1)=tempsize(1)-1; % put last two policies together (lower grid point, and the second layer grid index; get aprime grid index)
         Policy=reshape(Policy(1:end-1,:),tempsize); % get rid of last policy entry
     end

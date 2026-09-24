@@ -22,7 +22,7 @@ if l_daprime1==1
     else
         Policy=reshape(PolicyKron,[l_daprime1,n_a,n_z,N_j]);
     end
-elseif vfoptions.gridinterplayer==1
+elseif vfoptions.gridinterplayer(1)==1
     Policy=[mod(floor((PolicyKron(1,:)-1)./divisors),n_daprime1(:))+1;
             PolicyKron(2,:);
             PolicyKron(3,:)];
