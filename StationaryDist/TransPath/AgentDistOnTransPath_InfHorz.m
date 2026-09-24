@@ -88,7 +88,11 @@ if simoptions.experienceasset==0
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,T]); % reinterpret this as lower grid index
         PolicyaprimezPath=repelem(PolicyaprimezPath,1,2,1); % create copy that will be the upper grid index
         PolicyaprimezPath(:,2,:)=PolicyaprimezPath(:,2,:)+1; % upper grid index
-        PolicyProbsPath(:,2,:)=reshape(PolicyPath(l_d+l_aprime+1,:,:),[N_a*N_z,1,T]); % L2 index
+        L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:),[N_a*N_z,1,T]); % L2 index
+        L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:),[N_a*N_z,1,T]); % 1=force lower, 2=usual, 3=force upper
+        L2index(L2flag==1)=1;                                % force all weight to lower
+        L2index(L2flag==3)=1+simoptions.ngridinterp+1;       % force all weight to upper
+        PolicyProbsPath(:,2,:)=L2index;
         PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
         PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
 
