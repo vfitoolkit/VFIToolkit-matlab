@@ -32,10 +32,10 @@ N_u=prod(n_u);
 Valt=zeros(N_a,N_semiz,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_semiz,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,a1prime seperately
-Policy=zeros(5,N_a,N_semiz,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_j,'gpuArray');
-Policyalt=zeros(5,N_a,N_semiz,N_j,'gpuArray'); % exponential discounter optimal [d; a1prime midpoint; a1primeL2ind]
-PolicyL2flagalt=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % L2 flag for the exponential discounter policy
+Policy=zeros(6,N_a,N_semiz,N_j,'gpuArray');
+Policy(6,:,:,:)=2;
+Policyalt=zeros(6,N_a,N_semiz,N_j,'gpuArray'); % exponential discounter optimal [d; a1prime midpoint; a1primeL2ind]
+Policyalt(6,:,:,:)=2; % L2 flag for the exponential discounter policy
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
@@ -218,11 +218,11 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(4,:,:,N_j)=reshape(Policy4_ford3_alt(3+temp),[1,N_a,N_semiz]);
     Policy(5,:,:,N_j)=reshape(Policy4_ford3_alt(4+temp),[1,N_a,N_semiz]);
     flat_idx=(1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1);
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_alt(flat_idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,N_j)=reshape(flag_ford3_alt(flat_idx),[1,N_a,N_semiz]);
     % terminal: QH and exponential discounter coincide
     Valt(:,:,N_j)=Vtilde(:,:,N_j);
     Policyalt(:,:,:,N_j)=Policy(:,:,:,N_j);
-    PolicyL2flagalt(1,:,:,N_j)=PolicyL2flag(1,:,:,N_j);
+    Policyalt(6,:,:,N_j)=Policy(6,:,:,N_j);
 
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -560,7 +560,7 @@ else
     Policy(4,:,:,N_j)=reshape(Policy4_ford3_tilde(3+temp),[1,N_a,N_semiz]);
     Policy(5,:,:,N_j)=reshape(Policy4_ford3_tilde(4+temp),[1,N_a,N_semiz]);
     flat_idx=(1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1);
-    PolicyL2flag(1,:,:,N_j)=reshape(flag_ford3_tilde(flat_idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,N_j)=reshape(flag_ford3_tilde(flat_idx),[1,N_a,N_semiz]);
 
     % Max over d3 for alt (the exponential discounter) -> Valt/Policyalt
     [V_jjalt,maxindexalt]=max(V_ford3_alt,[],3); % max over d3
@@ -573,7 +573,7 @@ else
     Policyalt(4,:,:,N_j)=reshape(Policy4_ford3_alt(3+tempalt),[1,N_a,N_semiz]);
     Policyalt(5,:,:,N_j)=reshape(Policy4_ford3_alt(4+tempalt),[1,N_a,N_semiz]);
     flat_idxalt=(1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindexalt-1);
-    PolicyL2flagalt(1,:,:,N_j)=reshape(flag_ford3_alt(flat_idxalt),[1,N_a,N_semiz]);
+    Policyalt(6,:,:,N_j)=reshape(flag_ford3_alt(flat_idxalt),[1,N_a,N_semiz]);
 end
 
 %% Iterate backwards through j.
@@ -922,7 +922,7 @@ for reverse_j=1:N_j-1
     Policy(4,:,:,jj)=reshape(Policy4_ford3_tilde(3+temp),[1,N_a,N_semiz]);
     Policy(5,:,:,jj)=reshape(Policy4_ford3_tilde(4+temp),[1,N_a,N_semiz]);
     flat_idx=(1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1);
-    PolicyL2flag(1,:,:,jj)=reshape(flag_ford3_tilde(flat_idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,jj)=reshape(flag_ford3_tilde(flat_idx),[1,N_a,N_semiz]);
 
     % Max over d3 for alt (the exponential discounter) -> Valt/Policyalt
     [V_jjalt,maxindexalt]=max(V_ford3_alt,[],3); % max over d3
@@ -935,7 +935,7 @@ for reverse_j=1:N_j-1
     Policyalt(4,:,:,jj)=reshape(Policy4_ford3_alt(3+tempalt),[1,N_a,N_semiz]);
     Policyalt(5,:,:,jj)=reshape(Policy4_ford3_alt(4+tempalt),[1,N_a,N_semiz]);
     flat_idxalt=(1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindexalt-1);
-    PolicyL2flagalt(1,:,:,jj)=reshape(flag_ford3_alt(flat_idxalt),[1,N_a,N_semiz]);
+    Policyalt(6,:,:,jj)=reshape(flag_ford3_alt(flat_idxalt),[1,N_a,N_semiz]);
 end
 
 
@@ -948,15 +948,11 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(5,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(4,:,:,:)=Policy(4,:,:,:)-adjust; % lower grid point
-Policy(5,:,:,:)=adjust.*Policy(5,:,:,:)+(1-adjust).*(Policy(5,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:,:)=Policy(5,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 adjustalt=(Policyalt(5,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policyalt(4,:,:,:)=Policyalt(4,:,:,:)-adjustalt; % lower grid point
-Policyalt(5,:,:,:)=adjustalt.*Policyalt(5,:,:,:)+(1-adjustalt).*(Policyalt(5,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policyalt=[Policyalt; PolicyL2flagalt];
+Policyalt(5,:,:,:)=Policyalt(5,:,:,:)-(n2short+1)*(~adjustalt); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 end

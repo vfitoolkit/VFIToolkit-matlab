@@ -31,8 +31,8 @@ N_u=prod(n_u);
 
 Vhat=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d2,d3,a1prime seperately
-Policy=zeros(4,N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz*N_z,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+Policy=zeros(5,N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
+Policy(5,:,:,:,:)=2; % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 Vunderbar=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
@@ -257,7 +257,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(1,:,:,:,N_j)=reshape(Policy3_ford3_hat(1+temp),[1,N_a,N_bothz,N_e]);
     Policy(3,:,:,:,N_j)=reshape(Policy3_ford3_hat(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy3_ford3_hat(3+temp),[1,N_a,N_bothz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
     % Terminal period: no continuation, so Vunderbar equals Vhat
     Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j);
 
@@ -597,7 +597,7 @@ else
     Policy(1,:,:,:,N_j)=reshape(Policy3_ford3_hat(1+temp),[1,N_a,N_bothz,N_e]);
     Policy(3,:,:,:,N_j)=reshape(Policy3_ford3_hat(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy3_ford3_hat(3+temp),[1,N_a,N_bothz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
     % Vunderbar at the d3 that Vhat chose
     Vunderbar(:,:,:,N_j)=reshape(V_ford3_under((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[N_a,N_bothz,N_e]);
 
@@ -949,7 +949,7 @@ for reverse_j=1:N_j-1
     Policy(1,:,:,:,jj)=reshape(Policy3_ford3_hat(1+temp),[1,N_a,N_bothz,N_e]);
     Policy(3,:,:,:,jj)=reshape(Policy3_ford3_hat(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,jj)=reshape(Policy3_ford3_hat(3+temp),[1,N_a,N_bothz,N_e]);
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,jj)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
     % Vunderbar at the d3 that Vhat chose
     Vunderbar(:,:,:,jj)=reshape(V_ford3_under((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[N_a,N_bothz,N_e]);
 
@@ -964,9 +964,7 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(4,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(3,:,:,:,:)=Policy(3,:,:,:,:)-adjust; % lower grid point
-Policy(4,:,:,:,:)=adjust.*Policy(4,:,:,:,:)+(1-adjust).*(Policy(4,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy; PolicyL2flag];
+Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 end

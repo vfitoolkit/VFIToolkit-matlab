@@ -3,7 +3,7 @@ function [Vtilde,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAsse
 % a1=standard endogenous state carrying the grid interpolation layer, a2=folded
 % standard endogenous state(s), a3=experience asset. GPU only.
 % Policy is 4-channel: 1=d, 2=a1prime midpoint, 3=a2prime, 4=a1prime L2;
-% PolicyL2flag is appended as channel 5.
+% the L2 flag is channel 5.
 %
 % Naive:  Valt_j   = max u + beta*E[Valt_{j+1}]         (exponential discounter)
 %         Vtilde_j = max u + beta_0*beta*E[Valt_{j+1}]  (agent's perceived choice)
@@ -19,10 +19,10 @@ N_u=prod(n_u);
 N_a=N_a1*N_a2*N_a3;
 
 Valt=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_j,'gpuArray'); % 1=d2, 2=a1prime midpoint, 3=a2prime, 4=a1prime L2 fine
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray');
-Policyalt=zeros(4,N_a,N_j,'gpuArray'); % exponential discounter optimal choice
-PolicyL2flagalt=2*ones(1,N_a,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_j,'gpuArray'); % 1=d2, 2=a1prime midpoint, 3=a2prime, 4=a1prime L2 fine
+Policy(5,:,:)=2;
+Policyalt=zeros(5,N_a,N_j,'gpuArray'); % exponential discounter optimal choice
+Policyalt(5,:,:)=2;
 
 
 %% GI setup
@@ -65,11 +65,11 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     Vtilde=Valt;
     Policyalt(:,:,N_j)=Policy(:,:,N_j); % terminal: QH and exp discounter coincide
-    PolicyL2flagalt(1,:,N_j)=PolicyL2flag(1,:,N_j);
+    Policyalt(5,:,N_j)=Policy(5,:,N_j);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -131,7 +131,7 @@ else
     isInfUpperalt   =(ReturnMatrix_iialt(linidx_upperalt)==-Inf);
     inLowerStrictalt=(maxindexL2a1alt>=2)         & (maxindexL2a1alt<=n2short+1);
     inUpperStrictalt=(maxindexL2a1alt>=n2short+3) & (maxindexL2a1alt<=n2long-1);
-    PolicyL2flagalt(1,:,N_j)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+    Policyalt(5,:,N_j)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
     %% Vtilde (beta0*beta)
     entireRHS=ReturnMatrix+beta0beta*entireEV;
     [~,maxindex]=max(entireRHS,[],2);
@@ -160,7 +160,7 @@ else
     isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 %% Iterate backwards through j
@@ -227,7 +227,7 @@ for reverse_j=1:N_j-1
     isInfUpperalt   =(ReturnMatrix_iialt(linidx_upperalt)==-Inf);
     inLowerStrictalt=(maxindexL2a1alt>=2)         & (maxindexL2a1alt<=n2short+1);
     inUpperStrictalt=(maxindexL2a1alt>=n2short+3) & (maxindexL2a1alt<=n2long-1);
-    PolicyL2flagalt(1,:,jj)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+    Policyalt(5,:,jj)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
     %% Vtilde (beta0*beta)
     entireRHS=ReturnMatrix+beta0beta*entireEV;
     [~,maxindex]=max(entireRHS,[],2);
@@ -256,21 +256,17 @@ for reverse_j=1:N_j-1
     isInfUpper   =(ReturnMatrix_ii(linidx_upper)==-Inf);
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+    Policy(5,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 end
 
 
 %% Post-process: convert "midpoint + L2 offset" into "lower coarse point + L2 ratio"
 adjust=(Policy(4,:,:)<1+n2short+1);
 Policy(2,:,:)=Policy(2,:,:)-adjust;
-Policy(4,:,:)=adjust.*Policy(4,:,:)+(1-adjust).*(Policy(4,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(4,:,:)=Policy(4,:,:)-(n2short+1)*(~adjust);
 
 adjustalt=(Policyalt(4,:,:)<1+n2short+1);
 Policyalt(2,:,:)=Policyalt(2,:,:)-adjustalt;
-Policyalt(4,:,:)=adjustalt.*Policyalt(4,:,:)+(1-adjustalt).*(Policyalt(4,:,:)-n2short-1);
-
-Policyalt=[Policyalt;PolicyL2flagalt];
+Policyalt(4,:,:)=Policyalt(4,:,:)-(n2short+1)*(~adjustalt);
 
 end

@@ -24,10 +24,10 @@ N_a=N_a1*N_a2*N_a3;
 N_z=prod(n_z);
 
 Valt=zeros(N_a,N_z,N_j,'gpuArray'); % exponential-discounter value fn (beta)
-Policy=zeros(4,N_a,N_z,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray');
-Policyalt=zeros(4,N_a,N_z,N_j,'gpuArray'); % exponential-discounter policy
-PolicyL2flagalt=2*ones(1,N_a,N_z,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_z,N_j,'gpuArray');
+Policy(5,:,:,:)=2;
+Policyalt=zeros(5,N_a,N_z,N_j,'gpuArray'); % exponential-discounter policy
+Policyalt(5,:,:,:)=2;
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
@@ -106,7 +106,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         aind_z=gpuArray(0:1:N_a-1);
@@ -154,13 +154,13 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper=(ReturnMatrix_ii_z(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 
     Vtilde=Valt;
     Policyalt(:,:,:,N_j)=Policy(:,:,:,N_j); % terminal: QH and exp discounter coincide
-    PolicyL2flagalt(1,:,:,N_j)=PolicyL2flag(1,:,:,N_j);
+    Policyalt(5,:,:,N_j)=Policy(5,:,:,N_j);
 
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -245,7 +245,7 @@ else
         isInfUpperalt=(ReturnMatrix_ii_flatalt(linidx_upperalt)==-Inf);
         inLowerStrictalt=(maxindexL2a1alt>=2)         & (maxindexL2a1alt<=n2short+1);
         inUpperStrictalt=(maxindexL2a1alt>=n2short+3) & (maxindexL2a1alt<=n2long-1);
-        PolicyL2flagalt(1,:,:,N_j)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+        Policyalt(5,:,:,N_j)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
         %% Vtilde (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*repelem(entireEV,N_d1,1,1,1,1,1,1);
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -293,7 +293,7 @@ else
         isInfUpper=(ReturnMatrix_ii_flat(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         aind_z=gpuArray(0:1:N_a-1);
@@ -350,7 +350,7 @@ else
             isInfUpperalt=(ReturnMatrix_ii_flatalt(linidx_upperalt)==-Inf);
             inLowerStrictalt=(maxindexL2a1alt>=2)         & (maxindexL2a1alt<=n2short+1);
             inUpperStrictalt=(maxindexL2a1alt>=n2short+3) & (maxindexL2a1alt<=n2long-1);
-            PolicyL2flagalt(1,:,z_c,N_j)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+            Policyalt(5,:,z_c,N_j)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
             %% Vtilde (beta0*beta)
             entireRHS_ii_z=ReturnMatrix_ii_z+beta0beta*repelem(entireEV_z,N_d1,1,1,1,1,1);
             [~,maxindex1]=max(entireRHS_ii_z,[],2);
@@ -398,7 +398,7 @@ else
             isInfUpper=(ReturnMatrix_ii_flat(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 end
@@ -491,7 +491,7 @@ for reverse_j=1:N_j-1
         isInfUpperalt=(ReturnMatrix_ii_flatalt(linidx_upperalt)==-Inf);
         inLowerStrictalt=(maxindexL2a1alt>=2)         & (maxindexL2a1alt<=n2short+1);
         inUpperStrictalt=(maxindexL2a1alt>=n2short+3) & (maxindexL2a1alt<=n2long-1);
-        PolicyL2flagalt(1,:,:,jj)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+        Policyalt(5,:,:,jj)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
         %% Vtilde (beta0*beta)
         entireRHS_ii=ReturnMatrix_ii+beta0beta*repelem(entireEV,N_d1,1,1,1,1,1,1);
         [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -539,7 +539,7 @@ for reverse_j=1:N_j-1
         isInfUpper=(ReturnMatrix_ii_flat(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         aind_z=gpuArray(0:1:N_a-1);
@@ -596,7 +596,7 @@ for reverse_j=1:N_j-1
             isInfUpperalt=(ReturnMatrix_ii_flatalt(linidx_upperalt)==-Inf);
             inLowerStrictalt=(maxindexL2a1alt>=2)         & (maxindexL2a1alt<=n2short+1);
             inUpperStrictalt=(maxindexL2a1alt>=n2short+3) & (maxindexL2a1alt<=n2long-1);
-            PolicyL2flagalt(1,:,z_c,jj)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
+            Policyalt(5,:,z_c,jj)=2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt);
             %% Vtilde (beta0*beta)
             entireRHS_ii_z=ReturnMatrix_ii_z+beta0beta*repelem(entireEV_z,N_d1,1,1,1,1,1);
             [~,maxindex1]=max(entireRHS_ii_z,[],2);
@@ -644,7 +644,7 @@ for reverse_j=1:N_j-1
             isInfUpper=(ReturnMatrix_ii_flat(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,z_c,jj)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 end
@@ -653,14 +653,10 @@ end
 %% Post-process
 adjust=(Policy(4,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
-Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(4,:,:,:)=Policy(4,:,:,:)-(n2short+1)*(~adjust);
 
 adjustalt=(Policyalt(4,:,:,:)<1+n2short+1);
 Policyalt(2,:,:,:)=Policyalt(2,:,:,:)-adjustalt;
-Policyalt(4,:,:,:)=adjustalt.*Policyalt(4,:,:,:)+(1-adjustalt).*(Policyalt(4,:,:,:)-n2short-1);
-
-Policyalt=[Policyalt;PolicyL2flagalt];
+Policyalt(4,:,:,:)=Policyalt(4,:,:,:)-(n2short+1)*(~adjustalt);
 
 end

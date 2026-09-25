@@ -20,10 +20,10 @@ N_a=N_a1*N_a2;
 N_u=prod(n_u);
 
 Valt=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
-PolicyL2flag=2*ones(1,N_a,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
-Policyalt=zeros(3,N_a,N_j,'gpuArray'); % exponential discounter optimal [d; a1prime midpoint; a1primeL2ind]
-PolicyL2flagalt=2*ones(1,N_a,N_j,'gpuArray'); % L2 flag for the exponential discounter policy
+Policy=zeros(4,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
+Policy(4,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policyalt=zeros(4,N_a,N_j,'gpuArray'); % exponential discounter optimal [d; a1prime midpoint; a1primeL2ind]
+Policyalt(4,:,:)=2; % L2 flag for the exponential discounter policy
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -102,13 +102,13 @@ if ~isfield(vfoptions,'V_Jplus1')
     isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+    Policy(4,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
 
     Vtilde=Valt;
     % terminal: QH and exponential discounter coincide
     Policyalt(:,:,N_j)=Policy(:,:,N_j);
-    PolicyL2flagalt(1,:,N_j)=PolicyL2flag(1,:,N_j);
+    Policyalt(4,:,N_j)=Policy(4,:,N_j);
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
@@ -201,7 +201,7 @@ else
     isInfUpperalt = (ReturnMatrix_L2(linidx_upperalt) == -Inf);
     inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
     inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-    PolicyL2flagalt(1,:,N_j) = shiftdim(squeeze(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt)),-1);
+    Policyalt(4,:,N_j) = shiftdim(squeeze(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt)),-1);
 
     %% Vtilde (beta0*beta)
 
@@ -256,7 +256,7 @@ else
     isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+    Policy(4,:,N_j) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 end
 
 %% Iterate backwards through j.
@@ -357,7 +357,7 @@ for reverse_j=1:N_j-1
     isInfUpperalt = (ReturnMatrix_L2(linidx_upperalt) == -Inf);
     inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
     inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-    PolicyL2flagalt(1,:,jj) = shiftdim(squeeze(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt)),-1);
+    Policyalt(4,:,jj) = shiftdim(squeeze(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt)),-1);
 
     %% Vtilde (beta0*beta)
 
@@ -412,7 +412,7 @@ for reverse_j=1:N_j-1
     isInfUpper = (ReturnMatrix_L2(linidx_upper) == -Inf);
     inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
     inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-    PolicyL2flag(1,:,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
+    Policy(4,:,jj) = shiftdim(squeeze(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper)),-1);
 
 end
 
@@ -424,15 +424,11 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(2,:,:)=Policy(2,:,:)-adjust; % lower grid point
-Policy(3,:,:)=adjust.*Policy(3,:,:)+(1-adjust).*(Policy(3,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy;PolicyL2flag];
+Policy(3,:,:)=Policy(3,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 adjustalt=(Policyalt(3,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policyalt(2,:,:)=Policyalt(2,:,:)-adjustalt; % lower grid point
-Policyalt(3,:,:)=adjustalt.*Policyalt(3,:,:)+(1-adjustalt).*(Policyalt(3,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policyalt=[Policyalt;PolicyL2flagalt];
+Policyalt(3,:,:)=Policyalt(3,:,:)-(n2short+1)*(~adjustalt); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 

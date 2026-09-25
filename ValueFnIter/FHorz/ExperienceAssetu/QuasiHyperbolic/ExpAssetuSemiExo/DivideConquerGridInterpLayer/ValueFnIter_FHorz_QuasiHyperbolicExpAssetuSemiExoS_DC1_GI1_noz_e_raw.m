@@ -31,8 +31,8 @@ N_u=prod(n_u);
 Vhat=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,a1prime seperately
-Policy=zeros(5,N_a,N_semiz,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy=zeros(6,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy(6,:,:,:,:)=2;
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
@@ -285,7 +285,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_hat(3+temp),[1,N_a,N_semiz,N_e]);
     Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_hat(4+temp),[1,N_a,N_semiz,N_e]);
     flat_idx=(1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_hat(flat_idx),[1,N_a,N_semiz,N_e]);
+    Policy(6,:,:,:,N_j)=reshape(flag_ford3_hat(flat_idx),[1,N_a,N_semiz,N_e]);
     Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j);
 
 else
@@ -619,7 +619,7 @@ else
     Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_hat(3+temp),[1,N_a,N_semiz,N_e]);
     Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_hat(4+temp),[1,N_a,N_semiz,N_e]);
     flat_idx=(1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_hat(flat_idx),[1,N_a,N_semiz,N_e]);
+    Policy(6,:,:,:,N_j)=reshape(flag_ford3_hat(flat_idx),[1,N_a,N_semiz,N_e]);
     % Vunderbar at the d3 chosen by the hat max
     Vunderbar(:,:,:,N_j)=reshape(V_ford3_under(flat_idx),[N_a,N_semiz,N_e]);
 
@@ -966,7 +966,7 @@ for reverse_j=1:N_j-1
     Policy(4,:,:,:,jj)=reshape(Policy4_ford3_hat(3+temp),[1,N_a,N_semiz,N_e]);
     Policy(5,:,:,:,jj)=reshape(Policy4_ford3_hat(4+temp),[1,N_a,N_semiz,N_e]);
     flat_idx=(1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1);
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_hat(flat_idx),[1,N_a,N_semiz,N_e]);
+    Policy(6,:,:,:,jj)=reshape(flag_ford3_hat(flat_idx),[1,N_a,N_semiz,N_e]);
     % Vunderbar at the d3 chosen by the hat max
     Vunderbar(:,:,:,jj)=reshape(V_ford3_under(flat_idx),[N_a,N_semiz,N_e]);
 
@@ -981,9 +981,7 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(5,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-adjust; % lower grid point
-Policy(5,:,:,:,:)=adjust.*Policy(5,:,:,:,:)+(1-adjust).*(Policy(5,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:,:,:)=Policy(5,:,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 end
