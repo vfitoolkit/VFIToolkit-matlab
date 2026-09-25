@@ -37,6 +37,9 @@ if ~isfield(vfoptions,'EZoneminusbeta')
 end
 % Set up sj
 if isfield(vfoptions,'survivalprobability')
+    if any(strcmp(DiscountFactorParamNames,vfoptions.survivalprobability))
+        warning('You have set vfoptions.survivalprobability=''%s'' and also put ''%s'' in DiscountFactorParamNames. With Epstein-Zin preferences the conditional survival probability should only be declared via vfoptions.survivalprobability (EZ treats it specially); remove it from DiscountFactorParamNames.',vfoptions.survivalprobability,vfoptions.survivalprobability)
+    end
     sj=Parameters.(vfoptions.survivalprobability);
     if length(sj)~=N_j
         error('Survival probabilities must be of the same length as N_j')
