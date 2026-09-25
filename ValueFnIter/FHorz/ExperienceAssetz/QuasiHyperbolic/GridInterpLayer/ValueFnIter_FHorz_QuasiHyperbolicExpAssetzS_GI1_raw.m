@@ -21,8 +21,8 @@ N_a=N_a1*N_a2;
 N_z=prod(n_z);
 
 Vhat=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
-PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+Policy=zeros(4,N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
+Policy(4,:,:,:)=2; % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
 
 
 % n_a1prime=n_a1;
@@ -80,7 +80,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+        Policy(4,:,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
@@ -110,7 +110,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper    = (ReturnMatrix_ii_z(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,z_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+            Policy(4,:,z_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
         end
     end
 
@@ -189,7 +189,7 @@ else
         isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+        Policy(4,:,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
         linidx=reshape(maxindexL2,[1,N_a*N_z])+N_d*n2long*(0:N_a*N_z-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z]);
         Vunderbar(:,:,N_j)=Vhat(:,:,N_j)+(beta-beta0beta)*EV_at_policy;
@@ -233,7 +233,7 @@ else
             isInfUpper    = (ReturnMatrix_ii_z(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,z_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+            Policy(4,:,z_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
             linidx_z=reshape(maxindexL2,[1,N_a])+N_d*n2long*(0:N_a-1);
             EV_at_policy_z=reshape(EVfine_z(linidx_z),[N_a,1]);
             Vunderbar(:,z_c,N_j)=Vhat(:,z_c,N_j)+(beta-beta0beta)*EV_at_policy_z;
@@ -321,7 +321,7 @@ for reverse_j=1:N_j-1
         isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+        Policy(4,:,:,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
         linidx=reshape(maxindexL2,[1,N_a*N_z])+N_d*n2long*(0:N_a*N_z-1);
         EV_at_policy=reshape(EVfine(linidx),[N_a,N_z]);
         Vunderbar(:,:,jj)=Vhat(:,:,jj)+(beta-beta0beta)*EV_at_policy;
@@ -365,7 +365,7 @@ for reverse_j=1:N_j-1
             isInfUpper    = (ReturnMatrix_ii_z(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,z_c,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+            Policy(4,:,z_c,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
             linidx_z=reshape(maxindexL2,[1,N_a])+N_d*n2long*(0:N_a-1);
             EV_at_policy_z=reshape(EVfine_z(linidx_z),[N_a,1]);
             Vunderbar(:,z_c,jj)=Vhat(:,z_c,jj)+(beta-beta0beta)*EV_at_policy_z;
@@ -382,9 +382,7 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust; % lower grid point
-Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy;PolicyL2flag];
+Policy(3,:,:,:)=Policy(3,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 end

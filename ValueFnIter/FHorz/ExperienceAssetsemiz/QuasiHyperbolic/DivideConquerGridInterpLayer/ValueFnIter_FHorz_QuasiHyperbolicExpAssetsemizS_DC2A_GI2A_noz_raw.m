@@ -19,7 +19,7 @@ function [Vhat,Policy,Vunderbar]=ValueFnIter_FHorz_QuasiHyperbolicExpAssetsemizS
 % d1 is any other decision, d2 determines experience asset (a3), d3 determines semi-exog state (semiz).
 % a1 is divide-conquered+grid-interp standard asset; a2 is a folded standard asset (choice a2prime); a3 is the experience asset.
 % NO z, NO e: the only shock is semiz (so bothz=semiz throughout).
-% Policy is 5-channel: 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint->lower grid point after post-process, a2prime), 5=a1prime L2; PolicyL2flag appended as 6th.
+% Policy is 5-channel: 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint->lower grid point after post-process, a2prime), 5=a1prime L2; the L2 flag as 6th.
 % lowmemory: 1 shock {semiz} => levels {0,1}.
 %   =0 vectorise semiz; =1 loop semiz.
 
@@ -37,8 +37,8 @@ N_semiz=prod(n_semiz);
 Vhat=zeros(N_a,N_semiz,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_semiz,N_j,'gpuArray'); % the beta-discounted value gathered at the hat argmax
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,joint(a1prime(mid),a2prime),a1primeL2ind seperately
-Policy=zeros(5,N_a,N_semiz,N_j,'gpuArray'); % 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint,a2prime), 5=a1prime L2
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policy=zeros(6,N_a,N_semiz,N_j,'gpuArray'); % 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint,a2prime), 5=a1prime L2
+Policy(6,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 % For the return function we just want the full d=(d1,d2,d3) grid (used in the no-EV section which vectorises over d3)
@@ -125,7 +125,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(6,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_semiz
@@ -175,7 +175,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(6,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 
@@ -364,7 +364,7 @@ else
     Policy(2,:,:,N_j)=ceil(d12sel/N_d1); % d2
     Policy(4,:,:,N_j)=reshape(joint_ford3_hat(idx),[1,N_a,N_semiz]); % joint(a1prime midpoint,a2prime)
     Policy(5,:,:,N_j)=reshape(L2a1_ford3_hat(idx),[1,N_a,N_semiz]); % a1primeL2ind
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,N_j)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
     % Vunderbar at the d3 chosen by the hat max
     Vunderbar(:,:,N_j)=reshape(V_ford3_under(idx),[N_a,N_semiz]);
 end
@@ -560,7 +560,7 @@ for reverse_j=1:N_j-1
     Policy(2,:,:,jj)=ceil(d12sel/N_d1); % d2
     Policy(4,:,:,jj)=reshape(joint_ford3_hat(idx),[1,N_a,N_semiz]); % joint(a1prime midpoint,a2prime)
     Policy(5,:,:,jj)=reshape(L2a1_ford3_hat(idx),[1,N_a,N_semiz]); % a1primeL2ind
-    PolicyL2flag(1,:,:,jj)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,jj)=reshape(L2flag_ford3_hat(idx),[1,N_a,N_semiz]);
     % Vunderbar at the d3 chosen by the hat max
     Vunderbar(:,:,jj)=reshape(V_ford3_under(idx),[N_a,N_semiz]);
 end
@@ -570,8 +570,6 @@ end
 % Policy(4,:) is joint(a1prime midpoint,a2prime) and Policy(5,:) the second layer (ranges -n2short-1:1:1+n2short).
 adjust=(Policy(5,:,:,:)<1+n2short+1);
 Policy(4,:,:,:)=Policy(4,:,:,:)-adjust; % a1prime part of joint -> lower grid point
-Policy(5,:,:,:)=adjust.*Policy(5,:,:,:)+(1-adjust).*(Policy(5,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(5,:,:,:)=Policy(5,:,:,:)-(n2short+1)*(~adjust);
 
 end

@@ -18,8 +18,8 @@ N_e=prod(n_e);
 
 Vhat=zeros(N_a,N_bothz,N_e,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_bothz,N_e,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_bothz,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_bothz,N_e,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_bothz,N_e,N_j,'gpuArray');
+Policy(5,:,:,:,:)=2;
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -187,7 +187,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(1,:,:,:,N_j)=reshape(Policy3_ford3_hat(1+temp),[1,N_a,N_bothz,N_e]);
     Policy(3,:,:,:,N_j)=reshape(Policy3_ford3_hat(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy3_ford3_hat(3+temp),[1,N_a,N_bothz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
     % Terminal period: no continuation, so Vunderbar equals Vhat
     Vunderbar(:,:,:,N_j)=Vhat(:,:,:,N_j);
 else
@@ -478,7 +478,7 @@ else
     Policy(1,:,:,:,N_j)=reshape(Policy3_ford3_hat(1+temp),[1,N_a,N_bothz,N_e]);
     Policy(3,:,:,:,N_j)=reshape(Policy3_ford3_hat(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy3_ford3_hat(3+temp),[1,N_a,N_bothz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
 
     % Vunderbar: gather the beta-RHS (already inner-gathered) at the same chosen d3
     d3lin=reshape(maxindex,[N_a*N_bothz*N_e,1]);
@@ -786,7 +786,7 @@ for reverse_j=1:N_j-1
     Policy(1,:,:,:,jj)=reshape(Policy3_ford3_hat(1+temp),[1,N_a,N_bothz,N_e]);
     Policy(3,:,:,:,jj)=reshape(Policy3_ford3_hat(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,jj)=reshape(Policy3_ford3_hat(3+temp),[1,N_a,N_bothz,N_e]);
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,jj)=reshape(flag_ford3_hat((1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1)),[1,N_a,N_bothz,N_e]);
 
     % Vunderbar: gather the beta-RHS (already inner-gathered) at the same chosen d3
     d3lin=reshape(maxindex,[N_a*N_bothz*N_e,1]);
@@ -797,9 +797,7 @@ end
 %% Switch from midpoint to lower grid index
 adjust=(Policy(4,:,:,:,:)<1+n2short+1);
 Policy(3,:,:,:,:)=Policy(3,:,:,:,:)-adjust;
-Policy(4,:,:,:,:)=adjust.*Policy(4,:,:,:,:)+(1-adjust).*(Policy(4,:,:,:,:)-n2short-1);
-
-Policy=[Policy; PolicyL2flag];
+Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-(n2short+1)*(~adjust);
 
 
 end

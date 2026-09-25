@@ -19,7 +19,7 @@ function [Vtilde,Policy,Valt,Policyalt]=ValueFnIter_FHorz_QuasiHyperbolicExpAsse
 % d1 is any other decision, d2 determines experience asset (a3), d3 determines semi-exog state (semiz).
 % a1 is divide-conquered+grid-interp standard asset; a2 is a folded standard asset (choice a2prime); a3 is the experience asset.
 % NO z, NO e: the only shock is semiz (so bothz=semiz throughout).
-% Policy is 5-channel: 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint->lower grid point after post-process, a2prime), 5=a1prime L2; PolicyL2flag appended as 6th.
+% Policy is 5-channel: 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint->lower grid point after post-process, a2prime), 5=a1prime L2; the L2 flag as 6th.
 % lowmemory: 1 shock {semiz} => levels {0,1}.
 %   =0 vectorise semiz; =1 loop semiz.
 
@@ -37,10 +37,10 @@ N_semiz=prod(n_semiz);
 Vtilde=zeros(N_a,N_semiz,N_j,'gpuArray'); % QH-perceived value (beta0*beta)
 Valt=zeros(N_a,N_semiz,N_j,'gpuArray'); % exponential value (beta); drives the backward recursion
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,joint(a1prime(mid),a2prime),a1primeL2ind seperately
-Policy=zeros(5,N_a,N_semiz,N_j,'gpuArray'); % 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint,a2prime), 5=a1prime L2
-Policyalt=zeros(5,N_a,N_semiz,N_j,'gpuArray'); % exponential-discounter policy
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
-PolicyL2flagalt=2*ones(1,N_a,N_semiz,N_j,'gpuArray'); % L2 flag for the exponential-discounter policy
+Policy=zeros(6,N_a,N_semiz,N_j,'gpuArray'); % 1=d1, 2=d2, 3=d3, 4=joint(a1prime midpoint,a2prime), 5=a1prime L2
+Policy(6,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policyalt=zeros(6,N_a,N_semiz,N_j,'gpuArray'); % exponential-discounter policy
+Policyalt(6,:,:,:)=2; % L2 flag for the exponential-discounter policy
 
 %%
 % For the return function we just want the full d=(d1,d2,d3) grid (used in the no-EV section which vectorises over d3)
@@ -131,7 +131,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(6,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_semiz
@@ -181,7 +181,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(6,:,z_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     end
 
@@ -189,7 +189,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     % Terminal period: the QH and the exponential discounter coincide
     Valt(:,:,N_j)=Vtilde(:,:,N_j);
     Policyalt(:,:,:,N_j)=Policy(:,:,:,N_j);
-    PolicyL2flagalt(1,:,:,N_j)=PolicyL2flag(1,:,:,N_j);
+    Policyalt(6,:,:,N_j)=Policy(6,:,:,N_j);
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
@@ -468,7 +468,7 @@ else
     Policy(2,:,:,N_j)=ceil(d12sel/N_d1); % d2
     Policy(4,:,:,N_j)=reshape(joint_ford3_tilde(idx),[1,N_a,N_semiz]); % joint(a1prime midpoint,a2prime)
     Policy(5,:,:,N_j)=reshape(L2a1_ford3_tilde(idx),[1,N_a,N_semiz]); % a1primeL2ind
-    PolicyL2flag(1,:,:,N_j)=reshape(L2flag_ford3_tilde(idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,N_j)=reshape(L2flag_ford3_tilde(idx),[1,N_a,N_semiz]);
 
     % Max over d3 for the exponential-discounter (alt) pass
     [V_jjalt,d3_maxalt]=max(V_ford3_alt,[],3); % max over d3
@@ -482,7 +482,7 @@ else
     Policyalt(2,:,:,N_j)=ceil(d12selalt/N_d1); % d2
     Policyalt(4,:,:,N_j)=reshape(joint_ford3_alt(idxalt),[1,N_a,N_semiz]); % joint(a1prime midpoint,a2prime)
     Policyalt(5,:,:,N_j)=reshape(L2a1_ford3_alt(idxalt),[1,N_a,N_semiz]); % a1primeL2ind
-    PolicyL2flagalt(1,:,:,N_j)=reshape(L2flag_ford3_alt(idxalt),[1,N_a,N_semiz]);
+    Policyalt(6,:,:,N_j)=reshape(L2flag_ford3_alt(idxalt),[1,N_a,N_semiz]);
 end
 
 
@@ -772,7 +772,7 @@ for reverse_j=1:N_j-1
     Policy(2,:,:,jj)=ceil(d12sel/N_d1); % d2
     Policy(4,:,:,jj)=reshape(joint_ford3_tilde(idx),[1,N_a,N_semiz]); % joint(a1prime midpoint,a2prime)
     Policy(5,:,:,jj)=reshape(L2a1_ford3_tilde(idx),[1,N_a,N_semiz]); % a1primeL2ind
-    PolicyL2flag(1,:,:,jj)=reshape(L2flag_ford3_tilde(idx),[1,N_a,N_semiz]);
+    Policy(6,:,:,jj)=reshape(L2flag_ford3_tilde(idx),[1,N_a,N_semiz]);
 
     % Max over d3 for the exponential-discounter (alt) pass
     [V_jjalt,d3_maxalt]=max(V_ford3_alt,[],3); % max over d3
@@ -786,7 +786,7 @@ for reverse_j=1:N_j-1
     Policyalt(2,:,:,jj)=ceil(d12selalt/N_d1); % d2
     Policyalt(4,:,:,jj)=reshape(joint_ford3_alt(idxalt),[1,N_a,N_semiz]); % joint(a1prime midpoint,a2prime)
     Policyalt(5,:,:,jj)=reshape(L2a1_ford3_alt(idxalt),[1,N_a,N_semiz]); % a1primeL2ind
-    PolicyL2flagalt(1,:,:,jj)=reshape(L2flag_ford3_alt(idxalt),[1,N_a,N_semiz]);
+    Policyalt(6,:,:,jj)=reshape(L2flag_ford3_alt(idxalt),[1,N_a,N_semiz]);
 end
 
 
@@ -794,14 +794,10 @@ end
 % Policy(4,:) is joint(a1prime midpoint,a2prime) and Policy(5,:) the second layer (ranges -n2short-1:1:1+n2short).
 adjust=(Policy(5,:,:,:)<1+n2short+1);
 Policy(4,:,:,:)=Policy(4,:,:,:)-adjust; % a1prime part of joint -> lower grid point
-Policy(5,:,:,:)=adjust.*Policy(5,:,:,:)+(1-adjust).*(Policy(5,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(5,:,:,:)=Policy(5,:,:,:)-(n2short+1)*(~adjust);
 
 adjustalt=(Policyalt(5,:,:,:)<1+n2short+1); % is the L2 index below midpoint?
 Policyalt(4,:,:,:)=Policyalt(4,:,:,:)-adjustalt; % a1prime part of joint -> lower grid point
-Policyalt(5,:,:,:)=adjustalt.*Policyalt(5,:,:,:)+(1-adjustalt).*(Policyalt(5,:,:,:)-n2short-1);
-
-Policyalt=[Policyalt;PolicyL2flagalt];
+Policyalt(5,:,:,:)=Policyalt(5,:,:,:)-(n2short+1)*(~adjustalt);
 
 end

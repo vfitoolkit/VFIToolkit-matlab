@@ -26,8 +26,8 @@ N_semiz=prod(n_semiz);
 N_e=prod(n_e);
 
 V=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
-Policy=zeros(5,N_a,N_semiz,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy=zeros(6,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy(6,:,:,:,:)=2;
 Valt=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 
 %%
@@ -167,7 +167,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(2,:,:,:,N_j)=reshape(Policy4_ford3_hat(2+temp),[1,N_a,N_semiz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_hat(3+temp),[1,N_a,N_semiz,N_e]);
     Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_hat(4+temp),[1,N_a,N_semiz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy(6,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
     % Terminal: Vunderbar == Vhat
     Valt(:,:,:,N_j)=V(:,:,:,N_j);
 else
@@ -391,7 +391,7 @@ else
     Policy(2,:,:,:,N_j)=reshape(Policy4_ford3_hat(2+temp),[1,N_a,N_semiz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy4_ford3_hat(3+temp),[1,N_a,N_semiz,N_e]);
     Policy(5,:,:,:,N_j)=reshape(Policy4_ford3_hat(4+temp),[1,N_a,N_semiz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy(6,:,:,:,N_j)=reshape(flag_ford3_hat((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
     Valt(:,:,:,N_j)=reshape(V_ford3_under((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[N_a,N_semiz,N_e]);
 end
 
@@ -625,7 +625,7 @@ for reverse_j=1:N_j-1
     Policy(2,:,:,:,jj)=reshape(Policy4_ford3_hat(2+temp),[1,N_a,N_semiz,N_e]);
     Policy(4,:,:,:,jj)=reshape(Policy4_ford3_hat(3+temp),[1,N_a,N_semiz,N_e]);
     Policy(5,:,:,:,jj)=reshape(Policy4_ford3_hat(4+temp),[1,N_a,N_semiz,N_e]);
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_hat((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy(6,:,:,:,jj)=reshape(flag_ford3_hat((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
     Valt(:,:,:,jj)=reshape(V_ford3_under((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[N_a,N_semiz,N_e]);
 end
 
@@ -633,8 +633,7 @@ end
 %% Switch from midpoint to lower grid index
 adjust=(Policy(5,:,:,:,:)<1+n2short+1);
 Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-adjust;
-Policy(5,:,:,:,:)=adjust.*Policy(5,:,:,:,:)+(1-adjust).*(Policy(5,:,:,:,:)-n2short-1);
-Policy=[Policy; PolicyL2flag];
+Policy(5,:,:,:,:)=Policy(5,:,:,:,:)-(n2short+1)*(~adjust);
 
 
 end

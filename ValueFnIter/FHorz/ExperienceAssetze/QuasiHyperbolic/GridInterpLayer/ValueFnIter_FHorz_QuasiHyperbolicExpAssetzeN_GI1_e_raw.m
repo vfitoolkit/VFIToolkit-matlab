@@ -22,10 +22,10 @@ N_z=prod(n_z);
 N_e=prod(n_e);
 
 Valt=zeros(N_a,N_z,N_e,N_j,'gpuArray');
-Policy=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z,e
-PolicyL2flag=2*ones(1,N_a,N_z,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
-Policyalt=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); % exponential discounter optimal choice
-PolicyL2flagalt=2*ones(1,N_a,N_z,N_e,N_j,'gpuArray');
+Policy=zeros(4,N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z,e
+Policy(4,:,:,:,:)=2; % 1=all weight to lower coarse a1, 2=usual linear weights, 3=all weight to upper coarse a1
+Policyalt=zeros(4,N_a,N_z,N_e,N_j,'gpuArray'); % exponential discounter optimal choice
+Policyalt(4,:,:,:,:)=2;
 
 %%
 % n_a1prime=n_a1;
@@ -85,7 +85,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+        Policy(4,:,:,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -115,7 +115,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+            Policy(4,:,:,e_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
@@ -148,14 +148,14 @@ if ~isfield(vfoptions,'V_Jplus1')
                 isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+                Policy(4,:,z_c,e_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
             end
         end
     end
 
     Vtilde=Valt;
     Policyalt(:,:,:,:,N_j)=Policy(:,:,:,:,N_j); % terminal: QH and exp discounter coincide
-    PolicyL2flagalt(1,:,:,:,N_j)=PolicyL2flag(1,:,:,:,N_j);
+    Policyalt(4,:,:,:,N_j)=Policy(4,:,:,:,N_j);
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     beta=prod(DiscountFactorParamsVec);
@@ -258,7 +258,7 @@ else
         isInfUpperalt    = (ReturnMatrix_iialt(linidx_upperalt) == -Inf);
         inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
         inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-        PolicyL2flagalt(1,:,:,:,N_j) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
+        Policyalt(4,:,:,:,N_j) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
         %% Vtilde (beta0*beta)
         entireRHS=ReturnMatrix+beta0beta*entireEV; % autofill 3rd dim to N_a1
 
@@ -288,7 +288,7 @@ else
         isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+        Policy(4,:,:,:,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -327,7 +327,7 @@ else
             isInfUpperalt    = (ReturnMatrix_iialt(linidx_upperalt) == -Inf);
             inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
             inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-            PolicyL2flagalt(1,:,:,e_c,N_j) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
+            Policyalt(4,:,:,e_c,N_j) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
             %% Vtilde (beta0*beta)
             entireRHS_e=ReturnMatrix_e+beta0beta*entireEV_e; % autofill 3rd dim to N_a1
 
@@ -357,7 +357,7 @@ else
             isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+            Policy(4,:,:,e_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
@@ -398,7 +398,7 @@ else
                 isInfUpperalt    = (ReturnMatrix_iialt(linidx_upperalt) == -Inf);
                 inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
                 inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-                PolicyL2flagalt(1,:,z_c,e_c,N_j) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
+                Policyalt(4,:,z_c,e_c,N_j) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
                 %% Vtilde (beta0*beta)
                 entireRHS_ze=ReturnMatrix_ze+beta0beta*entireEV_ze; % autofill 3rd dim to N_a1
 
@@ -428,7 +428,7 @@ else
                 isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+                Policy(4,:,z_c,e_c,N_j) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
             end
         end
     end
@@ -544,7 +544,7 @@ for reverse_j=1:N_j-1
         isInfUpperalt    = (ReturnMatrix_iialt(linidx_upperalt) == -Inf);
         inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
         inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-        PolicyL2flagalt(1,:,:,:,jj) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
+        Policyalt(4,:,:,:,jj) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
         %% Vtilde (beta0*beta)
         entireRHS=ReturnMatrix+beta0beta*entireEV; % autofill 3rd dim to N_a1
 
@@ -574,7 +574,7 @@ for reverse_j=1:N_j-1
         isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
         inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
         inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-        PolicyL2flag(1,:,:,:,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+        Policy(4,:,:,:,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -613,7 +613,7 @@ for reverse_j=1:N_j-1
             isInfUpperalt    = (ReturnMatrix_iialt(linidx_upperalt) == -Inf);
             inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
             inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-            PolicyL2flagalt(1,:,:,e_c,jj) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
+            Policyalt(4,:,:,e_c,jj) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
             %% Vtilde (beta0*beta)
             entireRHS_e=ReturnMatrix_e+beta0beta*entireEV_e; % autofill 3rd dim to N_a1
 
@@ -643,7 +643,7 @@ for reverse_j=1:N_j-1
             isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
             inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
             inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-            PolicyL2flag(1,:,:,e_c,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+            Policy(4,:,:,e_c,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
@@ -684,7 +684,7 @@ for reverse_j=1:N_j-1
                 isInfUpperalt    = (ReturnMatrix_iialt(linidx_upperalt) == -Inf);
                 inLowerStrictalt = (L2offsetalt >= 2)         & (L2offsetalt <= n2short+1);
                 inUpperStrictalt = (L2offsetalt >= n2short+3) & (L2offsetalt <= n2long-1);
-                PolicyL2flagalt(1,:,z_c,e_c,jj) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
+                Policyalt(4,:,z_c,e_c,jj) = shiftdim(2 + (inLowerStrictalt & isInfLoweralt) - (inUpperStrictalt & isInfUpperalt), -1);
                 %% Vtilde (beta0*beta)
                 entireRHS_ze=ReturnMatrix_ze+beta0beta*entireEV_ze; % autofill 3rd dim to N_a1
 
@@ -714,7 +714,7 @@ for reverse_j=1:N_j-1
                 isInfUpper    = (ReturnMatrix_ii(linidx_upper) == -Inf);
                 inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
                 inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
+                Policy(4,:,z_c,e_c,jj) = shiftdim(2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper), -1);
             end
         end
     end
@@ -729,15 +729,11 @@ end
 % counting 0:nshort+1 up from this.
 adjust=(Policy(3,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policy(2,:,:,:,:)=Policy(2,:,:,:,:)-adjust; % lower grid point
-Policy(3,:,:,:,:)=adjust.*Policy(3,:,:,:,:)+(1-adjust).*(Policy(3,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policy=[Policy;PolicyL2flag];
+Policy(3,:,:,:,:)=Policy(3,:,:,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 adjustalt=(Policyalt(3,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
 Policyalt(2,:,:,:,:)=Policyalt(2,:,:,:,:)-adjustalt; % lower grid point
-Policyalt(3,:,:,:,:)=adjustalt.*Policyalt(3,:,:,:,:)+(1-adjustalt).*(Policyalt(3,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
-
-Policyalt=[Policyalt;PolicyL2flagalt];
+Policyalt(3,:,:,:,:)=Policyalt(3,:,:,:,:)-(n2short+1)*(~adjustalt); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
 
 end

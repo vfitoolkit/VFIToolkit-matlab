@@ -24,11 +24,11 @@ N_semiz=prod(n_semiz);
 N_e=prod(n_e);
 
 V=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_semiz,N_e,N_j,'gpuArray'); % (d2, d3, midpoint, L2ind)
-PolicyL2flag=2*ones(1,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_semiz,N_e,N_j,'gpuArray'); % (d2, d3, midpoint, L2ind)
+Policy(5,:,:,:,:)=2;
 Valt=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
-Policyalt=zeros(4,N_a,N_semiz,N_e,N_j,'gpuArray'); % (d2, d3, midpoint, L2ind)
-PolicyaltL2flag=2*ones(1,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policyalt=zeros(5,N_a,N_semiz,N_e,N_j,'gpuArray'); % (d2, d3, midpoint, L2ind)
+Policyalt(5,:,:,:,:)=2;
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -164,11 +164,11 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policyalt(1,:,:,:,N_j)=reshape(Policy3_ford3_alt(1+temp),[1,N_a,N_semiz,N_e]);
     Policyalt(3,:,:,:,N_j)=reshape(Policy3_ford3_alt(2+temp),[1,N_a,N_semiz,N_e]);
     Policyalt(4,:,:,:,N_j)=reshape(Policy3_ford3_alt(3+temp),[1,N_a,N_semiz,N_e]);
-    PolicyaltL2flag(1,:,:,:,N_j)=reshape(flag_ford3_alt((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policyalt(5,:,:,:,N_j)=reshape(flag_ford3_alt((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
     % Terminal: perceived == exponential
     V(:,:,:,N_j)=Valt(:,:,:,N_j);
     Policy(:,:,:,:,N_j)=Policyalt(:,:,:,:,N_j);
-    PolicyL2flag(:,:,:,:,N_j)=PolicyaltL2flag(:,:,:,:,N_j);
+    Policy(5,:,:,:,N_j)=Policyalt(5,:,:,:,N_j);
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAsseteFnMatrix(aprimeFn, n_d2, n_a2, n_e, d2_gridvals, a2_grid, e_gridvals_J(:,:,N_j), aprimeFnParamsVec,2);
@@ -443,7 +443,7 @@ else
     Policyalt(1,:,:,:,N_j)=reshape(Policy3_ford3_alt(1+temp),[1,N_a,N_semiz,N_e]);
     Policyalt(3,:,:,:,N_j)=reshape(Policy3_ford3_alt(2+temp),[1,N_a,N_semiz,N_e]);
     Policyalt(4,:,:,:,N_j)=reshape(Policy3_ford3_alt(3+temp),[1,N_a,N_semiz,N_e]);
-    PolicyaltL2flag(1,:,:,:,N_j)=reshape(flag_ford3_alt((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policyalt(5,:,:,:,N_j)=reshape(flag_ford3_alt((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 
     % Max over d3 and unpack (tilde = QH-perceived)
     [V_jj,maxindex]=max(V_ford3_tilde,[],4);
@@ -454,7 +454,7 @@ else
     Policy(1,:,:,:,N_j)=reshape(Policy3_ford3_tilde(1+temp),[1,N_a,N_semiz,N_e]);
     Policy(3,:,:,:,N_j)=reshape(Policy3_ford3_tilde(2+temp),[1,N_a,N_semiz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy3_ford3_tilde(3+temp),[1,N_a,N_semiz,N_e]);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_tilde((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(flag_ford3_tilde((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 end
 
 %% Iterate backwards through j
@@ -740,7 +740,7 @@ for reverse_j=1:N_j-1
     Policyalt(1,:,:,:,jj)=reshape(Policy3_ford3_alt(1+temp),[1,N_a,N_semiz,N_e]);
     Policyalt(3,:,:,:,jj)=reshape(Policy3_ford3_alt(2+temp),[1,N_a,N_semiz,N_e]);
     Policyalt(4,:,:,:,jj)=reshape(Policy3_ford3_alt(3+temp),[1,N_a,N_semiz,N_e]);
-    PolicyaltL2flag(1,:,:,:,jj)=reshape(flag_ford3_alt((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policyalt(5,:,:,:,jj)=reshape(flag_ford3_alt((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 
     % Max over d3 and unpack (tilde = QH-perceived)
     [V_jj,maxindex]=max(V_ford3_tilde,[],4);
@@ -751,20 +751,18 @@ for reverse_j=1:N_j-1
     Policy(1,:,:,:,jj)=reshape(Policy3_ford3_tilde(1+temp),[1,N_a,N_semiz,N_e]);
     Policy(3,:,:,:,jj)=reshape(Policy3_ford3_tilde(2+temp),[1,N_a,N_semiz,N_e]);
     Policy(4,:,:,:,jj)=reshape(Policy3_ford3_tilde(3+temp),[1,N_a,N_semiz,N_e]);
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_tilde((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+    Policy(5,:,:,:,jj)=reshape(flag_ford3_tilde((1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
 end
 
 
 %% Switch from midpoint to lower grid index
 adjust=(Policy(4,:,:,:,:)<1+n2short+1);
 Policy(3,:,:,:,:)=Policy(3,:,:,:,:)-adjust;
-Policy(4,:,:,:,:)=adjust.*Policy(4,:,:,:,:)+(1-adjust).*(Policy(4,:,:,:,:)-n2short-1);
-Policy=[Policy; PolicyL2flag];
+Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-(n2short+1)*(~adjust);
 
 adjust_alt=(Policyalt(4,:,:,:,:)<1+n2short+1);
 Policyalt(3,:,:,:,:)=Policyalt(3,:,:,:,:)-adjust_alt;
-Policyalt(4,:,:,:,:)=adjust_alt.*Policyalt(4,:,:,:,:)+(1-adjust_alt).*(Policyalt(4,:,:,:,:)-n2short-1);
-Policyalt=[Policyalt; PolicyaltL2flag];
+Policyalt(4,:,:,:,:)=Policyalt(4,:,:,:,:)-(n2short+1)*(~adjust_alt);
 
 
 end

@@ -13,8 +13,8 @@ N_z=prod(n_z);
 
 Vhat=zeros(N_a,N_z,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_z,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_z,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_z,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_z,N_j,'gpuArray');
+Policy(5,:,:,:)=2;
 
 n2short=vfoptions.ngridinterp;
 n2long=vfoptions.ngridinterp*2+3;
@@ -52,7 +52,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         linidx_upper=d_ind + N_d2*(n2long-1) + N_d2*n2long*(maxindexL2a2-1) + N_d2*n2long*N_a2*aind + N_d2*n2long*N_a2*N_a*zindB;
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii(linidx_upper)==-Inf));
+        Policy(5,:,:,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii(linidx_upper)==-Inf));
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -75,7 +75,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             linidx_upper=d_ind + N_d2*(n2long-1) + N_d2*n2long*(maxindexL2a2-1) + N_d2*n2long*N_a2*aind;
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
+            Policy(5,:,z_c,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
         end
     end
 
@@ -143,7 +143,7 @@ else
         linidx_upper=d_ind + N_d2*(n2long-1) + N_d2*n2long*(maxindexL2a2-1) + N_d2*n2long*N_a2*aind + N_d2*n2long*N_a2*N_a*zindB;
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii(linidx_upper)==-Inf));
+        Policy(5,:,:,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii(linidx_upper)==-Inf));
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -177,7 +177,7 @@ else
             linidx_upper=d_ind + N_d2*(n2long-1) + N_d2*n2long*(maxindexL2a2-1) + N_d2*n2long*N_a2*aind;
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
+            Policy(5,:,z_c,N_j)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
         end
     end
 end
@@ -253,7 +253,7 @@ for reverse_j=1:N_j-1
         linidx_upper=d_ind + N_d2*(n2long-1) + N_d2*n2long*(maxindexL2a2-1) + N_d2*n2long*N_a2*aind + N_d2*n2long*N_a2*N_a*zindB;
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,jj)=2 + (inLowerStrict & (ReturnMatrix_ii(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii(linidx_upper)==-Inf));
+        Policy(5,:,:,jj)=2 + (inLowerStrict & (ReturnMatrix_ii(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii(linidx_upper)==-Inf));
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
@@ -287,7 +287,7 @@ for reverse_j=1:N_j-1
             linidx_upper=d_ind + N_d2*(n2long-1) + N_d2*n2long*(maxindexL2a2-1) + N_d2*n2long*N_a2*aind;
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,z_c,jj)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
+            Policy(5,:,z_c,jj)=2 + (inLowerStrict & (ReturnMatrix_ii_z(linidx_lower)==-Inf)) - (inUpperStrict & (ReturnMatrix_ii_z(linidx_upper)==-Inf));
         end
     end
 end
@@ -296,8 +296,6 @@ end
 %% Post-process: midpoint+L2offset -> lower-coarse + L2 ratio
 adjust=(Policy(4,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
-Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(4,:,:,:)=Policy(4,:,:,:)-(n2short+1)*(~adjust);
 
 end

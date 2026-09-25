@@ -14,8 +14,8 @@ N_e=prod(n_e);
 
 Vhat=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_z,N_e,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_z,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_z,N_e,N_j,'gpuArray');
+Policy=zeros(5,N_a,N_z,N_e,N_j,'gpuArray');
+Policy(5,:,:,:,:)=2;
 
 aind=gpuArray(0:1:N_a-1);
 zindB=shiftdim(gpuArray(0:1:N_z-1),-1);
@@ -82,7 +82,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         isInfUpper=(ReturnMatrix_ii(linidx_upper)==-Inf);
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+        Policy(5,:,:,:,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -122,7 +122,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             isInfUpper=(ReturnMatrix_ii_e(linidx_upper)==-Inf);
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+            Policy(5,:,:,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
@@ -166,7 +166,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 isInfUpper=(ReturnMatrix_ii_ze(linidx_upper)==-Inf);
                 inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
                 inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+                Policy(5,:,z_c,e_c,N_j)=2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
             end
         end
     end
@@ -253,7 +253,7 @@ else
     linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aind + N_d*n2long*N_a2*N_a*zindB + N_d*n2long*N_a2*N_a*N_z*eindB;
     inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
     inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-    PolicyL2flag(1,:,:,:,N_j)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
+    Policy(5,:,:,:,N_j)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -306,7 +306,7 @@ else
             linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aind + N_d*n2long*N_a2*N_a*zindB;
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,:,e_c,N_j)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
+            Policy(5,:,:,e_c,N_j)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
@@ -362,7 +362,7 @@ else
                 linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aind;
                 inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
                 inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,N_j)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
+                Policy(5,:,z_c,e_c,N_j)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
             end
         end
     end
@@ -457,7 +457,7 @@ for reverse_j=1:N_j-1
         linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aind + N_d*n2long*N_a2*N_a*zindB + N_d*n2long*N_a2*N_a*N_z*eindB;
         inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
         inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-        PolicyL2flag(1,:,:,:,jj)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
+        Policy(5,:,:,:,jj)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
@@ -510,7 +510,7 @@ for reverse_j=1:N_j-1
             linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aind + N_d*n2long*N_a2*N_a*zindB;
             inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
             inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-            PolicyL2flag(1,:,:,e_c,jj)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
+            Policy(5,:,:,e_c,jj)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
@@ -566,7 +566,7 @@ for reverse_j=1:N_j-1
                 linidx_upper=d_ind + N_d*(n2long-1) + N_d*n2long*(maxindexL2a2-1) + N_d*n2long*N_a2*aind;
                 inLowerStrict=(maxindexL2a1>=2)         & (maxindexL2a1<=n2short+1);
                 inUpperStrict=(maxindexL2a1>=n2short+3) & (maxindexL2a1<=n2long-1);
-                PolicyL2flag(1,:,z_c,e_c,jj)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
+                Policy(5,:,z_c,e_c,jj)=2 + (inLowerStrict & (RM_flat(linidx_lower)==-Inf)) - (inUpperStrict & (RM_flat(linidx_upper)==-Inf));
             end
         end
     end
@@ -576,8 +576,6 @@ end
 %% Post-process
 adjust=(Policy(4,:,:,:)<1+n2short+1);
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust;
-Policy(4,:,:,:)=adjust.*Policy(4,:,:,:)+(1-adjust).*(Policy(4,:,:,:)-n2short-1);
-
-Policy=[Policy;PolicyL2flag];
+Policy(4,:,:,:)=Policy(4,:,:,:)-(n2short+1)*(~adjust);
 
 end

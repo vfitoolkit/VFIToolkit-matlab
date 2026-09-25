@@ -19,10 +19,10 @@ N_e=prod(n_e);
 
 Valt=zeros(N_a,N_bothz,N_e,N_j,'gpuArray');
 Vtilde=zeros(N_a,N_bothz,N_e,N_j,'gpuArray');
-Policyalt=zeros(4,N_a,N_bothz,N_e,N_j,'gpuArray');
-Policy=zeros(4,N_a,N_bothz,N_e,N_j,'gpuArray');
-PolicyL2flagalt=2*ones(1,N_a,N_bothz,N_e,N_j,'gpuArray');
-PolicyL2flag=2*ones(1,N_a,N_bothz,N_e,N_j,'gpuArray'); % L2 flag: 1=all to lower, 2=usual, 3=all to upper
+Policyalt=zeros(5,N_a,N_bothz,N_e,N_j,'gpuArray');
+Policyalt(5,:,:,:,:)=2;
+Policy=zeros(5,N_a,N_bothz,N_e,N_j,'gpuArray');
+Policy(5,:,:,:,:)=2; % L2 flag: 1=all to lower, 2=usual, 3=all to upper
 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
@@ -298,11 +298,11 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policyalt(3,:,:,:,N_j)=reshape(Policy3_ford3_alt(2+temp),[1,N_a,N_bothz,N_e]);
     Policyalt(4,:,:,:,N_j)=reshape(Policy3_ford3_alt(3+temp),[1,N_a,N_bothz,N_e]);
     flat_idx=(1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1);
-    PolicyL2flagalt(1,:,:,:,N_j)=reshape(flag_ford3_alt(flat_idx),[1,N_a,N_bothz,N_e]);
+    Policyalt(5,:,:,:,N_j)=reshape(flag_ford3_alt(flat_idx),[1,N_a,N_bothz,N_e]);
     % Terminal period: no continuation, so the QH-perceived objects equal the exponential ones
     Vtilde(:,:,:,N_j)=Valt(:,:,:,N_j);
     Policy(:,:,:,:,N_j)=Policyalt(:,:,:,:,N_j);
-    PolicyL2flag(:,:,:,:,N_j)=PolicyL2flagalt(:,:,:,:,N_j);
+    Policy(5,:,:,:,N_j)=Policyalt(5,:,:,:,N_j);
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix(aprimeFn, n_d2, n_a2, n_z, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), aprimeFnParamsVec,2);
@@ -865,7 +865,7 @@ else
     Policyalt(3,:,:,:,N_j)=reshape(Policy3_ford3_alt(2+temp),[1,N_a,N_bothz,N_e]);
     Policyalt(4,:,:,:,N_j)=reshape(Policy3_ford3_alt(3+temp),[1,N_a,N_bothz,N_e]);
     flat_idx=(1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1);
-    PolicyL2flagalt(1,:,:,:,N_j)=reshape(flag_ford3_alt(flat_idx),[1,N_a,N_bothz,N_e]);
+    Policyalt(5,:,:,:,N_j)=reshape(flag_ford3_alt(flat_idx),[1,N_a,N_bothz,N_e]);
 
     % Max over d3 (tilde)
     [V_jj,maxindex]=max(V_ford3_tilde,[],4);
@@ -877,7 +877,7 @@ else
     Policy(3,:,:,:,N_j)=reshape(Policy3_ford3_tilde(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,N_j)=reshape(Policy3_ford3_tilde(3+temp),[1,N_a,N_bothz,N_e]);
     flat_idx=(1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1);
-    PolicyL2flag(1,:,:,:,N_j)=reshape(flag_ford3_tilde(flat_idx),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,N_j)=reshape(flag_ford3_tilde(flat_idx),[1,N_a,N_bothz,N_e]);
 
 end
 
@@ -1461,7 +1461,7 @@ for reverse_j=1:N_j-1
     Policyalt(3,:,:,:,jj)=reshape(Policy3_ford3_alt(2+temp),[1,N_a,N_bothz,N_e]);
     Policyalt(4,:,:,:,jj)=reshape(Policy3_ford3_alt(3+temp),[1,N_a,N_bothz,N_e]);
     flat_idx=(1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1);
-    PolicyL2flagalt(1,:,:,:,jj)=reshape(flag_ford3_alt(flat_idx),[1,N_a,N_bothz,N_e]);
+    Policyalt(5,:,:,:,jj)=reshape(flag_ford3_alt(flat_idx),[1,N_a,N_bothz,N_e]);
 
     % Max over d3 (tilde)
     [V_jj,maxindex]=max(V_ford3_tilde,[],4);
@@ -1473,7 +1473,7 @@ for reverse_j=1:N_j-1
     Policy(3,:,:,:,jj)=reshape(Policy3_ford3_tilde(2+temp),[1,N_a,N_bothz,N_e]);
     Policy(4,:,:,:,jj)=reshape(Policy3_ford3_tilde(3+temp),[1,N_a,N_bothz,N_e]);
     flat_idx=(1:1:N_a*N_bothz*N_e)'+(N_a*N_bothz*N_e)*(maxindex-1);
-    PolicyL2flag(1,:,:,:,jj)=reshape(flag_ford3_tilde(flat_idx),[1,N_a,N_bothz,N_e]);
+    Policy(5,:,:,:,jj)=reshape(flag_ford3_tilde(flat_idx),[1,N_a,N_bothz,N_e]);
 
 end
 
@@ -1481,15 +1481,11 @@ end
 %% Switch from midpoint to lower grid index
 adjust=(Policy(4,:,:,:,:)<1+n2short+1);
 Policy(3,:,:,:,:)=Policy(3,:,:,:,:)-adjust;
-Policy(4,:,:,:,:)=adjust.*Policy(4,:,:,:,:)+(1-adjust).*(Policy(4,:,:,:,:)-n2short-1);
-
-Policy=[Policy; PolicyL2flag];
+Policy(4,:,:,:,:)=Policy(4,:,:,:,:)-(n2short+1)*(~adjust);
 
 adjustalt=(Policyalt(4,:,:,:,:)<1+n2short+1);
 Policyalt(3,:,:,:,:)=Policyalt(3,:,:,:,:)-adjustalt;
-Policyalt(4,:,:,:,:)=adjustalt.*Policyalt(4,:,:,:,:)+(1-adjustalt).*(Policyalt(4,:,:,:,:)-n2short-1);
-
-Policyalt=[Policyalt; PolicyL2flagalt];
+Policyalt(4,:,:,:,:)=Policyalt(4,:,:,:,:)-(n2short+1)*(~adjustalt);
 
 
 end
