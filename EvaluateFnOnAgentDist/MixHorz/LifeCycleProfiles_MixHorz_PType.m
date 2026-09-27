@@ -825,6 +825,10 @@ if simoptions.lowmemory==0
                             if sum(restrictedsamplemass(ii,j1:jend,rr))~=0
                                 % Do same to RestrictionStruct_ii(rr).RestrictedStationaryDistVec(:,jj) as was done to get SortedWeights_jj
                                 RestrictedSortedWeights=RestrictionStruct_ii(rr).RestrictedStationaryDistVec(:,j1:jend);
+                                if jend>j1
+                                    % RestrictedStationaryDistVec is normalized to mass one at each age, so undo that (so each age of the agegrouping is weighted by its restricted mass, rather than all ages equally)
+                                    RestrictedSortedWeights=RestrictedSortedWeights.*restrictedsamplemass(ii,j1:jend,rr);
+                                end
                                 RestrictedSortedWeights=RestrictedSortedWeights(~temp); % drop zeros masses (but ignoring the restrictions; this is just to match what was already done to SortedValues_jj)
                                 RestrictedSortedWeights=accumarray(sortindex,RestrictedSortedWeights,[],@sum); % This has already been done to SortedValues, so have to do it to Restricted Agent Dist
                                 RestrictedSortedWeights=RestrictedSortedWeights/sum(RestrictedSortedWeights(:)); % renormalize to 1
@@ -880,10 +884,11 @@ if simoptions.lowmemory==0
                                 error('Code should never get here (should have thrown an error earlier')
                             else
                                 if simoptions.ptypestorecpu==1
-                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); gather(RestrictedSortedWeights)*gather(sum(AgeMasses(ii,j1:jend).*restrictedsamplemass(ii,j1:jend,rr)))];
+                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); gather(RestrictedSortedWeights)*gather(StationaryDist.ptweights(ii)*sum(restrictedsamplemass(ii,j1:jend,rr)))];
                                 else
-                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); RestrictedSortedWeights*sum(AgeMasses(ii,j1:jend).*restrictedsamplemass(ii,j1:jend,rr))];
+                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); RestrictedSortedWeights*StationaryDist.ptweights(ii)*sum(restrictedsamplemass(ii,j1:jend,rr))];
                                 end
+                                % Weight of this ptype in the grouped stats is ptweights(ii) times its restricted mass in this agegrouping (restrictedsamplemass is mass within the ptype, so already includes the age weights)
                                 % Note: later normalize by sum(sum(restrictedsamplemass(:,j1:jend,rr),2))
                             end
                         end
@@ -1103,7 +1108,7 @@ if simoptions.lowmemory==0
 
                     for rr=1:length(CondlRestnFnNames)
 
-                        if sum(sum(restrictedsamplemass(:,j1:jend,rr)))>0
+                        if sum(StationaryDist.ptweights.*sum(restrictedsamplemass(:,j1:jend,rr),2,'omitnan'))>0 % the population (not just some ptype) has restricted mass in this agegrouping [a ptype of zero mass can have restricted mass of its own]
                             % We need to load up each ii, and put them together
                             if simoptions.groupusingtdigest==1 % using t-Digests
                                 error('You should not be able to get here in the code')
@@ -1172,9 +1177,10 @@ if simoptions.lowmemory==0
                 warning('One of the conditional restrictions evaluates to a zero mass')
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
             end
-            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByAge=sum(restrictedsamplemass(:,:,rr).*StationaryDist.ptweights,1); % Conditional on age, what fraction satisfy restriction
-            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByPType=sum(restrictedsamplemass(:,:,rr).*AgeMasses,2); % Conditional on ptype, what fraction satisfy restriction
-            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.Total=sum(sum(restrictedsamplemass(:,:,rr).*AgeMasses.*StationaryDist.ptweights,1),2); % What fraction satisfy restriction
+            % Note: restrictedsamplemass(ii,j,rr) is the mass of ptype ii at age j that satisfies the restriction, as a share of ptype ii (so it already includes the age weights)
+            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByAge=sum(restrictedsamplemass(:,:,rr).*StationaryDist.ptweights,1); % Mass at each age that satisfies the restriction, as a share of the whole population (same as RestrictedSampleMass in LifeCycleProfiles_FHorz_Case1)
+            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByPType=sum(restrictedsamplemass(:,:,rr),2,'omitnan'); % Conditional on ptype, what fraction satisfy restriction ['omitnan' as ages beyond the N_j of a ptype are NaN]
+            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.Total=sum(StationaryDist.ptweights.*sum(restrictedsamplemass(:,:,rr),2,'omitnan')); % What fraction of the population satisfy restriction
 
         end
     end
@@ -1317,7 +1323,10 @@ elseif simoptions.lowmemory==1
 
             a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
             % Turn (semiz,z,e) into z_gridvals_J_temp as FnsToEvalute do not distinguish them
-            [n_z_temp,z_gridvals_J_temp,N_z_temp,l_z_temp,simoptions_temp]=CreateGridvals_FnsToEvaluate_FHorz(n_z_temp,z_grid_temp,N_j_temp,simoptions_temp);
+            [n_z_temp,z_gridvals_J_temp,N_z_temp,l_z_temp,simoptions_temp]=CreateGridvals_FnsToEvaluate_FHorz(n_z_temp,z_grid_temp,N_j_temp,simoptions_temp,Parameters_temp);
+            if N_z_temp==0
+                N_z_temp=1; % Just makes things easier below
+            end
 
             % Switch to PolicyVals
             PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);

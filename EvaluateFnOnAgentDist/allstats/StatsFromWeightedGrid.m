@@ -219,9 +219,18 @@ else
 
     if needsearch
         pvec=[0.5; tolerance; 1-tolerance; 0.99; 0.95; 0.90; quantilecvec; llvec];
-        [pvec_unique,~,uniqueindex]=unique(pvec);
-        cutcounts=histcounts(CumSumSortedWeights,[-Inf; pvec_unique; Inf]); % cutcounts(k) is the number of points with p_{k-1}<=CumSumSortedWeights<p_k
-        cutind=min(cumsum(cutcounts(1:end-1)')+1,numel(CumSumSortedWeights)); % first index with CumSumSortedWeights>=p (min() deals with p above the total mass)
+        % Ties: when the cumulative mass lands exactly on p (e.g. each age has mass exactly 1/20 and p is a ventile), rounding in the
+        % cumsum decides which side of p it falls, and so whether we get this value or the next one. Both are then valid quantiles,
+        % but which one we get depends on the order the masses were summed in. So search for CumSumSortedWeights>=p-tiedelta, which
+        % resolves an exact tie to the lower value (the quantile function) whatever the rounding. Rounding in a cumsum of weights of
+        % mass one grows roughly like sqrt(N)*eps (about 1e-13 for a million points), so tiedelta sits above that, and far below any mass that matters.
+        % (Not applied to min and max, whose p is tolerance, and tolerance is already the 'mass that does not matter')
+        tiedelta=10^(-12);
+        psearch=pvec-tiedelta;
+        psearch(2:3)=pvec(2:3); % min and max
+        [psearch_unique,~,uniqueindex]=unique(psearch);
+        cutcounts=histcounts(CumSumSortedWeights,[-Inf; psearch_unique; Inf]); % cutcounts(k) is the number of points with p_{k-1}<=CumSumSortedWeights<p_k
+        cutind=min(cumsum(cutcounts(1:end-1)')+1,numel(CumSumSortedWeights)); % first index with CumSumSortedWeights>=p-tiedelta (min() deals with p above the total mass)
         cutind=cutind(uniqueindex);
         CutValues=SortedValues(cutind);
 
@@ -236,7 +245,7 @@ else
     if whichstats(2)==1
         % Calculate the 'age conditional' median
         % Median is the smallest value with cumulative mass >=0.5 (the quantile function at 0.5; same convention as the percentiles and quantile cutoffs below)
-        % [If the cumulative mass hits exactly 0.5 at some value, then anything between that value and the next is a median, and this picks the lower one]
+        % [If the cumulative mass hits exactly 0.5 at some value, then anything between that value and the next is a median, and this picks the lower one (tiedelta, above, makes sure it does so whatever the rounding in the cumsum)]
         AllStats.Median=CutValues(1);
         if whichstats(1)==1
             AllStats.RatioMeanToMedian=AllStats.Mean/AllStats.Median;
