@@ -1,5 +1,21 @@
 function GeneralEqmConditions=HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn(GEprices, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
 
+% The caller works in unconstrained space, so un-transform on arrival (this is the same first
+% step as HeteroAgentStationaryEqm_InfHorz_subfn). With no constraints set it is a no-op.
+heteroagentparamsvecindex=0:1:length(GEprices);
+[GEprices,penalty]=ParameterConstraints_TransformParamsToOriginal(GEprices,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions); %#ok<ASGLU>
+
+% verbose=2 reports the prices BEFORE the value fn iteration and stationary distribution, so a
+% slow evaluation is visible while it is running rather than only once it finishes. Same
+% convention as HeteroAgentStationaryEqm_InfHorz_subfn.
+if heteroagentoptions.verbose==2
+    fprintf(' \n')
+    fprintf('Current GE prices: \n')
+    for gg=1:length(GEPriceParamNames)
+        fprintf('\t%s: %8.4f \n',GEPriceParamNames{gg},GEprices(gg))
+    end
+end
+
 % N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -249,7 +265,7 @@ end
 GeneralEqmConditions=gather(GeneralEqmConditions);
 
 
-if heteroagentoptions.verbose==1
+if heteroagentoptions.verbose==1 % When=2, we report these earlier
     fprintf(' \n')
 %     if condlentrycondnexists==1
 %         fprintf('Iterations to get conditional entry: %i \n', jj)
@@ -258,6 +274,8 @@ if heteroagentoptions.verbose==1
     for gg=1:length(GEPriceParamNames)
         fprintf('	%s: %8.4f \n',GEPriceParamNames{gg}, Parameters.(GEPriceParamNames{gg}))
     end
+end
+if heteroagentoptions.verbose>=1
     fprintf('Current aggregate variables: \n')
     for aa=1:length(AggVarNames)
         fprintf('	%s: %8.4f \n',AggVarNames{aa}, Parameters.(AggVarNames{aa}))

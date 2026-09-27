@@ -1,4 +1,9 @@
 function CondlEntryDecision=HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn_condlentry(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
+
+% The caller works in unconstrained space, so un-transform on arrival (this is the same first
+% step as HeteroAgentStationaryEqm_InfHorz_subfn). With no constraints set it is a no-op.
+heteroagentparamsvecindex=0:1:length(p);
+[p,penalty]=ParameterConstraints_TransformParamsToOriginal(p,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions); %#ok<ASGLU>
 % Is just a copy-paste of HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn(),
 % which just outputs Parameters.(EntryExitParamNames.CondlEntryDecisions{1}) instead of usual
 % output of p_eqm. Have removed bunch of lines of code that are not

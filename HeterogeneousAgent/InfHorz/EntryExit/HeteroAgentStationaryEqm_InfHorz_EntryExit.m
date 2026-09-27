@@ -1,4 +1,4 @@
-function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_InfHorz_EntryExit(n_d, n_a, n_z, n_p, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_InfHorz_EntryExit(GEparamsvec0, n_d, n_a, n_z, n_p, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
 % If n_p=0 then will use fminsearch to find the general equilibrium (find
 % price vector that corresponds to GeneralEqmCondition=0). By setting n_p to
 % nonzero it is assumed you want to use a grid on prices, which must then
@@ -81,10 +81,12 @@ end
 
 GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
 
-p0=nan(length(GEPriceParamNames),1);
-for ii=1:length(GEPriceParamNames)
-    p0(ii)=Parameters.(GEPriceParamNames{ii});
-end
+% The initial guess comes from the caller ALREADY TRANSFORMED into unconstrained space (by
+% ParameterConstraints_TransformParamsToUnconstrained in HeteroAgentStationaryEqm_InfHorz). Do not
+% rebuild it from Parameters here: that reintroduced the original constrained values and was why
+% heteroagentoptions.constrainpositive had no effect on this path. Everything from here down to
+% the subfns speaks unconstrained; each subfn un-transforms on arrival.
+p0=GEparamsvec0;
 
 % Choosing algorithm for the optimization problem
 % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
@@ -129,8 +131,11 @@ elseif heteroagentoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adap
     [p_eqm_vec,GeneralEqmConditions,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(GeneralEqmConditionsFnOpt,p0,heteroagentoptions.insigma,heteroagentoptions.inopts); % ,varargin);
 end
 
+% Report in the original (constrained) units. Keep p_eqm_vec unconstrained: the conditional-entry
+% subfn below is handed it and un-transforms on arrival, exactly like the main subfn.
+[p_eqm_orig,~]=ParameterConstraints_TransformParamsToOriginal(p_eqm_vec,0:1:length(GEPriceParamNames),GEPriceParamNames,heteroagentoptions);
 for ii=1:length(GEPriceParamNames)
-    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
+    p_eqm.(GEPriceParamNames{ii})=p_eqm_orig(ii);
 end
 
 % Check for use of conditional entry condition.
