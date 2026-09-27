@@ -791,7 +791,7 @@ if simoptions.lowmemory==0
                         StdDevVec(ff,ii,jjageshifted)=tempStats.StdDeviation;
                     end
                     % Do the same with the minimum and maximum
-                    if simoptions_temp.whichstats(5)==1
+                    if simoptions_temp.whichstats(5)==1 && StationaryDist.ptweights(ii)>0 % a ptype of zero mass is not in the population, so it must not set the grouped min/max (its entries stay NaN, which min()/max() ignore)
                         minvaluevec(ff,ii,jjageshifted)=tempStats.Minimum;
                         maxvaluevec(ff,ii,jjageshifted)=tempStats.Maximum;
                     end
@@ -1481,7 +1481,7 @@ elseif simoptions.lowmemory==1
                         StdDevVec(ff,ii,jjageshifted)=tempStats.StdDeviation;
                     end
                     % Do the same with the minimum and maximum
-                    if simoptions.whichstats(5)==1
+                    if simoptions.whichstats(5)==1 && StationaryDist.ptweights(ii)>0 % a ptype of zero mass is not in the population, so it must not set the grouped min/max (its entries stay NaN, which min()/max() ignore)
                         minvaluevec(ff,ii,jjageshifted)=tempStats.Minimum;
                         maxvaluevec(ff,ii,jjageshifted)=tempStats.Maximum;
                     end

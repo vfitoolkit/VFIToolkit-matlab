@@ -525,7 +525,7 @@ for ii=1:N_i
                 StdDevVec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(iistr).StdDeviation;
             end
             % Do the same with the minimum and maximum
-            if simoptions.whichstats(5)==1
+            if simoptions.whichstats(5)==1 && StationaryDist.ptweights(ii)>0 % a ptype of zero mass is not in the population, so it must not set the grouped min/max (its entries stay NaN, which min()/max() ignore)
                 minvaluevec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(iistr).Minimum;
                 maxvaluevec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(iistr).Maximum;
             end

@@ -46,10 +46,11 @@ else
     numFnsToEvaluate=length(FnsToEvaluate);
 end
 
-% RIGHT NOW THIS ValuesOnGrid ONLY WORKS WHEN ALL AGENTS ARE ON THE SAME GRID
-N_a=prod(n_a);
-N_z=prod(n_z);
+% RIGHT NOW THIS ValuesOnGrid (with FnsToEvaluate not a structure) ONLY WORKS WHEN ALL AGENTS ARE ON THE SAME GRID
+% (N_a and N_z are only computed here as n_a and n_z can be structures when FnsToEvaluate is a structure)
 if ~isstruct(FnsToEvaluate)
+    N_a=prod(n_a);
+    N_z=prod(n_z);
     ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j,'gpuArray');
 end
 ValuesOnGrid=struct();
