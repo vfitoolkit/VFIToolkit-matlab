@@ -34,6 +34,8 @@ while currdist>Tolerance
         % Exit decision
         ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp')>0); % Assumes that when indifferent you do not exit.
         VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c)).*Vtemp';
+        VKron(ExitPolicy(:,z_c)==1,z_c)=ReturnToExitMatrix_z(ExitPolicy(:,z_c)==1); % ExitPolicy is exactly 0/1, and the zero-weighted operand can be -Inf, so the product would be 0*(-Inf)=NaN
+        VKron(ExitPolicy(:,z_c)==0,z_c)=Vtemp(ExitPolicy(:,z_c)==0);
         PolicyIndexes(:,z_c)=maxindex; % Note that this includes the policy that would be chosen if you did
                 % not exit, even when choose exit. This is because it makes it much easier to then implement
                 % Howards, and can just impose the =0 on exit on the final PolicyIndexes at the end of this
@@ -46,7 +48,7 @@ while currdist>Tolerance
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-        Ftemp=ExitPolicy.*ReturnToExitMatrix+(1-ExitPolicy).*Ftemp;
+        Ftemp(ExitPolicy==1)=ReturnToExitMatrix(ExitPolicy==1); % ExitPolicy is exactly 0/1, and the zero-weighted operand can be -Inf, so the product would be 0*(-Inf)=NaN
         for Howards_counter=1:Howards
             EVKrontemp=VKron(PolicyIndexes,:);
 
@@ -54,6 +56,7 @@ while currdist>Tolerance
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+beta*(1-ExitPolicy).*EVKrontemp;
+            VKron(ExitPolicy==1)=Ftemp(ExitPolicy==1); % ExitPolicy is exactly 0/1, and the zero-weighted operand can be -Inf, so the product would be 0*(-Inf)=NaN
         end
     end
 

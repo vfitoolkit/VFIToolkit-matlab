@@ -20,6 +20,14 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 d_gridvals=CreateGridvals(n_d,d_grid,1);
 
+if N_d==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+l_z=length(n_z);
+
 % Make sure that the inputs specifically required for mix of endogenous exit and exogenous exit have been included.
 if ~isfield(vfoptions,'exitprobabilities')
     fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.exitprobabilities \n');
@@ -41,11 +49,15 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 % The 'return to exit function' parameters (in order)
 % The 'return to exit function' parameters (in order)
 temp=getAnonymousFnInputNames(vfoptions.ReturnToExitFn);
-if length(temp)>(l_a+l_z)
-    ReturnToExitFnParamNames={temp{l_a+l_z+1:end}}; % the first inputs will always be (a,z)
+if length(temp)>(l_d+2*l_a+l_z)
+    ReturnToExitFnParamNames={temp{l_d+2*l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
 else
     ReturnToExitFnParamNames={};
 end
+% Note: endogenousexit=2 builds the return-to-exit with CreateReturnFnMatrix_Disc, so its
+% ReturnToExitFn takes (d,aprime,a,z) -- the firm still makes a decision in the period it exits.
+% That is NOT the endogenousexit=1 signature, which is (a,z) via
+% CreateReturnToExitFnMatrix_Case1_Disc_Par2.
 ReturnToExitFnParamsVec=CreateVectorFromParams(Parameters, ReturnToExitFnParamNames);
 % Parameters relating to 'mixed' exit.
 exitprobabilities=CreateVectorFromParams(Parameters, vfoptions.exitprobabilities);
@@ -62,16 +74,8 @@ if vfoptions.lowmemory==0
     % lot of memory.
 
     % Because exit is not until the end of period the return to exit is allowed to depend on aprime, and d.
-    if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec,0);
-        ReturnToExitMatrix=CreateReturnFnMatrix_Disc_CPU(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnToExitFnParamsVec,0);
-    elseif vfoptions.returnmatrix==1
-        ReturnMatrix=ReturnFn;
-        ReturnToExitMatrix=vfoptions.ReturnToExitFn; % It is simply assumed that you are doing this for both.
-    elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec,0);
-        ReturnToExitMatrix=CreateReturnFnMatrix_Disc(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnToExitFnParamsVec,0);
-    end
+    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec,0);
+    ReturnToExitMatrix=CreateReturnFnMatrix_Disc(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnToExitFnParamsVec,0);
 
     %%
     V0Kron=reshape(V0,[N_a,N_z]);

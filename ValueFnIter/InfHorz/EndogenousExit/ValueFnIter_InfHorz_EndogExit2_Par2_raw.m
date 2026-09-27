@@ -17,6 +17,16 @@ aaa=reshape(ccc,[N_a*N_z,N_z]);
 
 
 %%
+% exitprobabilities is fixed for the whole solve, so decide once which legs are live. A leg whose
+% weight is exactly zero must be DROPPED, not multiplied: the weight is a scalar, so there is no
+% element to mask, and 0*(-Inf) is NaN. A branch that never happens contributes nothing to the
+% expectation, which is the same rule as the pi_z probability-zero case handled further down.
+% Tested with ~=0 rather than >0 so a negative weight (a user whose probabilities sum above one)
+% keeps its existing behaviour instead of being silently dropped.
+usenoexit=(exitprobabilities(1)~=0);
+useendog =(exitprobabilities(2)~=0);
+useexog  =(exitprobabilities(3)~=0);
+
 tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
@@ -48,7 +58,13 @@ while currdist>Tolerance
         % V_z_exoexit=ReturnToExitMatrix_z;
         % VKron(:,z_c)=exitprobabilities(1)*V_z_noexit+exitprobabilities(2)*V_z_endoexit+exitprobabilities(3)*V_z_exoexit
 
-        VKron(:,z_c)=exitprobabilities(1)*Vtemp+exitprobabilities(2)*(ExitPolicy_z.*FtempWhenExit+(1-ExitPolicy_z).*(Vtemp-continuationcost))+exitprobabilities(3)*FtempWhenExit;
+        Vendogexit=Vtemp-continuationcost; % the endogenous-exit leg, by selection rather than 0/1 weights
+        Vendogexit(ExitPolicy_z==1)=FtempWhenExit(ExitPolicy_z==1); % ExitPolicy is exactly 0/1, so the weighted form would give 0*(-Inf)=NaN
+        Vmix=zeros(1,N_a,'gpuArray');
+        if usenoexit, Vmix=Vmix+exitprobabilities(1)*Vtemp; end
+        if useendog,  Vmix=Vmix+exitprobabilities(2)*Vendogexit; end
+        if useexog,   Vmix=Vmix+exitprobabilities(3)*FtempWhenExit; end
+        VKron(:,z_c)=Vmix;
         PolicyIndexes(:,z_c)=maxindex;
         PolicyWhenExitIndexes(:,z_c)=maxindexWhenExit;  % MOVE THIS OUTSIDE OF THE while loop
         ExitPolicy(:,z_c)=ExitPolicy_z;
@@ -67,7 +83,8 @@ while currdist>Tolerance
 %     tic;
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         % ReturnToExitMatrix % When no exit
-        Ftemp2=ExitPolicy.*FWhenExit+(1-ExitPolicy).*(Ftemp-continuationcost); % When endogenous exit
+        Ftemp2=Ftemp-continuationcost; % When endogenous exit; by selection rather than 0/1 weights
+        Ftemp2(ExitPolicy==1)=FWhenExit(ExitPolicy==1); % ExitPolicy is exactly 0/1, so the weighted form would give 0*(-Inf)=NaN
         % FWhenExit % When (exog) exit.
         for Howards_counter=1:Howards
 %             VKrontemp=VKron;
@@ -77,7 +94,11 @@ while currdist>Tolerance
             EVKrontemp=EVKrontemp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-            VKron=exitprobabilities(1)*(Ftemp+beta*EVKrontemp)+exitprobabilities(2)*(Ftemp2+beta*(1-ExitPolicy).*EVKrontemp)+exitprobabilities(3)*FWhenExit;
+            EVendogexit=beta*EVKrontemp; EVendogexit(ExitPolicy==1)=0; % an exiting firm has no continuation; the 0/1 weight would give 0*(-Inf)=NaN
+            VKron=zeros(N_a,N_z,'gpuArray');
+            if usenoexit, VKron=VKron+exitprobabilities(1)*(Ftemp+beta*EVKrontemp); end
+            if useendog,  VKron=VKron+exitprobabilities(2)*(Ftemp2+EVendogexit); end
+            if useexog,   VKron=VKron+exitprobabilities(3)*FWhenExit; end
         end
     end
 %     time3=toc;

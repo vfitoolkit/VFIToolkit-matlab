@@ -27,7 +27,11 @@ while currdist>Tolerance
             [Vtemp,maxindex]=max(entireRHS);
             % Exit decision
             ExitPolicy(a_c,z_c)=((ReturnToExitMatrix(a_c,z_c)-Vtemp)>0); % Assumes that when indifferent you do not exit.
-            VKron(a_c,z_c)=ExitPolicy(a_c,z_c)*ReturnToExitMatrix(a_c,z_c)+(1-ExitPolicy(a_c,z_c))*Vtemp;
+            if ExitPolicy(a_c,z_c)==1 % ExitPolicy is exactly 0/1, and the zero-weighted operand can be -Inf, so the product would be 0*(-Inf)=NaN
+                VKron(a_c,z_c)=ReturnToExitMatrix(a_c,z_c);
+            else
+                VKron(a_c,z_c)=Vtemp;
+            end
             PolicyIndexes(a_c,z_c)=maxindex;
                 % Note that this includes the policy that would be chosen if you did
                 % not exit, even when choose exit. This is because it makes it much easier to then implement
@@ -40,13 +44,14 @@ while currdist>Tolerance
     VKrondist=reshape(VKron-VKronold,[numel(VKron),1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-        Ftemp=ExitPolicy.*ReturnToExitMatrix+(1-ExitPolicy).*Ftemp;
+        Ftemp(ExitPolicy==1)=ReturnToExitMatrix(ExitPolicy==1); % ExitPolicy is exactly 0/1, and the zero-weighted operand can be -Inf, so the product would be 0*(-Inf)=NaN
         for Howards_counter=1:Howards
             VKrontemp=VKron;
             for z_c=1:N_z
                 EVKrontemp_z=VKrontemp(PolicyIndexes(:,z_c),:).*pi_z_semiendog2(:,:,z_c); %squeeze(pi_z_semiendog(:,z_c,:));
                 EVKrontemp_z(isnan(EVKrontemp_z))=0; %Multiplying zero (transition prob) by -Inf (value fn) gives NaN
                 VKron(:,z_c)=Ftemp(:,z_c)+beta*(1-ExitPolicy(:,z_c)).*sum(EVKrontemp_z,2);
+                VKron(ExitPolicy(:,z_c)==1,z_c)=Ftemp(ExitPolicy(:,z_c)==1,z_c); % ExitPolicy is exactly 0/1, and the zero-weighted operand can be -Inf, so the product would be 0*(-Inf)=NaN
             end
         end
     end

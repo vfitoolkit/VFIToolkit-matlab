@@ -27,6 +27,12 @@ l_z=length(n_z);
 if ~isfield(vfoptions,'ReturnToExitFn')
     error('vfoptions.endogenousexit=1 requires that you specify vfoptions.ReturnToExitFn');
 end
+if isfield(vfoptions,'SemiEndogShock') && n_d(1)~=0
+    % Only the nod raws take a semi-endogenous shock; the dispatch below reads
+    % vfoptions.SemiEndogShock inside the n_d(1)==0 branch only. Without this it was silently
+    % ignored and the plain (non-semi-endogenous) model was solved instead, with no warning.
+    error('vfoptions.SemiEndogShock with endogenousexit=1 is only implemented without d (n_d=0)');
+end
 
 %%
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
@@ -105,6 +111,14 @@ if N_d==0
     Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
 else
     Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
+end
+if vfoptions.keeppolicyonexit==0
+    % Restore the zeros that mark 'this firm exits'. The raws put them in, but the UnKron family
+    % unpacks with mod(), and mod(-1,n)+1 is n, so a zero comes back out as the largest index.
+    % (The retired UnKronPolicyIndexes_Case1 used rem(), which returns 0 there, so this survived
+    % until the UnKron migration.) It matters because EvalFnOnAgentDist_*_Mass adds one to the
+    % policy at the exiting states, counting on the zero, and n+1 is off the end of the grid.
+    Policy=Policy.*shiftdim(1-ExitPolicy,-1);
 end
 
 end

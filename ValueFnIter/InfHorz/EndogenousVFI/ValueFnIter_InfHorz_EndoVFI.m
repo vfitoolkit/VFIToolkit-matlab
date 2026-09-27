@@ -5,40 +5,28 @@ function    [VKron,Policy]=ValueFnIter_InfHorz_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_g
 % v(xi,yi)-sum_y v(xi,y)/Y.
 
 if vfoptions.lowmemory==0
-    %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
+    %% CreateReturnFnMatrix_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
     % Since the return function is independent of time creating it once and
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
 
+    d_gridvals=CreateGridvals(n_d,d_grid,1); % the GPU builder wants gridvals, not the stacked grid
+
     if vfoptions.verbose==1
         disp('Creating return fn matrix')
         tic;
-        if vfoptions.returnmatrix==0
-            fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
-        end
     end
 
     if isfield(vfoptions,'statedependentparams')
-        if vfoptions.returnmatrix==2 % GPU
-            if n_SDP==3
-                ReturnMatrix=CreateReturnFnMatrix_Disc_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
-            elseif n_SDP==2
-                ReturnMatrix=CreateReturnFnMatrix_Disc_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
-            elseif n_SDP==1
-                ReturnMatrix=CreateReturnFnMatrix_Disc_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
-            end
-        else
-            fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
-            dbstack
+        if n_SDP==3
+            ReturnMatrix=CreateReturnFnMatrix_Disc_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
+        elseif n_SDP==2
+            ReturnMatrix=CreateReturnFnMatrix_Disc_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
+        elseif n_SDP==1
+            ReturnMatrix=CreateReturnFnMatrix_Disc_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
         end
     else % Following is the normal/standard behavior
-        if vfoptions.returnmatrix==0
-            ReturnMatrix=CreateReturnFnMatrix_Disc_CPU(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec,0);
-        elseif vfoptions.returnmatrix==1
-            ReturnMatrix=ReturnFn;
-        elseif vfoptions.returnmatrix==2 % GPU
-            ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec,0);
-        end
+        ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec,0);
     end
 
     if vfoptions.verbose==1

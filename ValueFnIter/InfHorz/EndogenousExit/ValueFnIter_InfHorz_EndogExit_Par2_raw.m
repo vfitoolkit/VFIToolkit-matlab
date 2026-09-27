@@ -35,9 +35,11 @@ while currdist>Tolerance
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         % Exit decision
-        ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp)>0); % Assumes that when indifferent you do not exit.
+        ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp')>0); % Assumes that when indifferent you do not exit.
 
-        VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c)).*Vtemp;
+        VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c)).*Vtemp';
+        VKron(ExitPolicy(:,z_c)==1,z_c)=ReturnToExitMatrix_z(ExitPolicy(:,z_c)==1); % ExitPolicy is exactly 0/1, and the zero-weighted operand can be -Inf, so the product would be 0*(-Inf)=NaN
+        VKron(ExitPolicy(:,z_c)==0,z_c)=Vtemp(ExitPolicy(:,z_c)==0);
         PolicyIndexes(:,z_c)=maxindex;
 
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
@@ -48,7 +50,7 @@ while currdist>Tolerance
     currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
 
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-        Ftemp=ExitPolicy.*ReturnToExitMatrix+(1-ExitPolicy).*Ftemp;
+        Ftemp(ExitPolicy==1)=ReturnToExitMatrix(ExitPolicy==1); % ExitPolicy is exactly 0/1, and the zero-weighted operand can be -Inf, so the product would be 0*(-Inf)=NaN
         for Howards_counter=1:Howards
             EVKrontemp=VKron(ceil(PolicyIndexes/N_d),:);
 
@@ -56,6 +58,7 @@ while currdist>Tolerance
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+beta*(1-ExitPolicy).*EVKrontemp;
+            VKron(ExitPolicy==1)=Ftemp(ExitPolicy==1); % ExitPolicy is exactly 0/1, and the zero-weighted operand can be -Inf, so the product would be 0*(-Inf)=NaN
         end
     end
 
@@ -65,8 +68,8 @@ end
 Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
 if keeppolicyonexit==0 % This is default
     % Deliberate add zeros when ExitPolicy==1 so that cannot accidently make mistakes elsewhere in codes without throwing errors.
-    Policy(1,:,:)=(1-ExitPolicy).*shiftdim(rem(PolicyIndexes-1,N_d)+1,-1);
-    Policy(2,:,:)=(1-ExitPolicy).*shiftdim(ceil(PolicyIndexes/N_d),-1);
+    Policy(1,:,:)=shiftdim((1-ExitPolicy).*(rem(PolicyIndexes-1,N_d)+1),-1); % both are (a,z); shiftdim the product, not just the second factor
+    Policy(2,:,:)=shiftdim((1-ExitPolicy).*ceil(PolicyIndexes/N_d),-1);
 elseif keeppolicyonexit==1
     Policy(1,:,:)=shiftdim(rem(PolicyIndexes-1,N_d)+1,-1);
     Policy(2,:,:)=shiftdim(ceil(PolicyIndexes/N_d),-1);
