@@ -68,13 +68,28 @@ n_z=gpuArray(n_z);
 d_grid=gpuArray(d_grid);
 a_gridvals=gpuArray(a_gridvals);
 
-PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-if N_z==0
-    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
+if isstruct(StationaryDist)
+    % Entry-exit. Policy is zero wherever the agent exits, which is not a valid grid index, so
+    % PolicyInd2Val cannot be run on it here. It does not need to be: the entry-exit branch
+    % further down recomputes PolicyValues itself, handling the zeros, and then returns. The one
+    % thing needed before then is l_daprime, and that is just the policy row count.
+    if N_d==0 && isscalar(n_a) && simoptions.gridinterplayer==0
+        l_daprime=1;
+    else
+        l_daprime=size(Policy,1);
+        if simoptions.gridinterplayer==1
+            l_daprime=l_daprime-1;
+        end
+    end
 else
-    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+    PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+    if N_z==0
+        PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
+    else
+        PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+    end
+    l_daprime=size(PolicyValues,1);
 end
-l_daprime=size(PolicyValues,1);
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)

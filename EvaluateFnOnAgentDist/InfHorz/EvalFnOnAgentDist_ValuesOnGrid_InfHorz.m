@@ -54,8 +54,19 @@ if Parallel==2
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
 end
-PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions,1);
-l_daprime=size(PolicyValues,1);
+if exist('StationaryDist','var') && isstruct(StationaryDist)
+    % Entry-exit. Policy is zero wherever the agent exits, which is not a valid grid index, so
+    % PolicyInd2Val cannot be run on it here. It does not need to be: the entry-exit branch
+    % further down hands off to the _Mass version, which handles the zeros, and then returns.
+    % The one thing needed before then is l_daprime, and that is just the policy row count.
+    l_daprime=size(Policy,1);
+    if simoptions.gridinterplayer==1
+        l_daprime=l_daprime-1;
+    end
+else
+    PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions,1);
+    l_daprime=size(PolicyValues,1);
+end
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)

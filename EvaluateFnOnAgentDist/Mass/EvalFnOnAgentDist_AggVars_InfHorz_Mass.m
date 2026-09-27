@@ -38,16 +38,19 @@ if Parallel==2
     % stationary dist to eliminate the 'decisions' there.
     if simoptions.endogenousexit==1
         if simoptions.keeppolicyonexit==0
-            if n_d(1)==0
-                l_d=0;
-            else
-                l_d=length(n_d);
-            end
-            % Add one to PolicyIndexes
-            PolicyIndexes=PolicyIndexes+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And make the corresponding StationaryDistpdfVec entries zero, so the values are anyway ignored.
-            ExitPolicy=logical(1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]));
-            StationaryDistpdfVec(ExitPolicy)=0;
+            % Policy is zero wherever the agent exits (the deliberate sentinel the value fn
+            % iteration puts there). Make those indices valid so PolicyInd2Val can run, and zero
+            % their mass so the values are ignored anyway.
+            %
+            % Keyed on the sentinel itself, NOT on 1-CondlProbOfSurvival. Survival is a
+            % PROBABILITY and need not be binary: StationaryDist_InfHorz_Iteration_EntryExit_raw
+            % already uses it as a transition weight and handles exit separately via
+            % (optaprime>0). With a fractional survival the old form broke twice over -- adding
+            % 1-p to the policy gives a non-integer index, and logical(1-p) is true for ANY p<1,
+            % which zeroed the mass at every state rather than just the exiting ones.
+            exitstates=reshape(any(PolicyIndexes==0,1),[N_a*N_z,1]);
+            PolicyIndexes(PolicyIndexes==0)=1;
+            StationaryDistpdfVec(exitstates)=0;
         end
     end
 
@@ -104,11 +107,13 @@ else
     % stationary dist to eliminate the 'decisions' there.
     if simoptions.endogenousexit==1
         if simoptions.keeppolicyonexit==0
-            % Add one to PolicyIndexes which correspond to exit
-            PolicyIndexes=PolicyIndexes+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And make the corresponding StationaryDistpdfVec entries zero, so the values are anyway ignored.
-            ExitPolicy=1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]);
-            StationaryDistpdfVec(logical(ExitPolicy))=0;
+            % Policy is zero wherever the agent exits (the deliberate sentinel). Make those indices
+            % valid and zero their mass, since the values are ignored anyway. Keyed on the sentinel,
+            % NOT on 1-CondlProbOfSurvival: survival is a PROBABILITY and need not be binary, and a
+            % fractional 1-p both gives a non-integer index and makes logical(1-p) true everywhere.
+            exitstates=reshape(any(PolicyIndexes==0,1),[N_a*N_z,1]);
+            PolicyIndexes(PolicyIndexes==0)=1;
+            StationaryDistpdfVec(exitstates)=0;
         end
     end
 

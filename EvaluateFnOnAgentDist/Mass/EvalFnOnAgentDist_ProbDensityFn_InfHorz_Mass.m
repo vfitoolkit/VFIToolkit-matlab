@@ -68,12 +68,13 @@ if Parallel==2
             else
                 l_d=length(n_d);
             end
-            % Add one to PolicyIndexes
-            Policy=Policy+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And make the corresponding StationaryDistpdfVec entries zero,
-            % so the values are anyway ignored.
-            ExitPolicy=logical(1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]));
-            StationaryDistpdfVec(ExitPolicy)=0;
+            % Policy is zero wherever the agent exits (the deliberate sentinel). Make those indices
+            % valid and zero their mass, since the values are ignored anyway. Keyed on the sentinel,
+            % NOT on 1-CondlProbOfSurvival: survival is a PROBABILITY and need not be binary, and a
+            % fractional 1-p both gives a non-integer index and makes logical(1-p) true everywhere.
+            exitstates=reshape(any(Policy==0,1),[N_a*N_z,1]);
+            Policy(Policy==0)=1;
+            StationaryDistpdfVec(exitstates)=0;
         end
     end
 
@@ -121,12 +122,13 @@ else
     % stationary dist to eliminate the 'decisions' there.
     if simoptions.endogenousexit==1
         if simoptions.keeppolicyonexit==0
-            % Add one to PolicyIndexes
-            Policy=Policy+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And make the corresponding StationaryDistpdfVec entries zero,
-            % so the values are anyway ignored.
-            ExitPolicy=1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]);
-            StationaryDistpdfVec(logical(ExitPolicy))=0;
+            % Policy is zero wherever the agent exits (the deliberate sentinel). Make those indices
+            % valid and zero their mass, since the values are ignored anyway. Keyed on the sentinel,
+            % NOT on 1-CondlProbOfSurvival: survival is a PROBABILITY and need not be binary, and a
+            % fractional 1-p both gives a non-integer index and makes logical(1-p) true everywhere.
+            exitstates=reshape(any(Policy==0,1),[N_a*N_z,1]);
+            Policy(Policy==0)=1;
+            StationaryDistpdfVec(exitstates)=0;
         end
     end
 

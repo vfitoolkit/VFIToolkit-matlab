@@ -71,10 +71,12 @@ if gpuDeviceCount>0
             else
                 l_d=length(n_d);
             end
-            % Add one to PolicyIndexes
-            Policy=Policy+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And use ExitPolicy to later replace these with nan
-            ExitPolicy=logical(1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]));
+            % Policy is zero wherever the agent exits (the deliberate sentinel). Make those indices
+            % valid, and keep the exit mask for the RemoveExits step below. Keyed on the sentinel,
+            % NOT on 1-CondlProbOfSurvival: survival is a PROBABILITY and need not be binary, and a
+            % fractional 1-p both gives a non-integer index and makes logical(1-p) true everywhere.
+            ExitPolicy=reshape(any(Policy==0,1),[N_a*N_z,1]);
+            Policy(Policy==0)=1;
         end
     end
     RemoveExits=nan(N_a*N_z,1);
@@ -119,10 +121,12 @@ else
     ExitPolicy=zeros(N_a*N_z,1);
     if simoptions.endogenousexit==1
         if simoptions.keeppolicyonexit==0
-            % Add one to PolicyIndexes
-            Policy=Policy+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And use ExitPolicy to later replace these with nan
-            ExitPolicy=1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]);
+            % Policy is zero wherever the agent exits (the deliberate sentinel). Make those indices
+            % valid, and keep the exit mask for the RemoveExits step below. Keyed on the sentinel,
+            % NOT on 1-CondlProbOfSurvival: survival is a PROBABILITY and need not be binary, and a
+            % fractional 1-p both gives a non-integer index and makes logical(1-p) true everywhere.
+            ExitPolicy=reshape(any(Policy==0,1),[N_a*N_z,1]);
+            Policy(Policy==0)=1;
         end
     end
     RemoveExits=nan(N_a*N_z,1);
