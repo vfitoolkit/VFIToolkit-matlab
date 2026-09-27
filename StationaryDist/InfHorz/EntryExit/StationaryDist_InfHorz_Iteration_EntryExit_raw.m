@@ -38,18 +38,19 @@ DistOfNewAgentsKron=sparse(gather(reshape(DistOfNewAgents,[N_a*N_z,1])));
 optaprime=gather(reshape(Policy_aprime,[1,N_a*N_z]));
 
 if simoptions.endogenousexit==0
-    Gammatranspose=sparse(optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a)),1:1:N_a*N_z,CondlProbOfSurvival.*ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
+    % CondlProbOfSurvival is scalar or a [1,N_a*N_z] row (reshaped above); reshape to a column so sparse() gets a vector
+    Gammatranspose=sparse(optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a)),1:1:N_a*N_z,reshape(CondlProbOfSurvival.*ones(1,N_a*N_z),[N_a*N_z,1]),N_a*N_z,N_a*N_z);
 elseif simoptions.endogenousexit==1
     % Note: the (optaprime>0) handles the endogenous exit decisions (the decision to exit is optaprime=0)
     II1=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
     II2=1:1:N_a*N_z;
-    VV=CondlProbOfSurvival.*ones(N_a*N_z,1);
+    VV=reshape(CondlProbOfSurvival.*ones(1,N_a*N_z),[N_a*N_z,1]);
     Gammatranspose=sparse(II1(optaprime>0),II2(optaprime>0),VV(optaprime>0),N_a*N_z,N_a*N_z);
 elseif simoptions.endogenousexit==2
     exitprobabilities=CreateVectorFromParams(Parameters, simoptions.exitprobabilities);
     exitprobs=[1-sum(exitprobabilities),exitprobabilities];
     % Mixed exit (endogenous and exogenous), so we know that CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a*N_z,1]);
-    Gammatranspose=sparse(optaprime++kron(N_a*(0:1:N_z-1),ones(1,N_a)),1:1:N_a*N_z,(exitprobs(1)+exitprobs(2)*CondlProbOfSurvival).*ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
+    Gammatranspose=sparse(optaprime++kron(N_a*(0:1:N_z-1),ones(1,N_a)),1:1:N_a*N_z,reshape((exitprobs(1)+exitprobs(2)*CondlProbOfSurvival).*ones(1,N_a*N_z),[N_a*N_z,1]),N_a*N_z,N_a*N_z);
 
     % NOTE TO SELF: This wasnt tested when I converted to Tan improvement (as is not in any of the three firm models implemented in toolkit), so following is a copy-paste backup of how it worked without Tan improvement
     % Ptranspose=sparse(N_a,N_a*N_z);
@@ -67,13 +68,17 @@ pi_z_sparse=sparse(gather(pi_z));
 StationaryDistKronOld=sparse(N_a*N_z,1);
 currdist=sum(abs(StationaryDistKron.pdf-StationaryDistKronOld));
 counter=0;
+currdistprev=Inf; nocontraction=0; % for the non-convergence guard below
 
 % Switch into 'mass times pdf' form, and work with that until get
 % convergence, then switch solution back into separate mass and pdf form for output.
 StationaryDistKron_pdf=sparse(gather(StationaryDistKron.mass*StationaryDistKron.pdf)); % Make it the pdf
 
 
-while currdist>simoptions.tolerance && counter<simoptions.maxit
+% Note: this loop does 100 transition applications per counter, so the number of iterations is
+% 100*counter. simoptions.maxit counts ITERATIONS (as in the non-entry-exit raws, where counter
+% is incremented once per application), so both the loop and the warning below must use 100*counter.
+while currdist>simoptions.tolerance && (100*counter)<simoptions.maxit
 
     for jj=1:100
        %% Following line is essentially the only change that entry and exit require to the actual iteration
@@ -95,12 +100,40 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
     StationaryDistKron_pdf=MassOfNewAgents*DistOfNewAgentsKron+StationaryDistKron_pdf; %No point checking distance every single iteration. Do 100, then check.
 
     currdist=sum(abs(StationaryDistKron_pdf-StationaryDistKronOld));
+
+    % Non-convergence guard. With entry and exit the distribution is NOT normalised inside this
+    % loop -- StationaryDistKron is the unnormalised measure whose total is the agent mass -- so
+    % currdist is the L1 change in MASS. If exit is unreachable at these parameters, mass simply
+    % accumulates at MassOfNewAgents per period, currdist sits flat, and there is no stationary
+    % distribution to find. Left alone that grinds the whole simoptions.maxit budget (default 10^6
+    % iterations). A contraction factor of essentially 1 sustained over 1000 periods means the answer
+    % is not going to arrive: stop and say so, rather than burning 10^8 matrix products.
+    % Deliberately conservative (0.9999, ten consecutive blocks): a merely slow model still runs.
+    % full() because the distribution is held sparse here, so currdist is a sparse scalar and
+    % warning() refuses sparse inputs (the non-entry-exit raw has the same note on its while).
+    contractionfactor=full(currdist/currdistprev);
+    if contractionfactor>0.9999
+        nocontraction=nocontraction+1;
+    else
+        nocontraction=0;
+    end
+    if nocontraction>=10
+        warning('VFIToolkit:StationaryDistEntryExitNotContracting', ...
+            ['StationaryDist with entry-exit is not contracting: factor %.6f per 100 periods after %i periods. ' ...
+             'The agent mass is not converging, which usually means exit is unreachable at these parameters, ' ...
+             'so no stationary distribution exists. Stopping early and returning the last iterate.'], ...
+            contractionfactor,100*counter)
+        break
+    end
+    currdistprev=currdist;
     % Note: I just look for convergence in the pdf and 'assume' the mass will also have converged by then. I should probably correct this.
 
     counter=counter+1;
     if simoptions.verbose==1
         if rem(counter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', counter, currdist, simoptions.tolerance)
+            % full() because the distribution is held sparse here, so currdist is a sparse scalar and
+            % fprintf refuses sparse inputs. This print had never been exercised on the entry-exit path.
+            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', 100*counter, full(currdist), simoptions.tolerance)
         end
     end
 end
