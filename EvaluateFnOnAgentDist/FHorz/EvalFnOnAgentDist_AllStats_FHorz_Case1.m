@@ -166,7 +166,17 @@ if N_z==0
     for ff=1:length(FnsToEvaluate)
         CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,N_j,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
         Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
-        AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+        if useCondlRest==0
+            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+        else
+            % The conditional restrictions only change the weights, so sort Values once and reuse the sort for the unrestricted stats and for every restriction
+            % (only the points with positive mass are sorted; every restricted distribution is zero outside these)
+            positivemass=(StationaryDist(:)>0);
+            [SortedValues,SortedValues_index]=sort(Values(positivemass));
+            SortedStationaryDist=StationaryDist(positivemass);
+            SortedStationaryDist=SortedStationaryDist(SortedValues_index);
+            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,SortedStationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+        end
 
         %% If there are any conditional restrictions then deal with these
         % Evaluate AllStats, but conditional on the restriction being one.
@@ -175,7 +185,8 @@ if N_z==0
             % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
             for rr=1:length(CondlRestnFnNames)
                 if restrictedsamplemass(rr)>0
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+                    RestrictedStationaryDist=RestrictionStruct(rr).RestrictedStationaryDistVec(positivemass);
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,RestrictedStationaryDist(SortedValues_index),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats);
                 end
             end
         end
@@ -189,7 +200,17 @@ else % N_z
         % Values=nan(N_a,N_z,N_j,'gpuArray');
         CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,N_j,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
         Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
-        AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+        if useCondlRest==0
+            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+        else
+            % The conditional restrictions only change the weights, so sort Values once and reuse the sort for the unrestricted stats and for every restriction
+            % (only the points with positive mass are sorted; every restricted distribution is zero outside these)
+            positivemass=(StationaryDist(:)>0);
+            [SortedValues,SortedValues_index]=sort(Values(positivemass));
+            SortedStationaryDist=StationaryDist(positivemass);
+            SortedStationaryDist=SortedStationaryDist(SortedValues_index);
+            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,SortedStationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+        end
 
         %% If there are any conditional restrictions then deal with these
         % Evaluate AllStats, but conditional on the restriction being one.
@@ -198,7 +219,8 @@ else % N_z
             % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
             for rr=1:length(CondlRestnFnNames)
                 if restrictedsamplemass(rr)>0
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+                    RestrictedStationaryDist=RestrictionStruct(rr).RestrictedStationaryDistVec(positivemass);
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,RestrictedStationaryDist(SortedValues_index),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats);
                 end
             end
         end

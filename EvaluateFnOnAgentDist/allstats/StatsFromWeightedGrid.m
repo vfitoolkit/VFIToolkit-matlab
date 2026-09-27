@@ -30,10 +30,14 @@ if ~exist('whichstats','var')
     % 7th element: More Inequality
     % Note: RatioMeanToMedian is computed whenever both mean and median are
     %
-    % For 4th and 6th elements, setting whichstats(4)=2 and whichstats(6)=2
-    % switches to a faster but more memory intensive version.
+    % whichstats(4)=3 gives just the gini coefficient (no lorenz curve).
+    % whichstats(4)=2 and whichstats(6)=2 used to switch to a faster but more memory intensive version; there
+    % is now just one version (which is both the fast one and the low memory one), so 2 is treated the same as 1.
 end
 
+if whichstats(6)>=1 && nquantiles==1
+    error('Not allowed to set simoptions.nquantiles=1 (you anyway have this as the median, set higher or set equal zero to disable')
+end
 
 %%
 if presorted==0
@@ -45,25 +49,18 @@ if presorted==0
     temp=logical(Weights==0);
     Weights=Weights(~temp);
     Values=Values(~temp);
-
-    %% Sorted weighted values
-    [SortedValues,SortedValues_index] = sort(Values);
-    SortedWeights = Weights(SortedValues_index);
-elseif presorted==1
-    SortedValues=Values;
-    SortedWeights=Weights;
+    % [The sort is done below, and only if one of the stats needs it]
 elseif presorted==2
-    % sorted and unique, but might sill contain some zero weights
+    % sorted, but might sill contain some zero weights
     % Eliminate all the zero-weights from these (trivial increase in runtime, but makes it easier to spot when there is no variance)
     temp=logical(Weights==0);
     Weights=Weights(~temp);
     Values=Values(~temp);
-    SortedValues=Values;
-    SortedWeights=Weights;
 end
+% (presorted==1 needs nothing doing)
 
 %% If there are no points with positive weight (e.g., an age at which a cohort has not yet entered the model), all the stats are NaN
-if isempty(SortedValues)
+if isempty(Values)
     if whichstats(1)==1
         AllStats.Mean=NaN;
     end
@@ -104,34 +101,46 @@ if isempty(SortedValues)
     return
 end
 
-WeightedSortedValues=SortedValues.*SortedWeights;
-if any(whichstats(4:7)>=1) || whichstats(2)==1
-    CumSumSortedWeights=cumsum(SortedWeights);  % not needed if only want mean, median and std dev (& variance)
-    skipcheck=all(CumSumSortedWeights==1);
-else
-    skipcheck=0;
-end
-
 %% Now the stats themselves
+% Mean and variance do not need the values to be sorted, so do the mean before sorting
 if whichstats(1)==1
     % Calculate the 'age conditional' mean
-    AllStats.Mean=sum(WeightedSortedValues);
+    AllStats.Mean=sum(Values.*Weights);
 end
-if whichstats(2)==1
-    % Calculate the 'age conditional' median
-    [~,index_median]=min(abs(CumSumSortedWeights-0.5));
-    AllStats.Median=SortedValues(index_median); % The max is just to deal with 'corner' case where there is only one element in SortedWeightedValues
-    if whichstats(1)==1
-        AllStats.RatioMeanToMedian=AllStats.Mean/AllStats.Median;
+
+%% Sort, if any of the stats need it (everything except mean and variance does)
+needsort=(whichstats(2)==1 || any(whichstats(4:7)>=1));
+if needsort
+    if presorted==0
+        [SortedValues,SortedValues_index] = sort(Values);
+        SortedWeights = Weights(SortedValues_index);
+    else
+        SortedValues=Values;
+        SortedWeights=Weights;
     end
+    WeightedSortedValues=SortedValues.*SortedWeights;
+    CumSumSortedWeights=cumsum(SortedWeights);
+    % All the mass is on the first point (cumsum is nondecreasing, so this says every later weight adds nothing; weights of magnitude, e.g. 1e-26, can do this)
+    skipcheck=(CumSumSortedWeights(1)>=CumSumSortedWeights(end));
+    allsamevalue=(SortedValues(1)==SortedValues(end) || skipcheck);
+elseif whichstats(3)==1
+    allsamevalue=gather(min(Values)==max(Values)); % without the sort, this is how to spot that there is no variance
+else
+    allsamevalue=false; % only the mean, which is already done
 end
 
 %% Deal with case where all the values are just the same anyway
-if SortedValues(1)==SortedValues(end) || skipcheck
+if allsamevalue
     % The current FnsToEvaluate takes only one value, so nothing but the mean and median make sense
     % OR
     % Due to numerical rounding, it has multiple values but only one has any meaning as all the mass is in one place (weights of magnitude,
     % e.g. 1e-26 can turn into cumulative weights with zero difference between them)
+    if whichstats(2)==1
+        AllStats.Median=SortedValues(1);
+        if whichstats(1)==1
+            AllStats.RatioMeanToMedian=AllStats.Mean/AllStats.Median;
+        end
+    end
     if whichstats(3)==1
         AllStats.Variance=0;
         AllStats.StdDeviation=0;
@@ -147,7 +156,7 @@ if SortedValues(1)==SortedValues(end) || skipcheck
         AllStats.Minimum=SortedValues(1);
     end
     if whichstats(6)>=1
-        AllStats.QuantileCutoffs=nan(nquantiles+1,1);
+        AllStats.QuantileCutoffs=SortedValues(1)*ones(nquantiles+1,1);
         AllStats.QuantileMeans=SortedValues(1)*ones(nquantiles,1);
     end
     if whichstats(7)==1
@@ -161,188 +170,137 @@ if SortedValues(1)==SortedValues(end) || skipcheck
         AllStats.MoreInequality.Percentile99th=SortedValues(1);
     end
 else
+    if needsort
+        anynegative=gather(WeightedSortedValues(1)<0); % Lorenz curve, gini and top/bottom shares cannot be calculated when some values are negative (gather once, rather than at every if-statement)
+    else
+        anynegative=false; % not needed (only mean and variance)
+    end
+
     if whichstats(3)==1
         % Calculate the 'age conditional' variance
-        AllStats.Variance=sum(((Values-AllStats.Mean).^2).*Weights); % Weighted square of (values - mean)
+        if whichstats(1)==1
+            MeanForVariance=AllStats.Mean;
+        else
+            MeanForVariance=sum(Values.*Weights); % variance needs the mean even when whichstats(1)=0
+        end
+        AllStats.Variance=sum(((Values-MeanForVariance).^2).*Weights); % Weighted square of (values - mean)
         if AllStats.Variance<0 && AllStats.Variance>-10^(-6) % overwrite what is likely just numerical error
             AllStats.Variance=0;
         end
         AllStats.StdDeviation=sqrt(AllStats.Variance);
     end
 
-    if (whichstats(4)>=1 && npoints>0 && ~(WeightedSortedValues(1)<0)) || whichstats(6)==2
-        % precompute so don't duplicate; precompute needed if
-        % WeightedSortedValues contains NaNs
+    %% Median, min/max, quantile cutoffs, the percentiles, and the points of the Lorenz curve are all 'the first index with CumSumSortedWeights>=p', for a list of p
+    % Because CumSumSortedWeights is sorted, we can find them all at once: the number of points with cumulative mass strictly below p, plus one
+    % (this is one pass, rather than one pass per p; there are over 100 p with the default npoints and nquantiles)
+    % pvec is: [median/p50; min; max; p99; p95; p90; quantile cutoffs; lorenz curve points]
+    needquantiles=(whichstats(6)>=1 && nquantiles>0);
+    needlorenz=((whichstats(4)==1 || whichstats(4)==2) && npoints>0 && ~anynegative);
+    needsearch=(whichstats(2)==1 || whichstats(5)==1 || whichstats(6)>=1 || whichstats(7)==1 || needlorenz);
+    if needquantiles
+        quantilecvec=(1/nquantiles:1/nquantiles:1-1/nquantiles)';
+    else
+        quantilecvec=zeros(0,1);
+    end
+    if needlorenz
+        llvec=1/npoints:1/npoints:1;
+        llvec=llvec(1:end-1)'; % the last point of the lorenz curve is just 1
+    else
+        llvec=zeros(0,1);
+    end
+    quantileindexes=6+(1:numel(quantilecvec))';
+    lorenzindexes=6+numel(quantilecvec)+(1:numel(llvec))';
+
+    % The Lorenz curve (not yet normalised by the total) at each p is needed for the Lorenz curve, the quantile means and the top/bottom shares
+    needlorenzatp=(needlorenz || needquantiles || (whichstats(7)==1 && ~anynegative));
+    if (whichstats(4)>=1 && ~anynegative) || needlorenzatp
         CumSumSortedWeightedValues=cumsum(WeightedSortedValues);
     end
 
+    if needsearch
+        pvec=[0.5; tolerance; 1-tolerance; 0.99; 0.95; 0.90; quantilecvec; llvec];
+        [pvec_unique,~,uniqueindex]=unique(pvec);
+        cutcounts=histcounts(CumSumSortedWeights,[-Inf; pvec_unique; Inf]); % cutcounts(k) is the number of points with p_{k-1}<=CumSumSortedWeights<p_k
+        cutind=min(cumsum(cutcounts(1:end-1)')+1,numel(CumSumSortedWeights)); % first index with CumSumSortedWeights>=p (min() deals with p above the total mass)
+        cutind=cutind(uniqueindex);
+        CutValues=SortedValues(cutind);
+
+        if needlorenzatp
+            % Mass wholly below the cut, plus the part of the point that straddles it
+            prevind=max(cutind-1,1);
+            hasprev=(cutind>1);
+            LorenzAtP=hasprev.*CumSumSortedWeightedValues(prevind)+(pvec-hasprev.*CumSumSortedWeights(prevind)).*CutValues;
+        end
+    end
+
+    if whichstats(2)==1
+        % Calculate the 'age conditional' median
+        % Median is the smallest value with cumulative mass >=0.5 (the quantile function at 0.5; same convention as the percentiles and quantile cutoffs below)
+        % [If the cumulative mass hits exactly 0.5 at some value, then anything between that value and the next is a median, and this picks the lower one]
+        AllStats.Median=CutValues(1);
+        if whichstats(1)==1
+            AllStats.RatioMeanToMedian=AllStats.Mean/AllStats.Median;
+        end
+    end
+
     if whichstats(4)>=1
-        % Lorenz curve
-        if npoints>0
-            if WeightedSortedValues(1)<0
-                if whichstats(4)<3
-                    AllStats.LorenzCurve=nan(npoints,1);
-                    AllStats.LorenzCurveComment={'Lorenz curve cannot be calculated as some values are negative'};
-                end
-                AllStats.Gini=nan;
-                AllStats.GiniComment={'Gini cannot be calculated as some values are negative'};
-            else
-                % CumSumSortedWeightedValues=cumsum(WeightedSortedValues); % precomputed
-
-                if whichstats(4)<3
-                    % Calculate the Lorenz curve
-                    % (note, we already eliminated the zero mass points, and dealt with case that the remaining grid is just one point)
-                    LorenzCurve=zeros(npoints,1);
-                    llvec=1/npoints:1/npoints:1;
-                    if whichstats(4)==1
-                        for ll=1:npoints-1 % Note: because there are npoints points in lorenz curve, avoiding a loop here can be prohibitive in terms of memory use
-                            [~,lorenzcind]=max(CumSumSortedWeights >= llvec(ll));
-                            if lorenzcind==1
-                                LorenzCurve(ll)=llvec(ll)*SortedValues(lorenzcind);
-                            else
-                                LorenzCurve(ll)=CumSumSortedWeightedValues(lorenzcind-1)+(llvec(ll)-CumSumSortedWeights(lorenzcind-1))*SortedValues(lorenzcind);
-                            end
-                        end
-                        LorenzCurve(npoints)=CumSumSortedWeightedValues(end);
-                    elseif whichstats(4)==2 % faster option, but can run out of memory
-                        % Even thought the weights themselves are non-zero, you can still get that two consecutive elements of CumSumSortedWeights are the same (happened when the weight was 1e-26)
-                        [CumSumSortedWeights2,u1index,~]=unique(CumSumSortedWeights);
-                        % Sometimes this will become a single value, so need to check for this again
-                        if isscalar(CumSumSortedWeights2)
-                            LorenzCurve=1/npoints:1/npoints:1;
-                        else
-                            temp=interp1(CumSumSortedWeights2,CumSumSortedWeightedValues(u1index),llvec(1:end-1));
-                            LorenzCurve(1:end-1)=temp;
-                            % Because of how interp1() works, it will put NaN at the bottom of the curve if there is a bunch of mass at first value
-                            temp2=sum(isnan(temp));
-                            if abs(LorenzCurve(temp2+1)-CumSumSortedWeightedValues(1))<1e-15
-                                temp2=temp2+1;
-                            end
-                            LorenzCurve(1:temp2)=(CumSumSortedWeightedValues(1) - SortedValues(1)*(CumSumSortedWeights(1)-temp2/npoints)) .*((1:1:temp2)/temp2);
-                            % Finished cleaning up the isnan()
-                            LorenzCurve(npoints)=CumSumSortedWeightedValues(end);
-                        end
-                    end
-                    % Now normalize the curve so that they are fractions of the total.
-                    SumWeightedValues=sum(WeightedSortedValues);
-                    AllStats.LorenzCurve=LorenzCurve/SumWeightedValues;
-                end
-
-                % Gini coefficient
-                CumSumWeightedSortedValues=cumsum(WeightedSortedValues);
-                CumSumWeightedSortedValues=CumSumWeightedSortedValues/CumSumWeightedSortedValues(end);
-                AllStats.Gini=sum(CumSumWeightedSortedValues(2:end).*CumSumSortedWeights(1:end-1)- CumSumWeightedSortedValues(1:end-1).*CumSumSortedWeights(2:end));
-
-                % % Calculate Gini coefficient (commented out is old version which was calculated from Lorenz Curve)
-                % % Use the Gini=A/(A+B)=2*A formulation for Gini coefficient (see wikipedia).
-                % A=(1/npoints:1/npoints:1)-AllStats.LorenzCurve'; % 'Height' between 45-degree line and Lorenz curve
-                % A(logical(abs(A)<10^(-12)))=0; % Sometimes, get -10^(-15) due to numerical error, replace them with zero
-                % A=sum(A)/npoints; % Note: 1/npoints is the 'width'. Area A is 'height times width' of gap from 45 degree line at each point on lorenz curve, summed up
-                % % A=sum((1:1:npoints)/npoints-reshape(AllStats.LorenzCurve,[1,npoints]))/npoints;
-                % AllStats.Gini=2*A;
+        if anynegative
+            if whichstats(4)<3
+                AllStats.LorenzCurve=nan(npoints,1);
+                AllStats.LorenzCurveComment={'Lorenz curve cannot be calculated as some values are negative'};
             end
+            AllStats.Gini=nan;
+            AllStats.GiniComment={'Gini cannot be calculated as some values are negative'};
+        else
+            if whichstats(4)<3 && npoints==0
+                AllStats.LorenzCurve=nan(npoints,1); % npoints=0 means no Lorenz curve (the Gini does not need it)
+            elseif whichstats(4)<3
+                % Lorenz curve, normalized so that they are fractions of the total
+                AllStats.LorenzCurve=[LorenzAtP(lorenzindexes); CumSumSortedWeightedValues(end)]/CumSumSortedWeightedValues(end);
+            end
+
+            % Gini coefficient
+            % Gini=(1/(S*W))*sum_i w_i*y_i*(2*F_{i-1}+w_i-W), where F_{i-1} is the mass strictly below point i, S=sum(w.*y), W=sum(w)
+            % This is the weighted version of the sorted closed form Gini=2*sum(i*y_i)/(n*sum(y))-(n+1)/n (which is the case w_i=1/n; see QuantEcon.py PR 937)
+            % It is exact for a discrete distribution (equals the trapezoid area under the piecewise-linear Lorenz curve), and W means it does not need weights of mass 1
+            % [2*F_{i-1}+w_i is computed as 2*F_i-w_i, so it reuses CumSumSortedWeights]
+            AllStats.Gini=sum(WeightedSortedValues.*(2*CumSumSortedWeights-SortedWeights-CumSumSortedWeights(end)))/(CumSumSortedWeightedValues(end)*CumSumSortedWeights(end));
         end
     end
 
     if whichstats(5)==1 || whichstats(6)>=1 % note: anyway need min/max for quantile cutoffs
-        % Min value
-        tempindex=find(CumSumSortedWeights>=tolerance,1,'first');
-        minvalue=SortedValues(tempindex);
-        % Max value
-        tempindex=find(CumSumSortedWeights>=(1-tolerance),1,'first');
-        maxvalue=SortedValues(tempindex);
-        % Create min and max as dedicated entries
-        AllStats.Maximum=maxvalue;
-        AllStats.Minimum=minvalue;
+        % Min value is the first with cumulative mass >=tolerance, max value is the first with cumulative mass >=1-tolerance
+        AllStats.Maximum=CutValues(3);
+        AllStats.Minimum=CutValues(2);
     end
-    if whichstats(6)>=1
-        if nquantiles==1
-            error('Not allowed to set simoptions.nquantiles=1 (you anyway have this as the median, set higher or set equal zero to disable')
-        end
-        % Calculate the quantile means (ventiles by default)
-        % Calculate the quantile cutoffs (ventiles by default)
-        if whichstats(6)==1
-            if nquantiles>0
-                QuantileMeans=zeros(nquantiles,1);
-                quantilecutoffindexes=zeros(nquantiles-1,1);
-                quantilecvec=1/nquantiles:1/nquantiles:1-1/nquantiles;
-                for quantilecind=1:nquantiles-1 % Note: because there are nquantiles points in quantiles, avoiding a loop here can be prohibitive in terms of memory use
-                    [~,quantilecutoffindexes_quantilec]=max(CumSumSortedWeights >= quantilecvec(quantilecind));
-                    quantilecutoffindexes(quantilecind)=quantilecutoffindexes_quantilec;
-                end
-                AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
-                QuantileMeans(1)=sum(WeightedSortedValues(1:quantilecutoffindexes(1))) - SortedValues(quantilecutoffindexes(1))*(CumSumSortedWeights(quantilecutoffindexes(1))-1/nquantiles);
-                for ll=2:nquantiles-1
-                    if quantilecutoffindexes(ll-1)==quantilecutoffindexes(ll)
-                        QuantileMeans(ll)=SortedValues(quantilecutoffindexes(ll))/nquantiles; % Note: need to /nquantiles, because later I *nquantiles
-                    else
-                        QuantileMeans(ll)=sum(WeightedSortedValues(quantilecutoffindexes(ll-1)+1:quantilecutoffindexes(ll))) - SortedValues(quantilecutoffindexes(ll))*(CumSumSortedWeights(quantilecutoffindexes(ll))-ll/nquantiles)  + SortedValues(quantilecutoffindexes(ll-1))*(CumSumSortedWeights(quantilecutoffindexes(ll-1))-(ll-1)/nquantiles);
-                    end
-                end
-                QuantileMeans(nquantiles)=sum(WeightedSortedValues(quantilecutoffindexes(nquantiles-1)+1:end)) + SortedValues(quantilecutoffindexes(nquantiles-1))*(CumSumSortedWeights(quantilecutoffindexes(nquantiles-1))-(nquantiles-1)/nquantiles);
-                AllStats.QuantileMeans=QuantileMeans*nquantiles; % Note: *nquantiles is really /(1/nquantiles), it is dividing by the mass of the quantile
-            end
-        elseif whichstats(6)==2 % Vectorizes so faster, but uses more memory (can cause out of memory errors if you have large nquantiles, hence it is not the default)
-            if nquantiles>0
-                % QuantileMeans=zeros(nquantiles,1,'gpuArray');
-                [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
-                AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
-
-                quantilecutoffindexes_lower=[1; quantilecutoffindexes'];
-                quantilecutoffindexes_upper=[quantilecutoffindexes'; numel(WeightedSortedValues)];
-
-                % CumSumSortedWeightedValues=cumsum(WeightedSortedValues); % precomputed
-                term1=CumSumSortedWeightedValues(quantilecutoffindexes_upper)-CumSumSortedWeightedValues(quantilecutoffindexes_lower);
-                term2=SortedValues(quantilecutoffindexes_upper).*(CumSumSortedWeights(quantilecutoffindexes_upper)-(1:1:nquantiles)'/nquantiles);
-                term3=SortedValues(quantilecutoffindexes_lower).*(CumSumSortedWeights(quantilecutoffindexes_lower)-(0:1:nquantiles-1)'/nquantiles);
-                QuantileMeans=term1-term2+term3;
-
-                % This formula only works when the cutoff indexes are different, so when they are not, do some overwriting
-                temp=logical(quantilecutoffindexes_lower==quantilecutoffindexes_upper);
-                QuantileMeans(temp)=SortedValues(quantilecutoffindexes_upper(temp))/nquantiles;  % Note: need to /nquantiles, because later I *nquantiles
-                AllStats.QuantileMeans=QuantileMeans*nquantiles; % Note: *nquantiles is really /(1/nquantiles), it is dividing by the mass of the quantile
-            end
-        end
-
+    if needquantiles
+        % Quantile cutoffs (ventiles by default)
+        AllStats.QuantileCutoffs=[CutValues(2); CutValues(quantileindexes); CutValues(3)];
+        % Quantile means (ventiles by default): the mass of values in each quantile is the difference of the Lorenz curve (not normalised) at the two cutoffs
+        AllStats.QuantileMeans=diff([0; LorenzAtP(quantileindexes); CumSumSortedWeightedValues(end)])*nquantiles; % Note: *nquantiles is really /(1/nquantiles), it is dividing by the mass of the quantile
     end
 
     if whichstats(7)==1
-        if ~any(whichstats(4)==[1,2])
-            error('whichstats(7)=1 can only be used with whichstats(4)=1 or 2 (Lorenz Curve forms basis for some of the stats in whichstats(7))')
+        % Top X shares are the Lorenz curve evaluated at 0.99, 0.95, 0.90 and 0.5, computed exactly from the distribution (so they do not depend on npoints and do not need whichstats(4))
+        if anynegative
+            AllStats.MoreInequality.Top1share=NaN;
+            AllStats.MoreInequality.Top5share=NaN;
+            AllStats.MoreInequality.Top10share=NaN;
+            AllStats.MoreInequality.Bottom50share=NaN;
+            AllStats.MoreInequality.SharesComment={'Top/bottom shares cannot be calculated as some values are negative'};
+        else
+            AllStats.MoreInequality.Top1share=1-LorenzAtP(4)/CumSumSortedWeightedValues(end);
+            AllStats.MoreInequality.Top5share=1-LorenzAtP(5)/CumSumSortedWeightedValues(end);
+            AllStats.MoreInequality.Top10share=1-LorenzAtP(6)/CumSumSortedWeightedValues(end);
+            AllStats.MoreInequality.Bottom50share=LorenzAtP(1)/CumSumSortedWeightedValues(end);
         end
-        % Top X share indexes (npoints will be number of points in Lorenz Curve)
-        Top1cutpoint=round(0.99*npoints);
-        Top5cutpoint=round(0.95*npoints);
-        Top10cutpoint=round(0.90*npoints);
-        Top50cutpoint=round(0.50*npoints);
-        AllStats.MoreInequality.Top1share=1-AllStats.LorenzCurve(Top1cutpoint);
-        AllStats.MoreInequality.Top5share=1-AllStats.LorenzCurve(Top5cutpoint);
-        AllStats.MoreInequality.Top10share=1-AllStats.LorenzCurve(Top10cutpoint);
-        AllStats.MoreInequality.Bottom50share=AllStats.LorenzCurve(Top50cutpoint);
         % Now some cutoffs
-        AllStats.MoreInequality.Percentile50th=AllStats.Median; % just a duplicate for convenience
-        index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-        AllStats.MoreInequality.Percentile90th=SortedValues(index_p90);
-        index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-        AllStats.MoreInequality.Percentile95th=SortedValues(index_p95);
-        index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-        AllStats.MoreInequality.Percentile99th=SortedValues(index_p99);
+        AllStats.MoreInequality.Percentile50th=CutValues(1); % same as the median
+        AllStats.MoreInequality.Percentile90th=CutValues(6);
+        AllStats.MoreInequality.Percentile95th=CutValues(5);
+        AllStats.MoreInequality.Percentile99th=CutValues(4);
     end
 end
 
 
-%% Comment: To find, e.g. the median, we can either do
-% medianindex=find(CumSumSortedWeights>=0.50,1,'first');
-% Or
-% [~,medianindex]=max(CumSumSortedWeights>=0.50)
-% I ran a bunch of tests and both take essentially the same amount of time
-% (on average find() was slower, but in some runs it was faster, on average difference was something like 10%, so not worth worrying which is used)
-
-
-
-
-
-
 end
-
-

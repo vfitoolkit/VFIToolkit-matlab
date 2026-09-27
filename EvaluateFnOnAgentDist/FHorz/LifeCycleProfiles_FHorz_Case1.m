@@ -359,7 +359,17 @@ if N_z==0
 
             Values=reshape(Values,[N_a*(jend-j1+1),1]);
 
-            tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+            if useCondlRest==0
+                tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+            else
+                % The conditional restrictions only change the weights, so sort Values once and reuse the sort for the unrestricted stats and for every restriction
+                % (only the points with positive mass are sorted; every restricted distribution is zero outside these)
+                positivemass_kk=(StationaryDistVec_kk>0);
+                [SortedValues_kk,SortedValues_index_kk]=sort(Values(positivemass_kk));
+                SortedStationaryDistVec_kk=StationaryDistVec_kk(positivemass_kk);
+                SortedStationaryDistVec_kk=SortedStationaryDistVec_kk(SortedValues_index_kk);
+                tempStats=StatsFromWeightedGrid(SortedValues_kk,SortedStationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+            end
 
             % Store them in AgeConditionalStats
             if simoptions.whichstats(1)==1
@@ -407,7 +417,13 @@ if N_z==0
                 % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
                 for rr=1:length(CondlRestnFnNames)
                     if sum(restrictedsamplemass(rr,j1:jend))>0
-                        tempStats=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec(:,j1:jend),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+                        RestrictedStationaryDistVec_kk=RestrictionStruct(rr).RestrictedStationaryDistVec(:,j1:jend);
+                        if jend>j1
+                            % RestrictedStationaryDistVec is normalized to mass one at each age, so undo that and renormalize over the whole agegrouping (so each age is weighted by its restricted mass)
+                            RestrictedStationaryDistVec_kk=RestrictedStationaryDistVec_kk.*(restrictedsamplemass(rr,j1:jend)/sum(restrictedsamplemass(rr,j1:jend)));
+                        end
+                        RestrictedStationaryDistVec_kk=RestrictedStationaryDistVec_kk(positivemass_kk);
+                        tempStats=StatsFromWeightedGrid(SortedValues_kk,RestrictedStationaryDistVec_kk(SortedValues_index_kk),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats);
 
                         % Store them in AgeConditionalStats
                         if simoptions.whichstats(1)==1
@@ -481,7 +497,17 @@ else
             end
 
             Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
-            tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+            if useCondlRest==0
+                tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+            else
+                % The conditional restrictions only change the weights, so sort Values once and reuse the sort for the unrestricted stats and for every restriction
+                % (only the points with positive mass are sorted; every restricted distribution is zero outside these)
+                positivemass_kk=(StationaryDistVec_kk>0);
+                [SortedValues_kk,SortedValues_index_kk]=sort(Values(positivemass_kk));
+                SortedStationaryDistVec_kk=StationaryDistVec_kk(positivemass_kk);
+                SortedStationaryDistVec_kk=SortedStationaryDistVec_kk(SortedValues_index_kk);
+                tempStats=StatsFromWeightedGrid(SortedValues_kk,SortedStationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+            end
 
             % Store them in AgeConditionalStats
             if simoptions.whichstats(1)==1
@@ -530,7 +556,13 @@ else
                 % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
                 for rr=1:length(CondlRestnFnNames)
                     if sum(restrictedsamplemass(rr,j1:jend))>0
-                        tempStats=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec(:,j1:jend),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+                        RestrictedStationaryDistVec_kk=RestrictionStruct(rr).RestrictedStationaryDistVec(:,j1:jend);
+                        if jend>j1
+                            % RestrictedStationaryDistVec is normalized to mass one at each age, so undo that and renormalize over the whole agegrouping (so each age is weighted by its restricted mass)
+                            RestrictedStationaryDistVec_kk=RestrictedStationaryDistVec_kk.*(restrictedsamplemass(rr,j1:jend)/sum(restrictedsamplemass(rr,j1:jend)));
+                        end
+                        RestrictedStationaryDistVec_kk=RestrictedStationaryDistVec_kk(positivemass_kk);
+                        tempStats=StatsFromWeightedGrid(SortedValues_kk,RestrictedStationaryDistVec_kk(SortedValues_index_kk),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats);
 
                         % Store them in AgeConditionalStats
                         if simoptions.whichstats(1)==1

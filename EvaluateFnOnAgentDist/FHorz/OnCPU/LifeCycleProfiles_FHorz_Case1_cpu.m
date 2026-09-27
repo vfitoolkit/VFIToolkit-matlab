@@ -202,8 +202,9 @@ for kk=1:length(simoptions.agegroupings)
         % Calculate the 'age conditional' mean
         AgeConditionalStats(ii).Mean(kk)=sum(WeightedValues);
         % Calculate the 'age conditional' median
-        [~,medianindex]=min(abs(SortedWeights-0.5));
-        AgeConditionalStats(ii).Median(kk)=SortedValues(medianindex); % The max is just to deal with 'corner' case where there is only one element in SortedWeightedValues
+        % Median is the smallest value with cumulative mass >=0.5 (same convention as StatsFromWeightedGrid)
+        medianindex=find(CumSumSortedWeights>=0.5,1,'first');
+        AgeConditionalStats(ii).Median(kk)=SortedValues(medianindex);
         % Calculate the 'age conditional' variance
         AgeConditionalStats(ii).Variance(kk)=sum((Values.^2).*StationaryDistVec_kk)-(AgeConditionalStats(ii).Mean(kk))^2; % Weighted square of values - mean^2
 
