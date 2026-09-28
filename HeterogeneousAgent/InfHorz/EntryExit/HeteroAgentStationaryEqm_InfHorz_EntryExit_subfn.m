@@ -3,7 +3,8 @@ function GeneralEqmConditions=HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn(G
 % The caller works in unconstrained space, so un-transform on arrival (this is the same first
 % step as HeteroAgentStationaryEqm_InfHorz_subfn). With no constraints set it is a no-op.
 heteroagentparamsvecindex=0:1:length(GEprices);
-[GEprices,penalty]=ParameterConstraints_TransformParamsToOriginal(GEprices,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions); %#ok<ASGLU>
+[GEprices,penalty]=ParameterConstraints_TransformParamsToOriginal(GEprices,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
+% penalty is applied to GeneralEqmConditions at the bottom of this file.
 
 % verbose=2 reports the prices BEFORE the value fn iteration and stationary distribution, so a
 % slow evaluation is visible while it is running rather than only once it finishes. Same
@@ -263,6 +264,19 @@ elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance i
 end
 
 GeneralEqmConditions=gather(GeneralEqmConditions);
+
+% penalty is 0 while every transformed price is inside the +-51 cutoffs, and >1 once the
+% un-transform had to clip one -- at which point the price handed to the model is no longer the
+% image of the price the optimizer chose, so the criterion must be inflated to push it back.
+% GeneralEqmConditions here is non-negative by construction (sum of abs, or sqrt of a weighted
+% sum of squares), so only the positive branch of the estimation convention can ever apply.
+% Note: applied after the gather(), so the penalty never lands on a gpuArray.
+if penalty>0
+    GeneralEqmConditions=1.2*penalty*GeneralEqmConditions; % 20% markup, plus the size of the violation
+    if heteroagentoptions.verbose>=1
+        fprintf('Current penalty is to multiply the GE criterion by %8.2f \n',1.2*penalty)
+    end
+end
 
 
 if heteroagentoptions.verbose==1 % When=2, we report these earlier

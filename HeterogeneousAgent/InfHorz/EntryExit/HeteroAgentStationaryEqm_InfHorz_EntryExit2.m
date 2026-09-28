@@ -86,6 +86,10 @@ end
 % I SHOULD IMPLEMENT A BETTER V0Kron HERE
 GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_EntryExit2_subfn(p, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
 
+% p0 is in ORIGINAL units, unlike HeteroAgentStationaryEqm_InfHorz_EntryExit which is handed an
+% already-transformed GEparamsvec0 by the dispatcher. Parameter constraints are therefore ignored
+% on this path; see the note in HeteroAgentStationaryEqm_InfHorz_EntryExit2_subfn for why that is
+% left as is (nothing calls this command).
 p0=nan(length(GEPriceParamNames),1);
 for ii=1:length(GEPriceParamNames)
     p0(ii)=Parameters.(GEPriceParamNames{ii});

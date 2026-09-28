@@ -8,6 +8,15 @@ N_p=prod(n_p);
 l_p=length(n_p);
 
 p_grid=heteroagentoptions.pgrid;
+% The price grid is read in ORIGINAL units, so there is nothing to un-transform and no penalty to
+% apply here. But say so, rather than silently ignoring a constraint the user asked for.
+% Note: the fields are binary-valued vectors by this point, not cells of names, because the
+% dispatcher (HeteroAgentStationaryEqm_InfHorz) converts them before it calls the parent. Note
+% also that nothing reaches this command: HeteroAgentStationaryEqm_InfHorz_EntryExit errors out on
+% N_p~=0 ('Using p_grid with Entry/Exit is not currently implemented') before it could get here.
+if any(heteroagentoptions.constrainpositive) || any(heteroagentoptions.constrain0to1) || any(heteroagentoptions.constrainAtoB)
+    warning('VFIToolkit:EntryExitpgridconstraints','Parameter constraints are ignored when using heteroagentoptions.pgrid (the grid is read in original units)')
+end
 
 if simoptions.parallel==2 || simoptions.parallel==4
     GeneralEqmConditionsKron=ones(N_p,length(GeneralEqmEqns),'gpuArray');

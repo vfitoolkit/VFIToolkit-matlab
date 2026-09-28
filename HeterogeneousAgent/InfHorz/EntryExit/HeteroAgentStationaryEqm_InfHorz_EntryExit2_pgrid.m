@@ -8,6 +8,15 @@ N_p=prod(n_p);
 l_p=length(n_p);
 
 p_grid=heteroagentoptions.pgrid;
+% The price grid is read in ORIGINAL units, so there is nothing to un-transform and no penalty to
+% apply here. But say so, rather than silently ignoring a constraint the user asked for.
+% Note: the fields are still cells of names at this point, because the caller
+% (HeteroAgentStationaryEqm_InfHorz_EntryExit2) never runs the names-to-vector conversion that the
+% dispatcher does. Note also that nothing reaches this command; see the note in
+% HeteroAgentStationaryEqm_InfHorz_EntryExit2_subfn.
+if (isfield(heteroagentoptions,'constrainpositive') && ~isempty(heteroagentoptions.constrainpositive)) || (isfield(heteroagentoptions,'constrain0to1') && ~isempty(heteroagentoptions.constrain0to1)) || (isfield(heteroagentoptions,'constrainAtoB') && ~isempty(heteroagentoptions.constrainAtoB))
+    warning('VFIToolkit:EntryExitpgridconstraints','Parameter constraints are ignored when using heteroagentoptions.pgrid (the grid is read in original units)')
+end
 
 if simoptions.parallel==2 || simoptions.parallel==4
     GeneralEqmConditionsKron=ones(N_p,length(GeneralEqmEqns),'gpuArray');

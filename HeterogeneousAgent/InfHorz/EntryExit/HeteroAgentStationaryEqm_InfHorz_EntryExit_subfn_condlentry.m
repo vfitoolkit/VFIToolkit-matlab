@@ -4,6 +4,10 @@ function CondlEntryDecision=HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn_con
 % step as HeteroAgentStationaryEqm_InfHorz_subfn). With no constraints set it is a no-op.
 heteroagentparamsvecindex=0:1:length(p);
 [p,penalty]=ParameterConstraints_TransformParamsToOriginal(p,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions); %#ok<ASGLU>
+% penalty is deliberately discarded here, unlike in HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn():
+% this command outputs the conditional entry decision, not a general eqm criterion, so there is
+% nothing to inflate. The caller is the one that warns if the equilibrium it found is outside the
+% constraint cutoffs (see HeteroAgentStationaryEqm_InfHorz_EntryExit).
 % Is just a copy-paste of HeteroAgentStationaryEqm_InfHorz_EntryExit_subfn(),
 % which just outputs Parameters.(EntryExitParamNames.CondlEntryDecisions{1}) instead of usual
 % output of p_eqm. Have removed bunch of lines of code that are not

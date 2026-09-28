@@ -133,7 +133,13 @@ end
 
 % Report in the original (constrained) units. Keep p_eqm_vec unconstrained: the conditional-entry
 % subfn below is handed it and un-transforms on arrival, exactly like the main subfn.
-[p_eqm_orig,~]=ParameterConstraints_TransformParamsToOriginal(p_eqm_vec,0:1:length(GEPriceParamNames),GEPriceParamNames,heteroagentoptions);
+[p_eqm_orig,penalty]=ParameterConstraints_TransformParamsToOriginal(p_eqm_vec,0:1:length(GEPriceParamNames),GEPriceParamNames,heteroagentoptions);
+if penalty>0
+    % The search finished outside the +-51 cutoffs of the constraint transform, so the un-transform
+    % had to clip: the p_eqm reported below is not the image of the point the optimizer actually
+    % held. Same convention as the estimation commands (e.g. CalibrateLifeCycleModel).
+    warning('VFIToolkit:EntryExitGEconstraintpenalty','The general eqm search finished with a price outside the parameter-constraint cutoffs; the reported p_eqm has been clipped and is not the optimizers own point')
+end
 for ii=1:length(GEPriceParamNames)
     p_eqm.(GEPriceParamNames{ii})=p_eqm_orig(ii);
 end

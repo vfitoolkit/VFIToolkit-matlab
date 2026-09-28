@@ -17,6 +17,15 @@ end
 ExitProb=Parameters.(EntryExitParamNames.ProbOfDeath{1});
 
 %%
+% Parameter constraints (heteroagentoptions.constrainpositive and friends) are deliberately NOT
+% implemented here. p arrives in original units, because the parent builds p0 straight out of
+% Parameters, so this pair is internally consistent and the constraints are simply ignored end to
+% end. That is left as is because nothing reaches this command: the dispatcher sends every
+% simoptions.agententryandexit>=1 (including ==2) to HeteroAgentStationaryEqm_InfHorz_EntryExit,
+% so HeteroAgentStationaryEqm_InfHorz_EntryExit2 has no caller. Were it ever wired up, it would
+% need the un-transform that the EntryExit_subfn does on arrival, the penalty applied to
+% GeneralEqmConditions below, AND the names-to-vector conversion of the constraint options in the
+% parent (the dispatcher's conversion never runs on this path, so they are still cells here).
 for ii=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{ii})=p(ii);
 end
