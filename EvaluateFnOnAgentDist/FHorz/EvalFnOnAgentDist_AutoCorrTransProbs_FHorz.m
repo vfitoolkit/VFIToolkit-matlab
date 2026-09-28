@@ -610,22 +610,33 @@ elseif simoptions.lowmemory==1
         end
     end
 
-    % Last evaluated Values per function (so at jj>=2 each function recycles its own
+    nFns=length(FnsToEvalNames);
+    if useCondlRest==1
+        nRest=length(CondlRestnFnNames);
+    else
+        nRest=0;
+    end
+
+    % Age-jj and age-(jj+1) Values per function (so at jj>=2 each function recycles its own
     % age-jj values; a single shared variable would hand it whichever function was
     % evaluated last in the ff loop)
-    Values_last=zeros(N_a*N_semizze_reshape,length(FnsToEvalNames),'gpuArray');
+    Values_now=zeros(N_a*N_semizze_reshape,nFns,'gpuArray');
+    Values_last=zeros(N_a*N_semizze_reshape,nFns,'gpuArray');
 
     % Signed measures in flight, being propagated from their start age j0 towards horizon Kmax.
     % Only the current P_jj is ever held, so a measure started at j0 is multiplied by P_j0, then
     % P_j0+1, ... as the loop over jj reaches them; the buffers hold one row per start age,
     % circularly (row mod(j0-1,Kmax)+1), and at iteration jj the row of j0=jj-Kmax has just been
-    % read off at horizon Kmax and is overwritten by the new start age jj.
+    % read off at horizon Kmax and is overwritten by the new start age jj (a start age with zero
+    % mass leaves its row zero and inactive, so its outputs stay NaN).
     % Unrestricted: one row (distj.*Xc)' per start age; restricted: three rows (m, m.*Xc, m.*Xc.^2)'.
-    Ubuf=zeros(Kmax,N_a*N_semizze_reshape,length(FnsToEvalNames),'gpuArray');
-    Uactive=false(Kmax,length(FnsToEvalNames)); % a start age with zero mass leaves its row inactive (outputs stay NaN)
+    % All the rows in flight (every function, every restriction) are propagated by ONE product
+    % with P_jj per age, as that product is the expensive step (P_jj is large and sparse).
+    Ubuf=zeros(Kmax,N_a*N_semizze_reshape,nFns,'gpuArray');
+    Uactive=false(Kmax,nFns);
     if useCondlRest==1
-        Rbuf=zeros(3,N_a*N_semizze_reshape,Kmax,length(FnsToEvalNames),length(CondlRestnFnNames),'gpuArray');
-        Ractive=false(Kmax,length(FnsToEvalNames),length(CondlRestnFnNames));
+        Rbuf=zeros(3,N_a*N_semizze_reshape,Kmax,nFns,nRest,'gpuArray');
+        Ractive=false(Kmax,nFns,nRest);
     end
 
     % Loop over jj=1:N_j to minimize having to store the large P transition matrices
@@ -671,8 +682,10 @@ elseif simoptions.lowmemory==1
             end
         end
 
-        %% Per-function computation
-        for ff=1:length(FnsToEvalNames)
+        rowjj=mod(jj-1,Kmax)+1; % the buffer row of the measures started at age jj (it held j0=jj-Kmax until it was read off at horizon Kmax in the previous iteration)
+
+        %% Per-function: values, means, and start the measures of age jj
+        for ff=1:nFns
             fn=FnsToEvalNames{ff};
 
             if jj==1
@@ -689,6 +702,7 @@ elseif simoptions.lowmemory==1
             else
                 Values_jj=Values_last(:,ff);
             end
+            Values_now(:,ff)=Values_jj;
 
             % (i) Per-age Values, shape (N_a*N_semizze, 1)
             if N_semizze==0
@@ -715,44 +729,18 @@ elseif simoptions.lowmemory==1
                 CorrTransProbs.(fn).StdDeviation(jj+1)=sqrt(sum(distjplus1.*(Values_jjplus1-CorrTransProbs.(fn).Mean(jj+1)).^2));
             end
 
-            % (iii) Per-age AutoCov and AutoCorr at each horizon (transition j0 -> j0+k, read off when jj+1=j0+k)
-            % Use the centered form for AutoCov: more numerically stable than E[XY]-EX*EY
-            % when X,Y are nearly constant (the raw-moment form cancels two large numbers
-            % into a noisy tiny one).
-            % Start the measure of age jj (row mod(jj-1,Kmax)+1, which held j0=jj-Kmax until it was read off at horizon Kmax in the previous iteration)
-            rowjj=mod(jj-1,Kmax)+1;
+            % (iii-a) Start the measure of age jj (the centered form, see the lowmemory=0 branch)
             if massj>0
                 Ubuf(rowjj,:,ff)=(distj.*(Values_jj-CorrTransProbs.(fn).Mean(jj)))';
                 Uactive(rowjj,ff)=true;
             else
+                Ubuf(rowjj,:,ff)=0;
                 Uactive(rowjj,ff)=false;
             end
-            % Propagate every measure in flight one age (jj -> jj+1) and read off those that reached a requested horizon
-            for j0=max(1,jj-Kmax+1):jj
-                row=mod(j0-1,Kmax)+1;
-                if Uactive(row,ff)
-                    Ubuf(row,:,ff)=Ubuf(row,:,ff)*P_jj; % now a signed measure over the age-(jj+1) states
-                    kk=jj+1-j0;
-                    hh=find(horizons==kk);
-                    if ~isempty(hh)
-                        Yc=Values_jjplus1-CorrTransProbs.(fn).Mean(jj+1);
-                        CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])(j0)=full(Ubuf(row,:,ff)*Yc);
-                        denom=CorrTransProbs.(fn).StdDeviation(j0)*CorrTransProbs.(fn).StdDeviation(jj+1);
-                        % Threshold guards against "0/0" for variables that are constant within
-                        % an age (e.g. an agej-only fn): StdDev there is floating-point noise
-                        % (~1e-15), so denom can be ~1e-30 and the ratio explodes. 1e-15 is far
-                        % below any real-world variance and well above numerical noise.
-                        if denom>1e-15
-                            CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])(j0)=CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])(j0)/denom;
-                        end
-                    end
-                end
-            end
 
-            %% (iii-b) Conditional restrictions (see the lowmemory=0 branch for the formulas)
+            % (iii-b) Conditional restrictions: restricted mean and std dev at age jj (at jj=1) and at age jj+1, and start the three measures of age jj
             if useCondlRest==1
-                for rr=1:length(CondlRestnFnNames)
-                    % Restricted mean and std dev at age jj (at jj=1) and at age jj+1
+                for rr=1:nRest
                     if jj==1
                         mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr);
                         massr=sum(mr);
@@ -769,24 +757,67 @@ elseif simoptions.lowmemory==1
                         CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj+1)=sum(mr.*Values_jjplus1);
                         CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation(jj+1)=sqrt(sum(mr.*(Values_jjplus1-CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj+1)).^2));
                     end
-                    % Start the three measures of age jj
                     mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
                     if sum(mr)>0
                         Xc=Values_jj-CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj);
                         Rbuf(:,:,rowjj,ff,rr)=[mr, mr.*Xc, mr.*Xc.^2]';
                         Ractive(rowjj,ff,rr)=true;
                     else
+                        Rbuf(:,:,rowjj,ff,rr)=0;
                         Ractive(rowjj,ff,rr)=false;
                     end
-                    % Propagate every measure in flight one age (jj -> jj+1) and read off those that reached a requested horizon
+                end
+            end
+        end
+
+        %% Propagate every measure in flight one age (jj -> jj+1), all in one product with P_jj
+        Wall=reshape(permute(Ubuf,[1,3,2]),[Kmax*nFns,N_a*N_semizze_reshape]);
+        if useCondlRest==1
+            Wall=[Wall; reshape(permute(Rbuf,[1,3,4,5,2]),[3*Kmax*nFns*nRest,N_a*N_semizze_reshape])];
+        end
+        Wall=full(Wall*P_jj); % now signed measures over the age-(jj+1) states
+        Ubuf=permute(reshape(Wall(1:Kmax*nFns,:),[Kmax,nFns,N_a*N_semizze_reshape]),[1,3,2]);
+        if useCondlRest==1
+            Rbuf=permute(reshape(Wall(Kmax*nFns+1:end,:),[3,Kmax,nFns,nRest,N_a*N_semizze_reshape]),[1,5,2,3,4]);
+        end
+
+        %% Per-function: read off the measures that reached a requested horizon, then transition probabilities
+        for ff=1:nFns
+            fn=FnsToEvalNames{ff};
+            Values_jj=Values_now(:,ff);
+            Values_jjplus1=Values_last(:,ff);
+
+            % (iii) Per-age AutoCov and AutoCorr at each horizon (transition j0 -> j0+k, read off when jj+1=j0+k)
+            for j0=max(1,jj-Kmax+1):jj
+                row=mod(j0-1,Kmax)+1;
+                if Uactive(row,ff)
+                    kk=jj+1-j0;
+                    hh=find(horizons==kk);
+                    if ~isempty(hh)
+                        Yc=Values_jjplus1-CorrTransProbs.(fn).Mean(jj+1);
+                        CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])(j0)=Ubuf(row,:,ff)*Yc;
+                        denom=CorrTransProbs.(fn).StdDeviation(j0)*CorrTransProbs.(fn).StdDeviation(jj+1);
+                        % Threshold guards against "0/0" for variables that are constant within
+                        % an age (e.g. an agej-only fn): StdDev there is floating-point noise
+                        % (~1e-15), so denom can be ~1e-30 and the ratio explodes. 1e-15 is far
+                        % below any real-world variance and well above numerical noise.
+                        if denom>1e-15
+                            CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])(j0)=CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])(j0)/denom;
+                        end
+                    end
+                end
+            end
+
+            %% (iii-b) Conditional restrictions (see the lowmemory=0 branch for the formulas)
+            if useCondlRest==1
+                for rr=1:nRest
                     for j0=max(1,jj-Kmax+1):jj
                         row=mod(j0-1,Kmax)+1;
                         if Ractive(row,ff,rr)
-                            Rbuf(:,:,row,ff,rr)=Rbuf(:,:,row,ff,rr)*P_jj; % now over the age-(jj+1) states
                             kk=jj+1-j0;
                             hh=find(horizons==kk);
                             if ~isempty(hh)
-                                pairs=full(Rbuf(:,:,row,ff,rr)).*RestrictionValues(:,jj+1,rr)'; % keep those who satisfy the restriction at age jj+1 too
+                                pairs=Rbuf(:,:,row,ff,rr).*RestrictionValues(:,jj+1,rr)'; % keep those who satisfy the restriction at age jj+1 too
                                 pairmass=sum(pairs(1,:));
                                 CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])(j0)=pairmass;
                                 if pairmass>0
