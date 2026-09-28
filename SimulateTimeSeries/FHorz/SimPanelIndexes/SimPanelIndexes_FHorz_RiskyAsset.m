@@ -146,7 +146,12 @@ if N_bothze==0
         % Policy_aprime(:,1:N_u*2,:) lower grid point for a1 is unchanged
         Policy_aprime(:,N_u*2+1:end,:)=Policy_aprime(:,N_u*2+1:end,:)+1; % add one to a1, to get upper grid point
 
-        aprimeProbs_upper=reshape(shiftdim((Policy(end-1,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
+        % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+        L2index=Policy(end-1,:,:); % L2 index (end-1 because end is L2flag)
+        L2flag=Policy(end,:,:);
+        L2index(L2flag==1)=1;                        % force all weight to lower grid point
+        L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+        aprimeProbs_upper=reshape(shiftdim((L2index-1)/(simoptions.ngridinterp+1),1),[N_a,1,N_j]); % probability of upper grid point
         PolicyProbs(:,1:N_u*2,:)=PolicyProbs(:,1:N_u*2,:).*(1-aprimeProbs_upper); % lower a1
         PolicyProbs(:,N_u*2+1:end,:)=PolicyProbs(:,N_u*2+1:end,:).*aprimeProbs_upper; % upper a1
     end
@@ -192,7 +197,12 @@ else
         % Policy_aprime(:,:,1:N_u*2,:) lower grid point for a1 is unchanged
         Policy_aprime(:,:,N_u*2+1:end,:)=Policy_aprime(:,:,N_u*2+1:end,:)+1; % add one to a1, to get upper grid point
 
-        aprimeProbs_upper=reshape(shiftdim((Policy(end-1,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_bothze,1,N_j]); % probability of upper grid point (from L2 index; end-1 because end is now L2flag)
+        % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+        L2index=Policy(end-1,:,:,:); % L2 index (end-1 because end is L2flag)
+        L2flag=Policy(end,:,:,:);
+        L2index(L2flag==1)=1;                        % force all weight to lower grid point
+        L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+        aprimeProbs_upper=reshape(shiftdim((L2index-1)/(simoptions.ngridinterp+1),1),[N_a,N_bothze,1,N_j]); % probability of upper grid point
         PolicyProbs(:,:,1:N_u*2,:)=PolicyProbs(:,:,1:N_u*2,:).*(1-aprimeProbs_upper); % lower a1
         PolicyProbs(:,:,N_u*2+1:end,:)=PolicyProbs(:,:,N_u*2+1:end,:).*aprimeProbs_upper; % upper a1
     end
