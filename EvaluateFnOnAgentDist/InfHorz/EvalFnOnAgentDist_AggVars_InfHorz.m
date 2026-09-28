@@ -166,7 +166,7 @@ if isstruct(StationaryDist)
     elseif simoptions.endogenousexit==2
         exitprobabilities=CreateVectorFromParams(Parameters, simoptions.exitprobabilities);
         exitprobs=[1-sum(exitprobabilities),exitprobabilities];
-        AggVars=EvalFnOnAgentDist_AggVars_InfHorz_Mass_MixExit(StationaryDist.pdf,StationaryDist.mass, Policy, PolicyWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, exitprobs);
+        AggVars=EvalFnOnAgentDist_AggVars_InfHorz_Mass_MixExit(StationaryDist.pdf,StationaryDist.mass, Policy, PolicyWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, exitprobs, simoptions);
     end
 
     if FnsToEvaluateStruct==1
