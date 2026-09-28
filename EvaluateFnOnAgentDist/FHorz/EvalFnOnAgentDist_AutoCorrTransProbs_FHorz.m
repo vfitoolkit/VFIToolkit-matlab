@@ -6,11 +6,24 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 % Use simoptions.transprobs={'name1','name2',...} (cell of FnsToEval names) to
 % request transition probabilities for those functions (none by default).
 %
+% Use simoptions.timehorizons=[2,5] (vector of horizons k>=2) to also get the
+% auto-covariance/-correlation between age j and age j+k (the horizon 1 is
+% always computed). Horizon k is reported in fields with the suffix _kK, e.g.
+% AutoCovariance_k2 is 1 x (N_j-2) with index jj the pair (age jj, age jj+2).
+%
+% Use simoptions.conditionalrestrictions (structure of functions, same form as
+% FnsToEvaluate, returning 0/1) to also get everything conditional on a
+% restriction: means/std devs at age j are over those satisfying the
+% restriction at age j, and the auto-covariance between ages j and j+k is over
+% those satisfying the restriction at BOTH ages j and j+k (the 'pairs'; e.g.
+% alive at both ages). Reported under CorrTransProbs.(restrictionname).(fnname).
+%
 % Outputs (per FnsToEvaluate field):
 %   .Mean             1 x N_j
 %   .StdDeviation     1 x N_j
-%   .AutoCovariance   1 x (N_j-1)   transition j -> j+1
-%   .AutoCorrelation  1 x (N_j-1)   transition j -> j+1
+%   .AutoCovariance   1 x (N_j-1)   Cov(x_j, x_{j+1}), with x_j centered on Mean(j) and x_{j+1} on Mean(j+1)
+%   .AutoCorrelation  1 x (N_j-1)   AutoCovariance/(StdDeviation(j)*StdDeviation(j+1))
+%   .AutoCovariance_kK, .AutoCorrelation_kK   1 x (N_j-K), for each K in simoptions.timehorizons
 %   .TransitionProbs  cell {N_j-1} of n_fvals_j x n_fvals_{j+1} matrices (default),
 %                     or n_fvals x n_fvals x (N_j-1) array when simoptions.transprobquantiles is set
 %   .TransitionValues_j, .TransitionValues_jplus1  cells {N_j-1} of the unique function
@@ -19,18 +32,29 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 %   .TransitionMass_j cell {N_j-1}, within-age mass of each origin bin (row) of
 %                     TransitionProbs{jj}; multiply by the age weight to get population
 %                     mass (not provided when simoptions.transprobquantiles is set)
+% Outputs per conditional restriction, CorrTransProbs.(restrictionname):
+%   .RestrictedSampleMass   1 x N_j, population mass satisfying the restriction at each age (includes the age weights)
+%   .(fnname).Mean, .StdDeviation   1 x N_j, over those satisfying the restriction at that age
+%   .(fnname).AutoCovariance, .AutoCorrelation   1 x (N_j-1), over the pairs (satisfy the restriction at both j and j+1),
+%                     centered on the pair means (so this is the covariance/correlation of the pair population)
+%   .(fnname).PairMass   1 x (N_j-1), population mass of the pairs (an age-j agent counts if it satisfies the
+%                     restriction at j and will satisfy it at j+1; includes the age-j weight)
+%   .(fnname).PairMean_j, .PairMean_jplusk, .PairStdDeviation_j, .PairStdDeviation_jplusk   1 x (N_j-1),
+%                     the means/std devs of x_j and of x_{j+1} in the pair population
+%   and the same with suffix _kK for each K in simoptions.timehorizons (all 1 x (N_j-K))
+%   TransitionProbs are not computed under conditional restrictions.
 %
-% Not yet implemented (will error or be ignored):
-%   simoptions.conditionalrestrictions  -- warn-and-ignore
-%   simoptions.n_e>0 or simoptions.n_semiz>0  -- error
-%   simoptions.timehorizons non-empty  -- error
+% Note: an age with zero mass (e.g. before the entry age of a cohort started using
+% simoptions.jequaloneDistAge) gets NaN in every output that involves it.
+%
+% Not yet implemented (will error):
 %   simoptions.agegroupings non-default  -- error
 
 %%
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1);
-    simoptions.timehorizons=[]; % multi-period horizons -- not yet implemented
+    simoptions.timehorizons=[]; % multi-period horizons (horizon 1 is always calculated)
     simoptions.transprobquantiles=[];
     simoptions.agegroupings=1:1:N_j; % age bins -- not yet implemented (default = each age separately)
     simoptions.lowmemory=0; % =1 use less memory, but slower
@@ -86,14 +110,26 @@ else
     end
 end
 
-if isfield(simoptions,'conditionalrestrictions')
-    warning('Have not yet implemented simoptions.conditionalrestrictions for AutoCorrTransProbs_FHorz so ignoring them, ask on forum if you need this')
-end
-if ~isempty(simoptions.timehorizons)
-    error('AutoCorrTransProbs_FHorz: simoptions.timehorizons (multi-period autocorrelations) not yet implemented; will implement later')
-end
 if ~isequal(simoptions.agegroupings,1:1:N_j)
     error('AutoCorrTransProbs_FHorz: simoptions.agegroupings (age bins) not yet implemented; will implement later')
+end
+
+%% Time horizons: horizon 1 is always done, the others come from simoptions.timehorizons
+if ~isempty(simoptions.timehorizons)
+    if any(simoptions.timehorizons<1) || any(simoptions.timehorizons~=round(simoptions.timehorizons))
+        error('AutoCorrTransProbs_FHorz: simoptions.timehorizons must be positive integers')
+    end
+    if any(simoptions.timehorizons>N_j-1)
+        error('AutoCorrTransProbs_FHorz: simoptions.timehorizons cannot exceed N_j-1 (there is no pair of ages that far apart)')
+    end
+end
+horizons=unique([1,gather(simoptions.timehorizons(:)')]); % sorted, starts with 1
+nhorizons=length(horizons);
+Kmax=horizons(end);
+horizonstr=cell(1,nhorizons); % suffix of the output field names
+horizonstr{1}=''; % horizon 1 has no suffix (AutoCovariance, AutoCorrelation, ...)
+for hh=2:nhorizons
+    horizonstr{hh}=['_k',num2str(horizons(hh))];
 end
 
 %%
@@ -233,6 +269,42 @@ end
 %% Reshape StationaryDist
 StationaryDist=gpuArray(reshape(StationaryDist,[N_a*N_semizze_reshape,N_j]));
 
+%% Conditional restrictions: evaluate each restriction on the grid at every age (0/1)
+% RestrictionValues(:,jj,rr) is 1 on the age-jj states that satisfy restriction rr.
+useCondlRest=0;
+if isfield(simoptions,'conditionalrestrictions')
+    useCondlRest=1;
+    CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
+    RestrictionValues=zeros(N_a*N_semizze_reshape,N_j,length(CondlRestnFnNames),'gpuArray');
+    for rr=1:length(CondlRestnFnNames)
+        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+        temp=getAnonymousFnInputNames(CondlRestnFn);
+        if length(temp)>(l_daprime+l_a+l_semizze)
+            CondlRestnFnParamNames={temp{l_daprime+l_a+l_semizze+1:end}};
+        else
+            CondlRestnFnParamNames={};
+        end
+        if N_semizze==0
+            for jj=1:N_j
+                CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames,jj);
+                slice=EvalFnOnAgentDist_Grid(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,n_semizze,a_gridvals,[]);
+                RestrictionValues(:,jj,rr)=(slice~=0);
+            end
+        else
+            for jj=1:N_j
+                CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames,jj);
+                slice=EvalFnOnAgentDist_Grid(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermuteJ(:,:,:,jj),l_daprime,n_a,n_semizze,a_gridvals,semizze_gridvals_J(:,:,jj));
+                RestrictionValues(:,jj,rr)=reshape(slice~=0,[N_a*N_semizze_reshape,1]);
+            end
+        end
+        CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass=sum(StationaryDist.*RestrictionValues(:,:,rr),1);
+        if all(CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass==0)
+            warning('One of the conditional restrictions evaluates to a zero mass (at all j)')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+        end
+    end
+end
+
 
 
 if simoptions.lowmemory==0
@@ -300,34 +372,136 @@ if simoptions.lowmemory==0
             end
         end
 
-        % (iii) Per-age AutoCov and AutoCorr (transition j -> j+1)
+        % (iii) Per-age AutoCov and AutoCorr at each horizon (transition j -> j+k)
         % Use the centered form for AutoCov: more numerically stable than E[XY]-EX*EY
         % when X,Y are nearly constant (the raw-moment form cancels two large numbers
         % into a noisy tiny one).
-        AutoCov=nan(1,N_j-1,'gpuArray');
-        AutoCorr=nan(1,N_j-1,'gpuArray');
+        % The signed measure (distj.*Xc) over the age-jj states is propagated forward one
+        % age at a time (a row vector times the sparse transition matrix, never a product
+        % of transition matrices), and at each horizon that was requested the covariance
+        % with the centered age-(jj+k) values is read off.
+        AutoCov=cell(1,nhorizons);
+        AutoCorr=cell(1,nhorizons);
+        for hh=1:nhorizons
+            AutoCov{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+            AutoCorr{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+        end
         for jj=1:N_j-1
             massj=sum(StationaryDist(:,jj));
             if massj>0
                 distj=StationaryDist(:,jj)./massj;
                 Xc=Values(:,jj)-MeanV(jj);
-                Yc=Values(:,jj+1)-MeanV(jj+1);
-                AutoCov(jj)=full((distj.*Xc)'*P_cell{jj}*Yc);
-                denom=StdDevV(jj)*StdDevV(jj+1);
-                % Threshold guards against "0/0" for variables that are constant within
-                % an age (e.g. an agej-only fn): StdDev there is floating-point noise
-                % (~1e-15), so denom can be ~1e-30 and the ratio explodes. 1e-15 is far
-                % below any real-world variance and well above numerical noise.
-                if denom>1e-15
-                    AutoCorr(jj)=AutoCov(jj)/denom;
+                propagated=(distj.*Xc)';
+                for kk=1:min(Kmax,N_j-jj)
+                    propagated=propagated*P_cell{jj+kk-1}; % now a signed measure over the age-(jj+kk) states
+                    hh=find(horizons==kk);
+                    if ~isempty(hh)
+                        Yc=Values(:,jj+kk)-MeanV(jj+kk);
+                        AutoCov{hh}(jj)=full(propagated*Yc);
+                        denom=StdDevV(jj)*StdDevV(jj+kk);
+                        % Threshold guards against "0/0" for variables that are constant within
+                        % an age (e.g. an agej-only fn): StdDev there is floating-point noise
+                        % (~1e-15), so denom can be ~1e-30 and the ratio explodes. 1e-15 is far
+                        % below any real-world variance and well above numerical noise.
+                        if denom>1e-15
+                            AutoCorr{hh}(jj)=AutoCov{hh}(jj)/denom;
+                        end
+                    end
                 end
             end
         end
 
         CorrTransProbs.(fn).Mean=MeanV;
         CorrTransProbs.(fn).StdDeviation=StdDevV;
-        CorrTransProbs.(fn).AutoCovariance=AutoCov;
-        CorrTransProbs.(fn).AutoCorrelation=AutoCorr;
+        for hh=1:nhorizons
+            CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])=AutoCov{hh};
+            CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorr{hh};
+        end
+
+        %% (iii-b) Conditional restrictions: means/std devs at each age over those satisfying the
+        % restriction, and the auto-covariance over the pairs that satisfy it at both ages.
+        % Three signed measures over the age-jj states are propagated together: the restricted
+        % mass m, m.*Xc and m.*Xc.^2 (Xc centered on the restricted age-jj mean). Masking the
+        % propagated measures with the restriction at age jj+k gives the pair population, and
+        % its mass, its means and variances of x_j and x_{j+k}, and their covariance follow.
+        % [E_pair[(x_j-c)(x_{j+k}-mu_y)] is the pair covariance for ANY constant c, since
+        % E_pair[x_{j+k}-mu_y]=0, so centering x_j on the restricted age-jj mean rather than
+        % on the (not yet known) pair mean is exact.]
+        if useCondlRest==1
+            for rr=1:length(CondlRestnFnNames)
+                MeanR=nan(1,N_j,'gpuArray');
+                StdDevR=nan(1,N_j,'gpuArray');
+                for jj=1:N_j
+                    mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr);
+                    massr=sum(mr);
+                    if massr>0
+                        mr=mr./massr;
+                        MeanR(jj)=sum(mr.*Values(:,jj));
+                        StdDevR(jj)=sqrt(sum(mr.*(Values(:,jj)-MeanR(jj)).^2));
+                    end
+                end
+                AutoCovR=cell(1,nhorizons);
+                AutoCorrR=cell(1,nhorizons);
+                PairMass=cell(1,nhorizons);
+                PairMean_j=cell(1,nhorizons);
+                PairMean_jplusk=cell(1,nhorizons);
+                PairStdDev_j=cell(1,nhorizons);
+                PairStdDev_jplusk=cell(1,nhorizons);
+                for hh=1:nhorizons
+                    AutoCovR{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                    AutoCorrR{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                    PairMass{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                    PairMean_j{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                    PairMean_jplusk{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                    PairStdDev_j{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                    PairStdDev_jplusk{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                end
+                for jj=1:N_j-1
+                    mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
+                    if sum(mr)>0
+                        Xc=Values(:,jj)-MeanR(jj);
+                        propagated=[mr, mr.*Xc, mr.*Xc.^2]'; % 3 x N_states
+                        for kk=1:min(Kmax,N_j-jj)
+                            propagated=propagated*P_cell{jj+kk-1}; % now over the age-(jj+kk) states
+                            hh=find(horizons==kk);
+                            if ~isempty(hh)
+                                pairs=full(propagated).*RestrictionValues(:,jj+kk,rr)'; % keep those who satisfy the restriction at age jj+kk too
+                                pairmass=sum(pairs(1,:));
+                                PairMass{hh}(jj)=pairmass;
+                                if pairmass>0
+                                    y=Values(:,jj+kk)';
+                                    d1=sum(pairs(2,:))/pairmass; % pair mean of x_j, minus MeanR(jj)
+                                    muy=sum(pairs(1,:).*y)/pairmass; % pair mean of x_{j+k}
+                                    varx=sum(pairs(3,:))/pairmass-d1^2;
+                                    vary=sum(pairs(1,:).*(y-muy).^2)/pairmass;
+                                    covxy=sum(pairs(2,:).*(y-muy))/pairmass;
+                                    PairMean_j{hh}(jj)=MeanR(jj)+d1;
+                                    PairMean_jplusk{hh}(jj)=muy;
+                                    PairStdDev_j{hh}(jj)=sqrt(max(varx,0));
+                                    PairStdDev_jplusk{hh}(jj)=sqrt(vary);
+                                    AutoCovR{hh}(jj)=covxy;
+                                    denom=PairStdDev_j{hh}(jj)*PairStdDev_jplusk{hh}(jj);
+                                    if denom>1e-15
+                                        AutoCorrR{hh}(jj)=covxy/denom;
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean=MeanR;
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation=StdDevR;
+                for hh=1:nhorizons
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCovariance',horizonstr{hh}])=AutoCovR{hh};
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorrR{hh};
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])=PairMass{hh};
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_j',horizonstr{hh}])=PairMean_j{hh};
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_jplusk',horizonstr{hh}])=PairMean_jplusk{hh};
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_j',horizonstr{hh}])=PairStdDev_j{hh};
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}])=PairStdDev_jplusk{hh};
+                end
+            end
+        end
 
         %% (iv) Transition probabilities (only when requested for this fn)
         if simoptions.transprobs(ff)==1
@@ -402,8 +576,25 @@ elseif simoptions.lowmemory==1
         fn=FnsToEvalNames{ff};
         CorrTransProbs.(fn).Mean=nan(1,N_j,'gpuArray');
         CorrTransProbs.(fn).StdDeviation=nan(1,N_j,'gpuArray');
-        CorrTransProbs.(fn).AutoCovariance=nan(1,N_j-1,'gpuArray');
-        CorrTransProbs.(fn).AutoCorrelation=nan(1,N_j-1,'gpuArray');
+        for hh=1:nhorizons
+            CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
+            CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
+        end
+        if useCondlRest==1
+            for rr=1:length(CondlRestnFnNames)
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean=nan(1,N_j,'gpuArray');
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation=nan(1,N_j,'gpuArray');
+                for hh=1:nhorizons
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCovariance',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCorrelation',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_j',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_jplusk',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_j',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
+                end
+            end
+        end
         if simoptions.transprobs(ff)==1
             if isempty(simoptions.transprobquantiles)
                 % Default: unique values per age (size can differ across ages -> cell array)
@@ -423,6 +614,19 @@ elseif simoptions.lowmemory==1
     % age-jj values; a single shared variable would hand it whichever function was
     % evaluated last in the ff loop)
     Values_last=zeros(N_a*N_semizze_reshape,length(FnsToEvalNames),'gpuArray');
+
+    % Signed measures in flight, being propagated from their start age j0 towards horizon Kmax.
+    % Only the current P_jj is ever held, so a measure started at j0 is multiplied by P_j0, then
+    % P_j0+1, ... as the loop over jj reaches them; the buffers hold one row per start age,
+    % circularly (row mod(j0-1,Kmax)+1), and at iteration jj the row of j0=jj-Kmax has just been
+    % read off at horizon Kmax and is overwritten by the new start age jj.
+    % Unrestricted: one row (distj.*Xc)' per start age; restricted: three rows (m, m.*Xc, m.*Xc.^2)'.
+    Ubuf=zeros(Kmax,N_a*N_semizze_reshape,length(FnsToEvalNames),'gpuArray');
+    Uactive=false(Kmax,length(FnsToEvalNames)); % a start age with zero mass leaves its row inactive (outputs stay NaN)
+    if useCondlRest==1
+        Rbuf=zeros(3,N_a*N_semizze_reshape,Kmax,length(FnsToEvalNames),length(CondlRestnFnNames),'gpuArray');
+        Ractive=false(Kmax,length(FnsToEvalNames),length(CondlRestnFnNames));
+    end
 
     % Loop over jj=1:N_j to minimize having to store the large P transition matrices
     for jj=1:N_j-1
@@ -511,21 +715,100 @@ elseif simoptions.lowmemory==1
                 CorrTransProbs.(fn).StdDeviation(jj+1)=sqrt(sum(distjplus1.*(Values_jjplus1-CorrTransProbs.(fn).Mean(jj+1)).^2));
             end
 
-            % (iii) Per-age AutoCov and AutoCorr (transition j -> j+1)
+            % (iii) Per-age AutoCov and AutoCorr at each horizon (transition j0 -> j0+k, read off when jj+1=j0+k)
             % Use the centered form for AutoCov: more numerically stable than E[XY]-EX*EY
             % when X,Y are nearly constant (the raw-moment form cancels two large numbers
             % into a noisy tiny one).
+            % Start the measure of age jj (row mod(jj-1,Kmax)+1, which held j0=jj-Kmax until it was read off at horizon Kmax in the previous iteration)
+            rowjj=mod(jj-1,Kmax)+1;
             if massj>0
-                Xc=Values_jj-CorrTransProbs.(fn).Mean(jj);
-                Yc=Values_jjplus1-CorrTransProbs.(fn).Mean(jj+1);
-                CorrTransProbs.(fn).AutoCovariance(jj)=full((distj.*Xc)'*P_jj*Yc);
-                denom=CorrTransProbs.(fn).StdDeviation(jj)*CorrTransProbs.(fn).StdDeviation(jj+1);
-                % Threshold guards against "0/0" for variables that are constant within
-                % an age (e.g. an agej-only fn): StdDev there is floating-point noise
-                % (~1e-15), so denom can be ~1e-30 and the ratio explodes. 1e-15 is far
-                % below any real-world variance and well above numerical noise.
-                if denom>1e-15
-                    CorrTransProbs.(fn).AutoCorrelation(jj)=CorrTransProbs.(fn).AutoCovariance(jj)/denom;
+                Ubuf(rowjj,:,ff)=(distj.*(Values_jj-CorrTransProbs.(fn).Mean(jj)))';
+                Uactive(rowjj,ff)=true;
+            else
+                Uactive(rowjj,ff)=false;
+            end
+            % Propagate every measure in flight one age (jj -> jj+1) and read off those that reached a requested horizon
+            for j0=max(1,jj-Kmax+1):jj
+                row=mod(j0-1,Kmax)+1;
+                if Uactive(row,ff)
+                    Ubuf(row,:,ff)=Ubuf(row,:,ff)*P_jj; % now a signed measure over the age-(jj+1) states
+                    kk=jj+1-j0;
+                    hh=find(horizons==kk);
+                    if ~isempty(hh)
+                        Yc=Values_jjplus1-CorrTransProbs.(fn).Mean(jj+1);
+                        CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])(j0)=full(Ubuf(row,:,ff)*Yc);
+                        denom=CorrTransProbs.(fn).StdDeviation(j0)*CorrTransProbs.(fn).StdDeviation(jj+1);
+                        % Threshold guards against "0/0" for variables that are constant within
+                        % an age (e.g. an agej-only fn): StdDev there is floating-point noise
+                        % (~1e-15), so denom can be ~1e-30 and the ratio explodes. 1e-15 is far
+                        % below any real-world variance and well above numerical noise.
+                        if denom>1e-15
+                            CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])(j0)=CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])(j0)/denom;
+                        end
+                    end
+                end
+            end
+
+            %% (iii-b) Conditional restrictions (see the lowmemory=0 branch for the formulas)
+            if useCondlRest==1
+                for rr=1:length(CondlRestnFnNames)
+                    % Restricted mean and std dev at age jj (at jj=1) and at age jj+1
+                    if jj==1
+                        mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr);
+                        massr=sum(mr);
+                        if massr>0
+                            mr=mr./massr;
+                            CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj)=sum(mr.*Values_jj);
+                            CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation(jj)=sqrt(sum(mr.*(Values_jj-CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj)).^2));
+                        end
+                    end
+                    mr=StationaryDist(:,jj+1).*RestrictionValues(:,jj+1,rr);
+                    massr=sum(mr);
+                    if massr>0
+                        mr=mr./massr;
+                        CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj+1)=sum(mr.*Values_jjplus1);
+                        CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation(jj+1)=sqrt(sum(mr.*(Values_jjplus1-CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj+1)).^2));
+                    end
+                    % Start the three measures of age jj
+                    mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
+                    if sum(mr)>0
+                        Xc=Values_jj-CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj);
+                        Rbuf(:,:,rowjj,ff,rr)=[mr, mr.*Xc, mr.*Xc.^2]';
+                        Ractive(rowjj,ff,rr)=true;
+                    else
+                        Ractive(rowjj,ff,rr)=false;
+                    end
+                    % Propagate every measure in flight one age (jj -> jj+1) and read off those that reached a requested horizon
+                    for j0=max(1,jj-Kmax+1):jj
+                        row=mod(j0-1,Kmax)+1;
+                        if Ractive(row,ff,rr)
+                            Rbuf(:,:,row,ff,rr)=Rbuf(:,:,row,ff,rr)*P_jj; % now over the age-(jj+1) states
+                            kk=jj+1-j0;
+                            hh=find(horizons==kk);
+                            if ~isempty(hh)
+                                pairs=full(Rbuf(:,:,row,ff,rr)).*RestrictionValues(:,jj+1,rr)'; % keep those who satisfy the restriction at age jj+1 too
+                                pairmass=sum(pairs(1,:));
+                                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])(j0)=pairmass;
+                                if pairmass>0
+                                    y=Values_jjplus1';
+                                    d1=sum(pairs(2,:))/pairmass; % pair mean of x_j0, minus the restricted Mean(j0)
+                                    muy=sum(pairs(1,:).*y)/pairmass; % pair mean of x_{jj+1}
+                                    varx=sum(pairs(3,:))/pairmass-d1^2;
+                                    vary=sum(pairs(1,:).*(y-muy).^2)/pairmass;
+                                    covxy=sum(pairs(2,:).*(y-muy))/pairmass;
+                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_j',horizonstr{hh}])(j0)=CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(j0)+d1;
+                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_jplusk',horizonstr{hh}])(j0)=muy;
+                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_j',horizonstr{hh}])(j0)=sqrt(max(varx,0));
+                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}])(j0)=sqrt(vary);
+                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCovariance',horizonstr{hh}])(j0)=covxy;
+                                    denom=sqrt(max(varx,0))*sqrt(vary);
+                                    if denom>1e-15
+                                        CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCorrelation',horizonstr{hh}])(j0)=covxy/denom;
+                                    end
+                                end
+                            end
+                        end
+                    end
                 end
             end
 
@@ -580,7 +863,7 @@ elseif simoptions.lowmemory==1
 end
 
 
-CorrTransProbs.Notes='Mean and StdDeviation are 1xN_j. AutoCovariance and AutoCorrelation are 1x(N_j-1), with index jj corresponding to the transition from age jj to age jj+1. TransitionProbs (when requested) is a cell {N_j-1} of (possibly varying-size) matrices, or a 3-D (nquantiles, nquantiles, N_j-1) array when simoptions.transprobquantiles is set. TransitionValues_j and TransitionValues_jplus1 (cells {N_j-1}) give the unique function values labelling the rows and columns of TransitionProbs{jj} respectively, and TransitionMass_j (cell {N_j-1}) gives the within-age mass of each origin bin/row (none of these are provided when using transprobquantiles, where bins are quantiles rather than values).';
+CorrTransProbs.Notes='Mean and StdDeviation are 1xN_j. AutoCovariance and AutoCorrelation are 1x(N_j-1), with index jj corresponding to the transition from age jj to age jj+1; AutoCovariance_kK and AutoCorrelation_kK (for K in simoptions.timehorizons) are 1x(N_j-K), index jj is the pair of ages jj and jj+K. Under a conditional restriction the auto-covariances are over the pairs that satisfy the restriction at both ages, centered on the pair means (PairMean_j, PairMean_jplusk), and PairMass is the population mass of those pairs. TransitionProbs (when requested) is a cell {N_j-1} of (possibly varying-size) matrices, or a 3-D (nquantiles, nquantiles, N_j-1) array when simoptions.transprobquantiles is set. TransitionValues_j and TransitionValues_jplus1 (cells {N_j-1}) give the unique function values labelling the rows and columns of TransitionProbs{jj} respectively, and TransitionMass_j (cell {N_j-1}) gives the within-age mass of each origin bin/row (none of these are provided when using transprobquantiles, where bins are quantiles rather than values).';
 
 end
 
