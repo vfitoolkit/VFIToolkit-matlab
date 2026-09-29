@@ -6,6 +6,9 @@ function Obj=CalibrateLifeCycleModel_withCohorts_objectivefn(calibparamsvec, Cal
 % gives cohortmoments).
 % Age weights by cohort: simoptions.agemass_withCohort (ncohorts-by-N_j) if given, otherwise cohort c keeps the
 % AgeWeightParamNames value of its entry age at every age.
+% AutoCorr targets (TargetMoments.AutoCorr.cohortC..., see SetupTargetMoments_FHorz_withCohorts) are evaluated by
+% EvalFnOnAgentDist_AutoCorrTransProbs_FHorz on the cohort's distribution, with simoptions.timehorizons set to the horizons
+% the targets need (a restriction named in a target must exist in simoptions.conditionalrestrictions).
 % Not implemented with cohorts: CustomModelStats, and caliboptions.simulatemoments=1 (bootstrap by panel simulation).
 
 % Untransform the parameters (when dealing with constraints the inputs are the transformed parameters, so want to switch them back to original model parameters)
@@ -109,6 +112,35 @@ for cc=1:ncohorts
                 currentmomentvec(sofar+acscummomentsizes(mm-1)+1:sofar+acscummomentsizes(mm))=AgeConditionalStats.(acsmomentnames{mm,1}).(acsmomentnames{mm,2});
             else
                 currentmomentvec(sofar+acscummomentsizes(mm-1)+1:sofar+acscummomentsizes(mm))=AgeConditionalStats.(acsmomentnames{mm,1}).(acsmomentnames{mm,2}).(acsmomentnames{mm,3});
+            end
+        end
+        sofar=sofar+acscummomentsizes(end);
+    end
+    if cohortmoments.usingautocorr(cc)==1
+        % AutoCorr targets: EvalFnOnAgentDist_AutoCorrTransProbs_FHorz on this cohort's distribution, at the horizons the targets need
+        acrmomentnames=cohortmoments.acrmomentnames{cc};
+        acrcummomentsizes=cohortmoments.acrcummomentsizes{cc};
+        for mm=1:size(acrmomentnames,1)
+            if ~isempty(acrmomentnames{mm,1})
+                if ~isfield(simoptions,'conditionalrestrictions') || ~isfield(simoptions.conditionalrestrictions,acrmomentnames{mm,1})
+                    error(['TargetMoments.AutoCorr uses the restriction ',acrmomentnames{mm,1},' but there is no simoptions.conditionalrestrictions.',acrmomentnames{mm,1}])
+                end
+            end
+        end
+        simoptions_acr=simoptions;
+        simoptions_acr.timehorizons=cohortmoments.acrhorizons{cc};
+        CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist,Policy,cohortmoments.FnsToEvaluate_AutoCorr{cc},Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions_acr);
+        for mm=1:size(acrmomentnames,1)
+            if mm==1
+                ind1=sofar+1;
+            else
+                ind1=sofar+acrcummomentsizes(mm-1)+1;
+            end
+            ind2=sofar+acrcummomentsizes(mm);
+            if isempty(acrmomentnames{mm,1})
+                currentmomentvec(ind1:ind2)=CorrTransProbs.(acrmomentnames{mm,2}).(acrmomentnames{mm,4});
+            else
+                currentmomentvec(ind1:ind2)=CorrTransProbs.(acrmomentnames{mm,1}).(acrmomentnames{mm,2}).(acrmomentnames{mm,4});
             end
         end
     end
