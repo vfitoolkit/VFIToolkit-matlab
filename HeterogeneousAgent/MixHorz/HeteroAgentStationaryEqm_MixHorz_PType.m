@@ -164,12 +164,13 @@ else
     end
 end
 
+if ~isfield(simoptions,'jequaloneDist_usergrids')
+    simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
+end
+
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
-    if ~isfield(simoptions,'jequaloneDist_usergrids')
-        simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
-    end
     if ~isfield(heteroagentoptions,'CustomModelStats_usergrids')
         heteroagentoptions.CustomModelStats_usergrids=0; % =0: pass internal grids (struct with one field per ptype); =1: pass exactly the z_grid & pi_z the user input
     end
@@ -210,6 +211,17 @@ if length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
     error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
 end
 
+% Formats for printing things that are conditional on ptype (one number per type on the line). Built
+% before the two lines below overwrite the numeric accuracy options with format strings. Names_i may
+% still be just the NUMBER of types at this point, as it is only turned into a cell of names further
+% down, hence the two cases.
+if iscell(Names_i)
+    N_i_forprint=length(Names_i);
+else
+    N_i_forprint=Names_i;
+end
+heteroagentoptions.verboseaccuracy1ptype=['	%s: ',repmat([' %8.',num2str(heteroagentoptions.verboseaccuracy1),'f '],1,N_i_forprint),' \n'];
+heteroagentoptions.verboseaccuracy2ptype=['	%s: ',repmat([' %8.',num2str(heteroagentoptions.verboseaccuracy2),'f '],1,N_i_forprint),' \n'];
 heteroagentoptions.verboseaccuracy1=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy1),'f \n']; % set up a string
 heteroagentoptions.verboseaccuracy2=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy2),'f \n']; % set up a string
 
@@ -326,7 +338,7 @@ if ~isstruct(jequaloneDist)
     if ~exist("simoptions","var")
         error('You must input simoptions to HeteroAgentStationaryEqm_MixHorz_PType when using jequaloneDist as a structure')
     end
-    [jequaloneDist,~,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,PTypeStructure.N_i,PTypeStructure.Names_i,PTypeDistParamNames,1);
+    [jequaloneDist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,PTypeStructure.N_i,PTypeStructure.Names_i,PTypeDistParamNames);
 end
 
 %%
@@ -425,7 +437,9 @@ for ii=1:PTypeStructure.N_i
     if isfinite(PTypeStructure.(iistr).N_j) % FHorz
         % If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
         if heteroagentoptions.gridsinGE(ii)==0
-            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,0);
+            % The user's own grids are needed if jequaloneDist as a function is given them, or if CustomModelStats is
+            KeepOriginalGrid=(simoptions.jequaloneDist_usergrids==1 || (heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1));
+            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,KeepOriginalGrid);
             % Note: these are actually z_gridvals_J and pi_z_J
             PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % Note, will be [] if no e
             PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J; % Note, will be [] if no e
@@ -502,11 +516,10 @@ for ii=1:PTypeStructure.N_i
     if isfinite(PTypeStructure.(iistr).N_j) % FHorz
         if isstruct(jequaloneDist)
             if isfield(jequaloneDist,PTypeStructure.Names_i{ii})
-                if isa(jequaloneDist, 'function_handle')
-                    [PTypeStructure.(iistr).jequaloneDist,~,PTypeStructure.(iistr).Parameters]=jequaloneDist_PType(jequaloneDist.(iistr),PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_i,PTypeStructure.(iistr).PTypeDistParamNames,0);
-                else
-                    PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(iistr);
-                end
+                % May be a function handle: deliberately not evaluated here. StationaryDist_FHorz_Case1 (called
+                % from the subfn) evaluates it every general eqm iteration, with this ptype's own grids and the
+                % current prices. Same as the non-PType path.
+                PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(iistr);
             else
                 error(['You must input jequaloneDist for permanent type ', PTypeStructure.Names_i{ii}, ' \n'])
             end
@@ -847,11 +860,27 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
 %%
 elseif heteroagentoptions.maxiter==0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
     % Just use the prices that are currently in Params
+    % Walk the prices in the same layout GEparamsvec0 was built in: a price that depends on the
+    % permanent type holds one value per type (as a struct, or as a vector of length N_i), so it is
+    % N_i entries of this vector rather than one. Indexing it as one entry silently mis-indexed any
+    % multi-element price, and errored outright on a struct ('Conversion to double from struct').
     p_eqm_vec=zeros(length(GEparamsvec0),1);
     p_eqm=nan; % So user cannot misuse
     p_eqm_index=nan; % In case user asks for it
+    pp_c=0;
     for pp=1:length(GEPriceParamNames)
-        p_eqm_vec(pp)=Parameters.(GEPriceParamNames{pp});
+        if isstruct(Parameters.(GEPriceParamNames{pp}))
+            for ii=1:PTypeStructure.N_i
+                pp_c=pp_c+1;
+                p_eqm_vec(pp_c)=Parameters.(GEPriceParamNames{pp}).(PTypeStructure.Names_i{ii});
+            end
+        else
+            temp=reshape(Parameters.(GEPriceParamNames{pp}),[],1);
+            for kk=1:length(temp)
+                pp_c=pp_c+1;
+                p_eqm_vec(pp_c)=temp(kk);
+            end
+        end
     end
 end
 

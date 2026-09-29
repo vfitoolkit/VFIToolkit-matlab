@@ -29,13 +29,17 @@ for ii=1:PTypeStructure.N_i
 
     if heteroagentoptions.gridsinGE(ii)==1
         % Some of the shock grids depend on parameters that are determined in general eqm
-        % The user's own grids are needed if CustomModelStats is given them
-        KeepOriginalGrid=(heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1);
+        % The user's own grids are needed if jequaloneDist as a function is given them, or if CustomModelStats is
+        KeepOriginalGrid=(PTypeStructure.(iistr).simoptions.jequaloneDist_usergrids==1 || (heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1));
         [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,KeepOriginalGrid);
         % Convert z and e to age-dependent joint-grids and transtion matrix
         % Note: Ignores which, just redoes both z and e
         PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % if no e, this is just empty anyway
         PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J;
+        if PTypeStructure.(iistr).simoptions.jequaloneDist_usergrids==1 && isfield(PTypeStructure.(iistr).vfoptions,'user_z_grid') % jequaloneDist as a function is given the user's own grids, and they must track the general eqm prices
+            PTypeStructure.(iistr).simoptions.user_z_grid=PTypeStructure.(iistr).vfoptions.user_z_grid;
+            PTypeStructure.(iistr).simoptions.user_pi_z=PTypeStructure.(iistr).vfoptions.user_pi_z;
+        end
     end
 
     % If semiz is determined in GE

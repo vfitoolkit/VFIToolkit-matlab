@@ -218,7 +218,9 @@ end
 
 %%
 if vfoptions.parallel==2
-    jequaloneDist=gpuArray(jequaloneDist);
+    if isnumeric(jequaloneDist) % may instead be a function handle, which StationaryDist_FHorz_Case1 evaluates
+        jequaloneDist=gpuArray(jequaloneDist); % (with the current prices) on every general eqm iteration
+    end
 else
     [p_eqm,GeneralEqmConditions]=HeteroAgentStationaryEqm_FHorz_CPU(jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
     varargout={p_eqm,GeneralEqmConditions};

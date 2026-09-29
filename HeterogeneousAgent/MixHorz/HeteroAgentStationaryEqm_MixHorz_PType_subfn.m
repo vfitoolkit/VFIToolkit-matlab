@@ -18,10 +18,15 @@ if heteroagentoptions.verbose>0
     end
     if heteroagentoptions.useintermediateEqns==1
         intEqnnames=fieldnames(heteroagentoptions.intermediateEqns);
-        intermediateEqns_tminus1=zeros(length(intEqnnames),1);
+        % A row, to match intermediateEqnsVec further down, which is zeros(1,length(intEqnnames)):
+        % subtracting a column from that row implicitly expands to a square matrix, and the largest
+        % change then comes back as a vector of indexes rather than one, so nothing is ever
+        % highlighted. The assignment below also has to be to this variable, not to intEqns_tminus1,
+        % which was written and never read - leaving the comparison to be made against zeros.
+        intermediateEqns_tminus1=zeros(1,length(intEqnnames));
         for aa=1:length(intEqnnames)
             if isfield(Parameters,intEqnnames{aa})
-                intEqns_tminus1(aa)=Parameters.(intEqnnames{aa});
+                intermediateEqns_tminus1(aa)=Parameters.(intEqnnames{aa});
             end
         end
     end
@@ -62,11 +67,17 @@ for ii=1:PTypeStructure.N_i
     if heteroagentoptions.gridsinGE(ii)==1
         if isfinite(PTypeStructure.(iistr).N_j)
             % Some of the shock grids depend on parameters that are determined in general eqm
-            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,KeepOriginalGrid);
+            % The user's own grids are also needed if jequaloneDist as a function is given them (FHorz types only)
+            KeepOriginalGrid_ii=(PTypeStructure.(iistr).simoptions.jequaloneDist_usergrids==1 || KeepOriginalGrid==1);
+            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3,KeepOriginalGrid_ii);
             % Convert z and e to age-dependent joint-grids and transtion matrix
             % Note: Ignores which, just redoes both z and e
             PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % if no e, this is just empty anyway
             PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J;
+            if PTypeStructure.(iistr).simoptions.jequaloneDist_usergrids==1 && isfield(PTypeStructure.(iistr).vfoptions,'user_z_grid') % jequaloneDist as a function is given the user's own grids, and they must track the general eqm prices
+                PTypeStructure.(iistr).simoptions.user_z_grid=PTypeStructure.(iistr).vfoptions.user_z_grid;
+                PTypeStructure.(iistr).simoptions.user_pi_z=PTypeStructure.(iistr).vfoptions.user_pi_z;
+            end
         else
             % PType actually allows for infinite horizon as well
             % Some of the shock grids depend on parameters that are determined in general eqm
