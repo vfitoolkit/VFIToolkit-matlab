@@ -169,14 +169,14 @@ if isfield(simoptions,'conditionalrestrictions')
     % First couple of lines get the conditional restrictions and convert
     % them to a names and cell
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
-    for ff=1:length(CondlRestnFnNames)
-        temp=getAnonymousFnInputNames(simoptions.conditionalrestrictions.(CondlRestnFnNames{ff}));
+    for rr=1:length(CondlRestnFnNames)
+        temp=getAnonymousFnInputNames(simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}));
         if length(temp)>(l_d+l_a+l_a+l_z)
-            CondlRestnFnParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+            CondlRestnFnParamNames(rr).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
-            CondlRestnFnParamNames(ff).Names={};
+            CondlRestnFnParamNames(rr).Names={};
         end
-        CondlRestnFns{ff}=simoptions.conditionalrestrictions.(CondlRestnFnNames{ff});
+        CondlRestnFns{rr}=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
     end
     simoptions=rmfield(simoptions,'conditionalrestrictions'); % Have to delete this before resend it to EvalFnOnAgentDist_AllStats_InfHorz()
 
@@ -189,15 +189,15 @@ if isfield(simoptions,'conditionalrestrictions')
         a_gridvals=CreateGridvals(n_a,a_grid,1);
         z_gridvals=CreateGridvals(n_z,z_grid,1);
         % Evaluate the conditional restrictions
-        for kk=1:length(CondlRestnFnNames)
+        for rr=1:length(CondlRestnFnNames)
             % Includes check for cases in which no parameters are actually required
-            if isempty(CondlRestnFnParamNames(kk).Names) % check for '={}'
+            if isempty(CondlRestnFnParamNames(rr).Names) % check for '={}'
                 CondlRestnFnParamsCell={};
             else
-                CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames(kk).Names);
+                CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames(rr).Names);
             end
 
-            Values=EvalFnOnAgentDist_Grid(CondlRestnFns{kk}, CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+            Values=EvalFnOnAgentDist_Grid(CondlRestnFns{rr}, CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
             Values=reshape(Values,[N_a*N_z,1]);
 
             RestrictedStationaryDistVec=StationaryDistVec;
@@ -207,52 +207,52 @@ if isfield(simoptions,'conditionalrestrictions')
 
             if restrictedsamplemass==0
                 warning('One of the conditional restrictions evaluates to a zero mass')
-                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{kk},' has a restricted sample that is of zero mass \n'])
-                AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
+                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+                AggVars.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
             else
-                AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_InfHorz_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
+                AggVars.(CondlRestnFnNames{rr})=EvalFnOnAgentDist_AggVars_InfHorz_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
 
                 % Create some renormalizations where relevant (just the mean)
                 for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate already created above
-                    AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Mean;
+                    AggVars.(CondlRestnFnNames{rr}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AggVars.(CondlRestnFnNames{rr}).(FnsToEvalNames{ii}).Mean;
                 end
-                AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
+                AggVars.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
             end
         end
     else % simoptions.parallel~=2
-        for kk=1:length(FnsToEvaluate)
+        for rr=1:length(CondlRestnFnNames)
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(kk).Names) % check for 'FnsToEvaluateParamNames={}'
+            if isempty(CondlRestnFnParamNames(rr).Names) % check for '={}'
                 Values=zeros(N_a*N_z,1);
                 if l_d==0
                     for ii=1:N_a*N_z
                         j1=rem(ii-1,N_a)+1;
                         j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                        Values(ii)=CondlRestnFns{rr}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                     end
                 else % l_d>0
                     for ii=1:N_a*N_z
                         j1=rem(ii-1,N_a)+1;
                         j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                        Values(ii)=CondlRestnFns{rr}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                     end
                 end
             else
                 Values=zeros(N_a*N_z,1);
                 if l_d==0
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
+                    CondlRestnFnParamsCell=num2cell(CreateVectorFromParams(Parameters,CondlRestnFnParamNames(rr).Names));
                     Values=zeros(N_a*N_z,1);
                     for ii=1:N_a*N_z
                         j1=rem(ii-1,N_a)+1;
                         j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                        Values(ii)=CondlRestnFns{rr}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},CondlRestnFnParamsCell{:});
                     end
                 else % l_d>0
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
+                    CondlRestnFnParamsCell=num2cell(CreateVectorFromParams(Parameters,CondlRestnFnParamNames(rr).Names));
                     for ii=1:N_a*N_z
                         j1=rem(ii-1,N_a)+1;
                         j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                        Values(ii)=CondlRestnFns{rr}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},CondlRestnFnParamsCell{:});
                     end
                 end
             end
@@ -264,16 +264,16 @@ if isfield(simoptions,'conditionalrestrictions')
 
             if restrictedsamplemass==0
                 warning('One of the conditional restrictions evaluates to a zero mass')
-                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{kk},' has a restricted sample that is of zero mass \n'])
-                AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
+                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+                AggVars.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
             else
-                AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_InfHorz_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel, simoptions);
+                AggVars.(CondlRestnFnNames{rr})=EvalFnOnAgentDist_AggVars_InfHorz_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel, simoptions);
 
                 % Create some renormalizations where relevant (just the mean)
                 for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate already created above
-                    AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AggVars.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Mean;
+                    AggVars.(CondlRestnFnNames{rr}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AggVars.(CondlRestnFnNames{rr}).(FnsToEvalNames{ii}).Mean;
                 end
-                AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
+                AggVars.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
             end
         end
     end

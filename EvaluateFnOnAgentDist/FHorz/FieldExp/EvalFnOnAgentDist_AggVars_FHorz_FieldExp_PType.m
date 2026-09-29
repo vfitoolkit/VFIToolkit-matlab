@@ -337,19 +337,19 @@ for ii=1:N_i
 
     %% Add things up across PTypes
     if simoptions.groupptypesforstats==1
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
+        for ff=1:numFnsToEvaluate
+            jj=WhichFnsForCurrentPType(ff);
             if jj>0
-                AggVars_control(kk)=AggVars_control(kk)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Control_ii(jj,:);
-                AggVars_treatment(kk)=AggVars_treatment(kk)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Treatment_ii(jj,:);
+                AggVars_control(ff)=AggVars_control(ff)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Control_ii(jj,:);
+                AggVars_treatment(ff)=AggVars_treatment(ff)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Treatment_ii(jj,:);
             end
         end
     else
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
+        for ff=1:numFnsToEvaluate
+            jj=WhichFnsForCurrentPType(ff);
             if jj>0
-                AggVars_control(kk).(iistr)=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Control_ii(jj,:);
-                AggVars_treatment(kk).(iistr)=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Treatment_ii(jj,:);
+                AggVars_control(ff).(iistr)=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Control_ii(jj,:);
+                AggVars_treatment(ff).(iistr)=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_Treatment_ii(jj,:);
             end
         end
     end

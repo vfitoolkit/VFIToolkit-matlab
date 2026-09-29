@@ -113,8 +113,8 @@ for ii=1:ntminus1
 end
 if isempty(Names_i)
     for ii=1:ntminus1
-        for kk=1:length(AggVarNames)
-            if strcmp(tminus1Names{ii},AggVarNames{kk})
+        for ff=1:length(AggVarNames)
+            if strcmp(tminus1Names{ii},AggVarNames{ff})
                 ntminus1AggVars=ntminus1AggVars+1;
                 tminus1AggVarsNames{ntminus1AggVars}=tminus1Names{ii};
                 tminus1UsedAsPriceOrAggVar(ii)=1;

@@ -145,22 +145,22 @@ for ii=1:N_i % First set up simoptions
     if isempty(n_ze_temp) % no exogenous states
         if isstruct(FnsToEvaluate)
             FnNames=fieldnames(FnsToEvaluate);
-            for kk=1:numFnsToEvaluate
-                jj=WhichFnsForCurrentPType(kk);
+            for ff=1:numFnsToEvaluate
+                jj=WhichFnsForCurrentPType(ff);
                 if jj>0
                     if simoptions.ptypestorecpu==0
-                        ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,N_j_temp]);
+                        ValuesOnGrid.(FnNames{ff}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{ff}),[n_a_temp,N_j_temp]);
                     else
-                        ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=gather(reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,N_j_temp]));
+                        ValuesOnGrid.(FnNames{ff}).(Names_i{ii})=gather(reshape(ValuesOnGrid_ii.(FnNames{ff}),[n_a_temp,N_j_temp]));
                     end
                 end
             end
 
         else % Note: this only works when all agents use same grid
-            for kk=1:numFnsToEvaluate
-                jj=WhichFnsForCurrentPType(kk);
+            for ff=1:numFnsToEvaluate
+                jj=WhichFnsForCurrentPType(ff);
                 if jj>0
-                    ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
+                    ValuesOnDist_Kron(ff,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
                 end
             end
             if simoptions.ptypestorecpu==0
@@ -172,22 +172,22 @@ for ii=1:N_i % First set up simoptions
     else
         if isstruct(FnsToEvaluate)
             FnNames=fieldnames(FnsToEvaluate);
-            for kk=1:numFnsToEvaluate
-                jj=WhichFnsForCurrentPType(kk);
+            for ff=1:numFnsToEvaluate
+                jj=WhichFnsForCurrentPType(ff);
                 if jj>0
                     if simoptions.ptypestorecpu==0
-                        ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_ze_temp,N_j_temp]);
+                        ValuesOnGrid.(FnNames{ff}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{ff}),[n_a_temp,n_ze_temp,N_j_temp]);
                     else
-                        ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=gather(reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_ze_temp,N_j_temp]));
+                        ValuesOnGrid.(FnNames{ff}).(Names_i{ii})=gather(reshape(ValuesOnGrid_ii.(FnNames{ff}),[n_a_temp,n_ze_temp,N_j_temp]));
                     end
                 end
             end
 
         else % Note: this only works when all agents use same grid
-            for kk=1:numFnsToEvaluate
-                jj=WhichFnsForCurrentPType(kk);
+            for ff=1:numFnsToEvaluate
+                jj=WhichFnsForCurrentPType(ff);
                 if jj>0
-                    ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
+                    ValuesOnDist_Kron(ff,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
                 end
             end
             if simoptions.ptypestorecpu==0
