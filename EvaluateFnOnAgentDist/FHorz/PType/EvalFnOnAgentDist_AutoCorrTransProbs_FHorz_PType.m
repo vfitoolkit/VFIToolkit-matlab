@@ -318,7 +318,8 @@ if simoptions.groupptypesforstats==1
                             AutoCovRVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['AutoCovariance',horizonstr{hh}]));
                         end
                     end
-                    PairMassVec(isnan(PairMassVec))=0; % NaN where the type has no mass at j0: not in the pool
+                    PairMassNaN=isnan(PairMassVec); % NaN where the type has no mass at j0: not in the pool
+                    PairMassVec(PairMassNaN)=0;
                     PairMassG=nan(1,N_j-kk);
                     PairMeanxG=nan(1,N_j-kk);
                     PairMeanyG=nan(1,N_j-kk);
@@ -328,7 +329,11 @@ if simoptions.groupptypesforstats==1
                     AutoCorrRG=nan(1,N_j-kk);
                     for j0=1:N_j-kk
                         w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*PairMassVec(:,j0);
-                        PairMassG(j0)=sum(w);
+                        if all(PairMassNaN(FnsAndPTypeIndicator(ff,:)==1,j0))
+                            PairMassG(j0)=NaN; % no relevant type has any mass at j0
+                        else
+                            PairMassG(j0)=sum(w);
+                        end
                         if sum(w)>0
                             p=w/sum(w);
                             relevant=(w>0);

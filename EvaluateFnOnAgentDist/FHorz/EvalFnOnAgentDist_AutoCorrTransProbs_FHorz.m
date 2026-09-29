@@ -38,7 +38,8 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 %   .(fnname).AutoCovariance, .AutoCorrelation   1 x (N_j-1), over the pairs (satisfy the restriction at both j and j+1),
 %                     centered on the pair means (so this is the covariance/correlation of the pair population)
 %   .(fnname).PairMass   1 x (N_j-1), population mass of the pairs (an age-j agent counts if it satisfies the
-%                     restriction at j and will satisfy it at j+1; includes the age-j weight)
+%                     restriction at j and will satisfy it at j+1; includes the age-j weight). Zero when nobody at
+%                     age j satisfies the restriction; NaN only when age j has no mass at all.
 %   .(fnname).PairMean_j, .PairMean_jplusk, .PairStdDeviation_j, .PairStdDeviation_jplusk   1 x (N_j-1),
 %                     the means/std devs of x_j and of x_{j+1} in the pair population
 %   and the same with suffix _kK for each K in simoptions.timehorizons (all 1 x (N_j-K))
@@ -458,6 +459,15 @@ if simoptions.lowmemory==0
                 end
                 for jj=1:N_j-1
                     mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
+                    if sum(mr)==0 && sum(StationaryDist(:,jj))>0
+                        % The age has mass but nobody satisfies the restriction: there are no pairs (PairMass is zero, the
+                        % rest stays NaN). PairMass stays NaN only when the age itself has no mass.
+                        for hh=1:nhorizons
+                            if jj<=N_j-horizons(hh)
+                                PairMass{hh}(jj)=0;
+                            end
+                        end
+                    end
                     if sum(mr)>0
                         Xc=Values(:,jj)-MeanR(jj);
                         propagated=[mr, mr.*Xc, mr.*Xc.^2]'; % 3 x N_states
@@ -765,6 +775,15 @@ elseif simoptions.lowmemory==1
                     else
                         Rbuf(:,:,rowjj,ff,rr)=0;
                         Ractive(rowjj,ff,rr)=false;
+                        if massj>0
+                            % The age has mass but nobody satisfies the restriction: there are no pairs (PairMass is zero, the
+                            % rest stays NaN). PairMass stays NaN only when the age itself has no mass.
+                            for hh=1:nhorizons
+                                if jj<=N_j-horizons(hh)
+                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])(jj)=0;
+                                end
+                            end
+                        end
                     end
                 end
             end
