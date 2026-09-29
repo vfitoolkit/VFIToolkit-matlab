@@ -106,7 +106,7 @@ ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
 
 %% Deal with jequaloneDist
-[jequaloneDist,idiminj1dist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames,0);
+[jequaloneDist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames);
 
 
 %%
@@ -150,7 +150,7 @@ for ii=1:N_i
         if isfield(jequaloneDist,Names_i{ii})
             jequaloneDist_temp=jequaloneDist.(iistr);
             % jequaloneDist_temp must be of mass one for the codes to work.
-            if abs(sum(jequaloneDist_temp(:))-1)>10^(-15) % jequaloneDist_temp(:))~=1, but allowing for small numerical errors
+            if abs(sum(jequaloneDist_temp(:))-1)>10^(-12) % jequaloneDist_temp(:))~=1, but allowing for small numerical errors (same tolerance as the non-structure form below; a ptype-as-a-dimension input reaches here after jequaloneDist_PType normalized each slice, so it is only accurate to rounding error)
                 fprintf('Info for following error: sum(jequaloneDist_temp(:))-1=%8.16f (should be zero) \n', sum(jequaloneDist_temp(:))-1)
                 error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
             end
@@ -161,20 +161,9 @@ for ii=1:N_i
         end
     else
         % Note: when jequaloneDist is not a structure all ptypes must have the same grids
-        if idiminj1dist==0 % ptype is not a dimension
-            jequaloneDist_temp=jequaloneDist;
-        else % idminj1dist==1
-            % ptype is a dimension, so need to get the jequaloneDist for ii and also normalize mass conditional on ptype to be one
-            if ndims(jequaloneDist)==5 % has all three of semiz,z,e [other two are a and i]
-                jequaloneDist_temp=jequaloneDist(:,:,:,:,ii)/sum(sum(jequaloneDist(:,:,:,:,ii))); % includes renormalizing so mass of one conditional on ptype
-            elseif ndims(jequaloneDist)==4 % has two of semiz,z,e
-                jequaloneDist_temp=jequaloneDist(:,:,:,ii)/sum(sum(jequaloneDist(:,:,:,ii))); % includes renormalizing so mass of one conditional on ptype
-            elseif ndims(jequaloneDist)==3 % has one of semiz,z,e
-                jequaloneDist_temp=jequaloneDist(:,:,ii)/sum(sum(jequaloneDist(:,:,ii))); % includes renormalizing so mass of one conditional on ptype
-            elseif ndims(jequaloneDist)==2 % has none of semiz,z,e
-                jequaloneDist_temp=jequaloneDist(:,ii)/sum(jequaloneDist(:,ii)); % includes renormalizing so mass of one conditional on ptype
-            end
-        end
+        % (jequaloneDist_PType has already converted any ptype-as-a-dimension input into the struct
+        % form, so here jequaloneDist can only be the same distribution for every ptype)
+        jequaloneDist_temp=jequaloneDist;
         if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
             error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}, ' \n'])
         end

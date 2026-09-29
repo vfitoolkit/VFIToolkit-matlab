@@ -1,6 +1,11 @@
-function [jequaloneDist,idiminj1dist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames,outputstruct)
+function [jequaloneDist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames)
 % Deal with jequaloneDist for models with PType
 % Parameters is only needed as we might update Parameters.(PTypeDistParamNames{1})
+%
+% On output, any dependence of jequaloneDist on the permanent type is a structure with one
+% field per ptype: jequaloneDist with ptype as a dimension is an allowed user input, but it is
+% converted here (and its slice masses become the ptype masses), so that every other part of
+% the toolkit only ever has to handle the struct form, or a single distribution for all ptypes.
 
 if ~isfield(simoptions,'warnjequaloneptypeasdim')
     simoptions.warnjequaloneptypeasdim=1;
@@ -60,13 +65,11 @@ if ~isstruct(jequaloneDist)
                 elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,simoptions.n_e,N_i])
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz),prod(simoptions.n_e),N_i]);
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
-                    if outputstruct==1
-                        jequaloneDist_copy=jequaloneDist;
-                        clear jequaloneDist
-                        jequaloneDist=struct();
-                        for ii=1:N_i
-                            jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,:,ii);
-                        end
+                    jequaloneDist_copy=jequaloneDist;
+                    clear jequaloneDist
+                    jequaloneDist=struct();
+                    for ii=1:N_i
+                        jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,:,ii);
                     end
                 end
             else
@@ -78,13 +81,11 @@ if ~isstruct(jequaloneDist)
                 elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,n_z,simoptions.n_e,N_i])
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)*prod(n_z)*prod(simoptions.n_e),N_i]);
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
-                    if outputstruct==1
-                        jequaloneDist_copy=jequaloneDist;
-                        clear jequaloneDist
-                        jequaloneDist=struct();
-                        for ii=1:N_i
-                            jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
-                        end
+                    jequaloneDist_copy=jequaloneDist;
+                    clear jequaloneDist
+                    jequaloneDist=struct();
+                    for ii=1:N_i
+                        jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
                     end
                 end
             end
@@ -98,13 +99,11 @@ if ~isstruct(jequaloneDist)
                 elseif all(size(jequaloneDist)==[n_a,simoptions.n_e,N_i])
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_e),N_i]);
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
-                    if outputstruct==1
-                        jequaloneDist_copy=jequaloneDist;
-                        clear jequaloneDist
-                        jequaloneDist=struct();
-                        for ii=1:N_i
-                            jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
-                        end
+                    jequaloneDist_copy=jequaloneDist;
+                    clear jequaloneDist
+                    jequaloneDist=struct();
+                    for ii=1:N_i
+                        jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
                     end
                 end
             else
@@ -116,13 +115,11 @@ if ~isstruct(jequaloneDist)
                 elseif all(size(jequaloneDist)==[n_a,n_z,simoptions.n_e,N_i])
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z),prod(simoptions.n_e),N_i]);
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
-                    if outputstruct==1
-                        jequaloneDist_copy=jequaloneDist;
-                        clear jequaloneDist
-                        jequaloneDist=struct();
-                        for ii=1:N_i
-                            jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,:,ii);
-                        end
+                    jequaloneDist_copy=jequaloneDist;
+                    clear jequaloneDist
+                    jequaloneDist=struct();
+                    for ii=1:N_i
+                        jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,:,ii);
                     end
                 end
             end
@@ -138,13 +135,11 @@ if ~isstruct(jequaloneDist)
                 elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,N_i])
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz),N_i]);
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
-                    if outputstruct==1
-                        jequaloneDist_copy=jequaloneDist;
-                        clear jequaloneDist
-                        jequaloneDist=struct();
-                        for ii=1:N_i
-                            jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
-                        end
+                    jequaloneDist_copy=jequaloneDist;
+                    clear jequaloneDist
+                    jequaloneDist=struct();
+                    for ii=1:N_i
+                        jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
                     end
                 end
             else
@@ -156,13 +151,11 @@ if ~isstruct(jequaloneDist)
                 elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,n_z,N_i])
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)*prod(n_z),N_i]);
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
-                    if outputstruct==1
-                        jequaloneDist_copy=jequaloneDist;
-                        clear jequaloneDist
-                        jequaloneDist=struct();
-                        for ii=1:N_i
-                            jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
-                        end
+                    jequaloneDist_copy=jequaloneDist;
+                    clear jequaloneDist
+                    jequaloneDist=struct();
+                    for ii=1:N_i
+                        jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
                     end
                 end
             end
@@ -174,17 +167,19 @@ if ~isstruct(jequaloneDist)
                 elseif numel(jequaloneDist)==prod(n_a)*N_i
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),N_i]);
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
-                    if outputstruct==1
-                        jequaloneDist_copy=jequaloneDist;
-                        clear jequaloneDist
-                        jequaloneDist=struct();
-                        for ii=1:N_i
-                            jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,ii);
-                        end
+                    jequaloneDist_copy=jequaloneDist;
+                    clear jequaloneDist
+                    jequaloneDist=struct();
+                    for ii=1:N_i
+                        jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,ii);
                     end
                 end
             else
-                if all(size(jequaloneDist)==[n_a,n_z])
+                % ndims first, as in every other branch above: size(jequaloneDist) and [n_a,n_z] are
+                % different lengths when ptype is a dimension, and comparing them with == is an error
+                % rather than a false, so testing size() first made the ptype-as-a-dimension branch
+                % below unreachable for this (the most common) shape.
+                if ndims(jequaloneDist)==length([n_a,n_z])
                     if numel(jequaloneDist)==prod([n_a,n_z]) % avoid size()=[n_a,n_z] because this errors if last dimensions are singular as they get dropped from jequaloneDist
                         jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z)]);
                         idiminj1dist=0;
@@ -192,13 +187,11 @@ if ~isstruct(jequaloneDist)
                 elseif all(size(jequaloneDist)==[n_a,n_z,N_i])
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z),N_i]);
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
-                    if outputstruct==1
-                        jequaloneDist_copy=jequaloneDist;
-                        clear jequaloneDist
-                        jequaloneDist=struct();
-                        for ii=1:N_i
-                            jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
-                        end
+                    jequaloneDist_copy=jequaloneDist;
+                    clear jequaloneDist
+                    jequaloneDist=struct();
+                    for ii=1:N_i
+                        jequaloneDist.(Names_i{ii})=jequaloneDist_copy(:,:,ii);
                     end
                 end
             end
@@ -208,40 +201,24 @@ else % isstruct(jequaloneDist)
     idiminj1dist=0;
 end
 
-% If the initial agent distribution has ptype as a dimension, then use this to overwrite what the ptype masses are
+% If the initial agent distribution had ptype as a dimension, then it has been converted to the
+% struct form above, and the masses of its slices are what the user has implicitly set the ptype
+% masses to be. So they overwrite PTypeDistParamNames, and each field is then normalized to mass one.
 if idiminj1dist==1
+    implicit_masses=zeros(N_i,1);
+    for ii=1:N_i
+        implicit_masses(ii)=sum(sum(sum(jequaloneDist.(Names_i{ii}))));
+    end
     if simoptions.warnjequaloneptypeasdim==1
         % Only warn if the implicit slice masses actually disagree with the explicit PTypeDistParamNames.
-        if outputstruct==1
-            implicit_masses=zeros(N_i,1);
-            for ii=1:N_i
-                implicit_masses(ii)=sum(sum(sum(jequaloneDist.(Names_i{ii}))));
-            end
-        else
-            if ndims(jequaloneDist)==2
-                implicit_masses=sum(jequaloneDist,1)';
-            elseif ndims(jequaloneDist)==3
-                implicit_masses=shiftdim(sum(sum(jequaloneDist,1),2),2);
-            end
-        end
         explicit_masses=Parameters.(PTypeDistParamNames{1});
         if numel(explicit_masses)~=numel(implicit_masses) || max(abs(explicit_masses(:)-implicit_masses(:)))>10^(-12)
             warning('jequaloneDist has ptype as a dimension, so using implicit masses for ptypes and ignoring value of Parameter PTypeDistParamNames')
         end
     end
-    if outputstruct==1
-        ptypemass=zeros(N_i,1);
-        for ii=1:N_i
-            mass_ii=sum(sum(sum(jequaloneDist.(Names_i{ii}))));
-            ptypemass(ii)=mass_ii; % store mass of type ii
-            jequaloneDist.(Names_i{ii})=jequaloneDist.(Names_i{ii})/mass_ii; % Normalize to one
-        end
-    else
-        if length(jequaloneDist)==2
-            Parameters.(PTypeDistParamNames{1})=sum(jequaloneDist,1)'; % column vector
-        elseif length(jequaloneDist)==3 % (a,z,j) in kron form
-            Parameters.(PTypeDistParamNames{1})=shiftdim(sum(sum(jequaloneDist,1),2),2); % column vector
-        end
+    Parameters.(PTypeDistParamNames{1})=implicit_masses; % column vector
+    for ii=1:N_i
+        jequaloneDist.(Names_i{ii})=jequaloneDist.(Names_i{ii})/implicit_masses(ii); % Normalize to mass one
     end
 end
 
