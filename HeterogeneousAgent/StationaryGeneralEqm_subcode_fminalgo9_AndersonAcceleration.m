@@ -5,7 +5,8 @@ function [p_eqm_vec,GEcondns,output] = StationaryGeneralEqm_subcode_fminalgo9_An
 %                    (same {GEeqnName,PriceName,add,factor} format as fminalgo5.howtoupdate)
 % Anderson mixing combines the last m iterates to take a quasi-Newton-like
 % step without any derivatives. A safeguard rejects any Anderson step that
-% increases the residual (or produces NaN/Inf), falling back to a plain
+% increases the residual, or cannot be evaluated at all (the conditions come back
+% NaN/Inf, or the model itself throws), falling back to a plain
 % shooting step, so worst-case behaviour is that of the shooting algorithm.
 %
 % This command just sets up the three function handles (the general eqm
@@ -43,10 +44,13 @@ function [p_eqm_vec,GEcondns,output] = StationaryGeneralEqm_subcode_fminalgo9_An
 %      .anderson.maxiter     [1000]
 %      .anderson.warmup      [2]    number of initial plain (shooting) steps
 %                                   before Anderson steps begin
-%      .anderson.regularization [1e-10] Tikhonov parameter in least-squares
+%      .anderson.regularization [1e-10] Tikhonov parameter in least-squares,
+%                                   RELATIVE to norm(DeltaF,'fro')^2 (so it is
+%                                   scale-free in the size of the residual)
 %      .anderson.safeguard   [1]    1: evaluate GE conditions at the Anderson
 %                                   trial point and reject the step if the
-%                                   residual increases or evaluation fails
+%                                   residual increases, or the conditions are
+%                                   NaN/Inf, or the model itself throws
 %                                   (costs one extra evaluation of the GE
 %                                   conditions per Anderson step); 0: accept
 %                                   all Anderson steps (faster per iteration,
@@ -103,11 +107,20 @@ DistanceFn=@(GEc) max(abs(GEc));
 end
 
 function Phi=AAI_shootingstep(p,GEcondns,permute,signedfactor,keepold,updateaccuracycutoff,transformindex,GEPriceParamNames,heteroagentoptions)
-% Plain shooting fixed-point step Phi(p) in unconstrained space: apply the
-% howtoupdate rule in original price space, map back.
-[p_orig,~]=ParameterConstraints_TransformParamsToOriginal(p',transformindex,GEPriceParamNames,heteroagentoptions);
+% Plain shooting fixed-point step Phi(p), taken IN THE UNCONSTRAINED SPACE that p already lives in.
+% That is what makes the parameter constraints do anything: until 2026-09-25 this stepped in original
+% price space, applying the transform and immediately inverting it, so only the Anderson mixing saw the
+% constraints at all. Where a price is not constrained the transform is the identity and nothing changes.
 p_i=GEcondns(permute);
 p_i=(abs(p_i)>updateaccuracycutoff).*p_i;
-p_orig_new=keepold.*p_orig'+signedfactor.*p_i;
-Phi=ParameterConstraints_TransformParamsToUnconstrained(p_orig_new',transformindex,GEPriceParamNames,heteroagentoptions,0)';
+Phi=p+signedfactor.*p_i;
+if any(keepold==0)
+    % A keepold=0 row is 'factor=Inf': the price is REPLACED by the value the general eqm condition
+    % returned, which is an original-space price, so set those rows in original space and transform them
+    [p_orig,~]=ParameterConstraints_TransformParamsToOriginal(p',transformindex,GEPriceParamNames,heteroagentoptions);
+    p_orig_new=p_orig';
+    p_orig_new(keepold==0)=signedfactor(keepold==0).*p_i(keepold==0);
+    Phi_replace=ParameterConstraints_TransformParamsToUnconstrained(p_orig_new',transformindex,GEPriceParamNames,heteroagentoptions,0)';
+    Phi(keepold==0)=Phi_replace(keepold==0);
+end
 end

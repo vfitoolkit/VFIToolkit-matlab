@@ -35,7 +35,20 @@ while (any(p_change>heteroagentoptions.toleranceGEprices) || GeneralEqmCondition
     % Same arithmetic as in updatePricePathNew_TPath_tt and the non-PType fminalgo5 subcode.
     rampweight=min(max((itercounter-heteroagentoptions.fminalgo5.t1_add)./(heteroagentoptions.fminalgo5.t2_add-heteroagentoptions.fminalgo5.t1_add),0),1);
     factor_iter=heteroagentoptions.fminalgo5.factor.*(1+(heteroagentoptions.fminalgo5.f_add-1).*rampweight);
-    p_new=(p_old.*heteroagentoptions.fminalgo5.keepold)+heteroagentoptions.fminalgo5.add.*factor_iter.*p_i-(1-heteroagentoptions.fminalgo5.add).*factor_iter.*p_i;
+    % THE STEP IS TAKEN IN THE UNCONSTRAINED SPACE. That is what makes heteroagentoptions.constrainpositive
+    % (and constrain0to1, and constrainAtoB) do anything on this path: a constrained price then cannot step
+    % outside its range, and which transform was asked for changes the path. Until 2026-09-25 the step was
+    % taken in original price space, so the transform was applied on the way in and immediately inverted on
+    % the way out and the constraints were inert here - CoreStationaryGeneralEqm caught it as the 'log' and
+    % 'softplus' variants landing on bit-identical prices. Where a price is NOT constrained the transform is
+    % the identity, so nothing changes for a model that sets no constraints.
+    p_step=heteroagentoptions.fminalgo5.add.*factor_iter.*p_i-(1-heteroagentoptions.fminalgo5.add).*factor_iter.*p_i;
+    p_new=ParameterConstraints_TransformParamsToOriginal(p_old_unconstrained+p_step,GEpriceindexesB,GEPriceParamNames,heteroagentoptions);
+    % A keepold=0 row is 'factor=Inf': the price is REPLACED by the value the general eqm condition returned,
+    % and that value is an original-space price, so those rows are set in original space instead.
+    if any(heteroagentoptions.fminalgo5.keepold==0)
+        p_new(heteroagentoptions.fminalgo5.keepold==0)=p_step(heteroagentoptions.fminalgo5.keepold==0);
+    end
 
     % Calculate GeneralEqmConditions which measures convergence
     if heteroagentoptions.multiGEcriterion==0
