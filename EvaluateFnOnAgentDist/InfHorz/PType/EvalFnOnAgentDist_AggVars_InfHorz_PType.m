@@ -50,9 +50,15 @@ else
     numFnsToEvaluate=length(FnsToEvaluate);
 end
 
-% Set default of grouping all the PTypes together when reporting statistics
-% For AggVars, there is no point in not grouping all the PTypes together as it is essentially trivial to do so.
-AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
+% Set default of grouping all the PTypes together when reporting statistics. The per-type values are
+% always returned as well (they are free - each one is computed anyway), so this option only controls
+% whether the ptype-weighted aggregate is added alongside them. Same as the FHorz PType version.
+if ~isfield(simoptions,'groupptypesforstats')
+    simoptions.groupptypesforstats=1;
+end
+% One column per permanent type, so that each type's own values survive to the output; they are only
+% weighted and summed at the end
+AggVarsFull=zeros(numFnsToEvaluate,N_i,'gpuArray');
 
 %%
 for ii=1:N_i
@@ -103,27 +109,34 @@ for ii=1:N_i
     simoptions_temp.outputasstructure=0;
     StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
 
-    % if simoptions.groupptypesforstats==1
-    for kk=1:numFnsToEvaluate
-        jj=WhichFnsForCurrentPType(kk);
+    for ff=1:numFnsToEvaluate
+        jj=WhichFnsForCurrentPType(ff);
         if jj>0
-            AggVars(kk)=AggVars(kk)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
+            AggVarsFull(ff,ii)=StatsFromDist_AggVars_ii(jj,:); % weighting and summing happens after the loop
         end
     end
 end
+
+AggVars2=sum(StationaryDist.ptweights'.*AggVarsFull,2); % sum across agents (ptweights stored as column)
 
 
 %% If using FnsToEvaluate as structure need to get in appropriate form for output
 if isstruct(FnsToEvaluate)
     AggVarNames=fieldnames(FnsToEvaluate);
     % Change the output into a structure
-    AggVars2=AggVars;
-    clear AggVars
     AggVars=struct();
-    % if simoptions.groupptypesforstats==1
     for ff=1:length(AggVarNames)
-        AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
+        for ii=1:N_i
+            AggVars.(AggVarNames{ff}).(Names_i{ii}).Mean=AggVarsFull(ff,ii);
+        end
     end
+    if simoptions.groupptypesforstats==1
+        for ff=1:length(AggVarNames)
+            AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
+        end
+    end
+elseif simoptions.groupptypesforstats==1
+    AggVars=AggVars2;
 end
 
 

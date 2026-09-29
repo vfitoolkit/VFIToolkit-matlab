@@ -244,7 +244,7 @@ if isstruct(FnsToEvaluate)
             AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
         end
     end
-elseif simoptions.grouptypesforstats==1
+elseif simoptions.groupptypesforstats==1
     AggVars=AggVars2;
 end
 
