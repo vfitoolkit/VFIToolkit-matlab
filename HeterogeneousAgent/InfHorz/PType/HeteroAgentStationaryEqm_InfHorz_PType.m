@@ -199,6 +199,17 @@ if length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
     error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
 end
 
+% Formats for printing things that are conditional on ptype (one number per type on the line). Built
+% before the two lines below overwrite the numeric accuracy options with format strings. Names_i may
+% still be just the NUMBER of types at this point, as it is only turned into a cell of names further
+% down, hence the two cases.
+if iscell(Names_i)
+    N_i_forprint=length(Names_i);
+else
+    N_i_forprint=Names_i;
+end
+heteroagentoptions.verboseaccuracy1ptype=['	%s: ',repmat([' %8.',num2str(heteroagentoptions.verboseaccuracy1),'f '],1,N_i_forprint),' \n'];
+heteroagentoptions.verboseaccuracy2ptype=['	%s: ',repmat([' %8.',num2str(heteroagentoptions.verboseaccuracy2),'f '],1,N_i_forprint),' \n'];
 heteroagentoptions.verboseaccuracy1=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy1),'f \n']; % set up a string
 heteroagentoptions.verboseaccuracy2=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy2),'f \n']; % set up a string
 
@@ -264,6 +275,40 @@ if any(heteroagentoptions.GEptype==1)
     end
 elseif length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
     error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
+end
+
+%% If using _names, set up the parameters for this
+% A general eqm condition (or intermediate eqn) that holds conditional on permanent type is given
+% its inputs by the '_name' version of any name that depends on ptype, so the loops that build
+% GeneralEqmEqnParamNames below need to know which parameters those are. Without this block
+% paramnamesptype does not exist and heteroagentoptions.GEptype errors on its first use.
+% Note: done before PTypeStructure, which is maybe not the cleanest, but works fine (same as in
+% HeteroAgentStationaryEqm_Case1_FHorz_PType).
+paramnames=fieldnames(Parameters);
+paramnamesptype={};
+paramthatdependsonptype=zeros(1,length(paramnames));
+N_i=length(Names_i);
+for pp=1:length(paramnames)
+    try
+        if isstruct(Parameters.(paramnames{pp})) % parameter depends on ptype as a structure
+            for ii=1:N_i
+                Parameters.([paramnames{pp},'_',Names_i{ii}])=Parameters.(paramnames{pp}).(Names_i{ii});
+            end
+            paramthatdependsonptype(pp)=1;
+            paramnamesptype{sum(paramthatdependsonptype)}=paramnames{pp};
+        elseif any(size(Parameters.(paramnames{pp}))==N_i) % parameter depends on ptype as a vector
+            temp=Parameters.(paramnames{pp});
+            for ii=1:N_i
+                Parameters.([paramnames{pp},'_',Names_i{ii}])=temp(ii);
+            end
+            paramthatdependsonptype(pp)=1;
+            paramnamesptype{sum(paramthatdependsonptype)}=paramnames{pp};
+        end
+        % if not dependent on ptype, nothing to do
+    catch ME
+        % In OLGModels13.m, married couples have kappa_j1 and kappa_j2 parameters, but no kappa_j
+        % parameter. kappa_j leads to male and female vectors, but no married vectors, so nothing to do.
+    end
 end
 
 
@@ -632,8 +677,19 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
             heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
         end
-    else
-        error('Have not actually yet implemented GEptype for infinite horizon, contact me and I will do so')
+    else % some general eqm conditions hold conditional on ptype, which needs the by-ptype subfn
+        if heteroagentoptions.fminalgo~=8 && heteroagentoptions.fminalgo~=3
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, GEpriceindexes, GEprice_ptype, heteroagentoptions);
+        elseif heteroagentoptions.fminalgo==3
+            heteroagentoptions.outputGEform=1; % vector
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, GEpriceindexes, GEprice_ptype, heteroagentoptions);
+        elseif heteroagentoptions.fminalgo==8
+            heteroagentoptions.outputGEform=1; % vector
+            weightsbackup=heteroagentoptions.multiGEweights;
+            heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, GEpriceindexes, GEprice_ptype, heteroagentoptions);
+            heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
+        end
     end
 
     % Choosing algorithm for the optimization problem
@@ -729,11 +785,27 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
 %%
 elseif heteroagentoptions.maxiter==0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
     % Just use the prices that are currently in Params
+    % Walk the prices in the same layout GEparamsvec0 was built in: a price that depends on the
+    % permanent type holds one value per type (as a struct, or as a vector of length N_i), so it is
+    % N_i entries of this vector rather than one. Indexing it as one entry silently mis-indexed any
+    % multi-element price, and errored outright on a struct ('Conversion to double from struct').
     p_eqm_vec=zeros(length(GEparamsvec0),1);
     p_eqm=nan; % So user cannot misuse
     p_eqm_index=nan; % In case user asks for it
+    pp_c=0;
     for pp=1:length(GEPriceParamNames)
-        p_eqm_vec(pp)=Parameters.(GEPriceParamNames{pp});
+        if isstruct(Parameters.(GEPriceParamNames{pp}))
+            for ii=1:PTypeStructure.N_i
+                pp_c=pp_c+1;
+                p_eqm_vec(pp_c)=Parameters.(GEPriceParamNames{pp}).(PTypeStructure.Names_i{ii});
+            end
+        else
+            temp=reshape(Parameters.(GEPriceParamNames{pp}),[],1);
+            for kk=1:length(temp)
+                pp_c=pp_c+1;
+                p_eqm_vec(pp_c)=temp(kk);
+            end
+        end
     end
 
 end
@@ -759,7 +831,11 @@ if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
     if isfield(heteroagentoptions,'constrainAtoB')
         heteroagentoptions.constrainAtoB=zeros(length(p_eqm_vec),1);
     end
-    GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
+    if all(heteroagentoptions.GEptype==0)
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
+    else
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, GEpriceindexes, GEprice_ptype, heteroagentoptions);
+    end
     GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
 end
 if heteroagentoptions.outputGEstruct==1
