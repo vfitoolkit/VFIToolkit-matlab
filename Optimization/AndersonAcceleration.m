@@ -4,7 +4,8 @@ function [p,GEcondns,output]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,Dista
 % where G() is a 'shooting' style update built from the general eqm conditions.
 % Anderson mixing combines the last m iterates to take a quasi-Newton-like
 % step without any derivatives. A safeguard rejects any Anderson step that
-% increases the residual (or produces NaN/Inf), falling back to a plain
+% increases the residual, or cannot be evaluated at all (the conditions come back
+% NaN/Inf, or the model itself throws), falling back to a plain
 % shooting step, so worst-case behaviour is that of the shooting algorithm.
 %
 % This is the shared core. Everything model-specific enters through the three
@@ -31,11 +32,14 @@ function [p,GEcondns,output]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,Dista
 %      .maxiter     [1000]
 %      .warmup      [2]    number of initial plain (shooting) steps before
 %                          Anderson steps begin
-%      .regularization [1e-10] Tikhonov parameter in least-squares
+%      .regularization [1e-10] Tikhonov parameter in least-squares, RELATIVE to
+%                          norm(DeltaF,'fro')^2 (so it is scale-free in the size
+%                          of the fixed-point residual)
 %      .safeguard   [1]    1: evaluate GE conditions at the Anderson trial point
-%                          and reject the step if the distance increases or
-%                          evaluation fails (costs one extra evaluation of the
-%                          GE conditions per Anderson step); 0: accept all
+%                          and reject the step if the distance increases, or the
+%                          conditions are NaN/Inf, or the model itself throws
+%                          (costs one extra evaluation of the GE conditions per
+%                          Anderson step); 0: accept all
 %                          Anderson steps (faster per iteration, no fallback
 %                          protection)
 %      .type        ['II'] 'II' = classic Type-II (default); 'I' = the
@@ -105,15 +109,31 @@ if strcmp(andersonoptions.type,'I')
             H=eye(nP); Shat=zeros(nP,0); mc=0;
             nHfallbacks=nHfallbacks+1;
         end
-        GEc_t=GEcondnsFn(x_tilde); GEc_t=GEc_t(:);
+        % A model that cannot be solved at x_tilde does not always return NaN/Inf: it may THROW. A
+        % ReturnFn evaluated outside its domain errors rather than returning NaN (a negative base
+        % raised to a fractional power is 'POWER: needs to return a complex result' inside
+        % gpuArray/arrayfun), and so does anything the model builds from an infeasible price. That is
+        % the same thing to the backtracking below, so the error is turned into the Inf that the
+        % while-condition already knows how to handle. nP rows because this solver is given one GE
+        % condition per price. Only the TRIAL points are wrapped this way: the conditions at x_prev
+        % and x_cur have already been evaluated successfully, so an error there is a real error.
+        try
+            GEc_t=GEcondnsFn(x_tilde); GEc_t=GEc_t(:);
+        catch
+            GEc_t=inf(nP,1);
+        end
         nbacktrack=0;
         while any(~isfinite(GEc_t)) && nbacktrack<andersonoptions.maxbacktrack
             x_tilde=x_prev+(x_tilde-x_prev)/2;
             if xcurwastilde; x_cur=x_tilde; end
             nbacktrack=nbacktrack+1; nbacktracks=nbacktracks+1;
-            GEc_t=GEcondnsFn(x_tilde); GEc_t=GEc_t(:);
+            try
+                GEc_t=GEcondnsFn(x_tilde); GEc_t=GEc_t(:);
+            catch
+                GEc_t=inf(nP,1);
+            end
         end
-        if any(~isfinite(GEc_t)); error('AndersonAcceleration (Type-I): at iteration %i the general eqm conditions are still NaN/Inf after halving the step back toward the previous iterate %i times. Raise anderson.maxbacktrack, or start from a point further inside the region where the model can be solved.',iter,andersonoptions.maxbacktrack); end
+        if any(~isfinite(GEc_t)); error('AndersonAcceleration (Type-I): at iteration %i the general eqm conditions are still NaN/Inf (or the model still cannot be solved) after halving the step back toward the previous iterate %i times. Raise anderson.maxbacktrack, or start from a point further inside the region where the model can be solved.',iter,andersonoptions.maxbacktrack); end
         g_tilde=x_tilde-ShootingMapFn(x_tilde,GEc_t);
         % residual at x_cur (reuse if x_cur==x_tilde, i.e. previous step was accepted)
         if isequal(x_cur,x_tilde)
@@ -255,8 +275,24 @@ for iter=1:andersonoptions.maxiter
     if iter>andersonoptions.warmup && ~isempty(DeltaF)
         % Anderson (Type-II) step:
         % solve min_gamma || f - DeltaF*gamma ||_2, Tikhonov-regularized
+        % THE TIKHONOV TERM IS RELATIVE TO THE SIZE OF DeltaF, not an absolute number. f is the
+        % fixed-point residual of the shooting map, so f=factor*GEcondn and DeltaF is a difference of
+        % those: with the small factors a stable shooting map needs, DeltaF'*DeltaF is routinely 1e-19
+        % or smaller, so an absolute term of 1e-10 IS the normal equations and gamma comes back at
+        % ~1e-6 of what it should be. That silently turns every Anderson step into the plain shooting
+        % step it was supposed to accelerate - CoreStationaryGeneralEqm caught it as fminalgo=9 taking
+        % the same number of iterations as fminalgo=5 while paying the safeguard's second model solve,
+        % so it was strictly the slower of the two. Scaling by norm(DeltaF)^2 makes the option mean
+        % what its name says, a conditioning safeguard, at any scale of f.
         mk=size(DeltaF,2);
-        gamma=(DeltaF'*DeltaF + andersonoptions.regularization*eye(mk)) \ (DeltaF'*f);
+        DeltaFscale=norm(DeltaF,'fro')^2;
+        if DeltaFscale==0
+            % Every stored difference is exactly zero, so f has stopped moving. DeltaF'*DeltaF is then
+            % zero too and a zero Tikhonov term would make gamma NaN, where the absolute term used to
+            % give gamma=0 and hence the plain shooting step. Keep that.
+            DeltaFscale=1;
+        end
+        gamma=(DeltaF'*DeltaF + andersonoptions.regularization*DeltaFscale*eye(mk)) \ (DeltaF'*f);
         p_new=g-(DeltaX+DeltaF)*gamma;
         tookandersonstep=1;
     else
@@ -265,9 +301,20 @@ for iter=1:andersonoptions.maxiter
 
     %% Safeguard the Anderson step
     if andersonoptions.safeguard==1 && tookandersonstep==1
-        GEcondns_trial=GEcondnsFn(p_new);
-        GEcondns_trial=GEcondns_trial(:);
-        stepfailed=any(~isfinite(GEcondns_trial)); % NaN/Inf: extrapolated somewhere model breaks down
+        % An extrapolated trial point can land where the model cannot be solved. That shows up two
+        % ways: the conditions come back NaN/Inf, or the model THROWS - a ReturnFn evaluated outside
+        % its domain errors rather than returning NaN (a negative base raised to a fractional power
+        % is 'POWER: needs to return a complex result' inside gpuArray/arrayfun). Both mean the same
+        % thing to the safeguard, that this step is no good, so the error is caught and the step
+        % rejected below rather than being allowed to end the run.
+        try
+            GEcondns_trial=GEcondnsFn(p_new);
+            GEcondns_trial=GEcondns_trial(:);
+            stepfailed=any(~isfinite(GEcondns_trial));
+        catch
+            GEcondns_trial=inf(size(GEcondns)); % never read: the || below short-circuits on stepfailed
+            stepfailed=1;
+        end
         if stepfailed || DistanceFn(GEcondns_trial)>currentresid
             % Reject the Anderson step: take the plain shooting step instead
             % and clear the history (restart)
@@ -279,7 +326,7 @@ for iter=1:andersonoptions.maxiter
             nrejectedsteps=nrejectedsteps+1;
             if andersonoptions.verbose==1
                 if stepfailed
-                    fprintf('   Anderson step rejected (GE conditions returned NaN/Inf); restarting from plain shooting step \n')
+                    fprintf('   Anderson step rejected (GE conditions NaN/Inf, or the model could not be solved there); restarting from plain shooting step \n')
                 else
                     fprintf('   Anderson step rejected (distance increased); restarting from plain shooting step \n')
                 end
