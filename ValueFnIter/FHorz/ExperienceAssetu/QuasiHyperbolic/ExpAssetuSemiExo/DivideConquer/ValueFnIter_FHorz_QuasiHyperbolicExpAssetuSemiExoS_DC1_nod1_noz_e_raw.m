@@ -27,7 +27,7 @@ N_u=prod(n_u);
 Vhat=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 Vunderbar=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d1,d2,d3,a1prime seperately
-Policy3=zeros(4,N_a,N_semiz,N_e,N_j,'gpuArray');
+Policy3=zeros(3,N_a,N_semiz,N_e,N_j,'gpuArray');
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 

@@ -42,9 +42,9 @@ if isscalar(n_a)
     [V,Valt]=ValueFnFromPolicy_FHorz_QuasiHyperbolic_ExpAsset(Policy,Policyalt,isNaive,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions, beta0);
     return
 end
-n_a1=n_a(1:end-1);
+n_a1=n_a(1:end-vfoptions.experienceasset);
 N_a1=prod(n_a1);
-n_a2=n_a(end);
+n_a2=n_a(end-vfoptions.experienceasset+1:end); % last vfoptions.experienceasset dims are the experience asset
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
@@ -62,8 +62,8 @@ n_d2=n_d(end-l_d2+1:end);
 
 % aprimeFnParamNames
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2)
-    aprimeFnParamNames={temp{l_d2+l_a2+1:end}};
+if length(temp)>(l_d2+l_a2+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end

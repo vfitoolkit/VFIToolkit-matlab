@@ -55,16 +55,16 @@ l_a=length(n_a);
 % Split a into a1 (standard) and a2 (experience asset).
 % noa1 case (n_a is scalar): use n_a1=0, N_a1=0 (toolkit convention). Override l_a1=0 explicitly
 % since length(0)=1. Downstream lookup has explicit `if N_a1==0` branches.
-if isscalar(n_a)
+if length(n_a)<=vfoptions.experienceasset
     n_a1=0;
     N_a1=0;
     l_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-vfoptions.experienceasset);
     N_a1=prod(n_a1);
     l_a1=length(n_a1);
 end
-n_a2=n_a(end);
+n_a2=n_a(end-vfoptions.experienceasset+1:end); % last vfoptions.experienceasset dims are the experience asset
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
@@ -83,8 +83,8 @@ n_d2=n_d(whichisdforexpasset);
 
 % aprimeFnParamNames
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2)
-    aprimeFnParamNames={temp{l_d2+l_a2+1:end}};
+if length(temp)>(l_d2+l_a2+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end
@@ -248,33 +248,98 @@ for reverse_j=0:N_j-1
         % In the noa1 case (N_a1==0), aprime_low/up reduce to a2primeIndex/a2primeIndex+1.
         if N_e==0
             d2_jj=d_semiz_idx(:,:,jj);  % [N_a, N_shocks]
-            if N_a1==0
-                aprime_low=a2primeIndex;
-                aprime_up =a2primeIndex+1;
+            if l_a2==1
+                if N_a1==0
+                    aprime_low=a2primeIndex;
+                    aprime_up =a2primeIndex+1;
+                else
+                    a1p=a1prime_idx(:,:,jj);    % [N_a, N_shocks]
+                    aprime_low=a1p+N_a1*(a2primeIndex-1);
+                    aprime_up =a1p+N_a1*(a2primeIndex);
+                end
             else
-                a1p=a1prime_idx(:,:,jj);    % [N_a, N_shocks]
-                aprime_low=a1p+N_a1*(a2primeIndex-1);
-                aprime_up =a1p+N_a1*(a2primeIndex);
+                % l_a2==2: a2primeIndex/a2primeProbs are [N_a,l_a2,N_shocks] per-dim factored.
+                n_a2_1=n_a2(1);
+                loIdx_1=reshape(a2primeIndex(:,1,:),[N_a,N_shocks]);
+                loIdx_2=reshape(a2primeIndex(:,2,:),[N_a,N_shocks]);
+                prob_1=reshape(a2primeProbs(:,1,:),[N_a,N_shocks]);
+                prob_2=reshape(a2primeProbs(:,2,:),[N_a,N_shocks]);
+                if N_a1==0
+                    a1p=ones(N_a,N_shocks,'gpuArray'); N_a1_eff=1; % the degenerate a1 dimension has index 1, not 0:
+                    % with a1p=0 the formula below gives a2kron-1, which is 0 at the first grid point
+                else
+                    a1p=a1prime_idx(:,:,jj); N_a1_eff=N_a1;
+                end
+                aprime_ll=a1p+N_a1_eff*(loIdx_1+n_a2_1*(loIdx_2-1)-1);
+                aprime_hl=a1p+N_a1_eff*((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1);
+                aprime_lh=a1p+N_a1_eff*(loIdx_1+n_a2_1*loIdx_2-1);
+                aprime_hh=a1p+N_a1_eff*((loIdx_1+1)+n_a2_1*loIdx_2-1);
             end
             if N_z==0
-                a_lo=reshape(aprime_low,[N_a, N_semiz]);
-                a_up=reshape(aprime_up, [N_a, N_semiz]);
-                wlo =reshape(a2primeProbs,[N_a, N_semiz]);
                 d2_r=reshape(d2_jj,    [N_a, N_semiz]);
                 base_off=N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_r(:)-1);
-                lo_idx=a_lo(:)+base_off;
-                up_idx=a_up(:)+base_off;
-                EVnext_atpolicy=reshape(wlo(:).*EVnext_byd2(lo_idx)+(1-wlo(:)).*EVnext_byd2(up_idx), [N_a, N_semiz]);
+                if l_a2==1
+                    a_lo=reshape(aprime_low,[N_a, N_semiz]);
+                    a_up=reshape(aprime_up, [N_a, N_semiz]);
+                    wlo =reshape(a2primeProbs,[N_a, N_semiz]);
+                    lo_idx=a_lo(:)+base_off;
+                    up_idx=a_up(:)+base_off;
+                    EVnext_atpolicy=reshape(wlo(:).*EVnext_byd2(lo_idx)+(1-wlo(:)).*EVnext_byd2(up_idx), [N_a, N_semiz]);
+                else
+                    ll_idx=reshape(aprime_ll,[N_a, N_semiz]); ll_idx=ll_idx(:)+base_off;
+                    hl_idx=reshape(aprime_hl,[N_a, N_semiz]); hl_idx=hl_idx(:)+base_off;
+                    lh_idx=reshape(aprime_lh,[N_a, N_semiz]); lh_idx=lh_idx(:)+base_off;
+                    hh_idx=reshape(aprime_hh,[N_a, N_semiz]); hh_idx=hh_idx(:)+base_off;
+                    V_ll=EVnext_byd2(ll_idx);
+                    V_hl=EVnext_byd2(hl_idx);
+                    V_lh=EVnext_byd2(lh_idx);
+                    V_hh=EVnext_byd2(hh_idx);
+                    p1_loy=prob_1(:); p1_loy(V_ll==V_hl)=0;
+                    c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+                    c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+                    EV_loy=c_ll+c_hl;
+                    p1_hiy=prob_1(:); p1_hiy(V_lh==V_hh)=0;
+                    c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+                    c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+                    EV_hiy=c_lh+c_hh;
+                    p2=prob_2(:); p2(EV_loy==EV_hiy)=0;
+                    c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                    c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                    EVnext_atpolicy=reshape(c_loy+c_hiy, [N_a, N_semiz]);
+                end
                 V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
             else
-                a_lo=reshape(aprime_low,[N_a, N_semiz, N_z]);
-                a_up=reshape(aprime_up, [N_a, N_semiz, N_z]);
-                wlo =reshape(a2primeProbs,[N_a, N_semiz, N_z]);
                 d2_r=reshape(d2_jj,    [N_a, N_semiz, N_z]);
                 base_off=N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_r(:)-1);
-                lo_idx=a_lo(:)+base_off;
-                up_idx=a_up(:)+base_off;
-                EVnext_atpolicy=reshape(wlo(:).*EVnext_byd2(lo_idx)+(1-wlo(:)).*EVnext_byd2(up_idx), [N_a, N_semiz, N_z]);
+                if l_a2==1
+                    a_lo=reshape(aprime_low,[N_a, N_semiz, N_z]);
+                    a_up=reshape(aprime_up, [N_a, N_semiz, N_z]);
+                    wlo =reshape(a2primeProbs,[N_a, N_semiz, N_z]);
+                    lo_idx=a_lo(:)+base_off;
+                    up_idx=a_up(:)+base_off;
+                    EVnext_atpolicy=reshape(wlo(:).*EVnext_byd2(lo_idx)+(1-wlo(:)).*EVnext_byd2(up_idx), [N_a, N_semiz, N_z]);
+                else
+                    ll_idx=reshape(aprime_ll,[N_a, N_semiz, N_z]); ll_idx=ll_idx(:)+base_off;
+                    hl_idx=reshape(aprime_hl,[N_a, N_semiz, N_z]); hl_idx=hl_idx(:)+base_off;
+                    lh_idx=reshape(aprime_lh,[N_a, N_semiz, N_z]); lh_idx=lh_idx(:)+base_off;
+                    hh_idx=reshape(aprime_hh,[N_a, N_semiz, N_z]); hh_idx=hh_idx(:)+base_off;
+                    V_ll=EVnext_byd2(ll_idx);
+                    V_hl=EVnext_byd2(hl_idx);
+                    V_lh=EVnext_byd2(lh_idx);
+                    V_hh=EVnext_byd2(hh_idx);
+                    p1_loy=prob_1(:); p1_loy(V_ll==V_hl)=0;
+                    c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+                    c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+                    EV_loy=c_ll+c_hl;
+                    p1_hiy=prob_1(:); p1_hiy(V_lh==V_hh)=0;
+                    c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+                    c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+                    EV_hiy=c_lh+c_hh;
+                    p2=prob_2(:); p2(EV_loy==EV_hiy)=0;
+                    c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                    c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                    EVnext_atpolicy=reshape(c_loy+c_hiy, [N_a, N_semiz, N_z]);
+                end
                 V(:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks]);
             end
         else
@@ -283,42 +348,120 @@ for reverse_j=0:N_j-1
                 EVnext_atpolicy=zeros(N_a, N_semiz, N_e, 'gpuArray');
                 for e_c=1:N_e
                     block=(e_c-1)*N_shocks + (1:N_shocks);
-                    a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz]);
-                    a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz]);
                     d2_e=reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz]);
-                    if N_a1==0
-                        aprime_low_e=a2pIdx_e;
-                        aprime_up_e =a2pIdx_e+1;
-                    else
-                        a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz]);
-                        aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                        aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
-                    end
                     base_off=N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_e(:)-1);
-                    lo_idx=aprime_low_e(:)+base_off;
-                    up_idx=aprime_up_e(:)+base_off;
-                    EVnext_atpolicy(:,:,e_c)=reshape(a2pPrb_e(:).*EVnext_byd2(lo_idx)+(1-a2pPrb_e(:)).*EVnext_byd2(up_idx), [N_a, N_semiz]);
+                    if l_a2==1
+                        a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz]);
+                        a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz]);
+                        if N_a1==0
+                            aprime_low_e=a2pIdx_e;
+                            aprime_up_e =a2pIdx_e+1;
+                        else
+                            a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz]);
+                            aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
+                            aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                        end
+                        lo_idx=aprime_low_e(:)+base_off;
+                        up_idx=aprime_up_e(:)+base_off;
+                        EVnext_atpolicy(:,:,e_c)=reshape(a2pPrb_e(:).*EVnext_byd2(lo_idx)+(1-a2pPrb_e(:)).*EVnext_byd2(up_idx), [N_a, N_semiz]);
+                    else
+                        % l_a2==2: a2primeIndex/a2primeProbs are [N_a,l_a2,N_shocks*N_e] per-dim factored.
+                        n_a2_1=n_a2(1);
+                        loIdx_1=reshape(a2primeIndex(:,1,block),[N_a,N_semiz]);
+                        loIdx_2=reshape(a2primeIndex(:,2,block),[N_a,N_semiz]);
+                        prob_1=reshape(a2primeProbs(:,1,block),[N_a,N_semiz]);
+                        prob_2=reshape(a2primeProbs(:,2,block),[N_a,N_semiz]);
+                        if N_a1==0
+                            a1p=ones(N_a,N_semiz,'gpuArray'); N_a1_eff=1; % the degenerate a1 dimension has index 1, not 0:
+                            % with a1p=0 the formula below gives a2kron-1, which is 0 at the first grid point
+                        else
+                            a1p=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz]); N_a1_eff=N_a1;
+                        end
+                        aprime_ll=a1p+N_a1_eff*(loIdx_1+n_a2_1*(loIdx_2-1)-1);
+                        aprime_hl=a1p+N_a1_eff*((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1);
+                        aprime_lh=a1p+N_a1_eff*(loIdx_1+n_a2_1*loIdx_2-1);
+                        aprime_hh=a1p+N_a1_eff*((loIdx_1+1)+n_a2_1*loIdx_2-1);
+                        ll_idx=reshape(aprime_ll,[N_a, N_semiz]); ll_idx=ll_idx(:)+base_off;
+                        hl_idx=reshape(aprime_hl,[N_a, N_semiz]); hl_idx=hl_idx(:)+base_off;
+                        lh_idx=reshape(aprime_lh,[N_a, N_semiz]); lh_idx=lh_idx(:)+base_off;
+                        hh_idx=reshape(aprime_hh,[N_a, N_semiz]); hh_idx=hh_idx(:)+base_off;
+                        V_ll=EVnext_byd2(ll_idx);
+                        V_hl=EVnext_byd2(hl_idx);
+                        V_lh=EVnext_byd2(lh_idx);
+                        V_hh=EVnext_byd2(hh_idx);
+                        p1_loy=prob_1(:); p1_loy(V_ll==V_hl)=0;
+                        c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+                        c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+                        EV_loy=c_ll+c_hl;
+                        p1_hiy=prob_1(:); p1_hiy(V_lh==V_hh)=0;
+                        c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+                        c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+                        EV_hiy=c_lh+c_hh;
+                        p2=prob_2(:); p2(EV_loy==EV_hiy)=0;
+                        c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                        c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                        EVnext_atpolicy(:,:,e_c)=reshape(c_loy+c_hiy, [N_a, N_semiz]);
+                    end
                 end
                 V(:,:,:,jj)=F_jj+beta*EVnext_atpolicy;
             else
                 EVnext_atpolicy=zeros(N_a, N_semiz, N_z, N_e, 'gpuArray');
                 for e_c=1:N_e
                     block=(e_c-1)*N_shocks + (1:N_shocks);
-                    a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_z]);
-                    a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_z]);
                     d2_e=reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
-                    if N_a1==0
-                        aprime_low_e=a2pIdx_e;
-                        aprime_up_e =a2pIdx_e+1;
-                    else
-                        a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
-                        aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                        aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
-                    end
                     base_off=N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1);
-                    lo_idx=aprime_low_e(:)+base_off;
-                    up_idx=aprime_up_e(:)+base_off;
-                    EVnext_atpolicy(:,:,:,e_c)=reshape(a2pPrb_e(:).*EVnext_byd2(lo_idx)+(1-a2pPrb_e(:)).*EVnext_byd2(up_idx), [N_a, N_semiz, N_z]);
+                    if l_a2==1
+                        a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_z]);
+                        a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_z]);
+                        if N_a1==0
+                            aprime_low_e=a2pIdx_e;
+                            aprime_up_e =a2pIdx_e+1;
+                        else
+                            a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
+                            aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
+                            aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                        end
+                        lo_idx=aprime_low_e(:)+base_off;
+                        up_idx=aprime_up_e(:)+base_off;
+                        EVnext_atpolicy(:,:,:,e_c)=reshape(a2pPrb_e(:).*EVnext_byd2(lo_idx)+(1-a2pPrb_e(:)).*EVnext_byd2(up_idx), [N_a, N_semiz, N_z]);
+                    else
+                        % l_a2==2: a2primeIndex/a2primeProbs are [N_a,l_a2,N_shocks*N_e] per-dim factored.
+                        n_a2_1=n_a2(1);
+                        loIdx_1=reshape(a2primeIndex(:,1,block),[N_a,N_semiz,N_z]);
+                        loIdx_2=reshape(a2primeIndex(:,2,block),[N_a,N_semiz,N_z]);
+                        prob_1=reshape(a2primeProbs(:,1,block),[N_a,N_semiz,N_z]);
+                        prob_2=reshape(a2primeProbs(:,2,block),[N_a,N_semiz,N_z]);
+                        if N_a1==0
+                            a1p=ones(N_a,N_semiz,N_z,'gpuArray'); N_a1_eff=1; % the degenerate a1 dimension has index 1, not 0:
+                            % with a1p=0 the formula below gives a2kron-1, which is 0 at the first grid point
+                        else
+                            a1p=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]); N_a1_eff=N_a1;
+                        end
+                        aprime_ll=a1p+N_a1_eff*(loIdx_1+n_a2_1*(loIdx_2-1)-1);
+                        aprime_hl=a1p+N_a1_eff*((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1);
+                        aprime_lh=a1p+N_a1_eff*(loIdx_1+n_a2_1*loIdx_2-1);
+                        aprime_hh=a1p+N_a1_eff*((loIdx_1+1)+n_a2_1*loIdx_2-1);
+                        ll_idx=reshape(aprime_ll,[N_a, N_semiz, N_z]); ll_idx=ll_idx(:)+base_off;
+                        hl_idx=reshape(aprime_hl,[N_a, N_semiz, N_z]); hl_idx=hl_idx(:)+base_off;
+                        lh_idx=reshape(aprime_lh,[N_a, N_semiz, N_z]); lh_idx=lh_idx(:)+base_off;
+                        hh_idx=reshape(aprime_hh,[N_a, N_semiz, N_z]); hh_idx=hh_idx(:)+base_off;
+                        V_ll=EVnext_byd2(ll_idx);
+                        V_hl=EVnext_byd2(hl_idx);
+                        V_lh=EVnext_byd2(lh_idx);
+                        V_hh=EVnext_byd2(hh_idx);
+                        p1_loy=prob_1(:); p1_loy(V_ll==V_hl)=0;
+                        c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+                        c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+                        EV_loy=c_ll+c_hl;
+                        p1_hiy=prob_1(:); p1_hiy(V_lh==V_hh)=0;
+                        c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+                        c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+                        EV_hiy=c_lh+c_hh;
+                        p2=prob_2(:); p2(EV_loy==EV_hiy)=0;
+                        c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                        c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                        EVnext_atpolicy(:,:,:,e_c)=reshape(c_loy+c_hiy, [N_a, N_semiz, N_z]);
+                    end
                 end
                 V(:,:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks, N_e]);
             end

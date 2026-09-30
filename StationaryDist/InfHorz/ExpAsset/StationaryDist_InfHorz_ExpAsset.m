@@ -6,9 +6,9 @@ n_d2=n_d(end);
 if isscalar(n_a)
     n_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-simoptions.experienceasset);
 end
-n_a2=n_a(end); % n_a2 is the experience asset
+n_a2=n_a(end-simoptions.experienceasset+1:end); % last simoptions.experienceasset dims are the experience asset
 
 if ~isfield(simoptions,'aprimeFn')
     error('To use an experience asset you must define simoptions.aprimeFn')
@@ -30,8 +30,8 @@ end
 l_d2=length(n_d2);
 l_a2=length(n_a2);
 temp=getAnonymousFnInputNames(simoptions.aprimeFn);
-if length(temp)>(l_d2+l_a2)
-    aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+if length(temp)>(l_d2+l_a2+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end

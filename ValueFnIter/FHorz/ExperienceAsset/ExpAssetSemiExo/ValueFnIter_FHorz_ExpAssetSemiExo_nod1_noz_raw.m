@@ -66,8 +66,24 @@ else
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2], whereas aprimeProbs is [N_d2,N_a2]
 
-    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
+    if length(n_a2)==1
+        aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
+        aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
+    else
+        % l_a2==2: a2primeIndex/a2primeProbs are [l_a2,N_d2,N_a2], per-dim factored. Fold the two
+        % per-dim lower indexes into the four corners here, keeping the a1prime offset. prob_1/prob_2
+        % stay at [N_d2,N_a2]; each EV block below expands them to its own shape.
+        n_a2_1=n_a2(1);
+        loIdx_1=reshape(a2primeIndex(1,:,:),[N_d2,N_a2]);
+        loIdx_2=reshape(a2primeIndex(2,:,:),[N_d2,N_a2]);
+        prob_1=reshape(a2primeProbs(1,:,:),[N_d2,N_a2]);
+        prob_2=reshape(a2primeProbs(2,:,:),[N_d2,N_a2]);
+        a1prime_offsets=repelem((1:1:N_a1)',N_d2,N_a2);
+        aprime_ll=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*(loIdx_2-1)-1,N_a1,1);
+        aprime_hl=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1,N_a1,1);
+        aprime_lh=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*loIdx_2-1,N_a1,1);
+        aprime_hh=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*loIdx_2-1,N_a1,1);
+    end
 
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
@@ -90,18 +106,42 @@ else
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
-            EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the lower aprime
-            EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the upper aprime
+            if length(n_a2)==1
+                EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the lower aprime
+                EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the upper aprime
 
-            % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
-            aprimeProbs_d3=repmat(a2primeProbs,N_a1,1,N_semiz); % [N_d2*N_a1,N_a2,N_semiz]
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3(skipinterp)=0; % effectively skips interpolation
+                % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                aprimeProbs_d3=repmat(a2primeProbs,N_a1,1,N_semiz); % [N_d2*N_a1,N_a2,N_semiz]
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3(skipinterp)=0; % effectively skips interpolation
 
-            % Apply the aprimeProbs
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3); % probability of lower grid point+ probability of upper grid point
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+                % Apply the aprimeProbs
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3); % probability of lower grid point+ probability of upper grid point
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four corners folded above, with skipinterp at
+                % each level and per-contribution NaN cleanup for 0*(-Inf). prob_*_exp is expanded to this
+                % block's shape, which is what the l_a2==1 arm's aprimeProbs expansion does.
+                EV_ll=reshape(EV(aprime_ll,:),[N_d2*N_a1,N_a2,N_semiz]);
+                EV_hl=reshape(EV(aprime_hl,:),[N_d2*N_a1,N_a2,N_semiz]);
+                EV_lh=reshape(EV(aprime_lh,:),[N_d2*N_a1,N_a2,N_semiz]);
+                EV_hh=reshape(EV(aprime_hh,:),[N_d2*N_a1,N_a2,N_semiz]);
+                prob_1_exp=repmat(prob_1,N_a1,1,N_semiz);
+                prob_2_exp=repmat(prob_2,N_a1,1,N_semiz);
+                p1_loy=prob_1_exp; p1_loy(EV_ll==EV_hl)=0;
+                c_ll=p1_loy.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_loy).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_loy=c_ll+c_hl;
+                p1_hiy=prob_1_exp; p1_hiy(EV_lh==EV_hh)=0;
+                c_lh=p1_hiy.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hiy).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hiy=c_lh+c_hh;
+                p2=prob_2_exp; p2(EV_loy==EV_hiy)=0;
+                c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                entireEV=c_loy+c_hiy;
+            end
             % entireEV is (d2,a1prime, a2,z)
 
             entireRHS_d3=ReturnMatrix_d3+DiscountFactorParamsVec*repelem(entireEV,1,N_a1,1);
@@ -130,18 +170,42 @@ else
                 EV_z=sum(EV_z,2);
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a
-                EV1=reshape(EV_z(aprimeIndex),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the lower aprime
-                EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
+                if length(n_a2)==1
+                    EV1=reshape(EV_z(aprimeIndex),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the lower aprime
+                    EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
 
-                % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
-                aprimeProbs_d3z=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
-                skipinterp=(EV1==EV2);
-                aprimeProbs_d3z(skipinterp)=0; % effectively skips interpolation
+                    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                    aprimeProbs_d3z=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
+                    skipinterp=(EV1==EV2);
+                    aprimeProbs_d3z(skipinterp)=0; % effectively skips interpolation
 
-                % Apply the aprimeProbs
-                entireEV_z=EV1.*aprimeProbs_d3z+EV2.*(1-aprimeProbs_d3z); % probability of lower grid point+ probability of upper grid point
-                entireEV_z(aprimeProbs_d3z==0)=EV2(aprimeProbs_d3z==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-                entireEV_z(aprimeProbs_d3z==1)=EV1(aprimeProbs_d3z==1);
+                    % Apply the aprimeProbs
+                    entireEV_z=EV1.*aprimeProbs_d3z+EV2.*(1-aprimeProbs_d3z); % probability of lower grid point+ probability of upper grid point
+                    entireEV_z(aprimeProbs_d3z==0)=EV2(aprimeProbs_d3z==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                    entireEV_z(aprimeProbs_d3z==1)=EV1(aprimeProbs_d3z==1);
+                else
+                    % l_a2==2: nested 2-corner interp over the four corners folded above, with skipinterp at
+                    % each level and per-contribution NaN cleanup for 0*(-Inf). prob_*_exp is expanded to this
+                    % block's shape, which is what the l_a2==1 arm's aprimeProbs expansion does.
+                    EV_ll=reshape(EV_z(aprime_ll),[N_d2*N_a1,N_a2]);
+                    EV_hl=reshape(EV_z(aprime_hl),[N_d2*N_a1,N_a2]);
+                    EV_lh=reshape(EV_z(aprime_lh),[N_d2*N_a1,N_a2]);
+                    EV_hh=reshape(EV_z(aprime_hh),[N_d2*N_a1,N_a2]);
+                    prob_1_exp=repmat(prob_1,N_a1,1);
+                    prob_2_exp=repmat(prob_2,N_a1,1);
+                    p1_loy=prob_1_exp; p1_loy(EV_ll==EV_hl)=0;
+                    c_ll=p1_loy.*EV_ll; c_ll(isnan(c_ll))=0;
+                    c_hl=(1-p1_loy).*EV_hl; c_hl(isnan(c_hl))=0;
+                    EV_loy=c_ll+c_hl;
+                    p1_hiy=prob_1_exp; p1_hiy(EV_lh==EV_hh)=0;
+                    c_lh=p1_hiy.*EV_lh; c_lh(isnan(c_lh))=0;
+                    c_hh=(1-p1_hiy).*EV_hh; c_hh(isnan(c_hh))=0;
+                    EV_hiy=c_lh+c_hh;
+                    p2=prob_2_exp; p2(EV_loy==EV_hiy)=0;
+                    c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                    c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                    entireEV_z=c_loy+c_hiy;
+                end
                 % entireEV_z is (d,a1prime, a2)
 
                 entireRHS_d3z=ReturnMatrix_d3z+DiscountFactorParamsVec*kron(entireEV_z,ones(1,N_a1));
@@ -184,8 +248,24 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d2, n_a2, d2_gridvals, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
 
-    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
-    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
+    if length(n_a2)==1
+        aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
+        aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
+    else
+        % l_a2==2: a2primeIndex/a2primeProbs are [l_a2,N_d2,N_a2], per-dim factored. Fold the two
+        % per-dim lower indexes into the four corners here, keeping the a1prime offset. prob_1/prob_2
+        % stay at [N_d2,N_a2]; each EV block below expands them to its own shape.
+        n_a2_1=n_a2(1);
+        loIdx_1=reshape(a2primeIndex(1,:,:),[N_d2,N_a2]);
+        loIdx_2=reshape(a2primeIndex(2,:,:),[N_d2,N_a2]);
+        prob_1=reshape(a2primeProbs(1,:,:),[N_d2,N_a2]);
+        prob_2=reshape(a2primeProbs(2,:,:),[N_d2,N_a2]);
+        a1prime_offsets=repelem((1:1:N_a1)',N_d2,N_a2);
+        aprime_ll=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*(loIdx_2-1)-1,N_a1,1);
+        aprime_hl=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1,N_a1,1);
+        aprime_lh=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*loIdx_2-1,N_a1,1);
+        aprime_hh=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*loIdx_2-1,N_a1,1);
+    end
 
     EVpre=V(:,:,jj+1);
 
@@ -204,18 +284,42 @@ for reverse_j=1:N_j-1
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
-            EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the lower aprime
-            EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the upper aprime
+            if length(n_a2)==1
+                EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the lower aprime
+                EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the upper aprime
 
-            % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
-            aprimeProbs_d3=repmat(a2primeProbs,N_a1,1,N_semiz); % [N_d2*N_a1,N_a2,N_semiz]
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3(skipinterp)=0; % effectively skips interpolation
+                % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                aprimeProbs_d3=repmat(a2primeProbs,N_a1,1,N_semiz); % [N_d2*N_a1,N_a2,N_semiz]
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3(skipinterp)=0; % effectively skips interpolation
 
-            % Apply the aprimeProbs
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3); % probability of lower grid point+ probability of upper grid point
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+                % Apply the aprimeProbs
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3); % probability of lower grid point+ probability of upper grid point
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four corners folded above, with skipinterp at
+                % each level and per-contribution NaN cleanup for 0*(-Inf). prob_*_exp is expanded to this
+                % block's shape, which is what the l_a2==1 arm's aprimeProbs expansion does.
+                EV_ll=reshape(EV(aprime_ll,:),[N_d2*N_a1,N_a2,N_semiz]);
+                EV_hl=reshape(EV(aprime_hl,:),[N_d2*N_a1,N_a2,N_semiz]);
+                EV_lh=reshape(EV(aprime_lh,:),[N_d2*N_a1,N_a2,N_semiz]);
+                EV_hh=reshape(EV(aprime_hh,:),[N_d2*N_a1,N_a2,N_semiz]);
+                prob_1_exp=repmat(prob_1,N_a1,1,N_semiz);
+                prob_2_exp=repmat(prob_2,N_a1,1,N_semiz);
+                p1_loy=prob_1_exp; p1_loy(EV_ll==EV_hl)=0;
+                c_ll=p1_loy.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_loy).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_loy=c_ll+c_hl;
+                p1_hiy=prob_1_exp; p1_hiy(EV_lh==EV_hh)=0;
+                c_lh=p1_hiy.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hiy).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hiy=c_lh+c_hh;
+                p2=prob_2_exp; p2(EV_loy==EV_hiy)=0;
+                c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                entireEV=c_loy+c_hiy;
+            end
             % entireEV is (d,a1prime, a2,z)
 
             entireRHS=ReturnMatrix_d3+DiscountFactorParamsVec*repelem(entireEV,1,N_a1,1);
@@ -245,18 +349,42 @@ for reverse_j=1:N_j-1
                 EV_z=sum(EV_z,2);
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a
-                EV1=reshape(EV_z(aprimeIndex),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the lower aprime
-                EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
+                if length(n_a2)==1
+                    EV1=reshape(EV_z(aprimeIndex),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the lower aprime
+                    EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
 
-                % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
-                aprimeProbs_d3z=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
-                skipinterp=(EV1==EV2);
-                aprimeProbs_d3z(skipinterp)=0; % effectively skips interpolation
+                    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                    aprimeProbs_d3z=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
+                    skipinterp=(EV1==EV2);
+                    aprimeProbs_d3z(skipinterp)=0; % effectively skips interpolation
 
-                % Apply the aprimeProbs
-                entireEV_z=EV1.*aprimeProbs_d3z+EV2.*(1-aprimeProbs_d3z); % probability of lower grid point+ probability of upper grid point
-                entireEV_z(aprimeProbs_d3z==0)=EV2(aprimeProbs_d3z==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-                entireEV_z(aprimeProbs_d3z==1)=EV1(aprimeProbs_d3z==1);
+                    % Apply the aprimeProbs
+                    entireEV_z=EV1.*aprimeProbs_d3z+EV2.*(1-aprimeProbs_d3z); % probability of lower grid point+ probability of upper grid point
+                    entireEV_z(aprimeProbs_d3z==0)=EV2(aprimeProbs_d3z==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                    entireEV_z(aprimeProbs_d3z==1)=EV1(aprimeProbs_d3z==1);
+                else
+                    % l_a2==2: nested 2-corner interp over the four corners folded above, with skipinterp at
+                    % each level and per-contribution NaN cleanup for 0*(-Inf). prob_*_exp is expanded to this
+                    % block's shape, which is what the l_a2==1 arm's aprimeProbs expansion does.
+                    EV_ll=reshape(EV_z(aprime_ll),[N_d2*N_a1,N_a2]);
+                    EV_hl=reshape(EV_z(aprime_hl),[N_d2*N_a1,N_a2]);
+                    EV_lh=reshape(EV_z(aprime_lh),[N_d2*N_a1,N_a2]);
+                    EV_hh=reshape(EV_z(aprime_hh),[N_d2*N_a1,N_a2]);
+                    prob_1_exp=repmat(prob_1,N_a1,1);
+                    prob_2_exp=repmat(prob_2,N_a1,1);
+                    p1_loy=prob_1_exp; p1_loy(EV_ll==EV_hl)=0;
+                    c_ll=p1_loy.*EV_ll; c_ll(isnan(c_ll))=0;
+                    c_hl=(1-p1_loy).*EV_hl; c_hl(isnan(c_hl))=0;
+                    EV_loy=c_ll+c_hl;
+                    p1_hiy=prob_1_exp; p1_hiy(EV_lh==EV_hh)=0;
+                    c_lh=p1_hiy.*EV_lh; c_lh(isnan(c_lh))=0;
+                    c_hh=(1-p1_hiy).*EV_hh; c_hh(isnan(c_hh))=0;
+                    EV_hiy=c_lh+c_hh;
+                    p2=prob_2_exp; p2(EV_loy==EV_hiy)=0;
+                    c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                    c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                    entireEV_z=c_loy+c_hiy;
+                end
                 % entireEV_z is (d,a1prime, a2)
 
                 entireRHS_z=ReturnMatrix_d3z+DiscountFactorParamsVec*kron(entireEV_z,ones(1,N_a1));
