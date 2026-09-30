@@ -629,6 +629,9 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
                         PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr)));
                     end
                 end
+                % No general eqm condition to report, so report the fixed-point residual (see updatePricePathNew_TPath_tt).
+                % Left unset, GEcondnPath stayed at zero and the loop reported convergence after one iteration.
+                GEcondnPath(tt,:)=PricePathNew(tt,:)-PricePathOld(tt,:);
             % Note there is no GEnewprice==2, it uses a completely different code
             elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
                 [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_PTypeDependent_tt(Parameters,Parameters_ii,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PTypeStructure.Names_i,N_i,PricePathOld(tt,:),itercounter,transpathoptions);

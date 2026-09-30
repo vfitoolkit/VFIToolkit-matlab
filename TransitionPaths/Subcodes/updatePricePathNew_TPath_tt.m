@@ -11,7 +11,11 @@ end
 
 if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
     PricePathNew_tt=p_i;
-    GEcondnPath_tt=nan; % not being used [but cannot be left empty]
+    % There is no general eqm condition to report, so report the fixed-point residual instead: it is
+    % zero exactly when the formulae return the price they were given, which is what convergence
+    % means here. It was NaN, which never passes the convergence test on toleranceGEcondns and
+    % trips the non-finite guard in the shooting loops.
+    GEcondnPath_tt=PricePathNew_tt-PricePathOld_tt;
 % Note there is no GEnewprice==2, it uses a completely different code
 elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
     GEcondnPath_tt=p_i; % Sometimes, want to keep the GE conditions to plot them
