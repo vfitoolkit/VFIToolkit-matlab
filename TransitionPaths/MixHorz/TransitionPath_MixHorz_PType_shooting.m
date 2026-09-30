@@ -294,7 +294,7 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
 
     %% Do the general eqm conditions and create PricePathNew based on these
     if all(transpathoptions.GEptype==0)
-        GECondnPath=zeros(T,length(GEeqnNames));
+        GEcondnPath=zeros(T,length(GEeqnNames));
 
         % NEEDED???  Restore all AggVarNames and tminus1AggVarsNames for GEeqns
         AggVarNames=cell(1,N_i);
@@ -404,7 +404,7 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
 
         end % Done loop over tt, evaluating the GE conditions
     else % Some GE conditions depend on PType
-        GECondnPath=zeros(T,nGeneralEqmEqns_acrossptypes);
+        GEcondnPath=zeros(T,nGeneralEqmEqns_acrossptypes);
         error("need to fit these loops together")
 
         % NEEDED??? Restore AggVarNames and tminus1AggVarsNames by PType for GEeqns
@@ -625,8 +625,11 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
                         gg_c=gg_c+1;
                         PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names, Parameters));
                     elseif transpathoptions.GEptype(gg)==1
-                        gg_c=gg_c+1;
-                        PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr)));
+                        for ii=1:N_i
+                            iistr=PTypeStructure.Names_i{ii};
+                            gg_c=gg_c+1;
+                            PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr)));
+                        end
                     end
                 end
                 % No general eqm condition to report, so report the fixed-point residual (see updatePricePathNew_TPath_tt).

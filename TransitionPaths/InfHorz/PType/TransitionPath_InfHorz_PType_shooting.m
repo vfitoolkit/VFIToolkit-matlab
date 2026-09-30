@@ -1,4 +1,4 @@
-function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, PTypeDistParamNames, FullFnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEeqnNames, nGeneralEqmEqns, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, transpathoptions, PTypeStructure)
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, PTypeDistParamNames, FullFnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEeqnNames, nGeneralEqmEqns, nGeneralEqmEqns_acrossptypes, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, transpathoptions, PTypeStructure)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes)
@@ -553,8 +553,11 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
                         gg_c=gg_c+1;
                         PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names, Parameters));
                     elseif transpathoptions.GEptype(gg)==1
-                        gg_c=gg_c+1;
-                        PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr)));
+                        for ii=1:N_i
+                            iistr=PTypeStructure.Names_i{ii};
+                            gg_c=gg_c+1;
+                            PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr)));
+                        end
                     end
                 end
                 % No general eqm condition to report, so report the fixed-point residual (see updatePricePathNew_TPath_tt).
