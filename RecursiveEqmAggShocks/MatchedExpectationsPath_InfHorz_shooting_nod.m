@@ -212,8 +212,12 @@ while TransPathConvergence>1 && itercounter<=recursiveeqmoptions.maxiter
             PolicyaprimetzPath=reshape(PolicyaprimetzPath,[N_a*(T-1)*N_z,1]); % reinterpret this as lower grid index
             PolicyaprimetzPath=repelem(PolicyaprimetzPath,1,2); % create copy that will be the upper grid index
             PolicyaprimetzPath(:,2)=PolicyaprimetzPath(:,2)+1; % upper grid index
-            PolicyProbsPath(:,2)=reshape(PolicyIndexesPath(l_aprime+1,:,1:T-1,:),[N_a*(T-1)*N_z,1]); % L2 index
-            PolicyProbsPath(:,2)=(PolicyProbsPath(:,2)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+            L2index=reshape(PolicyIndexesPath(l_aprime+1,:,1:T-1,:),[N_a*(T-1)*N_z,1]); % L2 index
+            % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+            L2flag=reshape(PolicyIndexesPath(l_aprime+2,:,1:T-1,:),[N_a*(T-1)*N_z,1]);
+            L2index(L2flag==1)=1;
+            L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+            PolicyProbsPath(:,2)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
             PolicyProbsPath(:,1)=1-PolicyProbsPath(:,2); % probability of lower grid point
         end
     else % Slow OLG
@@ -222,8 +226,12 @@ while TransPathConvergence>1 && itercounter<=recursiveeqmoptions.maxiter
             PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,(T-1)]); % reinterpret this as lower grid index
             PolicyaprimezPath=repelem(PolicyaprimezPath,1,2,1); % create copy that will be the upper grid index
             PolicyaprimezPath(:,2,:)=PolicyaprimezPath(:,2,:)+1; % upper grid index
-            PolicyProbsPath_slowOLG(:,2,:)=reshape(permute(reshape(PolicyIndexesPath(l_aprime+1,:,1:T-1,:),[N_a,(T-1),N_z]),[1,3,2]),[N_a*N_z,1,T-1]); % L2 index
-            PolicyProbsPath_slowOLG(:,2,:)=(PolicyProbsPath_slowOLG(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+            L2index=reshape(permute(reshape(PolicyIndexesPath(l_aprime+1,:,1:T-1,:),[N_a,(T-1),N_z]),[1,3,2]),[N_a*N_z,1,T-1]); % L2 index
+            % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+            L2flag=reshape(permute(reshape(PolicyIndexesPath(l_aprime+2,:,1:T-1,:),[N_a,(T-1),N_z]),[1,3,2]),[N_a*N_z,1,T-1]);
+            L2index(L2flag==1)=1;
+            L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+            PolicyProbsPath_slowOLG(:,2,:)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
             PolicyProbsPath_slowOLG(:,1,:)=1-PolicyProbsPath_slowOLG(:,2,:); % probability of lower grid point
         end
     end
