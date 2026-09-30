@@ -378,6 +378,11 @@ if N_e==0
             if simoptions.gridinterplayer==1
                 L2index=reshape(PolicyPath(l_d+l_aprime+1,:,1:N_j-1,:),[1,N_a,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_j,T]
                 L2index=reshape(permute(L2index,[2,3,1,4]),[N_a*(N_j-1),1,T]);
+                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,1:N_j-1,:),[1,N_a,N_j-1,T]);
+                L2flag=reshape(permute(L2flag,[2,3,1,4]),[N_a*(N_j-1),1,T]);
+                L2index(L2flag==1)=1;
+                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
                 PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1),1,T]); % reinterpret this as lower grid index
                 PolicyaprimejPath=repelem(PolicyaprimejPath,1,2,1); % create copy that will be the upper grid index
                 PolicyaprimejPath(:,2,:)=PolicyaprimejPath(:,2,:)+1; % upper grid index
@@ -421,6 +426,11 @@ if N_e==0
             if simoptions.gridinterplayer==1
                 L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_z,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_z,N_j,T]
                 L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_z,1,T]);
+                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:,1:N_j-1,:),[1,N_a,N_z,N_j-1,T]);
+                L2flag=reshape(permute(L2flag,[2,4,3,1,5]),[N_a*(N_j-1)*N_z,1,T]);
+                L2index(L2flag==1)=1;
+                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
                 PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z,1,T]); % reinterpret this as lower grid index
                 PolicyaprimejzPath=repelem(PolicyaprimejzPath,1,2,1); % create copy that will be the upper grid index
                 PolicyaprimejzPath(:,2,:)=PolicyaprimejzPath(:,2,:)+1; % upper grid index
@@ -466,6 +476,11 @@ else
             if simoptions.gridinterplayer==1
                 L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_e,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_e,N_j,T]
                 L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_e,1,T]);
+                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:,1:N_j-1,:),[1,N_a,N_e,N_j-1,T]);
+                L2flag=reshape(permute(L2flag,[2,4,3,1,5]),[N_a*(N_j-1)*N_e,1,T]);
+                L2index(L2flag==1)=1;
+                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
                 PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1)*N_e,1,T]); % reinterpret this as lower grid index
                 PolicyaprimejPath=repelem(PolicyaprimejPath,1,2,1); % create copy that will be the upper grid index
                 PolicyaprimejPath(:,2,:)=PolicyaprimejPath(:,2,:)+1; % upper grid index
@@ -509,6 +524,11 @@ else
             if simoptions.gridinterplayer==1
                 L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_z*N_e,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_z,N_e,N_j,T]
                 L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_z*N_e,1,T]);
+                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:,1:N_j-1,:),[1,N_a,N_z*N_e,N_j-1,T]);
+                L2flag=reshape(permute(L2flag,[2,4,3,1,5]),[N_a*(N_j-1)*N_z*N_e,1,T]);
+                L2index(L2flag==1)=1;
+                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
                 PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z*N_e,1,T]); % reinterpret this as lower grid index
                 PolicyaprimejzPath=repelem(PolicyaprimejzPath,1,2,1); % create copy that will be the upper grid index
                 PolicyaprimejzPath(:,2,:)=PolicyaprimejzPath(:,2,:)+1; % upper grid index

@@ -84,7 +84,12 @@ end
 
 if simoptions.gridinterplayer==1
     % Build lower/upper aprime points and the corresponding probabilities (from the L2 index)
-    aprimeProbs_upper=reshape((PolicyPath(end-1,:,:,:,:)-1)/(simoptions.ngridinterp+1),[N_a*N_bothze,1,N_j,T]); % prob of upper grid point (end is L2flag, end-1 is L2 index)
+    % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+    L2index=PolicyPath(end-1,:,:,:,:); % L2 index (end-1 because end is L2flag)
+    L2flag=PolicyPath(end,:,:,:,:);
+    L2index(L2flag==1)=1;                        % force all weight to lower grid point
+    L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+    aprimeProbs_upper=reshape((L2index-1)/(simoptions.ngridinterp+1),[N_a*N_bothze,1,N_j,T]); % prob of upper grid point
     Policy_aprime=reshape(Policy_aprime,[N_a*N_bothze,1,N_j,T]);
     Policy_aprime=repmat(Policy_aprime,1,2,1,1);
     Policy_aprime(:,2,:,:)=Policy_aprime(:,2,:,:)+1; % upper grid point
