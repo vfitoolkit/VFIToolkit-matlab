@@ -21,40 +21,41 @@ if ~isfield(vfoptions,'level1n')
 end
 vfoptions.level1n=min(vfoptions.level1n,n_a1);
 
-%% DC2A path: multi-dim n_a1 (first standard endo state DC, remaining N-2 folded; n_a2 is expasset)
+%% DC2A path: two (or more) standard endogenous states. a is divided into a1 (first standard endogenous state, divide-and-conquer), a2 (remaining standard endogenous states, folded) and a3 (experience asset)
 if length(n_a1)>1
-    n_a1DC=n_a1(1);
-    n_a1fold=n_a1(2:end);
-    N_a1DC=prod(n_a1DC);
-    % Split a1_gridvals (rows cycle DC fastest) into the DC grid and the folded-states gridvals
-    a1DC_grid=a1_gridvals(1:N_a1DC,1);
-    a1fold_gridvals=a1_gridvals(1:N_a1DC:end,2:end);
+    % a1_gridvals holds all the standard endogenous states (rows cycle the first fastest); n_a2/a2_grid hold the experience asset
+    n_a3=n_a2;
+    a3_grid=a2_grid;
+    a2_gridvals=a1_gridvals(1:n_a1(1):end,2:end);
+    a1_grid=a1_gridvals(1:n_a1(1),1);
+    n_a2=n_a1(2:end);
+    n_a1=n_a1(1);
 
     if length(vfoptions.level1n)>1
-        if vfoptions.level1n(2)>=n_a1(2) % only DC on the first endo state
+        if vfoptions.level1n(2)>=n_a2(1) % only DC on the first endo state
             vfoptions.level1n=vfoptions.level1n(1);
         else
             error('With ExpAssete DC2A, can only do divide-and-conquer on the first standard endogenous state')
         end
     end
     if vfoptions.gridinterplayer==1
-        error('vfoptions.gridinterplayer not yet supported with ExpAssete DC2A (multi-dim n_a1)')
+        error('vfoptions.gridinterplayer not yet supported with ExpAssete DC2A (two or more standard endogenous states)')
     end
 
     if N_z==0
         if N_d1==0
-            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssete_DC2A_nod1_noz_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, vfoptions.n_e, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssete_DC2A_nod1_noz_e_raw(n_d2, n_a1, n_a2, n_a3, vfoptions.n_e, N_j, d2_gridvals, a1_grid, a2_gridvals, a3_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             nDPolicyChannel=n_d2;
         else
-            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssete_DC2A_noz_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssete_DC2A_noz_e_raw(n_d1, n_d2, n_a1, n_a2, n_a3, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_grid, a2_gridvals, a3_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             nDPolicyChannel=[n_d1,n_d2];
         end
     else
         if N_d1==0
-            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssete_DC2A_nod1_e_raw(n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssete_DC2A_nod1_e_raw(n_d2, n_a1, n_a2, n_a3, n_z, vfoptions.n_e, N_j, d2_gridvals, a1_grid, a2_gridvals, a3_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             nDPolicyChannel=n_d2;
         else
-            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssete_DC2A_e_raw(n_d1, n_d2, n_a1DC, n_a1fold, n_a2, n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1DC_grid, a1fold_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssete_DC2A_e_raw(n_d1, n_d2, n_a1, n_a2, n_a3, n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_grid, a2_gridvals, a3_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             nDPolicyChannel=[n_d1,n_d2];
         end
     end
@@ -64,13 +65,13 @@ if length(n_a1)>1
         Policy=PolicyKron;
         return
     end
-    n_a=[n_a1,n_a2];
+    n_a=[n_a1,n_a2,n_a3];
     if N_z==0
         V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, vfoptions.n_e, N_j, vfoptions); % treat e as z (no z dim present)
+        Policy=UnKronPolicyIndexes3_FHorz_z(PolicyKron, nDPolicyChannel, n_a1, n_a2, n_a, vfoptions.n_e, N_j, vfoptions); % treat e as z (no z dim present)
     else
         V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron, nDPolicyChannel, n_a1DC, n_a1fold, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+        Policy=UnKronPolicyIndexes3_FHorz_z_e(PolicyKron, nDPolicyChannel, n_a1, n_a2, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
     end
     return
 end
