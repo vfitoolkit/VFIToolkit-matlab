@@ -267,6 +267,9 @@ simoptions.alreadygridvals=1;
 
 % Same for semi-exogenous shocks
 caliboptions.calibsemiexo=0; % use =0 to also cover models without semi-exogenous shocks
+if ~isfield(vfoptions,'n_semiz')
+    vfoptions.n_semiz=0;
+end
 if prod(vfoptions.n_semiz)>0
     if isfield(vfoptions,'SemiExoShockFn')
         tempExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.SemiExoShockFn);
