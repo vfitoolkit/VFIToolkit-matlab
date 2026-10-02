@@ -1,7 +1,7 @@
 function [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i,transpathoptions)
 % Subscript that is used to determine if there are any '_tminus1' or
 % '_tplus1' variables used as inputs to FnsToEvaluate or GeneralEqmEqns
-% (Used as part of transition path codes)
+% (Used as part of transition path codes). Also looks in transpathoptions.intermediateEqns, when there are any.
 % Look for the _tplus1 in PricePath, and for _tminus1 in AggVars, PricePath, and ParamPath
 %
 % Names_i and transpathoptions are required inputs.
@@ -43,6 +43,20 @@ GEeqnNames=fieldnames(GeneralEqmEqns);
 for gg=1:length(GEeqnNames)
     temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
     FnInputNames={FnInputNames{:},temp{:}}; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
+end
+
+%% Get all the input names for transpathoptions.intermediateEqns [these are evaluated alongside the GeneralEqmEqns, from the same Parameters, so _tplus1 and _tminus1 can be used in them too]
+% Without this a _tminus1 or _tplus1 that appears only in an intermediate eqn is never set, and the
+% path fails with a missing parameter. EvalFnOnTransPath_* pass simoptions here, which has no
+% intermediateEqns, so for them this does nothing.
+if isfield(transpathoptions,'intermediateEqns')
+    intEqnNames=fieldnames(transpathoptions.intermediateEqns);
+    for gg=1:length(intEqnNames)
+        if isa(transpathoptions.intermediateEqns.(intEqnNames{gg}),'function_handle')
+            temp=getAnonymousFnInputNames(transpathoptions.intermediateEqns.(intEqnNames{gg}));
+            FnInputNames={FnInputNames{:},temp{:}};
+        end
+    end
 end
 
 %% Now, get rid of all the duplicates
