@@ -217,7 +217,7 @@ for tt=1:T
     end
     % transpathoptions.zpathtrivial==1: does not vary over the path, so it is already in simoptions
 
-    tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,Policy,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
 
     % This period's aggregates (over all ages) of the FnsToEvaluate that are used as _tminus1, which
     % become the _tminus1 values of next period. The life-cycle profiles are conditional on age, so they
