@@ -271,10 +271,18 @@ if ~isfield(vfoptions,'n_semiz')
     vfoptions.n_semiz=0;
 end
 if prod(vfoptions.n_semiz)>0
-    if isfield(vfoptions,'SemiExoShockFn')
-        tempExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.SemiExoShockFn);
-        % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
-        if ~isempty(intersect(tempExogShockFnParamNames,GEPriceParamNames))
+    if isfield(vfoptions,'SemiExoStateFn')
+        if isstruct(vfoptions.SemiExoStateFn) % can depend on permanent type
+            temp=[];
+            semiexofnnames=fieldnames(vfoptions.SemiExoStateFn);
+            for ii=1:length(semiexofnnames)
+                temp=[temp,getAnonymousFnInputNames(vfoptions.SemiExoStateFn.(semiexofnnames{ii}))];
+            end
+        else
+            temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
+        end
+        % can just leave action space in here as we only use it to see if CalibParamNames is part of it
+        if ~isempty(intersect(temp,CalibParamNames))
             caliboptions.calibsemiexo=1;
         end
     end
