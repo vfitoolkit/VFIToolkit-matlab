@@ -995,7 +995,9 @@ else
             elseif transpathoptions.fastOLG==1
                 ze_gridvals_J=zeros(N_j,N_ze,l_ze,'gpuArray');
                 ze_gridvals_J(:,:,1:l_z)=repmat(z_gridvals_J,1,N_e,1);
-                ze_gridvals_J(:,:,l_z+1:end)=repmat(squeeze(e_gridvals_J),1,N_z,1);
+                % ze is (z,e) with z fastest, so each e value is repeated N_z times in a row (repelem), as in the
+                % fastOLG=0 version above; repmat here cycled e fastest and paired the z and e values wrongly
+                ze_gridvals_J(:,:,l_z+1:end)=repelem(reshape(e_gridvals_J,[N_j,N_e,l_e]),1,N_z,1); % e_gridvals_J is [N_j,1,N_e,l_e]
             end
         end
 
@@ -1026,9 +1028,9 @@ else
             if transpathoptions.fastOLG==0
                 ze_gridvals_J_T=[repmat(transpathoptions.z_gridvals_J_T,N_e,1,1),repelem(transpathoptions.e_gridvals_J_T,N_z,1,1)];
             elseif transpathoptions.fastOLG==1
-                ze_gridvals_J_T=zeros(N_j,N_ze,l_ze,'gpuArray');
+                ze_gridvals_J_T=zeros(N_j,N_ze,l_ze,T,'gpuArray');
                 ze_gridvals_J_T(:,:,1:l_z,:)=repmat(transpathoptions.z_gridvals_J_T,1,N_e,1);
-                ze_gridvals_J_T(:,:,l_z+1:end,:)=repmat(squeeze(transpathoptions.e_gridvals_J_T),1,N_z,1);
+                ze_gridvals_J_T(:,:,l_z+1:end,:)=repelem(reshape(transpathoptions.e_gridvals_J_T,[N_j,N_e,l_e,T]),1,N_z,1,1); % (z,e) with z fastest, as above
             end
         end
 
