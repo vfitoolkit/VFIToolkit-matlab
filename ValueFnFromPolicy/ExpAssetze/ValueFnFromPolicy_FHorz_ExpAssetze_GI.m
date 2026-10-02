@@ -36,9 +36,9 @@ if isscalar(n_a)
     varargout={V};
     return
 end
-n_a1=n_a(1:end-1);
+n_a1=n_a(1:end-vfoptions.experienceassetze);
 N_a1=prod(n_a1);
-n_a2=n_a(end);
+n_a2=n_a(end-vfoptions.experienceassetze+1:end); % last vfoptions.experienceassetze dims are the experience asset
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
@@ -55,8 +55,8 @@ whichisdforexpasset=(l_d-l_d2+1):l_d;
 n_d2=n_d(end-l_d2+1:end);
 
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_z+l_e)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_z+l_e+1:end}};
+if length(temp)>(l_d2+l_a2+l_z+l_e+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+l_z+l_e+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2,z,e), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end
@@ -119,9 +119,14 @@ for reverse_j=0:N_j-1
 
     % Step 1: a2primeIndex, a2primeProbs -- helper handles (a, z, e) natively
     [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetze(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, vfoptions.n_e, 0,N_z,N_e, d_grid, a2_grid, z_gridvals_J(:,:,jj), vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
-    % helper returns [N_a, N_z*N_e]; reshape to [N_a, N_z, N_e] for downstream 3D indexing
-    a2primeIndex=reshape(a2primeIndex,[N_a,N_z,N_e]);
-    a2primeProbs=reshape(a2primeProbs,[N_a,N_z,N_e]);
+    % helper returns [N_a, N_z*N_e] when l_a2==1, and [N_a, l_a2, N_z*N_e] (per-dim factored) when l_a2==2
+    if l_a2==1
+        a2primeIndex=reshape(a2primeIndex,[N_a,N_z,N_e]);
+        a2primeProbs=reshape(a2primeProbs,[N_a,N_z,N_e]);
+    else
+        a2primeIndex=reshape(a2primeIndex,[N_a,l_a2,N_z,N_e]);
+        a2primeProbs=reshape(a2primeProbs,[N_a,l_a2,N_z,N_e]);
+    end
 
     % Step 2: ReturnFn at policy
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
@@ -140,17 +145,39 @@ for reverse_j=0:N_j-1
         % Step 4: 2x2 corner interpolation
         a1l=a1_lower(:,:,:,jj); a1u=a1_upper(:,:,:,jj);
         wa1l=w_a1_lower(:,:,:,jj); wa1u=w_a1_upper(:,:,:,jj);
-        a2l=a2primeIndex;     a2u=a2primeIndex+1;
-        wa2l=a2primeProbs;    wa2u=1-a2primeProbs;
         zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1]);
-        lin_LL=a1l+N_a1*(a2l-1)+zidxoffset; lin_LU=a1l+N_a1*(a2u-1)+zidxoffset;
-        lin_UL=a1u+N_a1*(a2l-1)+zidxoffset; lin_UU=a1u+N_a1*(a2u-1)+zidxoffset;
-        EV_LL=reshape(EVnext(lin_LL(:)),[N_a,N_z,N_e]);
-        EV_LU=reshape(EVnext(lin_LU(:)),[N_a,N_z,N_e]);
-        EV_UL=reshape(EVnext(lin_UL(:)),[N_a,N_z,N_e]);
-        EV_UU=reshape(EVnext(lin_UU(:)),[N_a,N_z,N_e]);
-        EVnext_atpolicy=wa1l.*wa2l.*EV_LL + wa1l.*wa2u.*EV_LU + wa1u.*wa2l.*EV_UL + wa1u.*wa2u.*EV_UU;
-        EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
+        if l_a2==1
+            a2l=a2primeIndex;     a2u=a2primeIndex+1;
+            wa2l=a2primeProbs;    wa2u=1-a2primeProbs;
+            lin_LL=a1l+N_a1*(a2l-1)+zidxoffset; lin_LU=a1l+N_a1*(a2u-1)+zidxoffset;
+            lin_UL=a1u+N_a1*(a2l-1)+zidxoffset; lin_UU=a1u+N_a1*(a2u-1)+zidxoffset;
+            EV_LL=reshape(EVnext(lin_LL(:)),[N_a,N_z,N_e]);
+            EV_LU=reshape(EVnext(lin_LU(:)),[N_a,N_z,N_e]);
+            EV_UL=reshape(EVnext(lin_UL(:)),[N_a,N_z,N_e]);
+            EV_UU=reshape(EVnext(lin_UU(:)),[N_a,N_z,N_e]);
+            EVnext_atpolicy=wa1l.*wa2l.*EV_LL + wa1l.*wa2u.*EV_LU + wa1u.*wa2l.*EV_UL + wa1u.*wa2u.*EV_UU;
+            EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
+        else
+            % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored, so the corner count doubles:
+            % 2 (a1) x 2 (a2_1) x 2 (a2_2) = 8. Same FLAT weight-product as the l_a2==1 arm above --
+            % this file's convention; its GI checks sit at the ULP floor, not exact zero, and it does
+            % not use the raws' nested-skipinterp form. One trailing isnan cleanup, as above.
+            n_a2_1=n_a2(1);
+            lo1=reshape(a2primeIndex(:,1,:,:),[N_a,N_z,N_e]); lo2=reshape(a2primeIndex(:,2,:,:),[N_a,N_z,N_e]);
+            pr1=reshape(a2primeProbs(:,1,:,:),[N_a,N_z,N_e]); pr2=reshape(a2primeProbs(:,2,:,:),[N_a,N_z,N_e]);
+            EVnext_atpolicy=zeros(size(a1l),'like',EVnext);
+            bits=[0 0; 1 0; 0 1; 1 1];
+            for c=1:4
+                b1=bits(c,1); b2=bits(c,2);
+                a2k=(lo1+b1)+n_a2_1*((lo2+b2)-1);
+                w2=pr1; if b1==1, w2=1-w2; end
+                q2=pr2; if b2==1, q2=1-q2; end
+                lin_l=a1l+N_a1*(a2k-1)+zidxoffset; lin_u=a1u+N_a1*(a2k-1)+zidxoffset;
+                EV_l=reshape(EVnext(lin_l(:)),[N_a,N_z,N_e]); EV_u=reshape(EVnext(lin_u(:)),[N_a,N_z,N_e]);
+                EVnext_atpolicy=EVnext_atpolicy+wa1l.*w2.*q2.*EV_l+wa1u.*w2.*q2.*EV_u;
+            end
+            EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
+        end
         V(:,:,:,jj)=F_jj+beta*EVnext_atpolicy;
     end
 end

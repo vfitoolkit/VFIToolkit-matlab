@@ -284,12 +284,35 @@ else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzeFnMatrix(aprimeFn, n_d2, n_a2, n_z, n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), aprimeFnParamsVec,2);
 
-    aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex-1,N_a1,1,1,1);
-    aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex,N_a1,1,1,1);
-    aprimeProbs_d2a1a2ze=repmat(a2primeProbs,N_a1,1,1,1);
-    aprimeIndex_full=repelem(aprimeIndex,1,1,N_semiz,1);
-    aprimeplus1Index_full=repelem(aprimeplus1Index,1,1,N_semiz,1);
-    aprimeProbs_full=repelem(aprimeProbs_d2a1a2ze,1,1,N_semiz,1);
+    if length(n_a2)==1
+        aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex-1,N_a1,1,1,1);
+        aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex,N_a1,1,1,1);
+        aprimeProbs_d2a1a2ze=repmat(a2primeProbs,N_a1,1,1,1);
+        aprimeIndex_full=repelem(aprimeIndex,1,1,N_semiz,1);
+        aprimeplus1Index_full=repelem(aprimeplus1Index,1,1,N_semiz,1);
+        aprimeProbs_full=repelem(aprimeProbs_d2a1a2ze,1,1,N_semiz,1);
+    else
+        % l_a2==2: a2primeIndex and a2primeProbs are [l_a2,N_d2,N_a2,N_z,N_e], per-dim factored
+        % rather than a single lower corner. Fold the two per-dim lower indexes into the four
+        % corners of the a2 lattice, offset each by a1prime exactly as the l_a2==1 arm does, and
+        % do the nested 2-corner interp inside the d3 loop.
+        n_a2_1=n_a2(1);
+        loIdx_1=reshape(a2primeIndex(1,:,:,:,:),[N_d2,N_a2,N_z,N_e]);
+        loIdx_2=reshape(a2primeIndex(2,:,:,:,:),[N_d2,N_a2,N_z,N_e]);
+        prob_1=reshape(a2primeProbs(1,:,:,:,:),[N_d2,N_a2,N_z,N_e]);
+        prob_2=reshape(a2primeProbs(2,:,:,:,:),[N_d2,N_a2,N_z,N_e]);
+        a1prime_offsets=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e);
+        aprime_ll=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*(loIdx_2-1)-1,N_a1,1,1,1);
+        aprime_hl=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1,N_a1,1,1,1);
+        aprime_lh=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*loIdx_2-1,N_a1,1,1,1);
+        aprime_hh=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*loIdx_2-1,N_a1,1,1,1);
+        aprime_ll_full=repelem(aprime_ll,1,1,N_semiz,1); % [N_d2*N_a1,N_a2,N_bothz,N_e]
+        aprime_hl_full=repelem(aprime_hl,1,1,N_semiz,1);
+        aprime_lh_full=repelem(aprime_lh,1,1,N_semiz,1);
+        aprime_hh_full=repelem(aprime_hh,1,1,N_semiz,1);
+        prob_1_full=repelem(repmat(prob_1,N_a1,1,1,1),1,1,N_semiz,1);
+        prob_2_full=repelem(repmat(prob_2,N_a1,1,1,1),1,1,N_semiz,1);
+    end
 
     EVpre=sum(reshape(vfoptions.V_Jplus1,[N_a,N_bothz,N_e]).*shiftdim(pi_e_J(:,N_j+1),-2),3);
 
@@ -308,18 +331,42 @@ else
             EV=sum(EV,2);
             EV_2D=reshape(EV,[N_a,N_bothz]);
 
-            lin_lower=aprimeIndex_full+bothz_offset;
-            lin_upper=aprimeplus1Index_full+bothz_offset;
-            EV1=EV_2D(lin_lower);
-            EV2=EV_2D(lin_upper);
+            if length(n_a2)==1
+                lin_lower=aprimeIndex_full+bothz_offset;
+                lin_upper=aprimeplus1Index_full+bothz_offset;
+                EV1=EV_2D(lin_lower);
+                EV2=EV_2D(lin_upper);
 
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3=aprimeProbs_full;
-            aprimeProbs_d3(skipinterp)=0;
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3=aprimeProbs_full;
+                aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each
+                % level and per-contribution NaN cleanup so that a zero weight against an infinite
+                % node (0*(-Inf)=NaN) does not poison the sum.
+                EV_ll=EV_2D(aprime_ll_full+bothz_offset);
+                EV_hl=EV_2D(aprime_hl_full+bothz_offset);
+                EV_lh=EV_2D(aprime_lh_full+bothz_offset);
+                EV_hh=EV_2D(aprime_hh_full+bothz_offset);
+                % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+                p1_lo=prob_1_full; p1_lo(EV_ll==EV_hl)=0;
+                c_ll=p1_lo.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=prob_1_full; p1_hi(EV_lh==EV_hh)=0;
+                c_lh=p1_hi.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                % outer level: interpolate those two over the a2_2 dimension
+                p2=prob_2_full; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                entireEV=c_lo+c_hi;
+            end
 
             DiscountedEV=DiscountFactorParamsVec*reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz,N_e]);
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6]),a1prime_grid),[2,1,3,4,5,6]);
@@ -382,18 +429,42 @@ else
             EV=sum(EV,2);
             EV_2D=reshape(EV,[N_a,N_bothz]);
 
-            lin_lower=aprimeIndex_full+bothz_offset;
-            lin_upper=aprimeplus1Index_full+bothz_offset;
-            EV1=EV_2D(lin_lower);
-            EV2=EV_2D(lin_upper);
+            if length(n_a2)==1
+                lin_lower=aprimeIndex_full+bothz_offset;
+                lin_upper=aprimeplus1Index_full+bothz_offset;
+                EV1=EV_2D(lin_lower);
+                EV2=EV_2D(lin_upper);
 
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3=aprimeProbs_full;
-            aprimeProbs_d3(skipinterp)=0;
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3=aprimeProbs_full;
+                aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each
+                % level and per-contribution NaN cleanup so that a zero weight against an infinite
+                % node (0*(-Inf)=NaN) does not poison the sum.
+                EV_ll=EV_2D(aprime_ll_full+bothz_offset);
+                EV_hl=EV_2D(aprime_hl_full+bothz_offset);
+                EV_lh=EV_2D(aprime_lh_full+bothz_offset);
+                EV_hh=EV_2D(aprime_hh_full+bothz_offset);
+                % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+                p1_lo=prob_1_full; p1_lo(EV_ll==EV_hl)=0;
+                c_ll=p1_lo.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=prob_1_full; p1_hi(EV_lh==EV_hh)=0;
+                c_lh=p1_hi.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                % outer level: interpolate those two over the a2_2 dimension
+                p2=prob_2_full; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                entireEV=c_lo+c_hi;
+            end
 
             DiscountedEV=DiscountFactorParamsVec*reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz,N_e]);
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6]),a1prime_grid),[2,1,3,4,5,6]);
@@ -460,14 +531,38 @@ else
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_2D=reshape(EV,[N_a,N_bothz]);
-            EV1=EV_2D(aprimeIndex_full+bothz_offset);
-            EV2=EV_2D(aprimeplus1Index_full+bothz_offset);
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3=aprimeProbs_full;
-            aprimeProbs_d3(skipinterp)=0;
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            if length(n_a2)==1
+                EV1=EV_2D(aprimeIndex_full+bothz_offset);
+                EV2=EV_2D(aprimeplus1Index_full+bothz_offset);
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3=aprimeProbs_full;
+                aprimeProbs_d3(skipinterp)=0;
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each
+                % level and per-contribution NaN cleanup so that a zero weight against an infinite
+                % node (0*(-Inf)=NaN) does not poison the sum.
+                EV_ll=EV_2D(aprime_ll_full+bothz_offset);
+                EV_hl=EV_2D(aprime_hl_full+bothz_offset);
+                EV_lh=EV_2D(aprime_lh_full+bothz_offset);
+                EV_hh=EV_2D(aprime_hh_full+bothz_offset);
+                % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+                p1_lo=prob_1_full; p1_lo(EV_ll==EV_hl)=0;
+                c_ll=p1_lo.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=prob_1_full; p1_hi(EV_lh==EV_hh)=0;
+                c_lh=p1_hi.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                % outer level: interpolate those two over the a2_2 dimension
+                p2=prob_2_full; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                entireEV=c_lo+c_hi;
+            end
             DiscountedEV=DiscountFactorParamsVec*reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz,N_e]);
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6]),a1prime_grid),[2,1,3,4,5,6]);
 
@@ -539,14 +634,38 @@ else
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_2D=reshape(EV,[N_a,N_bothz]);
-            EV1=EV_2D(aprimeIndex_full+bothz_offset);
-            EV2=EV_2D(aprimeplus1Index_full+bothz_offset);
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3=aprimeProbs_full;
-            aprimeProbs_d3(skipinterp)=0;
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            if length(n_a2)==1
+                EV1=EV_2D(aprimeIndex_full+bothz_offset);
+                EV2=EV_2D(aprimeplus1Index_full+bothz_offset);
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3=aprimeProbs_full;
+                aprimeProbs_d3(skipinterp)=0;
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each
+                % level and per-contribution NaN cleanup so that a zero weight against an infinite
+                % node (0*(-Inf)=NaN) does not poison the sum.
+                EV_ll=EV_2D(aprime_ll_full+bothz_offset);
+                EV_hl=EV_2D(aprime_hl_full+bothz_offset);
+                EV_lh=EV_2D(aprime_lh_full+bothz_offset);
+                EV_hh=EV_2D(aprime_hh_full+bothz_offset);
+                % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+                p1_lo=prob_1_full; p1_lo(EV_ll==EV_hl)=0;
+                c_ll=p1_lo.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=prob_1_full; p1_hi(EV_lh==EV_hh)=0;
+                c_lh=p1_hi.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                % outer level: interpolate those two over the a2_2 dimension
+                p2=prob_2_full; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                entireEV=c_lo+c_hi;
+            end
             DiscountedEV=DiscountFactorParamsVec*reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz,N_e]);
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6]),a1prime_grid),[2,1,3,4,5,6]);
 
@@ -635,12 +754,35 @@ for reverse_j=1:N_j-1
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzeFnMatrix(aprimeFn, n_d2, n_a2, n_z, n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), aprimeFnParamsVec,2);
 
-    aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex-1,N_a1,1,1,1);
-    aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex,N_a1,1,1,1);
-    aprimeProbs_d2a1a2ze=repmat(a2primeProbs,N_a1,1,1,1);
-    aprimeIndex_full=repelem(aprimeIndex,1,1,N_semiz,1);
-    aprimeplus1Index_full=repelem(aprimeplus1Index,1,1,N_semiz,1);
-    aprimeProbs_full=repelem(aprimeProbs_d2a1a2ze,1,1,N_semiz,1);
+    if length(n_a2)==1
+        aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex-1,N_a1,1,1,1);
+        aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e)+N_a1*repmat(a2primeIndex,N_a1,1,1,1);
+        aprimeProbs_d2a1a2ze=repmat(a2primeProbs,N_a1,1,1,1);
+        aprimeIndex_full=repelem(aprimeIndex,1,1,N_semiz,1);
+        aprimeplus1Index_full=repelem(aprimeplus1Index,1,1,N_semiz,1);
+        aprimeProbs_full=repelem(aprimeProbs_d2a1a2ze,1,1,N_semiz,1);
+    else
+        % l_a2==2: a2primeIndex and a2primeProbs are [l_a2,N_d2,N_a2,N_z,N_e], per-dim factored
+        % rather than a single lower corner. Fold the two per-dim lower indexes into the four
+        % corners of the a2 lattice, offset each by a1prime exactly as the l_a2==1 arm does, and
+        % do the nested 2-corner interp inside the d3 loop.
+        n_a2_1=n_a2(1);
+        loIdx_1=reshape(a2primeIndex(1,:,:,:,:),[N_d2,N_a2,N_z,N_e]);
+        loIdx_2=reshape(a2primeIndex(2,:,:,:,:),[N_d2,N_a2,N_z,N_e]);
+        prob_1=reshape(a2primeProbs(1,:,:,:,:),[N_d2,N_a2,N_z,N_e]);
+        prob_2=reshape(a2primeProbs(2,:,:,:,:),[N_d2,N_a2,N_z,N_e]);
+        a1prime_offsets=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z,N_e);
+        aprime_ll=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*(loIdx_2-1)-1,N_a1,1,1,1);
+        aprime_hl=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1,N_a1,1,1,1);
+        aprime_lh=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*loIdx_2-1,N_a1,1,1,1);
+        aprime_hh=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*loIdx_2-1,N_a1,1,1,1);
+        aprime_ll_full=repelem(aprime_ll,1,1,N_semiz,1); % [N_d2*N_a1,N_a2,N_bothz,N_e]
+        aprime_hl_full=repelem(aprime_hl,1,1,N_semiz,1);
+        aprime_lh_full=repelem(aprime_lh,1,1,N_semiz,1);
+        aprime_hh_full=repelem(aprime_hh,1,1,N_semiz,1);
+        prob_1_full=repelem(repmat(prob_1,N_a1,1,1,1),1,1,N_semiz,1);
+        prob_2_full=repelem(repmat(prob_2,N_a1,1,1,1),1,1,N_semiz,1);
+    end
 
     EVpre=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj+1),-2),3);
 
@@ -656,18 +798,42 @@ for reverse_j=1:N_j-1
             EV=sum(EV,2);
             EV_2D=reshape(EV,[N_a,N_bothz]);
 
-            lin_lower=aprimeIndex_full+bothz_offset;
-            lin_upper=aprimeplus1Index_full+bothz_offset;
-            EV1=EV_2D(lin_lower);
-            EV2=EV_2D(lin_upper);
+            if length(n_a2)==1
+                lin_lower=aprimeIndex_full+bothz_offset;
+                lin_upper=aprimeplus1Index_full+bothz_offset;
+                EV1=EV_2D(lin_lower);
+                EV2=EV_2D(lin_upper);
 
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3=aprimeProbs_full;
-            aprimeProbs_d3(skipinterp)=0;
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3=aprimeProbs_full;
+                aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each
+                % level and per-contribution NaN cleanup so that a zero weight against an infinite
+                % node (0*(-Inf)=NaN) does not poison the sum.
+                EV_ll=EV_2D(aprime_ll_full+bothz_offset);
+                EV_hl=EV_2D(aprime_hl_full+bothz_offset);
+                EV_lh=EV_2D(aprime_lh_full+bothz_offset);
+                EV_hh=EV_2D(aprime_hh_full+bothz_offset);
+                % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+                p1_lo=prob_1_full; p1_lo(EV_ll==EV_hl)=0;
+                c_ll=p1_lo.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=prob_1_full; p1_hi(EV_lh==EV_hh)=0;
+                c_lh=p1_hi.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                % outer level: interpolate those two over the a2_2 dimension
+                p2=prob_2_full; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                entireEV=c_lo+c_hi;
+            end
 
             DiscountedEV=DiscountFactorParamsVec*reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz,N_e]);
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6]),a1prime_grid),[2,1,3,4,5,6]);
@@ -730,18 +896,42 @@ for reverse_j=1:N_j-1
             EV=sum(EV,2);
             EV_2D=reshape(EV,[N_a,N_bothz]);
 
-            lin_lower=aprimeIndex_full+bothz_offset;
-            lin_upper=aprimeplus1Index_full+bothz_offset;
-            EV1=EV_2D(lin_lower);
-            EV2=EV_2D(lin_upper);
+            if length(n_a2)==1
+                lin_lower=aprimeIndex_full+bothz_offset;
+                lin_upper=aprimeplus1Index_full+bothz_offset;
+                EV1=EV_2D(lin_lower);
+                EV2=EV_2D(lin_upper);
 
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3=aprimeProbs_full;
-            aprimeProbs_d3(skipinterp)=0;
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3=aprimeProbs_full;
+                aprimeProbs_d3(skipinterp)=0;
 
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each
+                % level and per-contribution NaN cleanup so that a zero weight against an infinite
+                % node (0*(-Inf)=NaN) does not poison the sum.
+                EV_ll=EV_2D(aprime_ll_full+bothz_offset);
+                EV_hl=EV_2D(aprime_hl_full+bothz_offset);
+                EV_lh=EV_2D(aprime_lh_full+bothz_offset);
+                EV_hh=EV_2D(aprime_hh_full+bothz_offset);
+                % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+                p1_lo=prob_1_full; p1_lo(EV_ll==EV_hl)=0;
+                c_ll=p1_lo.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=prob_1_full; p1_hi(EV_lh==EV_hh)=0;
+                c_lh=p1_hi.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                % outer level: interpolate those two over the a2_2 dimension
+                p2=prob_2_full; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                entireEV=c_lo+c_hi;
+            end
 
             DiscountedEV=DiscountFactorParamsVec*reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz,N_e]);
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6]),a1prime_grid),[2,1,3,4,5,6]);
@@ -808,14 +998,38 @@ for reverse_j=1:N_j-1
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_2D=reshape(EV,[N_a,N_bothz]);
-            EV1=EV_2D(aprimeIndex_full+bothz_offset);
-            EV2=EV_2D(aprimeplus1Index_full+bothz_offset);
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3=aprimeProbs_full;
-            aprimeProbs_d3(skipinterp)=0;
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            if length(n_a2)==1
+                EV1=EV_2D(aprimeIndex_full+bothz_offset);
+                EV2=EV_2D(aprimeplus1Index_full+bothz_offset);
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3=aprimeProbs_full;
+                aprimeProbs_d3(skipinterp)=0;
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each
+                % level and per-contribution NaN cleanup so that a zero weight against an infinite
+                % node (0*(-Inf)=NaN) does not poison the sum.
+                EV_ll=EV_2D(aprime_ll_full+bothz_offset);
+                EV_hl=EV_2D(aprime_hl_full+bothz_offset);
+                EV_lh=EV_2D(aprime_lh_full+bothz_offset);
+                EV_hh=EV_2D(aprime_hh_full+bothz_offset);
+                % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+                p1_lo=prob_1_full; p1_lo(EV_ll==EV_hl)=0;
+                c_ll=p1_lo.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=prob_1_full; p1_hi(EV_lh==EV_hh)=0;
+                c_lh=p1_hi.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                % outer level: interpolate those two over the a2_2 dimension
+                p2=prob_2_full; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                entireEV=c_lo+c_hi;
+            end
             DiscountedEV=DiscountFactorParamsVec*reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz,N_e]);
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6]),a1prime_grid),[2,1,3,4,5,6]);
 
@@ -887,14 +1101,38 @@ for reverse_j=1:N_j-1
             EV(isnan(EV))=0;
             EV=sum(EV,2);
             EV_2D=reshape(EV,[N_a,N_bothz]);
-            EV1=EV_2D(aprimeIndex_full+bothz_offset);
-            EV2=EV_2D(aprimeplus1Index_full+bothz_offset);
-            skipinterp=(EV1==EV2);
-            aprimeProbs_d3=aprimeProbs_full;
-            aprimeProbs_d3(skipinterp)=0;
-            entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
-            entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-            entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            if length(n_a2)==1
+                EV1=EV_2D(aprimeIndex_full+bothz_offset);
+                EV2=EV_2D(aprimeplus1Index_full+bothz_offset);
+                skipinterp=(EV1==EV2);
+                aprimeProbs_d3=aprimeProbs_full;
+                aprimeProbs_d3(skipinterp)=0;
+                entireEV=EV1.*aprimeProbs_d3+EV2.*(1-aprimeProbs_d3);
+                entireEV(aprimeProbs_d3==0)=EV2(aprimeProbs_d3==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+                entireEV(aprimeProbs_d3==1)=EV1(aprimeProbs_d3==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each
+                % level and per-contribution NaN cleanup so that a zero weight against an infinite
+                % node (0*(-Inf)=NaN) does not poison the sum.
+                EV_ll=EV_2D(aprime_ll_full+bothz_offset);
+                EV_hl=EV_2D(aprime_hl_full+bothz_offset);
+                EV_lh=EV_2D(aprime_lh_full+bothz_offset);
+                EV_hh=EV_2D(aprime_hh_full+bothz_offset);
+                % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+                p1_lo=prob_1_full; p1_lo(EV_ll==EV_hl)=0;
+                c_ll=p1_lo.*EV_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*EV_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=prob_1_full; p1_hi(EV_lh==EV_hh)=0;
+                c_lh=p1_hi.*EV_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*EV_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                % outer level: interpolate those two over the a2_2 dimension
+                p2=prob_2_full; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                entireEV=c_lo+c_hi;
+            end
             DiscountedEV=DiscountFactorParamsVec*reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz,N_e]);
             DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4,5,6]),a1prime_grid),[2,1,3,4,5,6]);
 

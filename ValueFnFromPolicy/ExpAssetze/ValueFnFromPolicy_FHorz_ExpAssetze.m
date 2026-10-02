@@ -40,21 +40,21 @@ l_z=length(n_z);
 l_e=length(vfoptions.n_e);
 
 % Split a into a1 (standard) and a2 (experience asset)
-if isscalar(n_a)
-    % noa1: the experience asset is the only endogenous state
+l_a2=vfoptions.experienceassetze; % l_a2 = number of a2 (experience-asset) dims
+if length(n_a)<=l_a2
+    % noa1: the experience asset(s) are the only endogenous states
     n_a1=0;
     N_a1=1; % so aprime_low=a1prime_idx+N_a1*(a2primeIndex-1) reduces to a2primeIndex (a1prime_idx stays 1)
     l_a1=0; % Policy contains only the d channels
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-l_a2);
     N_a1=prod(n_a1);
     l_a1=length(n_a1);
 end
-n_a2=n_a(end);
+n_a2=n_a(end-l_a2+1:end); % the last l_a2 dims are the experience asset(s)
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a2=length(n_a2);
 l_aprime=l_a1;
 
 % Which d affects the experience asset (default: last d only)
@@ -68,8 +68,8 @@ n_d2=n_d(end-l_d2+1:end);
 
 % aprimeFnParamNames: first inputs are (d_expasset..., a2, z, e)
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_z+l_e)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_z+l_e+1:end}};
+if length(temp)>(l_d2+l_a2+l_z+l_e+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+l_z+l_e+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2,z,e), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end
@@ -115,9 +115,14 @@ for reverse_j=0:N_j-1
 
     % Step 1: a2primeIndex, a2primeProbs -- helper handles (a, z, e) directly
     [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetze(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, vfoptions.n_e, 0,N_z,N_e, d_grid, a2_grid, z_gridvals_J(:,:,jj), vfoptions.e_gridvals_J(:,:,jj), aprimeFnParamsVec);
-    % helper returns [N_a, N_z*N_e]; reshape to [N_a, N_z, N_e] for downstream 3D indexing
-    a2primeIndex=reshape(a2primeIndex,[N_a,N_z,N_e]);
-    a2primeProbs=reshape(a2primeProbs,[N_a,N_z,N_e]);
+    % helper returns [N_a, N_z*N_e] when l_a2==1, and [N_a, l_a2, N_z*N_e] (per-dim factored) when l_a2==2
+    if l_a2==1
+        a2primeIndex=reshape(a2primeIndex,[N_a,N_z,N_e]);
+        a2primeProbs=reshape(a2primeProbs,[N_a,N_z,N_e]);
+    else
+        a2primeIndex=reshape(a2primeIndex,[N_a,l_a2,N_z,N_e]);
+        a2primeProbs=reshape(a2primeProbs,[N_a,l_a2,N_z,N_e]);
+    end
 
     % Step 2: ReturnFn at policy
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
@@ -134,15 +139,48 @@ for reverse_j=0:N_j-1
         EVnext(isnan(EVnext))=0;
 
         % Step 4: interpolated lookup
-        a1p=a1prime_idx(:,:,:,jj); % [N_a, N_z, N_e]
-        aprime_low=a1p+N_a1*(a2primeIndex-1);
-        aprime_up =a1p+N_a1*(a2primeIndex);
         zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1]);
-        lin_low=aprime_low+zidxoffset;
-        lin_up =aprime_up +zidxoffset;
-        EV_low=reshape(EVnext(lin_low(:)),[N_a,N_z,N_e]);
-        EV_up =reshape(EVnext(lin_up(:)), [N_a,N_z,N_e]);
-        EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
+        if l_a2==1
+            a1p=a1prime_idx(:,:,:,jj); % [N_a, N_z, N_e]
+            aprime_low=a1p+N_a1*(a2primeIndex-1);
+            aprime_up =a1p+N_a1*(a2primeIndex);
+            lin_low=aprime_low+zidxoffset;
+            lin_up =aprime_up +zidxoffset;
+            EV_low=reshape(EVnext(lin_low(:)),[N_a,N_z,N_e]);
+            EV_up =reshape(EVnext(lin_up(:)), [N_a,N_z,N_e]);
+            EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
+        else
+            % l_a2==2: a2primeIndex/a2primeProbs are [N_a,l_a2,N_z,N_e] per-dim factored.
+            % Nested 2-corner interpolation with skipinterp at each level (mirrors ValueFnFromPolicy_FHorz_ExpAsset).
+            n_a2_1=n_a2(1);
+            loIdx_1=reshape(a2primeIndex(:,1,:,:),[N_a,N_z,N_e]);
+            loIdx_2=reshape(a2primeIndex(:,2,:,:),[N_a,N_z,N_e]);
+            prob_1=reshape(a2primeProbs(:,1,:,:),[N_a,N_z,N_e]);
+            prob_2=reshape(a2primeProbs(:,2,:,:),[N_a,N_z,N_e]);
+            a1p=a1prime_idx(:,:,:,jj); % [N_a, N_z, N_e]; all ones in the noa1 case (where N_a1=1)
+            aprime_ll=a1p+N_a1*(loIdx_1+n_a2_1*(loIdx_2-1)-1);
+            aprime_hl=a1p+N_a1*((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1);
+            aprime_lh=a1p+N_a1*(loIdx_1+n_a2_1*loIdx_2-1);
+            aprime_hh=a1p+N_a1*((loIdx_1+1)+n_a2_1*loIdx_2-1);
+            lin_ll=aprime_ll+zidxoffset; lin_hl=aprime_hl+zidxoffset;
+            lin_lh=aprime_lh+zidxoffset; lin_hh=aprime_hh+zidxoffset;
+            V_ll=reshape(EVnext(lin_ll(:)),[N_a,N_z,N_e]);
+            V_hl=reshape(EVnext(lin_hl(:)),[N_a,N_z,N_e]);
+            V_lh=reshape(EVnext(lin_lh(:)),[N_a,N_z,N_e]);
+            V_hh=reshape(EVnext(lin_hh(:)),[N_a,N_z,N_e]);
+            p1_loy=prob_1; p1_loy(V_ll==V_hl)=0;
+            c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+            c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+            EV_loy=c_ll+c_hl;
+            p1_hiy=prob_1; p1_hiy(V_lh==V_hh)=0;
+            c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+            c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+            EV_hiy=c_lh+c_hh;
+            p2=prob_2; p2(EV_loy==EV_hiy)=0;
+            c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+            c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+            EVnext_atpolicy=c_loy+c_hiy;
+        end
         V(:,:,:,jj)=F_jj+beta*EVnext_atpolicy;
     end
 end
