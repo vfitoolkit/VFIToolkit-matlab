@@ -1,4 +1,17 @@
-function AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath_tt,tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions)
+function AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath_tt,tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions,distfastOLG)
+% The FnsToEvaluate are evaluated over (a,j,z) [z standing for whatever exogenous states there are,
+% semiz then z then e], and aggregated as sum(Values(:).*AgentDist(:)), so the age-weighted dist must be
+% in that same linear order. It is under simoptions.fastOLG=1 (the default), where the dist is (a,j,z) with
+% e trailing. Under simoptions.fastOLG=0 it is (a,z,j) [N_a*N_z,N_j], so distfastOLG=0 puts it into
+% (a,j,z) first. distfastOLG is optional, and defaults to 1.
+if ~exist('distfastOLG','var')
+    distfastOLG=1;
+end
+if distfastOLG==0
+    AgentDist=AgentDist.*AgeWeights;
+    AgentDist=reshape(permute(reshape(AgentDist,[N_a,numel(AgentDist)/(N_a*N_j),N_j]),[1,3,2]),[numel(AgentDist),1]); % (a,z,j) -> (a,j,z)
+    AgeWeights=1; % already applied
+end
 % Maybe should just take PolicyValuesPath_tt as input instead of PolicyValuesPath
 
 if N_semiz==0

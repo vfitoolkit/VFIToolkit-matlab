@@ -1,7 +1,7 @@
 function AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_SemiExo_noz_raw(AgentDist,Policy_dsemiexo,Policy_aprime,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,jequalOneDist)
 % fastOLG: parallelizes over age jj. One time-step of the agent distribution, with semi-exogenous state (no z, no e).
 % age weights are handled elsewhere, here all are normalized to one
-% AgentDist is [N_a*N_semiz*N_j,1], ordered (a,semiz,j) with a fastest
+% AgentDist is [N_a*N_j*N_semiz,1], STORED (a,j,semiz) with a fastest (computed in (a,semiz,j) order, see the index sets)
 % Policy_dsemiexo and Policy_aprime are [N_a*N_semiz,N_j] (the d2 index, and the bare aprime index in 1..N_a)
 % The semiz->semiz' transition (depends on d2) is folded into Gammatranspose
 
@@ -30,9 +30,12 @@ II2=repelem((1:1:N_asemiz*(N_j-1))',1,N_semizshort);
 Gammatranspose=sparse(Policy_aprimesemiz,II2,semiztransitions,N_asemiz*(N_j-1),N_asemiz*(N_j-1)); % From (a,semiz,j) to (a',semiz',j)
 
 % Index sets for the fastOLG age-shift
-exceptlastj=(1:1:N_asemiz*(N_j-1))'; % (a,semiz,j=1..N_j-1) are the first N_asemiz*(N_j-1) entries
-exceptfirstj=N_asemiz+(1:1:N_asemiz*(N_j-1))'; % (a,semiz,j=2..N_j)
-justfirstj=(1:1:N_asemiz)'; % (a,semiz,j=1)
+% The dist is STORED (a,j,semiz,z) with e in columns, the same layout as without semiz (with semiz as part of z),
+% but the computation below works in (a,semiz,j,z,e) order, as the semiz transition moves a and semiz together.
+% These index sets read and write the stored dist in that computation order, so nothing else needs to know.
+exceptlastj=repmat((1:1:N_a)',N_semiz*(N_j-1),1)+repmat(repelem(N_a*N_j*(0:1:N_semiz-1)',N_a,1),N_j-1,1)+repelem(N_a*(0:1:N_j-2)',N_asemiz,1); % (a,semiz,j=1..N_j-1), stored (a,j,semiz)
+exceptfirstj=repmat((1:1:N_a)',N_semiz*(N_j-1),1)+repmat(repelem(N_a*N_j*(0:1:N_semiz-1)',N_a,1),N_j-1,1)+repelem(N_a*(1:1:N_j-1)',N_asemiz,1); % (a,semiz,j=2..N_j)
+justfirstj=repmat((1:1:N_a)',N_semiz,1)+N_a*N_j*repelem((0:1:N_semiz-1)',N_a,1); % (a,semiz,j=1)
 
 AgentDist_tt=sparse(gather(AgentDist(exceptlastj)));
 AgentDist_tt=Gammatranspose*AgentDist_tt;

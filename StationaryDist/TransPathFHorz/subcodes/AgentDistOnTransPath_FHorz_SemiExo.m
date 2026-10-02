@@ -158,23 +158,17 @@ if simoptions.fastOLG==0
 else
     %% fastOLG: convert AgentDist_initial and jequaloneDist to the fast layout, iterate, reapply age weights
     AgentDist_noweights=AgentDist_initial./AgeWeights_initial; % [N_a*N_bothze,N_j], remove age weights
-    % reshape to [N_a,N_semiz,(N_z),(N_e),N_j] then permute so that the order is (a,semiz,j,(z)) with e in trailing columns
-    if N_z==0 && N_e==0
-        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_j]),[1,2,3]),[N_a*N_semiz*N_j,1]);
-        jequalOneDist=reshape(jequaloneDist,[N_a*N_semiz,1]);
-        AgentDistPath=zeros(N_a*N_semiz*N_j,T,'gpuArray');
-    elseif N_e==0
-        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_z,N_j]),[1,2,4,3]),[N_a*N_semiz*N_j*N_z,1]);
-        jequalOneDist=reshape(jequaloneDist,[N_a*N_semiz*N_z,1]);
-        AgentDistPath=zeros(N_a*N_semiz*N_j*N_z,T,'gpuArray');
-    elseif N_z==0
-        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_e,N_j]),[1,2,4,3]),[N_a*N_semiz*N_j,N_e]);
-        jequalOneDist=reshape(jequaloneDist,[N_a*N_semiz*N_e,1]);
-        AgentDistPath=zeros(N_a*N_semiz*N_j,N_e,T,'gpuArray');
+    % reshape to [N_a,N_bothz,(N_e),N_j] then permute so that the order is (a,j,bothz) with e in trailing columns,
+    % bothz=(semiz,z): the same layout as without semiz, with bothz in place of z (the fastOLG SemiExo dist raws store it so)
+    N_bothzfast=N_semiz*max(N_z,1);
+    if N_e==0
+        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_bothzfast,N_j]),[1,3,2]),[N_a*N_j*N_bothzfast,1]);
+        jequalOneDist=reshape(jequaloneDist,[N_a*N_bothzfast,1]); % listed (a,semiz,(z)); the raws place it at j=1
+        AgentDistPath=zeros(N_a*N_j*N_bothzfast,T,'gpuArray');
     else
-        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_semiz,N_z,N_e,N_j]),[1,2,5,3,4]),[N_a*N_semiz*N_j*N_z,N_e]);
-        jequalOneDist=reshape(jequaloneDist,[N_a*N_semiz*N_z*N_e,1]);
-        AgentDistPath=zeros(N_a*N_semiz*N_j*N_z,N_e,T,'gpuArray');
+        AgentDist=reshape(permute(reshape(AgentDist_noweights,[N_a,N_bothzfast,N_e,N_j]),[1,4,2,3]),[N_a*N_j*N_bothzfast,N_e]);
+        jequalOneDist=reshape(jequaloneDist,[N_a*N_bothzfast*N_e,1]); % listed (a,semiz,(z),e); the raws place it at j=1
+        AgentDistPath=zeros(N_a*N_j*N_bothzfast,N_e,T,'gpuArray');
     end
     if N_z==0 && N_e==0
         AgentDistPath(:,1)=AgentDist;
@@ -224,21 +218,13 @@ else
     end
 
     % Put the age weights back in, and reshape to output [n_a,n_bothze,N_j,T]
-    if N_z==0 && N_e==0
-        AgentDistPath=AgentDistPath.*repelem(AgeWeights_T,N_a*N_semiz,1); % [N_a*N_semiz*N_j,T]
-        AgentDistPath=reshape(AgentDistPath,[N_a*N_semiz,N_j,T]); % (a,semiz,j,T)
-        AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
-    elseif N_e==0
-        AgentDistPath=AgentDistPath.*repmat(repelem(AgeWeights_T,N_a*N_semiz,1),N_z,1); % [N_a*N_semiz*N_j*N_z,T]
-        AgentDistPath=permute(reshape(AgentDistPath,[N_a*N_semiz,N_j,N_z,T]),[1,3,2,4]); % (a,semiz,z,j,T)
-        AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
-    elseif N_z==0
-        AgentDistPath=AgentDistPath.*repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a*N_semiz,1); % [N_a*N_semiz*N_j,N_e,T]
-        AgentDistPath=permute(reshape(AgentDistPath,[N_a*N_semiz,N_j,N_e,T]),[1,3,2,4]); % (a,semiz,e,j,T)
+    if N_e==0
+        AgentDistPath=AgentDistPath.*repmat(repelem(AgeWeights_T,N_a,1),N_bothzfast,1); % [N_a*N_j*N_bothz,T]
+        AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_bothzfast,T]),[1,3,2,4]); % (a,bothz,j,T)
         AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
     else
-        AgentDistPath=AgentDistPath.*repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a*N_semiz,1),N_z,1); % [N_a*N_semiz*N_j*N_z,N_e,T]
-        AgentDistPath=permute(reshape(AgentDistPath,[N_a*N_semiz,N_j,N_z,N_e,T]),[1,3,4,2,5]); % (a,semiz,z,e,j,T)
+        AgentDistPath=AgentDistPath.*repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1),N_bothzfast,1); % [N_a*N_j*N_bothz,N_e,T]
+        AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_bothzfast,N_e,T]),[1,3,4,2,5]); % (a,bothz,e,j,T)
         AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
     end
 end

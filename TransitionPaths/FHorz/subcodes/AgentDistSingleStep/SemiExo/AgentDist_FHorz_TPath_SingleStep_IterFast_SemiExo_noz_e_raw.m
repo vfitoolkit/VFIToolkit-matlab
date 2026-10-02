@@ -1,7 +1,7 @@
 function AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_SemiExo_noz_e_raw(AgentDist,Policy_dsemiexo,Policy_aprime,N_dsemiz,N_a,N_semiz,N_e,N_j,pi_semiz_J,pi_e_J_sim,jequalOneDist)
 % fastOLG: parallelizes over age jj. One time-step of the agent distribution, with semi-exogenous state and iid e (no z).
 % age weights are handled elsewhere, here all are normalized to one
-% AgentDist is [N_a*N_semiz*N_j,N_e], ordered (a,semiz,j) with a fastest, e in columns
+% AgentDist is [N_a*N_j*N_semiz,N_e], STORED (a,j,semiz) with a fastest (computed in (a,semiz,j) order, see the index sets), e in columns
 % Policy_dsemiexo and Policy_aprime are [N_a*N_semiz*N_e,N_j] in (a,semiz,e,j) order
 % pi_e_J_sim is [N_a*N_semiz*(N_j-1),N_e]
 % semiz->semiz' (depends on d2) is folded into Gammatranspose (which also sums out e); e' is added via the pi_e_J_sim multiply
@@ -33,9 +33,12 @@ II2=repelem((1:1:N_asemiz*(N_j-1)*N_e)',1,N_semizshort);
 Gammatranspose=sparse(Policy_aprimesemiz,II2,semiztransitions,N_asemiz*(N_j-1),N_asemiz*(N_j-1)*N_e); % From (a,semiz,j,e) to (a',semiz',j)
 
 % Index sets for the fastOLG age-shift (a,semiz,j layout, e in columns)
-exceptlastj=repmat((1:1:N_asemiz)',(N_j-1)*N_e,1)+repmat(repelem(N_asemiz*(0:1:N_j-2)',N_asemiz,1),N_e,1)+repelem(N_asemiz*N_j*(0:1:N_e-1)',N_asemiz*(N_j-1),1);
-exceptfirstj=repmat((1:1:N_asemiz)',(N_j-1)*N_e,1)+repmat(repelem(N_asemiz*(1:1:N_j-1)',N_asemiz,1),N_e,1)+repelem(N_asemiz*N_j*(0:1:N_e-1)',N_asemiz*(N_j-1),1);
-justfirstj=repmat((1:1:N_asemiz)',N_e,1)+repelem(N_asemiz*N_j*(0:1:N_e-1)',N_asemiz,1);
+% The dist is STORED (a,j,semiz,z) with e in columns, the same layout as without semiz (with semiz as part of z),
+% but the computation below works in (a,semiz,j,z,e) order, as the semiz transition moves a and semiz together.
+% These index sets read and write the stored dist in that computation order, so nothing else needs to know.
+exceptlastj=repmat((1:1:N_a)',N_semiz*(N_j-1)*N_e,1)+repmat(repelem(N_a*N_j*(0:1:N_semiz-1)',N_a,1),(N_j-1)*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_asemiz,1),N_e,1)+repelem(N_a*N_j*N_semiz*(0:1:N_e-1)',N_asemiz*(N_j-1),1);
+exceptfirstj=repmat((1:1:N_a)',N_semiz*(N_j-1)*N_e,1)+repmat(repelem(N_a*N_j*(0:1:N_semiz-1)',N_a,1),(N_j-1)*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_asemiz,1),N_e,1)+repelem(N_a*N_j*N_semiz*(0:1:N_e-1)',N_asemiz*(N_j-1),1);
+justfirstj=repmat((1:1:N_a)',N_semiz*N_e,1)+repmat(repelem(N_a*N_j*(0:1:N_semiz-1)',N_a,1),N_e,1)+repelem(N_a*N_j*N_semiz*(0:1:N_e-1)',N_asemiz,1);
 
 AgentDist_tt=sparse(gather(reshape(AgentDist(exceptlastj),[N_asemiz*(N_j-1)*N_e,1])));
 AgentDist_tt=reshape(Gammatranspose*AgentDist_tt,[N_asemiz*(N_j-1),1]);

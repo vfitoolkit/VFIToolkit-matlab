@@ -138,24 +138,12 @@ for tt=1:T-1
     end
 
     %% AggVars
+    % simoptions.fastOLG tells Step4tt how the dist is laid out ((a,j,z) when =1, (a,z,j) when =0), with
+    % semiz as part of z either way
     if N_z==0 && N_e==0 && N_semiz==0
-        AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions);
-    elseif N_semiz==0
-        AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions);
+        AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions,simoptions.fastOLG);
     else
-        % The SemiExo agent dist is (a,semiz,j,z) with e trailing under simoptions.fastOLG=1, and (a,semiz,z,e,j)
-        % under simoptions.fastOLG=0, while the aggregation (like PolicyValuesPath from
-        % Step2_AdjustPolicy_SemiExo) is over (a,j,bothze) with bothze=(semiz,z,e). So the age-weighted dist
-        % is put into that order first; the aggregation only reads it as Values(:).*AgentDist(:), so without
-        % this every mass is paired with another state's values (exact only for a FnsToEvaluate that depends
-        % on a alone).
-        N_ze=max(N_z,1)*max(N_e,1);
-        if simoptions.fastOLG==1
-            AgentDistAgg=reshape(permute(reshape(AgentDist.*AgeWeights,[N_a,N_semiz,N_j,N_ze]),[1,3,2,4]),[N_a*N_j*N_semiz*N_ze,1]);
-        else
-            AgentDistAgg=reshape(permute(reshape(AgentDist.*AgeWeights,[N_a,N_semiz*N_ze,N_j]),[1,3,2]),[N_a*N_j*N_semiz*N_ze,1]);
-        end
-        AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDistAgg,1,PolicyValuesPath(:,:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions);
+        AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions,simoptions.fastOLG);
     end
 
     for ff=1:length(AggVarNames) % Note: needed for _tminus1 as well as GeneralEqmEqns

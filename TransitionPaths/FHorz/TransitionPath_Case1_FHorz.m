@@ -518,22 +518,15 @@ if N_semiz==0
             end
         end
     end
-else % semiz: dist carries the composite bothze=(semiz,z,e); shape with N_asemiz=N_a*N_semiz in place of N_a
+else % semiz: dist carries the composite bothze=(semiz,z,e); shaped as without semiz, with bothz=(semiz,z) in place of z
     if simoptions.fastOLG==0
         AgeWeights_T=repelem(shiftdim(AgeWeights_T,-1),N_a*N_bothze,1,1); % [N_a*N_bothze,N_j,T]
     elseif simoptions.fastOLG==1
+        % fastOLG dist is (a,j,bothz) with e trailing, the same as without semiz but with bothz=(semiz,z) in place of z
         if N_e==0
-            if N_z==0
-                AgeWeights_T=repelem(AgeWeights_T,N_asemiz,1); % [N_asemiz*N_j,T]
-            else
-                AgeWeights_T=repmat(repelem(AgeWeights_T,N_asemiz,1),N_z,1); % [N_asemiz*N_j*N_z,T]
-            end
+            AgeWeights_T=repmat(repelem(AgeWeights_T,N_a,1),N_bothz,1); % [N_a*N_j*N_bothz,T]
         else % N_e>0
-            if N_z==0
-                AgeWeights_T=repelem(reshape(AgeWeights_T,[N_j,1,T]),N_asemiz,N_e); % [N_asemiz*N_j,N_e,T]
-            else
-                AgeWeights_T=repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_asemiz,1),N_z,N_e); % [N_asemiz*N_j*N_z,N_e,T]
-            end
+            AgeWeights_T=repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1),N_bothz,N_e); % [N_a*N_j*N_bothz,N_e,T]
         end
     end
 end
@@ -576,18 +569,14 @@ if N_semiz==0
             end
         end
     end
-else % semiz: dist carries the composite bothze=(semiz,z,e); fastOLG uses (a,semiz,j,z) with e trailing (matches the SemiExo dist raws)
+else % semiz: dist carries the composite bothze=(semiz,z,e); fastOLG uses (a,j,bothz) with e trailing, bothz=(semiz,z), as without semiz but with bothz in place of z
     AgentDist_initial=reshape(AgentDist_initial,[N_a*N_bothze,N_j]);
     AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
     if simoptions.fastOLG==1
-        if N_z==0 && N_e==0
-            AgentDist_initial=reshape(AgentDist_initial,[N_asemiz*N_j,1]);
-        elseif N_e==0
-            AgentDist_initial=reshape(permute(reshape(AgentDist_initial,[N_a,N_semiz,N_z,N_j]),[1,2,4,3]),[N_asemiz*N_j*N_z,1]);
-        elseif N_z==0
-            AgentDist_initial=reshape(permute(reshape(AgentDist_initial,[N_a,N_semiz,N_e,N_j]),[1,2,4,3]),[N_asemiz*N_j,N_e]);
+        if N_e==0
+            AgentDist_initial=reshape(permute(reshape(AgentDist_initial,[N_a,N_bothz,N_j]),[1,3,2]),[N_a*N_j*N_bothz,1]);
         else
-            AgentDist_initial=reshape(permute(reshape(AgentDist_initial,[N_a,N_semiz,N_z,N_e,N_j]),[1,2,5,3,4]),[N_asemiz*N_j*N_z,N_e]);
+            AgentDist_initial=reshape(permute(reshape(AgentDist_initial,[N_a,N_bothz,N_e,N_j]),[1,4,2,3]),[N_a*N_j*N_bothz,N_e]);
         end
     end
 end
@@ -643,11 +632,7 @@ else % semiz
     if simoptions.fastOLG==0
         AgentDist_initial=AgentDist_initial./AgeWeights_initial; % remove age weights ([N_a*N_bothze,N_j])
     elseif simoptions.fastOLG==1
-        if N_z==0
-            AgentDist_initial=AgentDist_initial./repelem(AgeWeights_initial',N_asemiz,1); % remove age weights
-        else
-            AgentDist_initial=AgentDist_initial./repmat(repelem(AgeWeights_initial',N_asemiz,1),N_z,1); % remove age weights
-        end
+        AgentDist_initial=AgentDist_initial./repmat(repelem(AgeWeights_initial',N_a,1),N_bothz,1); % remove age weights ((a,j,bothz), e in columns)
     end
 end
 
@@ -690,7 +675,7 @@ else
                 jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,1]);
             end
         end
-    else % semiz: age-1 dist over the composite state; fastOLG uses (a,semiz,(z),(e)) at j=1
+    else % semiz: age-1 dist over the composite state, listed (a,semiz,(z),(e)); the fastOLG dist raws place it at j=1 of their (a,j,semiz,z) storage
         if simoptions.fastOLG==0
             jequalOneDist=reshape(jequalOneDist,[N_a*N_bothze,1]);
         else
