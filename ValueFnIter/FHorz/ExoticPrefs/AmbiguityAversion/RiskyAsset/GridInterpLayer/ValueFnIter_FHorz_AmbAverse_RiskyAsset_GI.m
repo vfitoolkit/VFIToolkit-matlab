@@ -24,10 +24,14 @@ if length(n_a1)>1
     if length(n_a1)>2
         error('riskyasset gridinterplayer supports at most two standard endogenous assets')
     end
-    n_a1_1=n_a1(1); n_a1_2=n_a1(2);
-    a1_1_grid=a1_grid(1:n_a1_1);
-    a1_2_grid=a1_grid(n_a1_1+1:end);
-    % a1->a1_1 (the one the grid interpolation layer refines), a2->a1_2 (folded), a3->the riskyasset
+    % a1_grid holds both standard endogenous states (stacked); n_a2/a2_grid hold the riskyasset
+    n_a3=n_a2;
+    a3_grid=a2_grid;
+    a2_grid=a1_grid(n_a1(1)+1:end);
+    a1_grid=a1_grid(1:n_a1(1));
+    n_a2=n_a1(2);
+    n_a1=n_a1(1);
+    % a is divided into a1 (first standard endogenous state, the one the grid interpolation layer refines), a2 (second standard endogenous state, folded) and a3 (the riskyasset)
     if N_e==0
         if N_d1==0
             if N_z==0
@@ -62,44 +66,44 @@ if length(n_a1)>1
         Policy=PolicyKron;
         return
     end
-    % Policy channels: nod1 is 4 (d2, d3, a1_1prime, a1_2prime), with d1 it is 5 (d1, d2, d3, a1_1prime, a1_2prime).
+    % Policy channels: nod1 is 4 (d2, d3, a1prime, a2prime), with d1 it is 5 (d1, d2, d3, a1prime, a2prime).
     % The grid interpolation layer appends the L2 and L2flag rows, which UnKronPolicyIndexes*
     % passes through unchanged when vfoptions.gridinterplayer==1.
-    n_a=[n_a1,n_a2];
+    n_a=[n_a1,n_a2,n_a3];
     if N_d1==0
         if N_e==0
             if N_z==0
                 V=reshape(VKron,[n_a,N_j]);
-                Policy=UnKronPolicyIndexes4_FHorz_noz(PolicyKron, n_d2, n_d3, n_a1_1, n_a1_2, n_a, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes4_FHorz_noz(PolicyKron, n_d2, n_d3, n_a1, n_a2, n_a, N_j, vfoptions);
             else
                 V=reshape(VKron,[n_a,n_z,N_j]);
-                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_a1_1, n_a1_2, n_a, n_z, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_a1, n_a2, n_a, n_z, N_j, vfoptions);
             end
         else
             if N_z==0
                 V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_a1_1, n_a1_2, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+                Policy=UnKronPolicyIndexes4_FHorz_z(PolicyKron, n_d2, n_d3, n_a1, n_a2, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
             else
                 V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d2, n_d3, n_a1_1, n_a1_2, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes4_FHorz_z_e(PolicyKron, n_d2, n_d3, n_a1, n_a2, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
             end
         end
     else % N_d1
         if N_e==0
             if N_z==0
                 V=reshape(VKron,[n_a,N_j]);
-                Policy=UnKronPolicyIndexes5_FHorz_noz(PolicyKron, n_d1, n_d2, n_d3, n_a1_1, n_a1_2, n_a, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes5_FHorz_noz(PolicyKron, n_d1, n_d2, n_d3, n_a1, n_a2, n_a, N_j, vfoptions);
             else
                 V=reshape(VKron,[n_a,n_z,N_j]);
-                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_a1_1, n_a1_2, n_a, n_z, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_a1, n_a2, n_a, n_z, N_j, vfoptions);
             end
         else
             if N_z==0
                 V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_a1_1, n_a1_2, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_a1, n_a2, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
             else
                 V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_a1_1, n_a1_2, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_a1, n_a2, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
             end
         end
     end

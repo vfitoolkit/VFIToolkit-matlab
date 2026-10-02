@@ -24,36 +24,40 @@ if length(n_a1)>1
     if length(n_a1)>2
         error('riskyasset+semiz gridinterplayer supports at most two standard endogenous assets')
     end
-    n_a1_1=n_a1(1); n_a1_2=n_a1(2);
-    a1_1_grid=a1_grid(1:n_a1_1);
-    a1_2_grid=a1_grid(n_a1_1+1:end);
-    % a1->a1_1 (the one the grid interpolation layer refines), a2->a1_2 (folded), a3->the riskyasset
+    % a1_grid holds both standard endogenous states (stacked); n_a2/a2_grid hold the riskyasset
+    n_a3=n_a2;
+    a3_grid=a2_grid;
+    a2_grid=a1_grid(n_a1(1)+1:end);
+    a1_grid=a1_grid(1:n_a1(1));
+    n_a2=n_a1(2);
+    n_a1=n_a1(1);
+    % a is divided into a1 (first standard endogenous state, the one the grid interpolation layer refines), a2 (second standard endogenous state, folded) and a3 (the riskyasset)
     if N_e==0
         if N_d1==0
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_nod1_noz_raw(n_d2,n_d3,n_d4,n_a1_1,n_a1_2,n_a2,n_semiz,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_1_grid, a1_2_grid, a2_grid, semiz_gridvals_J, u_grid, pi_semiz_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_nod1_noz_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_a3,n_semiz,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, a3_grid, semiz_gridvals_J, u_grid, pi_semiz_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_nod1_raw(n_d2,n_d3,n_d4,n_a1_1,n_a1_2,n_a2,n_semiz,n_z,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_1_grid, a1_2_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_nod1_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_a3,n_semiz,n_z,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, a3_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_noz_raw(n_d1,n_d2,n_d3,n_d4,n_a1_1,n_a1_2,n_a2,n_semiz,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_1_grid, a1_2_grid, a2_grid, semiz_gridvals_J, u_grid, pi_semiz_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_noz_raw(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_a3,n_semiz,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, a3_grid, semiz_gridvals_J, u_grid, pi_semiz_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_raw(n_d1,n_d2,n_d3,n_d4,n_a1_1,n_a1_2,n_a2,n_semiz,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_1_grid, a1_2_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_raw(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_a3,n_semiz,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, a3_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         end
     else % N_e
         if N_d1==0
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_nod1_noz_e_raw(n_d2,n_d3,n_d4,n_a1_1,n_a1_2,n_a2,n_semiz,vfoptions.n_e,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_1_grid, a1_2_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_nod1_noz_e_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_a3,n_semiz,vfoptions.n_e,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, a3_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_nod1_e_raw(n_d2,n_d3,n_d4,n_a1_1,n_a1_2,n_a2,n_semiz,n_z,vfoptions.n_e,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_1_grid, a1_2_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_nod1_e_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_a3,n_semiz,n_z,vfoptions.n_e,n_u, N_j, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, a3_grid, semiz_gridvals_J, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else % d1 variable
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_noz_e_raw(n_d1,n_d2,n_d3,n_d4,n_a1_1,n_a1_2,n_a2,n_semiz,vfoptions.n_e,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_1_grid, a1_2_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_noz_e_raw(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_a3,n_semiz,vfoptions.n_e,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, a3_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_e_raw(n_d1,n_d2,n_d3,n_d4,n_a1_1,n_a1_2,n_a2,n_semiz,n_z,vfoptions.n_e,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_1_grid, a1_2_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAssetSemiExo_GI2A_e_raw(n_d1,n_d2,n_d3,n_d4,n_a1,n_a2,n_a3,n_semiz,n_z,vfoptions.n_e,n_u, N_j, d1_grid, d2_grid, d3_grid, d4_grid, a1_grid, a2_grid, a3_grid, semiz_gridvals_J, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_semiz_J, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         end
     end
@@ -62,40 +66,40 @@ if length(n_a1)>1
         Policy=PolicyKron;
         return
     end
-    % Policy channels: nod1 is 5 (d2, d3, d4, a1_1prime, a1_2prime), with d1 it is 6 (d1, d2, d3, d4, a1_1prime, a1_2prime).
+    % Policy channels: nod1 is 5 (d2, d3, d4, a1prime, a2prime), with d1 it is 6 (d1, d2, d3, d4, a1prime, a2prime).
     % The grid interpolation layer appends the L2 and L2flag rows, which UnKronPolicyIndexes*
     % passes through unchanged when vfoptions.gridinterplayer==1.
-    n_a=[n_a1,n_a2];
+    n_a=[n_a1,n_a2,n_a3];
     if N_e==0
         if N_z==0
             V=reshape(VKron,[n_a,n_semiz,N_j]);
             if N_d1==0
-                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1_1, n_a1_2, n_a, n_semiz, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a2, n_a, n_semiz, N_j, vfoptions);
             else
-                Policy=UnKronPolicyIndexes6_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1_1, n_a1_2, n_a, n_semiz, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes6_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a2, n_a, n_semiz, N_j, vfoptions);
             end
         else
             V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
             if N_d1==0
-                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1_1, n_a1_2, n_a, [n_semiz,n_z], N_j, vfoptions);
+                Policy=UnKronPolicyIndexes5_FHorz_z(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a2, n_a, [n_semiz,n_z], N_j, vfoptions);
             else
-                Policy=UnKronPolicyIndexes6_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1_1, n_a1_2, n_a, [n_semiz,n_z], N_j, vfoptions);
+                Policy=UnKronPolicyIndexes6_FHorz_z(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a2, n_a, [n_semiz,n_z], N_j, vfoptions);
             end
         end
     else
         if N_z==0
             V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
             if N_d1==0
-                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1_1, n_a1_2, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a2, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
             else
-                Policy=UnKronPolicyIndexes6_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1_1, n_a1_2, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes6_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a2, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);
             end
         else
             V=reshape(VKron,[n_a,n_semiz,n_z,vfoptions.n_e,N_j]);
             if N_d1==0
-                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1_1, n_a1_2, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes5_FHorz_z_e(PolicyKron, n_d2, n_d3, n_d4, n_a1, n_a2, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
             else
-                Policy=UnKronPolicyIndexes6_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1_1, n_a1_2, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
+                Policy=UnKronPolicyIndexes6_FHorz_z_e(PolicyKron, n_d1, n_d2, n_d3, n_d4, n_a1, n_a2, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
             end
         end
     end
