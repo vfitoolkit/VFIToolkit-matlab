@@ -137,6 +137,7 @@ if any(temp)
     % Create AgeWeights_T
     AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % N_j-by-T
 end
+AgeWeights_path1=AgeWeights_T(:,1); % period 1 of the age weights, kept for the check against the initial agent distribution (AgeWeights_T is reshaped below)
 
 
 %% Set up exogenous shock processes
@@ -205,6 +206,11 @@ if transpathoptions.ageweightstrivial==1
         AgeWeights_initial
         error('AgeWeights differs from the weights implicit in the initial agent distribution')
     end
+elseif max(abs(AgeWeights_initial(:)-AgeWeights_path1))>10^(-9)
+    % The age weights are on the ParamPath, so period 1 aggregates use their first period. If the initial agent
+    % distribution has other age weights, those are not used (it is normalised within each age first), which
+    % is legitimate if the population is meant to jump at the start of the path, but is more often a mistake.
+    warning('AgentDistOnTransPath_Case1_FHorz: the age weights in period 1 of the ParamPath (%s) differ from those implicit in the initial agent distribution, by up to %g. Period 1 uses the ParamPath ones; the initial distribution is only used within each age.',AgeWeightsParamNames{1},max(abs(AgeWeights_initial(:)-AgeWeights_path1)))
 end
 
 

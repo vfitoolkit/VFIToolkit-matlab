@@ -105,6 +105,11 @@ if transpathoptions.ageweightstrivial==1
     if max(abs(AgeWeights_initial-AgeWeights'))>10^(-9)
         error('AgeWeights differs from the weights implicit in the initial agent distribution')
     end
+elseif max(abs(AgeWeights_initial(:)-AgeWeights_T(:,1)))>10^(-9)
+    % The age weights are on the ParamPath, so period 1 aggregates use their first period. If the initial agent
+    % distribution has other age weights, those are not used (it is normalised within each age first), which
+    % is legitimate if the population is meant to jump at the start of the path, but is more often a mistake.
+    warning('AgentDistOnTransPath_Case1_FHorz: the age weights in period 1 of the ParamPath differ from those implicit in the initial agent distribution, by up to %g. Period 1 uses the ParamPath ones; the initial distribution is only used within each age.',max(abs(AgeWeights_initial(:)-AgeWeights_T(:,1))))
 end
 
 %% jequaloneDist (only the constant case is supported)
