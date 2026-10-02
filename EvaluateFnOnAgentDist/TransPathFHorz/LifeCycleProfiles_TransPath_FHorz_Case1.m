@@ -123,15 +123,14 @@ end
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
 if simoptions.alreadygridvals==0
-    % gridpiboth=3: need both z_gridvals_J and pi_z_J
-    [z_gridvals_J,pi_z_J,~,~,~,~,~,transpathoptions,simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,prod(n_a),N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,3);
-elseif simoptions.alreadygridvals==1
-    z_gridvals_J=z_grid;
-    pi_z_J=pi_z;
+    % gridpiboth=1: the statistics use the z grid and not its transition matrix, so pi_z is passed as []
+    % (pi_z is not an input of this command; it was passed here before, which could not run). This is
+    % only needed to learn whether z varies over the path, and if so to get transpathoptions.z_gridvals_J_T.
+    [~,~,~,~,~,~,~,transpathoptions,simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],prod(n_a),N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
 end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,~,tplus1pricePathkk,use_tplus1price,use_tminus1price,~,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},transpathoptions);
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},transpathoptions);
 
 %% The loop itself
 for tt=1:T
@@ -168,13 +167,8 @@ for tt=1:T
         end
     end
     % Get current ParamPath and PricePath
-    for kk=1:length(PricePathNames)
-        Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-    end
-    for kk=1:length(ParamPathNames)
-        Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-    end
-
+    % The _tminus1 values first, while Parameters still holds the previous period's prices and parameters
+    % (setting them after period tt is written in would make every _tminus1 equal to period tt)
     if use_tminus1price==1
         for pp=1:length(tminus1priceNames)
             if tt>1
@@ -184,31 +178,61 @@ for tt=1:T
             end
         end
     end
-    if use_tplus1price==1
-        for pp=1:length(tplus1priceNames)
-            kk=tplus1pricePathkk(pp);
-            Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
+    if use_tminus1params==1
+        for pp=1:length(tminus1paramNames)
+            if tt>1
+                Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+            else
+                Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
+            end
         end
     end
     if use_tminus1AggVars==1
         for pp=1:length(tminus1AggVarsNames)
             if tt>1
-                % The AggVars have not yet been updated, so they still contain previous period values
-                Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
+                Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=AggVarsLag.(tminus1AggVarsNames{pp}).Mean;
             else
                 Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
             end
         end
     end
 
+    for kk=1:length(PricePathNames)
+        Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+    end
+    for kk=1:length(ParamPathNames)
+        Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+    end
+    if use_tplus1price==1
+        for pp=1:length(tplus1priceNames)
+            kk=tplus1pricePathkk(pp);
+            % Period T is the final stationary eqm, so the price after it is the same as at T
+            Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(min(tt+1,T),PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+        end
+    end
+
     % Get current shocks (if applicable)
     if transpathoptions.zpathtrivial==0
-        simoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
         simoptions.z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
     end
     % transpathoptions.zpathtrivial==1: does not vary over the path, so it is already in simoptions
 
     tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,Policy,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+
+    % This period's aggregates (over all ages) of the FnsToEvaluate that are used as _tminus1, which
+    % become the _tminus1 values of next period. The life-cycle profiles are conditional on age, so they
+    % do not give these, and they are computed here from the same AgentDist and Policy.
+    if use_tminus1AggVars==1
+        FnsToEvaluateLag=struct();
+        for pp=1:length(tminus1AggVarsNames)
+            FnsToEvaluateLag.(tminus1AggVarsNames{pp})=FnsToEvaluate.(tminus1AggVarsNames{pp});
+        end
+        simoptionsLag=simoptions;
+        if isfield(simoptionsLag,'outputasstructure')
+            simoptionsLag=rmfield(simoptionsLag,'outputasstructure'); % FnsToEvaluateLag is a structure, so the output is too
+        end
+        AggVarsLag=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist,Policy,FnsToEvaluateLag,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptionsLag);
+    end
 
 
     for ff=1:length(AggVarNames)

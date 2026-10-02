@@ -176,7 +176,13 @@ simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this
 SimPanelIndexes=SimPanelIndexes_FHorz(gather(AgentDist_initial),gather(PolicyPath),n_d,n_a,n_z,T,pi_z_T, simoptions);
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,~,tplus1pricePathkk,use_tplus1price,use_tminus1price,~,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},simoptions);
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},simoptions);
+if use_tminus1AggVars==1
+    % A _tminus1 aggregate is the population mean last period, which a simulated panel does not give
+    % (its sample mean is a different object). Compute the path with EvalFnOnTransPath_AggVars_InfHorz
+    % and put the lagged values on the ParamPath under a name of their own.
+    error('SimPanelValues_TransPath_InfHorz: FnsToEvaluate cannot use the _tminus1 of an aggregate (%s_tminus1), as a simulated panel does not give the population aggregate. Compute the aggregate path with EvalFnOnTransPath_AggVars_InfHorz and pass its lag in on the ParamPath instead',tminus1AggVarsNames{1})
+end
 
 %% Exogenous shock grids (must come after the SimPanelIndexes as it then strips n_semiz and n_e out of simoptions)
 % Pretend to be FHorz of length T
@@ -275,35 +281,38 @@ if N_semizze>0
         sumrelevantindices=sum(relevantindices);
 
         % Update Parameters based on t
+        % The _tminus1 values first, while Parameters still holds the previous period's prices and parameters
+        % (setting them after period tt is written in would make every _tminus1 equal to period tt)
+        if use_tminus1price==1
+            for pp=1:length(tminus1priceNames)
+                if tt>1
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
+                else
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
+                end
+            end
+        end
+        if use_tminus1params==1
+            for pp=1:length(tminus1paramNames)
+                if tt>1
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+                else
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1paramNames{pp});
+                end
+            end
+        end
+
         for kk=1:length(PricePathNames)
             Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
         for kk=1:length(ParamPathNames)
             Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
-        if use_tminus1price==1
-            for pp=1:length(tminus1priceNames)
-                if tt>1
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
-                else
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
-                end
-            end
-        end
         if use_tplus1price==1
             for pp=1:length(tplus1priceNames)
                 kk=tplus1pricePathkk(pp);
-                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
-            end
-        end
-        if use_tminus1AggVars==1
-            for pp=1:length(tminus1AggVarsNames)
-                if tt>1
-                    % The AggVars have not yet been updated, so they still contain previous period values
-                    Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
-                else
-                    Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
-                end
+                % Period T is the final stationary eqm, so the price after it is the same as at T
+                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(min(tt+1,T),PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
             end
         end
 
@@ -341,35 +350,38 @@ else % N_semizze==0
         sumrelevantindices=sum(relevantindices);
 
         % Update Parameters based on t
+        % The _tminus1 values first, while Parameters still holds the previous period's prices and parameters
+        % (setting them after period tt is written in would make every _tminus1 equal to period tt)
+        if use_tminus1price==1
+            for pp=1:length(tminus1priceNames)
+                if tt>1
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
+                else
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
+                end
+            end
+        end
+        if use_tminus1params==1
+            for pp=1:length(tminus1paramNames)
+                if tt>1
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+                else
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1paramNames{pp});
+                end
+            end
+        end
+
         for kk=1:length(PricePathNames)
             Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
         for kk=1:length(ParamPathNames)
             Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
-        if use_tminus1price==1
-            for pp=1:length(tminus1priceNames)
-                if tt>1
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
-                else
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
-                end
-            end
-        end
         if use_tplus1price==1
             for pp=1:length(tplus1priceNames)
                 kk=tplus1pricePathkk(pp);
-                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
-            end
-        end
-        if use_tminus1AggVars==1
-            for pp=1:length(tminus1AggVarsNames)
-                if tt>1
-                    % The AggVars have not yet been updated, so they still contain previous period values
-                    Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
-                else
-                    Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
-                end
+                % Period T is the final stationary eqm, so the price after it is the same as at T
+                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(min(tt+1,T),PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
             end
         end
 
