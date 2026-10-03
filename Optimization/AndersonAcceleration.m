@@ -226,14 +226,21 @@ f_prev=[];
 residualpath=nan(andersonoptions.maxiter,1);
 nrejectedsteps=0;
 converged=0;
+haveGEcondns=0; % =1 when GEcondns already holds the conditions at p (a safeguarded Anderson step that was accepted)
 
 %% Main iteration
 for iter=1:andersonoptions.maxiter
 
     % Evaluate general eqm conditions at current point (the expensive step:
     % involves solving the value function, agent distribution, aggregates)
-    GEcondns=GEcondnsFn(p);
-    GEcondns=GEcondns(:);
+    % When the safeguard accepted the Anderson step, it already evaluated the conditions at this p,
+    % so reuse them rather than solving the model a second time at the same point. GEcondnsFn is a
+    % function of p alone, so this changes nothing but the cost.
+    if haveGEcondns==0
+        GEcondns=GEcondnsFn(p);
+        GEcondns=GEcondns(:);
+    end
+    haveGEcondns=0;
 
     if any(~isfinite(GEcondns))
         error(['AndersonAcceleration: GE conditions evaluated to NaN/Inf at ' ...
@@ -331,6 +338,10 @@ for iter=1:andersonoptions.maxiter
                     fprintf('   Anderson step rejected (distance increased); restarting from plain shooting step \n')
                 end
             end
+        else
+            % Accept the Anderson step, and keep the conditions just evaluated at it for the next iteration
+            GEcondns=GEcondns_trial;
+            haveGEcondns=1;
         end
     end
 
@@ -340,9 +351,11 @@ end
 %% Finish up
 if converged==0
     % Loop ended by maxiter: re-evaluate GE conditions at the final iterate
-    % (p was updated after the last evaluation inside the loop)
-    GEcondns=GEcondnsFn(p);
-    GEcondns=GEcondns(:);
+    % (p was updated after the last evaluation inside the loop), unless the safeguard already did
+    if haveGEcondns==0
+        GEcondns=GEcondnsFn(p);
+        GEcondns=GEcondns(:);
+    end
     warning(['AndersonAcceleration: reached maxiter (%i) without convergence; ' ...
         'distance of GE condns=%8.6f. Consider increasing anderson.maxiter, ' ...
         'adjusting the howtoupdate factors, or reducing anderson.memory if ' ...
