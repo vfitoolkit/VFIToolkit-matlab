@@ -1,4 +1,4 @@
-function CorrTransProbsPath=EvalFnOnTransPath_AutoCorrTransProbs_InfHorz(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid, pi_z,simoptions)
+function CorrTransProbsPath=EvalFnOnTransPath_AutoCorrTransProbs_InfHorz(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid, pi_z,transpathoptions,simoptions)
 % Returns stats on (auto) correlation and transition probabilities
 % You must input the names for the FnsToEvaluate that you want the transition probabilities for (by default it won't do any)
 % Done as simoptions.transprobs
@@ -117,7 +117,14 @@ if iscell(simoptions.transprobs)
 end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},simoptions);
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,ParamPathNames,{},transpathoptions);
+
+%% The _tminus1 and _tplus1 values come from transpathoptions.initialvalues
+% Checked here rather than at first use, so that a missing initialvalues names itself
+% instead of surfacing as 'Unrecognized field name' from inside the loop over t.
+if (use_tminus1price==1 || use_tminus1params==1 || use_tminus1AggVars==1) && ~isfield(transpathoptions,'initialvalues')
+    error('EvalFnOnTransPath_AutoCorrTransProbs_InfHorz: a _tminus1 input is used, so transpathoptions.initialvalues must be given (it supplies the period-1 values)')
+end
 
 %%
 % d_gridvals=CreateGridvals(n_d,d_grid,1);
@@ -196,7 +203,7 @@ for tt=1:T
             if tt>1
                 Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
             else
-                Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
+                Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
             end
         end
     end
@@ -205,7 +212,7 @@ for tt=1:T
             if tt>1
                 Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
             else
-                Parameters.([tminus1paramNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1paramNames{pp});
+                Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
             end
         end
     end
@@ -214,7 +221,7 @@ for tt=1:T
             if tt>1
                 Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=CorrTransProbsPath.(tminus1AggVarsNames{pp}).Mean(tt-1);
             else
-                Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1AggVarsNames{pp});
+                Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
             end
         end
     end
@@ -240,17 +247,39 @@ for tt=1:T
         AgentDist_lag=AgentDistPath(:,tt-1);
     end
 
-    %% Create big transition matrix P
-    N_semiz=0; % NOT YET IMPLEMENTED
-    N_e=0; % NOT YET IMPLEMENTED
-    pi_semiz=[];
-    pi_e=[];
+    %% The push from period tt-1 to tt: the Tan (2020) two-step (policy step with the period tt-1 policy, then pi_z); the
+    % full transition matrix is never formed
     if tt>1
-        P_lag=CreatePTransitionMatrix(PolicyPath(:,:,:,tt-1),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,pi_semiz,pi_z,pi_e,Parameters,simoptions);
-        % Note: I suspect keeping P and P_lag would run out of memory.
-        % This only works because Parameters is not used here as it would contain tt
+        Policy_lag=reshape(PolicyPath(:,:,:,tt-1),[size(PolicyPath,1),N_a,N_z]);
+        if l_a==1
+            Policy_aprime=shiftdim(Policy_lag(l_d+1,:,:),1);
+        elseif l_a==2
+            Policy_aprime=shiftdim(Policy_lag(l_d+1,:,:)+n_a(1)*(Policy_lag(l_d+2,:,:)-1),1);
+        elseif l_a==3
+            Policy_aprime=shiftdim(Policy_lag(l_d+1,:,:)+n_a(1)*(Policy_lag(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy_lag(l_d+3,:,:)-1),1);
+        elseif l_a==4
+            Policy_aprime=shiftdim(Policy_lag(l_d+1,:,:)+n_a(1)*(Policy_lag(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy_lag(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy_lag(l_d+4,:,:)-1),1);
+        else
+            error('EvalFnOnTransPath_AutoCorrTransProbs_InfHorz cannot handle length(n_a)>4, contact me if you need this')
+        end
+        zindex=N_a*gpuArray(0:1:N_z-1); % the z index of each column, to get the index into (a',z)
+        if simoptions.gridinterplayer==0
+            Gammatranspose_lag=sparse(reshape(gather(Policy_aprime+zindex),[],1),(1:1:N_a*N_z)',ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
+        elseif simoptions.gridinterplayer==1
+            % two a' points per state: the lower grid point and the one above it, with the second-layer weights
+            Policy_aprimez=gather(cat(3,Policy_aprime,Policy_aprime+1)+zindex); % [N_a,N_z,2]
+            L2index=Policy_lag(end-1,:,:); % L2 index (end-1 because end is L2flag)
+            L2flag=Policy_lag(end,:,:);
+            L2index(L2flag==1)=1;                        % force all weight to lower grid point
+            L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+            probupper=shiftdim((L2index-1)/(simoptions.ngridinterp+1),1); % [N_a,N_z]: probability of the upper grid point
+            PolicyProbs=gather(cat(3,1-probupper,probupper)); % [N_a,N_z,2]
+            Gammatranspose_lag=sparse(reshape(Policy_aprimez,[],1),repmat((1:1:N_a*N_z)',2,1),reshape(PolicyProbs,[],1),N_a*N_z,N_a*N_z);
+        end
+        if tt==2
+            pi_z_cpu=gather(pi_z);
+        end
     end
-
     %% Can only calculate most stats from period 2 on
     for ff=1:length(FnsToEvalNames)
         if tt>1
@@ -281,11 +310,15 @@ for tt=1:T
         % For autocovar and autocorr we can do them from tt=2 on
         if tt>1
             % Calculate covariance between this period and next period values
-            % Covar is E[x_{t-1} y_t]-E[x_{t-1}]E[y_t]. The joint mass on the state pair (ii,jj) is
-            % AgentDist_lag(ii)*P_lag(ii,jj), so the lag distribution is the correct weight here:
-            % P_lag already carries the step from tt-1 to tt, and weighting by AgentDist instead
-            % would apply that step twice.
-            Covar=(AgentDist_lag.*Values_lag)'*P_lag*Values - meanV_lag*meanV;
+            % Covar is E[(x_{t-1}-mean_{t-1})(y_t-mean_t)] over the joint distribution of the state pair, which is the
+            % lag distribution pushed one period: so the lag distribution is the weight here (weighting by AgentDist
+            % instead would apply the step twice).
+            % The centered lag measure AgentDist_lag.*(x_{t-1}-mean) is pushed one period and integrated against (x_t-mean)
+            propagated=Gammatranspose_lag*(gather(AgentDist_lag).*(gather(Values_lag)-gather(meanV_lag)));
+            if N_z>1
+                propagated=reshape(reshape(propagated,[N_a,N_z])*pi_z_cpu,[N_a*N_z,1]);
+            end
+            Covar=propagated'*(gather(Values)-gather(meanV));
             % Calculate the correlation
             Corr=Covar/(stddevV_lag*stddevV);
             CorrTransProbsPath.(FnsToEvalNames{ff}).AutoCovariance(tt-1)=Covar;
@@ -296,27 +329,28 @@ for tt=1:T
         %% Calculate transition probabilities (tt is treated as next period, tt-1 as this period)
         if tt>1
             if simoptions.transprobs(ff)==1
-                [vv,~,indexes]=unique(Values);
-                [vv2,~,indexes_lag]=unique(Values_lag);
+                [vv,~,indexes]=unique(gather(Values));
+                [vv2,~,indexes_lag]=unique(gather(Values_lag));
                 if isequal(vv,vv2) % cannot handle the case where it is not just same list of values every period (e.g., cannot handle that in some period we don't see one of the values)
                     n_fvals=length(vv); % number of unique values of the FnsToEvaluate{ff}
-                    % Pintermediate: sum transition probabilities for next period based accumulating the unique values
-                    Pintermediate=zeros(N_a*N_z,n_fvals);
-                    for ii=1:N_a*N_z
-                        Pintermediate(ii,:)=accumarray(indexes,full(P_lag(ii,:)));
-                    end
-                    % Final: weighted sum of rows based on this period weights
+                    % Each origin bin's lag mass is pushed one period (origin bins as columns, in blocks of 64) and binned by
+                    % the period-tt value; row b of P_v is the destination distribution of origin bin b (conditioned on the
+                    % period tt-1 value bin, so sum(P_v,2) is one where the bin has mass)
+                    dist_lag_cpu=gather(AgentDist_lag);
+                    massPerBin=accumarray(indexes_lag,dist_lag_cpu,[n_fvals,1]);
+                    S_dest=sparse(1:N_a*N_z,indexes,1,N_a*N_z,n_fvals); % destination bin indicator
                     P_v=zeros(n_fvals,n_fvals); % transition probabilities for the values
-                    Pintermediate=AgentDist_lag.*Pintermediate;
-                    for kk=1:n_fvals
-                        % indexes_lag, not indexes: the rows of P_v are conditioned on the period
-                        % tt-1 value, so the lag states must be grouped by their lag value bin --
-                        % the same bins the denominator uses. (indexes is correct up in
-                        % Pintermediate, where it bins jj, the period tt destination.) With this,
-                        % sum(P_v,2) is one by construction.
-                        P_v(:,kk)=accumarray(indexes_lag,Pintermediate(:,kk))./accumarray(indexes_lag,AgentDist_lag);
+                    for b1=1:64:n_fvals
+                        b2=min(b1+63,n_fvals);
+                        inblock=(indexes_lag>=b1 & indexes_lag<=b2);
+                        temp=full(Gammatranspose_lag*sparse(find(inblock),indexes_lag(inblock)-b1+1,dist_lag_cpu(inblock),N_a*N_z,b2-b1+1));
+                        if N_z>1
+                            for cc=1:size(temp,2)
+                                temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_z])*pi_z_cpu,[N_a*N_z,1]);
+                            end
+                        end
+                        P_v(b1:b2,:)=(S_dest'*temp)'./massPerBin(b1:b2);
                     end
-
                     if tt==2
                         CorrTransProbsPath.(FnsToEvalNames{ff}).TransitionProbs=repmat(P_v,1,1,T-1);
                     else

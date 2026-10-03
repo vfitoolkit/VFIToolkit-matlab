@@ -12,7 +12,7 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(Station
 % N_j must be the same for all types (no per-type N_j, no agejshifter).
 %
 % See EvalFnOnAgentDist_AutoCorrTransProbs_FHorz for the simoptions (timehorizons,
-% conditionalrestrictions, transprobs, transprobquantiles, lowmemory) and the outputs.
+% conditionalrestrictions, transprobs, transprobquantiles) and the outputs.
 %
 % Output:
 %   CorrTransProbs.(fnname).(typename)   the per-type output of EvalFnOnAgentDist_AutoCorrTransProbs_FHorz

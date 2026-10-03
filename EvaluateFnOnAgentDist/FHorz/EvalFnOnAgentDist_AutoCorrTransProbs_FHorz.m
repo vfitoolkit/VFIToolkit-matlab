@@ -58,7 +58,6 @@ if ~exist('simoptions','var')
     simoptions.timehorizons=[]; % multi-period horizons (horizon 1 is always calculated)
     simoptions.transprobquantiles=[];
     simoptions.agegroupings=1:1:N_j; % age bins -- not yet implemented (default = each age separately)
-    simoptions.lowmemory=0; % =1 use less memory, but slower
     % Model setup
     simoptions.gridinterplayer=0;
     simoptions.n_semiz=0;
@@ -78,9 +77,6 @@ else
     end
     if ~isfield(simoptions,'transprobquantiles')
         simoptions.transprobquantiles=[];
-    end
-    if ~isfield(simoptions,'lowmemory')
-        simoptions.lowmemory=0; % =1 use less memory, but slower
     end
     % Model setup
     if ~isfield(simoptions,'agegroupings')
@@ -308,608 +304,319 @@ end
 
 
 
-if simoptions.lowmemory==0
-    %% Per-age transition matrices P_jj (jj=1..N_j-1)
-    if N_e==0
-        if N_z==0
-            if N_semiz==0 % none
-                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],[],[],Parameters,simoptions);
-            else % semiz
-                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J,[],[],Parameters,simoptions);
-            end
-        else % z
-            if N_semiz==0
-                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],pi_z_J,[],Parameters,simoptions);
-            else % semiz,z
-                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J,pi_z_J,[],Parameters,simoptions);
-            end
-        end
-    else
-        if N_z==0
-            if N_semiz==0 % e
-                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],[],simoptions.pi_e_J,Parameters,simoptions);
-            else % semiz,e
-                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J,[],simoptions.pi_e_J,Parameters,simoptions);
-            end
-        else
-            if N_semiz==0 % z,e
-                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
-            else % semiz,z,e
-                P_cell=CreatePTransitionMatrix_J(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
-            end
-        end
+%% The computation: never form the per-age transition matrix
+% A measure over the age-jj states is pushed to age jj+1 in the two steps of Tan (2020, Economics Letters), as the
+% stationary distribution iteration does: the policy step (Gammatranspose, a sparse N_a*N_z by N_a*N_z*N_e matrix
+% with one nonzero per state, or two with the grid-interpolation weights when gridinterplayer=1), then the shock step
+% (times pi_z, then the kron with the next age's pi_e). The centered (signed) measures below go through the same two
+% steps, since both are linear, so the AutoCovariance/AutoCorrelation are those of multiplying by the full transition
+% matrix, at the memory cost of the policy matrix instead of the full matrix (about 2*N_z*N_e nonzeros per state).
+if N_semiz>0
+    error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: semi-exogenous states are not yet implemented (the Tan step with semiz, as in StationaryDist_FHorz_Iteration_SemiExo_raw, is the next step), ask on forum if you need this')
+end
+if simoptions.experienceasset>=1 || simoptions.inheritanceasset==1
+    error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: experience and inheritance assets are not yet implemented, ask on forum if you need this')
+end
+N_zr=max(N_z,1); % so that N_a*N_zr*N_er equals N_a*N_semizze_reshape
+N_er=max(N_e,1);
+%% The policy step: Gammatranspose_cell{jj} maps a measure over (a,z,e) at age jj to a measure over (a',z) [z kept, e summed out]
+Policy=reshape(Policy,[size(Policy,1),N_a,N_semizze_reshape,N_j]);
+if l_a==1
+    Policy_aprime=shiftdim(Policy(l_d+1,:,:,:),1);
+elseif l_a==2
+    Policy_aprime=shiftdim(Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1),1);
+elseif l_a==3
+    Policy_aprime=shiftdim(Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:,:)-1),1);
+elseif l_a==4
+    Policy_aprime=shiftdim(Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:,:)-1),1);
+else
+    error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz cannot handle length(n_a)>4, contact me if you need this')
+end
+% Policy_aprime is [N_a,N_semizze_reshape,N_j]; add the z index of each (z,e) column (z varies first) to get the index into (a',z)
+zindex=N_a*repmat(gpuArray(0:1:N_zr-1),1,N_er);
+if simoptions.gridinterplayer==0
+    Policy_aprimez=gather(Policy_aprime+zindex);
+    IIind=(1:1:N_a*N_semizze_reshape)';
+elseif simoptions.gridinterplayer==1
+    % two a' points per state: the lower grid point and the one above it, with the second-layer weights
+    Policy_aprimez=gather(cat(4,Policy_aprime,Policy_aprime+1)+zindex); % [N_a,N_semizze_reshape,N_j,2]
+    L2index=Policy(end-1,:,:,:); % L2 index (end-1 because end is L2flag)
+    L2flag=Policy(end,:,:,:);
+    L2index(L2flag==1)=1;                        % force all weight to lower grid point
+    L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+    probupper=shiftdim((L2index-1)/(simoptions.ngridinterp+1),1); % [N_a,N_semizze_reshape,N_j]: probability of the upper grid point
+    PolicyProbs=gather(cat(4,1-probupper,probupper)); % [N_a,N_semizze_reshape,N_j,2]
+    IIind=repmat((1:1:N_a*N_semizze_reshape)',2,1);
+end
+Gammatranspose_cell=cell(N_j-1,1);
+for jj=1:N_j-1
+    if simoptions.gridinterplayer==0
+        Gammatranspose_cell{jj}=sparse(reshape(Policy_aprimez(:,:,jj),[],1),IIind,ones(N_a*N_semizze_reshape,1),N_a*N_zr,N_a*N_semizze_reshape);
+    elseif simoptions.gridinterplayer==1
+        Gammatranspose_cell{jj}=sparse(reshape(Policy_aprimez(:,:,jj,:),[],1),IIind,reshape(PolicyProbs(:,:,jj,:),[],1),N_a*N_zr,N_a*N_semizze_reshape);
     end
+end
+if N_z>0
+    pi_z_J_cpu=gather(pi_z_J);
+end
+if N_e>0
+    pi_e_J_cpu=gather(simoptions.pi_e_J);
+end
+%% Per-function computation
+for ff=1:length(FnsToEvalNames)
+    fn=FnsToEvalNames{ff};
 
-
-    %% Per-function computation
-    for ff=1:length(FnsToEvalNames)
-        fn=FnsToEvalNames{ff};
-
-        % (i) Per-age Values, shape (N_a*N_semizze, N_j)
-        Values=nan(N_a*N_semizze_reshape,N_j,'gpuArray');
-        if N_semizze==0
-            for jj=1:N_j
-                FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
-                slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,n_semizze,a_gridvals,[]);
-                Values(:,jj)=slice;
-            end
-        else
-            for jj=1:N_j
-                FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
-                slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,jj),l_daprime,n_a,n_semizze,a_gridvals,semizze_gridvals_J(:,:,jj));
-                Values(:,jj)=reshape(slice,[N_a*N_semizze_reshape,1]);
-            end
-        end
-
-        % (ii) Per-age Mean and StdDev (within-age conditional distribution)
-        MeanV=nan(1,N_j,'gpuArray');
-        StdDevV=nan(1,N_j,'gpuArray');
+    % (i) Per-age Values, shape (N_a*N_semizze, N_j)
+    Values=nan(N_a*N_semizze_reshape,N_j,'gpuArray');
+    if N_semizze==0
         for jj=1:N_j
-            massj=sum(StationaryDist(:,jj));
-            if massj>0
-                distj=StationaryDist(:,jj)./massj;
-                MeanV(jj)=sum(distj.*Values(:,jj));
-                StdDevV(jj)=sqrt(sum(distj.*(Values(:,jj)-MeanV(jj)).^2));
-            end
+            FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
+            slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,n_semizze,a_gridvals,[]);
+            Values(:,jj)=slice;
         end
-
-        % (iii) Per-age AutoCov and AutoCorr at each horizon (transition j -> j+k)
-        % Use the centered form for AutoCov: more numerically stable than E[XY]-EX*EY
-        % when X,Y are nearly constant (the raw-moment form cancels two large numbers
-        % into a noisy tiny one).
-        % The signed measure (distj.*Xc) over the age-jj states is propagated forward one
-        % age at a time (a row vector times the sparse transition matrix, never a product
-        % of transition matrices), and at each horizon that was requested the covariance
-        % with the centered age-(jj+k) values is read off.
-        AutoCov=cell(1,nhorizons);
-        AutoCorr=cell(1,nhorizons);
-        for hh=1:nhorizons
-            AutoCov{hh}=nan(1,N_j-horizons(hh),'gpuArray');
-            AutoCorr{hh}=nan(1,N_j-horizons(hh),'gpuArray');
-        end
-        for jj=1:N_j-1
-            massj=sum(StationaryDist(:,jj));
-            if massj>0
-                distj=StationaryDist(:,jj)./massj;
-                Xc=Values(:,jj)-MeanV(jj);
-                propagated=(distj.*Xc)';
-                for kk=1:min(Kmax,N_j-jj)
-                    propagated=propagated*P_cell{jj+kk-1}; % now a signed measure over the age-(jj+kk) states
-                    hh=find(horizons==kk);
-                    if ~isempty(hh)
-                        Yc=Values(:,jj+kk)-MeanV(jj+kk);
-                        AutoCov{hh}(jj)=full(propagated*Yc);
-                        denom=StdDevV(jj)*StdDevV(jj+kk);
-                        % Threshold guards against "0/0" for variables that are constant within
-                        % an age (e.g. an agej-only fn): StdDev there is floating-point noise
-                        % (~1e-15), so denom can be ~1e-30 and the ratio explodes. 1e-15 is far
-                        % below any real-world variance and well above numerical noise.
-                        if denom>1e-15
-                            AutoCorr{hh}(jj)=AutoCov{hh}(jj)/denom;
-                        end
-                    end
-                end
-            end
-        end
-
-        CorrTransProbs.(fn).Mean=MeanV;
-        CorrTransProbs.(fn).StdDeviation=StdDevV;
-        for hh=1:nhorizons
-            CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])=AutoCov{hh};
-            CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorr{hh};
-        end
-
-        %% (iii-b) Conditional restrictions: means/std devs at each age over those satisfying the
-        % restriction, and the auto-covariance over the pairs that satisfy it at both ages.
-        % Three signed measures over the age-jj states are propagated together: the restricted
-        % mass m, m.*Xc and m.*Xc.^2 (Xc centered on the restricted age-jj mean). Masking the
-        % propagated measures with the restriction at age jj+k gives the pair population, and
-        % its mass, its means and variances of x_j and x_{j+k}, and their covariance follow.
-        % [E_pair[(x_j-c)(x_{j+k}-mu_y)] is the pair covariance for ANY constant c, since
-        % E_pair[x_{j+k}-mu_y]=0, so centering x_j on the restricted age-jj mean rather than
-        % on the (not yet known) pair mean is exact.]
-        if useCondlRest==1
-            for rr=1:length(CondlRestnFnNames)
-                MeanR=nan(1,N_j,'gpuArray');
-                StdDevR=nan(1,N_j,'gpuArray');
-                for jj=1:N_j
-                    mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr);
-                    massr=sum(mr);
-                    if massr>0
-                        mr=mr./massr;
-                        MeanR(jj)=sum(mr.*Values(:,jj));
-                        StdDevR(jj)=sqrt(sum(mr.*(Values(:,jj)-MeanR(jj)).^2));
-                    end
-                end
-                AutoCovR=cell(1,nhorizons);
-                AutoCorrR=cell(1,nhorizons);
-                PairMass=cell(1,nhorizons);
-                PairMean_j=cell(1,nhorizons);
-                PairMean_jplusk=cell(1,nhorizons);
-                PairStdDev_j=cell(1,nhorizons);
-                PairStdDev_jplusk=cell(1,nhorizons);
-                for hh=1:nhorizons
-                    AutoCovR{hh}=nan(1,N_j-horizons(hh),'gpuArray');
-                    AutoCorrR{hh}=nan(1,N_j-horizons(hh),'gpuArray');
-                    PairMass{hh}=nan(1,N_j-horizons(hh),'gpuArray');
-                    PairMean_j{hh}=nan(1,N_j-horizons(hh),'gpuArray');
-                    PairMean_jplusk{hh}=nan(1,N_j-horizons(hh),'gpuArray');
-                    PairStdDev_j{hh}=nan(1,N_j-horizons(hh),'gpuArray');
-                    PairStdDev_jplusk{hh}=nan(1,N_j-horizons(hh),'gpuArray');
-                end
-                for jj=1:N_j-1
-                    mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
-                    if sum(mr)==0 && sum(StationaryDist(:,jj))>0
-                        % The age has mass but nobody satisfies the restriction: there are no pairs (PairMass is zero, the
-                        % rest stays NaN). PairMass stays NaN only when the age itself has no mass.
-                        for hh=1:nhorizons
-                            if jj<=N_j-horizons(hh)
-                                PairMass{hh}(jj)=0;
-                            end
-                        end
-                    end
-                    if sum(mr)>0
-                        Xc=Values(:,jj)-MeanR(jj);
-                        propagated=[mr, mr.*Xc, mr.*Xc.^2]'; % 3 x N_states
-                        for kk=1:min(Kmax,N_j-jj)
-                            propagated=propagated*P_cell{jj+kk-1}; % now over the age-(jj+kk) states
-                            hh=find(horizons==kk);
-                            if ~isempty(hh)
-                                pairs=full(propagated).*RestrictionValues(:,jj+kk,rr)'; % keep those who satisfy the restriction at age jj+kk too
-                                pairmass=sum(pairs(1,:));
-                                PairMass{hh}(jj)=pairmass;
-                                if pairmass>0
-                                    y=Values(:,jj+kk)';
-                                    d1=sum(pairs(2,:))/pairmass; % pair mean of x_j, minus MeanR(jj)
-                                    muy=sum(pairs(1,:).*y)/pairmass; % pair mean of x_{j+k}
-                                    varx=sum(pairs(3,:))/pairmass-d1^2;
-                                    vary=sum(pairs(1,:).*(y-muy).^2)/pairmass;
-                                    covxy=sum(pairs(2,:).*(y-muy))/pairmass;
-                                    PairMean_j{hh}(jj)=MeanR(jj)+d1;
-                                    PairMean_jplusk{hh}(jj)=muy;
-                                    PairStdDev_j{hh}(jj)=sqrt(max(varx,0));
-                                    PairStdDev_jplusk{hh}(jj)=sqrt(vary);
-                                    AutoCovR{hh}(jj)=covxy;
-                                    denom=PairStdDev_j{hh}(jj)*PairStdDev_jplusk{hh}(jj);
-                                    if denom>1e-15
-                                        AutoCorrR{hh}(jj)=covxy/denom;
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean=MeanR;
-                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation=StdDevR;
-                for hh=1:nhorizons
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCovariance',horizonstr{hh}])=AutoCovR{hh};
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorrR{hh};
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])=PairMass{hh};
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_j',horizonstr{hh}])=PairMean_j{hh};
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_jplusk',horizonstr{hh}])=PairMean_jplusk{hh};
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_j',horizonstr{hh}])=PairStdDev_j{hh};
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}])=PairStdDev_jplusk{hh};
-                end
-            end
-        end
-
-        %% (iv) Transition probabilities (only when requested for this fn)
-        if simoptions.transprobs(ff)==1
-            if isempty(simoptions.transprobquantiles)
-                % Default: unique values per age (size can differ across ages -> cell array)
-                P_v_cell=cell(N_j-1,1);
-                fvals_j_cell=cell(N_j-1,1); % unique fn values at jj (labels the rows of TransitionProbs{jj})
-                fvals_jplus1_cell=cell(N_j-1,1); % unique fn values at jj+1 (labels the columns)
-                massbin_j_cell=cell(N_j-1,1); % within-age mass of each origin bin (row)
-                for jj=1:N_j-1
-                    massj=sum(StationaryDist(:,jj));
-                    if massj==0
-                        continue
-                    end
-                    [fvals_j_cell{jj},~,idx_j]=unique(gather(Values(:,jj)));
-                    [fvals_jplus1_cell{jj},~,idx_jp]=unique(gather(Values(:,jj+1)));
-                    n_fvals_j=max(idx_j);
-                    n_fvals_jp=max(idx_jp);
-
-                    distj_cpu=gather(StationaryDist(:,jj)./massj);
-                    P_jj=P_cell{jj};
-
-                    % Bin columns of P_jj by idx_jp (right-multiply by sparse indicator)
-                    % and mass-weighted-aggregate rows by idx_j (left-multiply)
-                    S_jp=sparse(1:N_a*N_semizze_reshape,idx_jp,1,N_a*N_semizze_reshape,n_fvals_jp);
-                    S_j=sparse(1:N_a*N_semizze_reshape,idx_j,1,N_a*N_semizze_reshape,n_fvals_j);
-                    massPerBin_j=accumarray(idx_j,distj_cpu,[n_fvals_j,1]);
-                    P_v=full(S_j'*(distj_cpu.*(P_jj*S_jp)))./max(massPerBin_j,eps);
-                    P_v_cell{jj}=P_v;
-                    massbin_j_cell{jj}=massPerBin_j;
-                end
-                CorrTransProbs.(fn).TransitionProbs=P_v_cell;
-                CorrTransProbs.(fn).TransitionValues_j=fvals_j_cell;
-                CorrTransProbs.(fn).TransitionValues_jplus1=fvals_jplus1_cell;
-                CorrTransProbs.(fn).TransitionMass_j=massbin_j_cell;
-            else
-                % Quantile binning -> fixed-size (n_fvals, n_fvals, N_j-1) 3-D array
-                n_fvals=simoptions.transprobquantiles;
-                P_v_3d=nan(n_fvals,n_fvals,N_j-1);
-                for jj=1:N_j-1
-                    massj=sum(StationaryDist(:,jj));
-                    massjplus1=sum(StationaryDist(:,jj+1));
-                    if massj==0 || massjplus1==0
-                        continue
-                    end
-                    distj=StationaryDist(:,jj)./massj;
-                    distjplus1=StationaryDist(:,jj+1)./massjplus1;
-
-                    idx_j=gather(LocalQuantileIndex(Values(:,jj),distj,n_fvals));
-                    idx_jp=gather(LocalQuantileIndex(Values(:,jj+1),distjplus1,n_fvals));
-
-                    distj_cpu=gather(distj);
-                    P_jj=P_cell{jj};
-                    % Bin columns of P_jj by idx_jp (right-multiply by sparse indicator)
-                    % and mass-weighted-aggregate rows by idx_j (left-multiply)
-                    S_jp=sparse(1:N_a*N_semizze_reshape,idx_jp,1,N_a*N_semizze_reshape,n_fvals);
-                    S_j=sparse(1:N_a*N_semizze_reshape,idx_j,1,N_a*N_semizze_reshape,n_fvals);
-                    massPerBin_j=accumarray(idx_j,distj_cpu,[n_fvals,1]);
-                    P_v_3d(:,:,jj)=full(S_j'*(distj_cpu.*(P_jj*S_jp)))./max(massPerBin_j,eps);
-                end
-                CorrTransProbs.(fn).TransitionProbs=P_v_3d;
-            end
-        end
-    end
-
-elseif simoptions.lowmemory==1
-    % Setup some output shapes
-    % (the per-age stats must live in CorrTransProbs from the start: local nan-vectors
-    % recreated inside the (jj,ff) loops would be wiped and overwritten every iteration,
-    % leaving only the final age in the output)
-    for ff=1:length(FnsToEvalNames)
-        fn=FnsToEvalNames{ff};
-        CorrTransProbs.(fn).Mean=nan(1,N_j,'gpuArray');
-        CorrTransProbs.(fn).StdDeviation=nan(1,N_j,'gpuArray');
-        for hh=1:nhorizons
-            CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
-            CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
-        end
-        if useCondlRest==1
-            for rr=1:length(CondlRestnFnNames)
-                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean=nan(1,N_j,'gpuArray');
-                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation=nan(1,N_j,'gpuArray');
-                for hh=1:nhorizons
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCovariance',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCorrelation',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_j',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_jplusk',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_j',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}])=nan(1,N_j-horizons(hh),'gpuArray');
-                end
-            end
-        end
-        if simoptions.transprobs(ff)==1
-            if isempty(simoptions.transprobquantiles)
-                % Default: unique values per age (size can differ across ages -> cell array)
-                CorrTransProbs.(fn).TransitionProbs=cell(N_j-1,1);
-                CorrTransProbs.(fn).TransitionValues_j=cell(N_j-1,1); % unique fn values at jj (labels the rows of TransitionProbs{jj})
-                CorrTransProbs.(fn).TransitionValues_jplus1=cell(N_j-1,1); % unique fn values at jj+1 (labels the columns)
-                CorrTransProbs.(fn).TransitionMass_j=cell(N_j-1,1); % within-age mass of each origin bin (row)
-            else
-                % Quantile binning -> fixed-size (n_fvals, n_fvals, N_j-1) 3-D array
-                n_fvals=simoptions.transprobquantiles;
-                CorrTransProbs.(fn).TransitionProbs=nan(n_fvals,n_fvals,N_j-1);
-            end
-        end
-    end
-
-    nFns=length(FnsToEvalNames);
-    if useCondlRest==1
-        nRest=length(CondlRestnFnNames);
     else
-        nRest=0;
+        for jj=1:N_j
+            FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
+            slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,jj),l_daprime,n_a,n_semizze,a_gridvals,semizze_gridvals_J(:,:,jj));
+            Values(:,jj)=reshape(slice,[N_a*N_semizze_reshape,1]);
+        end
     end
+    Values_cpu=gather(Values);
 
-    % Age-jj and age-(jj+1) Values per function (so at jj>=2 each function recycles its own
-    % age-jj values; a single shared variable would hand it whichever function was
-    % evaluated last in the ff loop)
-    Values_now=zeros(N_a*N_semizze_reshape,nFns,'gpuArray');
-    Values_last=zeros(N_a*N_semizze_reshape,nFns,'gpuArray');
-
-    % Signed measures in flight, being propagated from their start age j0 towards horizon Kmax.
-    % Only the current P_jj is ever held, so a measure started at j0 is multiplied by P_j0, then
-    % P_j0+1, ... as the loop over jj reaches them; the buffers hold one row per start age,
-    % circularly (row mod(j0-1,Kmax)+1), and at iteration jj the row of j0=jj-Kmax has just been
-    % read off at horizon Kmax and is overwritten by the new start age jj (a start age with zero
-    % mass leaves its row zero and inactive, so its outputs stay NaN).
-    % Unrestricted: one row (distj.*Xc)' per start age; restricted: three rows (m, m.*Xc, m.*Xc.^2)'.
-    % All the rows in flight (every function, every restriction) are propagated by ONE product
-    % with P_jj per age, as that product is the expensive step (P_jj is large and sparse).
-    Ubuf=zeros(Kmax,N_a*N_semizze_reshape,nFns,'gpuArray');
-    Uactive=false(Kmax,nFns);
-    if useCondlRest==1
-        Rbuf=zeros(3,N_a*N_semizze_reshape,Kmax,nFns,nRest,'gpuArray');
-        Ractive=false(Kmax,nFns,nRest);
-    end
-
-    % Loop over jj=1:N_j to minimize having to store the large P transition matrices
-    for jj=1:N_j-1
-
-        if jj==1
-            massj=sum(StationaryDist(:,jj));
+    % (ii) Per-age Mean and StdDev (within-age conditional distribution)
+    MeanV=nan(1,N_j,'gpuArray');
+    StdDevV=nan(1,N_j,'gpuArray');
+    for jj=1:N_j
+        massj=sum(StationaryDist(:,jj));
+        if massj>0
             distj=StationaryDist(:,jj)./massj;
-        else
-            massj=massjplus1;
-            distj=distjplus1;
+            MeanV(jj)=sum(distj.*Values(:,jj));
+            StdDevV(jj)=sqrt(sum(distj.*(Values(:,jj)-MeanV(jj)).^2));
         end
-        massjplus1=sum(StationaryDist(:,jj+1));
-        distjplus1=StationaryDist(:,jj+1)./massjplus1;
+    end
 
-        if N_e==0
-            if N_z==0
-                if N_semiz==0 % none
-                    P_jj=CreatePTransitionMatrix(Policy(:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],[],[],Parameters,simoptions);
-                else % semiz
-                    P_jj=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J(:,:,:,jj),[],[],Parameters,simoptions);
+    % (iii) Per-age AutoCov and AutoCorr at each horizon (transition j -> j+k). Centered form: more numerically stable than
+    % E[XY]-EX*EY when X,Y are nearly constant (the raw-moment form cancels two large numbers into a noisy tiny one).
+    AutoCov=cell(1,nhorizons);
+    AutoCorr=cell(1,nhorizons);
+    for hh=1:nhorizons
+        AutoCov{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+        AutoCorr{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+    end
+    for jj=1:N_j-1
+        massj=sum(StationaryDist(:,jj));
+        if massj>0
+            distj=StationaryDist(:,jj)./massj;
+            Xc=Values(:,jj)-MeanV(jj);
+            propagated=gather(distj.*Xc)'; % 1 x N_states signed measure over the age-jj states, on the cpu
+            for kk=1:min(Kmax,N_j-jj)
+                % Tan step from age jj+kk-1 to age jj+kk
+                temp=Gammatranspose_cell{jj+kk-1}*propagated'; % policy step: now over (a',z)
+                if N_z>0
+                    temp=reshape(reshape(temp,[N_a,N_zr])*pi_z_J_cpu(:,:,jj+kk-1),[N_a*N_zr,1]); % z step
                 end
-            else % z
-                if N_semiz==0
-                    P_jj=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],pi_z_J(:,:,jj),[],Parameters,simoptions);
-                else % semiz,z
-                    P_jj=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J(:,:,:,jj),pi_z_J(:,:,jj),[],Parameters,simoptions);
+                if N_e>0
+                    temp=kron(pi_e_J_cpu(:,jj+kk),temp); % e step: the e realized at age jj+kk
                 end
-            end
-        else
-            if N_z==0
-                if N_semiz==0 % e
-                    P_jj=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],[],simoptions.pi_e_J(:,jj+1),Parameters,simoptions);
-                else % semiz,e
-                    P_jj=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J(:,:,:,jj),[],simoptions.pi_e_J(:,jj+1),Parameters,simoptions);
-                end
-            else
-                if N_semiz==0 % z,e
-                    P_jj=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,[],pi_z_J(:,:,jj),simoptions.pi_e_J(:,jj+1),Parameters,simoptions);
-                else % semiz,z,e
-                    P_jj=CreatePTransitionMatrix(Policy(:,:,:,jj),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz_J(:,:,:,jj),pi_z_J(:,:,jj),simoptions.pi_e_J(:,jj+1),Parameters,simoptions);
-                end
-            end
-        end
-
-        rowjj=mod(jj-1,Kmax)+1; % the buffer row of the measures started at age jj (it held j0=jj-Kmax until it was read off at horizon Kmax in the previous iteration)
-
-        %% Per-function: values, means, and start the measures of age jj
-        for ff=1:nFns
-            fn=FnsToEvalNames{ff};
-
-            if jj==1
-                % (i) Per-age Values, shape (N_a*N_semizze, 1)
-                if N_semizze==0
-                    FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
-                    slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,n_semizze,a_gridvals,[]);
-                    Values_jj=slice;
-                else
-                    FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
-                    slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,jj),l_daprime,n_a,n_semizze,a_gridvals,semizze_gridvals_J(:,:,jj));
-                    Values_jj=reshape(slice,[N_a*N_semizze_reshape,1]);
-                end
-            else
-                Values_jj=Values_last(:,ff);
-            end
-            Values_now(:,ff)=Values_jj;
-
-            % (i) Per-age Values, shape (N_a*N_semizze, 1)
-            if N_semizze==0
-                FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj+1);
-                slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,jj+1),l_daprime,n_a,n_semizze,a_gridvals,[]);
-                Values_jjplus1=slice;
-            else
-                FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj+1);
-                slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,jj+1),l_daprime,n_a,n_semizze,a_gridvals,semizze_gridvals_J(:,:,jj+1));
-                Values_jjplus1=reshape(slice,[N_a*N_semizze_reshape,1]);
-            end
-            Values_last(:,ff)=Values_jjplus1;
-
-            % (ii) Per-age Mean and StdDev (within-age conditional distribution)
-            if jj==1
-                if massj>0
-                    CorrTransProbs.(fn).Mean(jj)=sum(distj.*Values_jj);
-                    CorrTransProbs.(fn).StdDeviation(jj)=sqrt(sum(distj.*(Values_jj-CorrTransProbs.(fn).Mean(jj)).^2));
-                end
-            end
-
-            if massjplus1>0
-                CorrTransProbs.(fn).Mean(jj+1)=sum(distjplus1.*Values_jjplus1);
-                CorrTransProbs.(fn).StdDeviation(jj+1)=sqrt(sum(distjplus1.*(Values_jjplus1-CorrTransProbs.(fn).Mean(jj+1)).^2));
-            end
-
-            % (iii-a) Start the measure of age jj (the centered form, see the lowmemory=0 branch)
-            if massj>0
-                Ubuf(rowjj,:,ff)=(distj.*(Values_jj-CorrTransProbs.(fn).Mean(jj)))';
-                Uactive(rowjj,ff)=true;
-            else
-                Ubuf(rowjj,:,ff)=0;
-                Uactive(rowjj,ff)=false;
-            end
-
-            % (iii-b) Conditional restrictions: restricted mean and std dev at age jj (at jj=1) and at age jj+1, and start the three measures of age jj
-            if useCondlRest==1
-                for rr=1:nRest
-                    if jj==1
-                        mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr);
-                        massr=sum(mr);
-                        if massr>0
-                            mr=mr./massr;
-                            CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj)=sum(mr.*Values_jj);
-                            CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation(jj)=sqrt(sum(mr.*(Values_jj-CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj)).^2));
-                        end
+                propagated=temp'; % now a signed measure over the age-(jj+kk) states
+                hh=find(horizons==kk);
+                if ~isempty(hh)
+                    Yc=Values_cpu(:,jj+kk)-gather(MeanV(jj+kk));
+                    AutoCov{hh}(jj)=propagated*Yc;
+                    denom=StdDevV(jj)*StdDevV(jj+kk);
+                    if denom>1e-15
+                        AutoCorr{hh}(jj)=AutoCov{hh}(jj)/denom;
                     end
-                    mr=StationaryDist(:,jj+1).*RestrictionValues(:,jj+1,rr);
-                    massr=sum(mr);
-                    if massr>0
-                        mr=mr./massr;
-                        CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj+1)=sum(mr.*Values_jjplus1);
-                        CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation(jj+1)=sqrt(sum(mr.*(Values_jjplus1-CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj+1)).^2));
-                    end
-                    mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
-                    if sum(mr)>0
-                        Xc=Values_jj-CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(jj);
-                        Rbuf(:,:,rowjj,ff,rr)=[mr, mr.*Xc, mr.*Xc.^2]';
-                        Ractive(rowjj,ff,rr)=true;
-                    else
-                        Rbuf(:,:,rowjj,ff,rr)=0;
-                        Ractive(rowjj,ff,rr)=false;
-                        if massj>0
-                            % The age has mass but nobody satisfies the restriction: there are no pairs (PairMass is zero, the
-                            % rest stays NaN). PairMass stays NaN only when the age itself has no mass.
-                            for hh=1:nhorizons
-                                if jj<=N_j-horizons(hh)
-                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])(jj)=0;
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        %% Propagate every measure in flight one age (jj -> jj+1), all in one product with P_jj
-        Wall=reshape(permute(Ubuf,[1,3,2]),[Kmax*nFns,N_a*N_semizze_reshape]);
-        if useCondlRest==1
-            Wall=[Wall; reshape(permute(Rbuf,[1,3,4,5,2]),[3*Kmax*nFns*nRest,N_a*N_semizze_reshape])];
-        end
-        Wall=full(Wall*P_jj); % now signed measures over the age-(jj+1) states
-        Ubuf=permute(reshape(Wall(1:Kmax*nFns,:),[Kmax,nFns,N_a*N_semizze_reshape]),[1,3,2]);
-        if useCondlRest==1
-            Rbuf=permute(reshape(Wall(Kmax*nFns+1:end,:),[3,Kmax,nFns,nRest,N_a*N_semizze_reshape]),[1,5,2,3,4]);
-        end
-
-        %% Per-function: read off the measures that reached a requested horizon, then transition probabilities
-        for ff=1:nFns
-            fn=FnsToEvalNames{ff};
-            Values_jj=Values_now(:,ff);
-            Values_jjplus1=Values_last(:,ff);
-
-            % (iii) Per-age AutoCov and AutoCorr at each horizon (transition j0 -> j0+k, read off when jj+1=j0+k)
-            for j0=max(1,jj-Kmax+1):jj
-                row=mod(j0-1,Kmax)+1;
-                if Uactive(row,ff)
-                    kk=jj+1-j0;
-                    hh=find(horizons==kk);
-                    if ~isempty(hh)
-                        Yc=Values_jjplus1-CorrTransProbs.(fn).Mean(jj+1);
-                        CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])(j0)=Ubuf(row,:,ff)*Yc;
-                        denom=CorrTransProbs.(fn).StdDeviation(j0)*CorrTransProbs.(fn).StdDeviation(jj+1);
-                        % Threshold guards against "0/0" for variables that are constant within
-                        % an age (e.g. an agej-only fn): StdDev there is floating-point noise
-                        % (~1e-15), so denom can be ~1e-30 and the ratio explodes. 1e-15 is far
-                        % below any real-world variance and well above numerical noise.
-                        if denom>1e-15
-                            CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])(j0)=CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])(j0)/denom;
-                        end
-                    end
-                end
-            end
-
-            %% (iii-b) Conditional restrictions (see the lowmemory=0 branch for the formulas)
-            if useCondlRest==1
-                for rr=1:nRest
-                    for j0=max(1,jj-Kmax+1):jj
-                        row=mod(j0-1,Kmax)+1;
-                        if Ractive(row,ff,rr)
-                            kk=jj+1-j0;
-                            hh=find(horizons==kk);
-                            if ~isempty(hh)
-                                pairs=Rbuf(:,:,row,ff,rr).*RestrictionValues(:,jj+1,rr)'; % keep those who satisfy the restriction at age jj+1 too
-                                pairmass=sum(pairs(1,:));
-                                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])(j0)=pairmass;
-                                if pairmass>0
-                                    y=Values_jjplus1';
-                                    d1=sum(pairs(2,:))/pairmass; % pair mean of x_j0, minus the restricted Mean(j0)
-                                    muy=sum(pairs(1,:).*y)/pairmass; % pair mean of x_{jj+1}
-                                    varx=sum(pairs(3,:))/pairmass-d1^2;
-                                    vary=sum(pairs(1,:).*(y-muy).^2)/pairmass;
-                                    covxy=sum(pairs(2,:).*(y-muy))/pairmass;
-                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_j',horizonstr{hh}])(j0)=CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean(j0)+d1;
-                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_jplusk',horizonstr{hh}])(j0)=muy;
-                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_j',horizonstr{hh}])(j0)=sqrt(max(varx,0));
-                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}])(j0)=sqrt(vary);
-                                    CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCovariance',horizonstr{hh}])(j0)=covxy;
-                                    denom=sqrt(max(varx,0))*sqrt(vary);
-                                    if denom>1e-15
-                                        CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCorrelation',horizonstr{hh}])(j0)=covxy/denom;
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-
-            %% (iv) Transition probabilities (only when requested for this fn)
-            if simoptions.transprobs(ff)==1
-                if isempty(simoptions.transprobquantiles)
-                    % Default: unique values per age (size can differ across ages -> cell array)
-                    % P_v_cell=cell(N_j-1,1);
-
-                    if massj==0
-                        continue
-                    end
-                    [fvals_j,~,idx_j]=unique(gather(Values_jj));
-                    [fvals_jplus1,~,idx_jp]=unique(gather(Values_jjplus1));
-                    n_fvals_j=max(idx_j);
-                    n_fvals_jp=max(idx_jp);
-
-                    distj_cpu=gather(StationaryDist(:,jj)./massj);
-                    % Bin columns of P_jj by idx_jp (right-multiply by sparse indicator) and mass-weighted-aggregate rows by idx_j (left-multiply)
-                    S_jp=sparse(1:N_a*N_semizze_reshape,idx_jp,1,N_a*N_semizze_reshape,n_fvals_jp);
-                    S_j=sparse(1:N_a*N_semizze_reshape,idx_j,1,N_a*N_semizze_reshape,n_fvals_j);
-                    massPerBin_j=accumarray(idx_j,distj_cpu,[n_fvals_j,1]);
-                    P_v=full(S_j'*(distj_cpu.*(P_jj*S_jp)))./max(massPerBin_j,eps);
-
-                    CorrTransProbs.(fn).TransitionProbs{jj}=P_v;
-                    CorrTransProbs.(fn).TransitionValues_j{jj}=fvals_j;
-                    CorrTransProbs.(fn).TransitionValues_jplus1{jj}=fvals_jplus1;
-                    CorrTransProbs.(fn).TransitionMass_j{jj}=massPerBin_j;
-
-                else
-                    % Quantile binning -> fixed-size (n_fvals, n_fvals, N_j-1) 3-D array
-                    % n_fvals=simoptions.transprobquantiles;
-                    % P_v_3d=nan(n_fvals,n_fvals,N_j-1);
-
-                    if massj==0 || massjplus1==0
-                        continue
-                    end
-                    idx_j=gather(LocalQuantileIndex(Values_jj,distj,n_fvals));
-                    idx_jp=gather(LocalQuantileIndex(Values_jjplus1,distjplus1,n_fvals));
-
-                    distj_cpu=gather(distj);
-                    % Bin columns of P_jj by idx_jp (right-multiply by sparse indicator) and mass-weighted-aggregate rows by idx_j (left-multiply)
-                    S_jp=sparse(1:N_a*N_semizze_reshape,idx_jp,1,N_a*N_semizze_reshape,n_fvals);
-                    S_j=sparse(1:N_a*N_semizze_reshape,idx_j,1,N_a*N_semizze_reshape,n_fvals);
-                    massPerBin_j=accumarray(idx_j,distj_cpu,[n_fvals,1]);
-                    CorrTransProbs.(fn).TransitionProbs(:,:,jj)=full(S_j'*(distj_cpu.*(P_jj*S_jp)))./max(massPerBin_j,eps);
                 end
             end
         end
     end
 
+    CorrTransProbs.(fn).Mean=MeanV;
+    CorrTransProbs.(fn).StdDeviation=StdDevV;
+    for hh=1:nhorizons
+        CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])=AutoCov{hh};
+        CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorr{hh};
+    end
+
+    %% (iii-b) Conditional restrictions: means/std devs at each age over those satisfying the restriction, and the
+    % auto-covariance over the pairs that satisfy it at both ages. Three signed measures over the age-jj states are
+    % propagated together (three columns of one Tan step): the restricted mass m, m.*Xc and m.*Xc.^2 (Xc centered on the
+    % restricted age-jj mean). Masking the propagated measures with the restriction at age jj+k gives the pair population,
+    % and its mass, its means and variances of x_j and x_{j+k}, and their covariance follow. [E_pair[(x_j-c)(x_{j+k}-mu_y)]
+    % is the pair covariance for ANY constant c, since E_pair[x_{j+k}-mu_y]=0, so centering x_j on the restricted age-jj
+    % mean rather than on the (not yet known) pair mean is exact.]
+    if useCondlRest==1
+        for rr=1:length(CondlRestnFnNames)
+            MeanR=nan(1,N_j,'gpuArray');
+            StdDevR=nan(1,N_j,'gpuArray');
+            for jj=1:N_j
+                mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr);
+                massr=sum(mr);
+                if massr>0
+                    mr=mr./massr;
+                    MeanR(jj)=sum(mr.*Values(:,jj));
+                    StdDevR(jj)=sqrt(sum(mr.*(Values(:,jj)-MeanR(jj)).^2));
+                end
+            end
+            AutoCovR=cell(1,nhorizons);
+            AutoCorrR=cell(1,nhorizons);
+            PairMass=cell(1,nhorizons);
+            PairMean_j=cell(1,nhorizons);
+            PairMean_jplusk=cell(1,nhorizons);
+            PairStdDev_j=cell(1,nhorizons);
+            PairStdDev_jplusk=cell(1,nhorizons);
+            for hh=1:nhorizons
+                AutoCovR{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                AutoCorrR{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                PairMass{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                PairMean_j{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                PairMean_jplusk{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                PairStdDev_j{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+                PairStdDev_jplusk{hh}=nan(1,N_j-horizons(hh),'gpuArray');
+            end
+            RestrictionValues_cpu=gather(RestrictionValues(:,:,rr));
+            for jj=1:N_j-1
+                mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
+                if sum(mr)==0 && sum(StationaryDist(:,jj))>0
+                    for hh=1:nhorizons
+                        if jj<=N_j-horizons(hh)
+                            PairMass{hh}(jj)=0;
+                        end
+                    end
+                end
+                if sum(mr)>0
+                    Xc=Values(:,jj)-MeanR(jj);
+                    propagated=gather([mr, mr.*Xc, mr.*Xc.^2])'; % 3 x N_states, on the cpu
+                    for kk=1:min(Kmax,N_j-jj)
+                        % Tan step from age jj+kk-1 to age jj+kk, the three measures as three columns
+                        temp=Gammatranspose_cell{jj+kk-1}*propagated'; % (N_a*N_zr) x 3
+                        if N_z>0
+                            for cc=1:3
+                                temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_J_cpu(:,:,jj+kk-1),[N_a*N_zr,1]);
+                            end
+                        end
+                        if N_e>0
+                            temp=kron(pi_e_J_cpu(:,jj+kk),temp);
+                        end
+                        propagated=temp'; % now over the age-(jj+kk) states
+                        hh=find(horizons==kk);
+                        if ~isempty(hh)
+                            pairs=propagated.*RestrictionValues_cpu(:,jj+kk)'; % keep those who satisfy the restriction at age jj+kk too
+                            pairmass=sum(pairs(1,:));
+                            PairMass{hh}(jj)=pairmass;
+                            if pairmass>0
+                                y=Values_cpu(:,jj+kk)';
+                                d1=sum(pairs(2,:))/pairmass; % pair mean of x_j, minus MeanR(jj)
+                                muy=sum(pairs(1,:).*y)/pairmass; % pair mean of x_{j+k}
+                                varx=sum(pairs(3,:))/pairmass-d1^2;
+                                vary=sum(pairs(1,:).*(y-muy).^2)/pairmass;
+                                covxy=sum(pairs(2,:).*(y-muy))/pairmass;
+                                PairMean_j{hh}(jj)=MeanR(jj)+d1;
+                                PairMean_jplusk{hh}(jj)=muy;
+                                PairStdDev_j{hh}(jj)=sqrt(max(varx,0));
+                                PairStdDev_jplusk{hh}(jj)=sqrt(vary);
+                                AutoCovR{hh}(jj)=covxy;
+                                denom=PairStdDev_j{hh}(jj)*PairStdDev_jplusk{hh}(jj);
+                                if denom>1e-15
+                                    AutoCorrR{hh}(jj)=covxy/denom;
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean=MeanR;
+            CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation=StdDevR;
+            for hh=1:nhorizons
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCovariance',horizonstr{hh}])=AutoCovR{hh};
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorrR{hh};
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMass',horizonstr{hh}])=PairMass{hh};
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_j',horizonstr{hh}])=PairMean_j{hh};
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairMean_jplusk',horizonstr{hh}])=PairMean_jplusk{hh};
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_j',horizonstr{hh}])=PairStdDev_j{hh};
+                CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}])=PairStdDev_jplusk{hh};
+            end
+        end
+    end
+    %% (iv) Transition probabilities between value bins (only when requested for this fn): horizon 1, unrestricted
+    % Each origin bin's mass is pushed one age forward (the same Tan step, with the origin bins as columns, in blocks of
+    % 64) and binned by the function's value at age jj+1; row b of TransitionProbs{jj} is the destination distribution
+    % of origin bin b, so rows sum to one.
+    if simoptions.transprobs(ff)==1
+        if isempty(simoptions.transprobquantiles)
+            % Default: unique values per age (size can differ across ages -> cell array)
+            P_v_cell=cell(N_j-1,1);
+            fvals_j_cell=cell(N_j-1,1); % unique fn values at jj (labels the rows of TransitionProbs{jj})
+            fvals_jplus1_cell=cell(N_j-1,1); % unique fn values at jj+1 (labels the columns)
+            massbin_j_cell=cell(N_j-1,1); % within-age mass of each origin bin (row)
+            for jj=1:N_j-1
+                massj=sum(StationaryDist(:,jj));
+                if massj==0
+                    continue
+                end
+                [fvals_j_cell{jj},~,idx_j]=unique(Values_cpu(:,jj));
+                [fvals_jplus1_cell{jj},~,idx_jp]=unique(Values_cpu(:,jj+1));
+                n_fvals_j=max(idx_j);
+                n_fvals_jp=max(idx_jp);
+                distj_cpu=gather(StationaryDist(:,jj)./massj);
+                massPerBin_j=accumarray(idx_j,distj_cpu,[n_fvals_j,1]);
+                S_jp=sparse(1:N_a*N_semizze_reshape,idx_jp,1,N_a*N_semizze_reshape,n_fvals_jp); % destination bin indicator
+                P_v=zeros(n_fvals_j,n_fvals_jp);
+                for b1=1:64:n_fvals_j
+                    b2=min(b1+63,n_fvals_j);
+                    inblock=(idx_j>=b1 & idx_j<=b2);
+                    M=sparse(find(inblock),idx_j(inblock)-b1+1,distj_cpu(inblock),N_a*N_semizze_reshape,b2-b1+1); % the origin bins' masses, one column each
+                    temp=full(Gammatranspose_cell{jj}*M);
+                    if N_z>0
+                        for cc=1:size(temp,2)
+                            temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_J_cpu(:,:,jj),[N_a*N_zr,1]);
+                        end
+                    end
+                    if N_e>0
+                        temp=kron(pi_e_J_cpu(:,jj+1),temp);
+                    end
+                    P_v(b1:b2,:)=(S_jp'*temp)'./max(massPerBin_j(b1:b2),eps);
+                end
+                P_v_cell{jj}=P_v;
+                massbin_j_cell{jj}=massPerBin_j;
+            end
+            CorrTransProbs.(fn).TransitionProbs=P_v_cell;
+            CorrTransProbs.(fn).TransitionValues_j=fvals_j_cell;
+            CorrTransProbs.(fn).TransitionValues_jplus1=fvals_jplus1_cell;
+            CorrTransProbs.(fn).TransitionMass_j=massbin_j_cell;
+        else
+            % Quantile binning -> fixed-size (n_fvals, n_fvals, N_j-1) 3-D array
+            n_fvals=simoptions.transprobquantiles;
+            P_v_3d=nan(n_fvals,n_fvals,N_j-1);
+            for jj=1:N_j-1
+                massj=sum(StationaryDist(:,jj));
+                massjplus1=sum(StationaryDist(:,jj+1));
+                if massj==0 || massjplus1==0
+                    continue
+                end
+                distj=StationaryDist(:,jj)./massj;
+                distjplus1=StationaryDist(:,jj+1)./massjplus1;
+                idx_j=gather(LocalQuantileIndex(Values(:,jj),distj,n_fvals));
+                idx_jp=gather(LocalQuantileIndex(Values(:,jj+1),distjplus1,n_fvals));
+                distj_cpu=gather(distj);
+                massPerBin_j=accumarray(idx_j,distj_cpu,[n_fvals,1]);
+                S_jp=sparse(1:N_a*N_semizze_reshape,idx_jp,1,N_a*N_semizze_reshape,n_fvals);
+                M=sparse(1:N_a*N_semizze_reshape,idx_j,distj_cpu,N_a*N_semizze_reshape,n_fvals); % the origin bins' masses, one column each
+                temp=full(Gammatranspose_cell{jj}*M);
+                if N_z>0
+                    for cc=1:size(temp,2)
+                        temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_J_cpu(:,:,jj),[N_a*N_zr,1]);
+                    end
+                end
+                if N_e>0
+                    temp=kron(pi_e_J_cpu(:,jj+1),temp);
+                end
+                P_v_3d(:,:,jj)=(S_jp'*temp)'./max(massPerBin_j,eps);
+            end
+            CorrTransProbs.(fn).TransitionProbs=P_v_3d;
+        end
+    end
 end
 
 
