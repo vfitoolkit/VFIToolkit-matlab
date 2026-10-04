@@ -4,6 +4,10 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz(StationaryD
 % Done as simoptions.transprobs
 %
 % simoptions optional inputs
+%   simoptions.timehorizons=[2,5]: also the K-period auto-covariance/-correlation (and transition probabilities, if
+%                                   requested), reported under CorrTransProbs.(fnname).tperiodsK (the 1-period is always computed)
+%   simoptions.transprobquantiles=5: transition probabilities between quantile bins instead of between unique values
+%   simoptions.n_e, e_grid, pi_e: an iid e shock (kept apart from the markov z throughout)
 %
 % Outputs:
 % Mean (as it has to be calculated anyway as an intermediate step to correlation)
@@ -30,9 +34,6 @@ if ~exist('simoptions','var')
     simoptions.inheritanceasset=0;
     simoptions.n_e=0;
     simoptions.n_semiz=0;
-    % Internal options
-    simoptions.alreadygridvals=0;
-    simoptions.alreadygridvals_semiexo=0;
 else
     % Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'transprobs')
@@ -70,13 +71,6 @@ else
     if ~isfield(simoptions,'n_semiz')
         simoptions.n_semiz=0;
     end
-    % Internal options
-    if ~isfield(simoptions,'alreadygridvals')
-        simoptions.alreadygridvals=0;
-    end
-    if ~isfield(simoptions,'alreadygridvals_semiexo')
-        simoptions.alreadygridvals_semiexo=0;
-    end
 end
 
 if isfield(simoptions,'conditionalrestrictions')
@@ -97,29 +91,50 @@ a_gridvals=CreateGridvals(n_a,a_grid,1);
 if prod(simoptions.n_semiz)>0
     error('Have not yet implemented semiz variables for InfHorz AutoCorrTransProbs, ask on forum if you need this')
 end
-% Keep the iid e shock (if any) for the transition step below, before e is folded into z
-N_e_orig=prod(simoptions.n_e);
-if N_e_orig>0
-    pi_e_orig=simoptions.pi_e;
+
+%% Exogenous shocks: the markov z and the iid e are kept apart throughout (as in the FHorz command)
+% The functions are evaluated on the combined (z,e) grid built here (z varies first, then e), while the push below
+% applies pi_z to the z index and pi_e to the e index separately. [This command used to fold e into z with
+% CreateGridvals_FnsToEvaluate_InfHorz and then recover the split from quantities captured before the fold.]
+N_z=prod(n_z);
+N_e=prod(simoptions.n_e);
+[z_gridvals, pi_z, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,3,0); % also gives simoptions.e_gridvals and simoptions.pi_e
+if N_e==0
+    n_ze=n_z;
+    ze_gridvals=z_gridvals;
+else
+    if N_z==0
+        n_ze=simoptions.n_e;
+        ze_gridvals=simoptions.e_gridvals;
+    else
+        n_ze=[n_z,simoptions.n_e];
+        ze_gridvals=[repmat(z_gridvals,N_e,1),repelem(simoptions.e_gridvals,N_z,1)];
+    end
 end
-% Switch to z_gridvals (folding e and semiz into z if appropriate)
-[n_z,z_gridvals,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_InfHorz(n_z,z_grid,simoptions,Parameters);
+N_ze=prod(n_ze);
+if N_ze==0
+    l_ze=0;
+else
+    l_ze=length(n_ze);
+end
+N_ze_reshape=max(N_ze,1); % so that N_a*N_ze_reshape is the number of states whether or not there are shocks
+N_states=N_a*N_ze_reshape;
 
 CorrTransProbs=struct();
 
-%% I want to do some things now, so that they can be used in setting up conditional restrictions
-StationaryDist=reshape(StationaryDist,[N_a*max(N_z,1),1]);
+%%
+StationaryDist=reshape(StationaryDist,[N_states,1]);
 
 % Make sure things are on the gpu (they should already be)
 StationaryDist=gpuArray(StationaryDist);
 Policy=gpuArray(Policy);
 
 % Switch to PolicyValues, and permute
-PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-if N_z==0
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions); % PolicyInd2Val_InfHorz handles simoptions.n_e itself
+if N_ze==0
     PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
 else
-    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_ze]),[2,3,1]); %[N_a,N_ze,l_d+l_a]
 end
 l_daprime=size(PolicyValues,1);
 
@@ -131,8 +146,8 @@ if isstruct(FnsToEvaluate)
     FnsToEvalNames=fieldnames(FnsToEvaluate);
     for ff=1:length(FnsToEvalNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
-        if length(temp)>(l_daprime+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_daprime+l_a+l_ze)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_ze+1:end}}; % the first inputs will always be (d,aprime,a,z,e)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -160,11 +175,9 @@ end
 % policy step (Gammatranspose, a sparse N_a*N_z by N_a*N_z*N_e matrix with one nonzero per state, or two with the grid
 % interpolation weights), then the shock step (times pi_z, then the kron with pi_e). The transition probabilities between
 % value bins push each origin bin's mass the same way.
-% [e was folded into z above by CreateGridvals_FnsToEvaluate_InfHorz (z varies first, then e): N_z now counts both,
-% and the push keeps the markov z (N_zr states, pi_z) and the iid e (N_er states, pi_e) apart.]
-N_er=max(N_e_orig,1);
-N_zr=max(N_z,1)/N_er; % the markov z states
-Policy=reshape(Policy,[size(Policy,1),N_a,max(N_z,1)]);
+N_zr=max(N_z,1);
+N_er=max(N_e,1);
+Policy=reshape(Policy,[size(Policy,1),N_a,N_ze_reshape]);
 if l_a==1
     Policy_aprime=shiftdim(Policy(l_d+1,:,:),1);
 elseif l_a==2
@@ -176,28 +189,27 @@ elseif l_a==4
 else
     error('EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz cannot handle length(n_a)>4, contact me if you need this')
 end
-% Policy_aprime is [N_a,N_z]; add the markov-z index of each (z,e) column to get the index into (a',z)
+% Policy_aprime is [N_a,N_ze_reshape]; add the markov-z index of each (z,e) column (z varies first) to get the index into (a',z)
 zindex=N_a*repmat(gpuArray(0:1:N_zr-1),1,N_er);
-N_states=N_a*max(N_z,1);
 if simoptions.gridinterplayer==0
     Policy_aprimez=gather(Policy_aprime+zindex);
     Gammatranspose=sparse(reshape(Policy_aprimez,[],1),(1:1:N_states)',ones(N_states,1),N_a*N_zr,N_states);
 elseif simoptions.gridinterplayer==1
     % two a' points per state: the lower grid point and the one above it, with the second-layer weights
-    Policy_aprimez=gather(cat(3,Policy_aprime,Policy_aprime+1)+zindex); % [N_a,N_z,2]
+    Policy_aprimez=gather(cat(3,Policy_aprime,Policy_aprime+1)+zindex); % [N_a,N_ze_reshape,2]
     L2index=Policy(end-1,:,:); % L2 index (end-1 because end is L2flag)
     L2flag=Policy(end,:,:);
     L2index(L2flag==1)=1;                        % force all weight to lower grid point
     L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
-    probupper=shiftdim((L2index-1)/(simoptions.ngridinterp+1),1); % [N_a,N_z]: probability of the upper grid point
-    PolicyProbs=gather(cat(3,1-probupper,probupper)); % [N_a,N_z,2]
+    probupper=shiftdim((L2index-1)/(simoptions.ngridinterp+1),1); % [N_a,N_ze_reshape]: probability of the upper grid point
+    PolicyProbs=gather(cat(3,1-probupper,probupper)); % [N_a,N_ze_reshape,2]
     Gammatranspose=sparse(reshape(Policy_aprimez,[],1),repmat((1:1:N_states)',2,1),reshape(PolicyProbs,[],1),N_a*N_zr,N_states);
 end
-if N_zr>1
+if N_z>0
     pi_z_cpu=gather(pi_z);
 end
-if N_er>1
-    pi_e_cpu=gather(pi_e_orig(:));
+if N_e>0
+    pi_e_cpu=gather(simoptions.pi_e(:));
 end
 if ~isempty(simoptions.timehorizons)
     maxhorizon=max([1,simoptions.timehorizons(:)']);
@@ -208,7 +220,7 @@ end
 %%
 for ff=1:length(FnsToEvalNames)
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-    Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+    Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_ze,a_gridvals,ze_gridvals);
     Values=reshape(Values,[N_states,1]);
     Values_cpu=gather(Values);
     %% Mean and standard deviation
@@ -223,10 +235,10 @@ for ff=1:length(FnsToEvalNames)
     for kk=1:maxhorizon
         % Tan step: one period forward
         temp=Gammatranspose*propagated; % policy step: now over (a',z)
-        if N_zr>1
+        if N_z>0
             temp=reshape(reshape(temp,[N_a,N_zr])*pi_z_cpu,[N_a*N_zr,1]); % z step
         end
-        if N_er>1
+        if N_e>0
             temp=kron(pi_e_cpu,temp); % e step
         end
         propagated=temp;
@@ -278,12 +290,12 @@ for ff=1:length(FnsToEvalNames)
             temp=sparse(find(inblock),indexes(inblock)-b1+1,dist_cpu(inblock),N_states,b2-b1+1); % the origin bins' masses, one column each
             for kk=1:maxhorizon
                 temp=full(Gammatranspose*temp);
-                if N_zr>1
+                if N_z>0
                     for cc=1:size(temp,2)
                         temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_cpu,[N_a*N_zr,1]);
                     end
                 end
-                if N_er>1
+                if N_e>0
                     temp=kron(pi_e_cpu,temp);
                 end
                 if kk==1 || any(simoptions.timehorizons==kk)

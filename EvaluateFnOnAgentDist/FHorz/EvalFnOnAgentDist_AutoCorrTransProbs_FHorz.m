@@ -306,20 +306,23 @@ end
 
 %% The computation: never form the per-age transition matrix
 % A measure over the age-jj states is pushed to age jj+1 in the two steps of Tan (2020, Economics Letters), as the
-% stationary distribution iteration does: the policy step (Gammatranspose, a sparse N_a*N_z by N_a*N_z*N_e matrix
-% with one nonzero per state, or two with the grid-interpolation weights when gridinterplayer=1), then the shock step
-% (times pi_z, then the kron with the next age's pi_e). The centered (signed) measures below go through the same two
-% steps, since both are linear, so the AutoCovariance/AutoCorrelation are those of multiplying by the full transition
-% matrix, at the memory cost of the policy matrix instead of the full matrix (about 2*N_z*N_e nonzeros per state).
-if N_semiz>0
-    error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: semi-exogenous states are not yet implemented (the Tan step with semiz, as in StationaryDist_FHorz_Iteration_SemiExo_raw, is the next step), ask on forum if you need this')
-end
+% stationary distribution iteration does: the policy step (Gammatranspose, a sparse matrix with one nonzero per state,
+% or two with the grid-interpolation weights when gridinterplayer=1, times the number of semiz' a state can reach when
+% there is a semi-exogenous state), then the shock step (times pi_z, then the kron with the next age's pi_e). The
+% centered (signed) measures below go through the same two steps, since both are linear, so the AutoCovariance/
+% AutoCorrelation are those of multiplying by the full transition matrix, at the memory cost of the policy matrix
+% instead of the full matrix (about 2*N_z*N_e nonzeros per state).
+% The states are ordered (a,semiz,z,e) [whichever are present]. The policy step maps a measure over (a,semiz,z,e) at
+% age jj to a measure over (a',semiz',z): the semiz transition is applied with the policy step because it depends on the
+% decision taken at the state, exactly as in StationaryDist_FHorz_Iteration_SemiExo_raw and its _e/_nProbs variants.
 if simoptions.experienceasset>=1 || simoptions.inheritanceasset==1
     error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: experience and inheritance assets are not yet implemented, ask on forum if you need this')
 end
-N_zr=max(N_z,1); % so that N_a*N_zr*N_er equals N_a*N_semizze_reshape
+N_semizr=max(N_semiz,1); % so that N_a*N_semizr*N_zr*N_er equals N_a*N_semizze_reshape
+N_zr=max(N_z,1);
 N_er=max(N_e,1);
-%% The policy step: Gammatranspose_cell{jj} maps a measure over (a,z,e) at age jj to a measure over (a',z) [z kept, e summed out]
+N_states=N_a*N_semizze_reshape;
+%% The policy step: Gammatranspose_cell{jj} maps a measure over the age-jj states (a,semiz,z,e) to a measure over (a',semiz',z) [z kept, e summed out]
 Policy=reshape(Policy,[size(Policy,1),N_a,N_semizze_reshape,N_j]);
 if l_a==1
     Policy_aprime=shiftdim(Policy(l_d+1,:,:,:),1);
@@ -332,28 +335,75 @@ elseif l_a==4
 else
     error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz cannot handle length(n_a)>4, contact me if you need this')
 end
-% Policy_aprime is [N_a,N_semizze_reshape,N_j]; add the z index of each (z,e) column (z varies first) to get the index into (a',z)
-zindex=N_a*repmat(gpuArray(0:1:N_zr-1),1,N_er);
-if simoptions.gridinterplayer==0
-    Policy_aprimez=gather(Policy_aprime+zindex);
-    IIind=(1:1:N_a*N_semizze_reshape)';
-elseif simoptions.gridinterplayer==1
+% Policy_aprime is [N_a,N_semizze_reshape,N_j]
+if simoptions.gridinterplayer==1
     % two a' points per state: the lower grid point and the one above it, with the second-layer weights
-    Policy_aprimez=gather(cat(4,Policy_aprime,Policy_aprime+1)+zindex); % [N_a,N_semizze_reshape,N_j,2]
     L2index=Policy(end-1,:,:,:); % L2 index (end-1 because end is L2flag)
     L2flag=Policy(end,:,:,:);
     L2index(L2flag==1)=1;                        % force all weight to lower grid point
     L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
     probupper=shiftdim((L2index-1)/(simoptions.ngridinterp+1),1); % [N_a,N_semizze_reshape,N_j]: probability of the upper grid point
-    PolicyProbs=gather(cat(4,1-probupper,probupper)); % [N_a,N_semizze_reshape,N_j,2]
-    IIind=repmat((1:1:N_a*N_semizze_reshape)',2,1);
 end
 Gammatranspose_cell=cell(N_j-1,1);
-for jj=1:N_j-1
+if N_semiz==0
+    % Add the z index of each (z,e) column (z varies first) to get the index into (a',z)
+    zindex=N_a*repmat(gpuArray(0:1:N_zr-1),1,N_er);
     if simoptions.gridinterplayer==0
-        Gammatranspose_cell{jj}=sparse(reshape(Policy_aprimez(:,:,jj),[],1),IIind,ones(N_a*N_semizze_reshape,1),N_a*N_zr,N_a*N_semizze_reshape);
+        Policy_aprimez=gather(Policy_aprime+zindex);
+        IIind=(1:1:N_states)';
+        for jj=1:N_j-1
+            Gammatranspose_cell{jj}=sparse(reshape(Policy_aprimez(:,:,jj),[],1),IIind,ones(N_states,1),N_a*N_zr,N_states);
+        end
     elseif simoptions.gridinterplayer==1
-        Gammatranspose_cell{jj}=sparse(reshape(Policy_aprimez(:,:,jj,:),[],1),IIind,reshape(PolicyProbs(:,:,jj,:),[],1),N_a*N_zr,N_a*N_semizze_reshape);
+        Policy_aprimez=gather(cat(4,Policy_aprime,Policy_aprime+1)+zindex); % [N_a,N_semizze_reshape,N_j,2]
+        PolicyProbs=gather(cat(4,1-probupper,probupper)); % [N_a,N_semizze_reshape,N_j,2]
+        IIind=repmat((1:1:N_states)',2,1);
+        for jj=1:N_j-1
+            Gammatranspose_cell{jj}=sparse(reshape(Policy_aprimez(:,:,jj,:),[],1),IIind,reshape(PolicyProbs(:,:,jj,:),[],1),N_a*N_zr,N_states);
+        end
+    end
+else
+    % Semi-exogenous state (as StationaryDist_FHorz_Iteration_SemiExo_raw and its _e/_nProbs variants): from (a,semiz,z,e) to
+    % (a',semiz',z) with the transition probabilities pi_semiz_J(semiz,semiz',dsemiz,jj) of the semi-exogenous decision
+    % dsemiz taken at the state. Only the N_semizshort largest entries of each row of pi_semiz_J are kept (the sort puts
+    % the zeros first), which is all of the nonzeros, so a state has N_semizshort (times two with gridinterplayer) entries.
+    l_d1=l_d-simoptions.l_dsemiz; % the last l_dsemiz decision variables are the ones that influence semiz
+    N_dsemiz=prod(n_d(l_d1+1:l_d));
+    if simoptions.l_dsemiz==1
+        Policy_dsemiexo=Policy(l_d1+1,:,:,:);
+    elseif simoptions.l_dsemiz==2
+        Policy_dsemiexo=Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*(Policy(l_d1+2,:,:,:)-1);
+    elseif simoptions.l_dsemiz==3
+        Policy_dsemiexo=Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*(Policy(l_d1+2,:,:,:)-1)+n_d(l_d1+1)*n_d(l_d1+2)*(Policy(l_d1+3,:,:,:)-1);
+    elseif simoptions.l_dsemiz==4
+        Policy_dsemiexo=Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*(Policy(l_d1+2,:,:,:)-1)+n_d(l_d1+1)*n_d(l_d1+2)*(Policy(l_d1+3,:,:,:)-1)+n_d(l_d1+1)*n_d(l_d1+2)*n_d(l_d1+3)*(Policy(l_d1+4,:,:,:)-1);
+    end
+    Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_states,1,N_j]));
+    N_semizshort=max(max(max(sum((simoptions.pi_semiz_J>0),2))));
+    [pi_semiz_J_short,idx]=sort(simoptions.pi_semiz_J,2); % puts the zeros on the left
+    pi_semiz_J_short=gather(pi_semiz_J_short(:,end-N_semizshort+1:end,:,:)); % [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+    idxshort=gather(idx(:,end-N_semizshort+1:end,:,:)); % the semiz' each kept entry belongs to
+    semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_zr*N_er,1)+N_semiz*(0:1:N_semizshort-1); % [N_states,N_semizshort]: the semiz of each state, offset to each column of pi_semiz_J_short
+    zprimeoffset=repmat(repelem(N_a*N_semiz*(0:1:N_zr-1)',N_a*N_semiz,1),N_er,1); % [N_states,1]: the z of each state, as an offset into (a',semiz',z)
+    Policy_aprime_cpu=gather(reshape(Policy_aprime,[N_states,1,N_j]));
+    if simoptions.gridinterplayer==0
+        II2=repelem((1:1:N_states)',1,N_semizshort);
+        for jj=1:N_j-1
+            semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % linear index into pi_semiz_J_short and idxshort
+            Policy_aprimesemizz_jj=repelem(Policy_aprime_cpu(:,1,jj),1,N_semizshort)+N_a*(idxshort(semizindex_short_jj)-1)+zprimeoffset; % [N_states,N_semizshort]: index into (a',semiz',z)
+            Gammatranspose_cell{jj}=sparse(Policy_aprimesemizz_jj,II2,pi_semiz_J_short(semizindex_short_jj),N_a*N_semiz*N_zr,N_states);
+        end
+    elseif simoptions.gridinterplayer==1
+        Policy_aprime2_cpu=cat(2,Policy_aprime_cpu,Policy_aprime_cpu+1); % [N_states,2,N_j]: the lower grid point and the one above it
+        probupper_cpu=gather(reshape(probupper,[N_states,1,N_j]));
+        PolicyProbs_cpu=cat(2,1-probupper_cpu,probupper_cpu); % [N_states,2,N_j]
+        II2=repelem((1:1:N_states)',1,2*N_semizshort);
+        for jj=1:N_j-1
+            semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1);
+            Policy_aprimesemizz_jj=repelem(Policy_aprime2_cpu(:,:,jj),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short_jj)-1),1,2)+zprimeoffset; % [N_states,2*N_semizshort]: the two grid points, each with every semiz'
+            PolicyProbs_jj=repelem(PolicyProbs_cpu(:,:,jj),1,N_semizshort).*repmat(pi_semiz_J_short(semizindex_short_jj),1,2);
+            Gammatranspose_cell{jj}=sparse(Policy_aprimesemizz_jj,II2,PolicyProbs_jj,N_a*N_semiz*N_zr,N_states); % sparse() accumulates repeated indexes (the two grid points coincide only at the top of the grid)
+        end
     end
 end
 if N_z>0
@@ -411,9 +461,9 @@ for ff=1:length(FnsToEvalNames)
             propagated=gather(distj.*Xc)'; % 1 x N_states signed measure over the age-jj states, on the cpu
             for kk=1:min(Kmax,N_j-jj)
                 % Tan step from age jj+kk-1 to age jj+kk
-                temp=Gammatranspose_cell{jj+kk-1}*propagated'; % policy step: now over (a',z)
+                temp=Gammatranspose_cell{jj+kk-1}*propagated'; % policy step: now over (a',semiz',z)
                 if N_z>0
-                    temp=reshape(reshape(temp,[N_a,N_zr])*pi_z_J_cpu(:,:,jj+kk-1),[N_a*N_zr,1]); % z step
+                    temp=reshape(reshape(temp,[N_a*N_semizr,N_zr])*pi_z_J_cpu(:,:,jj+kk-1),[N_a*N_semizr*N_zr,1]); % z step
                 end
                 if N_e>0
                     temp=kron(pi_e_J_cpu(:,jj+kk),temp); % e step: the e realized at age jj+kk
@@ -490,10 +540,10 @@ for ff=1:length(FnsToEvalNames)
                     propagated=gather([mr, mr.*Xc, mr.*Xc.^2])'; % 3 x N_states, on the cpu
                     for kk=1:min(Kmax,N_j-jj)
                         % Tan step from age jj+kk-1 to age jj+kk, the three measures as three columns
-                        temp=Gammatranspose_cell{jj+kk-1}*propagated'; % (N_a*N_zr) x 3
+                        temp=Gammatranspose_cell{jj+kk-1}*propagated'; % (N_a*N_semizr*N_zr) x 3
                         if N_z>0
                             for cc=1:3
-                                temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_J_cpu(:,:,jj+kk-1),[N_a*N_zr,1]);
+                                temp(:,cc)=reshape(reshape(temp(:,cc),[N_a*N_semizr,N_zr])*pi_z_J_cpu(:,:,jj+kk-1),[N_a*N_semizr*N_zr,1]);
                             end
                         end
                         if N_e>0
@@ -570,13 +620,15 @@ for ff=1:length(FnsToEvalNames)
                     temp=full(Gammatranspose_cell{jj}*M);
                     if N_z>0
                         for cc=1:size(temp,2)
-                            temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_J_cpu(:,:,jj),[N_a*N_zr,1]);
+                            temp(:,cc)=reshape(reshape(temp(:,cc),[N_a*N_semizr,N_zr])*pi_z_J_cpu(:,:,jj),[N_a*N_semizr*N_zr,1]);
                         end
                     end
                     if N_e>0
                         temp=kron(pi_e_J_cpu(:,jj+1),temp);
                     end
-                    P_v(b1:b2,:)=(S_jp'*temp)'./max(massPerBin_j(b1:b2),eps);
+                    massPerBin_block=massPerBin_j(b1:b2);
+                    massPerBin_block(massPerBin_block==0)=1; % an origin bin with no mass gets a row of zeros (nothing to normalise); any positive mass, however small, normalises its row to one
+                    P_v(b1:b2,:)=(S_jp'*temp)'./massPerBin_block;
                 end
                 P_v_cell{jj}=P_v;
                 massbin_j_cell{jj}=massPerBin_j;
@@ -597,8 +649,32 @@ for ff=1:length(FnsToEvalNames)
                 end
                 distj=StationaryDist(:,jj)./massj;
                 distjplus1=StationaryDist(:,jj+1)./massjplus1;
-                idx_j=gather(LocalQuantileIndex(Values(:,jj),distj,n_fvals));
-                idx_jp=gather(LocalQuantileIndex(Values(:,jj+1),distjplus1,n_fvals));
+                % Quantile bins of the within-age distributions: bin q holds the values up to the first sorted value whose
+                % cumulative mass exceeds q/n_fvals (the same definition as the InfHorz command), at age jj and at age jj+1
+                [SortedValues,sortindex]=sort(Values(:,jj));
+                CumSortedDist=cumsum(distj(sortindex));
+                quantilecutoffs=nan(n_fvals-1,1,'gpuArray');
+                for qq=1:n_fvals-1
+                    [~,qqind]=max(CumSortedDist>qq*1/n_fvals);
+                    quantilecutoffs(qq)=SortedValues(qqind);
+                end
+                idx_j=ones(N_a*N_semizze_reshape,1,'gpuArray');
+                for qq=2:n_fvals
+                    idx_j(Values(:,jj)>quantilecutoffs(qq-1))=qq;
+                end
+                idx_j=gather(idx_j);
+                [SortedValues,sortindex]=sort(Values(:,jj+1));
+                CumSortedDist=cumsum(distjplus1(sortindex));
+                quantilecutoffs=nan(n_fvals-1,1,'gpuArray');
+                for qq=1:n_fvals-1
+                    [~,qqind]=max(CumSortedDist>qq*1/n_fvals);
+                    quantilecutoffs(qq)=SortedValues(qqind);
+                end
+                idx_jp=ones(N_a*N_semizze_reshape,1,'gpuArray');
+                for qq=2:n_fvals
+                    idx_jp(Values(:,jj+1)>quantilecutoffs(qq-1))=qq;
+                end
+                idx_jp=gather(idx_jp);
                 distj_cpu=gather(distj);
                 massPerBin_j=accumarray(idx_j,distj_cpu,[n_fvals,1]);
                 S_jp=sparse(1:N_a*N_semizze_reshape,idx_jp,1,N_a*N_semizze_reshape,n_fvals);
@@ -606,13 +682,15 @@ for ff=1:length(FnsToEvalNames)
                 temp=full(Gammatranspose_cell{jj}*M);
                 if N_z>0
                     for cc=1:size(temp,2)
-                        temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_J_cpu(:,:,jj),[N_a*N_zr,1]);
+                        temp(:,cc)=reshape(reshape(temp(:,cc),[N_a*N_semizr,N_zr])*pi_z_J_cpu(:,:,jj),[N_a*N_semizr*N_zr,1]);
                     end
                 end
                 if N_e>0
                     temp=kron(pi_e_J_cpu(:,jj+1),temp);
                 end
-                P_v_3d(:,:,jj)=(S_jp'*temp)'./max(massPerBin_j,eps);
+                massPerBin_safe=massPerBin_j;
+                massPerBin_safe(massPerBin_j==0)=1; % an origin bin with no mass gets a row of zeros (nothing to normalise)
+                P_v_3d(:,:,jj)=(S_jp'*temp)'./massPerBin_safe;
             end
             CorrTransProbs.(fn).TransitionProbs=P_v_3d;
         end
@@ -622,23 +700,4 @@ end
 
 CorrTransProbs.Notes='Mean and StdDeviation are 1xN_j. AutoCovariance and AutoCorrelation are 1x(N_j-1), with index jj corresponding to the transition from age jj to age jj+1; AutoCovariance_kK and AutoCorrelation_kK (for K in simoptions.timehorizons) are 1x(N_j-K), index jj is the pair of ages jj and jj+K. Under a conditional restriction the auto-covariances are over the pairs that satisfy the restriction at both ages, centered on the pair means (PairMean_j, PairMean_jplusk), and PairMass is the population mass of those pairs. TransitionProbs (when requested) is a cell {N_j-1} of (possibly varying-size) matrices, or a 3-D (nquantiles, nquantiles, N_j-1) array when simoptions.transprobquantiles is set. TransitionValues_j and TransitionValues_jplus1 (cells {N_j-1}) give the unique function values labelling the rows and columns of TransitionProbs{jj} respectively, and TransitionMass_j (cell {N_j-1}) gives the within-age mass of each origin bin/row (none of these are provided when using transprobquantiles, where bins are quantiles rather than values).';
 
-end
-
-
-function idx=LocalQuantileIndex(Values_jj,distj,n_fvals)
-% Map Values_jj into 1..n_fvals bins by quantiles of the within-age distribution distj
-[SortedValues,sortindex]=sort(Values_jj);
-SortedDist=distj(sortindex);
-CumSortedDist=cumsum(SortedDist);
-quantilecutoffs=nan(n_fvals-1,1,'gpuArray');
-for qq=1:n_fvals-1
-    [~,qqind]=max(CumSortedDist>qq*1/n_fvals);
-    quantilecutoffs(qq)=SortedValues(qqind);
-end
-idx=ones(size(Values_jj),'gpuArray');
-idx(Values_jj<=quantilecutoffs(1))=1;
-for qq=2:n_fvals-1
-    idx(logical((Values_jj>quantilecutoffs(qq-1)).*(Values_jj<=quantilecutoffs(qq))))=qq;
-end
-idx(Values_jj>quantilecutoffs(end))=n_fvals;
 end
