@@ -6,6 +6,8 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,
 % grow with the number of FnsToEvaluate, age groups or conditional restrictions. (The earlier design kept every
 % (fn,agegroup) cell for every ptype until the end, and ran out of memory on large models with conditional restrictions.)
 % simoptions.lowmemory is accepted but ignored: there is a single code path.
+% simoptions.whichcombos selects which (FnsToEvaluate, age group[, conditional restriction]) combinations are computed; see below.
+% simoptions.whichstats may also be given per (FnsToEvaluate, age group[, conditional restriction]) combination; see below.
 %
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
@@ -251,38 +253,105 @@ if isfield(simoptions,'conditionalrestrictions')
         error('Have not implemented simoptions.groupusingtdigest==1 together with simoptions.conditionalrestrictions')
     end
 
+end
+
+AgeMasses=zeros(N_i,N_j_max,'gpuArray'); % Only ends up used if using simoptions.conditionalrestrictions
+if useCondlRest==1 && isstruct(N_j)
+    error('LifeCycleProfiles: Have not implemented combination of doing conditional restrictions with N_j being a structure (differing across agents)')
+end
+
+%% simoptions.whichcombos: which (FnsToEvaluate, age group[, conditional restriction]) combinations to compute
+% Size [numFnsToEvaluate, number of age groups] without conditional restrictions, and [numFnsToEvaluate, number of age groups,
+% 1+number of restrictions] with them: page 1 is the unrestricted stats, pages 2:end the restrictions in the fieldnames order of
+% simoptions.conditionalrestrictions. Ones are computed, zeros are skipped; the output has the same fields either way and the
+% skipped entries stay NaN. RestrictedSampleMass is always filled. Default is all ones (compute everything). A 2D input when
+% there are restrictions is applied to every page. Intended for calibration/estimation, which only needs the targeted combinations.
+if useCondlRest==1
+    nwhichpages=1+length(CondlRestnFnNames);
+else
+    nwhichpages=1;
+end
+if ~isfield(simoptions,'whichcombos')
+    simoptions.whichcombos=ones(numFnsToEvaluate,maxngroups,nwhichpages);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ismatrix(whichcombos) && nwhichpages>1 && isequal(size(whichcombos),[numFnsToEvaluate,maxngroups])
+        whichcombos=repmat(whichcombos,[1,1,nwhichpages]); % 2D input with restrictions: apply to every page
+    end
+    if ~isequal(size(whichcombos,1:3),[numFnsToEvaluate,maxngroups,nwhichpages])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),'] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions; the third dimension is dropped when there are no conditional restrictions)'])
+    end
+    simoptions.whichcombos=double(whichcombos);
+end
+whichcombos=simoptions.whichcombos; % whichcombos(ff,jj,1) is the unrestricted stats, whichcombos(ff,jj,1+rr) is restriction rr
+
+%% simoptions.whichstats, per combination
+% whichstats is either the usual 1x7 vector (or a structure with a vector per ptype), or an array of size
+% [numFnsToEvaluate, number of age groups, 1+number of restrictions, 7] giving a whichstats vector for every (fn, age group, page)
+% combination (same pages as whichcombos). [numFnsToEvaluate, number of age groups, 7] is also accepted: without restrictions it is
+% the same thing, with restrictions it is applied to every page. Entries keep their meaning from StatsFromWeightedGrid. An output
+% field exists for a (fn, page[, ptype]) if any of its age groups asks for that statistic; the age groups that do not stay NaN.
+% A combination that asks for no statistic at all is skipped like a whichcombos zero.
+if isstruct(simoptions.whichstats)
+    wsG=simoptions.whichstats.(Names_i{1}); % the grouped stats use the first ptype's whichstats (as before)
+else
+    wsG=simoptions.whichstats;
+end
+if isvector(wsG) && numel(wsG)==7
+    whichstatsG=repmat(reshape(wsG,[1,1,1,7]),[numFnsToEvaluate,maxngroups,nwhichpages,1]);
+elseif ndims(wsG)==3 && isequal(size(wsG),[numFnsToEvaluate,maxngroups,7])
+    whichstatsG=repmat(reshape(wsG,[numFnsToEvaluate,maxngroups,1,7]),[1,1,nwhichpages,1]);
+elseif isequal(size(wsG,1:4),[numFnsToEvaluate,maxngroups,nwhichpages,7])
+    whichstatsG=wsG;
+else
+    error(['simoptions.whichstats must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),',7] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions, 7), or [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',7]'])
+end
+if ~isstruct(simoptions.whichstats)
+    whichcombos=whichcombos.*any(whichstatsG,4); % a combination with no statistic requested is skipped altogether
+end
+
+if useCondlRest==1
     % Preallocate various things for the stats (as many will have jj as a dimension)
     % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
     for ff=1:numFnsToEvaluate
         for rr=1:length(CondlRestnFnNames)
-            if simoptions.whichstats(1)==1
+            % whichstats for this (fn, restriction) across its age groups: a statistic is preallocated if any age group asks for it (the Lorenz curve if any age group has 1<=whichstats(4)<3)
+            wsP=max(reshape(whichstatsG(ff,:,1+rr,:),[maxngroups,7]),[],1);
+            ws4=reshape(whichstatsG(ff,:,1+rr,4),[1,maxngroups]);
+            if any(ws4>=1 & ws4<3)
+                wsP(4)=1;
+            end
+            if wsP(1)==1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean=nan(1,length(simoptions.agegroupings),'gpuArray');
             end
-            if simoptions.whichstats(2)==1
+            if wsP(2)==1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Median=nan(1,length(simoptions.agegroupings),'gpuArray');
             end
-            if simoptions.whichstats(1)==1 && simoptions.whichstats(2)==1
+            if wsP(1)==1 && wsP(2)==1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,length(simoptions.agegroupings),'gpuArray');
             end
-            if simoptions.whichstats(3)==1
+            if wsP(3)==1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation=nan(1,length(simoptions.agegroupings),'gpuArray');
             end
-            if simoptions.whichstats(4)>=1
+            if wsP(4)>=1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini=nan(1,length(simoptions.agegroupings),'gpuArray');
-                if simoptions.whichstats(4)<3
+                if wsP(4)<3
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,length(simoptions.agegroupings),'gpuArray');
                 end
             end
-            if simoptions.whichstats(5)==1
+            if wsP(5)==1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum=nan(1,length(simoptions.agegroupings),'gpuArray');
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum=nan(1,length(simoptions.agegroupings),'gpuArray');
             end
-            if simoptions.whichstats(6)>=1
+            if wsP(6)>=1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
             end
-            if simoptions.whichstats(7)==1
+            if wsP(7)==1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,length(simoptions.agegroupings),'gpuArray');
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,length(simoptions.agegroupings),'gpuArray');
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,length(simoptions.agegroupings),'gpuArray');
@@ -291,16 +360,9 @@ if isfield(simoptions,'conditionalrestrictions')
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,length(simoptions.agegroupings),'gpuArray');
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,length(simoptions.agegroupings),'gpuArray');
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,length(simoptions.agegroupings),'gpuArray');
-                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
-                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
             end
         end
     end
-end
-
-AgeMasses=zeros(N_i,N_j_max,'gpuArray'); % Only ends up used if using simoptions.conditionalrestrictions
-if useCondlRest==1 && isstruct(N_j)
-    error('LifeCycleProfiles: Have not implemented combination of doing conditional restrictions with N_j being a structure (differing across agents)')
 end
 
 %% Pass 0: per-type setup, done once and kept for the ff loop
@@ -424,6 +486,17 @@ for ii=1:N_i
     PT(ii).z_gridvals_J_temp=z_gridvals_J_temp;
     PT(ii).l_daprime_temp=l_daprime_temp;
     PT(ii).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
+    % whichstats for this ptype, per (fn, age group, page) combination; see the whichstats section above
+    wsT=simoptions_temp.whichstats;
+    if isvector(wsT) && numel(wsT)==7
+        PT(ii).whichstatsArr=repmat(reshape(wsT,[1,1,1,7]),[numFnsToEvaluate,maxngroups,nwhichpages,1]);
+    elseif ndims(wsT)==3 && isequal(size(wsT),[numFnsToEvaluate,maxngroups,7])
+        PT(ii).whichstatsArr=repmat(reshape(wsT,[numFnsToEvaluate,maxngroups,1,7]),[1,1,nwhichpages,1]);
+    elseif isequal(size(wsT,1:4),[numFnsToEvaluate,maxngroups,nwhichpages,7])
+        PT(ii).whichstatsArr=wsT;
+    else
+        error(['simoptions.whichstats for ptype ',iistr,' must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),',7], or [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',7]'])
+    end
     if simoptions.ptypestorecpu==1
         PT(ii).PolicyValuesPermute_temp=gather(PolicyValuesPermute_temp);
     else
@@ -444,34 +517,40 @@ clear PolicyValues_temp PolicyValuesPermute_temp PolicyIndexes_temp RestrictionV
     end
     if simoptions.groupptypesforstats==1 % These grouped top-level fields are only ever filled when grouping (see below); if we don't group, skip preallocating them so they are not left as NaN placeholders next to the per-ptype fields
         for ff=1:numFnsToEvaluate
-            if simoptions.whichstats(1)==1
+            % whichstats for this fn across its age groups: a statistic is preallocated if any age group asks for it (the Lorenz curve if any age group has 1<=whichstats(4)<3)
+            wsP=max(reshape(whichstatsG(ff,:,1,:),[maxngroups,7]),[],1);
+            ws4=reshape(whichstatsG(ff,:,1,4),[1,maxngroups]);
+            if any(ws4>=1 & ws4<3)
+                wsP(4)=1;
+            end
+            if wsP(1)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Mean=nan(1,N_j_max2,'gpuArray'); % Note: N_j_max2=length(simoptions.agegroupings) in basic setup, will be different when N_j or agejshifter varies by PType
             end
-            if simoptions.whichstats(2)==1
+            if wsP(2)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,N_j_max2,'gpuArray');
-                if simoptions.whichstats(1)==1
+                if wsP(1)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,N_j_max2,'gpuArray');
                 end
             end
-            if simoptions.whichstats(3)==1
+            if wsP(3)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Variance=nan(1,N_j_max2,'gpuArray');
                 AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation=nan(1,N_j_max2,'gpuArray');
             end
-            if simoptions.whichstats(4)>=1
+            if wsP(4)>=1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Gini=nan(1,N_j_max2,'gpuArray');
-                if simoptions.whichstats(4)<3
+                if wsP(4)<3
                     AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,N_j_max2,'gpuArray');
                 end
             end
-            if simoptions.whichstats(5)==1
+            if wsP(5)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Minimum=nan(1,N_j_max2,'gpuArray');
                 AgeConditionalStats.(FnsToEvalNames{ff}).Maximum=nan(1,N_j_max2,'gpuArray');
             end
-            if simoptions.whichstats(6)>=1
+            if wsP(6)>=1
                 AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,N_j_max2,'gpuArray'); % Includes the min and max values
                 AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,N_j_max2,'gpuArray');
             end
-            if simoptions.whichstats(7)==1
+            if wsP(7)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,N_j_max2,'gpuArray');
                 AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,N_j_max2,'gpuArray');
                 AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,N_j_max2,'gpuArray');
@@ -483,34 +562,39 @@ clear PolicyValues_temp PolicyValuesPermute_temp PolicyIndexes_temp RestrictionV
             end
             if useCondlRest==1
                 for rr=1:length(CondlRestnFnNames)
-                    if simoptions.whichstats(1)==1
+                    wsP=max(reshape(whichstatsG(ff,:,1+rr,:),[maxngroups,7]),[],1); % as above, for this restriction
+                    ws4=reshape(whichstatsG(ff,:,1+rr,4),[1,maxngroups]);
+                    if any(ws4>=1 & ws4<3)
+                        wsP(4)=1;
+                    end
+                    if wsP(1)==1
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean=nan(1,N_j_max2,'gpuArray');
                     end
-                    if simoptions.whichstats(2)==1
+                    if wsP(2)==1
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Median=nan(1,N_j_max2,'gpuArray');
-                        if simoptions.whichstats(1)==1
+                        if wsP(1)==1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,N_j_max2,'gpuArray');
                         end
                     end
-                    if simoptions.whichstats(3)==1
+                    if wsP(3)==1
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance=nan(1,N_j_max2,'gpuArray');
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation=nan(1,N_j_max2,'gpuArray');
                     end
-                    if simoptions.whichstats(4)>=1
+                    if wsP(4)>=1
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini=nan(1,N_j_max2,'gpuArray');
-                        if simoptions.whichstats(4)<3
+                        if wsP(4)<3
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,N_j_max2,'gpuArray');
                         end
                     end
-                    if simoptions.whichstats(5)==1
+                    if wsP(5)==1
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum=nan(1,N_j_max2,'gpuArray');
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum=nan(1,N_j_max2,'gpuArray');
                     end
-                    if simoptions.whichstats(6)>=1
+                    if wsP(6)>=1
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,N_j_max2,'gpuArray'); % Includes the min and max values
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,N_j_max2,'gpuArray');
                     end
-                    if simoptions.whichstats(7)==1
+                    if wsP(7)==1
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,N_j_max2,'gpuArray');
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,N_j_max2,'gpuArray');
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,N_j_max2,'gpuArray');
@@ -549,6 +633,7 @@ for ff=1:numFnsToEvaluate
         z_gridvals_J_temp=PT(ii).z_gridvals_J_temp;
         l_daprime_temp=PT(ii).l_daprime_temp;
         FnsAndPTypeIndicator_ii=PT(ii).FnsAndPTypeIndicator_ii;
+        whichstatsArr_ii=PT(ii).whichstatsArr;
         if simoptions.ptypestorecpu==1
             PolicyValuesPermute_temp=gpuArray(PT(ii).PolicyValuesPermute_temp);
         else
@@ -556,6 +641,7 @@ for ff=1:numFnsToEvaluate
         end
 
         if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
+            if any(whichcombos(ff,:,:),'all') % skip the evaluation if no combination of this function is wanted (its output fields are still preallocated below, and stay NaN)
                 % Get parameter names for current FnsToEvaluate functions
                 if isstruct(FnsToEvaluate.(FnsToEvalNames{ff}))
                     tempfn=FnsToEvaluate.(FnsToEvalNames{ff}).(iistr);
@@ -579,6 +665,9 @@ for ff=1:numFnsToEvaluate
                 ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(tempfn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
 
                 ValuesOnGrid_ffii=reshape(ValuesOnGrid_ffii,[N_a_temp*N_z_temp,N_j_temp]);
+            else
+                ValuesOnGrid_ffii=[];
+            end
                 % StationaryDist_ii=reshape(StationaryDist.(iistr),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
 
                 % Note, eliminating zero weights and unique() cannot be done yet as they need to be conditional on j
@@ -586,34 +675,40 @@ for ff=1:numFnsToEvaluate
 
                 % Preallocate various things for the stats (as many will have jj as a dimension)
                 % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).
-                if simoptions_temp.whichstats(1)==1
+                % whichstats of this ptype for this fn across its age groups: a statistic is preallocated if any age group asks for it (the Lorenz curve if any age group has 1<=whichstats(4)<3)
+                wsP=max(reshape(whichstatsArr_ii(ff,:,1,:),[maxngroups,7]),[],1);
+                ws4=reshape(whichstatsArr_ii(ff,:,1,4),[1,maxngroups]);
+                if any(ws4>=1 & ws4<3)
+                    wsP(4)=1;
+                end
+                if wsP(1)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Mean=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                 end
-                if simoptions_temp.whichstats(2)==1
+                if wsP(2)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Median=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
-                    if simoptions_temp.whichstats(1)==1
+                    if wsP(1)==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).RatioMeanToMedian=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                     end
                 end
-                if simoptions_temp.whichstats(3)==1
+                if wsP(3)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Variance=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).StdDeviation=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                 end
-                if simoptions_temp.whichstats(4)>=1
+                if wsP(4)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Gini=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
-                    if simoptions_temp.whichstats(4)<3
+                    if wsP(4)<3
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).LorenzCurve=nan(simoptions_temp.npoints,length(simoptions_temp.agegroupings),'gpuArray');
                     end
                 end
-                if simoptions_temp.whichstats(5)==1
+                if wsP(5)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Minimum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Maximum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                 end
-                if simoptions_temp.whichstats(6)>=1
+                if wsP(6)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,length(simoptions_temp.agegroupings),'gpuArray'); % Includes the min and max values
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).QuantileMeans=nan(simoptions_temp.nquantiles,length(simoptions_temp.agegroupings),'gpuArray');
                 end
-                if simoptions_temp.whichstats(7)==1
+                if wsP(7)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).MoreInequality.Top1share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).MoreInequality.Top5share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).MoreInequality.Top10share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
@@ -625,34 +720,39 @@ for ff=1:numFnsToEvaluate
                 end
                 if useCondlRest==1
                     for rr=1:length(CondlRestnFnNames)
-                        if simoptions_temp.whichstats(1)==1
+                        wsP=max(reshape(whichstatsArr_ii(ff,:,1+rr,:),[maxngroups,7]),[],1); % as above, for this restriction
+                        ws4=reshape(whichstatsArr_ii(ff,:,1+rr,4),[1,maxngroups]);
+                        if any(ws4>=1 & ws4<3)
+                            wsP(4)=1;
+                        end
+                        if wsP(1)==1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Mean=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                         end
-                        if simoptions_temp.whichstats(2)==1
+                        if wsP(2)==1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Median=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
-                            if simoptions_temp.whichstats(1)==1
+                            if wsP(1)==1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).RatioMeanToMedian=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                             end
                         end
-                        if simoptions_temp.whichstats(3)==1
+                        if wsP(3)==1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Variance=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).StdDeviation=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                         end
-                        if simoptions_temp.whichstats(4)>=1
+                        if wsP(4)>=1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Gini=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
-                            if simoptions.whichstats(4)<3
+                            if wsP(4)<3
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).LorenzCurve=nan(simoptions_temp.npoints,length(simoptions_temp.agegroupings),'gpuArray');
                             end
                         end
-                        if simoptions_temp.whichstats(5)==1
+                        if wsP(5)==1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Minimum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Maximum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                         end
-                        if simoptions_temp.whichstats(6)>=1
+                        if wsP(6)>=1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,length(simoptions_temp.agegroupings),'gpuArray'); % Includes the min and max values
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).QuantileMeans=nan(simoptions_temp.nquantiles,length(simoptions_temp.agegroupings),'gpuArray');
                         end
-                        if simoptions_temp.whichstats(7)==1
+                        if wsP(7)==1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).MoreInequality.Top1share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).MoreInequality.Top5share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).MoreInequality.Top10share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
@@ -676,6 +776,9 @@ for ff=1:numFnsToEvaluate
 
     %% Pass 2: age groups, ptypes innermost; pool each (ff,agegroup) cell as soon as its ptype loop ends
     for jjs=1:maxngroups % jjs is the (agejshifter-shifted) age group index used for the grouped stats
+        if ~any(whichcombos(ff,jjs,:)) % no combination of this (function, age group) is wanted
+            continue
+        end
         % The pooled cell for this (ff,jjs)
         PoolValues=[];
         PoolWeights=[];
@@ -698,6 +801,7 @@ for ff=1:numFnsToEvaluate
             N_a_temp=PT(ii).N_a_temp;
             N_z_temp=PT(ii).N_z_temp;
             FnsAndPTypeIndicator_ii=PT(ii).FnsAndPTypeIndicator_ii;
+            whichstatsArr_ii=PT(ii).whichstatsArr;
 
             if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
                 jj=jjs-simoptions.agejshifter(ii); % this ptype's own age group index
@@ -736,37 +840,39 @@ for ff=1:numFnsToEvaluate
                     SortedWeights_jj=SortedWeights_jj/sum(SortedWeights_jj(:)); % Normalize conditional on jj (is later renormalized ii weight before storing for groupstats)
 
                     %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and ff)
-                    tempStats=StatsFromWeightedGrid(SortedValues_jj,SortedWeights_jj,simoptions_temp.npoints,simoptions_temp.nquantiles,simoptions_temp.tolerance,1,simoptions_temp.whichstats); % 1 is presorted
+                    if whichcombos(ff,jjs,1)==1 % the unrestricted stats of this (function, age group) are wanted
+                    ws=reshape(whichstatsArr_ii(ff,jjs,1,:),[1,7]); % whichstats of this ptype for this (fn, age group)
+                    tempStats=StatsFromWeightedGrid(SortedValues_jj,SortedWeights_jj,simoptions_temp.npoints,simoptions_temp.nquantiles,simoptions_temp.tolerance,1,ws); % 1 is presorted
 
                     % Now store these based on jj
-                    if simoptions_temp.whichstats(1)==1
+                    if ws(1)==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Mean(jj)=tempStats.Mean;
                     end
-                    if simoptions_temp.whichstats(2)==1
+                    if ws(2)==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Median(jj)=tempStats.Median;
-                        if simoptions_temp.whichstats(1)==1
+                        if ws(1)==1
                             AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).RatioMeanToMedian(jj)=tempStats.RatioMeanToMedian;
                         end
                     end
-                    if simoptions_temp.whichstats(3)==1
+                    if ws(3)==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Variance(jj)=tempStats.Variance;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).StdDeviation(jj)=tempStats.StdDeviation;
                     end
-                    if simoptions_temp.whichstats(4)>=1
+                    if ws(4)>=1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Gini(jj)=tempStats.Gini;
-                        if simoptions_temp.whichstats(4)<3
+                        if ws(4)<3
                             AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).LorenzCurve(:,jj)=tempStats.LorenzCurve;
                         end
                     end
-                    if simoptions_temp.whichstats(5)==1
+                    if ws(5)==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Minimum(jj)=tempStats.Minimum;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).Maximum(jj)=tempStats.Maximum;
                     end
-                    if simoptions_temp.whichstats(6)>=1
+                    if ws(6)>=1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).QuantileCutoffs(:,jj)=tempStats.QuantileCutoffs;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).QuantileMeans(:,jj)=tempStats.QuantileMeans;
                     end
-                    if simoptions_temp.whichstats(7)==1
+                    if ws(7)==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).MoreInequality.Top1share(jj)=tempStats.MoreInequality.Top1share;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).MoreInequality.Top5share(jj)=tempStats.MoreInequality.Top5share;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(iistr).MoreInequality.Top10share(jj)=tempStats.MoreInequality.Top10share;
@@ -778,17 +884,18 @@ for ff=1:numFnsToEvaluate
                     end
 
                     % For later, put the mean and std dev in a convenient place. These are instead done on jjageshifted (so they can be grouped across ptypes later)
-                    if simoptions_temp.whichstats(1)==1
+                    if ws(1)==1
                         MeanVec(ff,ii,jjageshifted)=tempStats.Mean;
                     end
-                    if simoptions_temp.whichstats(3)==1
+                    if ws(3)==1
                         StdDevVec(ff,ii,jjageshifted)=tempStats.StdDeviation;
                     end
                     % Do the same with the minimum and maximum
-                    if simoptions_temp.whichstats(5)==1 && StationaryDist.ptweights(ii)>0 % a ptype of zero mass is not in the population, so it must not set the grouped min/max (its entries stay NaN, which min()/max() ignore)
+                    if ws(5)==1 && StationaryDist.ptweights(ii)>0 % a ptype of zero mass is not in the population, so it must not set the grouped min/max (its entries stay NaN, which min()/max() ignore)
                         minvaluevec(ff,ii,jjageshifted)=tempStats.Minimum;
                         maxvaluevec(ff,ii,jjageshifted)=tempStats.Maximum;
                     end
+                    end % whichcombos(ff,jjs,1)
 
                     if simoptions.groupptypesforstats==1
                         % Append this ptype to the pooled cell
@@ -809,6 +916,8 @@ for ff=1:numFnsToEvaluate
                     %% If using conditional restrictions, do those (the restricted weights come from the stored mask)
                     if useCondlRest==1
                         for rr=1:length(CondlRestnFnNames)
+                            if whichcombos(ff,jjs,1+rr)==1 % this restriction is wanted for this (function, age group)
+                            ws=reshape(whichstatsArr_ii(ff,jjs,1+rr,:),[1,7]); % whichstats of this ptype for this (fn, age group, restriction)
                             if sum(restrictedsamplemass(ii,j1:jend,rr))~=0
                                 if simoptions.ptypestorecpu==1
                                     RestrictedSortedWeights=StationaryDist_ii(:,j1:jend).*gpuArray(RestrictionMask{ii,rr}(:,j1:jend));
@@ -820,37 +929,37 @@ for ff=1:numFnsToEvaluate
                                 RestrictedSortedWeights=accumarray(sortindex,RestrictedSortedWeights,[],@sum); % This has already been done to SortedValues, so have to do it to Restricted Agent Dist
                                 RestrictedSortedWeights=RestrictedSortedWeights/sum(RestrictedSortedWeights(:)); % renormalize to 1
 
-                                tempStatsRestricted=StatsFromWeightedGrid(SortedValues_jj,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats);
+                                tempStatsRestricted=StatsFromWeightedGrid(SortedValues_jj,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,ws);
 
                                 % Now store these based on jj
-                                if simoptions.whichstats(1)==1
+                                if ws(1)==1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Mean(jj)=tempStatsRestricted.Mean;
                                 end
-                                if simoptions.whichstats(2)==1
+                                if ws(2)==1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Median(jj)=tempStatsRestricted.Median;
-                                    if simoptions.whichstats(1)==1
+                                    if ws(1)==1
                                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).RatioMeanToMedian(jj)=tempStatsRestricted.RatioMeanToMedian;
                                     end
                                 end
-                                if simoptions.whichstats(3)==1
+                                if ws(3)==1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Variance(jj)=tempStatsRestricted.Variance;
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).StdDeviation(jj)=tempStatsRestricted.StdDeviation;
                                 end
-                                if simoptions.whichstats(4)>=1
+                                if ws(4)>=1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Gini(jj)=tempStatsRestricted.Gini;
-                                    if simoptions.whichstats(4)<3
+                                    if ws(4)<3
                                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).LorenzCurve(:,jj)=tempStatsRestricted.LorenzCurve;
                                     end
                                 end
-                                if simoptions.whichstats(5)==1
+                                if ws(5)==1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Minimum(jj)=tempStatsRestricted.Minimum;
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).Maximum(jj)=tempStatsRestricted.Maximum;
                                 end
-                                if simoptions.whichstats(6)>=1
+                                if ws(6)>=1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).QuantileCutoffs(:,jj)=tempStatsRestricted.QuantileCutoffs;
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).QuantileMeans(:,jj)=tempStatsRestricted.QuantileMeans;
                                 end
-                                if simoptions.whichstats(7)==1
+                                if ws(7)==1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).MoreInequality.Top1share(jj)=tempStatsRestricted.MoreInequality.Top1share;
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).MoreInequality.Top5share(jj)=tempStatsRestricted.MoreInequality.Top5share;
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr).MoreInequality.Top10share(jj)=tempStatsRestricted.MoreInequality.Top10share;
@@ -874,6 +983,7 @@ for ff=1:numFnsToEvaluate
                                 % Weight of this ptype in the grouped stats is ptweights(ii) times its restricted mass in this agegrouping (restrictedsamplemass is mass within the ptype, so already includes the age weights)
                                 % Note: later normalize by sum(sum(restrictedsamplemass(:,j1:jend,rr),2))
                             end
+                            end % whichcombos(ff,jjs,1+rr)
                         end
                     end
                 end % this ptype has age group jjs
@@ -883,6 +993,7 @@ for ff=1:numFnsToEvaluate
         %% Pool this (ff,jjs) cell across ptypes and compute the grouped stats
         if simoptions.groupptypesforstats==1
             jj=jjs;
+            ws=reshape(whichstatsG(ff,jjs,1,:),[1,7]); % whichstats of the grouped stats for this (fn, age group)
 
             if simoptions.groupusingtdigest==1 % using t-Digests
                 Cmerge=Cmerge(1:merge_nsofar);
@@ -892,7 +1003,9 @@ for ff=1:numFnsToEvaluate
                 if sum(digestweights_ff)>0
                     digestweights_ff=digestweights_ff/sum(digestweights_ff);
                 end
-                tempStats=StatsFromWeightedGrid(C_ff,digestweights_ff,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+                if whichcombos(ff,jjs,1)==1 % the grouped unrestricted stats of this (function, age group) are wanted (the pooled unique() above is needed regardless, the restricted weights are aligned to it)
+                tempStats=StatsFromWeightedGrid(C_ff,digestweights_ff,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws);
+                end % whichcombos(ff,jjs,1)
             else % just using unique() of the values and weights
                 [PoolValues,~,sortindex]=unique(PoolValues);
                 PoolWeights=accumarray(sortindex,PoolWeights,[],@sum);
@@ -900,37 +1013,40 @@ for ff=1:numFnsToEvaluate
                 if sum(PoolWeights)>0
                     PoolWeights=PoolWeights/sum(PoolWeights);
                 end
-                tempStats=StatsFromWeightedGrid(PoolValues,PoolWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+                if whichcombos(ff,jjs,1)==1 % the grouped unrestricted stats of this (function, age group) are wanted (the pooled unique() above is needed regardless, the restricted weights are aligned to it)
+                tempStats=StatsFromWeightedGrid(PoolValues,PoolWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws);
+                end % whichcombos(ff,jjs,1)
             end
+            if whichcombos(ff,jjs,1)==1 % store the grouped unrestricted stats of this (function, age group)
                 % Store them in AgeConditionalStats
-                if simoptions.whichstats(1)==1
+                if ws(1)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Mean(jj)=tempStats.Mean;
                 end
-                if simoptions.whichstats(2)==1
+                if ws(2)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Median(jj)=tempStats.Median;
-                    if simoptions.whichstats(1)==1
+                    if ws(1)==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).RatioMeanToMedian(jj)=tempStats.RatioMeanToMedian;
                     end
                 end
-                if simoptions.whichstats(3)==1
+                if ws(3)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=tempStats.Variance;
                     AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=tempStats.StdDeviation;
                 end
-                if simoptions.whichstats(4)>=1
+                if ws(4)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Gini(jj)=tempStats.Gini;
-                    if simoptions.whichstats(4)<3
+                    if ws(4)<3
                         AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve(:,jj)=tempStats.LorenzCurve;
                     end
                 end
-                if simoptions.whichstats(5)==1
+                if ws(5)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(jj)=tempStats.Minimum;
                     AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(jj)=tempStats.Maximum;
                 end
-                if simoptions.whichstats(6)>=1
+                if ws(6)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs(:,jj)=tempStats.QuantileCutoffs;
                     AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans(:,jj)=tempStats.QuantileMeans;
                 end
-                if simoptions.whichstats(7)==1
+                if ws(7)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share(jj)=tempStats.MoreInequality.Top1share;
                     AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share(jj)=tempStats.MoreInequality.Top5share;
                     AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share(jj)=tempStats.MoreInequality.Top10share;
@@ -945,12 +1061,12 @@ for ff=1:numFnsToEvaluate
                 SigmaNxi=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
 
                 % Mean
-                if simoptions.whichstats(1)==1
+                if ws(1)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Mean(jj)=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*MeanVec(ff,:,jj))/SigmaNxi;
                 end
 
                 % Standard Deviation
-                if simoptions.whichstats(3)==1
+                if ws(3)==1
                     if N_i==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=StdDevVec(ff,:,jj);
                     else
@@ -970,10 +1086,11 @@ for ff=1:numFnsToEvaluate
                 end
 
                 % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
-                if simoptions.whichstats(5)==1
+                if ws(5)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(jj)=max(maxvaluevec(ff,:,jj));
                     AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(jj)=min(minvaluevec(ff,:,jj));
                 end
+            end % whichcombos(ff,jjs,1)
 
                 %% Deal with conditional restrictions
                 if useCondlRest==1
@@ -985,6 +1102,8 @@ for ff=1:numFnsToEvaluate
                     end
 
                     for rr=1:length(CondlRestnFnNames)
+                        if whichcombos(ff,jjs,1+rr)==1 % this restriction is wanted for this (function, age group)
+                        ws=reshape(whichstatsG(ff,jjs,1+rr,:),[1,7]); % whichstats of the grouped stats for this (fn, age group, restriction)
 
                         if sum(StationaryDist.ptweights.*sum(restrictedsamplemass(:,j1:jend,rr),2,'omitnan'))>0 % the population (not just some ptype) has restricted mass in this agegrouping [a ptype of zero mass can have restricted mass of its own]
                             % We need to load up each ii, and put them together
@@ -1000,37 +1119,37 @@ for ff=1:numFnsToEvaluate
                                     AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj);
                                 end
 
-                                tempStats2=StatsFromWeightedGrid(PoolValues,AllRestrictedWeights_rrffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+                                tempStats2=StatsFromWeightedGrid(PoolValues,AllRestrictedWeights_rrffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws);
                             end
                             % Store them in AgeConditionalStats
-                            if simoptions.whichstats(1)==1
+                            if ws(1)==1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean(jj)=tempStats2.Mean;
                             end
-                            if simoptions.whichstats(2)==1
+                            if ws(2)==1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Median(jj)=tempStats2.Median;
-                                if simoptions.whichstats(1)==1
+                                if ws(1)==1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian(jj)=tempStats2.RatioMeanToMedian;
                                 end
                             end
-                            if simoptions.whichstats(3)==1
+                            if ws(3)==1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance(jj)=tempStats2.Variance;
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation(jj)=tempStats2.StdDeviation;
                             end
-                            if simoptions.whichstats(4)>=1
+                            if ws(4)>=1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini(jj)=tempStats2.Gini;
-                                if simoptions.whichstats(4)<3
+                                if ws(4)<3
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve(:,jj)=tempStats2.LorenzCurve;
                                 end
                             end
-                            if simoptions.whichstats(5)==1
+                            if ws(5)==1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum(jj)=tempStats2.Minimum;
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum(jj)=tempStats2.Maximum;
                             end
-                            if simoptions.whichstats(6)>=1
+                            if ws(6)>=1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs(:,jj)=tempStats2.QuantileCutoffs;
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans(:,jj)=tempStats2.QuantileMeans;
                             end
-                            if simoptions.whichstats(7)==1
+                            if ws(7)==1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top1share(jj)=tempStats2.MoreInequality.Top1share;
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top5share(jj)=tempStats2.MoreInequality.Top5share;
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top10share(jj)=tempStats2.MoreInequality.Top10share;
@@ -1043,6 +1162,7 @@ for ff=1:numFnsToEvaluate
 
                             % For unrestricted stats, I do a more direct calculation of mean, std dev, min and max. But I don't bother with the conditional restriction stats.
                         end
+                        end % whichcombos(ff,jjs,1+rr)
                     end
                 end
         end % groupptypesforstats
