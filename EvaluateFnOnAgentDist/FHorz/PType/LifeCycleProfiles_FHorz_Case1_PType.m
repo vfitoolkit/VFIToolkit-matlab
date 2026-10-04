@@ -666,8 +666,13 @@ if simoptions.lowmemory==0
                             AllCMerge.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=Cmerge;
                             Alldigestweightsmerge.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=digestweightsmerge;
                         else
-                            AllValues.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllValues.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); SortedValues_jj];
-                            AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); SortedWeights_jj*StationaryDist.ptweights(ii)];
+                            if simoptions.ptypestorecpu==1 % store the pooled values and weights on the cpu (matches AllRestrictedWeights below, which is already gathered)
+                                AllValues.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllValues.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); gather(SortedValues_jj)];
+                                AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); gather(SortedWeights_jj)*gather(StationaryDist.ptweights(ii))];
+                            else
+                                AllValues.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllValues.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); SortedValues_jj];
+                                AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); SortedWeights_jj*StationaryDist.ptweights(ii)];
+                            end
                         end
                     end
 
@@ -809,7 +814,7 @@ if simoptions.lowmemory==0
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean=nan(1,N_j_max2,'gpuArray');
                     end
                     if simoptions.whichstats(2)==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,N_j_max2,'gpuArray');
+                        AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Median=nan(1,N_j_max2,'gpuArray');
                         if simoptions.whichstats(1)==1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,N_j_max2,'gpuArray');
                         end
@@ -868,7 +873,7 @@ if simoptions.lowmemory==0
                     end
 
                     tempStats=StatsFromWeightedGrid(C_ff,digestweights_ff,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
-                elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
+                else % just using unique() of the values and weights
                     [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
                     AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj})=accumarray(sortindex,AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}),[],@sum);
 
@@ -967,7 +972,7 @@ if simoptions.lowmemory==0
                             % We need to load up each ii, and put them together
                             if simoptions.groupusingtdigest==1 % using t-Digests
                                 error('You should not be able to get here in the code')
-                            elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
+                            else % just using unique() of the values and weights
                                 % [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
                                 AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj})/sum(sum(restrictedsamplemass(:,j1:jend,rr),2)),[],@sum);
                                 AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj(:));
@@ -1314,8 +1319,13 @@ elseif simoptions.lowmemory==1
                             AllCMerge.(jgroupstr{jjageshifted})=Cmerge;
                             Alldigestweightsmerge.(jgroupstr{jjageshifted})=digestweightsmerge;
                         else
-                            AllValues.(jgroupstr{jjageshifted})=[AllValues.(jgroupstr{jjageshifted}); SortedValues_jj];
-                            AllWeights.(jgroupstr{jjageshifted})=[AllWeights.(jgroupstr{jjageshifted}); SortedWeights_jj*StationaryDist.ptweights(ii)];
+                            if simoptions.ptypestorecpu==1 % store the pooled values and weights on the cpu
+                                AllValues.(jgroupstr{jjageshifted})=[AllValues.(jgroupstr{jjageshifted}); gather(SortedValues_jj)];
+                                AllWeights.(jgroupstr{jjageshifted})=[AllWeights.(jgroupstr{jjageshifted}); gather(SortedWeights_jj)*gather(StationaryDist.ptweights(ii))];
+                            else
+                                AllValues.(jgroupstr{jjageshifted})=[AllValues.(jgroupstr{jjageshifted}); SortedValues_jj];
+                                AllWeights.(jgroupstr{jjageshifted})=[AllWeights.(jgroupstr{jjageshifted}); SortedWeights_jj*StationaryDist.ptweights(ii)];
+                            end
                         end
                     end
                 end % end jj over agej groupings
@@ -1380,7 +1390,7 @@ elseif simoptions.lowmemory==1
                         [C_ff,digestweights_ff,~]=mergeDigest(Cmerge, digestweightsmerge, delta);
 
                         tempStats=StatsFromWeightedGrid(C_ff,digestweights_ff,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
-                    elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
+                    else % just using unique() of the values and weights
                         [AllValues.(jgroupstr{jj}),~,sortindex]=unique(AllValues.(jgroupstr{jj}));
                         AllWeights.(jgroupstr{jj})=accumarray(sortindex,AllWeights.(jgroupstr{jj}),[],@sum);
 
