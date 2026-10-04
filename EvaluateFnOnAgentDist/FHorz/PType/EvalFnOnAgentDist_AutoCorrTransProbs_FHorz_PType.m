@@ -20,7 +20,8 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(Station
 %   CorrTransProbs.(restriction).(fnname).(typename)   per-type restricted output
 %   CorrTransProbs.(restriction).(fnname).Mean, ... , .PairMass, .PairMean_j, ...   grouped restricted output
 %   CorrTransProbs.(restriction).RestrictedSampleMass.(typename), .ByAge, .ByPType, .Total
-%   TransitionProbs are only reported by type.
+%   CorrTransProbs.(fnname).TransitionProbs (and TransitionValues_j, TransitionValues_jplus1, TransitionMass_j)  grouped,
+%     pooling the types' transitions between value bins (see below)
 % Grouped means and std deviations at age j pool the types with weights
 % ptweights(ii)*(mass of type ii at age j). Grouped auto-covariances at horizon k pool the
 % types' PAIR populations (age j and age j+k) with weights ptweights(ii)*(pair mass of type ii),
@@ -28,6 +29,11 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(Station
 % pair population (so when the types have the same age weights it is exactly what a
 % single-type model with an extra 'type' state would give). A type of zero weight, or with
 % zero mass at an age, is simply not in the pool; if the pool is empty the output is NaN.
+% Grouped TransitionProbs at age j pool the types' joint distributions of (value at j, value at
+% j+1), weight ptweights(ii)*(mass of type ii at age j), over the union of the types' value bins,
+% and divide by the pooled mass of the origin bin; with simoptions.transprobquantiles the pooled
+% joint is coarsened to the quantile bins of the pooled age-j and age-(j+1) value distributions,
+% which is what the single-type command gives on the pooled population.
 % simoptions.groupptypesforstats=0 skips the grouped outputs.
 
 if iscell(Names_i)
@@ -110,6 +116,17 @@ ptweights=gather(reshape(StationaryDist.ptweights,[N_i,1]));
 
 CorrTransProbs=struct();
 CorrTransProbs_byType=cell(N_i,1); % the per-type outputs, kept for the grouping
+CorrTransProbs_byType_uv=cell(N_i,1); % the per-type unique-value TransitionProbs (the same outputs unless simoptions.transprobquantiles is set), kept for the grouped TransitionProbs
+% Which FnsToEvaluate have transition probabilities requested
+transprobnames={};
+if isfield(simoptions,'transprobs')
+    if iscell(simoptions.transprobs)
+        transprobnames=simoptions.transprobs;
+    elseif any(simoptions.transprobs(:)>0)
+        transprobnames=FnsToEvalNames(simoptions.transprobs(:)>0);
+    end
+end
+usequantiles=isfield(simoptions,'transprobquantiles') && ~isempty(simoptions.transprobquantiles);
 FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i);
 AgeMasses=zeros(N_i,N_j); % mass of each type at each age (the age weights of that type)
 
@@ -184,6 +201,29 @@ for ii=1:N_i
     %% Compute for this type
     CorrTransProbs_ii=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_temp);
     CorrTransProbs_byType{ii}=CorrTransProbs_ii;
+    if simoptions.groupptypesforstats==1 && usequantiles && ~isempty(transprobnames)
+        % The grouped TransitionProbs are pooled from the types' transitions between unique values (the quantile bins of the
+        % pooled population are a coarsening of its value bins; the types' own quantile bins are not), so get those too, for
+        % the requested functions only and without the horizons and restrictions
+        simoptions_temp_uv=simoptions_temp;
+        simoptions_temp_uv.transprobquantiles=[];
+        simoptions_temp_uv.timehorizons=[];
+        if isfield(simoptions_temp_uv,'conditionalrestrictions')
+            simoptions_temp_uv=rmfield(simoptions_temp_uv,'conditionalrestrictions');
+        end
+        FnsToEvaluate_temp_uv=struct();
+        fnames_temp=fieldnames(FnsToEvaluate_temp);
+        for ff=1:length(fnames_temp)
+            if any(strcmp(transprobnames,fnames_temp{ff}))
+                FnsToEvaluate_temp_uv.(fnames_temp{ff})=FnsToEvaluate_temp.(fnames_temp{ff});
+            end
+        end
+        if ~isempty(fieldnames(FnsToEvaluate_temp_uv))
+            CorrTransProbs_byType_uv{ii}=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp_uv,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_temp_uv);
+        end
+    else
+        CorrTransProbs_byType_uv{ii}=CorrTransProbs_ii;
+    end
 
     % Store by type
     for ff=1:numFnsToEvaluate
@@ -268,6 +308,97 @@ if simoptions.groupptypesforstats==1
             end
             CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])=AutoCovG;
             CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorrG;
+        end
+
+        %% Grouped TransitionProbs (when requested for this fn): pool the types' transitions between value bins
+        % The joint distribution of (value at age jj, value at age jj+1) of type ii is w_ii*TransitionMass_j{jj}(b)*TransitionProbs{jj}(b,:)
+        % with w_ii=ptweights(ii)*AgeMasses(ii,jj). The grouped joint is their sum over the union of the types' value bins, and
+        % the grouped TransitionProbs row b is that joint divided by the pooled mass of origin bin b (a zero row when it has no
+        % mass, as in the single-type command). With simoptions.transprobquantiles the pooled joint is coarsened to the quantile
+        % bins of the pooled age-jj and age-(jj+1) value distributions (bin q holds the values up to the first sorted value whose
+        % cumulative mass exceeds q/n, the single-type command's rule), which is what that command gives on the pooled population.
+        % [A type's age-(jj+1) value distribution is its pushed age-jj one, the column sums of its joint, since within a type the
+        % age weights only rescale; across types the age-(jj+1) weights are ptweights(ii)*AgeMasses(ii,jj+1).]
+        if any(strcmp(transprobnames,fn))
+            P_G_cell=cell(N_j-1,1);
+            fvals_j_G=cell(N_j-1,1);
+            fvals_jplus1_G=cell(N_j-1,1);
+            massbin_j_G=cell(N_j-1,1);
+            if usequantiles
+                n_fvals=simoptions.transprobquantiles;
+                P_G_3d=nan(n_fvals,n_fvals,N_j-1);
+            end
+            for jj=1:N_j-1
+                w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*AgeMasses(:,jj);
+                wnext=FnsAndPTypeIndicator(ff,:)'.*ptweights.*AgeMasses(:,jj+1);
+                inpool=false(N_i,1);
+                for ii=1:N_i
+                    if w(ii)>0
+                        inpool(ii)=~isempty(CorrTransProbs_byType_uv{ii}.(fn).TransitionProbs{jj});
+                    end
+                end
+                if ~any(inpool)
+                    continue % no relevant type has mass at age jj: the cell stays empty (NaN slice under quantiles), as in the single-type command
+                end
+                % the union of the types' value bins at jj and at jj+1
+                vals_j_cell=cell(N_i,1);
+                vals_jp_cell=cell(N_i,1);
+                for ii=1:N_i
+                    if inpool(ii)
+                        vals_j_cell{ii}=gather(CorrTransProbs_byType_uv{ii}.(fn).TransitionValues_j{jj}(:));
+                        vals_jp_cell{ii}=gather(CorrTransProbs_byType_uv{ii}.(fn).TransitionValues_jplus1{jj}(:));
+                    end
+                end
+                vals_j=unique(vertcat(vals_j_cell{:}));
+                vals_jp=unique(vertcat(vals_jp_cell{:}));
+                J_G=zeros(length(vals_j),length(vals_jp)); % the pooled joint distribution (mass sum(w))
+                mass_j_G=zeros(length(vals_j),1); % pooled mass of each origin bin at age jj
+                mass_jp_G=zeros(length(vals_jp),1); % pooled mass of each value bin at age jj+1 (with the age-(jj+1) weights)
+                for ii=1:N_i
+                    if inpool(ii)
+                        [~,rowmap]=ismember(vals_j_cell{ii},vals_j);
+                        [~,colmap]=ismember(vals_jp_cell{ii},vals_jp);
+                        m_ii=gather(CorrTransProbs_byType_uv{ii}.(fn).TransitionMass_j{jj}(:));
+                        J_ii=m_ii.*gather(CorrTransProbs_byType_uv{ii}.(fn).TransitionProbs{jj}); % the type's joint, mass one
+                        J_G(rowmap,colmap)=J_G(rowmap,colmap)+w(ii)*J_ii;
+                        mass_j_G(rowmap)=mass_j_G(rowmap)+w(ii)*m_ii;
+                        mass_jp_G(colmap)=mass_jp_G(colmap)+wnext(ii)*sum(J_ii,1)';
+                    end
+                end
+                mass_j_safe=mass_j_G;
+                mass_j_safe(mass_j_G==0)=1; % an origin bin with no mass gets a row of zeros
+                P_G_cell{jj}=J_G./mass_j_safe;
+                fvals_j_G{jj}=vals_j;
+                fvals_jplus1_G{jj}=vals_jp;
+                massbin_j_G{jj}=mass_j_G/sum(w); % within-age share of the pooled population
+                if usequantiles && sum(wnext)>0
+                    cum_j=cumsum(mass_j_G)/sum(w); % vals_j is sorted
+                    idx_j=ones(length(vals_j),1);
+                    for qq=1:n_fvals-1
+                        cutoff=vals_j(find(cum_j>qq/n_fvals,1,'first'));
+                        idx_j(vals_j>cutoff)=qq+1;
+                    end
+                    cum_jp=cumsum(mass_jp_G)/sum(wnext);
+                    idx_jp=ones(length(vals_jp),1);
+                    for qq=1:n_fvals-1
+                        cutoff=vals_jp(find(cum_jp>qq/n_fvals,1,'first'));
+                        idx_jp(vals_jp>cutoff)=qq+1;
+                    end
+                    S_j=sparse(1:length(vals_j),idx_j,1,length(vals_j),n_fvals);
+                    S_jp=sparse(1:length(vals_jp),idx_jp,1,length(vals_jp),n_fvals);
+                    massq=full(S_j'*mass_j_G);
+                    massq(massq==0)=1; % a quantile bin with no mass gets a row of zeros
+                    P_G_3d(:,:,jj)=full(S_j'*J_G*S_jp)./massq;
+                end
+            end
+            if usequantiles
+                CorrTransProbs.(fn).TransitionProbs=P_G_3d;
+            else
+                CorrTransProbs.(fn).TransitionProbs=P_G_cell;
+                CorrTransProbs.(fn).TransitionValues_j=fvals_j_G;
+                CorrTransProbs.(fn).TransitionValues_jplus1=fvals_jplus1_G;
+                CorrTransProbs.(fn).TransitionMass_j=massbin_j_G;
+            end
         end
 
         %% Grouped restricted
@@ -381,6 +512,6 @@ if simoptions.groupptypesforstats==1
     end
 end
 
-CorrTransProbs.Notes='Per type: CorrTransProbs.(fn).(typename) is the output of EvalFnOnAgentDist_AutoCorrTransProbs_FHorz for that type (see its Notes). Grouped (CorrTransProbs.(fn).Mean etc.): Mean and StdDeviation at age j pool the types with weights ptweights*(mass of the type at age j); AutoCovariance and AutoCorrelation (and the _kK horizons) pool the pair populations of the types with weights ptweights*(pair mass), about the pooled pair means, so AutoCorrelation is the correlation of the pooled pair population. The same under each conditional restriction, where PairMass is the population mass of the pairs. TransitionProbs are only reported by type.';
+CorrTransProbs.Notes='Per type: CorrTransProbs.(fn).(typename) is the output of EvalFnOnAgentDist_AutoCorrTransProbs_FHorz for that type (see its Notes). Grouped (CorrTransProbs.(fn).Mean etc.): Mean and StdDeviation at age j pool the types with weights ptweights*(mass of the type at age j); AutoCovariance and AutoCorrelation (and the _kK horizons) pool the pair populations of the types with weights ptweights*(pair mass), about the pooled pair means, so AutoCorrelation is the correlation of the pooled pair population. The same under each conditional restriction, where PairMass is the population mass of the pairs. Grouped TransitionProbs (when requested) pool the joint distributions of (value at j, value at j+1) of the types with weights ptweights*(mass of the type at age j) over the union of the value bins of the types, each row divided by the pooled mass of its origin bin (TransitionValues_j, TransitionValues_jplus1 label the union bins and TransitionMass_j is their within-age share of the pooled population); with simoptions.transprobquantiles the pooled joint is coarsened to the quantile bins of the pooled age-j and age-(j+1) value distributions.';
 
 end
