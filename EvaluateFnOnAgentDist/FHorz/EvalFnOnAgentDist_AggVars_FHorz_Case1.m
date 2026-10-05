@@ -1,7 +1,11 @@
 function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+% simoptions.whichcombos (a vector of zeros/ones, one per FnsToEvaluate) selects which functions are evaluated; the Mean of a skipped
+% function is NaN. Default all ones. Intended for calibration/estimation, which only needs the targeted aggregates.
+% simoptions.lowmemory is accepted and ignored (2026-10-06: the lowmemory=1 branch, which looped over age, was removed; it had never
+% been exercised and saved only the one values block, the size of the agent distribution, that lowmemory=0 holds per function).
 
 if ~exist('simoptions','var')
-    simoptions.lowmemory=0;
+    simoptions.lowmemory=0; % accepted and ignored: the whole (a,z,j) block of values for one function is held (same size as the agent distribution), there is nothing left for a low-memory variant to cut
     % Model setup
     simoptions.gridinterplayer=0;
     simoptions.n_semiz=0;
@@ -82,115 +86,92 @@ if isfield(simoptions,'outputasstructure')
     end
 end
 
+%% simoptions.whichcombos: which FnsToEvaluate to compute (a vector of zeros/ones of length numFnsToEvaluate; skipped Means are NaN)
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(length(FnsToEvaluate),1);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ~(isvector(whichcombos) && numel(whichcombos)==length(FnsToEvaluate))
+        error(['simoptions.whichcombos must be a vector of length ',num2str(length(FnsToEvaluate)),' (number of FnsToEvaluate)'])
+    end
+    whichcombos=double(whichcombos(:));
+end
+
 %%
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 
 %%
 if N_z==0
-    if simoptions.lowmemory==0
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
-        StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
-        PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
+    StationaryDist=reshape(StationaryDist,[N_a,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
 
 
-        for ff=1:length(FnsToEvaluate)
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(ff).Names)
-                ParamCell=cell(0,1);
-            else
-                % Create a matrix containing all the return function parameters (in order).
-                % Each column will be a specific parameter with the values at every age.
-                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
+    for ff=1:length(FnsToEvaluate)
+        if whichcombos(ff)==0 % this function is not wanted
+            continue
+        end
+        % Includes check for cases in which no parameters are actually required
+        if isempty(FnsToEvaluateParamNames(ff).Names)
+            ParamCell=cell(0,1);
+        else
+            % Create a matrix containing all the return function parameters (in order).
+            % Each column will be a specific parameter with the values at every age.
+            FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-                nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
+            nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
 
-                ParamCell=cell(nFnToEvaluateParams,1);
-                for ii=1:nFnToEvaluateParams
-                    ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-1)}; % (a,j,l_d+l_a), so we want j to be after N_a
-                end
+            ParamCell=cell(nFnToEvaluateParams,1);
+            for ii=1:nFnToEvaluateParams
+                ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-1)}; % (a,j,l_d+l_a), so we want j to be after N_a
             end
-
-            Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},ParamCell,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
-            AggVars(ff)=sum(sum(sum(Values.*StationaryDist)));
         end
 
-    elseif simoptions.lowmemory==1 % Loop over age j
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
-
-        StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
-
-        for ii=1:length(FnsToEvaluate)
-            Values=nan(N_a,N_j,'gpuArray');
-            for jj=1:N_j
-
-                % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
-                    FnToEvaluateParamsVec=[];
-                else
-                    FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-                end
-                Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
-            end
-            AggVars(ii)=sum(sum(Values.*StationaryDist));
-        end
+        Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},ParamCell,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
+        AggVars(ff)=sum(sum(sum(Values.*StationaryDist)));
     end
+
 
 else % N_z
 
-    if simoptions.lowmemory==0
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
-        StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
-        PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
+    StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
 
-        for ff=1:length(FnsToEvaluate)
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(ff).Names)
-                ParamCell=cell(0,1);
-            else
-                % Create a matrix containing all the return function parameters (in order).
-                % Each column will be a specific parameter with the values at every age.
-                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
+    for ff=1:length(FnsToEvaluate)
+        if whichcombos(ff)==0 % this function is not wanted
+            continue
+        end
+        % Includes check for cases in which no parameters are actually required
+        if isempty(FnsToEvaluateParamNames(ff).Names)
+            ParamCell=cell(0,1);
+        else
+            % Create a matrix containing all the return function parameters (in order).
+            % Each column will be a specific parameter with the values at every age.
+            FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-                nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
+            nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
 
-                ParamCell=cell(nFnToEvaluateParams,1);
-                for ii=1:nFnToEvaluateParams
-                    ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-2)}; % (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
-                end
+            ParamCell=cell(nFnToEvaluateParams,1);
+            for ii=1:nFnToEvaluateParams
+                ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-2)}; % (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
             end
-
-            Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},ParamCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
-            AggVars(ff)=sum(sum(sum(Values.*StationaryDist)));
         end
 
-    elseif simoptions.lowmemory==1 % Loop over age j
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
-
-        StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
-
-        for ii=1:length(FnsToEvaluate)
-            Values=nan(N_a*N_z,N_j,'gpuArray');
-            for jj=1:N_j
-                % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
-                    FnToEvaluateParamsVec=[];
-                else
-                    FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-                end
-
-                Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
-            end
-            AggVars(ii)=sum(sum(Values.*StationaryDist));
-        end
+        Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},ParamCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
+        AggVars(ff)=sum(sum(sum(Values.*StationaryDist)));
     end
+
 end
+AggVars(whichcombos==0)=NaN; % the functions that whichcombos skipped
 
 
 

@@ -92,7 +92,8 @@ end
 
 %% simoptions.whichcombos: which functions, pairs and age groups to compute
 % [numFnsToEvaluate, numFnsToEvaluate, ngroups] of zeros/ones. In each age group the diagonal (ff,ff) selects the grouped Mean and
-% StdDeviation of function ff and the off-diagonal (ff1,ff2) selects the covariance and correlation of the pair; only the upper
+% StdDeviation of function ff and the off-diagonal (ff1,ff2) selects the covariance and correlation of the pair (the own stats of every
+% function evaluated in an age group are reported, as byproducts of the pairs, so the diagonal matters only for a function with no selected pair there); only the upper
 % triangle (ff1<=ff2) is read, so a symmetric matrix or just its upper triangle can be given. A [numFnsToEvaluate, numFnsToEvaluate]
 % input is applied to every age group. A function with nothing selected (its diagonal and all its pairs zero in every age group) is
 % not evaluated at all; a selected pair has both its functions evaluated. Skipped entries are NaN: in the grouped output, and in the
@@ -200,6 +201,8 @@ for ii=1:N_i
     end
 
     %% Compute for this type
+    idx_ii=find(FnsAndPTypeIndicator_ii==1); % the functions this type evaluates, in their order
+    simoptions_temp.whichcombos=whichcombos(idx_ii,idx_ii,:); % the per-type command applies the selection itself (the NaN-ing below then finds nothing left to do)
     AgeConditionalCrossSectionCorr_ii=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
 
     % Store by type
@@ -247,8 +250,9 @@ if simoptions.groupptypesforstats==1
         AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).Mean=nan(1,ngroups);
         AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).StdDeviation=nan(1,ngroups);
         AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=ones(1,ngroups);
-        if fnwanted(ff)==0 % a function whichcombos does not evaluate: its self-correlation is NaN too (the age-group loop below never reaches it)
-            AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=nan(1,ngroups);
+        notevaluated_ff=~reshape(any(whichcombos(ff,:,:),2),[1,ngroups]); % the age groups in which whichcombos does not evaluate this function: its self-correlation is NaN there (the age-group loop below skips them)
+        if any(notevaluated_ff)
+            AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})(notevaluated_ff)=NaN;
         end
         for ff2=1:numFnsToEvaluate
             if ff2~=ff
@@ -263,19 +267,15 @@ if simoptions.groupptypesforstats==1
         MeanG=nan(numFnsToEvaluate,1);
         for ff=1:numFnsToEvaluate
             w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*GroupMasses(:,kk);
-            if sum(w)>0
+            if any(whichcombos(ff,:,kk)) && sum(w)>0 % the function is evaluated in this age group and has a pool (otherwise everything stays NaN)
                 p=w/sum(w);
                 relevant=(w>0);
                 MeanG(ff)=sum(p(relevant).*MeanVec(ff,relevant,kk)');
                 StdDevG=sqrt(sum(p(relevant).*(StdDevVec(ff,relevant,kk)'.^2+(MeanVec(ff,relevant,kk)'-MeanG(ff)).^2)));
-                if whichcombos(ff,ff,kk)==1 % the grouped Mean/StdDeviation of this function in this age group are wanted (MeanG/StdDevG are computed regardless as the pairs need them)
                 AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).Mean(kk)=MeanG(ff);
                 AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).StdDeviation(kk)=StdDevG;
                 AgeConditionalCrossSectionCorr.CovarianceMatrix(ff,ff,kk)=StdDevG^2;
                 AgeConditionalCrossSectionCorr.CorrelationMatrix(ff,ff,kk)=1;
-                else
-                    AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})(kk)=NaN;
-                end
             end
         end
 

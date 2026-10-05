@@ -1,4 +1,6 @@
 function AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+% simoptions.whichcombos ([numFnsToEvaluate, 1+number of conditional restrictions]) selects which (fn, restriction) combinations are
+% computed, and simoptions.whichstats may be given per combination ([numFnsToEvaluate, 1+number of restrictions, 7]); see below.
 
 if ~exist('simoptions','var')
     simoptions.nquantiles=20; % by default gives ventiles
@@ -116,7 +118,7 @@ if isfield(simoptions,'conditionalrestrictions')
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
 
     restrictedsamplemass=nan(length(CondlRestnFnNames),1);
-    RestrictionStruct=struct();
+    RestrictionMask=cell(length(CondlRestnFnNames),1); % each restriction kept as a logical mask over the grid (1 byte per point); the restricted weights are formed from it where used
 
     % For each conditional restriction, create a 'restricted stationary distribution'
     for rr=1:length(CondlRestnFnNames)
@@ -138,12 +140,10 @@ if isfield(simoptions,'conditionalrestrictions')
             RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J));
         end
 
-        RestrictedStationaryDistVec=StationaryDist;
-        RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
 
-        % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
-        restrictedsamplemass(rr)=sum(RestrictedStationaryDistVec(:));
-        RestrictionStruct(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass(rr);
+        % Keep the restricted mass, and the mask
+        restrictedsamplemass(rr)=sum(StationaryDist(:).*RestrictionValues(:)); % mass that satisfies the restriction
+        RestrictionMask{rr}=RestrictionValues;
 
         if restrictedsamplemass(rr)==0
             warning('One of the conditional restrictions evaluates to a zero mass')
@@ -156,6 +156,46 @@ if isfield(simoptions,'conditionalrestrictions')
     end
 end
 
+%% simoptions.whichcombos and per-combination simoptions.whichstats
+% whichcombos: [numFnsToEvaluate, 1+number of conditional restrictions] of zeros/ones ([numFnsToEvaluate,1] without restrictions):
+% page 1 is the unrestricted stats, pages 2:end the restrictions in the fieldnames order of simoptions.conditionalrestrictions. Ones
+% are computed, zeros skipped (their output fields are simply absent; RestrictedSampleMass is always filled). Default all ones. A
+% vector of length numFnsToEvaluate with restrictions is applied to every page. Intended for calibration/estimation.
+% whichstats: the usual 1x7 vector, or [numFnsToEvaluate, 1+number of restrictions, 7] giving a whichstats vector for every
+% combination ([numFnsToEvaluate,7] is applied to every page). A combination asking for no statistic is skipped like a whichcombos zero.
+numFnsToEvaluate=length(FnsToEvaluate);
+if useCondlRest==1
+    nwhichpages=1+length(CondlRestnFnNames);
+else
+    nwhichpages=1;
+end
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,nwhichpages);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if isvector(whichcombos) && numel(whichcombos)==numFnsToEvaluate
+        whichcombos=repmat(whichcombos(:),[1,nwhichpages]); % one entry per function: apply to every page
+    end
+    if ~isequal(size(whichcombos),[numFnsToEvaluate,nwhichpages])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(nwhichpages),'] (number of FnsToEvaluate, 1+number of conditional restrictions)'])
+    end
+    whichcombos=double(whichcombos);
+end
+wsG=simoptions.whichstats;
+if isvector(wsG) && numel(wsG)==7
+    whichstatsG=repmat(reshape(wsG,[1,1,7]),[numFnsToEvaluate,nwhichpages,1]);
+elseif ismatrix(wsG) && isequal(size(wsG),[numFnsToEvaluate,7])
+    whichstatsG=repmat(reshape(wsG,[numFnsToEvaluate,1,7]),[1,nwhichpages,1]);
+elseif isequal(size(wsG,1:3),[numFnsToEvaluate,nwhichpages,7])
+    whichstatsG=wsG;
+else
+    error(['simoptions.whichstats must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(nwhichpages),',7] (number of FnsToEvaluate, 1+number of conditional restrictions, 7), or [',num2str(numFnsToEvaluate),',7]'])
+end
+whichcombos=whichcombos.*any(whichstatsG,3); % a combination with no statistic requested is skipped altogether
+
 
 %%
 if N_z==0
@@ -164,29 +204,37 @@ if N_z==0
     % PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
 
     for ff=1:length(FnsToEvaluate)
+        if ~any(whichcombos(ff,:)) % no combination of this function is wanted
+            continue
+        end
         CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,N_j,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
         Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
-        if useCondlRest==0
-            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-        else
+        if useCondlRest==1
             % The conditional restrictions only change the weights, so sort Values once and reuse the sort for the unrestricted stats and for every restriction
             % (only the points with positive mass are sorted; every restricted distribution is zero outside these)
             positivemass=(StationaryDist(:)>0);
             [SortedValues,SortedValues_index]=sort(Values(positivemass));
             SortedStationaryDist=StationaryDist(positivemass);
             SortedStationaryDist=SortedStationaryDist(SortedValues_index);
-            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,SortedStationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+        end
+        if whichcombos(ff,1)==1 % the unrestricted stats of this function are wanted
+            ws1=reshape(whichstatsG(ff,1,:),[1,7]);
+            if useCondlRest==0
+                AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,ws1);
+            else
+                AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,SortedStationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1);
+            end
         end
 
         %% If there are any conditional restrictions then deal with these
         % Evaluate AllStats, but conditional on the restriction being one.
         if useCondlRest==1
             % Evaluate the conditional restrictions:
-            % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
+            % Only change is to use the restricted distribution (the mask times the agent distribution, normalised) as the agent distribution
             for rr=1:length(CondlRestnFnNames)
-                if restrictedsamplemass(rr)>0
-                    RestrictedStationaryDist=RestrictionStruct(rr).RestrictedStationaryDistVec(positivemass);
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,RestrictedStationaryDist(SortedValues_index),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats);
+                if whichcombos(ff,1+rr)==1 && restrictedsamplemass(rr)>0 % this restriction is wanted for this function and has mass
+                    RestrictedStationaryDist=StationaryDist(positivemass).*RestrictionMask{rr}(positivemass)/restrictedsamplemass(rr); % the restricted mass on the points with mass, normalised to one
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,RestrictedStationaryDist(SortedValues_index),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,reshape(whichstatsG(ff,1+rr,:),[1,7]));
                 end
             end
         end
@@ -197,30 +245,38 @@ else % N_z
     % PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
 
     for ff=1:length(FnsToEvaluate)
+        if ~any(whichcombos(ff,:)) % no combination of this function is wanted
+            continue
+        end
         % Values=nan(N_a,N_z,N_j,'gpuArray');
         CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,N_j,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
         Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
-        if useCondlRest==0
-            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-        else
+        if useCondlRest==1
             % The conditional restrictions only change the weights, so sort Values once and reuse the sort for the unrestricted stats and for every restriction
             % (only the points with positive mass are sorted; every restricted distribution is zero outside these)
             positivemass=(StationaryDist(:)>0);
             [SortedValues,SortedValues_index]=sort(Values(positivemass));
             SortedStationaryDist=StationaryDist(positivemass);
             SortedStationaryDist=SortedStationaryDist(SortedValues_index);
-            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,SortedStationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+        end
+        if whichcombos(ff,1)==1 % the unrestricted stats of this function are wanted
+            ws1=reshape(whichstatsG(ff,1,:),[1,7]);
+            if useCondlRest==0
+                AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,ws1);
+            else
+                AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,SortedStationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1);
+            end
         end
 
         %% If there are any conditional restrictions then deal with these
         % Evaluate AllStats, but conditional on the restriction being one.
         if useCondlRest==1
             % Evaluate the conditional restrictions:
-            % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
+            % Only change is to use the restricted distribution (the mask times the agent distribution, normalised) as the agent distribution
             for rr=1:length(CondlRestnFnNames)
-                if restrictedsamplemass(rr)>0
-                    RestrictedStationaryDist=RestrictionStruct(rr).RestrictedStationaryDistVec(positivemass);
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,RestrictedStationaryDist(SortedValues_index),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats);
+                if whichcombos(ff,1+rr)==1 && restrictedsamplemass(rr)>0 % this restriction is wanted for this function and has mass
+                    RestrictedStationaryDist=StationaryDist(positivemass).*RestrictionMask{rr}(positivemass)/restrictedsamplemass(rr); % the restricted mass on the points with mass, normalised to one
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(SortedValues,RestrictedStationaryDist(SortedValues_index),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,reshape(whichstatsG(ff,1+rr,:),[1,7]));
                 end
             end
         end

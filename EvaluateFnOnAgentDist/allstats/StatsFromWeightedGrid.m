@@ -151,7 +151,7 @@ if allsamevalue
     elseif whichstats(4)==3
         AllStats.Gini=0;
     end
-    if whichstats(5)==1
+    if whichstats(5)==1 || whichstats(6)>=1 % as in the general case below: the min and max are reported whenever the quantile cutoffs are (they are its end points)
         AllStats.Maximum=SortedValues(1);
         AllStats.Minimum=SortedValues(1);
     end

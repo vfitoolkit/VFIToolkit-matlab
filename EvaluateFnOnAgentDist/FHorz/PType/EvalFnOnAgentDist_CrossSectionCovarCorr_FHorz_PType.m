@@ -164,6 +164,8 @@ for ii=1:N_i
     end
 
     %% Compute for this type
+    idx_ii=find(FnsAndPTypeIndicator_ii==1); % the functions this type evaluates, in their order
+    simoptions_temp.whichcombos=whichcombos(idx_ii,idx_ii); % the per-type command applies the selection itself (the NaN-ing below then finds nothing left to do)
     CrossSectionCorr_ii=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
 
     % Store by type
@@ -216,16 +218,16 @@ if simoptions.groupptypesforstats==1
             MeanG(ff)=sum(p(relevant).*MeanVec(ff,relevant)');
             StdDevG(ff)=sqrt(sum(p(relevant).*(StdDevVec(ff,relevant)'.^2+(MeanVec(ff,relevant)'-MeanG(ff)).^2)));
         end
-        if whichcombos(ff,ff)==1 % the grouped Mean/StdDeviation of this function are wanted (MeanG/StdDevG are computed regardless as the pairs need them)
         CrossSectionCorr.(FnsToEvalNames{ff}).Mean=MeanG(ff);
         CrossSectionCorr.(FnsToEvalNames{ff}).StdDeviation=StdDevG(ff);
         CrossSectionCorr.CovarianceMatrix(ff,ff)=StdDevG(ff)^2;
-        CrossSectionCorr.CorrelationMatrix(ff,ff)=1;
-        CrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=1;
+        if sum(w)>0 % evaluated (an unevaluated function keeps NaN on the diagonal)
+            CrossSectionCorr.CorrelationMatrix(ff,ff)=1;
+        end
+        if fnwanted(ff)==1
+            CrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=1;
         else
-            CrossSectionCorr.(FnsToEvalNames{ff}).Mean=NaN;
-            CrossSectionCorr.(FnsToEvalNames{ff}).StdDeviation=NaN;
-            CrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=NaN;
+            CrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=NaN; % not evaluated
         end
     end
 

@@ -156,6 +156,9 @@ for ii=1:N_i
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, ~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate_sel,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
 
     simoptions_temp.outputasstructure=0;
+    if isfield(simoptions_temp,'whichcombos') % the selection was applied above (FnsToEvaluate_sel); the per-type command gets everything it is given
+        simoptions_temp=rmfield(simoptions_temp,'whichcombos');
+    end
     AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
     AggVarsFull(selidx(logical(FnsAndPTypeIndicator_ii)),ii)=AggVars_ii; % selidx maps the selected functions back to their place in FnsToEvaluate
 end

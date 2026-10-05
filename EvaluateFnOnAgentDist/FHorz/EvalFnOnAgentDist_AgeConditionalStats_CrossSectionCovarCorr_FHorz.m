@@ -8,6 +8,9 @@ function AgeConditionalCrossSectionCorr=EvalFnOnAgentDist_AgeConditionalStats_Cr
 %
 % simoptions.agegroupings can be used to do conditional on 'age bins' rather than age
 % e.g., simoptions.agegroupings=1:10:N_j will divide into 10 year age bins.
+%
+% simoptions.whichcombos ([numFnsToEvaluate, numFnsToEvaluate, number of age groups] of zeros/ones: in each age group the diagonal selects
+% a function's Mean/StdDeviation, the off-diagonal a pair; only the upper triangle is read) selects what is computed; see below.
 
 
 %%
@@ -90,6 +93,32 @@ else
 end
 numFnsToEvaluate=length(FnsToEvaluate);
 
+%% simoptions.whichcombos: which functions, pairs and age groups to compute
+% [numFnsToEvaluate, numFnsToEvaluate, ngroups] of zeros/ones. In each age group the diagonal (ff,ff) selects the Mean and StdDeviation
+% of function ff (and its variance on the CovarianceMatrix diagonal) and the off-diagonal (ff1,ff2) selects the covariance and
+% correlation of the pair; only the upper triangle (ff1<=ff2) is read. A [numFnsToEvaluate, numFnsToEvaluate] input is applied to every
+% age group. In an age group a function with nothing selected is not evaluated; a selected pair has both its functions evaluated, and the
+% own stats (Mean, StdDeviation, variance, self-correlation) of every evaluated function are reported, as they are byproducts of the pairs
+% (so the diagonal matters only for a function with no selected pair in that age group). Skipped pairs are NaN. Default all ones.
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate,ngroups);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ismatrix(whichcombos) && isequal(size(whichcombos),[numFnsToEvaluate,numFnsToEvaluate])
+        whichcombos=repmat(whichcombos,[1,1,ngroups]); % one matrix: apply to every age group
+    end
+    if ~isequal(size(whichcombos,1:3),[numFnsToEvaluate,numFnsToEvaluate,ngroups])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(numFnsToEvaluate),',',num2str(ngroups),'] (number of FnsToEvaluate, twice, number of age groups)'])
+    end
+    whichcombos=double(whichcombos);
+    for kk=1:ngroups
+        whichcombos(:,:,kk)=max(triu(whichcombos(:,:,kk)),triu(whichcombos(:,:,kk))'); % symmetric, from the upper triangle
+    end
+end
+
 %% Setup PolicyValues (trailing j axis so we can slice per age) and reshape StationaryDist
 if N_z==0
     StationaryDist=reshape(StationaryDist,[N_a,N_j]);
@@ -149,6 +178,9 @@ for kk=1:ngroups
     ValuesCell=cell(numFnsToEvaluate,1);
     if N_z==0
         for ff=1:numFnsToEvaluate
+            if ~any(whichcombos(ff,:,kk)) % nothing involving this function is wanted in this age group
+                continue
+            end
             Values=nan(N_a,jspan,'gpuArray');
             for jj=j1:jend
                 FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
@@ -158,6 +190,9 @@ for kk=1:ngroups
         end
     else
         for ff=1:numFnsToEvaluate
+            if ~any(whichcombos(ff,:,kk)) % nothing involving this function is wanted in this age group
+                continue
+            end
             Values=nan(N_a,N_z,jspan,'gpuArray');
             for jj=j1:jend
                 FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
@@ -171,6 +206,10 @@ for kk=1:ngroups
     Means_kk=zeros(numFnsToEvaluate,1,'gpuArray');
     StdDevs_kk=zeros(numFnsToEvaluate,1,'gpuArray');
     for ff=1:numFnsToEvaluate
+        if ~any(whichcombos(ff,:,kk)) % nothing involving this function is wanted in this age group (its ValuesCell entry is empty): its own stats stay NaN, including the self-correlation
+            AgeConditionalCrossSectionCorr.(AggVarNames{ff}).(AggVarNames{ff})(kk)=NaN;
+            continue
+        end
         Means_kk(ff)=sum(ValuesCell{ff}.*StationaryDistVec_kk);
         StdDevs_kk(ff)=sqrt(sum(StationaryDistVec_kk.*((ValuesCell{ff}-Means_kk(ff).*ones(N_total_kk,1,'gpuArray')).^2)));
 
@@ -181,10 +220,12 @@ for kk=1:ngroups
     %% Step 3: upper-triangular covariance/correlation
     for ff1=1:numFnsToEvaluate
         for ff2=ff1:numFnsToEvaluate
-            if ff1==ff2
-                AgeConditionalCrossSectionCorr.CovarianceMatrix(ff1,ff2,kk)=StdDevs_kk(ff1)^2;
-                AgeConditionalCrossSectionCorr.CorrelationMatrix(ff1,ff2,kk)=1;
-            else
+            if ff1==ff2 % the own stats of a function evaluated in this age group are byproducts of the pairs and are reported regardless of the diagonal
+                if any(whichcombos(ff1,:,kk)) % (a function not evaluated in this age group keeps NaN on the diagonal)
+                    AgeConditionalCrossSectionCorr.CovarianceMatrix(ff1,ff2,kk)=StdDevs_kk(ff1)^2;
+                    AgeConditionalCrossSectionCorr.CorrelationMatrix(ff1,ff2,kk)=1;
+                end
+            elseif whichcombos(ff1,ff2,kk)==1 % the pair is wanted in this age group (else it stays NaN)
                 CoVar=sum((ValuesCell{ff1}-Means_kk(ff1)*ones(N_total_kk,1,'gpuArray')).*(ValuesCell{ff2}-Means_kk(ff2)*ones(N_total_kk,1,'gpuArray')).*StationaryDistVec_kk);
                 Corr=CoVar/(StdDevs_kk(ff1)*StdDevs_kk(ff2));
 

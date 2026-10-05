@@ -1,6 +1,6 @@
 function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid, pi_z, simoptions)
 % simoptions.whichcombos ([numFnsToEvaluate, N_j, 1+number of conditional restrictions]) selects which (fn, restriction) combinations
-% are computed; the age dimension (start age of the autocovariances) is validated but not yet acted on; see below.
+% are computed; the second dimension is the start age; see below.
 % Auto-covariances/-correlations (and transition probabilities) with permanent types.
 % Calls EvalFnOnAgentDist_AutoCorrTransProbs_FHorz() for each permanent type, and reports
 % the results by type and (by default) grouped over the types.
@@ -108,10 +108,11 @@ end
 %% simoptions.whichcombos: which (fn, start age, restriction) combinations to compute
 % [numFnsToEvaluate, N_j, 1+number of conditional restrictions] of zeros/ones: page 1 is the unrestricted outputs, pages 2:end the
 % restrictions in the fieldnames order of simoptions.conditionalrestrictions; the second dimension is the start age of the
-% autocovariances. At this (PType wrapper) level only the function and the page act: a function with nothing selected is not
+% autocovariances. At this (PType wrapper) level the function and the page act directly: a function with nothing selected is not
 % evaluated for any type, and a (fn, page) with nothing selected at any age has no per-type and no grouped output (RestrictedSampleMass
-% is always filled). The age dimension is validated but not yet acted on (the per-type command computes every start age at once;
-% it will take whichcombos itself later), so the shape is already the final one. A [numFnsToEvaluate, 1+number of restrictions] or
+% is always filled). The start-age dimension is passed to the per-type command, which acts on it (a one at (ff,j,page) asks for the
+% age-j Mean/StdDeviation and the auto-covariances and pair outputs starting at age j); the grouped outputs pool the types' per-age
+% outputs, so a skipped start age is NaN in them too. A [numFnsToEvaluate, 1+number of restrictions] or
 % [numFnsToEvaluate, N_j] input is expanded over the missing dimension. Default all ones. Intended for calibration/estimation.
 if useCondlRest==1
     nwhichpages=1+length(CondlRestnFnNames);
@@ -244,6 +245,7 @@ for ii=1:N_i
     end
 
     %% Compute for this type
+    simoptions_temp.whichcombos=whichcombos(FnsAndPTypeIndicator_ii==1,:,:); % the selection for the functions this type evaluates, in their order (the per-type command acts on the start-age dimension)
     CorrTransProbs_ii=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_temp);
     CorrTransProbs_byType{ii}=CorrTransProbs_ii;
     if simoptions.groupptypesforstats==1 && usequantiles && ~isempty(transprobnames)
@@ -251,6 +253,7 @@ for ii=1:N_i
         % pooled population are a coarsening of its value bins; the types' own quantile bins are not), so get those too, for
         % the requested functions only and without the horizons and restrictions
         simoptions_temp_uv=simoptions_temp;
+        simoptions_temp_uv=rmfield(simoptions_temp_uv,'whichcombos'); % the grouped TransitionProbs pool every age
         simoptions_temp_uv.transprobquantiles=[];
         simoptions_temp_uv.timehorizons=[];
         if isfield(simoptions_temp_uv,'conditionalrestrictions')

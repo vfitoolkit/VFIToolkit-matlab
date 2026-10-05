@@ -5,6 +5,9 @@ function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz(Stationa
 % Since they are calculated anyway as intermediate steps,
 % Also reports the Mean and Standard Deviation of every function
 % And the Covariance of every pair of functions.
+%
+% simoptions.whichcombos ([numFnsToEvaluate, numFnsToEvaluate] of zeros/ones: the diagonal selects a function's Mean/StdDeviation, the
+% off-diagonal a pair's covariance/correlation; only the upper triangle is read) selects what is computed; see below.
 
 
 %%
@@ -76,6 +79,28 @@ else
     FnsToEvaluateStruct=0;
 end
 
+%% simoptions.whichcombos: which functions and pairs to compute
+% [numFnsToEvaluate, numFnsToEvaluate] of zeros/ones. The diagonal (ff,ff) selects the Mean and StdDeviation of function ff (and its
+% variance on the CovarianceMatrix diagonal); the off-diagonal (ff1,ff2) selects the covariance and correlation of the pair. Only the
+% upper triangle (ff1<=ff2) is read, so a symmetric matrix or just its upper triangle can be given. A function with nothing selected
+% (its diagonal and all its pairs zero) is not evaluated; a selected pair has both its functions evaluated (their means and std devs
+% are needed for the pair, and are then also reported only if the diagonal asks). Skipped entries are NaN. Default all ones.
+numFnsToEvaluate=length(FnsToEvaluate);
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ~isequal(size(whichcombos),[numFnsToEvaluate,numFnsToEvaluate])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(numFnsToEvaluate),'] (number of FnsToEvaluate, twice)'])
+    end
+    whichcombos=double(triu(whichcombos));
+    whichcombos=max(whichcombos,whichcombos'); % symmetric, from the upper triangle
+end
+fnwanted=any(whichcombos,2); % the functions that get evaluated (their own stats or any pair)
+
 %% Setup PolicyValues and reshape StationaryDist
 if N_z==0
     StationaryDistVec=reshape(StationaryDist,[N_a*N_j,1]);
@@ -91,11 +116,14 @@ N_total=length(StationaryDistVec);
 CrossSectionCorr=struct();
 
 % Report output by name, but also create the covariance matrix and the correlation matrix
-CrossSectionCorr.CovarianceMatrix=zeros(length(FnsToEvaluate),length(FnsToEvaluate));
-CrossSectionCorr.CorrelationMatrix=zeros(length(FnsToEvaluate),length(FnsToEvaluate));
+CrossSectionCorr.CovarianceMatrix=nan(length(FnsToEvaluate),length(FnsToEvaluate));
+CrossSectionCorr.CorrelationMatrix=nan(length(FnsToEvaluate),length(FnsToEvaluate));
 
 %% Calculate all the cross-sectional correlations, note that this creates the 'upper triangular' part
 for ff1=1:length(FnsToEvaluate)
+    if ~fnwanted(ff1) % nothing involving this function is wanted
+        continue
+    end
     % Includes check for cases in which no parameters are actually required
     if isempty(FnsToEvaluateParamNames(ff1).Names)
         ParamCell1=cell(0,1);
@@ -123,13 +151,13 @@ for ff1=1:length(FnsToEvaluate)
     CrossSectionCorr.(AggVarNames{ff1}).StdDeviation=StdDev1;
 
     for ff2=ff1:length(FnsToEvaluate)
-        if ff1==ff2
+        if ff1==ff2 % the own stats of an evaluated function are byproducts of the pairs and are reported regardless of the diagonal
             CrossSectionCorr.(AggVarNames{ff1}).(AggVarNames{ff2})=1;
 
             % and matrix version
             CrossSectionCorr.CovarianceMatrix(ff1,ff2)=StdDev1^2;
             CrossSectionCorr.CorrelationMatrix(ff1,ff2)=1;
-        else
+        elseif whichcombos(ff1,ff2)==1 % the pair is wanted
             if isempty(FnsToEvaluateParamNames(ff2).Names)
                 ParamCell2=cell(0,1);
             else
@@ -162,6 +190,9 @@ for ff1=1:length(FnsToEvaluate)
             % and matrix version
             CrossSectionCorr.CovarianceMatrix(ff1,ff2)=CoVar;
             CrossSectionCorr.CorrelationMatrix(ff1,ff2)=Corr;
+        elseif fnwanted(ff2) % the pair is not wanted but both functions are evaluated: NaN (the matrices stay NaN); with a partner that is not evaluated there is no field, as in the mirror below
+            CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=NaN;
+            CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=NaN;
         end
     end
 end
@@ -170,6 +201,9 @@ end
 %% Just to make them easier to find, fill in the 'lower triangular' part
 for ff1=1:length(FnsToEvaluate)
     for ff2=1:ff1-1
+        if ~(fnwanted(ff1) && fnwanted(ff2)) % a pair with a function that was not evaluated has no fields to mirror
+            continue
+        end
         CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CovarianceWith.(AggVarNames{ff1});
         CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CorrelationWith.(AggVarNames{ff1});
 

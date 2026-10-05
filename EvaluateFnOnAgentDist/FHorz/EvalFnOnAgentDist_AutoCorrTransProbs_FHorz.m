@@ -50,6 +50,9 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 %
 % Not yet implemented (will error):
 %   simoptions.agegroupings non-default  -- error
+%
+% simoptions.whichcombos ([numFnsToEvaluate, N_j, 1+number of conditional restrictions] of zeros/ones) selects which (fn, start age,
+% restriction) combinations are computed; see the whichcombos section below.
 
 %%
 if ~exist('simoptions','var')
@@ -272,7 +275,7 @@ useCondlRest=0;
 if isfield(simoptions,'conditionalrestrictions')
     useCondlRest=1;
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
-    RestrictionValues=zeros(N_a*N_semizze_reshape,N_j,length(CondlRestnFnNames),'gpuArray');
+    RestrictionValues=false(N_a*N_semizze_reshape,N_j,length(CondlRestnFnNames),'gpuArray'); % logical masks (1 byte per point); every use multiplies them into a double measure
     for rr=1:length(CondlRestnFnNames)
         CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
         temp=getAnonymousFnInputNames(CondlRestnFn);
@@ -300,6 +303,40 @@ if isfield(simoptions,'conditionalrestrictions')
             fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
         end
     end
+end
+
+%% simoptions.whichcombos: which (fn, start age, restriction) combinations to compute
+% [numFnsToEvaluate, N_j, 1+number of conditional restrictions] of zeros/ones: page 1 is the unrestricted outputs, pages 2:end the
+% restrictions in the fieldnames order of simoptions.conditionalrestrictions; the second dimension is the start age j. A one at
+% (ff,j,page) asks for the outputs that START at age j: the auto-covariances/-correlations (every horizon), the
+% pair outputs starting at age j (restricted pages), and the transition from age j to j+1 (TransitionProbs, unrestricted page). The
+% age-j Mean and StdDeviation are computed at every age regardless (the horizon outputs starting at j need the means at j+k) and so are
+% reported at every age: whichcombos controls what is computed, and what is computed as a byproduct is reported.
+% Skipped entries stay NaN (an empty cell for TransitionProbs); a (fn, page) with nothing selected has no output fields at all; a
+% function with nothing selected on any page is not evaluated. RestrictedSampleMass is always filled. Default all ones. A
+% [numFnsToEvaluate, 1+number of restrictions] or [numFnsToEvaluate, N_j] input is expanded over the missing dimension.
+if useCondlRest==1
+    nwhichpages=1+length(CondlRestnFnNames);
+else
+    nwhichpages=1;
+end
+numFnsToEvaluate=length(FnsToEvalNames);
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,N_j,nwhichpages);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ismatrix(whichcombos) && isequal(size(whichcombos),[numFnsToEvaluate,nwhichpages]) && nwhichpages~=N_j
+        whichcombos=repmat(reshape(whichcombos,[numFnsToEvaluate,1,nwhichpages]),[1,N_j,1]); % (fn, page): apply to every start age
+    elseif ismatrix(whichcombos) && isequal(size(whichcombos),[numFnsToEvaluate,N_j])
+        whichcombos=repmat(whichcombos,[1,1,nwhichpages]); % (fn, start age): apply to every page
+    end
+    if ~isequal(size(whichcombos,1:3),[numFnsToEvaluate,N_j,nwhichpages])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(N_j),',',num2str(nwhichpages),'] (number of FnsToEvaluate, N_j, 1+number of conditional restrictions)'])
+    end
+    whichcombos=double(whichcombos);
 end
 
 
@@ -415,6 +452,10 @@ end
 %% Per-function computation
 for ff=1:length(FnsToEvalNames)
     fn=FnsToEvalNames{ff};
+    if ~any(whichcombos(ff,:,:),'all') % no combination of this function is wanted
+        continue
+    end
+    selU=reshape(whichcombos(ff,:,1)==1,[1,N_j]); % the start ages wanted for the unrestricted outputs of this function
 
     % (i) Per-age Values, shape (N_a*N_semizze, N_j)
     Values=nan(N_a*N_semizze_reshape,N_j,'gpuArray');
@@ -454,6 +495,9 @@ for ff=1:length(FnsToEvalNames)
         AutoCorr{hh}=nan(1,N_j-horizons(hh),'gpuArray');
     end
     for jj=1:N_j-1
+        if ~selU(jj) % this start age is not wanted
+            continue
+        end
         massj=sum(StationaryDist(:,jj));
         if massj>0
             distj=StationaryDist(:,jj)./massj;
@@ -482,12 +526,14 @@ for ff=1:length(FnsToEvalNames)
         end
     end
 
-    CorrTransProbs.(fn).Mean=MeanV;
+    if any(selU) % the unrestricted outputs of this function are wanted (the horizon outputs at the selected start ages; the rest stay NaN)
+    CorrTransProbs.(fn).Mean=MeanV; % reported at every age: computed anyway (the horizon outputs starting at j need the means at j+k)
     CorrTransProbs.(fn).StdDeviation=StdDevV;
     for hh=1:nhorizons
         CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])=AutoCov{hh};
         CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorr{hh};
     end
+    end % any(selU)
 
     %% (iii-b) Conditional restrictions: means/std devs at each age over those satisfying the restriction, and the
     % auto-covariance over the pairs that satisfy it at both ages. Three signed measures over the age-jj states are
@@ -498,6 +544,10 @@ for ff=1:length(FnsToEvalNames)
     % mean rather than on the (not yet known) pair mean is exact.]
     if useCondlRest==1
         for rr=1:length(CondlRestnFnNames)
+            if ~any(whichcombos(ff,:,1+rr)) % this restriction is not wanted for this function
+                continue
+            end
+            selR=reshape(whichcombos(ff,:,1+rr)==1,[1,N_j]); % the start ages wanted for this (function, restriction)
             MeanR=nan(1,N_j,'gpuArray');
             StdDevR=nan(1,N_j,'gpuArray');
             for jj=1:N_j
@@ -527,6 +577,9 @@ for ff=1:length(FnsToEvalNames)
             end
             RestrictionValues_cpu=gather(RestrictionValues(:,:,rr));
             for jj=1:N_j-1
+                if ~selR(jj) % this start age is not wanted
+                    continue
+                end
                 mr=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
                 if sum(mr)==0 && sum(StationaryDist(:,jj))>0
                     for hh=1:nhorizons
@@ -576,7 +629,7 @@ for ff=1:length(FnsToEvalNames)
                     end
                 end
             end
-            CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean=MeanR;
+            CorrTransProbs.(CondlRestnFnNames{rr}).(fn).Mean=MeanR; % reported at every age (computed anyway)
             CorrTransProbs.(CondlRestnFnNames{rr}).(fn).StdDeviation=StdDevR;
             for hh=1:nhorizons
                 CorrTransProbs.(CondlRestnFnNames{rr}).(fn).(['AutoCovariance',horizonstr{hh}])=AutoCovR{hh};
@@ -593,7 +646,7 @@ for ff=1:length(FnsToEvalNames)
     % Each origin bin's mass is pushed one age forward (the same Tan step, with the origin bins as columns, in blocks of
     % 64) and binned by the function's value at age jj+1; row b of TransitionProbs{jj} is the destination distribution
     % of origin bin b, so rows sum to one.
-    if simoptions.transprobs(ff)==1
+    if simoptions.transprobs(ff)==1 && any(selU)
         if isempty(simoptions.transprobquantiles)
             % Default: unique values per age (size can differ across ages -> cell array)
             P_v_cell=cell(N_j-1,1);
@@ -601,6 +654,9 @@ for ff=1:length(FnsToEvalNames)
             fvals_jplus1_cell=cell(N_j-1,1); % unique fn values at jj+1 (labels the columns)
             massbin_j_cell=cell(N_j-1,1); % within-age mass of each origin bin (row)
             for jj=1:N_j-1
+        if ~selU(jj) % this start age is not wanted
+            continue
+        end
                 massj=sum(StationaryDist(:,jj));
                 if massj==0
                     continue
@@ -642,6 +698,9 @@ for ff=1:length(FnsToEvalNames)
             n_fvals=simoptions.transprobquantiles;
             P_v_3d=nan(n_fvals,n_fvals,N_j-1);
             for jj=1:N_j-1
+        if ~selU(jj) % this start age is not wanted
+            continue
+        end
                 massj=sum(StationaryDist(:,jj));
                 massjplus1=sum(StationaryDist(:,jj+1));
                 if massj==0 || massjplus1==0
