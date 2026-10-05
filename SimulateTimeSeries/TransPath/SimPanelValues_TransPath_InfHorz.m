@@ -1,4 +1,4 @@
-function SimPanelValues=SimPanelValues_TransPath_InfHorz(PolicyPath, PricePath, ParamPath, T, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, FnsToEvaluate, Parameters, simoptions)
+function SimPanelValues=SimPanelValues_TransPath_InfHorz(PolicyPath, PricePath, ParamPath, T, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, FnsToEvaluate, Parameters, transpathoptions, simoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes)
@@ -176,7 +176,14 @@ simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this
 SimPanelIndexes=SimPanelIndexes_FHorz(gather(AgentDist_initial),gather(PolicyPath),n_d,n_a,n_z,T,pi_z_T, simoptions);
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},simoptions);
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,ParamPathNames,{},transpathoptions);
+
+%% The _tminus1 and _tplus1 values come from transpathoptions.initialvalues
+% Checked here rather than at first use, so that a missing initialvalues names itself
+% instead of surfacing as 'Unrecognized field name' from inside the loop over t.
+if (use_tminus1price==1 || use_tminus1params==1 || use_tminus1AggVars==1) && ~isfield(transpathoptions,'initialvalues')
+    error('SimPanelValues_TransPath_InfHorz: a _tminus1 input is used, so transpathoptions.initialvalues must be given (it supplies the period-1 values)')
+end
 if use_tminus1AggVars==1
     % A _tminus1 aggregate is the population mean last period, which a simulated panel does not give
     % (its sample mean is a different object). Compute the path with EvalFnOnTransPath_AggVars_InfHorz
@@ -288,7 +295,7 @@ if N_semizze>0
                 if tt>1
                     Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
                 else
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
                 end
             end
         end
@@ -297,7 +304,7 @@ if N_semizze>0
                 if tt>1
                     Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
                 else
-                    Parameters.([tminus1paramNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1paramNames{pp});
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
                 end
             end
         end
@@ -357,7 +364,7 @@ else % N_semizze==0
                 if tt>1
                     Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
                 else
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
                 end
             end
         end
@@ -366,7 +373,7 @@ else % N_semizze==0
                 if tt>1
                     Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
                 else
-                    Parameters.([tminus1paramNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1paramNames{pp});
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
                 end
             end
         end

@@ -1,4 +1,4 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_InfHorz_PType(FnsToEvaluate, PricePath, ParamPath, Parameters, T, PolicyPath, AgentDistPath, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, simoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_InfHorz_PType(FnsToEvaluate, PricePath, ParamPath, Parameters, T, PolicyPath, AgentDistPath, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, transpathoptions, simoptions)
 % AggVars is simple in the sense we can just solve to get AggVars for each ptype and then take the weighted sum over them
 % This only works because we are just after the mean
 
@@ -93,7 +93,7 @@ for ii=1:N_i
     end
     [FnsToEvaluate_temp,~, ~,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
 
-    AggVarsPath_ii=EvalFnOnTransPath_AggVars_InfHorz(FnsToEvaluate_temp, AgentDistPath_temp, PolicyPath_temp, PricePath, ParamPath_temp, Parameters_temp, T, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, simoptions_temp);
+    AggVarsPath_ii=EvalFnOnTransPath_AggVars_InfHorz(FnsToEvaluate_temp, AgentDistPath_temp, PolicyPath_temp, PricePath, ParamPath_temp, Parameters_temp, T, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, transpathoptions, simoptions_temp);
 
     % Keep the ptype-conditional values
     AggVarsPath.(iistr)=AggVarsPath_ii;

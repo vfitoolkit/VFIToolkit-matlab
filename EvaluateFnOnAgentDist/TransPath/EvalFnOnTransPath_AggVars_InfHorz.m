@@ -1,4 +1,4 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_InfHorz(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,simoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_InfHorz(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,transpathoptions,simoptions)
 % AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
 
 if ~exist('simoptions','var')
@@ -68,8 +68,15 @@ simoptions.outputasstructure=0;
 simoptions.AggVarNames=AggVarNames;
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,{},{},simoptions);
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,ParamPathNames,{},transpathoptions);
 
+
+%% The _tminus1 and _tplus1 values come from transpathoptions.initialvalues
+% Checked here rather than at first use, so that a missing initialvalues names itself
+% instead of surfacing as 'Unrecognized field name' from inside the loop over t.
+if (use_tminus1price==1 || use_tminus1params==1 || use_tminus1AggVars==1) && ~isfield(transpathoptions,'initialvalues')
+    error('EvalFnOnTransPath_AggVars_InfHorz: a _tminus1 input is used, so transpathoptions.initialvalues must be given (it supplies the period-1 values)')
+end
 %%
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
@@ -80,9 +87,8 @@ PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,
 
 %% Set up exogenous shock processes
 % gridpiboth=1: FnsToEvaluate use the grid and not the transition matrix, which is why pi_z is
-% passed as []. transpathoptions is local: this command does not take one, and the setup only uses
-% it to report back zpathtrivial and z_gridvals_T.
-transpathoptions=struct();
+% passed as []. The setup writes zpathtrivial and z_gridvals_T back into transpathoptions, which is
+% why its output is taken; the caller's own fields are left untouched.
 [z_gridvals, ~, ~, ~, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,[],Parameters,PricePathNames,ParamPathNames,T,transpathoptions,simoptions,1);
 
 %%
@@ -98,7 +104,7 @@ for tt=1:T
             if tt>1
                 Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
             else
-                Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
+                Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
             end
         end
     end
@@ -107,7 +113,7 @@ for tt=1:T
             if tt>1
                 Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
             else
-                Parameters.([tminus1paramNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1paramNames{pp});
+                Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
             end
         end
     end
@@ -116,7 +122,7 @@ for tt=1:T
             if tt>1
                 Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=AggVarsPath(strcmp(AggVarNames,tminus1AggVarsNames{pp}),tt-1);
             else
-                Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1AggVarsNames{pp});
+                Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
             end
         end
     end
