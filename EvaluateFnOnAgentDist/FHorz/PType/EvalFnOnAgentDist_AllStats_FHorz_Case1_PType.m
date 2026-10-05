@@ -1,6 +1,11 @@
 function AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
 % simoptions.whichcombos ([numFnsToEvaluate, 1+number of conditional restrictions]) selects which (fn, restriction) combinations are
 % computed, and simoptions.whichstats may be given per combination ([numFnsToEvaluate, 1+number of restrictions, 7]); see below.
+% Loop order: the ptype setup is done once (pass 0: policy values, grids, parameters, and the conditional restrictions as logical
+% masks). Then for each FnsToEvaluate: the ptype loop evaluates it, computes the per-ptype stats, and appends each ptype to one pooled
+% cell, which is pooled across ptypes as soon as the ptype loop ends. Memory use is therefore bounded by a small multiple of the agent
+% distribution plus one function's pooled cell, and does not grow with the number of FnsToEvaluate or conditional restrictions. (The
+% earlier design kept every function's cell for every ptype until the end.)
 % Reports a variety of stats, both grouped and by PType.
 %
 % Allows for different permanent (fixed) types of agent.
@@ -127,31 +132,7 @@ minvaluevec=nan(numFnsToEvaluate,N_i);
 maxvaluevec=nan(numFnsToEvaluate,N_i);
 AllStats=struct();
 
-
-% Preallocate
-if simoptions.groupusingtdigest==1 % Things are being stored on cpu but solved on gpu
-    % Following few lines relate to the digest
-    delta=10000;
-    merge_nsofar=zeros(1,numFnsToEvaluate); % Keep count
-    merge_nsofar2=zeros(1,numFnsToEvaluate); % Keep count
-
-    AllCMerge=struct();
-    Alldigestweightsmerge=struct();
-    for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-        AllCMerge.(FnsToEvalNames{ff})=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
-        Alldigestweightsmerge.(FnsToEvalNames{ff})=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
-    end
-else
-    AllValues=struct();
-    AllWeights=struct();
-    for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-        AllValues.(FnsToEvalNames{ff})=[];
-        AllWeights.(FnsToEvalNames{ff})=[];
-    end
-end
-
 FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
-
 
 %% If there are any conditional restrictions, set up for these
 % Evaluate AllStats, but conditional on the restriction being non-zero.
@@ -163,20 +144,11 @@ if isfield(simoptions,'conditionalrestrictions')
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
 
     restrictedsamplemass=nan(N_i,length(CondlRestnFnNames));
-    % RestrictionStruct_ii=struct();
 
-    if simoptions.groupusingtdigest==1 % Things are being stored on cpu but solved on gpu
+    if simoptions.groupusingtdigest==1
         error('Have not implemented simoptions.groupusingtdigest==1 together with simoptions.conditionalrestrictions')
-    else
-        AllRestrictedWeights=struct(); % Only used if useCondlRest==1
-        for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-            for rr=1:length(CondlRestnFnNames)
-                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[];
-            end
-        end
     end
 end
-
 %% simoptions.whichcombos and per-combination simoptions.whichstats
 % whichcombos: [numFnsToEvaluate, 1+number of conditional restrictions] of zeros/ones ([numFnsToEvaluate,1] without restrictions):
 % page 1 is the unrestricted stats, pages 2:end the restrictions in the fieldnames order of simoptions.conditionalrestrictions. Ones
@@ -216,16 +188,9 @@ else
 end
 whichcombos=whichcombos.*any(whichstatsG,3); % a combination with no statistic requested is skipped altogether
 
-
-%% NOTE GROUPING ONLY WORKS IF THE GRIDS ARE THE SAME SIZES FOR EACH AGENT (for whom a given FnsToEvaluate is being calculated)
-% (mainly because otherwise would have to deal with simoptions.agegroupings being different for each agent and this requires more complex code)
-% Will throw an error if this is not the case
-
-% If grouping, we have ValuesOnDist and StationaryDist that contain
-% everything we will need. Now we just have to compute them.
-% Note that I do not currently allow the following simoptions to differ by PType
-
-
+%% Pass 0: per-type setup, done once and kept for the loop over FnsToEvaluate
+PT=struct();
+RestrictionMask=cell(N_i,1); % becomes cell(N_i,nRestr) on first use; logical over the (a,z,j) grid of each ptype
 for ii=1:N_i
     iistr=Names_i{ii};
 
@@ -295,18 +260,10 @@ for ii=1:N_i
     [FnsToEvaluate_temp,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
 
-    %% Some things that don't need to go in the loop over FnsToEvalaute
     StationaryDist_ii=reshape(StationaryDist.(iistr),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
-    % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
-    % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)
-    temp=logical(StationaryDist_ii~=0);
-    % StationaryDist_ii=StationaryDist_ii(temp); % This has to happen after the conditional restriction dist is calculated
 
-    %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
+    %% Evaluate conditional restrictions for this PType, kept as logical masks (note: these use simoptions not simoptions_temp)
     if useCondlRest==1
-        RestrictionStruct_ii=struct();
-
-        % For each conditional restriction, create a 'restricted stationary distribution'
         for rr=1:length(CondlRestnFnNames)
             % The current conditional restriction function
             CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
@@ -327,19 +284,14 @@ for ii=1:N_i
             end
             RestrictionValues=reshape(RestrictionValues,[N_a_temp*N_z_temp*N_j_temp,1]);
 
-            RestrictedStationaryDistVec=StationaryDist_ii;
-            RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
-            RestrictedStationaryDistVec=RestrictedStationaryDistVec(temp); % This has already been done to StationaryDist_ii, so have to do it to Restricted Agent Dist
-
-            % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
-            restrictedsamplemass(ii,rr)=sum(RestrictedStationaryDistVec);
-            RestrictedStationaryDistVec=RestrictedStationaryDistVec./restrictedsamplemass(ii,rr); % Normalize to mass of 1
-            % Note: if the restriction is zero mass for this ptype the restricted stats are NaN (0/0), which is the
-            % correct behaviour: the conditional moment of a group that does not exist is unknown (and the grouped
-            % stats are then also NaN).
-            % Store for later
-            RestrictionStruct_ii(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec;
-
+            restrictedsamplemass(ii,rr)=sum(StationaryDist_ii.*RestrictionValues); % mass within this ptype that satisfies the restriction
+            if simoptions.ptypestorecpu==1
+                RestrictionMask{ii,rr}=gather(RestrictionValues);
+            else
+                RestrictionMask{ii,rr}=RestrictionValues;
+            end
+            % Note: if the restriction is zero mass for this ptype its restricted stats are NaN (0/0 below), which is the correct
+            % behaviour: the conditional moment of a group that does not exist is unknown (and the grouped stats are then also NaN).
             AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(iistr)=restrictedsamplemass(ii,rr); % Seems likely this would be something user might want
             if restrictedsamplemass(ii,rr)==0
                 warning('One of the conditional restrictions evaluates to a zero mass')
@@ -348,12 +300,89 @@ for ii=1:N_i
         end
     end
 
-    %%
-    StationaryDist_ii=StationaryDist_ii(temp);
+    % Keep the per-type setup for the loop over FnsToEvaluate
+    PT(ii).simoptions_temp=simoptions_temp;
+    PT(ii).Parameters_temp=Parameters_temp;
+    PT(ii).n_a_temp=n_a_temp;
+    PT(ii).n_z_temp=n_z_temp;
+    PT(ii).N_j_temp=N_j_temp;
+    PT(ii).l_a_temp=l_a_temp;
+    PT(ii).l_z_temp=l_z_temp;
+    PT(ii).N_a_temp=N_a_temp;
+    PT(ii).N_z_temp=N_z_temp;
+    PT(ii).a_gridvals_temp=a_gridvals_temp;
+    PT(ii).z_gridvals_J_temp=z_gridvals_J_temp;
+    PT(ii).l_daprime_temp=l_daprime_temp;
+    PT(ii).FnsToEvaluate_temp=FnsToEvaluate_temp;
+    PT(ii).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
+    if simoptions.ptypestorecpu==1
+        PT(ii).PolicyValuesPermute_temp=gather(PolicyValuesPermute_temp);
+    else
+        PT(ii).PolicyValuesPermute_temp=PolicyValuesPermute_temp;
+    end
+end % end ii over N_i (pass 0)
+clear PolicyValues_temp PolicyValuesPermute_temp PolicyIndexes_temp RestrictionValues StationaryDist_ii temp
 
-    %%
-    for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-        if FnsAndPTypeIndicator_ii(ff)==1 && any(whichcombos(ff,:)) % If this function is relevant to this ptype
+%% Now for the grouped stats, putting the ptypes together
+if useCondlRest==1
+    for rr=1:length(CondlRestnFnNames)
+        % Population mass in the restriction: the per-ptype RestrictedSampleMass.(iistr) above are WITHIN-type shares, so this is their
+        % ptweights-weighted sum (not their plain sum, which is not a mass at all and can exceed one). Always filled, whichcombos or not.
+        AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr));
+    end
+end
+if simoptions.groupusingtdigest==1
+    delta=10000;
+end
+
+%% Main loop: for each FnsToEvaluate, the ptypes (per-ptype stats, appended to one pooled cell), then the pooled cell
+for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+    if ~any(whichcombos(ff,:)) % no combination of this function is wanted
+        continue
+    end
+    ws1=reshape(whichstatsG(ff,1,:),[1,7]); % whichstats of the unrestricted stats of this function
+
+    % The pooled cell for this function
+    PoolValues=[];
+    PoolWeights=[];
+    if useCondlRest==1
+        PoolRestrWeights=cell(length(CondlRestnFnNames),1);
+        for rr=1:length(CondlRestnFnNames)
+            PoolRestrWeights{rr}=[];
+        end
+    end
+    if simoptions.groupusingtdigest==1
+        Cmerge=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
+        digestweightsmerge=zeros(5000*N_i,1);
+        merge_nsofar=0;
+    end
+
+    for ii=1:N_i
+        iistr=Names_i{ii};
+        simoptions_temp=PT(ii).simoptions_temp;
+        Parameters_temp=PT(ii).Parameters_temp;
+        n_a_temp=PT(ii).n_a_temp;
+        n_z_temp=PT(ii).n_z_temp;
+        N_j_temp=PT(ii).N_j_temp;
+        l_a_temp=PT(ii).l_a_temp;
+        l_z_temp=PT(ii).l_z_temp;
+        N_a_temp=PT(ii).N_a_temp;
+        N_z_temp=PT(ii).N_z_temp;
+        a_gridvals_temp=PT(ii).a_gridvals_temp;
+        z_gridvals_J_temp=PT(ii).z_gridvals_J_temp;
+        l_daprime_temp=PT(ii).l_daprime_temp;
+        FnsToEvaluate_temp=PT(ii).FnsToEvaluate_temp;
+        FnsAndPTypeIndicator_ii=PT(ii).FnsAndPTypeIndicator_ii;
+        if simoptions.ptypestorecpu==1
+            PolicyValuesPermute_temp=gpuArray(PT(ii).PolicyValuesPermute_temp);
+        else
+            PolicyValuesPermute_temp=PT(ii).PolicyValuesPermute_temp;
+        end
+
+        if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
+            StationaryDist_ii=reshape(StationaryDist.(iistr),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
+            temp=logical(StationaryDist_ii~=0); % the points with mass (this doesn't really save runtime for the exact calculation, but it slashes it for createDigest)
+            StationaryDist_ii=StationaryDist_ii(temp);
 
             % Get parameter names for current FnsToEvaluate functions
             tempnames=getAnonymousFnInputNames(FnsToEvaluate_temp.(FnsToEvalNames{ff}));
@@ -372,13 +401,6 @@ for ii=1:N_i
             simoptions_temp.keepoutputasmatrix=1;
             ValuesOnGrid_ii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate_temp.(FnsToEvalNames{ff}),CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
             ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp*N_j_temp,1]);
-
-            % StationaryDist_ii=reshape(StationaryDist.(iistr),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
-
-            % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
-            % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)
-            % temp=logical(StationaryDist_ii~=0);
-            % StationaryDist_ii=StationaryDist_ii(temp);
             ValuesOnGrid_ii=ValuesOnGrid_ii(temp);
 
             % I want to use unique to make it easier to put the different agent
@@ -393,39 +415,25 @@ for ii=1:N_i
             AllStats.(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,SortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1); % 1 is presorted
             end % whichcombos(ff,1)
 
-            %% If using conditional restrictions, do those
+            %% If using conditional restrictions, do those (the restricted weights come from the stored masks)
             if useCondlRest==1
                 for rr=1:length(CondlRestnFnNames)
                     if whichcombos(ff,1+rr)==1 % this restriction is wanted for this function
-                    RestrictedSortedWeights=accumarray(sortindex,RestrictionStruct_ii(rr).RestrictedStationaryDistVec,[],@sum); % This has already been done to SortedValues, so have to do it to Restricted Agent Dist
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,reshape(whichstatsG(ff,1+rr,:),[1,7])); % 1 is presorted
-
-                    % If doing grouped stats, store RestrictedSortedWeights
-                    if simoptions_temp.groupusingtdigest==1
-                        error('Code should never get here (should have thrown an error earlier')
-                    else
-                        % Population-weighted, un-normalised restricted mass of this ptype.
-                        % ptweights(ii) is needed so the grouped restricted stats weight each ptype
-                        % by its population mass, exactly as the unrestricted grouped stats below do;
-                        % without it every ptype enters proportional to its within-type share of the
-                        % restriction, so a rare type counts as much as a common one.
-                        % The zero-mass branch is needed because such a ptype had its
-                        % RestrictedStationaryDistVec normalized 0/0 above and is all NaN, and NaN*0
-                        % is NaN rather than 0; those NaNs would propagate into the pooled weights and
-                        % make every grouped restricted statistic NaN. A ptype absent from the group
-                        % contributes nothing to it.
-                        if restrictedsamplemass(ii,rr)>0
-                            RestrictedWeights_ii=RestrictedSortedWeights*(StationaryDist.ptweights(ii)*restrictedsamplemass(ii,rr));
-                        else
-                            RestrictedWeights_ii=zeros(size(RestrictedSortedWeights),'like',RestrictedSortedWeights);
-                        end
                         if simoptions.ptypestorecpu==1
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); gather(RestrictedWeights_ii)];
+                            RestrictionMask_iirr=gpuArray(RestrictionMask{ii,rr});
                         else
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); RestrictedWeights_ii];
+                            RestrictionMask_iirr=RestrictionMask{ii,rr};
                         end
-                        % Note: later once we have all the ii do AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}) renormalized by sum(ptweights.*restrictedsamplemass(:,rr))
-                    end
+                        RestrictedSortedWeights=accumarray(sortindex,StationaryDist_ii.*RestrictionMask_iirr(temp),[],@sum); % the restricted mass of this ptype on its sorted support (un-normalised; zero if the restriction has zero mass for this ptype)
+                        AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights/restrictedsamplemass(ii,rr),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,reshape(whichstatsG(ff,1+rr,:),[1,7])); % normalised to mass one (0/0 is NaN for a zero-mass restriction, see above)
+
+                        % Append to the pooled cell: ptweights(ii) times the un-normalised restricted mass, so each ptype enters the grouped restricted stats by its
+                        % population mass in the restriction (later normalised by sum(ptweights.*restrictedsamplemass(:,rr))); a zero-mass ptype contributes zeros
+                        if simoptions.ptypestorecpu==1
+                            PoolRestrWeights{rr}=[PoolRestrWeights{rr}; gather(RestrictedSortedWeights)*gather(StationaryDist.ptweights(ii))];
+                        else
+                            PoolRestrWeights{rr}=[PoolRestrWeights{rr}; RestrictedSortedWeights*StationaryDist.ptweights(ii)];
+                        end
                     end % whichcombos(ff,1+rr)
                 end
             end
@@ -445,84 +453,49 @@ for ii=1:N_i
             end
             end % whichcombos(ff,1)
 
-            if simoptions_temp.groupusingtdigest==1
-                Cmerge=AllCMerge.(FnsToEvalNames{ff});
-                digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{ff});
-
-                %% Create digest (if unique() was not enough to make them small)
+            % Append this ptype to the pooled cell
+            if simoptions.groupusingtdigest==1
                 [C_ii,digestweights_ii,~]=createDigest(SortedValues, SortedWeights,delta,1); % 1 is presorted
-
-                merge_nsofar2(ff)=merge_nsofar(ff)+length(C_ii);
-                Cmerge(merge_nsofar(ff)+1:merge_nsofar2(ff))=C_ii;
-                digestweightsmerge(merge_nsofar(ff)+1:merge_nsofar2(ff))=digestweights_ii*StationaryDist.ptweights(ii);
-                merge_nsofar(ff)=merge_nsofar2(ff);
-
-                AllCMerge.(FnsToEvalNames{ff})=Cmerge;
-                Alldigestweightsmerge.(FnsToEvalNames{ff})=digestweightsmerge;
+                Cmerge(merge_nsofar+1:merge_nsofar+length(C_ii))=C_ii;
+                digestweightsmerge(merge_nsofar+1:merge_nsofar+length(C_ii))=digestweights_ii*StationaryDist.ptweights(ii);
+                merge_nsofar=merge_nsofar+length(C_ii);
+            elseif simoptions.ptypestorecpu==1
+                PoolValues=[PoolValues; gather(SortedValues)];
+                PoolWeights=[PoolWeights; gather(SortedWeights)*gather(StationaryDist.ptweights(ii))];
             else
-                if simoptions.ptypestorecpu==1
-                    AllValues.(FnsToEvalNames{ff})=[AllValues.(FnsToEvalNames{ff}); gather(SortedValues)];
-                    AllWeights.(FnsToEvalNames{ff})=[AllWeights.(FnsToEvalNames{ff}); gather(SortedWeights)*gather(StationaryDist.ptweights(ii))];
-                else
-                    AllValues.(FnsToEvalNames{ff})=[AllValues.(FnsToEvalNames{ff}); SortedValues];
-                    AllWeights.(FnsToEvalNames{ff})=[AllWeights.(FnsToEvalNames{ff}); SortedWeights*StationaryDist.ptweights(ii)];
-                end
+                PoolValues=[PoolValues; SortedValues];
+                PoolWeights=[PoolWeights; SortedWeights*StationaryDist.ptweights(ii)];
             end
-        end
-    end
-end
+        end % this function is relevant to this ptype
+    end % end ii over N_i
 
-
-
-%% Now for the grouped stats, putting the ptypes together
-if useCondlRest==1
-    for rr=1:length(CondlRestnFnNames)
-        % Population mass in the restriction: the per-ptype RestrictedSampleMass.(iistr) above are WITHIN-type shares, so this is their
-        % ptweights-weighted sum (not their plain sum, which is not a mass at all and can exceed one). Always filled, whichcombos or not.
-        AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr));
-    end
-end
-for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-    if ~any(whichcombos(ff,:)) % no combination of this function is wanted
-        continue
-    end
-    ws1=reshape(whichstatsG(ff,1,:),[1,7]); % whichstats of the grouped unrestricted stats of this function
-
-    if simoptions_temp.groupusingtdigest==1
-        Cmerge=AllCMerge.(FnsToEvalNames{ff});
-        digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{ff});
-        % Clean off the zeros at the end of Cmerge (that exist because of how we preallocate 'too much' for Cmerge); same for digestweightsmerge.
-        Cmerge=Cmerge(1:merge_nsofar(ff));
-        digestweightsmerge=digestweightsmerge(1:merge_nsofar(ff));
-
-        % Merge the digests
+    %% Pool this function's cell across the ptypes and compute the grouped stats
+    if simoptions.groupusingtdigest==1
+        Cmerge=Cmerge(1:merge_nsofar);
+        digestweightsmerge=digestweightsmerge(1:merge_nsofar);
         [C_kk,digestweights_kk,~]=mergeDigest(Cmerge, digestweightsmerge, delta);
-
         if whichcombos(ff,1)==1 % the grouped unrestricted stats of this function are wanted
-        tempStats=StatsFromWeightedGrid(C_kk,digestweights_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1);
-
-        allstatnames=fieldnames(tempStats);
+            tempStats=StatsFromWeightedGrid(C_kk,digestweights_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1);
+            allstatnames=fieldnames(tempStats);
         end % whichcombos(ff,1)
     else
         % Do unique() before we calculate stats
-        [AllValues.(FnsToEvalNames{ff}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}));
-        AllWeights.(FnsToEvalNames{ff})=accumarray(sortindex,AllWeights.(FnsToEvalNames{ff}),[],@sum);
-
+        [PoolValues,~,sortindex]=unique(PoolValues);
+        PoolWeights=accumarray(sortindex,PoolWeights,[],@sum);
         if whichcombos(ff,1)==1 % the grouped unrestricted stats of this function are wanted
-        tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllWeights.(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1);
-
-        allstatnames=fieldnames(tempStats);
+            tempStats=StatsFromWeightedGrid(PoolValues,PoolWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1);
+            allstatnames=fieldnames(tempStats);
         end % whichcombos(ff,1)
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
                 if whichcombos(ff,1+rr)==1 % this restriction is wanted for this function
-                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})/sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr)),[],@sum);
-                tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,reshape(whichstatsG(ff,1+rr,:),[1,7]));
-                % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
-                rallstatnames=fieldnames(tempStatsRestricted);
-                for aa=1:length(rallstatnames)
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(rallstatnames{aa})=tempStatsRestricted.(rallstatnames{aa});
-                end
+                    PoolRestrWeights{rr}=accumarray(sortindex,PoolRestrWeights{rr}/sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr)),[],@sum); % normalised by the population mass in the restriction
+                    tempStatsRestricted=StatsFromWeightedGrid(PoolValues,PoolRestrWeights{rr},simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,reshape(whichstatsG(ff,1+rr,:),[1,7]));
+                    % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
+                    rallstatnames=fieldnames(tempStatsRestricted);
+                    for aa=1:length(rallstatnames)
+                        AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(rallstatnames{aa})=tempStatsRestricted.(rallstatnames{aa});
+                    end
                 end % whichcombos(ff,1+rr)
             end
         end
@@ -569,7 +542,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         AllStats.(FnsToEvalNames{ff}).Minimum=min(minvaluevec(ff,:));
     end
     end % whichcombos(ff,1)
-end
+end % end ff over FnsToEvaluate
 
 
 end
