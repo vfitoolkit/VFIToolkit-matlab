@@ -1,4 +1,5 @@
 function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+% simoptions.whichcombos (a vector of zeros/ones, one per FnsToEvaluate) selects which functions are evaluated; see below.
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -50,6 +51,28 @@ else
     error('You can only use PType when FnsToEvaluate is a structure')
 end
 
+%% simoptions.whichcombos: which FnsToEvaluate to compute
+% A vector of zeros/ones of length numFnsToEvaluate (row or column). Ones are evaluated, zeros skipped: their Mean (per type and
+% grouped) is NaN. Default all ones. Intended for calibration/estimation, which only needs the targeted aggregates.
+FnsToEvalNames=fieldnames(FnsToEvaluate);
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,1);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ~(isvector(whichcombos) && numel(whichcombos)==numFnsToEvaluate)
+        error(['simoptions.whichcombos must be a vector of length ',num2str(numFnsToEvaluate),' (number of FnsToEvaluate)'])
+    end
+    whichcombos=double(whichcombos(:));
+end
+selidx=find(whichcombos); % the functions that are evaluated
+FnsToEvaluate_sel=struct(); % FnsToEvaluate restricted to them (field order kept)
+for ff=1:length(selidx)
+    FnsToEvaluate_sel.(FnsToEvalNames{selidx(ff)})=FnsToEvaluate.(FnsToEvalNames{selidx(ff)});
+end
+
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
@@ -81,6 +104,9 @@ end
 
 %%
 for ii=1:N_i
+    if isempty(selidx) % whichcombos selects nothing: nothing to evaluate
+        break
+    end
     iistr=Names_i{ii};
 
     % First set up simoptions
@@ -127,13 +153,14 @@ for ii=1:N_i
     end
     l_a_temp=length(n_a_temp);
     l_z_temp=length(n_z_temp);
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, ~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, ~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate_sel,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
 
     simoptions_temp.outputasstructure=0;
     AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
-    AggVarsFull(logical(FnsAndPTypeIndicator_ii),ii)=AggVars_ii;
+    AggVarsFull(selidx(logical(FnsAndPTypeIndicator_ii)),ii)=AggVars_ii; % selidx maps the selected functions back to their place in FnsToEvaluate
 end
 
+AggVarsFull(whichcombos==0,:)=NaN; % the functions that whichcombos skipped
 AggVars2=sum(StationaryDist.ptweights'.*AggVarsFull,2); % sum across agents (ptweights stored as column)
 
 % If using FnsToEvaluate as structure need to get in appropriate form for output

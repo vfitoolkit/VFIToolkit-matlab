@@ -1,4 +1,6 @@
 function AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+% simoptions.whichcombos ([numFnsToEvaluate, 1+number of conditional restrictions]) selects which (fn, restriction) combinations are
+% computed, and simoptions.whichstats may be given per combination ([numFnsToEvaluate, 1+number of restrictions, 7]); see below.
 % Reports a variety of stats, both grouped and by PType.
 %
 % Allows for different permanent (fixed) types of agent.
@@ -175,6 +177,45 @@ if isfield(simoptions,'conditionalrestrictions')
     end
 end
 
+%% simoptions.whichcombos and per-combination simoptions.whichstats
+% whichcombos: [numFnsToEvaluate, 1+number of conditional restrictions] of zeros/ones ([numFnsToEvaluate,1] without restrictions):
+% page 1 is the unrestricted stats, pages 2:end the restrictions in the fieldnames order of simoptions.conditionalrestrictions. Ones
+% are computed, zeros skipped (their output fields are simply absent; RestrictedSampleMass is always filled). Default all ones. A
+% vector of length numFnsToEvaluate with restrictions is applied to every page. Intended for calibration/estimation.
+% whichstats: the usual 1x7 vector, or [numFnsToEvaluate, 1+number of restrictions, 7] giving a whichstats vector for every
+% combination ([numFnsToEvaluate,7] is applied to every page). A combination asking for no statistic is skipped like a whichcombos zero.
+if useCondlRest==1
+    nwhichpages=1+length(CondlRestnFnNames);
+else
+    nwhichpages=1;
+end
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,nwhichpages);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if isvector(whichcombos) && numel(whichcombos)==numFnsToEvaluate
+        whichcombos=repmat(whichcombos(:),[1,nwhichpages]); % one entry per function: apply to every page
+    end
+    if ~isequal(size(whichcombos),[numFnsToEvaluate,nwhichpages])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(nwhichpages),'] (number of FnsToEvaluate, 1+number of conditional restrictions)'])
+    end
+    whichcombos=double(whichcombos);
+end
+wsG=simoptions.whichstats;
+if isvector(wsG) && numel(wsG)==7
+    whichstatsG=repmat(reshape(wsG,[1,1,7]),[numFnsToEvaluate,nwhichpages,1]);
+elseif ismatrix(wsG) && isequal(size(wsG),[numFnsToEvaluate,7])
+    whichstatsG=repmat(reshape(wsG,[numFnsToEvaluate,1,7]),[1,nwhichpages,1]);
+elseif isequal(size(wsG,1:3),[numFnsToEvaluate,nwhichpages,7])
+    whichstatsG=wsG;
+else
+    error(['simoptions.whichstats must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(nwhichpages),',7] (number of FnsToEvaluate, 1+number of conditional restrictions, 7), or [',num2str(numFnsToEvaluate),',7]'])
+end
+whichcombos=whichcombos.*any(whichstatsG,3); % a combination with no statistic requested is skipped altogether
+
 
 %% NOTE GROUPING ONLY WORKS IF THE GRIDS ARE THE SAME SIZES FOR EACH AGENT (for whom a given FnsToEvaluate is being calculated)
 % (mainly because otherwise would have to deal with simoptions.agegroupings being different for each agent and this requires more complex code)
@@ -312,7 +353,7 @@ for ii=1:N_i
 
     %%
     for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-        if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
+        if FnsAndPTypeIndicator_ii(ff)==1 && any(whichcombos(ff,:)) % If this function is relevant to this ptype
 
             % Get parameter names for current FnsToEvaluate functions
             tempnames=getAnonymousFnInputNames(FnsToEvaluate_temp.(FnsToEvalNames{ff}));
@@ -347,13 +388,17 @@ for ii=1:N_i
             SortedWeights=accumarray(sortindex,StationaryDist_ii,[],@sum);
 
             %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
-            AllStats.(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,SortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
+            if whichcombos(ff,1)==1 % the unrestricted stats of this function are wanted
+                ws1=reshape(whichstatsG(ff,1,:),[1,7]);
+            AllStats.(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,SortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1); % 1 is presorted
+            end % whichcombos(ff,1)
 
             %% If using conditional restrictions, do those
             if useCondlRest==1
                 for rr=1:length(CondlRestnFnNames)
+                    if whichcombos(ff,1+rr)==1 % this restriction is wanted for this function
                     RestrictedSortedWeights=accumarray(sortindex,RestrictionStruct_ii(rr).RestrictedStationaryDistVec,[],@sum); % This has already been done to SortedValues, so have to do it to Restricted Agent Dist
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,reshape(whichstatsG(ff,1+rr,:),[1,7])); % 1 is presorted
 
                     % If doing grouped stats, store RestrictedSortedWeights
                     if simoptions_temp.groupusingtdigest==1
@@ -381,21 +426,24 @@ for ii=1:N_i
                         end
                         % Note: later once we have all the ii do AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}) renormalized by sum(ptweights.*restrictedsamplemass(:,rr))
                     end
+                    end % whichcombos(ff,1+rr)
                 end
             end
 
+            if whichcombos(ff,1)==1 % (ws1 was set above)
             %% For later, put the mean and std dev in a convenient place
-            if simoptions.whichstats(1)==1
+            if ws1(1)==1
                 MeanVec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(iistr).Mean;
             end
-            if simoptions.whichstats(3)==1
+            if ws1(3)==1
                 StdDevVec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(iistr).StdDeviation;
             end
             % Do the same with the minimum and maximum
-            if simoptions.whichstats(5)==1 && StationaryDist.ptweights(ii)>0 % a ptype of zero mass is not in the population, so it must not set the grouped min/max (its entries stay NaN, which min()/max() ignore)
+            if ws1(5)==1 && StationaryDist.ptweights(ii)>0 % a ptype of zero mass is not in the population, so it must not set the grouped min/max (its entries stay NaN, which min()/max() ignore)
                 minvaluevec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(iistr).Minimum;
                 maxvaluevec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(iistr).Maximum;
             end
+            end % whichcombos(ff,1)
 
             if simoptions_temp.groupusingtdigest==1
                 Cmerge=AllCMerge.(FnsToEvalNames{ff});
@@ -427,7 +475,18 @@ end
 
 
 %% Now for the grouped stats, putting the ptypes together
+if useCondlRest==1
+    for rr=1:length(CondlRestnFnNames)
+        % Population mass in the restriction: the per-ptype RestrictedSampleMass.(iistr) above are WITHIN-type shares, so this is their
+        % ptweights-weighted sum (not their plain sum, which is not a mass at all and can exceed one). Always filled, whichcombos or not.
+        AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr));
+    end
+end
 for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+    if ~any(whichcombos(ff,:)) % no combination of this function is wanted
+        continue
+    end
+    ws1=reshape(whichstatsG(ff,1,:),[1,7]); % whichstats of the grouped unrestricted stats of this function
 
     if simoptions_temp.groupusingtdigest==1
         Cmerge=AllCMerge.(FnsToEvalNames{ff});
@@ -439,36 +498,36 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         % Merge the digests
         [C_kk,digestweights_kk,~]=mergeDigest(Cmerge, digestweightsmerge, delta);
 
-        tempStats=StatsFromWeightedGrid(C_kk,digestweights_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+        if whichcombos(ff,1)==1 % the grouped unrestricted stats of this function are wanted
+        tempStats=StatsFromWeightedGrid(C_kk,digestweights_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1);
 
         allstatnames=fieldnames(tempStats);
+        end % whichcombos(ff,1)
     else
         % Do unique() before we calculate stats
         [AllValues.(FnsToEvalNames{ff}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}));
         AllWeights.(FnsToEvalNames{ff})=accumarray(sortindex,AllWeights.(FnsToEvalNames{ff}),[],@sum);
 
-        tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllWeights.(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+        if whichcombos(ff,1)==1 % the grouped unrestricted stats of this function are wanted
+        tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllWeights.(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1);
 
         allstatnames=fieldnames(tempStats);
+        end % whichcombos(ff,1)
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
+                if whichcombos(ff,1+rr)==1 % this restriction is wanted for this function
                 AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})/sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr)),[],@sum);
-                tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+                tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,reshape(whichstatsG(ff,1+rr,:),[1,7]));
                 % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
                 rallstatnames=fieldnames(tempStatsRestricted);
                 for aa=1:length(rallstatnames)
                     AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(rallstatnames{aa})=tempStatsRestricted.(rallstatnames{aa});
                 end
-                if ff==1
-                    % Population mass in the restriction. Note the per-ptype
-                    % RestrictedSampleMass.(iistr) above are WITHIN-type shares, so this is
-                    % their ptweights-weighted sum, not their plain sum (which is not a mass
-                    % at all and can exceed one).
-                    AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr));
-                end
+                end % whichcombos(ff,1+rr)
             end
         end
     end
+    if whichcombos(ff,1)==1 % store the grouped unrestricted stats of this function
     % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
     % allstatnames=fieldnames(tempStats);
     for aa=1:length(allstatnames)
@@ -480,12 +539,12 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     SigmaNxi=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
 
     % Mean
-    if simoptions.whichstats(1)==1
+    if ws1(1)==1
         AllStats.(FnsToEvalNames{ff}).Mean=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*MeanVec(ff,:))/SigmaNxi;
     end
 
     % Standard Deviation
-    if simoptions.whichstats(3)==1
+    if ws1(3)==1
         if N_i==1
             AllStats.(FnsToEvalNames{ff}).StdDeviation=StdDevVec(ff,:);
         else
@@ -505,10 +564,11 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     end
 
     % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
-    if simoptions.whichstats(5)==1
+    if ws1(5)==1
         AllStats.(FnsToEvalNames{ff}).Maximum=max(maxvaluevec(ff,:));
         AllStats.(FnsToEvalNames{ff}).Minimum=min(minvaluevec(ff,:));
     end
+    end % whichcombos(ff,1)
 end
 
 

@@ -1,4 +1,6 @@
 function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid, simoptions)
+% simoptions.whichcombos ([numFnsToEvaluate, numFnsToEvaluate]: diagonal = a function's own Mean/StdDeviation, off-diagonal = a pair)
+% selects which functions and pairs are computed; see below.
 % Cross-sectional covariances/correlations between every pair of FnsToEvaluate, with
 % permanent types. Calls EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz() for each permanent
 % type, and reports the results by type and (by default) grouped over the types.
@@ -65,6 +67,28 @@ else
     error('You can only use PType when FnsToEvaluate is a structure')
 end
 
+%% simoptions.whichcombos: which functions and pairs to compute
+% [numFnsToEvaluate, numFnsToEvaluate] of zeros/ones. The diagonal (ff,ff) selects the grouped Mean and StdDeviation of function ff;
+% the off-diagonal (ff1,ff2) selects the covariance and correlation of the pair. Only the upper triangle (ff1<=ff2) is read, so a
+% symmetric matrix or just its upper triangle can be given. A function with nothing selected (its diagonal and all its pairs zero)
+% is not evaluated at all; a selected pair has both its functions evaluated (their means and std devs are needed for the pair).
+% Skipped entries are NaN: in the grouped output, and in the per-type pair fields and per-type matrices (the per-type Mean and
+% StdDeviation of an evaluated function are reported regardless, the single-type command computes them anyway). Default all ones.
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ~isequal(size(whichcombos),[numFnsToEvaluate,numFnsToEvaluate])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(numFnsToEvaluate),'] (number of FnsToEvaluate, twice)'])
+    end
+    whichcombos=double(triu(whichcombos));
+    whichcombos=max(whichcombos,whichcombos'); % symmetric, from the upper triangle
+end
+fnwanted=any(whichcombos,2); % numFnsToEvaluate x 1: the functions that get evaluated (their own stats or any pair)
+
 ptweights=gather(reshape(StationaryDist.ptweights,[N_i,1]));
 
 CrossSectionCorr=struct();
@@ -126,7 +150,14 @@ for ii=1:N_i
 
     % Which of the FnsToEvaluate are relevant to this type (kept as a structure)
     [FnsToEvaluate_temp,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
-    FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
+    % Drop the functions that whichcombos does not want from this type's evaluation
+    FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii(:).*fnwanted;
+    for ff=1:numFnsToEvaluate
+        if fnwanted(ff)==0 && isfield(FnsToEvaluate_temp,FnsToEvalNames{ff})
+            FnsToEvaluate_temp=rmfield(FnsToEvaluate_temp,FnsToEvalNames{ff});
+        end
+    end
+    FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii; % (after the whichcombos reduction)
 
     if sum(FnsAndPTypeIndicator_ii)==0
         continue % none of the FnsToEvaluate are relevant to this type
@@ -148,6 +179,21 @@ for ii=1:N_i
     % The matrices of the type only cover the functions relevant to it, in their order
     relevantfns=find(FnsAndPTypeIndicator_ii==1);
     CovarVec(relevantfns,relevantfns,ii)=gather(CrossSectionCorr_ii.CovarianceMatrix);
+    % Per-type output: the pairs that whichcombos does not select are NaN (the single-type command computed every pair of the functions it was given)
+    for ff1=1:numFnsToEvaluate
+        for ff2=1:numFnsToEvaluate
+            if ff1~=ff2 && whichcombos(ff1,ff2)==0 && FnsAndPTypeIndicator_ii(ff1)==1 && FnsAndPTypeIndicator_ii(ff2)==1
+                if isfield(CrossSectionCorr.(FnsToEvalNames{ff1}).(iistr),'CovarianceWith') && isfield(CrossSectionCorr.(FnsToEvalNames{ff1}).(iistr).CovarianceWith,FnsToEvalNames{ff2})
+                    CrossSectionCorr.(FnsToEvalNames{ff1}).(iistr).CovarianceWith.(FnsToEvalNames{ff2})=NaN;
+                    CrossSectionCorr.(FnsToEvalNames{ff1}).(iistr).CorrelationWith.(FnsToEvalNames{ff2})=NaN;
+                end
+            end
+        end
+    end
+    masksub=whichcombos(relevantfns,relevantfns);
+    masksub(logical(eye(length(relevantfns))))=1; % the per-type matrix diagonals (variances) are reported regardless
+    CovMat_ii=CrossSectionCorr.CovarianceMatrix_ptype.(iistr); CovMat_ii(masksub==0)=NaN; CrossSectionCorr.CovarianceMatrix_ptype.(iistr)=CovMat_ii;
+    CorrMat_ii=CrossSectionCorr.CorrelationMatrix_ptype.(iistr); CorrMat_ii(masksub==0)=NaN; CrossSectionCorr.CorrelationMatrix_ptype.(iistr)=CorrMat_ii;
 end
 
 %% Grouped: pool the types
@@ -170,11 +216,17 @@ if simoptions.groupptypesforstats==1
             MeanG(ff)=sum(p(relevant).*MeanVec(ff,relevant)');
             StdDevG(ff)=sqrt(sum(p(relevant).*(StdDevVec(ff,relevant)'.^2+(MeanVec(ff,relevant)'-MeanG(ff)).^2)));
         end
+        if whichcombos(ff,ff)==1 % the grouped Mean/StdDeviation of this function are wanted (MeanG/StdDevG are computed regardless as the pairs need them)
         CrossSectionCorr.(FnsToEvalNames{ff}).Mean=MeanG(ff);
         CrossSectionCorr.(FnsToEvalNames{ff}).StdDeviation=StdDevG(ff);
         CrossSectionCorr.CovarianceMatrix(ff,ff)=StdDevG(ff)^2;
         CrossSectionCorr.CorrelationMatrix(ff,ff)=1;
         CrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=1;
+        else
+            CrossSectionCorr.(FnsToEvalNames{ff}).Mean=NaN;
+            CrossSectionCorr.(FnsToEvalNames{ff}).StdDeviation=NaN;
+            CrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=NaN;
+        end
     end
 
     % Grouped covariance and correlation of each pair (pooled over the types for which both functions are relevant, about the pooled means of that pool)
@@ -183,7 +235,7 @@ if simoptions.groupptypesforstats==1
             w=FnsAndPTypeIndicator(ff1,:)'.*FnsAndPTypeIndicator(ff2,:)'.*ptweights;
             CoVar=NaN;
             Corr=NaN;
-            if sum(w)>0
+            if whichcombos(ff1,ff2)==1 && sum(w)>0 % the pair is wanted and has a pool
                 p=w/sum(w);
                 relevant=(w>0);
                 mu1=sum(p(relevant).*MeanVec(ff1,relevant)');
