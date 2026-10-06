@@ -73,13 +73,34 @@ end
 
 %% Calculate model stats
 if caliboptions.simulatemoments==0
+    % caliboptions.whichcombos=1 (CalibrateLifeCycleModel's default): the stats commands compute only the targeted (function, statistic,
+    % restriction[, age]) combinations, through simoptions.whichcombos and a per-combination simoptions.whichstats built by
+    % SetupTargetMoments_FHorz (caliboptions.selectors). =0: every statistic of every targeted function (whichstats all ones). When the
+    % field is absent (the estimation commands, not yet wired) the 7-vector union of the targeted statistics is used, as before.
+    % The two commands take differently shaped selectors, so each gets its own copy of simoptions.
     if usingallstats==1
-        simoptions.whichstats=AllStats_whichstats;
-        AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
+        simoptions_AllStats=simoptions;
+        if isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==1
+            simoptions_AllStats.whichcombos=caliboptions.selectors.AllStats.whichcombos;
+            simoptions_AllStats.whichstats=caliboptions.selectors.AllStats.whichstats;
+        elseif isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==0
+            simoptions_AllStats.whichstats=ones(1,7);
+        else
+            simoptions_AllStats.whichstats=AllStats_whichstats;
+        end
+        AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_AllStats);
     end
     if usinglcp==1
-        simoptions.whichstats=ACStats_whichstats;
-        AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate_ACStats,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
+        simoptions_ACStats=simoptions;
+        if isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==1
+            simoptions_ACStats.whichcombos=caliboptions.selectors.ACStats.whichcombos;
+            simoptions_ACStats.whichstats=caliboptions.selectors.ACStats.whichstats;
+        elseif isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==0
+            simoptions_ACStats.whichstats=ones(1,7);
+        else
+            simoptions_ACStats.whichstats=ACStats_whichstats;
+        end
+        AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate_ACStats,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_ACStats);
     end
 elseif caliboptions.simulatemoments==1
     % Do a panel data simulation.
