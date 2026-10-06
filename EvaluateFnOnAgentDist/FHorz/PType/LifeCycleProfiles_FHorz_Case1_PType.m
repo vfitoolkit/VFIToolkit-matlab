@@ -6,8 +6,8 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,
 % grow with the number of FnsToEvaluate, age groups or conditional restrictions. (The earlier design kept every
 % (fn,agegroup) cell for every ptype until the end, and ran out of memory on large models with conditional restrictions.)
 % simoptions.lowmemory is accepted but ignored: there is a single code path.
-% simoptions.whichcombos selects which (FnsToEvaluate, age group[, conditional restriction]) combinations are computed; see below.
-% simoptions.whichstats may also be given per (FnsToEvaluate, age group[, conditional restriction]) combination; see below.
+% simoptions.whichcombos selects which (FnsToEvaluate, age group[, conditional restriction][, permanent type or grouped]) combinations are computed; see below.
+% simoptions.whichstats may also be given per (FnsToEvaluate, age group[, conditional restriction][, permanent type or grouped]) combination; see below.
 %
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
@@ -271,22 +271,29 @@ if useCondlRest==1
 else
     nwhichpages=1;
 end
+% A trailing type dimension may be added (2026-10-07): [.., N_i+1] selects per permanent type, in the order of Names_i, with the
+% last slot the grouped stats. The shapes without it apply to every ptype and to the grouped stats alike. The grouped Mean,
+% StdDeviation, Minimum and Maximum are built from every ptype's, so a grouped slot that is on also computes (and reports) that
+% combination for every ptype. simoptions.whichstats takes the same trailing dimension ([.., N_i+1, 7]); see below.
 if ~isfield(simoptions,'whichcombos')
-    simoptions.whichcombos=ones(numFnsToEvaluate,maxngroups,nwhichpages);
+    whichcombosAll=ones(numFnsToEvaluate,maxngroups,nwhichpages,N_i+1);
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
         error('simoptions.whichcombos must contain only zeros and ones')
     end
-    if ismatrix(whichcombos) && nwhichpages>1 && isequal(size(whichcombos),[numFnsToEvaluate,maxngroups])
-        whichcombos=repmat(whichcombos,[1,1,nwhichpages]); % 2D input with restrictions: apply to every page
+    if ismatrix(whichcombos) && isequal(size(whichcombos),[numFnsToEvaluate,maxngroups])
+        whichcombos=repmat(whichcombos,[1,1,nwhichpages]); % 2D input: apply to every page
     end
-    if ~isequal(size(whichcombos,1:3),[numFnsToEvaluate,maxngroups,nwhichpages])
-        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),'] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions; the third dimension is dropped when there are no conditional restrictions)'])
+    if ndims(whichcombos)<=3 && isequal(size(whichcombos,1:3),[numFnsToEvaluate,maxngroups,nwhichpages])
+        whichcombos=repmat(whichcombos,[1,1,1,N_i+1]); % no type dimension: apply to every ptype and to the grouped stats
     end
-    simoptions.whichcombos=double(whichcombos);
+    if ~isequal(size(whichcombos,1:4),[numFnsToEvaluate,maxngroups,nwhichpages,N_i+1])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),'] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions), optionally with a trailing type dimension of ',num2str(N_i+1),' (one slot per permanent type in the order of Names_i, then the grouped stats)'])
+    end
+    whichcombosAll=double(whichcombos);
 end
-whichcombos=simoptions.whichcombos; % whichcombos(ff,jj,1) is the unrestricted stats, whichcombos(ff,jj,1+rr) is restriction rr
+whichcombosG=whichcombosAll(:,:,:,N_i+1); % whichcombosG(ff,jj,1) is the grouped unrestricted stats, whichcombosG(ff,jj,1+rr) the grouped stats of restriction rr; whichcombosAll(:,:,:,ii) is ptype ii
 
 %% simoptions.whichstats, per combination
 % whichstats is either the usual 1x7 vector (or a structure with a vector per ptype), or an array of size
@@ -300,18 +307,20 @@ if isstruct(simoptions.whichstats)
 else
     wsG=simoptions.whichstats;
 end
+whichstatsAll=[]; % set when whichstats carries the trailing type dimension (then each ptype takes its own slot in pass 0)
 if isvector(wsG) && numel(wsG)==7
     whichstatsG=repmat(reshape(wsG,[1,1,1,7]),[numFnsToEvaluate,maxngroups,nwhichpages,1]);
 elseif ndims(wsG)==3 && isequal(size(wsG),[numFnsToEvaluate,maxngroups,7])
     whichstatsG=repmat(reshape(wsG,[numFnsToEvaluate,maxngroups,1,7]),[1,1,nwhichpages,1]);
-elseif isequal(size(wsG,1:4),[numFnsToEvaluate,maxngroups,nwhichpages,7])
+elseif ndims(wsG)==4 && isequal(size(wsG,1:4),[numFnsToEvaluate,maxngroups,nwhichpages,7])
     whichstatsG=wsG;
+elseif ndims(wsG)==5 && isequal(size(wsG,1:5),[numFnsToEvaluate,maxngroups,nwhichpages,N_i+1,7])
+    whichstatsAll=wsG;
+    whichstatsG=reshape(wsG(:,:,:,N_i+1,:),[numFnsToEvaluate,maxngroups,nwhichpages,7]); % the last slot is the grouped stats
 else
-    error(['simoptions.whichstats must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),',7] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions, 7), or [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',7]'])
+    error(['simoptions.whichstats must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),',7] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions, 7), or [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',7], or with a trailing type dimension [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),',',num2str(N_i+1),',7] (one slot per permanent type in the order of Names_i, then the grouped stats)'])
 end
-if ~isstruct(simoptions.whichstats)
-    whichcombos=whichcombos.*any(whichstatsG,4); % a combination with no statistic requested is skipped altogether
-end
+whichcombosG=whichcombosG.*any(whichstatsG,4); % a grouped combination with no statistic requested is skipped altogether
 
 if useCondlRest==1
     % Preallocate various things for the stats (as many will have jj as a dimension)
@@ -487,16 +496,30 @@ for ii=1:N_i
     PT(ii).l_daprime_temp=l_daprime_temp;
     PT(ii).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
     % whichstats for this ptype, per (fn, age group, page) combination; see the whichstats section above
-    wsT=simoptions_temp.whichstats;
-    if isvector(wsT) && numel(wsT)==7
-        PT(ii).whichstatsArr=repmat(reshape(wsT,[1,1,1,7]),[numFnsToEvaluate,maxngroups,nwhichpages,1]);
-    elseif ndims(wsT)==3 && isequal(size(wsT),[numFnsToEvaluate,maxngroups,7])
-        PT(ii).whichstatsArr=repmat(reshape(wsT,[numFnsToEvaluate,maxngroups,1,7]),[1,1,nwhichpages,1]);
-    elseif isequal(size(wsT,1:4),[numFnsToEvaluate,maxngroups,nwhichpages,7])
-        PT(ii).whichstatsArr=wsT;
+    if ~isempty(whichstatsAll) % whichstats with the trailing type dimension: this ptype's slot
+        PT(ii).whichstatsArr=reshape(whichstatsAll(:,:,:,ii,:),[numFnsToEvaluate,maxngroups,nwhichpages,7]);
     else
-        error(['simoptions.whichstats for ptype ',iistr,' must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),',7], or [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',7]'])
+        wsT=simoptions_temp.whichstats;
+        if isvector(wsT) && numel(wsT)==7
+            PT(ii).whichstatsArr=repmat(reshape(wsT,[1,1,1,7]),[numFnsToEvaluate,maxngroups,nwhichpages,1]);
+        elseif ndims(wsT)==3 && isequal(size(wsT),[numFnsToEvaluate,maxngroups,7])
+            PT(ii).whichstatsArr=repmat(reshape(wsT,[numFnsToEvaluate,maxngroups,1,7]),[1,1,nwhichpages,1]);
+        elseif ndims(wsT)==4 && isequal(size(wsT,1:4),[numFnsToEvaluate,maxngroups,nwhichpages,7])
+            PT(ii).whichstatsArr=wsT;
+        else
+            error(['simoptions.whichstats for ptype ',iistr,' must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',',num2str(nwhichpages),',7], or [',num2str(numFnsToEvaluate),',',num2str(maxngroups),',7] (see the whichstats section)'])
+        end
     end
+    % This ptype's effective selection: its own whichcombos slot, plus whatever the grouped stats need. The grouped Mean, StdDeviation,
+    % Minimum and Maximum are built from every ptype's, so a grouped slot that is on forces this ptype's computation of that
+    % combination with at least the grouped whichstats (the result is reported, as a byproduct).
+    wsForced=whichstatsG.*repmat(whichcombosG,[1,1,1,7]); % the grouped whichstats where the grouped slot is on
+    lor=(PT(ii).whichstatsArr(:,:,:,4)==1 | PT(ii).whichstatsArr(:,:,:,4)==2 | wsForced(:,:,:,4)==1 | wsForced(:,:,:,4)==2);
+    PT(ii).whichstatsArr=max(PT(ii).whichstatsArr,wsForced);
+    ws4=PT(ii).whichstatsArr(:,:,:,4);
+    ws4(lor)=2; % Gini/Lorenz codes: a Lorenz-giving 1 or 2 on either side wins over the Gini-only 3
+    PT(ii).whichstatsArr(:,:,:,4)=ws4;
+    PT(ii).whichcombos=max(whichcombosAll(:,:,:,ii),whichcombosG).*any(PT(ii).whichstatsArr,4); % a combination asking for no statistic is skipped
     if simoptions.ptypestorecpu==1
         PT(ii).PolicyValuesPermute_temp=gather(PolicyValuesPermute_temp);
     else
@@ -641,7 +664,7 @@ for ff=1:numFnsToEvaluate
         end
 
         if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
-            if any(whichcombos(ff,:,:),'all') % skip the evaluation if no combination of this function is wanted (its output fields are still preallocated below, and stay NaN)
+            if any(PT(ii).whichcombos(ff,:,:),'all') % skip the evaluation if no combination of this function is wanted for this ptype (its own slot or the grouped one) (its output fields are still preallocated below, and stay NaN)
                 % Get parameter names for current FnsToEvaluate functions
                 if isstruct(FnsToEvaluate.(FnsToEvalNames{ff}))
                     tempfn=FnsToEvaluate.(FnsToEvalNames{ff}).(iistr);
@@ -776,7 +799,7 @@ for ff=1:numFnsToEvaluate
 
     %% Pass 2: age groups, ptypes innermost; pool each (ff,agegroup) cell as soon as its ptype loop ends
     for jjs=1:maxngroups % jjs is the (agejshifter-shifted) age group index used for the grouped stats
-        if ~any(whichcombos(ff,jjs,:)) % no combination of this (function, age group) is wanted
+        if ~any(whichcombosAll(ff,jjs,:,:),'all') % no combination of this (function, age group) is wanted for any ptype or for the grouped stats
             continue
         end
         % The pooled cell for this (ff,jjs)
@@ -802,10 +825,11 @@ for ff=1:numFnsToEvaluate
             N_z_temp=PT(ii).N_z_temp;
             FnsAndPTypeIndicator_ii=PT(ii).FnsAndPTypeIndicator_ii;
             whichstatsArr_ii=PT(ii).whichstatsArr;
+            whichcombos_ii=PT(ii).whichcombos; % this ptype's selection: its own slot, plus what the grouped stats need
 
             if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
                 jj=jjs-simoptions.agejshifter(ii); % this ptype's own age group index
-                if jj>=1 && jj<=length(simoptions_temp.agegroupings)
+                if jj>=1 && jj<=length(simoptions_temp.agegroupings) && any(whichcombos_ii(ff,jjs,:)) % this ptype has age group jjs, and some stat of it is wanted for this ptype (its own slot, or forced by the grouped slot; otherwise its values were not even evaluated in pass 1)
                     StationaryDist_ii=reshape(StationaryDist.(iistr),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
 
                     j1=simoptions_temp.agegroupings(jj);
@@ -840,7 +864,7 @@ for ff=1:numFnsToEvaluate
                     SortedWeights_jj=SortedWeights_jj/sum(SortedWeights_jj(:)); % Normalize conditional on jj (is later renormalized ii weight before storing for groupstats)
 
                     %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and ff)
-                    if whichcombos(ff,jjs,1)==1 % the unrestricted stats of this (function, age group) are wanted
+                    if whichcombos_ii(ff,jjs,1)==1 % the unrestricted stats of this (function, age group) are wanted for this ptype (its own slot, or forced by the grouped slot)
                     ws=reshape(whichstatsArr_ii(ff,jjs,1,:),[1,7]); % whichstats of this ptype for this (fn, age group)
                     tempStats=StatsFromWeightedGrid(SortedValues_jj,SortedWeights_jj,simoptions_temp.npoints,simoptions_temp.nquantiles,simoptions_temp.tolerance,1,ws); % 1 is presorted
 
@@ -895,9 +919,9 @@ for ff=1:numFnsToEvaluate
                         minvaluevec(ff,ii,jjageshifted)=tempStats.Minimum;
                         maxvaluevec(ff,ii,jjageshifted)=tempStats.Maximum;
                     end
-                    end % whichcombos(ff,jjs,1)
+                    end % whichcombos_ii(ff,jjs,1)
 
-                    if simoptions.groupptypesforstats==1
+                    if simoptions.groupptypesforstats==1 && any(whichcombosG(ff,jjs,:)) % (some grouped stat of this (function, age group) is wanted)
                         % Append this ptype to the pooled cell
                         if simoptions.groupusingtdigest==1
                             [C_jj,digestweights_jj,~]=createDigest(SortedValues_jj, SortedWeights_jj,delta,1); % 1 is presorted
@@ -916,7 +940,7 @@ for ff=1:numFnsToEvaluate
                     %% If using conditional restrictions, do those (the restricted weights come from the stored mask)
                     if useCondlRest==1
                         for rr=1:length(CondlRestnFnNames)
-                            if whichcombos(ff,jjs,1+rr)==1 % this restriction is wanted for this (function, age group)
+                            if whichcombos_ii(ff,jjs,1+rr)==1 % this restriction is wanted for this (function, age group) for this ptype (its own slot, or forced by the grouped slot)
                             ws=reshape(whichstatsArr_ii(ff,jjs,1+rr,:),[1,7]); % whichstats of this ptype for this (fn, age group, restriction)
                             if sum(restrictedsamplemass(ii,j1:jend,rr))~=0
                                 if simoptions.ptypestorecpu==1
@@ -974,7 +998,7 @@ for ff=1:numFnsToEvaluate
                             end
 
                             % If doing grouped stats, append RestrictedSortedWeights to the pooled cell
-                            if simoptions.groupptypesforstats==1
+                            if simoptions.groupptypesforstats==1 && whichcombosG(ff,jjs,1+rr)==1 % (the grouped stats of this restriction are wanted)
                                 if simoptions.ptypestorecpu==1
                                     PoolRestrWeights{rr}=[PoolRestrWeights{rr}; gather(RestrictedSortedWeights)*gather(StationaryDist.ptweights(ii)*sum(restrictedsamplemass(ii,j1:jend,rr)))];
                                 else
@@ -983,7 +1007,7 @@ for ff=1:numFnsToEvaluate
                                 % Weight of this ptype in the grouped stats is ptweights(ii) times its restricted mass in this agegrouping (restrictedsamplemass is mass within the ptype, so already includes the age weights)
                                 % Note: later normalize by sum(sum(restrictedsamplemass(:,j1:jend,rr),2))
                             end
-                            end % whichcombos(ff,jjs,1+rr)
+                            end % whichcombos_ii(ff,jjs,1+rr)
                         end
                     end
                 end % this ptype has age group jjs
@@ -991,7 +1015,7 @@ for ff=1:numFnsToEvaluate
         end % end ii over N_i (pass 2)
 
         %% Pool this (ff,jjs) cell across ptypes and compute the grouped stats
-        if simoptions.groupptypesforstats==1
+        if simoptions.groupptypesforstats==1 && any(whichcombosG(ff,jjs,:)) % (some grouped stat of this (function, age group) is wanted; nothing was appended to the pooled cell otherwise)
             jj=jjs;
             ws=reshape(whichstatsG(ff,jjs,1,:),[1,7]); % whichstats of the grouped stats for this (fn, age group)
 
@@ -1003,9 +1027,9 @@ for ff=1:numFnsToEvaluate
                 if sum(digestweights_ff)>0
                     digestweights_ff=digestweights_ff/sum(digestweights_ff);
                 end
-                if whichcombos(ff,jjs,1)==1 % the grouped unrestricted stats of this (function, age group) are wanted (the pooled unique() above is needed regardless, the restricted weights are aligned to it)
+                if whichcombosG(ff,jjs,1)==1 % the grouped unrestricted stats of this (function, age group) are wanted (the pooled unique() above is needed regardless, the restricted weights are aligned to it)
                 tempStats=StatsFromWeightedGrid(C_ff,digestweights_ff,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws);
-                end % whichcombos(ff,jjs,1)
+                end % whichcombosG(ff,jjs,1)
             else % just using unique() of the values and weights
                 [PoolValues,~,sortindex]=unique(PoolValues);
                 PoolWeights=accumarray(sortindex,PoolWeights,[],@sum);
@@ -1013,11 +1037,11 @@ for ff=1:numFnsToEvaluate
                 if sum(PoolWeights)>0
                     PoolWeights=PoolWeights/sum(PoolWeights);
                 end
-                if whichcombos(ff,jjs,1)==1 % the grouped unrestricted stats of this (function, age group) are wanted (the pooled unique() above is needed regardless, the restricted weights are aligned to it)
+                if whichcombosG(ff,jjs,1)==1 % the grouped unrestricted stats of this (function, age group) are wanted (the pooled unique() above is needed regardless, the restricted weights are aligned to it)
                 tempStats=StatsFromWeightedGrid(PoolValues,PoolWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws);
-                end % whichcombos(ff,jjs,1)
+                end % whichcombosG(ff,jjs,1)
             end
-            if whichcombos(ff,jjs,1)==1 % store the grouped unrestricted stats of this (function, age group)
+            if whichcombosG(ff,jjs,1)==1 % store the grouped unrestricted stats of this (function, age group)
                 % Store them in AgeConditionalStats
                 if ws(1)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Mean(jj)=tempStats.Mean;
@@ -1090,7 +1114,7 @@ for ff=1:numFnsToEvaluate
                     AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(jj)=max(maxvaluevec(ff,:,jj));
                     AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(jj)=min(minvaluevec(ff,:,jj));
                 end
-            end % whichcombos(ff,jjs,1)
+            end % whichcombosG(ff,jjs,1)
 
                 %% Deal with conditional restrictions
                 if useCondlRest==1
@@ -1102,7 +1126,7 @@ for ff=1:numFnsToEvaluate
                     end
 
                     for rr=1:length(CondlRestnFnNames)
-                        if whichcombos(ff,jjs,1+rr)==1 % this restriction is wanted for this (function, age group)
+                        if whichcombosG(ff,jjs,1+rr)==1 % the grouped stats of this restriction are wanted for this (function, age group)
                         ws=reshape(whichstatsG(ff,jjs,1+rr,:),[1,7]); % whichstats of the grouped stats for this (fn, age group, restriction)
 
                         if sum(StationaryDist.ptweights.*sum(restrictedsamplemass(:,j1:jend,rr),2,'omitnan'))>0 % the population (not just some ptype) has restricted mass in this agegrouping [a ptype of zero mass can have restricted mass of its own]
@@ -1162,7 +1186,7 @@ for ff=1:numFnsToEvaluate
 
                             % For unrestricted stats, I do a more direct calculation of mean, std dev, min and max. But I don't bother with the conditional restriction stats.
                         end
-                        end % whichcombos(ff,jjs,1+rr)
+                        end % whichcombosG(ff,jjs,1+rr)
                     end
                 end
         end % groupptypesforstats

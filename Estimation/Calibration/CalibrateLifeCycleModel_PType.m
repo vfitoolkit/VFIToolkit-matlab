@@ -46,6 +46,11 @@ end
 if ~isfield(caliboptions,'weights')
     caliboptions.weights=1; % all moments have equal weights is default (this is a vector of one, just don't know the length yet :)
 end
+if ~isfield(caliboptions,'whichcombos')
+    caliboptions.whichcombos=1; % =1: AllStats and LifeCycleProfiles compute only the targeted (function, statistic, restriction, age, ptype or grouped) combinations
+    % (simoptions.whichcombos and per-combination whichstats with a trailing type dimension, built from TargetMoments by SetupTargetMoments_FHorz); =0: every
+    % statistic of every targeted function is computed (whichstats all ones). The moments are identical either way, =1 is faster.
+end
 if ~isfield(caliboptions,'toleranceparams')
     caliboptions.toleranceparams=10^(-4); % tolerance accuracy of the calibrated parameters
 end
@@ -166,7 +171,7 @@ for pp=1:nCalibParams
         if size(tempparam,1)==1
             tempparam=tempparam';
         end
-        if size(tempparam,1)==1
+        if size(tempomitparam,1)==1 % (was testing tempparam, so a row omit mask was never transposed and the check below broadcast row against column)
             tempomitparam=tempomitparam';
         end
         % If the omit and initial guess do not fit together, throw an error
@@ -203,7 +208,8 @@ end
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,1);
+[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes,selectors]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,1,N_j,simoptions,Names_i);
+caliboptions.selectors=selectors; % the per-combination whichcombos/whichstats of the two stats commands, with a trailing type dimension (used when caliboptions.whichcombos=1)
 
 
 %% Set-up/check caliboptions.weights
@@ -230,13 +236,30 @@ FnsToEvaluateParamNames=[];
 % parameter that is being calibrated
 caliboptions.calibrateshocks=0; % set to one if need to redo shocks for each new calib parameter vector
 if isfield(vfoptions,'ExogShockFn')
-    temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    if isstruct(vfoptions.ExogShockFn) % can depend on permanent type
+        temp=[];
+        shockfnnames=fieldnames(vfoptions.ExogShockFn);
+        for ii=1:length(shockfnnames)
+            temp=[temp,getAnonymousFnInputNames(vfoptions.ExogShockFn.(shockfnnames{ii}))];
+        end
+    else
+        temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    end
     % can just leave action space in here as we only use it to see if CalibParamNames is part of it
     if ~isempty(intersect(temp,CalibParamNames))
         caliboptions.calibrateshocks=1;
     end
-elseif isfield(vfoptions,'EiidShockFn')
-    temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+end
+if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either alone should trigger redoing the shocks
+    if isstruct(vfoptions.EiidShockFn) % can depend on permanent type
+        temp=[];
+        shockfnnames=fieldnames(vfoptions.EiidShockFn);
+        for ii=1:length(shockfnnames)
+            temp=[temp,getAnonymousFnInputNames(vfoptions.EiidShockFn.(shockfnnames{ii}))];
+        end
+    else
+        temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+    end
     % can just leave action space in here as we only use it to see if CalibParamNames is part of it
     if ~isempty(intersect(temp,CalibParamNames))
         caliboptions.calibrateshocks=1;
@@ -298,58 +321,96 @@ end
 
 
 %%
-% caliboptions.logmoments can be specified by names
+% caliboptions.logmoments: which moments to take logs of (the targets must then already be log(moments); same for any covariance matrix of the data moments).
+% Four forms: a scalar 0 (none) or 1 (all); a vector with one entry per target (same length as targetmomentvec); a vector with one entry
+% per TARGET NAME (one per row of allstatmomentnames, then acsmomentnames, then cmsmomentnames, in that order), expanded over the
+% entries of each; or by name with the same nesting as the targets, e.g. caliboptions.logmoments.AgeConditionalStats.earnings.low.Mean=1
+% (names not mentioned are 0). Internally it becomes a vector with one entry per target.
+momentrowsizes=[]; % the number of entries of each target name, in the order the names enter targetmomentvec
+allstatsizes=diff([0,allstatcummomentsizes]); acssizes=diff([0,acscummomentsizes]); cmssizes=diff([0,cmscummomentsizes]);
+if usingallstats==1
+    momentrowsizes=[momentrowsizes, allstatsizes];
+end
+if usinglcp==1
+    momentrowsizes=[momentrowsizes, acssizes];
+end
+if usingcustomstats==1
+    momentrowsizes=[momentrowsizes, cmssizes];
+end
 if isstruct(caliboptions.logmoments)
     logmomentnames=caliboptions.logmoments;
-    % replace caliboptions.logmoments with a vector as this is what gets used internally
     caliboptions.logmoments=zeros(length(targetmomentvec),1);
-    if isfield(logmomentnames,'AllStats')
-        caliboptions.logmoments(1:allstatcummomentsizes(1))=logmomentnames.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
-        for ii=2:size(allstatmomentnames,1)
-            caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=logmomentnames.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
-        end
-    end
-    if isfield(logmomentnames,'AgeConditionalStats')
-        sofar=allstatcummomentsizes(end);
-        caliboptions.logmoments(sofar+1:sofar+acscummomentsizes(1))=logmomentnames.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
-        for ii=2:size(acsmomentnames,1)
-            caliboptions.logmoments(sofar+acscummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=logmomentnames.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
-        end
-    end
-
-
-% If caliboptions.logmoments is not a structure, then...
-% caliboptions.logmoments will either be scalar, or a vector of zeros and ones
-%    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
-elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(CalibParamNames),1)
-   % If set this up, and then set up
-   if isscalar(caliboptions.logmoments)
-       caliboptions.logmoments=ones(length(targetmomentvec),1); % log all of them
-   else
-        if length(caliboptions.logmoments)==(length(acsmomentnames)+length(allstatmomentnames))
-            % Covert caliboptions.logmoments from being about CalibParamNames
-            temp=caliboptions.logmoments;
-            caliboptions.logmoments=zeros(length(targetmomentvec),1);
-            cumsofar=1;
-            for mm=1:length(temp)
-                if mm<=allstatmomentsizes
-                    caliboptions.logmoments(cumsofar:cumsofar+allstatmomentsizes(mm))=temp(mm);
-                    cumsofar=cumsofar+allstatmomentsizes(mm);
-                else
-                    caliboptions.logmoments(cumsofar:cumsofar+acsmomentsizes(mm))=temp(mm);
-                    cumsofar=cumsofar+acsmomentsizes(mm);
+    sofar=0;
+    if usingallstats==1
+        for ii=1:size(allstatmomentnames,1)
+            flag=0; % walk the (two to four) names of this target into logmomentnames.AllStats; the flag is the number at the end of the walk, if it is all there
+            if isfield(logmomentnames,'AllStats')
+                temp=logmomentnames.AllStats;
+                found=1;
+                for kk=1:size(allstatmomentnames,2)
+                    if ~isempty(allstatmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,allstatmomentnames{ii,kk})
+                            temp=temp.(allstatmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
                 end
             end
-        elseif length(caliboptions.logmoments)==length(targetmomentvec)
-            % This is fine (already in the appropriate form)
-        else
-            fprintf('Relevant to following error: length(caliboptions.logmoments)=%i \n', length(caliboptions.logmoments))
-            fprintf('Relevant to following error: length(acsmomentnames)=%i, length(allstatmomentnames)=%i \n', length(acsmomentnames), length(allstatmomentnames))
-            error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) does not match number of moments to calibrate [they should be equal]')
+            caliboptions.logmoments(sofar+1:sofar+allstatsizes(ii))=flag;
+            sofar=sofar+allstatsizes(ii);
         end
-   end
-   % log of targetmoments [no need to do this as inputs should already be log()]
-   % targetmomentvec=(1-caliboptions.logmoments).*targetmomentvec + caliboptions.logmoments.*log(targetmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+    end
+    if usinglcp==1
+        for ii=1:size(acsmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'AgeConditionalStats')
+                temp=logmomentnames.AgeConditionalStats;
+                found=1;
+                for kk=1:size(acsmomentnames,2)
+                    if ~isempty(acsmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,acsmomentnames{ii,kk})
+                            temp=temp.(acsmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            caliboptions.logmoments(sofar+1:sofar+acssizes(ii))=flag;
+            sofar=sofar+acssizes(ii);
+        end
+    end
+    if usingcustomstats==1
+        for ii=1:size(cmsmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'CustomModelStats') && isfield(logmomentnames.CustomModelStats,cmsmomentnames{ii,1})
+                flag=logmomentnames.CustomModelStats.(cmsmomentnames{ii,1});
+            end
+            caliboptions.logmoments(sofar+1:sofar+cmssizes(ii))=flag;
+            sofar=sofar+cmssizes(ii);
+        end
+    end
+elseif any(caliboptions.logmoments>0)
+    if isscalar(caliboptions.logmoments)
+        caliboptions.logmoments=ones(length(targetmomentvec),1); % log all of them
+    elseif length(caliboptions.logmoments)==length(targetmomentvec)
+        caliboptions.logmoments=reshape(caliboptions.logmoments,[length(targetmomentvec),1]); % already one entry per target
+    elseif length(caliboptions.logmoments)==length(momentrowsizes)
+        caliboptions.logmoments=repelem(reshape(caliboptions.logmoments,[],1),reshape(momentrowsizes,[],1)); % one entry per target name, expanded over the entries of each
+    else
+        fprintf('Relevant to following error: length(caliboptions.logmoments)=%i \n', length(caliboptions.logmoments))
+        fprintf('Relevant to following error: number of target names=%i, number of target entries=%i \n', length(momentrowsizes), length(targetmomentvec))
+        error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) matches neither the number of target names nor the number of target entries')
+    end
+else
+    caliboptions.logmoments=zeros(length(targetmomentvec),1);
 end
 
 %% Turn off some warnings that would normally be given (as they are otherwise repeated ad infinitum)
@@ -428,12 +489,22 @@ elseif caliboptions.fminalgo==8 % lsqnonlin()
 end
 
 
+%% Model moments at the solution, for calibsummary (one more evaluation of the objective, as a vector)
+caliboptions_summary=caliboptions;
+caliboptions_summary.vectoroutput=1;
+caliboptions_summary.verbose=0;
+calibsummary.currentmomentvec=gather(CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions_summary, vfoptions, simoptions));
+actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
+calibsummary.targetmomentvec=targetmomentvec(actualtarget); % the targets, in the order of the names (AllStats, then AgeConditionalStats, then CustomModelStats), NaN entries dropped
+calibsummary.logmoments=caliboptions.logmoments; % one entry per target: the current moments above are log() where this is 1 (the targets were given as logs there)
+
 %% Clean up output
 % If the parameter is constrained in some way then we need to un-transform it
 [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
 if sum(penalty)>0
     warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
 end
+CalibParams=struct(); % (the matrix forms test isfield() on it, which errored when the first calibrated parameter was per type as a matrix)
 for pp=1:nCalibParams
     % Now store the unconstrained values
     if calibomitparams_counter(pp)>0
@@ -453,7 +524,7 @@ for pp=1:nCalibParams
             else
                 temp=zeros(N_i,length(currparamraw));
             end
-            temp(ii,:)=currparamraw';
+            temp(nCalibParamsFinder(pp,2),:)=currparamraw'; % (was indexing with a stale ii, so every type wrote the same row)
             CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=temp;
         elseif nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==2 % N_i as second dim
             if isfield(CalibParams,CalibParamNames{nCalibParamsFinder(pp,1)})
@@ -461,7 +532,7 @@ for pp=1:nCalibParams
             else
                 temp=zeros(length(currparamraw),N_i);
             end
-            temp(:,ii)=currparamraw;
+            temp(:,nCalibParamsFinder(pp,2))=currparamraw; % (was indexing with a stale ii, so every type wrote the same column)
             CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=temp;
         end
     end

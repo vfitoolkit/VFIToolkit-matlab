@@ -33,7 +33,7 @@ function [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal
 
 % Do any transformations of parameters before we say what they are
 penalty=zeros(length(calibparamsvec),1); % Used to apply penalty to objective function when parameters try to leave restricted ranges
-for pp=1:length(CalibParamNames)
+for pp=1:length(calibparamsvecindex)-1 % one block per calibrated parameter; with permanent types a per-type parameter is one block per type, so there are more blocks than names (the constraint vectors are per block, from ParameterConstraints_PType_TransformParamsToUnconstrained); was length(CalibParamNames), which left the later blocks untransformed
     if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
         temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         if caliboptions.constrainpositivesoftplus(pp)==0

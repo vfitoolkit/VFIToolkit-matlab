@@ -1,7 +1,10 @@
-function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes, selectors]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,useptype,N_j,simoptions)
+function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes, selectors]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,useptype,N_j,simoptions,Names_i)
 % useptype is 0 or 1
-% N_j and simoptions are optional (the estimation commands do not yet pass them): when both are given and useptype==0, the last
+% N_j, simoptions and (with permanent types) Names_i are optional (the estimation commands do not yet pass them): when they are given, the last
 % output 'selectors' holds the per-combination selectors for simoptions.whichcombos/whichstats of the stats commands:
+% With useptype==1 the selectors carry a trailing type dimension of N_i+1 (one slot per permanent type in the order of Names_i, then the
+% grouped stats): AllStats [nFns,1+nRestr,N_i+1] / [..,7], AgeConditionalStats [nFns,maxAgeGroups,1+nRestr,N_i+1] / [..,7], maxAgeGroups being
+% the largest number of age groups over the ptypes (each ptype's groups shifted by its agejshifter), as LifeCycleProfiles_FHorz_Case1_PType lays them out.
 %   selectors.AllStats.whichcombos  [nFns,1+nRestr]           selectors.AllStats.whichstats  [nFns,1+nRestr,7]
 %   selectors.ACStats.whichcombos   [nFns,nAgeGroups,1+nRestr] selectors.ACStats.whichstats   [nFns,nAgeGroups,1+nRestr,7]
 % with the functions in the order of FnsToEvaluate_AllStats/FnsToEvaluate_ACStats (the order of FnsToEvaluate) and the pages
@@ -349,231 +352,427 @@ if useptype==0
         selectors.ACStats.whichstats=ACStats_whichstatsArr;
     end
 elseif useptype==1
-    % PType means we need the third level a3vec
-    % conditionalrestrictions means we need the third level a3vec
-    % To allow conditionalrestrictions and ptype at once we go to fourth level a4vec
-
-    % Get all of the moments out of TargetMoments and make them into a vector
-    % Also, store all the names
+    % With permanent types a target has two to four names: fn.stat (grouped), fn.type.stat, restriction.fn.stat (grouped),
+    % restriction.fn.type.stat, and fn.MoreInequality.substat (or fn.type.MoreInequality.substat). The selectors carry a trailing
+    % type dimension of N_i+1: one slot per permanent type in the order of Names_i, then the grouped stats (see the PType stats
+    % commands). A grouped target selects the grouped slot; the commands then compute every ptype's stats for that combination too,
+    % as the grouped Mean, StdDeviation, Minimum and Maximum are built from them.
+    if ~exist('Names_i','var')
+        Names_i={};
+    end
+    N_i=length(Names_i);
+    if exist('simoptions','var') && isfield(simoptions,'conditionalrestrictions')
+        RestrNames=fieldnames(simoptions.conditionalrestrictions);
+    else
+        RestrNames={};
+    end
+    nRestr=length(RestrNames);
+    FnNamesAll=fieldnames(FnsToEvaluate);
+    knownstats={'Mean','Median','RatioMeanToMedian','Variance','StdDeviation','Gini','LorenzCurve','Minimum','Maximum','QuantileCutoffs','QuantileMeans','MoreInequality'};
+    if exist('simoptions','var') && exist('N_j','var') && N_i>0
+        buildselectors=1;
+        % The age axis of LifeCycleProfiles_FHorz_Case1_PType: the largest number of age groups over the ptypes (per-type agegroupings
+        % or per-type N_j), each ptype's age groups sitting at positions shifted by its agejshifter (relative to the smallest)
+        ngroups_i=zeros(N_i,1);
+        for ii=1:N_i
+            if isfield(simoptions,'agegroupings')
+                if isstruct(simoptions.agegroupings)
+                    ngroups_i(ii)=length(simoptions.agegroupings.(Names_i{ii}));
+                else
+                    ngroups_i(ii)=length(simoptions.agegroupings);
+                end
+            elseif isstruct(N_j)
+                ngroups_i(ii)=N_j.(Names_i{ii});
+            else
+                ngroups_i(ii)=N_j;
+            end
+        end
+        maxngroups=max(ngroups_i);
+        ageshift=zeros(N_i,1);
+        if isfield(simoptions,'agejshifter')
+            if isstruct(simoptions.agejshifter)
+                for ii=1:N_i
+                    ageshift(ii)=simoptions.agejshifter.(Names_i{ii});
+                end
+            elseif ~isscalar(simoptions.agejshifter)
+                ageshift=reshape(simoptions.agejshifter,[N_i,1]);
+            end
+            ageshift=ageshift-min(ageshift);
+        end
+    else
+        buildselectors=0;
+    end
     targetmomentvec=[]; % Can't preallocate as have no idea how big this will be
-    % Ends up a column vector (create row vector, then transpose)
-
-    % First, do those in AllStats
+    %% AllStats
     if usingallstats==1
-        allstatmomentnames=cell(1,4);
-        allstatmomentcounter=0;
-        allstatmomentsizes=0;
-        a1vec=fieldnames(TargetMoments.AllStats); % This will be the FnsToEvaluate names
+        allstatmomentnames=cell(0,4);
+        allstatmomentsizes=[];
+        a1vec=fieldnames(TargetMoments.AllStats);
         for a1=1:length(a1vec)
-            a2vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}));% These will be Mean, etc
+            a2vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}));
             for a2=1:length(a2vec)
-                if isstruct(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}))
-                    a3vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));% These will be Mean, etc
+                temp2=TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2});
+                if isstruct(temp2)
+                    a3vec=fieldnames(temp2);
                     for a3=1:length(a3vec)
-                        if isstruct(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}))
-                            a4vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a3}).(a3vec{a3}));% These will be Mean, etc. Only relevant when ptype & conditionalrestrictions together.
+                        temp3=temp2.(a3vec{a3});
+                        if isstruct(temp3)
+                            a4vec=fieldnames(temp3);
                             for a4=1:length(a4vec)
-                                allstatmomentcounter=allstatmomentcounter+1;
-                                if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}).(a4vec{a4}),2)==1 % already column vector
-                                    targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}).(a4vec{a4})]; % append to end
-                                else
-                                    targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}).(a4vec{a4})']; % transpose, then append to end
+                                temp4=temp3.(a4vec{a4});
+                                if isstruct(temp4)
+                                    error(['TargetMoments.AllStats.',a1vec{a1},'.',a2vec{a2},'.',a3vec{a3},'.',a4vec{a4},' is a structure: a target has at most four levels (restriction.fn.type.stat)'])
                                 end
-                                allstatmomentnames(allstatmomentcounter,:)={a1vec{a1},a2vec{a2},a3vec{a3},a4vec{a4}};
-                                allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}).(a4vec{a4}));
+                                targetmomentvec=[targetmomentvec; temp4(:)]; % append to end
+                                allstatmomentnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},a4vec{a4}};
+                                allstatmomentsizes(end+1)=numel(temp4);
                             end
                         else
-                            allstatmomentcounter=allstatmomentcounter+1;
-                            if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}),2)==1 % already column vector
-                                targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})]; % append to end
-                            else
-                                targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})']; % transpose, then append to end
-                            end
-                            allstatmomentnames(allstatmomentcounter,1:3)={a1vec{a1},a2vec{a2},a3vec{a3}};
-                            allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}));
+                            targetmomentvec=[targetmomentvec; temp3(:)]; % append to end
+                            allstatmomentnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},''};
+                            allstatmomentsizes(end+1)=numel(temp3);
                         end
                     end
                 else
-                    a3vec={};
-                    allstatmomentcounter=allstatmomentcounter+1;
-                    if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
-                        targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})]; % append to end
-                    else
-                        targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                    targetmomentvec=[targetmomentvec; temp2(:)]; % append to end
+                    allstatmomentnames(end+1,:)={a1vec{a1},a2vec{a2},'',''};
+                    allstatmomentsizes(end+1)=numel(temp2);
+                end
+            end
+        end
+        allstatcummomentsizes=cumsum(allstatmomentsizes);
+        % Classify each row as (fn, stat, page, slot): page 1 unrestricted or 1+rr; slot ii a ptype, N_i+1 the grouped stats
+        nrows=size(allstatmomentnames,1);
+        rowfn=cell(nrows,1);
+        rowstat=cell(nrows,1);
+        rowpage=zeros(nrows,1);
+        rowslot=zeros(nrows,1);
+        for cc=1:nrows
+            names=allstatmomentnames(cc,:);
+            names=names(~cellfun(@isempty,names));
+            a1=names{1};
+            isrestr=any(strcmp(RestrNames,a1));
+            isfn=any(strcmp(FnNamesAll,a1));
+            if isrestr && isfn
+                error(['TargetMoments.AllStats.',a1,': this name is both a FnsToEvaluate and a conditional restriction, so the target is ambiguous'])
+            elseif isrestr || (~isfn && ~exist('simoptions','var')) % (without simoptions a first-level name that is not a function is taken to be a restriction, as the estimation commands rely on)
+                if isrestr
+                    rowpage(cc)=1+find(strcmp(RestrNames,a1));
+                else
+                    rowpage(cc)=0;
+                end
+                if length(names)<3
+                    error(['TargetMoments.AllStats.',a1,'.',names{2},': a target under a conditional restriction needs a function and then a statistic'])
+                end
+                rowfn{cc}=names{2};
+                rest=names(3:end);
+            elseif isfn
+                rowpage(cc)=1;
+                rowfn{cc}=a1;
+                rest=names(2:end);
+            else
+                error(['TargetMoments.AllStats.',a1,' is neither a FnsToEvaluate nor a conditional restriction in simoptions.conditionalrestrictions'])
+            end
+            if ~any(strcmp(FnNamesAll,rowfn{cc}))
+                error(['TargetMoments.AllStats: ',rowfn{cc},' is not one of the FnsToEvaluate'])
+            end
+            if isempty(rest)
+                error(['TargetMoments.AllStats.',a1,': a target needs a statistic (e.g. .Mean)'])
+            end
+            if N_i>0 && any(strcmp(Names_i,rest{1})) % a permanent type: its own stats
+                rowslot(cc)=find(strcmp(Names_i,rest{1}));
+                if length(rest)<2
+                    error(['TargetMoments.AllStats: the target for ',rowfn{cc},' of type ',rest{1},' needs a statistic (e.g. .Mean)'])
+                end
+                rowstat{cc}=rest{2}; % (a third element is a MoreInequality sub-statistic)
+            elseif N_i>0 % the grouped stats
+                rowslot(cc)=N_i+1;
+                rowstat{cc}=rest{1}; % (a second element is a MoreInequality sub-statistic)
+            else % without Names_i (the estimation commands' three-input call) the type level cannot be told apart: take the first known statistic name
+                rowslot(cc)=0;
+                rowstat{cc}='';
+                for kk=1:length(rest)
+                    if any(strcmp(knownstats,rest{kk}))
+                        rowstat{cc}=rest{kk};
+                        break
                     end
-                    allstatmomentnames(allstatmomentcounter,1:2)={a1vec{a1},a2vec{a2}};
-                    allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));
                 end
             end
-        end
-        allstatcummomentsizes=cumsum(allstatmomentsizes); % Note: this is zero is AllStats is unused
-        % To do AllStats faster, we use simoptions.whichstats so that we only compute the stats we want.
-        AllStats_whichstats=zeros(7,1);
-        for aa=2:4
-            if any(strcmp(allstatmomentnames(:,aa),'Mean'))
-                AllStats_whichstats(1)=1;
-            end
-            if any(strcmp(allstatmomentnames(:,aa),'Median'))
-                AllStats_whichstats(2)=1;
-            end
-            if any(strcmp(allstatmomentnames(:,aa),'RatioMeanToMedian'))
-                AllStats_whichstats(1)=1;
-                AllStats_whichstats(2)=1;
-            end
-            if any(strcmp(allstatmomentnames(:,aa),'Variance')) || any(strcmp(allstatmomentnames(:,aa),'StdDeviation'))
-                AllStats_whichstats(3)=1;
-            end
-            if any(strcmp(allstatmomentnames(:,aa),'Gini'))
-                if AllStats_whichstats(4)==0 % Avoid overwriting if it is 1 from LorenzCurve
-                    AllStats_whichstats(4)=3;
-                end
-            end
-            if any(strcmp(allstatmomentnames(:,aa),'LorenzCurve'))
-                AllStats_whichstats(4)=1;
-            end
-            if any(strcmp(allstatmomentnames(:,aa),'Maximum')) || any(strcmp(allstatmomentnames(:,aa),'Minimum'))
-                AllStats_whichstats(5)=1;
-            end
-            if any(strcmp(allstatmomentnames(:,aa),'QuantileCutoffs')) || any(strcmp(allstatmomentnames(:,aa),'QuantileMeans'))
-                AllStats_whichstats(6)=1; % quantiles are whichstats(6) (5 is Minimum/Maximum)
-            end
-            if any(strcmp(allstatmomentnames(:,aa),'MoreInequality'))
-                AllStats_whichstats(7)=1;
+            if any(strcmp(knownstats,rowfn{cc})) || (rowslot(cc)>0 && rowslot(cc)<=N_i && any(strcmp(knownstats,Names_i{rowslot(cc)})))
+                error('TargetMoments.AllStats: a FnsToEvaluate or permanent type is named like a statistic, so the target cannot be read')
             end
         end
-        % To do AllStats faster, just evaluate the relevant functions
         FnsToEvaluate_AllStats=struct();
-        % Put a1vec and a2vec together, then find just those which are in FnsToEvaluate
-        a123vec={}; for cc=1:size(allstatmomentnames,1), for kk=1:size(allstatmomentnames,2), if ischar(allstatmomentnames{cc,kk}) && ~isempty(allstatmomentnames{cc,kk}), a123vec{end+1,1}=allstatmomentnames{cc,kk}; end, end, end % every name in every target (not just the last target's levels)
-        a123vec=intersect(a123vec,fieldnames(FnsToEvaluate));
-        for ff=1:length(a123vec)
-            FnsToEvaluate_AllStats.(a123vec{ff})=FnsToEvaluate.(a123vec{ff});
+        for ff=1:length(FnNamesAll)
+            if any(strcmp(rowfn,FnNamesAll{ff}))
+                FnsToEvaluate_AllStats.(FnNamesAll{ff})=FnsToEvaluate.(FnNamesAll{ff});
+            end
         end
-        % % all stats should be of length 1 [actually, no, they might be, e.g., QuantileMeans]
-        % for ii=1:length(allstatmomentsizes)
-        %     if allstatmomentsizes(ii)~=1
-        %         errorstr=['Target Age-Conditional Stats must be of length() N_j (if you want to ignore some ages, use NaN for those ages); problem is with ', allstatmomentsizes{ii,1}, ' ', allstatmomentsizes{ii,2}, ' ',allstatmomentsizes{ii,3},' \n'];
-        %         error(errorstr)
-        %     end
-        % end
+        FnNamesA=fieldnames(FnsToEvaluate_AllStats);
+        AllStats_whichstats=zeros(7,1);
+        if buildselectors==1
+            AllStats_whichstatsArr=zeros(length(FnNamesA),1+nRestr,N_i+1,7);
+        end
+        for cc=1:nrows
+            ff=find(strcmp(FnNamesA,rowfn{cc}));
+            pp=rowpage(cc);
+            ss_slot=rowslot(cc);
+            switch rowstat{cc} % see StatsFromWeightedGrid: 1 Mean, 2 Median, 3 Variance/StdDeviation, 4 Gini(3)/LorenzCurve(1), 5 Minimum/Maximum, 6 Quantiles, 7 MoreInequality
+                case 'Mean'
+                    AllStats_whichstats(1)=1; sidx=1;
+                case 'Median'
+                    AllStats_whichstats(2)=1; sidx=2;
+                case 'RatioMeanToMedian'
+                    AllStats_whichstats(1:2)=1; sidx=[1,2];
+                case {'Variance','StdDeviation'}
+                    AllStats_whichstats(3)=1; sidx=3;
+                case 'Gini'
+                    if AllStats_whichstats(4)==0
+                        AllStats_whichstats(4)=3;
+                    end
+                    sidx=4;
+                case 'LorenzCurve'
+                    AllStats_whichstats(4)=1; sidx=4;
+                case {'Minimum','Maximum'}
+                    AllStats_whichstats(5)=1; sidx=5;
+                case {'QuantileCutoffs','QuantileMeans'}
+                    AllStats_whichstats(6)=1; sidx=6;
+                case 'MoreInequality'
+                    AllStats_whichstats(7)=1; sidx=7;
+                otherwise
+                    error(['TargetMoments.AllStats: ',rowstat{cc},' is not a statistic that AllStats produces (Mean, Median, RatioMeanToMedian, Variance, StdDeviation, Gini, LorenzCurve, Minimum, Maximum, QuantileCutoffs, QuantileMeans, MoreInequality)'])
+            end
+            if buildselectors==1
+                for ss=sidx
+                    if ss==4 % Gini/LorenzCurve: 3 is Gini only, 1 is the Lorenz curve (and Gini); a LorenzCurve target overrides a Gini-only 3
+                        if strcmp(rowstat{cc},'LorenzCurve')
+                            AllStats_whichstatsArr(ff,pp,ss_slot,4)=1;
+                        elseif AllStats_whichstatsArr(ff,pp,ss_slot,4)==0
+                            AllStats_whichstatsArr(ff,pp,ss_slot,4)=3;
+                        end
+                    else
+                        AllStats_whichstatsArr(ff,pp,ss_slot,ss)=1;
+                    end
+                end
+            end
+        end
+        if buildselectors==1
+            AllStats_whichcombos=double(any(AllStats_whichstatsArr,4)); % [nFns,1+nRestr,N_i+1]
+        else
+            AllStats_whichstatsArr=[];
+            AllStats_whichcombos=[];
+        end
     else
-        % Placeholders
-        allstatmomentnames=cell(1,3);
+        allstatmomentnames=cell(1,4);
         allstatcummomentsizes=0;
         AllStats_whichstats=zeros(7,1);
         FnsToEvaluate_AllStats=struct();
+        AllStats_whichstatsArr=[];
+        AllStats_whichcombos=[];
     end
-
-
-
-
-
-    % Second, do those in AgeConditionalStats
+    %% AgeConditionalStats (LifeCycleProfiles)
     if usinglcp==1
-        acsmomentnames=cell(1,4);
-        acsmomentcounter=0;
-        acsmomentsizes=0;
-        a1vec=fieldnames(TargetMoments.AgeConditionalStats); % This will be the FnsToEvaluate names
+        acsmomentnames=cell(0,4);
+        acsmomentsizes=[];
+        a1vec=fieldnames(TargetMoments.AgeConditionalStats);
         for a1=1:length(a1vec)
-            a2vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}));% These will be Mean, etc
+            a2vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}));
             for a2=1:length(a2vec)
-                if isstruct(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}))
-                    a3vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));% These will be Mean, etc. Only relevant when ptype or conditionalrestrictions.
+                temp2=TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2});
+                if isstruct(temp2)
+                    a3vec=fieldnames(temp2);
                     for a3=1:length(a3vec)
-                        if isstruct(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}))
-                            a4vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a3}).(a3vec{a3}));% These will be Mean, etc. Only relevant when ptype & conditionalrestrictions together.
+                        temp3=temp2.(a3vec{a3});
+                        if isstruct(temp3)
+                            a4vec=fieldnames(temp3);
                             for a4=1:length(a4vec)
-                                acsmomentcounter=acsmomentcounter+1;
-                                if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}).(a4vec{a4}),2)==1 % already column vector
-                                    targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}).(a4vec{a4})]; % append to end
-                                else
-                                    targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}).(a4vec{a4})']; % transpose, then append to end
+                                temp4=temp3.(a4vec{a4});
+                                if isstruct(temp4)
+                                    error(['TargetMoments.AgeConditionalStats.',a1vec{a1},'.',a2vec{a2},'.',a3vec{a3},'.',a4vec{a4},' is a structure: a target has at most four levels (restriction.fn.type.stat)'])
                                 end
-                                acsmomentnames(acsmomentcounter,:)={a1vec{a1},a2vec{a2},a3vec{a3},a4vec{a4}};
-                                acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}).(a4vec{a4}));
+                                targetmomentvec=[targetmomentvec; temp4(:)]; % append to end
+                                acsmomentnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},a4vec{a4}};
+                                acsmomentsizes(end+1)=numel(temp4);
                             end
                         else
-                            acsmomentcounter=acsmomentcounter+1;
-                            if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}),2)==1 % already column vector
-                                targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})]; % append to end
-                            else
-                                targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})']; % transpose, then append to end
-                            end
-                            acsmomentnames(acsmomentcounter,1:3)={a1vec{a1},a2vec{a2},a3vec{a3}};
-                            acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}));
+                            targetmomentvec=[targetmomentvec; temp3(:)]; % append to end
+                            acsmomentnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},''};
+                            acsmomentsizes(end+1)=numel(temp3);
                         end
                     end
                 else
-                    a3vec={};
-                    acsmomentcounter=acsmomentcounter+1;
-                    if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
-                        targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})]; % append to end
-                    else
-                        targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                    targetmomentvec=[targetmomentvec; temp2(:)]; % append to end
+                    acsmomentnames(end+1,:)={a1vec{a1},a2vec{a2},'',''};
+                    acsmomentsizes(end+1)=numel(temp2);
+                end
+            end
+        end
+        acscummomentsizes=cumsum(acsmomentsizes);
+        nrows=size(acsmomentnames,1);
+        rowfn=cell(nrows,1);
+        rowstat=cell(nrows,1);
+        rowpage=zeros(nrows,1);
+        rowslot=zeros(nrows,1);
+        for cc=1:nrows
+            names=acsmomentnames(cc,:);
+            names=names(~cellfun(@isempty,names));
+            a1=names{1};
+            isrestr=any(strcmp(RestrNames,a1));
+            isfn=any(strcmp(FnNamesAll,a1));
+            if isrestr && isfn
+                error(['TargetMoments.AgeConditionalStats.',a1,': this name is both a FnsToEvaluate and a conditional restriction, so the target is ambiguous'])
+            elseif isrestr || (~isfn && ~exist('simoptions','var'))
+                if isrestr
+                    rowpage(cc)=1+find(strcmp(RestrNames,a1));
+                else
+                    rowpage(cc)=0;
+                end
+                if length(names)<3
+                    error(['TargetMoments.AgeConditionalStats.',a1,'.',names{2},': a target under a conditional restriction needs a function and then a statistic'])
+                end
+                rowfn{cc}=names{2};
+                rest=names(3:end);
+            elseif isfn
+                rowpage(cc)=1;
+                rowfn{cc}=a1;
+                rest=names(2:end);
+            else
+                error(['TargetMoments.AgeConditionalStats.',a1,' is neither a FnsToEvaluate nor a conditional restriction in simoptions.conditionalrestrictions'])
+            end
+            if ~any(strcmp(FnNamesAll,rowfn{cc}))
+                error(['TargetMoments.AgeConditionalStats: ',rowfn{cc},' is not one of the FnsToEvaluate'])
+            end
+            if isempty(rest)
+                error(['TargetMoments.AgeConditionalStats.',a1,': a target needs a statistic (e.g. .Mean)'])
+            end
+            if N_i>0 && any(strcmp(Names_i,rest{1}))
+                rowslot(cc)=find(strcmp(Names_i,rest{1}));
+                if length(rest)<2
+                    error(['TargetMoments.AgeConditionalStats: the target for ',rowfn{cc},' of type ',rest{1},' needs a statistic (e.g. .Mean)'])
+                end
+                rowstat{cc}=rest{2};
+            elseif N_i>0
+                rowslot(cc)=N_i+1;
+                rowstat{cc}=rest{1};
+            else
+                rowslot(cc)=0;
+                rowstat{cc}='';
+                for kk=1:length(rest)
+                    if any(strcmp(knownstats,rest{kk}))
+                        rowstat{cc}=rest{kk};
+                        break
                     end
-                    acsmomentnames(acsmomentcounter,1:2)={a1vec{a1},a2vec{a2}};
-                    acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));
                 end
             end
-        end
-        acscummomentsizes=cumsum(acsmomentsizes); % Note: this is zero is AgeConditionalStats is unused
-        % To do AgeConditionalStats faster, we use simoptions.whichstats so that we only compute the stats we want.
-        ACStats_whichstats=zeros(7,1);
-        for aa=2:4
-            if any(strcmp(acsmomentnames(:,aa),'Mean'))
-                ACStats_whichstats(1)=1;
-            end
-            if any(strcmp(acsmomentnames(:,aa),'Median'))
-                ACStats_whichstats(2)=1;
-            end
-            if any(strcmp(acsmomentnames(:,aa),'RatioMeanToMedian'))
-                ACStats_whichstats(1)=1;
-                ACStats_whichstats(2)=1;
-            end
-            if any(strcmp(acsmomentnames(:,aa),'Variance')) || any(strcmp(acsmomentnames(:,aa),'StdDeviation'))
-                ACStats_whichstats(3)=1;
-            end
-            if any(strcmp(acsmomentnames(:,aa),'Gini'))
-                if ACStats_whichstats(4)==0 % Avoid overwriting if it is 1 from LorenzCurve
-                    ACStats_whichstats(4)=3;
-                end
-            end
-            if any(strcmp(acsmomentnames(:,aa),'LorenzCurve'))
-                ACStats_whichstats(4)=2;
-            end
-            if any(strcmp(acsmomentnames(:,aa),'Maximum')) || any(strcmp(acsmomentnames(:,aa),'Minimum'))
-                ACStats_whichstats(5)=1;
-            end
-            if any(strcmp(acsmomentnames(:,aa),'QuantileCutoffs')) || any(strcmp(acsmomentnames(:,aa),'QuantileMeans'))
-                ACStats_whichstats(6)=1; % quantiles are whichstats(6) (5 is Minimum/Maximum)
-            end
-            if any(strcmp(acsmomentnames(:,aa),'MoreInequality'))
-                ACStats_whichstats(7)=1;
+            if any(strcmp(knownstats,rowfn{cc})) || (rowslot(cc)>0 && rowslot(cc)<=N_i && any(strcmp(knownstats,Names_i{rowslot(cc)})))
+                error('TargetMoments.AgeConditionalStats: a FnsToEvaluate or permanent type is named like a statistic, so the target cannot be read')
             end
         end
-        % To do AgeConditionalStats faster, just evaluate the relevant functions
         FnsToEvaluate_ACStats=struct();
-        % Put a1vec and a2vec together, then find just those which are in FnsToEvaluate
-        a123vec={}; for cc=1:size(acsmomentnames,1), for kk=1:size(acsmomentnames,2), if ischar(acsmomentnames{cc,kk}) && ~isempty(acsmomentnames{cc,kk}), a123vec{end+1,1}=acsmomentnames{cc,kk}; end, end, end % every name in every target (not just the last target's levels)
-        a123vec=intersect(a123vec,fieldnames(FnsToEvaluate));
-        for ff=1:length(a123vec)
-            FnsToEvaluate_ACStats.(a123vec{ff})=FnsToEvaluate.(a123vec{ff});
+        for ff=1:length(FnNamesAll)
+            if any(strcmp(rowfn,FnNamesAll{ff}))
+                FnsToEvaluate_ACStats.(FnNamesAll{ff})=FnsToEvaluate.(FnNamesAll{ff});
+            end
         end
-        % % age-conditional stats should be of length N_j [actually, no, they might be, e.g., QuantileMeans]
-        % for ii=1:length(acsmomentsizes)
-        %     if acsmomentsizes(ii)~=N_j
-        %         errorstr=['Target Age-Conditional Stats must be of length() N_j (if you want to ignore some ages, use NaN for those ages); problem is with ', acsmomentnames{ii,1}, ' ', acsmomentnames{ii,2}, ' ',acsmomentnames{ii,3},' \n'];
-        %         error(errorstr)
-        %     end
-        % end
+        FnNamesL=fieldnames(FnsToEvaluate_ACStats);
+        ACStats_whichstats=zeros(7,1);
+        if buildselectors==1
+            ACStats_whichstatsArr=zeros(length(FnNamesL),maxngroups,1+nRestr,N_i+1,7);
+        end
+        for cc=1:nrows
+            ff=find(strcmp(FnNamesL,rowfn{cc}));
+            pp=rowpage(cc);
+            ss_slot=rowslot(cc);
+            if buildselectors==1
+                % the target entries of this row: a vector over this slot's age groups, or a matrix with them as columns; an age group is on where the target is not NaN
+                names=acsmomentnames(cc,:);
+                names=names(~cellfun(@isempty,names));
+                temp=TargetMoments.AgeConditionalStats;
+                for kk=1:length(names)
+                    temp=temp.(names{kk});
+                end
+                if ss_slot<=N_i
+                    nslot=ngroups_i(ss_slot);
+                    shift=ageshift(ss_slot);
+                else
+                    nslot=maxngroups;
+                    shift=0;
+                end
+                if isvector(temp) && numel(temp)==nslot
+                    ageon=reshape(~isnan(temp),[1,nslot]);
+                elseif ismatrix(temp) && size(temp,2)==nslot
+                    ageon=any(~isnan(temp),1);
+                else
+                    error(['TargetMoments.AgeConditionalStats target for ',rowfn{cc},' ',rowstat{cc},' has ',num2str(numel(temp)),' entries, but there are ',num2str(nslot),' age groups for it (it must be a vector over the age groups, or a matrix with the age groups as columns)'])
+                end
+                agepos=(1:nslot)+shift; % this slot's age groups on the common age axis
+                keep=(agepos<=maxngroups);
+                ageonpos=false(1,maxngroups);
+                ageonpos(agepos(keep))=ageon(keep);
+            end
+            switch rowstat{cc}
+                case 'Mean'
+                    ACStats_whichstats(1)=1; sidx=1;
+                case 'Median'
+                    ACStats_whichstats(2)=1; sidx=2;
+                case 'RatioMeanToMedian'
+                    ACStats_whichstats(1:2)=1; sidx=[1,2];
+                case {'Variance','StdDeviation'}
+                    ACStats_whichstats(3)=1; sidx=3;
+                case 'Gini'
+                    if ACStats_whichstats(4)==0
+                        ACStats_whichstats(4)=3;
+                    end
+                    sidx=4;
+                case 'LorenzCurve'
+                    ACStats_whichstats(4)=2; sidx=4;
+                case {'Minimum','Maximum'}
+                    ACStats_whichstats(5)=1; sidx=5;
+                case {'QuantileCutoffs','QuantileMeans'}
+                    ACStats_whichstats(6)=1; sidx=6;
+                case 'MoreInequality'
+                    ACStats_whichstats(7)=1; sidx=7;
+                otherwise
+                    error(['TargetMoments.AgeConditionalStats: ',rowstat{cc},' is not a statistic that LifeCycleProfiles produces (Mean, Median, RatioMeanToMedian, Variance, StdDeviation, Gini, LorenzCurve, Minimum, Maximum, QuantileCutoffs, QuantileMeans, MoreInequality)'])
+            end
+            if buildselectors==1
+                for ss=sidx
+                    if ss==4 % Gini/LorenzCurve: 3 is Gini only, 2 the Lorenz curve (and Gini); a LorenzCurve target overrides a Gini-only 3
+                        if strcmp(rowstat{cc},'LorenzCurve')
+                            ACStats_whichstatsArr(ff,ageonpos,pp,ss_slot,4)=2;
+                        else
+                            current=reshape(ACStats_whichstatsArr(ff,:,pp,ss_slot,4),[1,maxngroups]);
+                            current(ageonpos & current==0)=3;
+                            ACStats_whichstatsArr(ff,:,pp,ss_slot,4)=current;
+                        end
+                    else
+                        ACStats_whichstatsArr(ff,ageonpos,pp,ss_slot,ss)=1;
+                    end
+                end
+            end
+        end
+        if buildselectors==1
+            ACStats_whichcombos=double(any(ACStats_whichstatsArr,5)); % [nFns,maxngroups,1+nRestr,N_i+1]
+        else
+            ACStats_whichstatsArr=[];
+            ACStats_whichcombos=[];
+        end
     else
-        % Placeholders
         acsmomentnames=cell(1,4);
         acscummomentsizes=0;
         ACStats_whichstats=zeros(7,1);
         FnsToEvaluate_ACStats=struct();
+        ACStats_whichstatsArr=[];
+        ACStats_whichcombos=[];
     end
-
+    %% The selectors (used by CalibrateLifeCycleModel_PType when caliboptions.whichcombos=1)
+    selectors=struct();
+    if buildselectors==1
+        selectors.AllStats.whichcombos=AllStats_whichcombos;
+        selectors.AllStats.whichstats=AllStats_whichstatsArr;
+        selectors.ACStats.whichcombos=ACStats_whichcombos;
+        selectors.ACStats.whichstats=ACStats_whichstatsArr;
+    end
 end
 
 
