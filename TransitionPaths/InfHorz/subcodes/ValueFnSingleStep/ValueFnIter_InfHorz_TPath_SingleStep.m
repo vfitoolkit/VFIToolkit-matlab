@@ -1,5 +1,12 @@
-function [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep(VKron,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions)
+function [VKron, PolicyKron, aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep(VKron,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions)
 % The VKron input is next period value fn, the VKron output is this period.
+%
+% aprimeReferencePolicyNew, the third output, is the reference a later call could be given: the
+% aprime index chosen for each state the search conditions on. Only the local search produces it,
+% because only the local search computes an aprime optimum PER d; on every other path it comes back
+% empty. That is not a gap to be filled by the unrestricted raws -- a chain of restricted steps can
+% be seeded by one wide-window local search pass, which does produce it.
+aprimeReferencePolicyNew=[];
 
 % vfoptions must be already fully set up (this command is for internal use only so it should be)
 
@@ -27,24 +34,35 @@ if vfoptions.localsearch==1
     if vfoptions.divideandconquer==1
         error('vfoptions.localsearch=1 cannot yet be combined with vfoptions.divideandconquer=1')
     end
-    if isscalar(n_a) && N_d==0 && N_z>0
+    if isscalar(n_a) && N_z>0
+        % The reference holds the aprime index at the centre of each window, indexed by everything
+        % the search conditions on: (a,z) with no d, and (d,a,z) with one. N_dref is 1 in the first
+        % case and N_d in the second, which is the whole difference between the two shapes.
+        N_dref=max(N_d,1);
         if isempty(aprimeReferencePolicy)
-            % Default reference: the current a index, so the window sits around staying put.
-            % Built [1,N_a,N_z], the same shape Policy comes back as. The reference is a
-            % COARSE aprime index with and without the grid interpolation layer, so this is
-            % the same default either way.
-            aprimeReferencePolicy=repmat((1:1:N_a),[1,1,N_z]);
-        elseif ~(size(aprimeReferencePolicy,1)==1 && size(aprimeReferencePolicy,2)==N_a && numel(aprimeReferencePolicy)==N_a*N_z)
+            % Default reference: the current a index, so the window sits around staying put. With d
+            % that is the same aprime whatever d is being considered, which is as much as a default
+            % can say without having solved something first.
+            aprimeReferencePolicy=repmat((1:1:N_a),[N_dref,1,N_z]);
+        elseif ~(size(aprimeReferencePolicy,1)==N_dref && size(aprimeReferencePolicy,2)==N_a && numel(aprimeReferencePolicy)==N_dref*N_a*N_z)
             % numel rather than size(...,3) because MATLAB drops a trailing singleton when N_z==1
-            error('aprimeReferencePolicy must be shaped like Policy, [1,N_a,N_z], holding one aprime index per state')
+            error('aprimeReferencePolicy must hold one aprime index per state the search conditions on: [1,N_a,N_z] with no d, [N_d,N_a,N_z] with d')
         end
-        if vfoptions.gridinterplayer==0
-            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+        if N_d==0
+            if vfoptions.gridinterplayer==0
+                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+            else
+                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+            end
         else
-            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+            if vfoptions.gridinterplayer==0
+                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_raw(VKron,n_d,n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+            else
+                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_raw(VKron,n_d,n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+            end
         end
     else
-        error('vfoptions.localsearch=1 is currently only implemented for one endogenous state, no d, and z (no e, no semiz)')
+        error('vfoptions.localsearch=1 is currently only implemented for one endogenous state, with z (no e, no semiz)')
     end
     return
 end

@@ -1,4 +1,4 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+function [VPath,PolicyPath,aprimeReferencePath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 % transpathoptions, vfoptions and simoptions are optional inputs
 
 if prod(n_z)>1 && all(size(d_grid)==[prod(n_z),prod(n_z)])
@@ -84,6 +84,11 @@ else
         % ngridinterp points between, so the layer would do nothing at all. Neither is a solver.
         if vfoptions.nlocalsearch<1
             error('vfoptions.nlocalsearch must be at least 1')
+        end
+        % The experience asset branch below calls the ExpAsset single step directly, bypassing the
+        % dispatcher, so without this the option would be silently ignored rather than refused
+        if vfoptions.experienceasset>=1
+            error('vfoptions.localsearch=1 is not implemented with an experience asset')
         end
         % The window slides at the grid ends to stay 2*nlocalsearch+1 points wide, so the grid
         % has to be at least that long
@@ -172,7 +177,9 @@ N_a=prod(n_a);
 % why it is built here rather than left to the dispatcher. The dispatcher keeps its own
 % default for the [] case, since other callers rely on it.
 if vfoptions.localsearch==1
-    aprimeReferencePolicy=repmat((1:1:N_a),[1,1,N_z]); % [1,N_a,N_z], the shape Policy comes back as
+    % [1,N_a,N_z] with no d, [N_d,N_a,N_z] with one: one aprime index per state the search
+    % conditions on. With d the default says the same aprime whatever d is being considered.
+    aprimeReferencePolicy=repmat((1:1:N_a),[max(N_d,1),1,N_z]);
 else
     aprimeReferencePolicy=[];
 end
@@ -210,6 +217,14 @@ end
 PolicyIndexesPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
 PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_z]);
 
+aprimeReferencePathKron=zeros(max(N_d,1),N_a,N_z,T-1,'gpuArray'); % Periods 1 to T-1
+% T-1 periods, NOT T like PolicyIndexesPath. Period T is the only one this command does not solve --
+% V_final and Policy_final are given -- and no per-d aprime optimum exists for it anyway, since
+% Policy_final holds aprime only at its own optimal d. So the array holds exactly the periods that
+% were solved, which are also the periods a path solve recomputes. Do not index it in lockstep with
+% PolicyPath. The experience asset branch leaves it at zero, since the ExpAsset single step has no
+% reference output (and local search is refused there).
+
 
 %%
 if vfoptions.experienceasset==0
@@ -229,7 +244,10 @@ if vfoptions.experienceasset==0
             pi_z=transpathoptions.pi_z_T(:,:,T-ttr);
         end
 
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+        [V, Policy, aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+        if vfoptions.localsearch==1
+            aprimeReferencePathKron(:,:,:,T-ttr)=aprimeReferencePolicyNew;
+        end
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
@@ -304,6 +322,7 @@ end
 %% Unkron to get into the shape for output
 VPath=reshape(VKronPath,[n_a,n_z,T]);
 PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_z,T]);
+aprimeReferencePath=reshape(aprimeReferencePathKron,[max(N_d,1),n_a,n_z,T-1]);
 
 
 end

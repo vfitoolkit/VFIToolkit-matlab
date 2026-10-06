@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_nod_raw(Vnext,n_a,n_z, a_grid, z_gridvals,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions)
+function [V, Policy, aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_nod_raw(Vnext,n_a,n_z, a_grid, z_gridvals,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions)
 % Local search with the grid interpolation layer. aprime is restricted to the 2*nlocalsearch+1
 % coarse grid points around aprimeReferencePolicy, with ngridinterp points between each
 % consecutive pair, exactly as standard GI puts them between each pair of coarse points.
@@ -71,6 +71,12 @@ q=floor(k/(1+n2short));
 r=k-q*(1+n2short); % 0 on the lower coarse point, up to n2short just below the upper one
 Policy(1,:,:)=shiftdim(loweredge+q,-1); % lower coarse grid point
 Policy(2,:,:)=shiftdim(r+1,-1);         % from 1 (on the lower point) to 1+n2short
+
+%% The new reference, the SAME object as the input: a COARSE aprime index per state, [1,N_a,N_z]
+% The answer here is a fine point, so it is compressed to the nearest coarse one. r runs 0 to
+% n2short, so r/(1+n2short) is below 1 and the round is 0 or 1 -- the lower coarse point of the cell
+% or the upper. It cannot run off the top: P1=N_a only happens at q=2n, which forces r=0.
+aprimeReferencePolicyNew=reshape(loweredge+q+round(r/(1+n2short)),[1,N_a,N_z]);
 
 % NOTE ON THE ENCODING. L2 here runs 1 to 1+n2short and NEVER reaches the n2short+2 that the GI raw
 % can emit. That is not a different answer: (P1,L2=n2short+2) and (P1+1,L2=1) are the same fine

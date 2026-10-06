@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_nod_raw(Vnext,n_a,n_z, a_grid, z_gridvals,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions)
+function [V, Policy, aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_nod_raw(Vnext,n_a,n_z, a_grid, z_gridvals,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions)
 % Local search: aprime is restricted to a window of 2*nlocalsearch+1 grid points around
 % aprimeReferencePolicy, rather than all N_a of them. The return matrix is then
 % (2n+1)-by-N_a-by-N_z instead of N_a-by-N_a-by-N_z, so the cost of the step falls by a
@@ -68,9 +68,14 @@ entireRHS=ReturnMatrix+DiscountedEV(aprimez);
 V=reshape(V,[N_a,N_z]);
 
 % aprimeindexes(k,a,z)=loweredge(a,z)+(k-1), so the decode is just the offset from loweredge
-Policy=loweredge+reshape(maxindex,[N_a,N_z])-1;
+aprimeindexstar=loweredge+reshape(maxindex,[N_a,N_z])-1;
+
+%% The new reference, which is the SAME object as the input: one aprime index per state, [1,N_a,N_z]
+% With no d it is just the chosen aprime, so it coincides with Policy here. It is returned all the
+% same, so that a caller never has to branch on whether the model has a d.
+aprimeReferencePolicyNew=reshape(aprimeindexstar,[1,N_a,N_z]);
 
 %% Policy in transition paths
-Policy=reshape(ind2sub_vec_homemade(n_a,Policy(:))',[length(n_a),N_a,N_z]);
+Policy=reshape(ind2sub_vec_homemade(n_a,aprimeindexstar(:))',[length(n_a),N_a,N_z]);
 
 end
