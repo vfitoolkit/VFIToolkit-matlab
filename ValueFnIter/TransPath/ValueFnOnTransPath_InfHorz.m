@@ -79,6 +79,12 @@ else
         if ~isfield(vfoptions,'nlocalsearch')
             error('When using vfoptions.localsearch=1 you must set vfoptions.nlocalsearch')
         end
+        % nlocalsearch=0 would make the window a single grid point. Without the grid interpolation
+        % layer that is a search over one aprime, and with it there is no second point to put the
+        % ngridinterp points between, so the layer would do nothing at all. Neither is a solver.
+        if vfoptions.nlocalsearch<1
+            error('vfoptions.nlocalsearch must be at least 1')
+        end
         % The window slides at the grid ends to stay 2*nlocalsearch+1 points wide, so the grid
         % has to be at least that long
         if n_a(1)<2*vfoptions.nlocalsearch+1

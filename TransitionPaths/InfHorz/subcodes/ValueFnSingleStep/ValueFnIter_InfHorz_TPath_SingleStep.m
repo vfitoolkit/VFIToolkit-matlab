@@ -18,26 +18,31 @@ end
 
 %% Local search: aprime restricted to a window around aprimeReferencePolicy
 % Sits ahead of the gridinterplayer and divideandconquer branches because it is an
-% alternative to them, not a tier on top: it already restricts the search, so combining it
-% with divide-and-conquer (which restricts the search a different way) or with the grid
-% interpolation layer (whose window would have to be expressed in fine-grid units) is a
-% separate question, deliberately left out of this build.
+% alternative to them, not a tier on top. Divide-and-conquer restricts the search a
+% different way, so the combination is refused. The grid interpolation layer is NOT a
+% tier on top either: the LS1_GI1 raw does the whole thing itself, putting the
+% ngridinterp points between each consecutive pair of the window's coarse points and
+% taking one max over them, with no coarse layer at all.
 if vfoptions.localsearch==1
-    if vfoptions.gridinterplayer==1
-        error('vfoptions.localsearch=1 cannot yet be combined with vfoptions.gridinterplayer=1')
-    elseif vfoptions.divideandconquer==1
+    if vfoptions.divideandconquer==1
         error('vfoptions.localsearch=1 cannot yet be combined with vfoptions.divideandconquer=1')
     end
     if isscalar(n_a) && N_d==0 && N_z>0
         if isempty(aprimeReferencePolicy)
             % Default reference: the current a index, so the window sits around staying put.
-            % Built [1,N_a,N_z], the same shape Policy comes back as.
+            % Built [1,N_a,N_z], the same shape Policy comes back as. The reference is a
+            % COARSE aprime index with and without the grid interpolation layer, so this is
+            % the same default either way.
             aprimeReferencePolicy=repmat((1:1:N_a),[1,1,N_z]);
         elseif ~(size(aprimeReferencePolicy,1)==1 && size(aprimeReferencePolicy,2)==N_a && numel(aprimeReferencePolicy)==N_a*N_z)
             % numel rather than size(...,3) because MATLAB drops a trailing singleton when N_z==1
             error('aprimeReferencePolicy must be shaped like Policy, [1,N_a,N_z], holding one aprime index per state')
         end
-        [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+        if vfoptions.gridinterplayer==0
+            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+        else
+            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+        end
     else
         error('vfoptions.localsearch=1 is currently only implemented for one endogenous state, no d, and z (no e, no semiz)')
     end
