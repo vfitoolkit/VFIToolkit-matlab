@@ -34,6 +34,7 @@ if exist('vfoptions','var')==0
     vfoptions.solnmethod='purediscretization'; % Currently this does nothing
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0;
+    vfoptions.localsearch=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'lowmemory')
@@ -70,6 +71,18 @@ else
     elseif vfoptions.gridinterplayer==1
         if ~isfield(vfoptions,'ngridinterp')
             error('When using vfoptions.gridinterplayer=1 you must set vfoptions.ngridinterp')
+        end
+    end
+    if ~isfield(vfoptions,'localsearch')
+        vfoptions.localsearch=0;
+    elseif vfoptions.localsearch==1
+        if ~isfield(vfoptions,'nlocalsearch')
+            error('When using vfoptions.localsearch=1 you must set vfoptions.nlocalsearch')
+        end
+        % The window slides at the grid ends to stay 2*nlocalsearch+1 points wide, so the grid
+        % has to be at least that long
+        if n_a(1)<2*vfoptions.nlocalsearch+1
+            error('vfoptions.nlocalsearch is too large for the grid: need n_a>=2*nlocalsearch+1')
         end
     end
 end
@@ -143,6 +156,21 @@ N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
 
+%% Local search: the reference policy the window is centred on
+% This command takes no aprimeReferencePolicy input. With vfoptions.localsearch=1 it builds
+% the default here -- the reference aprime grid point IS the current a grid point, so the
+% window sits around staying put -- and hands it to the single step. Built once, outside the
+% loop over t, because it does not vary by period.
+% This is the place a genuine reference would later be constructed (the obvious candidate on
+% a backward sweep being the previous pass's Policy, which the loop already holds), which is
+% why it is built here rather than left to the dispatcher. The dispatcher keeps its own
+% default for the [] case, since other callers rely on it.
+if vfoptions.localsearch==1
+    aprimeReferencePolicy=repmat((1:1:N_a),[1,1,N_z]); % [1,N_a,N_z], the shape Policy comes back as
+else
+    aprimeReferencePolicy=[];
+end
+
 V_final=reshape(V_final,[N_a,N_z]);
 
 if transpathoptions.verbose==2
@@ -195,7 +223,7 @@ if vfoptions.experienceasset==0
             pi_z=transpathoptions.pi_z_T(:,:,T-ttr);
         end
 
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;

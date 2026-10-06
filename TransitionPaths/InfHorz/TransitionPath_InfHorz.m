@@ -200,6 +200,7 @@ if exist('vfoptions','var')==0
     vfoptions.solnmethod='purediscretization'; % Currently this does nothing
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0;
+    vfoptions.localsearch=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'lowmemory')
@@ -241,6 +242,18 @@ else
     elseif vfoptions.gridinterplayer==1
         if ~isfield(vfoptions,'ngridinterp')
             error('When using vfoptions.gridinterplayer=1 you must set vfoptions.ngridinterp')
+        end
+    end
+    if ~isfield(vfoptions,'localsearch')
+        vfoptions.localsearch=0;
+    elseif vfoptions.localsearch==1
+        if ~isfield(vfoptions,'nlocalsearch')
+            error('When using vfoptions.localsearch=1 you must set vfoptions.nlocalsearch')
+        end
+        % The window slides at the grid ends to stay 2*nlocalsearch+1 points wide, so the grid
+        % has to be at least that long
+        if n_a(1)<2*vfoptions.nlocalsearch+1
+            error('vfoptions.nlocalsearch is too large for the grid: need n_a>=2*nlocalsearch+1')
         end
     end
 end

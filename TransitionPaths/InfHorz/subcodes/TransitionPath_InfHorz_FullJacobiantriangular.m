@@ -48,7 +48,7 @@ for ttr=1:T-1 % so tt=T-ttr
         z_gridvals_tt=transpathoptions.z_gridvals_T(:,:,T-ttr);
         pi_z_tt=transpathoptions.pi_z_T(:,:,T-ttr);
     end
-    V=ValueFnIter_InfHorz_TPath_SingleStep(V,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals_tt, pi_z_tt, ReturnFn, Parametersbase, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    V=ValueFnIter_InfHorz_TPath_SingleStep(V,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals_tt, pi_z_tt, ReturnFn, Parametersbase, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
     VPath(:,:,T-ttr)=V;
 end
 
