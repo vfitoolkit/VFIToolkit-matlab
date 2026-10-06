@@ -818,6 +818,10 @@ transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,Price
 
 %% Check if using _tminus1 and/or _tplus1 variables, and update PTypeStructure
 [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i,transpathoptions);
+% _tminus1 of an aggregate variable is only implemented for the FHorz transition path with permanent types
+if use_tminus1AggVars==1
+    error('_tminus1 of an aggregate variable (%s) is not yet implemented for MixHorz transition paths with permanent types (email me if you want this)',tminus1AggVarsNames{1})
+end
 if isstruct(tminus1AggVarsNames)
     AggVarsPTypes=fieldnames(tminus1AggVarsNames);
     for ii=1:length(AggVarsPTypes)

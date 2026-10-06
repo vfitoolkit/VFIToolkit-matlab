@@ -125,17 +125,17 @@ for ii=1:ntminus1
         end
     end
 end
-if isempty(Names_i)
-    for ii=1:ntminus1
-        for ff=1:length(AggVarNames)
-            if strcmp(tminus1Names{ii},AggVarNames{ff})
-                ntminus1AggVars=ntminus1AggVars+1;
-                tminus1AggVarsNames{ntminus1AggVars}=tminus1Names{ii};
-                tminus1UsedAsPriceOrAggVar(ii)=1;
-            end
+% With permanent types the aggregate is the one pooled across ptypes (or, in a general eqm condition
+% that depends on ptype, the one conditional on ptype). Only TransitionPath_Case1_FHorz_PType handles
+% these; the InfHorz and MixHorz PType transition paths error if use_tminus1AggVars=1.
+for ii=1:ntminus1
+    for ff=1:length(AggVarNames)
+        if strcmp(tminus1Names{ii},AggVarNames{ff})
+            ntminus1AggVars=ntminus1AggVars+1;
+            tminus1AggVarsNames{ntminus1AggVars}=tminus1Names{ii};
+            tminus1UsedAsPriceOrAggVar(ii)=1;
         end
     end
-    % Return the array of tminus1AggVarsNames
 end
 % Check that they have all been used, otherwise error
 if prod(tplus1UsedAsPriceOrAggVar)==0
@@ -170,8 +170,7 @@ end
 use_tminus1AggVars=0;
 if ~isempty(tminus1AggVarsNames)
     use_tminus1AggVars=1;
-    % For PType callers, tminus1AggVarsNames is a struct keyed by Names_i —
-    % the initialvalues check is left to the caller in that case.
+    % The initial value can depend on ptype (a structure, or a vector of length N_i); that is left to the caller
     if iscell(tminus1AggVarsNames)
         for ii=1:length(tminus1AggVarsNames)
             if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
