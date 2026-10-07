@@ -180,18 +180,54 @@ else
     end
 end
 PTypeStructure.ParametersRaw=Parameters; % For use in General eqm conditions (as we might want them across ptypes for some purposes)
-PTypeStructure.ptweights=AgentDist_initial.ptweights;
 
 FnNames=fieldnames(FnsToEvaluate);
 PTypeStructure.numFnsToEvaluate=length(FnNames);
 PTypeStructure.FnsAndPTypeIndicator=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray');
 
 
-%% The mass of each permanent type cannot change over the transition path
-% The aggregates are pooled with AgentDist_initial.ptweights in every period
+%% The permanent type weights, PTypeStructure.ptweights_T (N_i-by-T)
+% Each ptype's agent distribution has mass one, the ptype weights only enter when the aggregates are
+% pooled across ptypes. They are those of the initial agent distribution in every period, unless they are
+% on the ParamPath, as N_i-by-T, T-by-N_i, or a structure with a field (a T-period path) for every ptype.
+% Either way they are checked here, once, and not again inside the iterations.
 if isfield(ParamPath,PTypeDistParamNames{1})
-    error('The permanent type weights (%s) cannot be on the ParamPath: the mass of each permanent type cannot (yet) change over a transition path',PTypeDistParamNames{1})
+    temp=ParamPath.(PTypeDistParamNames{1});
+    if isstruct(temp)
+        PTypeStructure.ptweights_T=zeros(PTypeStructure.N_i,T);
+        for ii=1:PTypeStructure.N_i
+            if ~isfield(temp,PTypeStructure.Names_i{ii})
+                error('ParamPath.%s (the permanent type weights) is a structure, so it must have a field for every permanent type (it has none for %s)',PTypeDistParamNames{1},PTypeStructure.Names_i{ii})
+            end
+            PTypeStructure.ptweights_T(ii,:)=reshape(gather(temp.(PTypeStructure.Names_i{ii})),1,T);
+        end
+    elseif all(size(temp)==[PTypeStructure.N_i,T])
+        PTypeStructure.ptweights_T=gather(temp);
+    elseif all(size(temp)==[T,PTypeStructure.N_i])
+        PTypeStructure.ptweights_T=gather(temp)';
+    else
+        error('ParamPath.%s (the permanent type weights) should be N_i-by-T, T-by-N_i, or a structure with a field for every permanent type',PTypeDistParamNames{1})
+    end
+    if any(abs(sum(PTypeStructure.ptweights_T,1)-1)>10^(-12))
+        warning('TransitionPath_Case1_FHorz_PType: the permanent type weights on the ParamPath (%s) do not sum to one in every period',PTypeDistParamNames{1})
+    end
+    % As for the age weights: period 1 uses the ParamPath ones, which is legitimate if the mass of each ptype
+    % is meant to jump at the start of the path, but is more often a mistake
+    if max(abs(PTypeStructure.ptweights_T(:,1)-reshape(gather(AgentDist_initial.ptweights),[],1)))>10^(-9)
+        warning('TransitionPath_Case1_FHorz_PType: the permanent type weights in period 1 of the ParamPath (%s) differ from AgentDist_initial.ptweights, by up to %g. Period 1 uses the ParamPath ones.',PTypeDistParamNames{1},max(abs(PTypeStructure.ptweights_T(:,1)-reshape(gather(AgentDist_initial.ptweights),[],1))))
+    end
+else
+    PTypeStructure.ptweights_T=repmat(reshape(gather(AgentDist_initial.ptweights),[],1),1,T);
+    if isfield(Parameters,PTypeDistParamNames{1})
+        if numel(Parameters.(PTypeDistParamNames{1}))~=PTypeStructure.N_i
+            error('Parameter for PTypeDistParamNames does not have the same number of permanent types as N_i/Names_i')
+        end
+        if max(abs(reshape(Parameters.(PTypeDistParamNames{1}),[],1)-reshape(gather(AgentDist_initial.ptweights),[],1)))>10^(-9)
+            warning('TransitionPath_Case1_FHorz_PType: the permanent type weights in Parameters (%s) differ from AgentDist_initial.ptweights, by up to %g. The transition path uses AgentDist_initial.ptweights.',PTypeDistParamNames{1},max(abs(reshape(Parameters.(PTypeDistParamNames{1}),[],1)-reshape(gather(AgentDist_initial.ptweights),[],1))))
+        end
+    end
 end
+PTypeStructure.ptweights_T=gpuArray(PTypeStructure.ptweights_T);
 
 
 %% PricePath: internally a matrix of size T-by-'number of prices'

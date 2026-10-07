@@ -1,4 +1,4 @@
-function AgentDistPath=AgentDistOnTransPath_Case1_FHorz_PType(AgentDist_initial, jequalOneDist, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions)
+function AgentDistPath=AgentDistOnTransPath_Case1_FHorz_PType(AgentDist_initial, jequalOneDist, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames, PTypeDistParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions)
 % Remark to self: No real need for T as input, as this is anyway the length of PricePath
 
 AgentDistPath=struct();
@@ -153,7 +153,38 @@ for ii=1:N_i
 end
 
 
-AgentDistPath.ptweights=AgentDist_initial.ptweights;
+%% The permanent type weights
+% Each ptype's agent distribution has mass one, the ptype weights only enter when aggregating. They are
+% those of the initial agent distribution (N_i-by-1), unless they are on the ParamPath, as N_i-by-T,
+% T-by-N_i, or a structure with a field (a T-period path) for every ptype, and then AgentDistPath.ptweights
+% is N_i-by-T (column t is period t).
+if isfield(ParamPath,PTypeDistParamNames{1})
+    temp=ParamPath.(PTypeDistParamNames{1});
+    if isstruct(temp)
+        ptweights_T=zeros(N_i,T);
+        for ii=1:N_i
+            if ~isfield(temp,Names_i{ii})
+                error('ParamPath.%s (the permanent type weights) is a structure, so it must have a field for every permanent type (it has none for %s)',PTypeDistParamNames{1},Names_i{ii})
+            end
+            ptweights_T(ii,:)=reshape(gather(temp.(Names_i{ii})),1,T);
+        end
+    elseif all(size(temp)==[N_i,T])
+        ptweights_T=gather(temp);
+    elseif all(size(temp)==[T,N_i])
+        ptweights_T=gather(temp)';
+    else
+        error('ParamPath.%s (the permanent type weights) should be N_i-by-T, T-by-N_i, or a structure with a field for every permanent type',PTypeDistParamNames{1})
+    end
+    if any(abs(sum(ptweights_T,1)-1)>10^(-12))
+        warning('AgentDistOnTransPath_Case1_FHorz_PType: the permanent type weights on the ParamPath (%s) do not sum to one in every period',PTypeDistParamNames{1})
+    end
+    if max(abs(ptweights_T(:,1)-reshape(gather(AgentDist_initial.ptweights),[],1)))>10^(-9)
+        warning('AgentDistOnTransPath_Case1_FHorz_PType: the permanent type weights in period 1 of the ParamPath (%s) differ from AgentDist_initial.ptweights, by up to %g. Period 1 uses the ParamPath ones.',PTypeDistParamNames{1},max(abs(ptweights_T(:,1)-reshape(gather(AgentDist_initial.ptweights),[],1))))
+    end
+    AgentDistPath.ptweights=ptweights_T;
+else
+    AgentDistPath.ptweights=AgentDist_initial.ptweights;
+end
 
 
 end

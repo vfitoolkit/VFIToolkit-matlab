@@ -149,7 +149,12 @@ for ii=1:N_i
         % Keep the ptype-conditional values
         AggVarsPath.(FnNames_temp{ff}).(iistr).Mean=AggVarsPath_ii.(FnNames_temp{ff}).Mean;
         % And also create the actual aggregate values
-        AggVarsPath.(FnNames_temp{ff}).Mean=AggVarsPath.(FnNames_temp{ff}).Mean+AgentDistPath.ptweights(ii)*AggVarsPath_ii.(FnNames_temp{ff}).Mean;
+        % (AgentDistPath.ptweights is N_i-by-1, or N_i-by-T when the ptype weights change over the path)
+        if size(AgentDistPath.ptweights,2)==1
+            AggVarsPath.(FnNames_temp{ff}).Mean=AggVarsPath.(FnNames_temp{ff}).Mean+AgentDistPath.ptweights(ii)*AggVarsPath_ii.(FnNames_temp{ff}).Mean;
+        else
+            AggVarsPath.(FnNames_temp{ff}).Mean=AggVarsPath.(FnNames_temp{ff}).Mean+reshape(AgentDistPath.ptweights(ii,:),size(AggVarsPath_ii.(FnNames_temp{ff}).Mean)).*AggVarsPath_ii.(FnNames_temp{ff}).Mean;
+        end
     end
 end
 

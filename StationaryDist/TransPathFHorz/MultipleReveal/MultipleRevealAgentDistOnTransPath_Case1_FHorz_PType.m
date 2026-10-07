@@ -1,4 +1,4 @@
-function [RealizedAgentDistPath, AgentDistPath]=MultipleRevealAgentDistOnTransPath_Case1_FHorz_PType(AgentDist_initial, jequalOneDist, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions)
+function [RealizedAgentDistPath, AgentDistPath]=MultipleRevealAgentDistOnTransPath_Case1_FHorz_PType(AgentDist_initial, jequalOneDist, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames, PTypeDistParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions)
 
 revealperiodnames=fieldnames(ParamPath);
 nReveals=length(revealperiodnames);
@@ -61,7 +61,7 @@ for rr=1:nReveals
         end
     end
 
-    AgentDistPath_rr=AgentDistOnTransPath_Case1_FHorz_PType(AgentDist_initial, jequalOneDist, PricePath_rr, ParamPath_rr, PolicyPath_rr, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions);
+    AgentDistPath_rr=AgentDistOnTransPath_Case1_FHorz_PType(AgentDist_initial, jequalOneDist, PricePath_rr, ParamPath_rr, PolicyPath_rr, AgeWeightsParamNames, PTypeDistParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions);
     AgentDistPath.(revealperiodnames{rr})=AgentDistPath_rr;
 
     for ii=1:N_i

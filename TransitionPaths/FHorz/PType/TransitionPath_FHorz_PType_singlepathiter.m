@@ -51,10 +51,10 @@ for ii=1:N_i
 end
 
 %% Pool the aggregate variables across ptypes
-% Note: Cannot yet do transition paths in which the mass of each agent type changes.
+% The ptype weights can change over the path: period t is pooled with PTypeStructure.ptweights_T(:,t).
 % A FnsToEvaluate that is only relevant to some ptypes is zero for the others, so this is the
 % ptweight-weighted sum over the ptypes it is relevant to (as in EvalFnOnTransPath_AggVars_Case1_FHorz_PType)
-AggVarsPooledPath=sum(AggVarsFullPath.*shiftdim(gpuArray(PTypeStructure.ptweights(:)),-2),3);
+AggVarsPooledPath=sum(AggVarsFullPath.*reshape(PTypeStructure.ptweights_T(:,1:T-1)',[T-1,1,N_i]),3);
 
 
 %% Evaluate the general eqm conditions, period by period
