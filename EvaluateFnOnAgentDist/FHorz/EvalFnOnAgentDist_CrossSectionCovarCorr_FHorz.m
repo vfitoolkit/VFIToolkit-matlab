@@ -8,6 +8,11 @@ function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz(Stationa
 %
 % simoptions.whichcombos ([numFnsToEvaluate, numFnsToEvaluate] of zeros/ones: the diagonal selects a function's Mean/StdDeviation, the
 % off-diagonal a pair's covariance/correlation; only the upper triangle is read) selects what is computed; see below.
+%
+% simoptions.conditionalrestrictions: evaluate the same statistics conditional on each restriction being one (not zero). The
+% restricted results are in CrossSectionCorr.(restrictionname), with the same fields as the unrestricted ones, plus
+% CrossSectionCorr.(restrictionname).RestrictedSampleMass. With restrictions, simoptions.whichcombos can also be given as
+% [numFnsToEvaluate, numFnsToEvaluate, 1+number of conditional restrictions] (page 1 unrestricted, pages 2:end the restrictions).
 
 
 %%
@@ -39,10 +44,6 @@ else
     if ~isfield(simoptions,'alreadygridvals_semiexo')
         simoptions.alreadygridvals_semiexo=0;
     end
-end
-
-if isfield(simoptions,'conditionalrestrictions')
-    warning('Have not yet implemented simoptions.conditionalrestrictions for CrossSectionCovarCorr_FHorz so ignoring them, ask on forum if you need this')
 end
 
 %%
@@ -79,27 +80,43 @@ else
     FnsToEvaluateStruct=0;
 end
 
+%% Conditional restrictions: the number of 'pages' (1 unrestricted, plus one per restriction)
+useCondlRest=0;
+nwhichpages=1;
+if isfield(simoptions,'conditionalrestrictions')
+    useCondlRest=1;
+    CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
+    nwhichpages=1+length(CondlRestnFnNames);
+end
+
 %% simoptions.whichcombos: which functions and pairs to compute
 % [numFnsToEvaluate, numFnsToEvaluate] of zeros/ones. The diagonal (ff,ff) selects the Mean and StdDeviation of function ff (and its
 % variance on the CovarianceMatrix diagonal); the off-diagonal (ff1,ff2) selects the covariance and correlation of the pair. Only the
 % upper triangle (ff1<=ff2) is read, so a symmetric matrix or just its upper triangle can be given. A function with nothing selected
 % (its diagonal and all its pairs zero) is not evaluated; a selected pair has both its functions evaluated (their means and std devs
 % are needed for the pair, and are then also reported only if the diagonal asks). Skipped entries are NaN. Default all ones.
+% With conditional restrictions it is [numFnsToEvaluate, numFnsToEvaluate, 1+number of conditional restrictions]: page 1 is the
+% unrestricted stats, pages 2:end the restrictions in the fieldnames order of simoptions.conditionalrestrictions. A
+% [numFnsToEvaluate, numFnsToEvaluate] input with restrictions is applied to every page.
 numFnsToEvaluate=length(FnsToEvaluate);
 if ~isfield(simoptions,'whichcombos')
-    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate);
+    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate,nwhichpages);
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
         error('simoptions.whichcombos must contain only zeros and ones')
     end
-    if ~isequal(size(whichcombos),[numFnsToEvaluate,numFnsToEvaluate])
-        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(numFnsToEvaluate),'] (number of FnsToEvaluate, twice)'])
+    if ismatrix(whichcombos) && nwhichpages>1 && isequal(size(whichcombos),[numFnsToEvaluate,numFnsToEvaluate])
+        whichcombos=repmat(whichcombos,[1,1,nwhichpages]); % one matrix with restrictions: apply to every page
     end
-    whichcombos=double(triu(whichcombos));
-    whichcombos=max(whichcombos,whichcombos'); % symmetric, from the upper triangle
+    if ~isequal(size(whichcombos,1:3),[numFnsToEvaluate,numFnsToEvaluate,nwhichpages]) || ndims(whichcombos)>3
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(numFnsToEvaluate),',',num2str(nwhichpages),'] (number of FnsToEvaluate, twice, 1+number of conditional restrictions; the third dimension is dropped when there are no conditional restrictions)'])
+    end
+    whichcombos=double(whichcombos);
+    for pp=1:nwhichpages
+        whichcombos(:,:,pp)=max(triu(whichcombos(:,:,pp)),triu(whichcombos(:,:,pp))'); % symmetric, from the upper triangle
+    end
 end
-fnwanted=any(whichcombos,2); % the functions that get evaluated (their own stats or any pair)
 
 %% Setup PolicyValues and reshape StationaryDist
 if N_z==0
@@ -113,11 +130,53 @@ else
 end
 N_total=length(StationaryDistVec);
 
-CrossSectionCorr=struct();
+%% If there are any conditional restrictions, set up for these
+% Code works by evaluating the restriction and imposing this on the distribution (and renormalizing it).
+if useCondlRest==1
+    restrictedsamplemass=nan(length(CondlRestnFnNames),1);
+    RestrictionMask=cell(length(CondlRestnFnNames),1); % each restriction kept as a logical mask over the grid (1 byte per point); the restricted weights are formed from it where used
 
-% Report output by name, but also create the covariance matrix and the correlation matrix
-CrossSectionCorr.CovarianceMatrix=nan(length(FnsToEvaluate),length(FnsToEvaluate));
-CrossSectionCorr.CorrelationMatrix=nan(length(FnsToEvaluate),length(FnsToEvaluate));
+    for rr=1:length(CondlRestnFnNames)
+        % The current conditional restriction function
+        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+        % Get parameter names for Conditional Restriction functions
+        temp=getAnonymousFnInputNames(CondlRestnFn);
+        if length(temp)>(l_daprime+l_a+l_z)
+            CondlRestnFnParamNames={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            CondlRestnFnParamNames={};
+        end
+
+        if N_z==0
+            CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,CondlRestnFnParamNames,N_j,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
+            RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]));
+        else
+            CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,CondlRestnFnParamNames,N_j,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
+            RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J));
+        end
+
+        % Keep the restricted mass, and the mask
+        RestrictionMask{rr}=reshape(RestrictionValues,[N_total,1]);
+        restrictedsamplemass(rr)=sum(StationaryDistVec.*RestrictionMask{rr}); % mass that satisfies the restriction
+
+        if restrictedsamplemass(rr)==0
+            warning('One of the conditional restrictions evaluates to a zero mass')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+            whichcombos(:,:,1+rr)=0; % nothing can be computed on this page, its entries stay NaN
+        end
+    end
+end
+fnwantedpage=reshape(any(whichcombos,2),[numFnsToEvaluate,nwhichpages]); % the functions that get evaluated (their own stats or any pair), per page
+fnwanted=any(fnwantedpage,2); % the functions that get evaluated on any page
+
+% Each page is filled as its own output structure; page 1 (unrestricted) becomes CrossSectionCorr and pages 2:end CrossSectionCorr.(restrictionname)
+PageOut=cell(nwhichpages,1);
+for pp=1:nwhichpages
+    PageOut{pp}=struct();
+    % Report output by name, but also create the covariance matrix and the correlation matrix
+    PageOut{pp}.CovarianceMatrix=nan(length(FnsToEvaluate),length(FnsToEvaluate));
+    PageOut{pp}.CorrelationMatrix=nan(length(FnsToEvaluate),length(FnsToEvaluate));
+end
 
 %% Calculate all the cross-sectional correlations, note that this creates the 'upper triangular' part
 for ff1=1:length(FnsToEvaluate)
@@ -144,72 +203,109 @@ for ff1=1:length(FnsToEvaluate)
     Values1=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff1},ParamCell1,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
     Values1=reshape(Values1,[N_total,1]);
 
-    Mean1=sum(Values1.*StationaryDistVec);
-    StdDev1=sqrt(sum(StationaryDistVec.*((Values1-Mean1.*ones(N_total,1)).^2)));
+    Mean1=nan(nwhichpages,1);
+    StdDev1=nan(nwhichpages,1);
+    for pp=1:nwhichpages
+        if ~fnwantedpage(ff1,pp) % nothing involving this function is wanted on this page
+            continue
+        end
+        if pp==1
+            PageDist=StationaryDistVec;
+        else
+            PageDist=StationaryDistVec.*RestrictionMask{pp-1}/restrictedsamplemass(pp-1); % the restricted distribution, normalised to mass one
+        end
+        Mean1(pp)=sum(Values1.*PageDist);
+        StdDev1(pp)=sqrt(sum(PageDist.*((Values1-Mean1(pp).*ones(N_total,1)).^2)));
 
-    CrossSectionCorr.(AggVarNames{ff1}).Mean=Mean1;
-    CrossSectionCorr.(AggVarNames{ff1}).StdDeviation=StdDev1;
+        PageOut{pp}.(AggVarNames{ff1}).Mean=Mean1(pp);
+        PageOut{pp}.(AggVarNames{ff1}).StdDeviation=StdDev1(pp);
+    end
 
     for ff2=ff1:length(FnsToEvaluate)
         if ff1==ff2 % the own stats of an evaluated function are byproducts of the pairs and are reported regardless of the diagonal
-            CrossSectionCorr.(AggVarNames{ff1}).(AggVarNames{ff2})=1;
+            for pp=1:nwhichpages
+                if fnwantedpage(ff1,pp)
+                    PageOut{pp}.(AggVarNames{ff1}).(AggVarNames{ff2})=1;
 
-            % and matrix version
-            CrossSectionCorr.CovarianceMatrix(ff1,ff2)=StdDev1^2;
-            CrossSectionCorr.CorrelationMatrix(ff1,ff2)=1;
-        elseif whichcombos(ff1,ff2)==1 % the pair is wanted
-            if isempty(FnsToEvaluateParamNames(ff2).Names)
-                ParamCell2=cell(0,1);
-            else
-                FnToEvaluateParamsAgeMatrix2=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff2).Names,N_j);
-                nFnToEvaluateParams2=size(FnToEvaluateParamsAgeMatrix2,2);
-                ParamCell2=cell(nFnToEvaluateParams2,1);
-                if N_z==0
-                    for ii=1:nFnToEvaluateParams2
-                        ParamCell2(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix2(:,ii),-1)};
-                    end
-                else
-                    for ii=1:nFnToEvaluateParams2
-                        ParamCell2(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix2(:,ii),-2)};
-                    end
+                    % and matrix version
+                    PageOut{pp}.CovarianceMatrix(ff1,ff2)=StdDev1(pp)^2;
+                    PageOut{pp}.CorrelationMatrix(ff1,ff2)=1;
                 end
             end
-            Values2=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff2},ParamCell2,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
-            Values2=reshape(Values2,[N_total,1]);
+        else
+            if any(whichcombos(ff1,ff2,:)) % the pair is wanted on some page
+                if isempty(FnsToEvaluateParamNames(ff2).Names)
+                    ParamCell2=cell(0,1);
+                else
+                    FnToEvaluateParamsAgeMatrix2=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff2).Names,N_j);
+                    nFnToEvaluateParams2=size(FnToEvaluateParamsAgeMatrix2,2);
+                    ParamCell2=cell(nFnToEvaluateParams2,1);
+                    if N_z==0
+                        for ii=1:nFnToEvaluateParams2
+                            ParamCell2(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix2(:,ii),-1)};
+                        end
+                    else
+                        for ii=1:nFnToEvaluateParams2
+                            ParamCell2(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix2(:,ii),-2)};
+                        end
+                    end
+                end
+                Values2=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff2},ParamCell2,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
+                Values2=reshape(Values2,[N_total,1]);
+            end
+            for pp=1:nwhichpages
+                if whichcombos(ff1,ff2,pp)==1 % the pair is wanted on this page
+                    if pp==1
+                        PageDist=StationaryDistVec;
+                    else
+                        PageDist=StationaryDistVec.*RestrictionMask{pp-1}/restrictedsamplemass(pp-1); % the restricted distribution, normalised to mass one
+                    end
+                    Mean2=sum(Values2.*PageDist);
+                    StdDev2=sqrt(sum(PageDist.*((Values2-Mean2.*ones(N_total,1)).^2)));
 
-            Mean2=sum(Values2.*StationaryDistVec);
-            StdDev2=sqrt(sum(StationaryDistVec.*((Values2-Mean2.*ones(N_total,1)).^2)));
+                    CoVar=sum((Values1-Mean1(pp)*ones(N_total,1,'gpuArray')).*(Values2-Mean2*ones(N_total,1,'gpuArray')).*PageDist);
+                    Corr=CoVar/(StdDev1(pp)*StdDev2);
 
-            CoVar=sum((Values1-Mean1*ones(N_total,1,'gpuArray')).*(Values2-Mean2*ones(N_total,1,'gpuArray')).*StationaryDistVec);
-            Corr=CoVar/(StdDev1*StdDev2);
+                    % Store them
+                    PageOut{pp}.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CoVar;
+                    PageOut{pp}.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=Corr;
 
-            % Store them
-            CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CoVar;
-            CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=Corr;
-
-            % and matrix version
-            CrossSectionCorr.CovarianceMatrix(ff1,ff2)=CoVar;
-            CrossSectionCorr.CorrelationMatrix(ff1,ff2)=Corr;
-        elseif fnwanted(ff2) % the pair is not wanted but both functions are evaluated: NaN (the matrices stay NaN); with a partner that is not evaluated there is no field, as in the mirror below
-            CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=NaN;
-            CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=NaN;
+                    % and matrix version
+                    PageOut{pp}.CovarianceMatrix(ff1,ff2)=CoVar;
+                    PageOut{pp}.CorrelationMatrix(ff1,ff2)=Corr;
+                elseif fnwantedpage(ff1,pp) && fnwantedpage(ff2,pp) % the pair is not wanted but both functions are evaluated: NaN (the matrices stay NaN); with a partner that is not evaluated there is no field, as in the mirror below
+                    PageOut{pp}.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=NaN;
+                    PageOut{pp}.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=NaN;
+                end
+            end
         end
     end
 end
 
 
 %% Just to make them easier to find, fill in the 'lower triangular' part
-for ff1=1:length(FnsToEvaluate)
-    for ff2=1:ff1-1
-        if ~(fnwanted(ff1) && fnwanted(ff2)) % a pair with a function that was not evaluated has no fields to mirror
-            continue
-        end
-        CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CovarianceWith.(AggVarNames{ff1});
-        CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CorrelationWith.(AggVarNames{ff1});
+for pp=1:nwhichpages
+    for ff1=1:length(FnsToEvaluate)
+        for ff2=1:ff1-1
+            if ~(fnwantedpage(ff1,pp) && fnwantedpage(ff2,pp)) % a pair with a function that was not evaluated has no fields to mirror
+                continue
+            end
+            PageOut{pp}.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=PageOut{pp}.(AggVarNames{ff2}).CovarianceWith.(AggVarNames{ff1});
+            PageOut{pp}.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=PageOut{pp}.(AggVarNames{ff2}).CorrelationWith.(AggVarNames{ff1});
 
-        % and matrix version
-        CrossSectionCorr.CovarianceMatrix(ff1,ff2)=CrossSectionCorr.CovarianceMatrix(ff2,ff1);
-        CrossSectionCorr.CorrelationMatrix(ff1,ff2)=CrossSectionCorr.CorrelationMatrix(ff2,ff1);
+            % and matrix version
+            PageOut{pp}.CovarianceMatrix(ff1,ff2)=PageOut{pp}.CovarianceMatrix(ff2,ff1);
+            PageOut{pp}.CorrelationMatrix(ff1,ff2)=PageOut{pp}.CorrelationMatrix(ff2,ff1);
+        end
+    end
+end
+
+%% Assemble the output
+CrossSectionCorr=PageOut{1};
+if useCondlRest==1
+    for rr=1:length(CondlRestnFnNames)
+        CrossSectionCorr.(CondlRestnFnNames{rr})=PageOut{1+rr};
+        CrossSectionCorr.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass(rr);
     end
 end
 

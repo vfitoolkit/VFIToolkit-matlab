@@ -115,6 +115,9 @@ if caliboptions.simulatemoments==0
     end
     if usingcrosssec==1
         simoptions_CrossSec=simoptions;
+        if isfield(simoptions_CrossSec,'conditionalrestrictions')
+            simoptions_CrossSec=rmfield(simoptions_CrossSec,'conditionalrestrictions'); % the targets are unrestricted covariances/correlations (the restrictions are for the AllStats/AgeConditionalStats targets)
+        end
         if caliboptions.whichcombos==1
             simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped
         end
@@ -122,6 +125,9 @@ if caliboptions.simulatemoments==0
     end
     if usingagecrosssec==1
         simoptions_AgeCrossSec=simoptions;
+        if isfield(simoptions_AgeCrossSec,'conditionalrestrictions')
+            simoptions_AgeCrossSec=rmfield(simoptions_AgeCrossSec,'conditionalrestrictions'); % the targets are unrestricted covariances/correlations (the restrictions are for the AllStats/AgeConditionalStats targets)
+        end
         if caliboptions.whichcombos==1
             simoptions_AgeCrossSec.whichcombos=caliboptions.selectors.AgeCrossSec.whichcombos; % pair-shaped, per age group
         end
