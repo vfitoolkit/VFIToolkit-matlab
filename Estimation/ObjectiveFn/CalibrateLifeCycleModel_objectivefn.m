@@ -115,21 +115,15 @@ if caliboptions.simulatemoments==0
     end
     if usingcrosssec==1
         simoptions_CrossSec=simoptions;
-        if isfield(simoptions_CrossSec,'conditionalrestrictions')
-            simoptions_CrossSec=rmfield(simoptions_CrossSec,'conditionalrestrictions'); % the targets are unrestricted covariances/correlations (the restrictions are for the AllStats/AgeConditionalStats targets)
-        end
         if caliboptions.whichcombos==1
-            simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped
+            simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped, [nFns,nFns,1+nRestr] (the restricted targets are on pages 2:end)
         end
         CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz(StationaryDist,Policy,FnsToEvaluate_CrossSec,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_CrossSec);
     end
     if usingagecrosssec==1
         simoptions_AgeCrossSec=simoptions;
-        if isfield(simoptions_AgeCrossSec,'conditionalrestrictions')
-            simoptions_AgeCrossSec=rmfield(simoptions_AgeCrossSec,'conditionalrestrictions'); % the targets are unrestricted covariances/correlations (the restrictions are for the AllStats/AgeConditionalStats targets)
-        end
         if caliboptions.whichcombos==1
-            simoptions_AgeCrossSec.whichcombos=caliboptions.selectors.AgeCrossSec.whichcombos; % pair-shaped, per age group
+            simoptions_AgeCrossSec.whichcombos=caliboptions.selectors.AgeCrossSec.whichcombos; % pair-shaped, per age group and page, [nFns,nFns,ngroups,1+nRestr]
         end
         AgeConditionalCrossSectionCorr=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz(StationaryDist,Policy,FnsToEvaluate_AgeCrossSec,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_AgeCrossSec);
     end
@@ -189,7 +183,7 @@ if usingautocorr==1
     sofar=allstatcummomentsizes(end)+acscummomentsizes(end);
     for cc=1:size(autocorrmomentnames,1)
         temp=CorrTransProbs; % walk the one to three names of the target into the command's output (same nesting)
-        for kk=1:3
+        for kk=1:size(autocorrmomentnames,2)
             if ~isempty(autocorrmomentnames{cc,kk})
                 temp=temp.(autocorrmomentnames{cc,kk});
             end
@@ -205,7 +199,7 @@ if usingcrosssec==1
     sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end);
     for cc=1:size(crosssecmomentnames,1)
         temp=CrossSectionCorr; % walk the one to three names of the target into the command's output (same nesting)
-        for kk=1:3
+        for kk=1:size(crosssecmomentnames,2)
             if ~isempty(crosssecmomentnames{cc,kk})
                 temp=temp.(crosssecmomentnames{cc,kk});
             end
@@ -221,7 +215,7 @@ if usingagecrosssec==1
     sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end);
     for cc=1:size(agecrosssecmomentnames,1)
         temp=AgeConditionalCrossSectionCorr; % walk the one to three names of the target into the command's output (same nesting)
-        for kk=1:3
+        for kk=1:size(agecrosssecmomentnames,2)
             if ~isempty(agecrosssecmomentnames{cc,kk})
                 temp=temp.(agecrosssecmomentnames{cc,kk});
             end

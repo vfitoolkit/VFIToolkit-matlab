@@ -472,11 +472,14 @@ if useptype==0
     end
     %% CrossSectionCovarCorr (EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz) and AgeConditionalCrossSectionCovarCorr
     % (EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz): targets .(fn1).CovarianceWith.(fn2), .(fn1).CorrelationWith.(fn2),
-    % .(fn).Mean, .(fn).StdDeviation, or the matrices .CovarianceMatrix / .CorrelationMatrix (the self-correlation .(fn).(fn) is always one and cannot be targeted). Scalars and
-    % [nFns,nFns] for the plain command; 1 x (number of age groups) and [nFns,nFns,number of age groups] for the age-conditional one, the age
-    % axis as the command lays it out (simoptions.agegroupings, else N_j). NaN omits an entry (a pair, an age group, a matrix entry).
-    % The selector is pair-shaped, [nFns,nFns(,ngroups)], symmetric, the diagonal being the own stats. A matrix target is indexed over
-    % every FnsToEvaluate, so it makes the reduced set the full one. Neither command implements conditional restrictions.
+    % .(fn).Mean, .(fn).StdDeviation, or the matrices .CovarianceMatrix / .CorrelationMatrix; each also under a conditional restriction as
+    % .(restriction).(fn1).CovarianceWith.(fn2), .(restriction).(fn).Mean, .(restriction).CovarianceMatrix etc. (the commands compute the
+    % restricted stats since 2026-10-07, output under .(restriction)). The self-correlation .(fn).(fn) is always one and cannot be targeted.
+    % Scalars and [nFns,nFns] for the plain command; 1 x (number of age groups) and [nFns,nFns,number of age groups] for the age-conditional
+    % one, the age axis as the command lays it out (simoptions.agegroupings, else N_j). NaN omits an entry (a pair, an age group, a matrix
+    % entry). The selector is pair-shaped per page, [nFns,nFns,1+nRestr] and [nFns,nFns,ngroups,1+nRestr] (page 1 unrestricted, then the
+    % restrictions in the fieldnames order of simoptions.conditionalrestrictions), symmetric, the diagonal being the own stats. A matrix
+    % target is indexed over every FnsToEvaluate, so it makes the reduced set the full one.
     for xx=1:2
         if xx==1
             xf='CrossSectionCovarCorr'; usingx=usingcrosssec; nage=1;
@@ -489,14 +492,14 @@ if useptype==0
             end
         end
         if usingx==1
-            xnames=cell(0,3);
+            xnames=cell(0,4);
             xsizes=[];
             a1vec=fieldnames(TargetMoments.(xf));
             for a1=1:length(a1vec)
                 temp1=TargetMoments.(xf).(a1vec{a1});
                 if ~isstruct(temp1) % one name: a matrix
                     targetmomentvec=[targetmomentvec; temp1(:)];
-                    xnames(end+1,:)={a1vec{a1},'',''};
+                    xnames(end+1,:)={a1vec{a1},'','',''};
                     xsizes(end+1)=numel(temp1);
                 else
                     a2vec=fieldnames(temp1);
@@ -504,17 +507,28 @@ if useptype==0
                         temp2=temp1.(a2vec{a2});
                         if ~isstruct(temp2)
                             targetmomentvec=[targetmomentvec; temp2(:)];
-                            xnames(end+1,:)={a1vec{a1},a2vec{a2},''};
+                            xnames(end+1,:)={a1vec{a1},a2vec{a2},'',''};
                             xsizes(end+1)=numel(temp2);
                         else
                             a3vec=fieldnames(temp2);
                             for a3=1:length(a3vec)
-                                if isstruct(temp2.(a3vec{a3}))
-                                    error(['TargetMoments.',xf,'.',a1vec{a1},'.',a2vec{a2},'.',a3vec{a3},' is a structure: a target has at most three levels (fn1.CovarianceWith.fn2)'])
+                                temp3=temp2.(a3vec{a3});
+                                if ~isstruct(temp3)
+                                    targetmomentvec=[targetmomentvec; temp3(:)];
+                                    xnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},''};
+                                    xsizes(end+1)=numel(temp3);
+                                else
+                                    a4vec=fieldnames(temp3);
+                                    for a4=1:length(a4vec)
+                                        temp4=temp3.(a4vec{a4});
+                                        if isstruct(temp4)
+                                            error(['TargetMoments.',xf,'.',a1vec{a1},'.',a2vec{a2},'.',a3vec{a3},'.',a4vec{a4},' is a structure: a target has at most four levels (restriction.fn1.CovarianceWith.fn2)'])
+                                        end
+                                        targetmomentvec=[targetmomentvec; temp4(:)];
+                                        xnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},a4vec{a4}};
+                                        xsizes(end+1)=numel(temp4);
+                                    end
                                 end
-                                targetmomentvec=[targetmomentvec; reshape(temp2.(a3vec{a3}),[],1)];
-                                xnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3}};
-                                xsizes(end+1)=numel(temp2.(a3vec{a3}));
                             end
                         end
                     end
@@ -524,67 +538,91 @@ if useptype==0
             nrows=size(xnames,1);
             rowfn1=cell(nrows,1);
             rowfn2=cell(nrows,1);
-            usematrix=0;
+            rowpage=zeros(nrows,1);
+            rowmatrix=zeros(nrows,1);
             for cc=1:nrows
-                a1=xnames{cc,1}; a2=xnames{cc,2}; a3=xnames{cc,3};
-                if isempty(a2)
-                    if ~any(strcmp(a1,{'CovarianceMatrix','CorrelationMatrix'}))
-                        error(['TargetMoments.',xf,'.',a1,': a one-level target must be CovarianceMatrix or CorrelationMatrix'])
+                names=xnames(cc,:);
+                names=names(~cellfun(@isempty,names));
+                a1=names{1};
+                isrestr=any(strcmp(RestrNames,a1));
+                isfn=any(strcmp(FnNamesAll,a1));
+                if isrestr && isfn
+                    error(['TargetMoments.',xf,'.',a1,': this name is both a FnsToEvaluate and a conditional restriction, so the target is ambiguous'])
+                elseif isrestr
+                    rowpage(cc)=1+find(strcmp(RestrNames,a1));
+                    rest=names(2:end);
+                    if isempty(rest)
+                        error(['TargetMoments.',xf,'.',a1,': a target under a conditional restriction needs a function (then Mean, StdDeviation, CovarianceWith.(fn2) or CorrelationWith.(fn2)) or CovarianceMatrix/CorrelationMatrix'])
                     end
-                    usematrix=1;
-                elseif ~any(strcmp(FnNamesAll,a1))
-                    error(['TargetMoments.',xf,'.',a1,' is not one of the FnsToEvaluate'])
-                elseif any(strcmp(a2,{'CovarianceWith','CorrelationWith'}))
-                    if isempty(a3) || ~any(strcmp(FnNamesAll,a3))
-                        error(['TargetMoments.',xf,'.',a1,'.',a2,' needs a second FnsToEvaluate name'])
-                    end
-                    rowfn1{cc}=a1;
-                    rowfn2{cc}=a3;
-                elseif any(strcmp(a2,{'Mean','StdDeviation'})) && isempty(a3)
-                    rowfn1{cc}=a1;
-                    rowfn2{cc}=a1;
                 else
-                    error(['TargetMoments.',xf,'.',a1,'.',a2,': the targets are Mean, StdDeviation, CovarianceWith.(fn2), CorrelationWith.(fn2), or CovarianceMatrix/CorrelationMatrix (the self-correlation is always one and cannot be targeted)'])
+                    rowpage(cc)=1;
+                    rest=names;
+                end
+                b1=rest{1};
+                if isscalar(rest) % a matrix
+                    if ~any(strcmp(b1,{'CovarianceMatrix','CorrelationMatrix'}))
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': a target with no statistic must be CovarianceMatrix or CorrelationMatrix'])
+                    end
+                    rowmatrix(cc)=1;
+                elseif ~any(strcmp(FnNamesAll,b1))
+                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',b1,' is not one of the FnsToEvaluate (nor a conditional restriction in simoptions.conditionalrestrictions, nor CovarianceMatrix/CorrelationMatrix)'])
+                elseif any(strcmp(rest{2},{'CovarianceWith','CorrelationWith'}))
+                    if numel(rest)~=3 || ~any(strcmp(FnNamesAll,rest{3}))
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',rest{2},' needs a second FnsToEvaluate name'])
+                    end
+                    rowfn1{cc}=b1;
+                    rowfn2{cc}=rest{3};
+                elseif numel(rest)==2 && any(strcmp(rest{2},{'Mean','StdDeviation'}))
+                    rowfn1{cc}=b1;
+                    rowfn2{cc}=b1;
+                elseif numel(rest)==2 && strcmp(rest{2},b1)
+                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the self-correlation is always one and cannot be targeted'])
+                else
+                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the targets are Mean, StdDeviation, CovarianceWith.(fn2), CorrelationWith.(fn2), or CovarianceMatrix/CorrelationMatrix, each optionally under a conditional restriction'])
                 end
             end
             FnsX=struct();
             for ff=1:length(FnNamesAll)
-                if usematrix==1 || any(strcmp(rowfn1,FnNamesAll{ff})) || any(strcmp(rowfn2,FnNamesAll{ff}))
+                if any(rowmatrix==1) || any(strcmp(rowfn1,FnNamesAll{ff})) || any(strcmp(rowfn2,FnNamesAll{ff}))
                     FnsX.(FnNamesAll{ff})=FnsToEvaluate.(FnNamesAll{ff});
                 end
             end
             FnNamesX=fieldnames(FnsX);
             if buildselectors==1
-                wcX=zeros(length(FnNamesX),length(FnNamesX),nage);
+                wcX=zeros(length(FnNamesX),length(FnNamesX),nage,1+nRestr);
                 for cc=1:nrows
                     temp=TargetMoments.(xf);
-                    for kk=1:3
+                    for kk=1:size(xnames,2)
                         if ~isempty(xnames{cc,kk})
                             temp=temp.(xnames{cc,kk});
                         end
                     end
-                    if isempty(xnames{cc,2}) % a matrix: non-NaN entries select the pairs
+                    pp=rowpage(cc);
+                    if rowmatrix(cc)==1 % a matrix: non-NaN entries select the pairs
                         if ~isequal(size(temp,1:3),[length(FnNamesX),length(FnNamesX),nage])
-                            error(['TargetMoments.',xf,'.',xnames{cc,1},' must be of size [',num2str(length(FnNamesX)),',',num2str(length(FnNamesX)),',',num2str(nage),'] (number of FnsToEvaluate, twice, number of age groups), NaN where not wanted'])
+                            error(['TargetMoments.',xf,' target ',strjoin(xnames(cc,~cellfun(@isempty,xnames(cc,:))),'.'),' must be of size [',num2str(length(FnNamesX)),',',num2str(length(FnNamesX)),',',num2str(nage),'] (number of FnsToEvaluate, twice, number of age groups), NaN where not wanted'])
                         end
                         on=double(~isnan(temp));
-                        wcX=max(wcX,max(on,permute(on,[2,1,3]))); % symmetric: the commands read the upper triangle, a lower-triangle entry alone must still select the pair
+                        wcX(:,:,:,pp)=max(wcX(:,:,:,pp),max(on,permute(on,[2,1,3]))); % symmetric: the commands read the upper triangle, a lower-triangle entry alone must still select the pair
                     else
                         if ~(isvector(temp) && numel(temp)==nage)
-                            error(['TargetMoments.',xf,' target ',xnames{cc,1},' ',xnames{cc,2},' has ',num2str(numel(temp)),' entries, but there are ',num2str(nage),' age groups'])
+                            error(['TargetMoments.',xf,' target ',strjoin(xnames(cc,~cellfun(@isempty,xnames(cc,:))),'.'),' has ',num2str(numel(temp)),' entries, but there are ',num2str(nage),' age groups'])
                         end
                         f1=find(strcmp(FnNamesX,rowfn1{cc}));
                         f2=find(strcmp(FnNamesX,rowfn2{cc}));
                         on=double(reshape(~isnan(temp),[1,1,nage]));
-                        wcX(f1,f2,:)=max(wcX(f1,f2,:),on);
-                        wcX(f2,f1,:)=max(wcX(f2,f1,:),on);
+                        wcX(f1,f2,:,pp)=max(wcX(f1,f2,:,pp),on);
+                        wcX(f2,f1,:,pp)=max(wcX(f2,f1,:,pp),on);
                     end
+                end
+                if xx==1
+                    wcX=reshape(wcX,[length(FnNamesX),length(FnNamesX),1+nRestr]); % (nage is one)
                 end
             else
                 wcX=[];
             end
         else
-            xnames=cell(1,3);
+            xnames=cell(1,4);
             xcumsizes=0;
             FnsX=struct();
             wcX=[];

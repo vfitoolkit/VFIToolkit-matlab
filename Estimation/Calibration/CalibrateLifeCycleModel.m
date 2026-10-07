@@ -284,7 +284,7 @@ if isstruct(caliboptions.logmoments)
             if isfield(logmomentnames,'AutoCorrTransProbs')
                 temp=logmomentnames.AutoCorrTransProbs;
                 found=1;
-                for kk=1:3
+                for kk=1:size(autocorrmomentnames,2)
                     if ~isempty(autocorrmomentnames{ii,kk})
                         if isstruct(temp) && isfield(temp,autocorrmomentnames{ii,kk})
                             temp=temp.(autocorrmomentnames{ii,kk});
@@ -307,7 +307,7 @@ if isstruct(caliboptions.logmoments)
             if isfield(logmomentnames,'CrossSectionCovarCorr')
                 temp=logmomentnames.CrossSectionCovarCorr;
                 found=1;
-                for kk=1:3
+                for kk=1:size(crosssecmomentnames,2)
                     if ~isempty(crosssecmomentnames{ii,kk})
                         if isstruct(temp) && isfield(temp,crosssecmomentnames{ii,kk})
                             temp=temp.(crosssecmomentnames{ii,kk});
@@ -330,7 +330,7 @@ if isstruct(caliboptions.logmoments)
             if isfield(logmomentnames,'AgeConditionalCrossSectionCovarCorr')
                 temp=logmomentnames.AgeConditionalCrossSectionCovarCorr;
                 found=1;
-                for kk=1:3
+                for kk=1:size(agecrosssecmomentnames,2)
                     if ~isempty(agecrosssecmomentnames{ii,kk})
                         if isstruct(temp) && isfield(temp,agecrosssecmomentnames{ii,kk})
                             temp=temp.(agecrosssecmomentnames{ii,kk});
