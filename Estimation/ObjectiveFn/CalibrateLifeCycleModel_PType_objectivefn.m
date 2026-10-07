@@ -1,7 +1,8 @@
-function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
+function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, usingautocorr, autocorrmomentnames, autocorrcummomentsizes, FnsToEvaluate_AutoCorr, autocorrtimehorizons, usingcrosssec, crosssecmomentnames, crossseccummomentsizes, FnsToEvaluate_CrossSec, usingagecrosssec, agecrosssecmomentnames, agecrossseccummomentsizes, FnsToEvaluate_AgeCrossSec, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
-% needed to be able to run ValueFnIter, StationaryDist, AllStats and
-% LifeCycleProfiles. Lastly there is caliboptions.
+% needed to be able to run ValueFnIter, StationaryDist, AllStats,
+% LifeCycleProfiles, AutoCorrTransProbs and the two CrossSectionCovarCorr
+% commands (all the PType versions). Lastly there is caliboptions.
 
 % Untransform the parameters (when dealing with constraints the inputs are the transformed parameters, so want to switch them back to original model parameters)
 [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
@@ -114,6 +115,37 @@ if usinglcp==1
     end
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate_ACStats,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_ACStats);
 end
+if usingautocorr==1
+    % The three commands below take whichcombos only (no per-combination whichstats), with the trailing type dimension (a type's slot, or
+    % the grouped slot which makes the command compute every type at that combination); they report what they compute.
+    simoptions_AutoCorr=simoptions;
+    if isfield(simoptions_AutoCorr,'agegroupings')
+        simoptions_AutoCorr=rmfield(simoptions_AutoCorr,'agegroupings'); % the AutoCorr targets are per age (1 x N_j-K) whatever the age groups of the other targets; the command has no age bins
+    end
+    if isfield(simoptions,'timehorizons')
+        simoptions_AutoCorr.timehorizons=union(simoptions.timehorizons,autocorrtimehorizons); % the horizons the targets name, plus any the user asked for
+    else
+        simoptions_AutoCorr.timehorizons=autocorrtimehorizons;
+    end
+    if caliboptions.whichcombos==1
+        simoptions_AutoCorr.whichcombos=caliboptions.selectors.AutoCorr.whichcombos; % [nFns,N_j,1+nRestr,N_i+1], by start age
+    end
+    CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(StationaryDist,Policy,FnsToEvaluate_AutoCorr,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions_AutoCorr);
+end
+if usingcrosssec==1
+    simoptions_CrossSec=simoptions;
+    if caliboptions.whichcombos==1
+        simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped, [nFns,nFns,N_i+1], or [nFns,nFns,1+nRestr,N_i+1] with conditional restrictions (restricted targets on pages 2:end)
+    end
+    CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz_PType(StationaryDist,Policy,FnsToEvaluate_CrossSec,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_CrossSec);
+end
+if usingagecrosssec==1
+    simoptions_AgeCrossSec=simoptions;
+    if caliboptions.whichcombos==1
+        simoptions_AgeCrossSec.whichcombos=caliboptions.selectors.AgeCrossSec.whichcombos; % pair-shaped per age group, [nFns,nFns,ngroups,N_i+1], or [nFns,nFns,ngroups,1+nRestr,N_i+1] with conditional restrictions
+    end
+    AgeConditionalCrossSectionCorr=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType(StationaryDist,Policy,FnsToEvaluate_AgeCrossSec,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_AgeCrossSec);
+end
 
 
 
@@ -164,8 +196,56 @@ if usinglcp==1
         end
     end
 end
-if usingcustomstats==1
+if usingautocorr==1
     sofar=allstatcummomentsizes(end)+acscummomentsizes(end);
+    for cc=1:size(autocorrmomentnames,1)
+        temp=CorrTransProbs; % walk the one to four names of the target into the command's output (same nesting)
+        for kk=1:size(autocorrmomentnames,2)
+            if ~isempty(autocorrmomentnames{cc,kk})
+                temp=temp.(autocorrmomentnames{cc,kk});
+            end
+        end
+        if cc==1
+            currentmomentvec(sofar+1:sofar+autocorrcummomentsizes(1))=temp(:);
+        else
+            currentmomentvec(sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc))=temp(:);
+        end
+    end
+end
+if usingcrosssec==1
+    sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end);
+    for cc=1:size(crosssecmomentnames,1)
+        temp=CrossSectionCorr; % walk the one to four names of the target into the command's output (same nesting)
+        for kk=1:size(crosssecmomentnames,2)
+            if ~isempty(crosssecmomentnames{cc,kk})
+                temp=temp.(crosssecmomentnames{cc,kk});
+            end
+        end
+        if cc==1
+            currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=temp(:);
+        else
+            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=temp(:);
+        end
+    end
+end
+if usingagecrosssec==1
+    sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end);
+    for cc=1:size(agecrosssecmomentnames,1)
+        temp=AgeConditionalCrossSectionCorr; % walk the one to four names of the target into the command's output (same nesting)
+        for kk=1:size(agecrosssecmomentnames,2)
+            if ~isempty(agecrosssecmomentnames{cc,kk})
+                temp=temp.(agecrosssecmomentnames{cc,kk});
+            end
+        end
+        if cc==1
+            currentmomentvec(sofar+1:sofar+agecrossseccummomentsizes(1))=temp(:);
+        else
+            currentmomentvec(sofar+agecrossseccummomentsizes(cc-1)+1:sofar+agecrossseccummomentsizes(cc))=temp(:);
+        end
+    end
+end
+if usingcustomstats==1
+    sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end)+agecrossseccummomentsizes(end);
     currentmomentvec(sofar+1:sofar+cmscummomentsizes(1))=CustomStats.(cmsmomentnames{1,1});
     for cc=2:size(cmsmomentnames,1)
         currentmomentvec(sofar+cmscummomentsizes(cc-1)+1:sofar+cmscummomentsizes(cc))=CustomStats.(cmsmomentnames{cc,1});

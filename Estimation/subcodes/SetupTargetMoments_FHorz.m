@@ -12,7 +12,7 @@ function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmoment
 % NaN at an age turns that age off for that statistic. Otherwise selectors is an empty struct.
 % The 7-vectors AllStats_whichstats and ACStats_whichstats are the union over all targets (used when caliboptions.whichcombos=0
 % is not set, i.e. by the estimation commands).
-% Three more kinds of target stand alongside AllStats and AgeConditionalStats (2026-10-07; single-type only so far): TargetMoments.AutoCorrTransProbs
+% Three more kinds of target stand alongside AllStats and AgeConditionalStats (2026-10-07; with permanent types since 2026-10-08): TargetMoments.AutoCorrTransProbs
 % (EvalFnOnAgentDist_AutoCorrTransProbs_FHorz), .CrossSectionCovarCorr (EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz) and
 % .AgeConditionalCrossSectionCovarCorr (the age-conditional version), each nested like its command's output. They enter targetmomentvec
 % after AgeConditionalStats and before CustomModelStats, with their own using* flag, names table, cumulative sizes, reduced FnsToEvaluate
@@ -696,12 +696,6 @@ elseif useptype==1
         buildselectors=0;
     end
     targetmomentvec=[]; % Can't preallocate as have no idea how big this will be
-    if usingautocorr==1 || usingcrosssec==1 || usingagecrosssec==1
-        error('TargetMoments.AutoCorrTransProbs, .CrossSectionCovarCorr and .AgeConditionalCrossSectionCovarCorr are not yet supported with permanent types')
-    end
-    autocorrmomentnames=cell(1,3); autocorrcummomentsizes=0; FnsToEvaluate_AutoCorr=struct(); autocorrtimehorizons=[];
-    crosssecmomentnames=cell(1,3); crossseccummomentsizes=0; FnsToEvaluate_CrossSec=struct();
-    agecrosssecmomentnames=cell(1,3); agecrossseccummomentsizes=0; FnsToEvaluate_AgeCrossSec=struct();
     %% AllStats
     if usingallstats==1
         allstatmomentnames=cell(0,4);
@@ -1064,6 +1058,359 @@ elseif useptype==1
         ACStats_whichstatsArr=[];
         ACStats_whichcombos=[];
     end
+    %% AutoCorrTransProbs (EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType): targets .(fn).(stat) and .(restriction).(fn).(stat) (the grouped
+    % output) and .(fn).(type).(stat) and .(restriction).(fn).(type).(stat) (a permanent type's own output), nested as the command's output.
+    % The stat is Mean or StdDeviation (1 x N_j), or AutoCorrelation/AutoCovariance/PairMass/PairMean_j/PairMean_jplusk/PairStdDeviation_j/
+    % PairStdDeviation_jplusk at horizon one (no suffix, 1 x N_j-1) or at horizon K (suffix _kK, 1 x N_j-K). TransitionProbs cannot be
+    % targeted (use CustomModelStats). The selector is [nFns,N_j,1+nRestr,N_i+1]: entry j of a horizon-K target selects start age j
+    % (Mean/StdDeviation: age j) in the target's slot, a type's slot or the grouped slot N_i+1 (which makes the command compute every
+    % type at that start age, as the grouped output is pooled from them). Horizons K>=2 are read off the names and returned in
+    % autocorrtimehorizons for simoptions.timehorizons. N_j must be common to the types and there can be no agejshifter (the PType
+    % command does not implement them with simoptions.whichcombos).
+    if usingautocorr==1
+        if buildselectors==0
+            error('TargetMoments.AutoCorrTransProbs needs N_j, simoptions and Names_i to be passed to SetupTargetMoments_FHorz (CalibrateLifeCycleModel_PType does; the estimation commands do not yet support these targets)')
+        end
+        if isstruct(N_j) || any(ageshift~=0)
+            error('TargetMoments.AutoCorrTransProbs with permanent types needs N_j common to the types and no simoptions.agejshifter (EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType does not implement them with simoptions.whichcombos)')
+        end
+        autocorrmomentnames=cell(0,4);
+        autocorrmomentsizes=[];
+        a1vec=fieldnames(TargetMoments.AutoCorrTransProbs);
+        for a1=1:length(a1vec)
+            temp1=TargetMoments.AutoCorrTransProbs.(a1vec{a1});
+            if ~isstruct(temp1)
+                error(['TargetMoments.AutoCorrTransProbs.',a1vec{a1},': a target is .(fn).(stat), .(fn).(type).(stat), .(restriction).(fn).(stat) or .(restriction).(fn).(type).(stat)'])
+            end
+            a2vec=fieldnames(temp1);
+            for a2=1:length(a2vec)
+                temp2=temp1.(a2vec{a2});
+                if isstruct(temp2)
+                    a3vec=fieldnames(temp2);
+                    for a3=1:length(a3vec)
+                        temp3=temp2.(a3vec{a3});
+                        if isstruct(temp3)
+                            a4vec=fieldnames(temp3);
+                            for a4=1:length(a4vec)
+                                temp4=temp3.(a4vec{a4});
+                                if isstruct(temp4)
+                                    error(['TargetMoments.AutoCorrTransProbs.',a1vec{a1},'.',a2vec{a2},'.',a3vec{a3},'.',a4vec{a4},' is a structure: a target has at most four levels (restriction.fn.type.stat)'])
+                                end
+                                targetmomentvec=[targetmomentvec; temp4(:)];
+                                autocorrmomentnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},a4vec{a4}};
+                                autocorrmomentsizes(end+1)=numel(temp4);
+                            end
+                        else
+                            targetmomentvec=[targetmomentvec; temp3(:)];
+                            autocorrmomentnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},''};
+                            autocorrmomentsizes(end+1)=numel(temp3);
+                        end
+                    end
+                else
+                    targetmomentvec=[targetmomentvec; temp2(:)];
+                    autocorrmomentnames(end+1,:)={a1vec{a1},a2vec{a2},'',''};
+                    autocorrmomentsizes(end+1)=numel(temp2);
+                end
+            end
+        end
+        autocorrcummomentsizes=cumsum(autocorrmomentsizes);
+        % Classify each row as (fn, stat, page, slot)
+        nrows=size(autocorrmomentnames,1);
+        rowfn=cell(nrows,1);
+        rowstat=cell(nrows,1);
+        rowpage=zeros(nrows,1);
+        rowslot=zeros(nrows,1);
+        for cc=1:nrows
+            names=autocorrmomentnames(cc,:);
+            names=names(~cellfun(@isempty,names));
+            a1=names{1};
+            isrestr=any(strcmp(RestrNames,a1));
+            isfn=any(strcmp(FnNamesAll,a1));
+            if isrestr && isfn
+                error(['TargetMoments.AutoCorrTransProbs.',a1,': this name is both a FnsToEvaluate and a conditional restriction, so the target is ambiguous'])
+            elseif isrestr
+                rowpage(cc)=1+find(strcmp(RestrNames,a1));
+                if length(names)<3
+                    error(['TargetMoments.AutoCorrTransProbs.',a1,'.',names{2},': a target under a conditional restriction needs a function and then a statistic'])
+                end
+                rowfn{cc}=names{2};
+                rest=names(3:end);
+            elseif isfn
+                rowpage(cc)=1;
+                rowfn{cc}=a1;
+                rest=names(2:end);
+            else
+                error(['TargetMoments.AutoCorrTransProbs.',a1,' is neither a FnsToEvaluate nor a conditional restriction in simoptions.conditionalrestrictions'])
+            end
+            if ~any(strcmp(FnNamesAll,rowfn{cc}))
+                error(['TargetMoments.AutoCorrTransProbs: ',rowfn{cc},' is not one of the FnsToEvaluate'])
+            end
+            if isempty(rest)
+                error(['TargetMoments.AutoCorrTransProbs: the target for ',rowfn{cc},' needs a statistic (e.g. .AutoCorrelation)'])
+            end
+            if any(strcmp(Names_i,rest{1})) % a permanent type: its own output
+                rowslot(cc)=find(strcmp(Names_i,rest{1}));
+                if length(rest)~=2
+                    error(['TargetMoments.AutoCorrTransProbs: the target for ',rowfn{cc},' of type ',rest{1},' is .(fn).(type).(stat), one statistic name after the type'])
+                end
+                rowstat{cc}=rest{2};
+            else % the grouped output
+                rowslot(cc)=N_i+1;
+                if length(rest)~=1
+                    error(['TargetMoments.AutoCorrTransProbs: the target for ',rowfn{cc},' is .(fn).(stat) or .(fn).(type).(stat) (',rest{1},' is neither a permanent type nor the last name)'])
+                end
+                rowstat{cc}=rest{1};
+            end
+        end
+        FnsToEvaluate_AutoCorr=struct();
+        for ff=1:length(FnNamesAll)
+            if any(strcmp(rowfn,FnNamesAll{ff}))
+                FnsToEvaluate_AutoCorr.(FnNamesAll{ff})=FnsToEvaluate.(FnNamesAll{ff});
+            end
+        end
+        FnNamesAC=fieldnames(FnsToEvaluate_AutoCorr);
+        autocorrtimehorizons=[];
+        AutoCorr_whichcombos=zeros(length(FnNamesAC),N_j,1+nRestr,N_i+1);
+        for cc=1:nrows
+            stat=rowstat{cc};
+            tk=regexp(stat,'_k(\d+)$','tokens','once'); % the horizon suffix
+            if ~isempty(tk)
+                K=str2double(tk{1});
+                base=stat(1:end-length(tk{1})-2);
+            else
+                K=1;
+                base=stat;
+            end
+            if any(strcmp(stat,{'Mean','StdDeviation'}))
+                K=0;
+            elseif ~any(strcmp(base,{'AutoCorrelation','AutoCovariance','PairMass','PairMean_j','PairMean_jplusk','PairStdDeviation_j','PairStdDeviation_jplusk'}))
+                error(['TargetMoments.AutoCorrTransProbs: ',stat,' is not a targetable output (Mean, StdDeviation, AutoCorrelation, AutoCovariance and the Pair byproducts, each with an optional _kK horizon suffix; TransitionProbs cannot be targeted, use CustomModelStats)'])
+            end
+            if K>=2
+                autocorrtimehorizons=[autocorrtimehorizons,K];
+            end
+            names=autocorrmomentnames(cc,:);
+            names=names(~cellfun(@isempty,names));
+            temp=TargetMoments.AutoCorrTransProbs;
+            for kk=1:length(names)
+                temp=temp.(names{kk});
+            end
+            if ~(isvector(temp) && numel(temp)==N_j-K)
+                error(['TargetMoments.AutoCorrTransProbs target ',rowfn{cc},' ',stat,' has ',num2str(numel(temp)),' entries, but it is 1 x ',num2str(N_j-K),' (N_j minus the horizon)'])
+            end
+            ff=find(strcmp(FnNamesAC,rowfn{cc}));
+            pp=rowpage(cc);
+            ss_slot=rowslot(cc);
+            AutoCorr_whichcombos(ff,1:N_j-K,pp,ss_slot)=max(AutoCorr_whichcombos(ff,1:N_j-K,pp,ss_slot),double(reshape(~isnan(temp),1,[]))); % entry j selects start age j
+        end
+        autocorrtimehorizons=unique(autocorrtimehorizons);
+    else
+        autocorrmomentnames=cell(1,4);
+        autocorrcummomentsizes=0;
+        FnsToEvaluate_AutoCorr=struct();
+        autocorrtimehorizons=[];
+        AutoCorr_whichcombos=[];
+    end
+    %% CrossSectionCovarCorr (EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz_PType) and AgeConditionalCrossSectionCovarCorr
+    % (EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType), nested as the commands' outputs: grouped targets
+    % .(fn).Mean, .(fn).StdDeviation, .(fn1).CovarianceWith.(fn2), .(fn1).CorrelationWith.(fn2), .CovarianceMatrix, .CorrelationMatrix;
+    % per-type targets .(fn).(type).Mean, .(fn).(type).StdDeviation, .(fn1).(type).CovarianceWith.(fn2), .(fn1).(type).CorrelationWith.(fn2);
+    % each also under a conditional restriction as .(restriction).(...) (up to five names: restriction.fn1.type.CovarianceWith.fn2).
+    % (The self-correlation .(fn).(fn) is always one and cannot be targeted; nor can the per-type matrices CovarianceMatrix_ptype/
+    % CorrelationMatrix_ptype, which the commands shrink to the functions evaluated for the type: use the per-type pairs.) Scalars and
+    % [nFns,nFns] for the plain command; 1 x (number of age groups) and [nFns,nFns,number of age groups] for the age-conditional one
+    % (simoptions.agegroupings, else N_j; common to the types, no agejshifter). NaN omits an entry. The selector is pair-shaped per page
+    % and slot, [nFns,nFns,1+nRestr,N_i+1] and [nFns,nFns,ngroups,1+nRestr,N_i+1] (page 1 unrestricted, then the restrictions in the
+    % fieldnames order of simoptions.conditionalrestrictions; without restrictions the page dimension is dropped, as the commands read
+    % it), symmetric, the diagonal being the own stats; a matrix target is indexed over every FnsToEvaluate, so it makes the reduced
+    % set the full one.
+    for xx=1:2
+        if xx==1
+            xf='CrossSectionCovarCorr'; usingx=usingcrosssec; nage=1;
+        else
+            xf='AgeConditionalCrossSectionCovarCorr'; usingx=usingagecrosssec; nage=1;
+            if usingx==1 && buildselectors==1
+                if isstruct(N_j) || any(ageshift~=0) || (isfield(simoptions,'agegroupings') && isstruct(simoptions.agegroupings))
+                    error('TargetMoments.AgeConditionalCrossSectionCovarCorr with permanent types needs N_j and simoptions.agegroupings common to the types and no simoptions.agejshifter (EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType does not implement them)')
+                end
+                if isfield(simoptions,'agegroupings')
+                    nage=length(simoptions.agegroupings);
+                else
+                    nage=N_j;
+                end
+            end
+        end
+        if usingx==1
+            if buildselectors==0
+                error(['TargetMoments.',xf,' needs N_j, simoptions and Names_i to be passed to SetupTargetMoments_FHorz (CalibrateLifeCycleModel_PType does; the estimation commands do not yet support these targets)'])
+            end
+            xnames=cell(0,5);
+            xsizes=[];
+            a1vec=fieldnames(TargetMoments.(xf));
+            for a1=1:length(a1vec)
+                temp1=TargetMoments.(xf).(a1vec{a1});
+                if ~isstruct(temp1) % one name: a grouped matrix
+                    targetmomentvec=[targetmomentvec; temp1(:)];
+                    xnames(end+1,:)={a1vec{a1},'','','',''};
+                    xsizes(end+1)=numel(temp1);
+                else
+                    a2vec=fieldnames(temp1);
+                    for a2=1:length(a2vec)
+                        temp2=temp1.(a2vec{a2});
+                        if ~isstruct(temp2)
+                            targetmomentvec=[targetmomentvec; temp2(:)];
+                            xnames(end+1,:)={a1vec{a1},a2vec{a2},'','',''};
+                            xsizes(end+1)=numel(temp2);
+                        else
+                            a3vec=fieldnames(temp2);
+                            for a3=1:length(a3vec)
+                                temp3=temp2.(a3vec{a3});
+                                if ~isstruct(temp3)
+                                    targetmomentvec=[targetmomentvec; temp3(:)];
+                                    xnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},'',''};
+                                    xsizes(end+1)=numel(temp3);
+                                else
+                                    a4vec=fieldnames(temp3);
+                                    for a4=1:length(a4vec)
+                                        temp4=temp3.(a4vec{a4});
+                                        if ~isstruct(temp4)
+                                            targetmomentvec=[targetmomentvec; temp4(:)];
+                                            xnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},a4vec{a4},''};
+                                            xsizes(end+1)=numel(temp4);
+                                        else
+                                            a5vec=fieldnames(temp4);
+                                            for a5=1:length(a5vec)
+                                                temp5=temp4.(a5vec{a5});
+                                                if isstruct(temp5)
+                                                    error(['TargetMoments.',xf,'.',a1vec{a1},'.',a2vec{a2},'.',a3vec{a3},'.',a4vec{a4},'.',a5vec{a5},' is a structure: a target has at most five levels (restriction.fn1.type.CovarianceWith.fn2)'])
+                                                end
+                                                targetmomentvec=[targetmomentvec; temp5(:)];
+                                                xnames(end+1,:)={a1vec{a1},a2vec{a2},a3vec{a3},a4vec{a4},a5vec{a5}};
+                                                xsizes(end+1)=numel(temp5);
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            xcumsizes=cumsum(xsizes);
+            nrows=size(xnames,1);
+            rowfn1=cell(nrows,1);
+            rowfn2=cell(nrows,1);
+            rowpage=zeros(nrows,1);
+            rowslot=zeros(nrows,1);
+            rowmatrix=zeros(nrows,1);
+            for cc=1:nrows
+                names=xnames(cc,:);
+                names=names(~cellfun(@isempty,names));
+                a1=names{1};
+                isrestr=any(strcmp(RestrNames,a1));
+                isfn=any(strcmp(FnNamesAll,a1));
+                if isrestr && isfn
+                    error(['TargetMoments.',xf,'.',a1,': this name is both a FnsToEvaluate and a conditional restriction, so the target is ambiguous'])
+                elseif isrestr
+                    rowpage(cc)=1+find(strcmp(RestrNames,a1));
+                    rest=names(2:end);
+                    if isempty(rest)
+                        error(['TargetMoments.',xf,'.',a1,': a target under a conditional restriction needs a function (then a type and/or Mean, StdDeviation, CovarianceWith.(fn2) or CorrelationWith.(fn2)) or CovarianceMatrix/CorrelationMatrix'])
+                    end
+                else
+                    rowpage(cc)=1;
+                    rest=names;
+                end
+                b1=rest{1};
+                if isscalar(rest) % a grouped matrix
+                    if ~any(strcmp(b1,{'CovarianceMatrix','CorrelationMatrix'}))
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': a target with no statistic must be CovarianceMatrix or CorrelationMatrix'])
+                    end
+                    rowmatrix(cc)=1; rowslot(cc)=N_i+1;
+                elseif any(strcmp(b1,{'CovarianceMatrix_ptype','CorrelationMatrix_ptype'}))
+                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the per-type matrices cannot be targeted (the commands shrink them to the functions evaluated for the type); target the per-type pairs .(fn1).(type).CovarianceWith.(fn2) instead'])
+                elseif ~any(strcmp(FnNamesAll,b1))
+                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',b1,' is not one of the FnsToEvaluate (nor a conditional restriction in simoptions.conditionalrestrictions, nor CovarianceMatrix/CorrelationMatrix)'])
+                else
+                    if any(strcmp(Names_i,rest{2})) % per type: .(fn).(type).(...)
+                        rowslot(cc)=find(strcmp(Names_i,rest{2}));
+                        rest2=rest(3:end);
+                    else
+                        rowslot(cc)=N_i+1;
+                        rest2=rest(2:end);
+                    end
+                    if isempty(rest2)
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the target needs Mean, StdDeviation, CovarianceWith.(fn2) or CorrelationWith.(fn2) (after the type name for a per-type target)'])
+                    elseif any(strcmp(rest2{1},{'CovarianceWith','CorrelationWith'}))
+                        if numel(rest2)~=2 || ~any(strcmp(FnNamesAll,rest2{2}))
+                            error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',rest2{1},' needs a second FnsToEvaluate name'])
+                        end
+                        rowfn1{cc}=b1; rowfn2{cc}=rest2{2};
+                    elseif isscalar(rest2) && any(strcmp(rest2{1},{'Mean','StdDeviation'}))
+                        rowfn1{cc}=b1; rowfn2{cc}=b1;
+                    elseif isscalar(rest2) && strcmp(rest2{1},b1)
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the self-correlation is always one and cannot be targeted'])
+                    else
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the targets are Mean, StdDeviation, CovarianceWith.(fn2), CorrelationWith.(fn2) (grouped, or after a type name), or the grouped CovarianceMatrix/CorrelationMatrix, each optionally under a conditional restriction'])
+                    end
+                end
+            end
+            FnsX=struct();
+            for ff=1:length(FnNamesAll)
+                if any(rowmatrix==1) || any(strcmp(rowfn1,FnNamesAll{ff})) || any(strcmp(rowfn2,FnNamesAll{ff}))
+                    FnsX.(FnNamesAll{ff})=FnsToEvaluate.(FnNamesAll{ff});
+                end
+            end
+            FnNamesX=fieldnames(FnsX);
+            wcX=zeros(length(FnNamesX),length(FnNamesX),nage,1+nRestr,N_i+1);
+            for cc=1:nrows
+                names=xnames(cc,:);
+                names=names(~cellfun(@isempty,names));
+                temp=TargetMoments.(xf);
+                for kk=1:length(names)
+                    temp=temp.(names{kk});
+                end
+                pp=rowpage(cc);
+                ss_slot=rowslot(cc);
+                if rowmatrix(cc)==1 % a matrix: non-NaN entries select the pairs (symmetrised: the commands read the upper triangle)
+                    if ~isequal(size(temp,1:3),[length(FnNamesX),length(FnNamesX),nage])
+                        error(['TargetMoments.',xf,' target ',strjoin(names,'.'),' must be of size [',num2str(length(FnNamesX)),',',num2str(length(FnNamesX)),',',num2str(nage),'] (number of FnsToEvaluate, twice, number of age groups), NaN where not wanted'])
+                    end
+                    on=double(~isnan(temp));
+                    wcX(:,:,:,pp,ss_slot)=max(wcX(:,:,:,pp,ss_slot),max(on,permute(on,[2,1,3])));
+                else
+                    if ~(isvector(temp) && numel(temp)==nage)
+                        error(['TargetMoments.',xf,' target ',strjoin(names,'.'),' has ',num2str(numel(temp)),' entries, but there are ',num2str(nage),' age groups'])
+                    end
+                    f1=find(strcmp(FnNamesX,rowfn1{cc}));
+                    f2=find(strcmp(FnNamesX,rowfn2{cc}));
+                    on=double(reshape(~isnan(temp),[1,1,nage]));
+                    wcX(f1,f2,:,pp,ss_slot)=max(wcX(f1,f2,:,pp,ss_slot),on);
+                    wcX(f2,f1,:,pp,ss_slot)=max(wcX(f2,f1,:,pp,ss_slot),on);
+                end
+            end
+            % the shapes the commands read: the page dimension only with restrictions, nage only for the age-conditional command
+            if xx==1
+                if nRestr==0
+                    wcX=reshape(wcX,[length(FnNamesX),length(FnNamesX),N_i+1]);
+                else
+                    wcX=reshape(wcX,[length(FnNamesX),length(FnNamesX),1+nRestr,N_i+1]);
+                end
+            elseif nRestr==0
+                wcX=reshape(wcX,[length(FnNamesX),length(FnNamesX),nage,N_i+1]);
+            end
+        else
+            xnames=cell(1,5);
+            xcumsizes=0;
+            FnsX=struct();
+            wcX=[];
+        end
+        if xx==1
+            crosssecmomentnames=xnames; crossseccummomentsizes=xcumsizes; FnsToEvaluate_CrossSec=FnsX; CrossSec_whichcombos=wcX;
+        else
+            agecrosssecmomentnames=xnames; agecrossseccummomentsizes=xcumsizes; FnsToEvaluate_AgeCrossSec=FnsX; AgeCrossSec_whichcombos=wcX;
+        end
+    end
     %% The selectors (used by CalibrateLifeCycleModel_PType when caliboptions.whichcombos=1)
     selectors=struct();
     if buildselectors==1
@@ -1071,6 +1418,9 @@ elseif useptype==1
         selectors.AllStats.whichstats=AllStats_whichstatsArr;
         selectors.ACStats.whichcombos=ACStats_whichcombos;
         selectors.ACStats.whichstats=ACStats_whichstatsArr;
+        selectors.AutoCorr.whichcombos=AutoCorr_whichcombos;
+        selectors.CrossSec.whichcombos=CrossSec_whichcombos;
+        selectors.AgeCrossSec.whichcombos=AgeCrossSec_whichcombos;
     end
 end
 
