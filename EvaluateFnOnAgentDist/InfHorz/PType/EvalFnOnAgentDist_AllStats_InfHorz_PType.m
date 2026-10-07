@@ -200,7 +200,7 @@ for ii=1:N_i
     if n_d_temp(1)==0
         l_d_temp=0;
     else
-        l_d_temp=1;
+        l_d_temp=length(n_d_temp);
     end
     l_a_temp=length(n_a_temp);
 
@@ -261,7 +261,7 @@ for ii=1:N_i
             else
                 CondlRestnFnParamNames={};
             end
-            CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames);
+            CondlRestnFnParamsCell=CreateCellFromParams(Parameters_temp,CondlRestnFnParamNames); % the parameters of this ptype
 
             RestrictionValues=logical(EvalFnOnAgentDist_Grid(CondlRestnFn, CondlRestnFnParamsCell,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_temp));
             RestrictionValues=reshape(RestrictionValues,[N_a_temp*N_z_temp,1]);
@@ -305,7 +305,7 @@ for ii=1:N_i
             else
                 FnsToEvaluateParamNames={};
             end
-            FnsToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames);
+            FnsToEvaluateParamsCell=CreateCellFromParams(Parameters_temp,FnsToEvaluateParamNames); % the parameters of this ptype
 
             %% We have set up the current PType, now do some calculations for it.
             simoptions_temp.keepoutputasmatrix=1;
@@ -334,7 +334,7 @@ for ii=1:N_i
             if useCondlRest==1
                 for rr=1:length(CondlRestnFnNames)
                     RestrictedSortedWeights=accumarray(sortindex,RestrictionStruct_ii(rr).RestrictedStationaryDistVec,[],@sum); % This has already been done to SortedValues, so have to do it to Restricted Agent Dist
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats); % 2 is presorted but with zero weights (the points outside the restriction): they must be dropped, or a zero-weight first point hides negative values from the Gini/Lorenz/shares check
                     % If doing grouped stats, store RestrictedSortedWeights
                     if simoptions_temp.groupusingtdigest==1
                         error('Code should never get here (should have thrown an error earlier')
@@ -425,13 +425,13 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         [AllValues.(FnsToEvalNames{ff}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}));
         AllWeights.(FnsToEvalNames{ff})=accumarray(sortindex,AllWeights.(FnsToEvalNames{ff}),[],@sum);
 
-        tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllWeights.(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+        tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllWeights.(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats); % 2: sorted, but a ptype of zero mass contributes zero weights
 
         allstatnames=fieldnames(tempStats);
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
                 AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})/sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr)),[],@sum);
-                tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+                tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats); % 2: sorted, with zero weights (outside the restriction)
                 % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
                 % Guard isfield: some stats (e.g. LorenzCurveComment) are only emitted by StatsFromWeightedGrid
                 % when the values contain negatives, so they may be present in tempStats but not in
@@ -469,7 +469,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     % Standard Deviation
     if simoptions.whichstats(3)==1
         if N_i==1
-            AllStats.(FnsToEvalNames{ff}).StdDev=StdDevVec(ff,:);
+            AllStats.(FnsToEvalNames{ff}).StdDeviation=StdDevVec(ff,:);
         else
             temp2=zeros(N_i,1);
             for ii=2:N_i
@@ -481,13 +481,15 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                     temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
                 end
             end
-            AllStats.(FnsToEvalNames{ff}).StdDev=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*(StdDevVec(ff,:).^2))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+            AllStats.(FnsToEvalNames{ff}).StdDeviation=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*(StdDevVec(ff,:).^2))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
         end
-        AllStats.(FnsToEvalNames{ff}).Variance=(AllStats.(FnsToEvalNames{ff}).StdDev)^2;
+        AllStats.(FnsToEvalNames{ff}).Variance=(AllStats.(FnsToEvalNames{ff}).StdDeviation)^2;
     end
 
-    % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
-    if simoptions.whichstats(5)==1
+    % With t-Digests the pooled extremes are only approximate, so the minimum and maximum are taken directly from the ptypes (and
+    % overwritten); without them the pooled stats are exact, and the minimum and maximum are those of the pooled population, as the
+    % other stats (the min/max over the ptypes differs from them, as the tolerance is then a mass within each ptype, not within the population)
+    if simoptions.whichstats(5)==1 && simoptions.groupusingtdigest==1
         AllStats.(FnsToEvalNames{ff}).Maximum=max(maxvaluevec(ff,:));
         AllStats.(FnsToEvalNames{ff}).Minimum=min(minvaluevec(ff,:));
     end

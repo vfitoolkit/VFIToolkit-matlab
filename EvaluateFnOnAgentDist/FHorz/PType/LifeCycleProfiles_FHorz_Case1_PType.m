@@ -1041,7 +1041,7 @@ for ff=1:numFnsToEvaluate
                     PoolWeights=PoolWeights/sum(PoolWeights);
                 end
                 if whichcombosG(ff,jjs,1)==1 % the grouped unrestricted stats of this (function, age group) are wanted (the pooled unique() above is needed regardless, the restricted weights are aligned to it)
-                tempStats=StatsFromWeightedGrid(PoolValues,PoolWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws);
+                tempStats=StatsFromWeightedGrid(PoolValues,PoolWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,ws); % 2: sorted, but a ptype of zero mass contributes zero weights
                 end % whichcombosG(ff,jjs,1)
             end
             if whichcombosG(ff,jjs,1)==1 % store the grouped unrestricted stats of this (function, age group)
@@ -1152,7 +1152,7 @@ for ff=1:numFnsToEvaluate
                                     AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj);
                                 end
 
-                                tempStats2=StatsFromWeightedGrid(PoolValues,AllRestrictedWeights_rrffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws);
+                                tempStats2=StatsFromWeightedGrid(PoolValues,AllRestrictedWeights_rrffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,ws); % 2: sorted, with zero weights (outside the restriction)
                             end
                             % Store them in AgeConditionalStats
                             if ws(1)==1

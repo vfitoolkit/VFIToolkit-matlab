@@ -452,7 +452,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                             RestrictionMask_iirr=RestrictionMask{ii,rr};
                         end
                         RestrictedSortedWeights=accumarray(sortindex,StationaryDist_ii.*RestrictionMask_iirr(temp),[],@sum); % the restricted mass of this ptype on its sorted support (un-normalised; zero if the restriction has zero mass for this ptype)
-                        AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights/restrictedsamplemass(ii,rr),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,reshape(whichstats_ii(ff,1+rr,:),[1,7])); % normalised to mass one (0/0 is NaN for a zero-mass restriction, see above)
+                        AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights/restrictedsamplemass(ii,rr),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,reshape(whichstats_ii(ff,1+rr,:),[1,7])); % normalised to mass one (0/0 is NaN for a zero-mass restriction, see above); 2: sorted, with zero weights (outside the restriction), which must be dropped or a zero-weight first point hides negative values from the Gini/Lorenz/shares check
 
                         % Append to the pooled cell: ptweights(ii) times the un-normalised restricted mass, so each ptype enters the grouped restricted stats by its
                         % population mass in the restriction (later normalised by sum(ptweights.*restrictedsamplemass(:,rr))); a zero-mass ptype contributes zeros
@@ -513,14 +513,14 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         [PoolValues,~,sortindex]=unique(PoolValues);
         PoolWeights=accumarray(sortindex,PoolWeights,[],@sum);
         if whichcombosG(ff,1)==1 % the grouped unrestricted stats of this function are wanted
-            tempStats=StatsFromWeightedGrid(PoolValues,PoolWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,ws1);
+            tempStats=StatsFromWeightedGrid(PoolValues,PoolWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,ws1); % 2: sorted, but a ptype of zero mass contributes zero weights
             allstatnames=fieldnames(tempStats);
         end % whichcombosG(ff,1)
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
                 if whichcombosG(ff,1+rr)==1 % the grouped stats of this restriction are wanted for this function
                     PoolRestrWeights{rr}=accumarray(sortindex,PoolRestrWeights{rr}/sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr)),[],@sum); % normalised by the population mass in the restriction
-                    tempStatsRestricted=StatsFromWeightedGrid(PoolValues,PoolRestrWeights{rr},simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,reshape(whichstatsG(ff,1+rr,:),[1,7]));
+                    tempStatsRestricted=StatsFromWeightedGrid(PoolValues,PoolRestrWeights{rr},simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,reshape(whichstatsG(ff,1+rr,:),[1,7])); % 2: sorted, with zero weights (outside the restriction)
                     % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
                     rallstatnames=fieldnames(tempStatsRestricted);
                     for aa=1:length(rallstatnames)
