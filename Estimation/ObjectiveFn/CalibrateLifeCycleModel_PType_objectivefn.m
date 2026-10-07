@@ -94,28 +94,23 @@ if usingallstats==1
     % caliboptions.whichcombos=1 (CalibrateLifeCycleModel_PType's default): the stats commands compute only the targeted (function, statistic,
     % restriction[, age], ptype or grouped) combinations, through simoptions.whichcombos and a per-combination simoptions.whichstats with a
     % trailing type dimension, built by SetupTargetMoments_FHorz (caliboptions.selectors). =0: every statistic of every targeted function
-    % (whichstats all ones). When the field is absent (the estimation commands, not yet wired) the 7-vector union of the targeted
-    % statistics is used, as before. The two commands take differently shaped selectors, so each gets its own copy of simoptions.
+    % (whichstats all ones). caliboptions.whichcombos is always set by the calling command. The two commands take differently shaped selectors, so each gets its own copy of simoptions.
     simoptions_AllStats=simoptions;
-    if isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==1
+    if caliboptions.whichcombos==1
         simoptions_AllStats.whichcombos=caliboptions.selectors.AllStats.whichcombos;
         simoptions_AllStats.whichstats=caliboptions.selectors.AllStats.whichstats;
-    elseif isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==0
+    else % caliboptions.whichcombos=0: every statistic of every targeted function
         simoptions_AllStats.whichstats=ones(1,7);
-    else
-        simoptions_AllStats.whichstats=AllStats_whichstats;
     end
     AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate_AllStats,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_AllStats);
 end
 if usinglcp==1
     simoptions_ACStats=simoptions;
-    if isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==1
+    if caliboptions.whichcombos==1
         simoptions_ACStats.whichcombos=caliboptions.selectors.ACStats.whichcombos;
         simoptions_ACStats.whichstats=caliboptions.selectors.ACStats.whichstats;
-    elseif isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==0
+    else % caliboptions.whichcombos=0: every statistic of every targeted function
         simoptions_ACStats.whichstats=ones(1,7);
-    else
-        simoptions_ACStats.whichstats=ACStats_whichstats;
     end
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate_ACStats,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_ACStats);
 end

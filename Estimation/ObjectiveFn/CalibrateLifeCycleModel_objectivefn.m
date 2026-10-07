@@ -1,4 +1,4 @@
-function Obj=CalibrateLifeCycleModel_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
+function Obj=CalibrateLifeCycleModel_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, usingautocorr, autocorrmomentnames, autocorrcummomentsizes, FnsToEvaluate_AutoCorr, autocorrtimehorizons, usingcrosssec, crosssecmomentnames, crossseccummomentsizes, FnsToEvaluate_CrossSec, usingagecrosssec, agecrosssecmomentnames, agecrossseccummomentsizes, FnsToEvaluate_AgeCrossSec, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -80,29 +80,57 @@ if caliboptions.simulatemoments==0
     % The two commands take differently shaped selectors, so each gets its own copy of simoptions.
     if usingallstats==1
         simoptions_AllStats=simoptions;
-        if isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==1
+        if caliboptions.whichcombos==1
             simoptions_AllStats.whichcombos=caliboptions.selectors.AllStats.whichcombos;
             simoptions_AllStats.whichstats=caliboptions.selectors.AllStats.whichstats;
-        elseif isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==0
+        else % caliboptions.whichcombos=0: every statistic of every targeted function
             simoptions_AllStats.whichstats=ones(1,7);
-        else
-            simoptions_AllStats.whichstats=AllStats_whichstats;
         end
         AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_AllStats);
     end
     if usinglcp==1
         simoptions_ACStats=simoptions;
-        if isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==1
+        if caliboptions.whichcombos==1
             simoptions_ACStats.whichcombos=caliboptions.selectors.ACStats.whichcombos;
             simoptions_ACStats.whichstats=caliboptions.selectors.ACStats.whichstats;
-        elseif isfield(caliboptions,'whichcombos') && caliboptions.whichcombos==0
+        else % caliboptions.whichcombos=0: every statistic of every targeted function
             simoptions_ACStats.whichstats=ones(1,7);
-        else
-            simoptions_ACStats.whichstats=ACStats_whichstats;
         end
         AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate_ACStats,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_ACStats);
     end
+    if usingautocorr==1
+        simoptions_AutoCorr=simoptions;
+        if isfield(simoptions_AutoCorr,'agegroupings')
+            simoptions_AutoCorr=rmfield(simoptions_AutoCorr,'agegroupings'); % the AutoCorr targets are per age (1 x N_j-K) whatever the age groups of the other targets; the command has no age bins
+        end
+        if isfield(simoptions,'timehorizons')
+            simoptions_AutoCorr.timehorizons=union(simoptions.timehorizons,autocorrtimehorizons); % the horizons the targets name, plus any the user asked for
+        else
+            simoptions_AutoCorr.timehorizons=autocorrtimehorizons;
+        end
+        if caliboptions.whichcombos==1
+            simoptions_AutoCorr.whichcombos=caliboptions.selectors.AutoCorr.whichcombos; % by start age (the command has no per-combination whichstats; it reports its byproducts)
+        end
+        CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist,Policy,FnsToEvaluate_AutoCorr,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions_AutoCorr);
+    end
+    if usingcrosssec==1
+        simoptions_CrossSec=simoptions;
+        if caliboptions.whichcombos==1
+            simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped
+        end
+        CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz(StationaryDist,Policy,FnsToEvaluate_CrossSec,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_CrossSec);
+    end
+    if usingagecrosssec==1
+        simoptions_AgeCrossSec=simoptions;
+        if caliboptions.whichcombos==1
+            simoptions_AgeCrossSec.whichcombos=caliboptions.selectors.AgeCrossSec.whichcombos; % pair-shaped, per age group
+        end
+        AgeConditionalCrossSectionCorr=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz(StationaryDist,Policy,FnsToEvaluate_AgeCrossSec,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_AgeCrossSec);
+    end
 elseif caliboptions.simulatemoments==1
+    if usingautocorr==1 || usingcrosssec==1 || usingagecrosssec==1
+        error('TargetMoments.AutoCorrTransProbs, .CrossSectionCovarCorr and .AgeConditionalCrossSectionCovarCorr cannot be used with simulated moments (there are no panel-data versions of these statistics)')
+    end
     % Do a panel data simulation.
     % Not used in calibration, but needed for estimation when bootstrapping standard errors
     % Set random number generator seed to caliboptions.rngindex
@@ -151,8 +179,56 @@ if usinglcp==1
         end
     end
 end
-if usingcustomstats==1
+if usingautocorr==1
     sofar=allstatcummomentsizes(end)+acscummomentsizes(end);
+    for cc=1:size(autocorrmomentnames,1)
+        temp=CorrTransProbs; % walk the one to three names of the target into the command's output (same nesting)
+        for kk=1:3
+            if ~isempty(autocorrmomentnames{cc,kk})
+                temp=temp.(autocorrmomentnames{cc,kk});
+            end
+        end
+        if cc==1
+            currentmomentvec(sofar+1:sofar+autocorrcummomentsizes(1))=temp(:);
+        else
+            currentmomentvec(sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc))=temp(:);
+        end
+    end
+end
+if usingcrosssec==1
+    sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end);
+    for cc=1:size(crosssecmomentnames,1)
+        temp=CrossSectionCorr; % walk the one to three names of the target into the command's output (same nesting)
+        for kk=1:3
+            if ~isempty(crosssecmomentnames{cc,kk})
+                temp=temp.(crosssecmomentnames{cc,kk});
+            end
+        end
+        if cc==1
+            currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=temp(:);
+        else
+            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=temp(:);
+        end
+    end
+end
+if usingagecrosssec==1
+    sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end);
+    for cc=1:size(agecrosssecmomentnames,1)
+        temp=AgeConditionalCrossSectionCorr; % walk the one to three names of the target into the command's output (same nesting)
+        for kk=1:3
+            if ~isempty(agecrosssecmomentnames{cc,kk})
+                temp=temp.(agecrosssecmomentnames{cc,kk});
+            end
+        end
+        if cc==1
+            currentmomentvec(sofar+1:sofar+agecrossseccummomentsizes(1))=temp(:);
+        else
+            currentmomentvec(sofar+agecrossseccummomentsizes(cc-1)+1:sofar+agecrossseccummomentsizes(cc))=temp(:);
+        end
+    end
+end
+if usingcustomstats==1
+    sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end)+agecrossseccummomentsizes(end);
     currentmomentvec(sofar+1:sofar+cmscummomentsizes(1))=CustomStats.(cmsmomentnames{1,1});
     for cc=2:size(cmsmomentnames,1)
         currentmomentvec(sofar+cmscummomentsizes(cc-1)+1:sofar+cmscummomentsizes(cc))=CustomStats.(cmsmomentnames{cc,1});

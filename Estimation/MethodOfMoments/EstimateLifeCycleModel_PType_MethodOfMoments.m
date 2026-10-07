@@ -101,6 +101,7 @@ if ~isfield(estimoptions,'previousiterations')
     estimoptions.previousiterations.niters=0; % gets incremented for each iteration when using estimoptions.iterateGMM
 end
 
+estimoptions.whichcombos=1; % the stats commands compute only the targeted (function, statistic, restriction, age, ptype or grouped) combinations (as CalibrateLifeCycleModel_PType); =0 computes every statistic of every targeted function
 estimoptions.useCustomModelStats=0;
 if isfield(estimoptions,'CustomModelStats')
     estimoptions.useCustomModelStats=1;
@@ -370,7 +371,8 @@ end
 %% Setup for which moments are being targeted
 if estimoptions.cohortagejshifter==0
     % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-    [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,1);
+    [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes,selectors]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,1,N_j,simoptions,Names_i);
+    estimoptions.selectors=selectors; % the per-combination whichcombos/whichstats of the two stats commands, with a trailing type dimension (used as estimoptions.whichcombos=1)
 else
     [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(TargetMoments,FnsToEvaluate,N_j,estimoptions.cohortagejshifter,1);
 end

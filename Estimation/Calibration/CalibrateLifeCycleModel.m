@@ -143,7 +143,7 @@ end
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats,FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats,FnsToEvaluate_ACStats, cmsmomentnames,cmscummomentsizes,selectors]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,0,N_j,simoptions);
+[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats,FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats,FnsToEvaluate_ACStats, cmsmomentnames,cmscummomentsizes,selectors, usingautocorr,autocorrmomentnames,autocorrcummomentsizes,FnsToEvaluate_AutoCorr,autocorrtimehorizons, usingcrosssec,crosssecmomentnames,crossseccummomentsizes,FnsToEvaluate_CrossSec, usingagecrosssec,agecrosssecmomentnames,agecrossseccummomentsizes,FnsToEvaluate_AgeCrossSec]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,0,N_j,simoptions);
 caliboptions.selectors=selectors; % the per-combination whichcombos/whichstats of the two stats commands (used when caliboptions.whichcombos=1)
 
 
@@ -225,12 +225,21 @@ simoptions.alreadygridvals=1;
 % entries of each; or by name, e.g. caliboptions.logmoments.AgeConditionalStats.earnings.Mean=1 (names not mentioned are 0).
 % Internally it becomes a vector with one entry per target.
 momentrowsizes=[]; % the number of entries of each target name, in the order the names enter targetmomentvec
-allstatsizes=diff([0,allstatcummomentsizes]); acssizes=diff([0,acscummomentsizes]); cmssizes=diff([0,cmscummomentsizes]);
+allstatsizes=diff([0,allstatcummomentsizes]); acssizes=diff([0,acscummomentsizes]); autocorrsizes=diff([0,autocorrcummomentsizes]); crosssecsizes=diff([0,crossseccummomentsizes]); agecrosssecsizes=diff([0,agecrossseccummomentsizes]); cmssizes=diff([0,cmscummomentsizes]);
 if usingallstats==1
     momentrowsizes=[momentrowsizes, allstatsizes];
 end
 if usinglcp==1
     momentrowsizes=[momentrowsizes, acssizes];
+end
+if usingautocorr==1
+    momentrowsizes=[momentrowsizes, autocorrsizes];
+end
+if usingcrosssec==1
+    momentrowsizes=[momentrowsizes, crosssecsizes];
+end
+if usingagecrosssec==1
+    momentrowsizes=[momentrowsizes, agecrosssecsizes];
 end
 if usingcustomstats==1
     momentrowsizes=[momentrowsizes, cmssizes];
@@ -269,6 +278,75 @@ if isstruct(caliboptions.logmoments)
             sofar=sofar+acssizes(ii);
         end
     end
+    if usingautocorr==1
+        for ii=1:size(autocorrmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'AutoCorrTransProbs')
+                temp=logmomentnames.AutoCorrTransProbs;
+                found=1;
+                for kk=1:3
+                    if ~isempty(autocorrmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,autocorrmomentnames{ii,kk})
+                            temp=temp.(autocorrmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            caliboptions.logmoments(sofar+1:sofar+autocorrsizes(ii))=flag;
+            sofar=sofar+autocorrsizes(ii);
+        end
+    end
+    if usingcrosssec==1
+        for ii=1:size(crosssecmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'CrossSectionCovarCorr')
+                temp=logmomentnames.CrossSectionCovarCorr;
+                found=1;
+                for kk=1:3
+                    if ~isempty(crosssecmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,crosssecmomentnames{ii,kk})
+                            temp=temp.(crosssecmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            caliboptions.logmoments(sofar+1:sofar+crosssecsizes(ii))=flag;
+            sofar=sofar+crosssecsizes(ii);
+        end
+    end
+    if usingagecrosssec==1
+        for ii=1:size(agecrosssecmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'AgeConditionalCrossSectionCovarCorr')
+                temp=logmomentnames.AgeConditionalCrossSectionCovarCorr;
+                found=1;
+                for kk=1:3
+                    if ~isempty(agecrosssecmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,agecrosssecmomentnames{ii,kk})
+                            temp=temp.(agecrosssecmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            caliboptions.logmoments(sofar+1:sofar+agecrosssecsizes(ii))=flag;
+            sofar=sofar+agecrosssecsizes(ii);
+        end
+    end
     if usingcustomstats==1
         for ii=1:size(cmsmomentnames,1)
             flag=0;
@@ -296,12 +374,12 @@ else
 end
 %% Set up the objective function and the initial calibration parameter vector
 if caliboptions.fminalgo~=8
-    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,usingcustomstats,targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes,AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions);
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,usingcustomstats,targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes,AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, usingautocorr,autocorrmomentnames,autocorrcummomentsizes,FnsToEvaluate_AutoCorr,autocorrtimehorizons, usingcrosssec,crosssecmomentnames,crossseccummomentsizes,FnsToEvaluate_CrossSec, usingagecrosssec,agecrosssecmomentnames,agecrossseccummomentsizes,FnsToEvaluate_AgeCrossSec, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions);
 elseif caliboptions.fminalgo==8
     caliboptions.vectoroutput=2;
     weightsbackup=caliboptions.weights;
     caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,usingcustomstats,targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions);
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,usingcustomstats,targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, usingautocorr,autocorrmomentnames,autocorrcummomentsizes,FnsToEvaluate_AutoCorr,autocorrtimehorizons, usingcrosssec,crosssecmomentnames,crossseccummomentsizes,FnsToEvaluate_CrossSec, usingagecrosssec,agecrosssecmomentnames,agecrossseccummomentsizes,FnsToEvaluate_AgeCrossSec, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions);
     caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
 end
 
@@ -369,9 +447,9 @@ end
 caliboptions_summary=caliboptions;
 caliboptions_summary.vectoroutput=1;
 caliboptions_summary.verbose=0;
-calibsummary.currentmomentvec=gather(CalibrateLifeCycleModel_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,usingcustomstats,targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes,AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions_summary, vfoptions,simoptions));
+calibsummary.currentmomentvec=gather(CalibrateLifeCycleModel_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,usingcustomstats,targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes,AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, usingautocorr,autocorrmomentnames,autocorrcummomentsizes,FnsToEvaluate_AutoCorr,autocorrtimehorizons, usingcrosssec,crosssecmomentnames,crossseccummomentsizes,FnsToEvaluate_CrossSec, usingagecrosssec,agecrosssecmomentnames,agecrossseccummomentsizes,FnsToEvaluate_AgeCrossSec, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions_summary, vfoptions,simoptions));
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
-calibsummary.targetmomentvec=targetmomentvec(actualtarget); % the targets, in the order of the names (AllStats, then AgeConditionalStats, then CustomModelStats), NaN entries dropped
+calibsummary.targetmomentvec=targetmomentvec(actualtarget); % the targets, in the order of the names (AllStats, AgeConditionalStats, AutoCorrTransProbs, CrossSectionCovarCorr, AgeConditionalCrossSectionCovarCorr, then CustomModelStats), NaN entries dropped
 calibsummary.logmoments=caliboptions.logmoments; % one entry per target: the current moments above are log() where this is 1 (the targets were given as logs there)
 
 %% Clean up outputs
