@@ -101,7 +101,9 @@ if ~isfield(estimoptions,'previousiterations')
     estimoptions.previousiterations.niters=0; % gets incremented for each iteration when using estimoptions.iterateGMM
 end
 
-estimoptions.whichcombos=1; % the stats commands compute only the targeted (function, statistic, restriction, age, ptype or grouped) combinations (as CalibrateLifeCycleModel_PType); =0 computes every statistic of every targeted function
+if ~isfield(estimoptions,'whichcombos')
+    estimoptions.whichcombos=1; % =1: the stats commands compute only the targeted (function, statistic, restriction, age, ptype or grouped) combinations, through the selectors SetupTargetMoments_FHorz builds (as CalibrateLifeCycleModel_PType); =0: every statistic of every targeted function. The moments are identical either way.
+end
 estimoptions.useCustomModelStats=0;
 if isfield(estimoptions,'CustomModelStats')
     estimoptions.useCustomModelStats=1;
@@ -219,16 +221,12 @@ for pp=1:nEstimParams
         tempparam=currentparameter;
         tempomitparam=estimoptions.omitestimparam.(EstimParamNames{nEstimParamsFinder(pp,1)});
         % Make them both column vectors
-        if size(tempparam,1)==1
-            tempparam=tempparam';
-        end
-        if size(tempparam,1)==1
-            tempomitparam=tempomitparam';
-        end
+        tempparam=tempparam(:);
+        tempomitparam=tempomitparam(:);
         % If the omit and initial guess do not fit together, throw an error
         if ~all(tempomitparam(~isnan(tempomitparam))==tempparam(~isnan(tempomitparam)))
             fprintf('Following are the name, omit value, and initial value that related to following error (they should be the same in the non-NaN entries to be estimated) \n')
-            EstimParamNames{pp}
+            EstimParamNames{nEstimParamsFinder(pp,1)}
             estimoptions.omitestimparam.(EstimParamNames{nEstimParamsFinder(pp,1)})
             currentparameter
             error('You have set an omitted estimated parameter, but the set values do not match the initial guess')
@@ -375,6 +373,12 @@ if estimoptions.cohortagejshifter==0
     estimoptions.selectors=selectors; % the per-combination whichcombos/whichstats of the two stats commands, with a trailing type dimension (used as estimoptions.whichcombos=1)
 else
     [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(TargetMoments,FnsToEvaluate,N_j,estimoptions.cohortagejshifter,1);
+    if isfield(TargetMoments,'AutoCorrTransProbs') || isfield(TargetMoments,'CrossSectionCovarCorr') || isfield(TargetMoments,'AgeConditionalCrossSectionCovarCorr')
+        error('TargetMoments.AutoCorrTransProbs, .CrossSectionCovarCorr and .AgeConditionalCrossSectionCovarCorr are not implemented together with estimoptions.cohortagejshifter')
+    end
+    % (the names tables and sizes the logmoments block below reads: none of the kinds are in use on this path, which only takes a scalar or a per-entry logmoments)
+    usingallstats=0; usinglcp=0; usingcustomstats=0; usingautocorr=0; usingcrosssec=0; usingagecrosssec=0;
+    allstatcummomentsizes=0; acscummomentsizes=0; autocorrcummomentsizes=0; crossseccummomentsizes=0; agecrossseccummomentsizes=0; cmscummomentsizes=0;
 end
 
 
@@ -462,57 +466,179 @@ else
 end
 
 %%
-% estimoptions.logmoments can be specified by names
+if isstruct(estimoptions.logmoments) && ~(isscalar(estimoptions.cohortagejshifter) && estimoptions.cohortagejshifter==0)
+    error('estimoptions.logmoments by name is not implemented together with estimoptions.cohortagejshifter (use a scalar, or a vector with one entry per target entry)')
+end
+% estimoptions.logmoments: which moments to take logs of (the targets must then already be log(moments); same for any covariance matrix of the data moments).
+% Four forms: a scalar 0 (none) or 1 (all); a vector with one entry per target (same length as targetmomentvec); a vector with one entry
+% per TARGET NAME (one per row of allstatmomentnames, then acsmomentnames, autocorrmomentnames, crosssecmomentnames, agecrosssecmomentnames, then cmsmomentnames, in that order), expanded over the
+% entries of each; or by name with the same nesting as the targets, e.g. estimoptions.logmoments.AgeConditionalStats.earnings.low.Mean=1
+% (names not mentioned are 0). Internally it becomes a vector with one entry per target.
+momentrowsizes=[]; % the number of entries of each target name, in the order the names enter targetmomentvec
+allstatsizes=diff([0,allstatcummomentsizes]); acssizes=diff([0,acscummomentsizes]); autocorrsizes=diff([0,autocorrcummomentsizes]); crosssecsizes=diff([0,crossseccummomentsizes]); agecrosssecsizes=diff([0,agecrossseccummomentsizes]); cmssizes=diff([0,cmscummomentsizes]);
+if usingallstats==1
+    momentrowsizes=[momentrowsizes, allstatsizes];
+end
+if usinglcp==1
+    momentrowsizes=[momentrowsizes, acssizes];
+end
+if usingautocorr==1
+    momentrowsizes=[momentrowsizes, autocorrsizes];
+end
+if usingcrosssec==1
+    momentrowsizes=[momentrowsizes, crosssecsizes];
+end
+if usingagecrosssec==1
+    momentrowsizes=[momentrowsizes, agecrosssecsizes];
+end
+if usingcustomstats==1
+    momentrowsizes=[momentrowsizes, cmssizes];
+end
 if isstruct(estimoptions.logmoments)
     logmomentnames=estimoptions.logmoments;
-    % replace estimoptions.logmoments with a vector as this is what gets used internally
     estimoptions.logmoments=zeros(length(targetmomentvec),1);
-    if any(strcmp(fieldnames(logmomentnames),'AllStats'))
-        estimoptions.logmoments(1:allstatcummomentsizes(1))=logmomentnames.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1);
-        for ii=2:size(allstatmomentnames,1)
-            estimoptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=logmomentnames.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
-        end
-    end
-    if any(strcmp(fieldnames(logmomentnames),'AgeConditionalStats'))
-        estimoptions.logmoments(1:acscummomentsizes(1))=logmomentnames.AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1);
-        for ii=2:size(acsmomentnames,1)
-            estimoptions.logmoments(acscummomentsizes(ii-1)+1:acscummomentsizes(ii))=logmomentnames.AgeConditionalStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
-        end
-    end
-
-% If estimoptions.logmoments is not a structure, then...
-% estimoptions.logmoments will either be scalar, or a vector of zeros and ones
-%    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
-elseif any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
-   % If set this up, and then set up
-   if isscalar(estimoptions.logmoments)
-       estimoptions.logmoments=ones(length(targetmomentvec),1); % log all of them
-   else
-        if length(estimoptions.logmoments)==(length(acsmomentnames)+length(allstatmomentnames))
-            % Covert estimoptions.logmoments from being about EstimParamNames
-            temp=estimoptions.logmoments;
-            estimoptions.logmoments=zeros(length(targetmomentvec),1);
-            cumsofar=1;
-            for mm=1:length(temp)
-                if mm<=allstatmomentsizes
-                    estimoptions.logmoments(cumsofar:cumsofar+allstatmomentsizes(mm))=temp(mm);
-                    cumsofar=cumsofar+allstatmomentsizes(mm);
-                else
-                    estimoptions.logmoments(cumsofar:cumsofar+acsmomentsizes(mm))=temp(mm);
-                    cumsofar=cumsofar+acsmomentsizes(mm);
+    sofar=0;
+    if usingallstats==1
+        for ii=1:size(allstatmomentnames,1)
+            flag=0; % walk the (two to four) names of this target into logmomentnames.AllStats; the flag is the number at the end of the walk, if it is all there
+            if isfield(logmomentnames,'AllStats')
+                temp=logmomentnames.AllStats;
+                found=1;
+                for kk=1:size(allstatmomentnames,2)
+                    if ~isempty(allstatmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,allstatmomentnames{ii,kk})
+                            temp=temp.(allstatmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
                 end
             end
-        elseif length(estimoptions.logmoments)==length(targetmomentvec)
-            % This is fine (already in the appropriate form)
-        else
-            fprintf('Relevant to following error: length(estimoptions.logmoments)=%i \n', length(estimoptions.logmoments))
-            fprintf('Relevant to following error: length(acsmomentnames)=%i, length(allstatmomentnames)=%i \n', length(acsmomentnames), length(allstatmomentnames))
-            error('You are using estimoptions.logmoments, but length(estimoptions.logmoments) does not match number of moments to estimate [they should be equal]')
+            estimoptions.logmoments(sofar+1:sofar+allstatsizes(ii))=flag;
+            sofar=sofar+allstatsizes(ii);
         end
-   end
-   % log of targetmoments [no need to do this as inputs should already be log()]
-   % targetmomentvec=(1-estimoptions.logmoments).*targetmomentvec + estimoptions.logmoments.*log(targetmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+    end
+    if usinglcp==1
+        for ii=1:size(acsmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'AgeConditionalStats')
+                temp=logmomentnames.AgeConditionalStats;
+                found=1;
+                for kk=1:size(acsmomentnames,2)
+                    if ~isempty(acsmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,acsmomentnames{ii,kk})
+                            temp=temp.(acsmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            estimoptions.logmoments(sofar+1:sofar+acssizes(ii))=flag;
+            sofar=sofar+acssizes(ii);
+        end
+    end
+    if usingautocorr==1
+        for ii=1:size(autocorrmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'AutoCorrTransProbs')
+                temp=logmomentnames.AutoCorrTransProbs;
+                found=1;
+                for kk=1:size(autocorrmomentnames,2)
+                    if ~isempty(autocorrmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,autocorrmomentnames{ii,kk})
+                            temp=temp.(autocorrmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            estimoptions.logmoments(sofar+1:sofar+autocorrsizes(ii))=flag;
+            sofar=sofar+autocorrsizes(ii);
+        end
+    end
+    if usingcrosssec==1
+        for ii=1:size(crosssecmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'CrossSectionCovarCorr')
+                temp=logmomentnames.CrossSectionCovarCorr;
+                found=1;
+                for kk=1:size(crosssecmomentnames,2)
+                    if ~isempty(crosssecmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,crosssecmomentnames{ii,kk})
+                            temp=temp.(crosssecmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            estimoptions.logmoments(sofar+1:sofar+crosssecsizes(ii))=flag;
+            sofar=sofar+crosssecsizes(ii);
+        end
+    end
+    if usingagecrosssec==1
+        for ii=1:size(agecrosssecmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'AgeConditionalCrossSectionCovarCorr')
+                temp=logmomentnames.AgeConditionalCrossSectionCovarCorr;
+                found=1;
+                for kk=1:size(agecrosssecmomentnames,2)
+                    if ~isempty(agecrosssecmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,agecrosssecmomentnames{ii,kk})
+                            temp=temp.(agecrosssecmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            estimoptions.logmoments(sofar+1:sofar+agecrosssecsizes(ii))=flag;
+            sofar=sofar+agecrosssecsizes(ii);
+        end
+    end
+    if usingcustomstats==1
+        for ii=1:size(cmsmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'CustomModelStats') && isfield(logmomentnames.CustomModelStats,cmsmomentnames{ii,1})
+                flag=logmomentnames.CustomModelStats.(cmsmomentnames{ii,1});
+            end
+            estimoptions.logmoments(sofar+1:sofar+cmssizes(ii))=flag;
+            sofar=sofar+cmssizes(ii);
+        end
+    end
+elseif any(estimoptions.logmoments>0)
+    if isscalar(estimoptions.logmoments)
+        estimoptions.logmoments=ones(length(targetmomentvec),1); % log all of them
+    elseif length(estimoptions.logmoments)==length(targetmomentvec)
+        estimoptions.logmoments=reshape(estimoptions.logmoments,[length(targetmomentvec),1]); % already one entry per target
+    elseif length(estimoptions.logmoments)==length(momentrowsizes)
+        estimoptions.logmoments=repelem(reshape(estimoptions.logmoments,[],1),reshape(momentrowsizes,[],1)); % one entry per target name, expanded over the entries of each
+    else
+        fprintf('Relevant to following error: length(estimoptions.logmoments)=%i \n', length(estimoptions.logmoments))
+        fprintf('Relevant to following error: number of target names=%i, number of target entries=%i \n', length(momentrowsizes), length(targetmomentvec))
+        error('You are using estimoptions.logmoments, but length(estimoptions.logmoments) matches neither the number of target names nor the number of target entries')
+    end
+else
+    estimoptions.logmoments=zeros(length(targetmomentvec),1);
 end
+
 
 %% Turn off some warnings that would normally be given (as they are otherwise repeated ad infinitum)
 if ~isfield(simoptions,'warnjequaloneptypeasdim')
@@ -661,12 +787,12 @@ if estimoptions.bootstrapStdErrors==0
     modelestimparamsvecdown=zeros(size(modelestimparamsvec));
     violateconstrainttop=zeros(size(modelestimparamsvec)); %=1 means use a one-sided (down) finite-difference because 'adding epsilon' would lead to a parameter value that violates the constraint
     violateconstraintbottom=zeros(size(modelestimparamsvec)); %=1 means use a one-sided (up) finite-difference because 'subtracting epsilon' would lead to a parameter value that violates the constraint
-    % Switch modelestimparamsvec to the constrained (original) parameters
-    [modelestimparamsvec,~]=ParameterConstraints_TransformParamsToOriginal(modelestimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
+    % (estimparamsvec is already the constrained (original) parameters: it was transformed back right after the estimation step; before 2026-10-07 it was transformed a second time here, so J was taken at the wrong point whenever a constraint was in use)
     % Now, multiply by (1+-epsilon)
     for ee=1:length(epsilonmodvec)
         epsilon=epsilonmodvec(ee)*epsilonraw;
-        for pp=1:length(estimparamsvec)
+        for pp=1:length(estimparamsvec) % every element of the parameter vector
+            pname=find(estimparamsvecindex(2:end)>=pp,1,'first'); % the block (parameter, or parameter of one type) this element belongs to: the constraints are by block (before 2026-10-07 they were indexed by the element)
             % 'Add/subtract' epsilon
             if floor(log(abs(modelestimparamsvec(pp)))/log(10))>-2 % order of magnitude is greater than 10^(-2)
                 modelestimparamsvecup(pp)=(1+epsilon)*modelestimparamsvec(pp); % add epsilon*x to the pp-th parameter
@@ -680,17 +806,17 @@ if estimoptions.bootstrapStdErrors==0
             end
 
             % Enforce that we do not violate the constraints
-            if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
+            if estimoptions.constrainpositive(pname)==1 % Forcing this parameter to be positive
                 if modelestimparamsvecdown(pp)<=0
                     violateconstraintbottom(pp)=1;
                 end
-            elseif estimoptions.constrainAtoB(pp)==1 % Constrain A to B
-                if modelestimparamsvecdown(pp)<=estimoptions.constrainAtoBlimits(pp,1) % less than A
+            elseif estimoptions.constrainAtoB(pname)==1 % Constrain A to B
+                if modelestimparamsvecdown(pp)<=estimoptions.constrainAtoBlimits(pname,1) % less than A
                     violateconstraintbottom(pp)=1;
-                elseif modelestimparamsvecup(pp)>=estimoptions.constrainAtoBlimits(pp,2) % greater than B
+                elseif modelestimparamsvecup(pp)>=estimoptions.constrainAtoBlimits(pname,2) % greater than B
                     violateconstrainttop(pp)=1;
                 end
-            elseif estimoptions.constrain0to1(pp)==1 % Constrain 0 to 1 (but not as part of A to B)
+            elseif estimoptions.constrain0to1(pname)==1 % Constrain 0 to 1 (but not as part of A to B)
                 if modelestimparamsvecdown(pp)<=0
                     violateconstraintbottom(pp)=1;
                 elseif modelestimparamsvecup(pp)>=1
@@ -786,13 +912,13 @@ if estimoptions.bootstrapStdErrors==0
     end
 
 
-    % While we are here, if you do skip estimation, compute the objective function and output this (is useful for checking out alternative estimates)
-    if estimoptions.skipestimation==1
-        estimoptionsJacobian.vectoroutput=0; % using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
-        ObjValue=EstimateMoMObjectiveFn_Jac(modelestimparamsvec,Parameters,estimoptionsJacobian);
-        fval=ObjValue;
-        clear estimoptionsJacobian
-    end
+    % The model moments at the estimate (ObjValue is the Jacobian block's evaluation there: the targeted entries, logged where
+    % estimoptions.logmoments asks), the targets alongside, and the objective (M_d-M_m)'W(M_d-M_m) recomputed from them. Before 2026-10-07
+    % objectivefnval was the optimiser's own value, which lsqnonlin reports as (M_d-M_m)'W(M_d-M_m) but fminsearch and skipestimation as
+    % that divided by the number of parameters.
+    estsummary.currentmomentvec=gather(ObjValue(:));
+    estsummary.targetmomentvec=targetmomentvec(~isnan(targetmomentvec));
+    fval=(estsummary.currentmomentvec-estsummary.targetmomentvec)'*WeightingMatrix*(estsummary.currentmomentvec-estsummary.targetmomentvec);
 end
 
 
@@ -824,110 +950,147 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
     % If you have set estimoptions.CalibParamNames; Jorgensen (2023) - Sensitivity to Calibrated Parameters
     % Requires calculating derivatives of the objective vector to the calibrated parameters
     if isfield(estimoptions,'CalibParamsNames')
-        calibparamvec=zeros(length(estimoptions.CalibParamsNames),1);
-        ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimoptions.CalibParamsNames)); % Jacobian matrix of 'derivative of model moments with respect to pre-calibrated parameters, evaluated at estimated parameter point estimates'
-        ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),length(estimoptions.CalibParamsNames)); % Jacobian matrix of 'derivative of model moments with respect to  pre-calibrated parameters, evaluated at estimated parameter point estimates'
-
+        ncp=length(estimoptions.CalibParamsNames);
+        calibparamvec=zeros(ncp,1);
+        calibstepup=zeros(ncp,1);
+        calibstepdown=zeros(ncp,1);
+        ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),ncp); % derivatives of the model moments with respect to the pre-calibrated parameters, evaluated at the estimate
+        ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),ncp);
         CalibParams=struct();
-        for pp=1:length(estimoptions.CalibParamsNames)
+        for pp=1:ncp
+            if ~isscalar(Parameters.(estimoptions.CalibParamsNames{pp}))
+                error(['estimoptions.CalibParamsNames: ',estimoptions.CalibParamsNames{pp},' is not a scalar (the sensitivity to calibrated parameters is implemented for scalar parameters)'])
+            end
             CalibParams.(estimoptions.CalibParamsNames{pp})=Parameters.(estimoptions.CalibParamsNames{pp});
             calibparamvec(pp)=Parameters.(estimoptions.CalibParamsNames{pp});
         end
-
-        for pp=1:length(estimoptions.CalibParamsNames)
-            % 'Add' epsilon
-            if floor(log(abs(modelestimparamsvec(pp)))/log(10))>-2 % order of magnitude is greater than 10^(-2)
-                Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilon)*CalibParams.(estimoptions.CalibParamsNames{pp}); % add epsilon*x to the pp-th parameter
-            elseif floor(log(abs(modelestimparamsvec(pp)))/log(10))<-4 % parameter is so small that actually just add/subtract epsilon to/from x [have to do this for x=0, and this seems a reasonable cutoff]
-                Parameters.(estimoptions.CalibParamsNames{pp})=epsilon+CalibParams.(estimoptions.CalibParamsNames{pp}); % add epsilon to the pp-th parameter
-            else % is the modelestimparamsvec itself is small, use alternative values of epsilon
-                Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilonalt(eedefault))*CalibParams.(estimoptions.CalibParamsNames{pp});  % add epsilonalt*x to the pp-th parameter
+        % Centered finite differences in each calibrated parameter (the step regime is that of the Jacobian above, by the size of the
+        % parameter itself; the calibrated parameters carry no constraints, so both sides are always used). Before 2026-10-07 the 'subtract'
+        % step added epsilon again and the regime was read off the estimated parameter of the same index.
+        for pp=1:ncp
+            cval=calibparamvec(pp);
+            if floor(log(abs(cval))/log(10))>-2 % order of magnitude is greater than 10^(-2)
+                calibstepup(pp)=(1+epsilon)*cval; calibstepdown(pp)=(1-epsilon)*cval;
+            elseif floor(log(abs(cval))/log(10))<-4 % so small (or zero) that epsilon is added/subtracted outright
+                calibstepup(pp)=cval+epsilon; calibstepdown(pp)=cval-epsilon;
+            else
+                calibstepup(pp)=(1+epsilonalt(eedefault))*cval; calibstepdown(pp)=(1-epsilonalt(eedefault))*cval;
             end
-            ObjValue_upwind(:,pp)=EstimateMoMObjectiveFn_Jac(estimparamsvec,Parameters,estimoptionsJacobian); % use estimoptionsJacobian
-            % 'Subtract' epsilon
-            if floor(log(abs(modelestimparamsvec(pp)))/log(10))>-2 % order of magnitude is greater than 10^(-2)
-                Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilon)*CalibParams.(estimoptions.CalibParamsNames{pp}); % subtract epsilon*x from the pp-th parameter
-            elseif floor(log(abs(modelestimparamsvec(pp)))/log(10))<-4 % parameter is so small that actually just add/subtract epsilon to/from x [have to do this for x=0, and this seems a reasonable cutoff]
-                Parameters.(estimoptions.CalibParamsNames{pp})=epsilon+CalibParams.(estimoptions.CalibParamsNames{pp}); % subtract epsilon from the pp-th parameter
-            else % is the modelestimparamsvec itself is small, use alternative values of epsilon
-                Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilonalt(eedefault))*CalibParams.(estimoptions.CalibParamsNames{pp});  % subtract epsilonalt*x from the pp-th parameter
-            end
-            ObjValue_downwind(:,pp)=EstimateMoMObjectiveFn_Jac(estimparamsvec,Parameters,estimoptionsJacobian); % use estimoptionsJacobian
-            % restore calib param
-            Parameters.(estimoptions.CalibParamsNames{pp})=CalibParams.(estimoptions.CalibParamsNames{pp});
+            Parameters.(estimoptions.CalibParamsNames{pp})=calibstepup(pp);
+            ObjValue_upwind(:,pp)=EstimateMoMObjectiveFn_Jac(modelestimparamsvec,Parameters,estimoptionsJacobian);
+            Parameters.(estimoptions.CalibParamsNames{pp})=calibstepdown(pp);
+            ObjValue_downwind(:,pp)=EstimateMoMObjectiveFn_Jac(modelestimparamsvec,Parameters,estimoptionsJacobian);
+            Parameters.(estimoptions.CalibParamsNames{pp})=CalibParams.(estimoptions.CalibParamsNames{pp}); % restore
         end
-        Jcalib_up=(ObjValue_upwind-ObjValue)./(epsilon*calibparamvec');
-        Jcalib_down=(ObjValue-ObjValue_downwind)./(epsilon*calibparamvec');
-        Jcalib_centered=(ObjValue_upwind-ObjValue_downwind)./(2*epsilon*calibparamvec');
-        % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
+        Jcalib_up=(ObjValue_upwind-ObjValue)./((calibstepup-calibparamvec)');
+        Jcalib_down=(ObjValue-ObjValue_downwind)./((calibparamvec-calibstepdown)');
+        Jcalib_centered=(ObjValue_upwind-ObjValue_downwind)./((calibstepup-calibstepdown)');
 
         % Sensitivity matrix of Jorgensen (2023) - Sensitivity to Calibrated Parameters
         estsummary.sensitivitytocalibrationmatrix=SensitivityMatrix*Jcalib_centered; % This is the formula in Corollary 1 of Jorgensen (2023)
-
 
         estsummary.doublechecks.Jcalib=Jcalib_centered;
         % also, just so user can see them
         estsummary.doublechecks.Jcalib_up=Jcalib_up;
         estsummary.doublechecks.Jcalib_down=Jcalib_down;
+        estsummary.doublechecks.calibparamsvec=calibparamvec;
+        estsummary.doublechecks.calibparamsvecup=calibstepup;
+        estsummary.doublechecks.calibparamsvecdown=calibstepdown;
     end
 
 end
 
 
 %% Clean up the first two outputs
+% EstimParams: the estimated parameters (an omitted parameter in full, its fixed entries from the mask); a per-type parameter as a structure
+% over the types, or as a matrix with N_i as its first or second dimension when it was given that way. estsummary.EstimParamsStdDev: the
+% asymptotic standard deviations, in the same layout (NaN at the fixed entries of an omitted parameter). EstimParamsConfInts: [lower, upper],
+% one row per entry of the parameter (so 1-by-2 for a scalar), estimate -/+ z times the standard deviation; for a per-type parameter a
+% structure over the types whichever way the parameter was given. (Before 2026-10-07 the matrix form filled the wrong type's row and the
+% confidence interval of a vector-valued parameter errored.)
+if estimoptions.bootstrapStdErrors==0
+    estimparamscovarmatrix_diag=diag(estimparamscovarmatrix); % Just the diagonal of the covar matrix of the parameter vector (J and Sigma are on the model parameters)
+end
+EstimParams=struct();
+EstimParamsConfInts=struct();
+blockval=cell(nEstimParams,1); % the value of each block (a parameter, or a parameter of one type), as a column
+blocksd=cell(nEstimParams,1); % and its standard deviations, NaN at the fixed entries of an omitted parameter
 for pp=1:nEstimParams
+    pname=EstimParamNames{nEstimParamsFinder(pp,1)};
+    ii=nEstimParamsFinder(pp,2); % the type (0: common to the types)
     if estimoptions.skipestimation==0
         % Note: estimparamsvec was already switched back to the original (constrained) values further above
-        % Now store the unconstrained values
         if estimomitparams_counter(pp)>0
             currparamraw=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
             currparamraw(isnan(currparamraw))=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
         else
             currparamraw=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
         end
-        if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
-            EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=currparamraw;
-        else % depends on ptype
-            if nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==0
-                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=currparamraw;
-            elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==1 % N_i as first dim
-                if isfield(EstimParams,EstimParamNames{nEstimParamsFinder(pp,1)})
-                    temp=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)});
-                else
-                    temp=zeros(N_i,length(currparamraw));
-                end
-                temp(ii,:)=currparamraw';
-                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=temp;
-            elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==2 % N_i as second dim
-                if isfield(EstimParams,EstimParamNames{nEstimParamsFinder(pp,1)})
-                    temp=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)});
-                else
-                    temp=zeros(length(currparamraw),N_i);
-                end
-                temp(:,ii)=currparamraw;
-                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=temp;
-            end
-        end
-    else
-        if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
-            EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=Parameters.(EstimParamNames{nEstimParamsFinder(pp,1)}); % When skipping estimation, just returns the same parameters as you input
+    else % When skipping estimation, just returns the same parameters as you input
+        if ii==0
+            currparamraw=Parameters.(pname);
         else
-            EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=Parameters.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)}); % When skipping estimation, just returns the same parameters as you input
+            currparamraw=Parameters.(pname).(Names_i{ii});
         end
     end
-
-    if estimoptions.bootstrapStdErrors==0
-        estimparamscovarmatrix_diag=diag(estimparamscovarmatrix); % Just the diagonal of the covar matrix of the parameter vector
-        % Note: no longer need to treat constrainpositive separately, as J and Sigma are calculated from the 'external' parameters
-        if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
-            estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+    currparamraw=currparamraw(:);
+    blockval{pp}=currparamraw;
+    if ii==0 % does not depend on ptype
+        EstimParams.(pname)=currparamraw;
+    elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==0 % a structure over the types
+        EstimParams.(pname).(Names_i{ii})=currparamraw;
+    elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==1 % N_i as first dim
+        if isfield(EstimParams,pname)
+            temp=EstimParams.(pname);
         else
-            estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            temp=zeros(N_i,length(currparamraw));
         end
-        % If bootstrap std errors, then replace the std dev with the bootstrap distribution
+        temp(ii,:)=currparamraw';
+        EstimParams.(pname)=temp;
+    elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==2 % N_i as second dim
+        if isfield(EstimParams,pname)
+            temp=EstimParams.(pname);
+        else
+            temp=zeros(length(currparamraw),N_i);
+        end
+        temp(:,ii)=currparamraw;
+        EstimParams.(pname)=temp;
+    end
+    if estimoptions.bootstrapStdErrors==0
+        sdblock=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+        if estimomitparams_counter(pp)>0
+            mask=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
+            sdfull=nan(size(mask));
+            sdfull(isnan(mask))=sdblock;
+        else
+            sdfull=sdblock;
+        end
+        sdfull=sdfull(:);
+        blocksd{pp}=sdfull;
+        if ii==0
+            estsummary.EstimParamsStdDev.(pname)=sdfull;
+        elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==0
+            estsummary.EstimParamsStdDev.(pname).(Names_i{ii})=sdfull;
+        elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==1
+            if isfield(estsummary,'EstimParamsStdDev') && isfield(estsummary.EstimParamsStdDev,pname)
+                temp=estsummary.EstimParamsStdDev.(pname);
+            else
+                temp=zeros(N_i,length(sdfull));
+            end
+            temp(ii,:)=sdfull';
+            estsummary.EstimParamsStdDev.(pname)=temp;
+        elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==2
+            if isfield(estsummary,'EstimParamsStdDev') && isfield(estsummary.EstimParamsStdDev,pname)
+                temp=estsummary.EstimParamsStdDev.(pname);
+            else
+                temp=zeros(length(sdfull),N_i);
+            end
+            temp(:,ii)=sdfull;
+            estsummary.EstimParamsStdDev.(pname)=temp;
+        end
     elseif estimoptions.bootstrapStdErrors==1
         estsummary.EstimParamsStdDev=EstimParamsBootStrapDist;
-        estsummary.notes.bootstrap=['Standard errors report distribution of parameter estimates based on ',num2str(estimoptions.numbootstrapsims),' bootstraps, each had ',num2str(estimoptions.numberinvidualsperbootstrapsim),' agents for ',num2str(N_j),' periods (so some ',num2str(N_j*estimoptions.numberinvidualsperbootstrapsim),' observations)' ];
+        estsummary.notes.bootstrap=['Standard errors report distribution of parameter estimates based on ',num2str(estimoptions.numbootstrapsims),' bootstraps, each had ',num2str(estimoptions.numberinvidualsperbootstrapsim),' individuals'];
     end
 end
 
@@ -949,30 +1112,27 @@ else
     error('Currently only 68, 80, 85, 90, 95, 98 and 99 are possible values for estimoptions.confidenceintervals (default is 90=')
 end
 
+
 % By executive decision, I decided that confidence intervals are the 'main'
 % output, rather than the standard deviations of the estimated parameters.
 % This avoids people focusing on statistical significance and the 'star wars'.
 % Instead they will hopefully focus on what is likely and plausible.
-EstimParamsConfInts.notes='These are 90-percent confidence intervals';
-for pp=1:nEstimParams
-    if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
-        EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}) + [-1,1]*criticalvalue_normaldist_z_alphadiv2*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)});
-    else
-        EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)}) + [-1,1]*criticalvalue_normaldist_z_alphadiv2*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)});
-    end
-end
-
-% Give lots of alternative confidence intervals in the estsummary
+EstimParamsConfInts.notes=['These are ',num2str(estimoptions.confidenceintervals),'-percent confidence intervals: [lower, upper], one row per entry of the parameter (a structure over the types for a per-type parameter)'];
 confintvec=[68,80,85,90,95,98,99];
 criticalvalue_normaldist_z_alphadiv2_vec=[1,1.282,1.440,1.645, 1.96, 2.33, 2.575];
-for ii=1:length(confintvec)
-    confint=confintvec(ii);
-    critval=criticalvalue_normaldist_z_alphadiv2_vec(ii);
-    for pp=1:length(EstimParamNames)
-        if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
-            estsummary.confidenceintervals.(['confint',num2str(confint)]).EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}) + [-1,1]*critval*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)});
-        else
-            estsummary.confidenceintervals.(['confint',num2str(confint)]).EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)}) + [-1,1]*critval*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)});
+for pp=1:nEstimParams
+    pname=EstimParamNames{nEstimParamsFinder(pp,1)};
+    ii=nEstimParamsFinder(pp,2);
+    v=blockval{pp}; sd=blocksd{pp};
+    if ii==0 % does not depend on ptype
+        EstimParamsConfInts.(pname)=[v-criticalvalue_normaldist_z_alphadiv2*sd, v+criticalvalue_normaldist_z_alphadiv2*sd];
+        for cc=1:length(confintvec)
+            estsummary.confidenceintervals.(['confint',num2str(confintvec(cc))]).EstimParamsConfInts.(pname)=[v-criticalvalue_normaldist_z_alphadiv2_vec(cc)*sd, v+criticalvalue_normaldist_z_alphadiv2_vec(cc)*sd];
+        end
+    else
+        EstimParamsConfInts.(pname).(Names_i{ii})=[v-criticalvalue_normaldist_z_alphadiv2*sd, v+criticalvalue_normaldist_z_alphadiv2*sd];
+        for cc=1:length(confintvec)
+            estsummary.confidenceintervals.(['confint',num2str(confintvec(cc))]).EstimParamsConfInts.(pname).(Names_i{ii})=[v-criticalvalue_normaldist_z_alphadiv2_vec(cc)*sd, v+criticalvalue_normaldist_z_alphadiv2_vec(cc)*sd];
         end
     end
 end
@@ -984,7 +1144,7 @@ clear estimparamsvec % I modified it, so want to make sure I don't accidently us
 estsummary.variousmatrices.W=WeightingMatrix; % This is just a duplicate of the input, but I figure it is handy to keep in same place as the rest of estimation results
 
 estsummary.objectivefnval=fval;
-estsummary.notes.objectivefnval='The objective function value is the value of (M_d-M_m)W(M_d-M_m).';
+estsummary.notes.objectivefnval='The objective function value is the value of (M_d-M_m)''W(M_d-M_m) at the estimate (recomputed from currentmomentvec and targetmomentvec, so the same whichever algorithm found the estimate).';
 if estimoptions.skipestimation==1
     estsummary.warningskipestimation='Warning: this estimation used estimoptions.skipestimation=1 (all good, just reminding you as you need to be careful when using skipestimation=1 :)';
 end
