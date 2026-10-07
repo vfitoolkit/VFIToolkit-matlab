@@ -90,7 +90,7 @@ if ~isfield(estimoptions,'cohortagejshifter')
     estimoptions.cohortagejshifter=0; % =0 standard, jequaloneDist is the age j=1 distribution
 end
 if ~isfield(simoptions,'agemass_withCohort')
-    simoptions.agemass_withCohort=[]; % ncohorts-by-N_j age weights by cohort, or a structure of these by ptype (only with cohortagejshifter); [] means cohort c keeps the AgeWeightParamNames value of its entry age at all ages
+    simoptions.agemass_withCohort=[]; % ncohorts-by-N_j age weights by cohort, or a structure of these by ptype (only with cohortagejshifter); [] means every cohort gets the AgeWeightParamNames values (the population age weights) from its entry age on (with a warning)
 end
 % Following are estimoptions used internally, but which the user won't want to set themselves
 estimoptions.vectoroutput=0; % Set to zero to get point estimates, then later set to one as part of computing Jacobian matrix J (needed for Sigma, among other things).
@@ -349,6 +349,8 @@ if ~(isscalar(estimoptions.cohortagejshifter) && estimoptions.cohortagejshifter=
         elseif ~all(size(simoptions.agemass_withCohort)==[estimoptions.ncohorts,N_j])
             error('simoptions.agemass_withCohort must be ncohorts-by-N_j (or a structure of these by ptype)')
         end
+    else
+        warning('estimoptions.cohortagejshifter is being used but simoptions.agemass_withCohort is not set: every cohort gets the population age weights (AgeWeightParamNames, by ptype if that parameter is a structure) from its entry age on, so its mass falls with age as the population''s does. This only matters for pooled (AllStats, AutoCorr) cohort targets, not for age-conditional ones. Set simoptions.agemass_withCohort (ncohorts-by-N_j, or a structure of these by ptype) to choose the age weights of each cohort yourself.')
     end
     if isstruct(AgeWeightParamNames)
         error('estimoptions.cohortagejshifter is not implemented together with AgeWeightParamNames that differ by permanent type (the parameter itself can differ by ptype)')
@@ -390,14 +392,30 @@ FnsToEvaluateParamNames=[];
 
 estimoptions.calibrateshocks=0; % set to one if need to redo shocks for each new estim parameter vector
 if isfield(vfoptions,'ExogShockFn')
-    temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    if isstruct(vfoptions.ExogShockFn) % can depend on permanent type (before 2026-10-07 a structure errored here)
+        temp=[];
+        shockfnnames=fieldnames(vfoptions.ExogShockFn);
+        for ii=1:length(shockfnnames)
+            temp=[temp,getAnonymousFnInputNames(vfoptions.ExogShockFn.(shockfnnames{ii}))];
+        end
+    else
+        temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    end
     % can just leave action space in here as we only use it to see if EstimParamNames is part of it
     if ~isempty(intersect(temp,EstimParamNames))
         estimoptions.calibrateshocks=1;
     end
 end
 if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either alone should trigger redoing the shocks
-    temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+    if isstruct(vfoptions.EiidShockFn) % can depend on permanent type
+        temp=[];
+        shockfnnames=fieldnames(vfoptions.EiidShockFn);
+        for ii=1:length(shockfnnames)
+            temp=[temp,getAnonymousFnInputNames(vfoptions.EiidShockFn.(shockfnnames{ii}))];
+        end
+    else
+        temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+    end
     % can just leave action space in here as we only use it to see if EstimParamNames is part of it
     if ~isempty(intersect(temp,EstimParamNames))
         estimoptions.calibrateshocks=1;
@@ -417,9 +435,11 @@ if estimoptions.calibrateshocks==0
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
 else
-    % just need some placeholders
-    z_gridvals_J=[];
-    pi_z_J=[];
+    % The shock grids depend on a parameter being estimated, so they are rebuilt inside the objective function every evaluation. The
+    % z_grid and pi_z inputs are passed through: with an ExogShockFn they are only placeholders, but with only an EiidShockFn (the iid
+    % shock estimated, z as the user gave it) they are the z grids themselves, and empty placeholders broke the setup (2026-10-07).
+    z_gridvals_J=z_grid;
+    pi_z_J=pi_z;
 end
 % Regardless of whether they are done here or in _objectivefn, they will be
 % precomputed by the time we get to the value fn, stationary dist, etc. So
@@ -933,8 +953,20 @@ end
 %% Local identification
 if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
     % The estimate is locally identified if the matrix J is full rank
-    estsummary.localidentification.rankJ=rank(J); % If this is greater or equal to number of parameters, then locally identified
-    estsummary.localidentification.yesidentified=logical(rank(J)>=length(estimparamsvec));
+    % The estimate is locally identified if J has full column rank. J is finite differences, so a column that is zero in truth carries
+    % noise of the order of eps/(relative step): rank() with its default tolerance read a 1e-12 column as rank (2026-10-07), so the
+    % tolerance is sqrt(eps) times the norm of J. A non-finite entry (a moment undefined at the estimate, e.g. a conditional
+    % restriction with no mass at an age) makes the check impossible, and rank() would error.
+    if all(isfinite(J(:)))
+        rankJtol=sqrt(eps)*norm(J);
+        estsummary.localidentification.rankJ=rank(J,rankJtol); % If this is greater or equal to number of parameters, then locally identified
+        estsummary.localidentification.ranktolerance=rankJtol;
+    else
+        warning('EstimateLifeCycleModel_PType_MethodOfMoments: J has non-finite entries (a model moment is NaN or Inf at the estimate, moment rows %s), so the local identification check cannot be done',mat2str(find(any(~isfinite(J),2))'))
+        estsummary.localidentification.rankJ=NaN;
+        estsummary.localidentification.ranktolerance=NaN;
+    end
+    estsummary.localidentification.yesidentified=logical(estsummary.localidentification.rankJ>=length(estimparamsvec));
     estsummary.notes.localidentification='If the Jacobian matrix (derivatives of model moments with respect to parameter vector) is full rank then the model is locally identified [so rank(J) should be greater than or equal to number of parameters being estimated]';
 end
 

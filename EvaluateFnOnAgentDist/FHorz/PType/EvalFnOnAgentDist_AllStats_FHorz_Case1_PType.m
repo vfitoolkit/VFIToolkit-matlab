@@ -379,6 +379,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             whichstats_ii=reshape(whichstatsAll(:,:,ii,:),[numFnsToEvaluate,nwhichpages,7]); % this ptype's slot
         end
         wsForced=whichstatsG.*repmat(whichcombosG,[1,1,7]); % the grouped whichstats where the grouped slot is on
+        wsForced(:,:,1)=max(wsForced(:,:,1),wsForced(:,:,3)); % the grouped StdDeviation is rebuilt below from every ptype's Mean and StdDeviation, so a grouped StdDeviation needs the ptype Means too (before 2026-10-07 MeanVec stayed NaN and so did the grouped StdDeviation when only it was asked for)
         lor=(whichstats_ii(:,:,4)==1 | whichstats_ii(:,:,4)==2 | wsForced(:,:,4)==1 | wsForced(:,:,4)==2);
         whichstats_ii=max(whichstats_ii,wsForced);
         ws4=whichstats_ii(:,:,4);

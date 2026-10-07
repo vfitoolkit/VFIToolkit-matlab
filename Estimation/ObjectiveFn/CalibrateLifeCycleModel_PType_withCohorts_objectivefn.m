@@ -5,8 +5,8 @@ function Obj=CalibrateLifeCycleModel_PType_withCohorts_objectivefn(calibparamsve
 % ptype weights scaled by the ptypes' masses in that cohort) and its own statistics, and the moments are stacked
 % cohort by cohort as set up by SetupTargetMoments_FHorz_withCohorts (which gives cohortmoments).
 % Age weights by cohort: simoptions.agemass_withCohort (ncohorts-by-N_j, or a structure of these by ptype) if given,
-% otherwise cohort c keeps the AgeWeightParamNames value of its entry age at every age (by ptype if that parameter
-% is a structure).
+% otherwise every cohort has the AgeWeightParamNames values (the population age weights) from its entry age on (by
+% ptype if that parameter is a structure).
 % AutoCorr targets (TargetMoments.AutoCorr.cohortC..., see SetupTargetMoments_FHorz_withCohorts) are evaluated by
 % EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType on the cohort's distribution, with simoptions.timehorizons set to the
 % horizons the targets need (a restriction named in a target must exist in simoptions.conditionalrestrictions).
@@ -90,21 +90,17 @@ N_i=length(Names_i);
 ptweights_orig=Parameters.(PTypeDistParamNames{1}); % may come from ParametrizeParamsFn, so take it here each time
 ptweights0=ptweights_orig(:);
 if isempty(simoptions.agemass_withCohort)
+    % Default: every cohort has the population's age weights from its entry age on (AgeWeightParamNames value at age j for age j, by ptype
+    % if that parameter is a structure), so a cohort's mass falls with age as the population's does (mortality), and one cohort entering at
+    % age 1 with all the mass is exactly the standard estimator. (Before 2026-10-07 the default was the entry age's weight at every age,
+    % i.e. no mortality within a cohort.) Ages before entry carry no mass whatever their weight. The driver warns when this default is used.
     if isstruct(Parameters.(AgeWeightParamNames{1}))
         mewjc=struct();
         for ii=1:N_i
-            temp=Parameters.(AgeWeightParamNames{1}).(Names_i{ii});
-            mewjc.(Names_i{ii})=zeros(ncohorts,N_j);
-            for cc=1:ncohorts
-                mewjc.(Names_i{ii})(cc,:)=temp(caliboptions.cohortagejshifter(cc))*ones(1,N_j);
-            end
+            mewjc.(Names_i{ii})=repmat(reshape(Parameters.(AgeWeightParamNames{1}).(Names_i{ii}),[1,N_j]),[ncohorts,1]);
         end
     else
-        temp=Parameters.(AgeWeightParamNames{1});
-        mewjc=zeros(ncohorts,N_j);
-        for cc=1:ncohorts
-            mewjc(cc,:)=temp(caliboptions.cohortagejshifter(cc))*ones(1,N_j);
-        end
+        mewjc=repmat(reshape(Parameters.(AgeWeightParamNames{1}),[1,N_j]),[ncohorts,1]);
     end
 else
     mewjc=simoptions.agemass_withCohort;
@@ -280,14 +276,19 @@ if caliboptions.verbose==1
     [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
     if caliboptions.vectoroutput==0
         fprintf('Current objective fn value is %8.12f \n', Obj)
+        if penalty>0
+            if Obj>0
+                fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
+            else  % Obj is negative, so penalty is to reduce magnitude
+                fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+            end
+        end
     elseif caliboptions.vectoroutput==2
+        % Obj is the vector of residuals here (with the penalty residual appended), so print its sum of squares; the penalty is a residual, not a multiplier
+        % [before 2026-10-07 the penalty print below sat outside this if, so with vectoroutput=2 it tested the vector Obj>0 (ill-defined) and described a multiplier that does not exist in the vector form]
         fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
-    end
-    if penalty>0
-        if Obj>0
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
-        else  % Obj is negative, so penalty is to reduce magnitude
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+        if penalty>0
+            fprintf('Current penalty residual is %8.6f (it adds %8.6f to the sum-of-squares) \n', sqrt(penalty), penalty)
         end
     end
 end

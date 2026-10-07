@@ -4,8 +4,8 @@ function Obj=CalibrateLifeCycleModel_withCohorts_objectivefn(calibparamsvec, Cal
 % agent distribution (StationaryDist_FHorz_Case1 with simoptions.jequaloneDistAge) and its own statistics,
 % and the moments are stacked cohort by cohort as set up by SetupTargetMoments_FHorz_withCohorts (which
 % gives cohortmoments).
-% Age weights by cohort: simoptions.agemass_withCohort (ncohorts-by-N_j) if given, otherwise cohort c keeps the
-% AgeWeightParamNames value of its entry age at every age.
+% Age weights by cohort: simoptions.agemass_withCohort (ncohorts-by-N_j) if given, otherwise every cohort has the
+% AgeWeightParamNames values (the population age weights) from its entry age on.
 % AutoCorr targets (TargetMoments.AutoCorr.cohortC..., see SetupTargetMoments_FHorz_withCohorts) are evaluated by
 % EvalFnOnAgentDist_AutoCorrTransProbs_FHorz on the cohort's distribution, with simoptions.timehorizons set to the horizons
 % the targets need (a restriction named in a target must exist in simoptions.conditionalrestrictions).
@@ -62,10 +62,11 @@ end
 %% Age weights by cohort
 ncohorts=caliboptions.ncohorts;
 if isempty(simoptions.agemass_withCohort)
-    mewjc=zeros(ncohorts,N_j);
-    for cc=1:ncohorts
-        mewjc(cc,:)=Parameters.(AgeWeightParamNames{1})(caliboptions.cohortagejshifter(cc))*ones(1,N_j);
-    end
+    % Default: every cohort has the population's age weights from its entry age on (AgeWeightParamNames value at age j for age j), so a
+    % cohort's mass falls with age as the population's does (mortality), and one cohort entering at age 1 with all the mass is exactly the
+    % standard estimator. (Before 2026-10-07 the default was the entry age's weight at every age, i.e. no mortality within a cohort.) Ages
+    % before entry carry no mass whatever their weight. The driver warns when this default is used.
+    mewjc=repmat(reshape(Parameters.(AgeWeightParamNames{1}),[1,N_j]),[ncohorts,1]);
 else
     mewjc=simoptions.agemass_withCohort;
 end
@@ -211,14 +212,19 @@ if caliboptions.verbose==1
     [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
     if caliboptions.vectoroutput==0
         fprintf('Current objective fn value is %8.12f \n', Obj)
+        if penalty>0
+            if Obj>0
+                fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
+            else  % Obj is negative, so penalty is to reduce magnitude
+                fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+            end
+        end
     elseif caliboptions.vectoroutput==2
+        % Obj is the vector of residuals here (with the penalty residual appended), so print its sum of squares; the penalty is a residual, not a multiplier
+        % [before 2026-10-07 the penalty print below sat outside this if, so with vectoroutput=2 it tested the vector Obj>0 (ill-defined) and described a multiplier that does not exist in the vector form]
         fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
-    end
-    if penalty>0
-        if Obj>0
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
-        else  % Obj is negative, so penalty is to reduce magnitude
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+        if penalty>0
+            fprintf('Current penalty residual is %8.6f (it adds %8.6f to the sum-of-squares) \n', sqrt(penalty), penalty)
         end
     end
 end

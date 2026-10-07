@@ -515,6 +515,7 @@ for ii=1:N_i
     % Minimum and Maximum are built from every ptype's, so a grouped slot that is on forces this ptype's computation of that
     % combination with at least the grouped whichstats (the result is reported, as a byproduct).
     wsForced=whichstatsG.*repmat(whichcombosG,[1,1,1,7]); % the grouped whichstats where the grouped slot is on
+    wsForced(:,:,:,1)=max(wsForced(:,:,:,1),wsForced(:,:,:,3)); % the grouped StdDeviation is rebuilt below from every ptype's Mean and StdDeviation, so a grouped StdDeviation needs the ptype Means too (before 2026-10-07 MeanVec stayed NaN and so did the grouped StdDeviation when only it was asked for)
     lor=(PT(ii).whichstatsArr(:,:,:,4)==1 | PT(ii).whichstatsArr(:,:,:,4)==2 | wsForced(:,:,:,4)==1 | wsForced(:,:,:,4)==2);
     PT(ii).whichstatsArr=max(PT(ii).whichstatsArr,wsForced);
     ws4=PT(ii).whichstatsArr(:,:,:,4);

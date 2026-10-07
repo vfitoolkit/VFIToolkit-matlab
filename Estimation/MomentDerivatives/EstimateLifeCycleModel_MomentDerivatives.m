@@ -108,12 +108,8 @@ for pp=1:length(EstimParamNames)
         tempparam=Parameters.(EstimParamNames{pp});
         tempomitparam=estimoptions.omitestimparam.(EstimParamNames{pp});
         % Make them both column vectors
-        if size(tempparam,1)==1
-            tempparam=tempparam';
-        end
-        if size(tempparam,1)==1
-            tempomitparam=tempomitparam';
-        end
+        tempparam=tempparam(:);
+        tempomitparam=tempomitparam(:);
         % If the omit and initial guess do not fit together, throw an error
         if ~all(tempomitparam(~isnan(tempomitparam))==tempparam(~isnan(tempomitparam)))
             fprintf('Following are the name, omit value, and initial value that related to following error (they should be the same in the non-NaN entries to be estimated) \n')
@@ -301,16 +297,16 @@ targetmomentvec=zeros(allstatcummomentsizes(end)+acscummomentsizes(end),1);
 ReturnFnParamNames=[];
 FnsToEvaluateParamNames=[];
 
-estimoptions.calibrateshocks=0; % set to one if need to redo shocks for each new calib parameter vector
+estimoptions.calibrateshocks=0; % set to one if need to redo shocks for each new parameter vector
 if isfield(vfoptions,'ExogShockFn')
     temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-    if ~isempty(intersect(temp,CalibParamNames))
+    if ~isempty(intersect(temp,EstimParamNames))
         estimoptions.calibrateshocks=1;
     end
-elseif isfield(vfoptions,'EiidShockFn')
-    estimoptions.calibrateshocks=1;
+end
+if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either alone should trigger redoing the shocks (before 2026-10-07 this read an undefined CalibParamNames and any EiidShockFn triggered the rebuild)
     temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-    if ~isempty(intersect(temp,CalibParamNames))
+    if ~isempty(intersect(temp,EstimParamNames))
         estimoptions.calibrateshocks=1;
     end
 end
@@ -328,6 +324,13 @@ if estimoptions.calibrateshocks==0
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
+else
+    % The shock grids depend on a parameter, so they are rebuilt inside the objective function every evaluation; the z_grid and pi_z
+    % inputs are passed through (placeholders with an ExogShockFn, the z grids themselves with only an EiidShockFn). Before 2026-10-07
+    % there was no else-branch and the grids were undefined.
+    z_gridvals_J=z_grid;
+    pi_z_J=pi_z;
+    vfoptions.alreadygridvals=1;
 end
 
 
@@ -349,7 +352,7 @@ end
 
 %% Set up the objective function and the initial calibration parameter vector
 % Note: _objectivefn is shared between Method of Moments Estimation and Calibration
-EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp, usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames, allstatcummomentsizes, acscummomentsizes, cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, usingautocorr,autocorrmomentnames,autocorrcummomentsizes,FnsToEvaluate_AutoCorr,autocorrtimehorizons, usingcrosssec,crosssecmomentnames,crossseccummomentsizes,FnsToEvaluate_CrossSec, usingagecrosssec,agecrosssecmomentnames,agecrossseccummomentsizes,FnsToEvaluate_AgeCrossSec, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp, usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames, allstatcummomentsizes, acscummomentsizes, cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, usingautocorr,autocorrmomentnames,autocorrcummomentsizes,FnsToEvaluate_AutoCorr,autocorrtimehorizons, usingcrosssec,crosssecmomentnames,crossseccummomentsizes,FnsToEvaluate_CrossSec, usingagecrosssec,agecrosssecmomentnames,agecrossseccummomentsizes,FnsToEvaluate_AgeCrossSec, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
 
 %% We are not estimating, so just use initial values
 estimparamsvec=estimparamsvec0;
@@ -374,7 +377,7 @@ estimoptionsJacobian.constrainAtoB=zeros(length(EstimParamNames),1); % eliminate
 estimoptionsJacobian.vectoroutput=1; % Was set to zero to get point estimates, now set to one as part of computing std deviations.
 
 % To change the estimoptions, we have to reset EstimateMoMObjectiveFn
-EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp, usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames, allstatcummomentsizes, acscummomentsizes, cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, usingautocorr,autocorrmomentnames,autocorrcummomentsizes,FnsToEvaluate_AutoCorr,autocorrtimehorizons, usingcrosssec,crosssecmomentnames,crossseccummomentsizes,FnsToEvaluate_CrossSec, usingagecrosssec,agecrosssecmomentnames,agecrossseccummomentsizes,FnsToEvaluate_AgeCrossSec, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp, usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames, allstatcummomentsizes, acscummomentsizes, cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_ACStats, usingautocorr,autocorrmomentnames,autocorrcummomentsizes,FnsToEvaluate_AutoCorr,autocorrtimehorizons, usingcrosssec,crosssecmomentnames,crossseccummomentsizes,FnsToEvaluate_CrossSec, usingagecrosssec,agecrosssecmomentnames,agecrossseccummomentsizes,FnsToEvaluate_AgeCrossSec, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
 
 % According to https://en.wikipedia.org/wiki/Numerical_differentiation#Step_size
 % A good step size to compute the derivative of f(x) is epsilon*x with
@@ -492,9 +495,9 @@ for ee=1:length(epsilonmodvec)
     % If epsilon changes pushed us outside the parameter constraints, then we just use the one-sided finite-differences
     for pp=1:length(estimparamsvec)
         if violateconstraintbottom(pp)==1 % 'subtracting epsilon' violates lower bound on parameter value, so just use J_up
-            J_full(pp,:)=J_up(pp,:);
+            J_full(:,pp)=J_up(:,pp); % (columns are the parameters; before 2026-10-07 this took rows)
         elseif violateconstrainttop(pp)==1 % 'adding epsilon' violates upper bound on parameter value, so just use J_down
-            J_full(pp,:)=J_down(pp,:);
+            J_full(:,pp)=J_down(:,pp);
         end
     end
 
@@ -537,11 +540,36 @@ end
 % alternative values of epsilon, as well as upwind, downwind, and centered
 % finite differences.
 
-% SortedMomentDerivatives is just the same content as MomentDerivatives,
-% but sort them by the magnitude of the derivatives, instead of just
-% unsorted
+% SortedMomentDerivatives: the same derivatives listed by size. For each parameter, SortedMomentDerivatives.(['wrt_',name]).names is a
+% cell of moment labels ('AllStats.fn.stat', or with an entry index for a vector- or age-valued statistic, 'AgeConditionalStats.fn.stat(j)')
+% and .values the derivatives, sorted by absolute value, largest first, so the moments a parameter moves most come first (2026-10-07).
+momentlabels=cell(allstatcummomentsizes(end)+acscummomentsizes(end),1);
+cc=0;
+for mm=1:size(allstatmomentnames,1)
+    nn=allstatmomentsizes(mm);
+    for kk=1:nn
+        cc=cc+1;
+        if nn==1
+            momentlabels{cc}=['AllStats.',allstatmomentnames{mm,1},'.',allstatmomentnames{mm,2}];
+        else
+            momentlabels{cc}=['AllStats.',allstatmomentnames{mm,1},'.',allstatmomentnames{mm,2},'(',num2str(kk),')'];
+        end
+    end
+end
+for mm=1:size(acsmomentnames,1)
+    nn=acsmomentsizes(mm);
+    for kk=1:nn
+        cc=cc+1;
+        momentlabels{cc}=['AgeConditionalStats.',acsmomentnames{mm,1},'.',acsmomentnames{mm,2},'(',num2str(kk),')'];
+    end
+end
 SortedMomentDerivatives=struct();
-% NOT YET IMPLEMENTED
+for pp=1:length(EstimParamNames)
+    [~,order]=sort(abs(MomentDerivativesMatrix(:,pp)),'descend'); % (NaN derivatives, from moments undefined at the parameters, sort last)
+    SortedMomentDerivatives.(['wrt_',EstimParamNames{pp}]).names=momentlabels(order);
+    SortedMomentDerivatives.(['wrt_',EstimParamNames{pp}]).values=MomentDerivativesMatrix(order,pp);
+end
+SortedMomentDerivatives.notes='For each parameter, the derivative of every moment (names and values), sorted by absolute value, largest first; the same numbers as MomentDerivatives.';
 
 
 
