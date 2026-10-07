@@ -1,6 +1,27 @@
-function [VPath,PolicyIndexesPath]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_z,N_e,d_gridvals, a_grid, z_gridvals,e_gridvals,pi_z,pi_e,ReturnFn,DiscountFactorParamNames,ReturnFnParamNames,transpathoptions,vfoptions)
+function [VPath,PolicyIndexesPath,aprimeReferencePath,lsdiag]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter(T,PolicyIndexesPath,aprimeReferencePath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_z,N_e,d_gridvals, a_grid, z_gridvals,e_gridvals,pi_z,pi_e,ReturnFn,DiscountFactorParamNames,ReturnFnParamNames,transpathoptions,vfoptions)
 % VPath is empty, but I am setting it up so that it can be included as an option later on.
 VPath=[];
+
+%% Local search: the reference policy, carried across GE iterations
+% aprimeReferencePath holds, for each period, the aprime index at the centre of that period's search
+% window -- the answer the previous sweep found there. It is filled in BOTH modes, so the object means
+% the same thing whichever produced it: from the dispatcher's third output under
+% vfoptions.localsearch=1, and converted from Policy under a standard sweep.
+% The conversion is where the grid interpolation layer is handled. A standard GI sweep answers with a
+% FINE grid point while the reference is coarse, so it is compressed to the NEAREST coarse point --
+% the same formula the GI local search raw uses for its own third output, so the two agree. It depends
+% on gridinterplayer ONLY, not on divideandconquer, because DC returns Policy in the identical format.
+% That is what makes "honour whatever divideandconquer is set to" require no code of its own.
+%
+% lsdiag reports how far the policy moved from the reference it was given. That statistic decides what
+% nlocalsearch a model needs, and at an interior reference |move|<nlocalsearch is ALSO exactly the
+% condition that the window did not bind, so the restricted answer is the unrestricted one. It is
+% therefore the measurement that says whether this scheme could be made exact per iteration, which is
+% what Anderson would need and shooting does not.
+lsdiag=[];
+if vfoptions.localsearch==1 && isempty(aprimeReferencePath)
+    error('vfoptions.localsearch=1 reached Step1 with no aprimeReferencePath: the first sweep of a solve has to be a standard one, which is what builds it')
+end
 
 if vfoptions.experienceasset>=1
     [VPath,PolicyIndexesPath]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter_ExpAsset(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,vfoptions.setup_experienceasset.n_d1,vfoptions.setup_experienceasset.n_d2,vfoptions.setup_experienceasset.n_a1,vfoptions.setup_experienceasset.n_a2,n_z,n_e,N_z,N_e,d_gridvals, vfoptions.setup_experienceasset.d2_gridvals,vfoptions.setup_experienceasset.a1_gridvals,vfoptions.setup_experienceasset.a2_grid, z_gridvals,e_gridvals,pi_z,pi_e,ReturnFn,vfoptions.setup_experienceasset.aprimeFn,DiscountFactorParamNames,ReturnFnParamNames,vfoptions.setup_experienceasset.aprimeFnParamNames,transpathoptions,vfoptions);
@@ -27,6 +48,19 @@ if N_z==0 && N_e==0
         PolicyIndexesPath(:,:,T-tt)=Policy;
     end
 elseif N_z>0 && N_e==0
+    % aprimechannel is the Policy channel the aprime index sits in: 1 with no d, 2 with one, since d
+    % comes first. Only used by the standard-sweep conversion above.
+    if n_d(1)==0
+        aprimechannel=1;
+    else
+        aprimechannel=1+length(n_d);
+    end
+    if isempty(aprimeReferencePath)
+        aprimeReferencePath=zeros(1,prod(n_a),N_z,T-1,'gpuArray');
+    end
+    if vfoptions.localsearch==1
+        lsdiag.movemax=0; lsdiag.nbind=0; lsdiag.ntotal=0;
+    end
     % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     % Since we won't need to keep the value functions for anything later we just store the current one in V
     V=V_final;
@@ -44,12 +78,34 @@ elseif N_z>0 && N_e==0
             pi_z=transpathoptions.pi_z_T(:,:,T-ttr);
         end
 
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(V,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+        if vfoptions.localsearch==1
+            refslot=aprimeReferencePath(:,:,:,T-ttr);
+        else
+            refslot=[];
+        end
+        [V, Policy, aprimeRefNew]=ValueFnIter_InfHorz_TPath_SingleStep(V,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
 
         % The V input is next period value fn, the V output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
 
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
+
+        if vfoptions.localsearch==1
+            lsmove=abs(aprimeRefNew-refslot);
+            lsdiag.movemax=max(lsdiag.movemax,gather(max(lsmove,[],'all')));
+            lsdiag.nbind=lsdiag.nbind+gather(sum(lsmove>=vfoptions.nlocalsearch,'all'));
+            lsdiag.ntotal=lsdiag.ntotal+numel(lsmove);
+            aprimeReferencePath(:,:,:,T-ttr)=aprimeRefNew;
+        else
+            % Converted from Policy. That channel is the aprime index without the grid interpolation
+            % layer, and with it that channel and the next are the lower coarse point and the L2
+            % index, which compress to the nearest coarse point.
+            if vfoptions.gridinterplayer==0
+                aprimeReferencePath(:,:,:,T-ttr)=Policy(aprimechannel,:,:);
+            else
+                aprimeReferencePath(:,:,:,T-ttr)=Policy(aprimechannel,:,:)+round((Policy(aprimechannel+1,:,:)-1)/(1+vfoptions.ngridinterp));
+            end
+        end
     end
 elseif N_z==0 && N_e>0
     % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step.

@@ -256,6 +256,31 @@ else
         if vfoptions.nlocalsearch<1
             error('vfoptions.nlocalsearch must be at least 1')
         end
+        % Only the shooting algorithm carries the reference policy from one iteration to the next.
+        % Anderson hands a PURE residual function to AndersonAcceleration, which is shared with the
+        % stationary general eqm code, so state cannot be threaded through it without changing that
+        % shared contract. Quasi-Newton perturbs prices to build a Jacobian, where the reference has
+        % to be the baseline path's rather than the previous perturbation's, which is a separate
+        % design question. Without this refusal both would run every iteration against the stay-put
+        % default reference and never take a verification sweep, and so return a wrong path in
+        % silence -- which is the worst thing this option could do.
+        if transpathoptions.GEnewprice~=3
+            error('vfoptions.localsearch=1 currently requires transpathoptions.GEnewprice=3 (the shooting algorithm)')
+        end
+        % prod(...)>0 as well as isfield, because this command sets vfoptions.n_e=0 and
+        % vfoptions.n_semiz=0 above, so the fields exist on every model and isfield alone would
+        % refuse everything. Same idiom as ReturnFnParamNamesFn.
+        if isfield(vfoptions,'n_e') && prod(vfoptions.n_e)>0
+            error('vfoptions.localsearch=1 is not implemented with an e variable')
+        end
+        if isfield(vfoptions,'n_semiz') && prod(vfoptions.n_semiz)>0
+            error('vfoptions.localsearch=1 is not implemented with a semi-exogenous state')
+        end
+        % The experience asset branch of Step1 calls its own single step directly, bypassing the
+        % dispatcher, so without this the option would be silently ignored rather than refused
+        if vfoptions.experienceasset>=1
+            error('vfoptions.localsearch=1 is not implemented with an experience asset')
+        end
         % The window slides at the grid ends to stay 2*nlocalsearch+1 points wide, so the grid
         % has to be at least that long
         if n_a(1)<2*vfoptions.nlocalsearch+1
