@@ -16,7 +16,19 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz(StationaryD
 % AutoCorrelation
 % TransitionProbs (optional)
 %
-% Note: simoptions.conditionalrestrictions is not yet implemented
+% simoptions.conditionalrestrictions (structure of functions, same form as FnsToEvaluate, returning 0/1): everything also
+% conditional on each restriction, under CorrTransProbs.(restrictionname). The Mean and StdDeviation are over those that
+% satisfy the restriction, and the auto-covariance at horizon k is over those that satisfy it both now and k periods later
+% (the 'pairs'), as in EvalFnOnAgentDist_AutoCorrTransProbs_FHorz:
+%   .RestrictedSampleMass   the mass that satisfies the restriction
+%   .(fnname).Mean, .StdDeviation   over those that satisfy the restriction
+%   .(fnname).AutoCovariance, .AutoCorrelation   over the pairs, centered on the pair means (the covariance/correlation of the pair population)
+%   .(fnname).PairMass   the mass of the pairs (an agent counts if it satisfies the restriction now and will k periods later)
+%   .(fnname).PairMean_t, .PairMean_tplusk, .PairStdDeviation_t, .PairStdDeviation_tplusk   the means/std devs of x_t and x_{t+k}
+%                    in the pair population
+%   and the same under .(fnname).tperiodsK for each K in simoptions.timehorizons.
+% A restriction of zero mass gives a warning, NaN (and a PairMass of zero). TransitionProbs are not computed under conditional
+% restrictions.
 
 %%
 if ~exist('simoptions','var')
@@ -71,10 +83,6 @@ else
     if ~isfield(simoptions,'n_semiz')
         simoptions.n_semiz=0;
     end
-end
-
-if isfield(simoptions,'conditionalrestrictions')
-    warning('Have not yet implemented simoptions.conditionalrestrictions for CorrTransProbs_InfHorz so ignoring them, ask on forum if you need this')
 end
 
 N_d=prod(n_d);
@@ -156,6 +164,31 @@ if isstruct(FnsToEvaluate)
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
+end
+
+%% Conditional restrictions: evaluate each restriction on the grid (0/1)
+% RestrictionValues(:,rr) is 1 on the states that satisfy restriction rr.
+useCondlRest=0;
+if isfield(simoptions,'conditionalrestrictions')
+    useCondlRest=1;
+    CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
+    RestrictionValues=false(N_states,length(CondlRestnFnNames)); % logical masks, on the cpu (where the measures are propagated)
+    for rr=1:length(CondlRestnFnNames)
+        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+        temp=getAnonymousFnInputNames(CondlRestnFn);
+        if length(temp)>(l_daprime+l_a+l_ze)
+            CondlRestnFnParamNames={temp{l_daprime+l_a+l_ze+1:end}}; % the first inputs will always be (d,aprime,a,z,e)
+        else
+            CondlRestnFnParamNames={};
+        end
+        CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames);
+        RestrictionValues(:,rr)=reshape(gather(logical(EvalFnOnAgentDist_Grid(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_ze,a_gridvals,ze_gridvals))),[N_states,1]);
+        CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass=sum(StationaryDist.*RestrictionValues(:,rr));
+        if CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass==0
+            warning('One of the conditional restrictions evaluates to a zero mass')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+        end
+    end
 end
 
 %% Convert simoptions.transprobs from names to 0-1
@@ -251,6 +284,85 @@ for ff=1:length(FnsToEvalNames)
             else
                 CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCovariance=Covar;
                 CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCorrelation=Corr;
+            end
+        end
+    end
+    %% Conditional restrictions: the Mean/StdDeviation over those satisfying the restriction, and the auto-covariance over the
+    % pairs that satisfy it now and k periods later. Three signed measures are propagated together (three columns of one Tan
+    % step): the restricted mass m, m.*Xc and m.*Xc.^2 (Xc centered on the restricted mean). Masking the propagated measures with
+    % the restriction gives the pair population, and its mass, its means and variances of x_t and x_{t+k}, and their covariance
+    % follow. [E_pair[(x_t-c)(x_{t+k}-mu_y)] is the pair covariance for ANY constant c, since E_pair[x_{t+k}-mu_y]=0, so centering
+    % x_t on the restricted mean rather than on the (not yet known) pair mean is exact.]
+    if useCondlRest==1
+        dist_cpu=gather(StationaryDist);
+        for rr=1:length(CondlRestnFnNames)
+            rname=CondlRestnFnNames{rr};
+            mr=dist_cpu.*RestrictionValues(:,rr); % restricted mass (not normalized)
+            massr=sum(mr);
+            MeanR=NaN; StdDevR=NaN;
+            if massr>0
+                MeanR=sum(mr.*Values_cpu)/massr;
+                StdDevR=sqrt(sum(mr.*(Values_cpu-MeanR).^2)/massr);
+            end
+            CorrTransProbs.(rname).(FnsToEvalNames{ff}).Mean=MeanR;
+            CorrTransProbs.(rname).(FnsToEvalNames{ff}).StdDeviation=StdDevR;
+            if massr>0
+                XcR=Values_cpu-MeanR;
+                propagated=[mr, mr.*XcR, mr.*XcR.^2]; % N_states x 3, on the cpu
+            end
+            for kk=1:maxhorizon
+                if massr>0
+                    % Tan step: one period forward, the three measures as three columns
+                    temp=Gammatranspose*propagated; % policy step: now over (a',z)
+                    if N_z>0
+                        for cc=1:3
+                            temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_cpu,[N_a*N_zr,1]); % z step
+                        end
+                    end
+                    if N_e>0
+                        temp=kron(pi_e_cpu,temp); % e step
+                    end
+                    propagated=temp;
+                end
+                if ~(kk==1 || any(simoptions.timehorizons==kk))
+                    continue % a horizon that is not reported
+                end
+                PairMass=0; PairMean_t=NaN; PairMean_tplusk=NaN; PairStdDev_t=NaN; PairStdDev_tplusk=NaN; AutoCovR=NaN; AutoCorrR=NaN;
+                if massr>0
+                    pairs=propagated.*RestrictionValues(:,rr); % keep those who satisfy the restriction k periods later too
+                    PairMass=sum(pairs(:,1));
+                    if PairMass>0
+                        d1=sum(pairs(:,2))/PairMass; % pair mean of x_t, minus MeanR
+                        muy=sum(pairs(:,1).*Values_cpu)/PairMass; % pair mean of x_{t+k}
+                        varx=sum(pairs(:,3))/PairMass-d1^2;
+                        vary=sum(pairs(:,1).*(Values_cpu-muy).^2)/PairMass;
+                        AutoCovR=sum(pairs(:,2).*(Values_cpu-muy))/PairMass;
+                        PairMean_t=MeanR+d1;
+                        PairMean_tplusk=muy;
+                        PairStdDev_t=sqrt(max(varx,0));
+                        PairStdDev_tplusk=sqrt(vary);
+                        if PairStdDev_t*PairStdDev_tplusk>1e-15
+                            AutoCorrR=AutoCovR/(PairStdDev_t*PairStdDev_tplusk);
+                        end
+                    end
+                end
+                if kk==1
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).AutoCovariance=AutoCovR;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).AutoCorrelation=AutoCorrR;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairMass=PairMass;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairMean_t=PairMean_t;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairMean_tplusk=PairMean_tplusk;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairStdDeviation_t=PairStdDev_t;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairStdDeviation_tplusk=PairStdDev_tplusk;
+                else
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCovariance=AutoCovR;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCorrelation=AutoCorrR;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairMass=PairMass;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairMean_t=PairMean_t;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairMean_tplusk=PairMean_tplusk;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairStdDeviation_t=PairStdDev_t;
+                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairStdDeviation_tplusk=PairStdDev_tplusk;
+                end
             end
         end
     end

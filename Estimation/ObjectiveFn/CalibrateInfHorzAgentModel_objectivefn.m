@@ -71,7 +71,11 @@ if usingallstats==1
 end
 if usingautocorr==1
     simoptions.whichstats=AutoCorrStats_whichstats;
-    AutoCorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz(StationaryDist,Policy,FnsToEvaluate_AutoCorrStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,simoptions);
+    simoptions_AutoCorr=simoptions;
+    if isfield(simoptions_AutoCorr,'conditionalrestrictions')
+        simoptions_AutoCorr=rmfield(simoptions_AutoCorr,'conditionalrestrictions'); % the targets are unrestricted auto-covariances/-correlations (the restrictions are for the AllStats targets)
+    end
+    AutoCorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz(StationaryDist,Policy,FnsToEvaluate_AutoCorrStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,simoptions_AutoCorr);
 end
 if usingcrosssec==1
     simoptions.whichstats=CrossSecStats_whichstats;
