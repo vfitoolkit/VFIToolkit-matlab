@@ -25,16 +25,21 @@ if ~isfield(options,'l_dsemiz')
     options.l_dsemiz=1; % by default, only one decision variable influences the semi-exogenous state
 end
 
-if isfield(options,'V_Jplus1')
-    N_jpisemiz=N_j; % final slice is the transition from period N_j into the V_Jplus1 period
-else
-    N_jpisemiz=N_j-1; % slice jj is the transition from period jj to jj+1; nothing is ever read from a final-period slice, so pi_semiz_J does not contain one
-end
 
 N_i=length(Names_i);
 
 for ii=1:N_i
     iistr=Names_i{ii};
+    if isstruct(N_j) % per-type N_j
+        N_j_temp=N_j.(iistr);
+    else
+        N_j_temp=N_j;
+    end
+    if isfield(options,'V_Jplus1')
+        N_jpisemiz=N_j_temp; % final slice is the transition from period N_j into the V_Jplus1 period
+    else
+        N_jpisemiz=N_j_temp-1; % slice jj is the transition from period jj to jj+1; nothing is ever read from a final-period slice, so pi_semiz_J does not contain one
+    end
 
     n_semiz_ii=0;
     if isstruct(options.n_semiz)
@@ -82,7 +87,7 @@ for ii=1:N_i
         SemiExoStateFn_ii=[];
     end
 
-    if isfield(options,'pi_semiz_ii')
+    if isfield(options,'pi_semiz') % (was testing for 'pi_semiz_ii', a field that never exists, so a user-given pi_semiz was ignored)
         if isstruct(options.pi_semiz)
             if isfield(options.pi_semiz,Names_i{ii})
                 pi_semiz_ii=options.pi_semiz.(iistr);
@@ -119,21 +124,21 @@ for ii=1:N_i
         if gridpiboth==3 || gridpiboth==1 || ~isempty(SemiExoStateFn_ii)
             % Regardless of whether we output semiz_gridvals_J, we sometimes have to create it as it is needed for evaluating SemiExogShockFn
             if ndims(semiz_grid_ii)==3
-                if all(size(semiz_grid_ii)==[prod(n_semiz_ii),length(n_semiz_ii),N_j])
+                if all(size(semiz_grid_ii)==[prod(n_semiz_ii),length(n_semiz_ii),N_j_temp])
                     % already age-dependent joint-grid
                     semiz_gridvals_J=semiz_grid_ii;
                 end
             elseif ndims(semiz_grid_ii)==2
                 if all(size(semiz_grid_ii)==[sum(n_semiz_ii),1])
                     % need to convert to joint-grid, and make age-dependent
-                    semiz_gridvals_J=CreateGridvals(n_semiz_ii,semiz_grid_ii,1).*ones(1,1,N_j,'gpuArray');
+                    semiz_gridvals_J=CreateGridvals(n_semiz_ii,semiz_grid_ii,1).*ones(1,1,N_j_temp,'gpuArray');
                 elseif all(size(semiz_grid_ii)==[prod(n_semiz_ii),length(n_semiz_ii)]) % joint grid
                     % already joint-grid, need to make age-dependent
-                    semiz_gridvals_J=semiz_grid_ii.*ones(1,1,N_j,'gpuArray');
-                elseif all(size(semiz_grid_ii)==[sum(n_semiz_ii),N_j])
+                    semiz_gridvals_J=semiz_grid_ii.*ones(1,1,N_j_temp,'gpuArray');
+                elseif all(size(semiz_grid_ii)==[sum(n_semiz_ii),N_j_temp])
                     % already age-dependent, but need to convert to joint-grid
-                    semiz_gridvals_J=zeros(prod(n_semiz_ii),length(n_semiz_ii),N_j,'gpuArray');
-                    for jj=1:N_j
+                    semiz_gridvals_J=zeros(prod(n_semiz_ii),length(n_semiz_ii),N_j_temp,'gpuArray');
+                    for jj=1:N_j_temp
                         semiz_gridvals_J(:,:,jj)=CreateGridvals(n_semiz_ii,semiz_grid_ii(:,jj),1);
                     end
                 end
@@ -186,11 +191,11 @@ for ii=1:N_i
                     % User already inputted options.pi_semiz
                     % So just check it is the right size
                     if ndims(pi_semiz_ii)==4
-                        if all(size(pi_semiz_ii)==[N_semiz,N_semiz,N_dsemiz,N_j])
+                        if all(size(pi_semiz_ii)==[N_semiz,N_semiz,N_dsemiz,N_j_temp])
                             pi_semiz_J=gpuArray(pi_semiz_ii(:,:,:,1:N_jpisemiz)); % if a (never-read) final-period slice was given, it is dropped here
-                        elseif all(size(pi_semiz_ii)==[N_semiz,N_semiz,N_dsemiz,N_j-1])
+                        elseif all(size(pi_semiz_ii)==[N_semiz,N_semiz,N_dsemiz,N_j_temp-1])
                             if isfield(options,'V_Jplus1')
-                                error('When using vfoptions.V_Jplus1 you must give pi_semiz with N_j slices in the fourth dimension (the final slice is the transition from period N_j into the V_Jplus1 period)')
+                                error('When using vfoptions.V_Jplus1 you must give pi_semiz with N_j_temp slices in the fourth dimension (the final slice is the transition from period N_j_temp into the V_Jplus1 period)')
                             end
                             pi_semiz_J=gpuArray(pi_semiz_ii);
                         else

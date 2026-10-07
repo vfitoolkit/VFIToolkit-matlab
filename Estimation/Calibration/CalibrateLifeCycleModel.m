@@ -206,9 +206,11 @@ if caliboptions.calibrateshocks==0
         simoptions.user_pi_z=vfoptions.user_pi_z;
     end
 else
-    % just need some placeholders (the shocks are rebuilt inside the objective function every evaluation)
-    z_gridvals_J=[];
-    pi_z_J=[];
+    % The shock grids depend on a parameter being calibrated, so they are rebuilt inside the objective function every evaluation. The
+    % z_grid and pi_z inputs are passed through: with an ExogShockFn they are only placeholders, but with only an EiidShockFn (the iid
+    % shock calibrated, z as the user gave it) they are the z grids themselves, and empty placeholders broke the setup (2026-10-07).
+    z_gridvals_J=z_grid;
+    pi_z_J=pi_z;
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
 % precomputed by the time we get to the value fn, stationary dist, etc. So

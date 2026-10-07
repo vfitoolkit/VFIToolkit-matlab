@@ -26,7 +26,7 @@ elseif structordim==3
     end
 end
 
-if isfield(options_temp,'ExogShockFn')
+if isfield(options_temp,'ExogShockFn') && ~(isfield(options_temp,'alreadygridvals') && options_temp.alreadygridvals==1) % the grids are rebuilt from the function by the single-type command; but when they were precomputed (alreadygridvals=1, as the calibration commands do) the ones handed in are the grids, and blanking them here left the distribution with an empty pi_z (2026-10-07)
     if isstruct(options_temp.ExogShockFn) && isfield(options_temp.ExogShockFn,iistr)
         options_temp.ExogShockFn=options_temp.ExogShockFn.(iistr);
     end

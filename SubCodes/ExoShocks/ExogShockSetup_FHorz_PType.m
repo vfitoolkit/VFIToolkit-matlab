@@ -160,7 +160,9 @@ else
         error('You are using an e (iid) variable, and so need to declare options.pi_e (options refers to either vfoptions or simoptions)')
     end
 
-    if isstruct(options.e_grid) || isstruct(options.pi_e)
+    edependsonptype=0;
+    if ~isfield(options,'e_grid') % the e grids come from EiidShockFn (checked above): their shapes cannot be read here (this errored on 'e_grid' before 2026-10-07)
+    elseif isstruct(options.e_grid) || isstruct(options.pi_e)
         edependsonptype=1;
     elseif size(options.e_grid,ndims(options.e_grid))==length(Names_i) || size(options.pi_e,ndims(options.pi_e))==length(Names_i) % last dimension of e_grid/pi_e is of length N_i
         edependsonptype=2;
@@ -192,6 +194,9 @@ end
 
 
 %% Deal with z variables
+if isstruct(N_j) && zdependsonptype==0 % z itself is common to the types, but with a per-type N_j the age-dependent grids differ in length by type: build them per type (the per-type branch takes a shared z_grid and pi_z as they are)
+    zdependsonptype=1;
+end
 if zdependsonptype==0
     % Convert to z_gridvals_J (age-dependent joint grids) and corresponding
     % pi_z_J (age-dependent transition matrix).
@@ -831,6 +836,9 @@ end
 
 
 %% If using e variable, do same for this
+if isstruct(N_j) && edependsonptype==0 && isfield(options,'e_grid') % likewise for e (with EiidShockFn and no e_grid the per-type branch cannot be used; that combination is not handled)
+    edependsonptype=1;
+end
 if edependsonptype==0
     if prod(n_e)==0
         options.e_gridvals_J=[];

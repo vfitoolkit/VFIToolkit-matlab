@@ -116,7 +116,7 @@ for pp=1:length(CalibParamNames)
             end
         end
     else
-        if any(size(Parameters.(CalibParamNames{pp}))==N_i) % parameter depends on ptype, as matrix. Convert it to struct
+        if any(size(Parameters.(CalibParamNames{pp}))==N_i) && ~any(strcmp(PTypeDistParamNames,CalibParamNames{pp})) % parameter depends on ptype, as matrix. Convert it to struct. (The type weights in PTypeDistParamNames are a vector over the types and stay one: they are not per-type parameters)
             temp=Parameters.(CalibParamNames{pp});
             if size(temp,1)==N_i
                 nCalibParams_PTypeMatrix(pp,1)=1;
@@ -153,7 +153,15 @@ calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
 calibparamssizes=zeros(nCalibParams,2); % with PType, some parameters may be matrices (depend on both j and i)
 calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omitting the parameter for certain ages
-calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omitted values of a parameter
+if isstruct(N_j) % per-type N_j: the omit masks are sized by the longest
+    N_j_max=0;
+    for ii=1:N_i
+        N_j_max=max(N_j_max,N_j.(Names_i{ii}));
+    end
+    calibomitparamsmatrix=zeros(N_j_max,1);
+else
+    calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omitted values of a parameter
+end
 for pp=1:nCalibParams
     if nCalibParamsFinder(pp,2)==0 % Doesn't depend on ptype
         currentparameter=Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)});
@@ -279,9 +287,11 @@ if caliboptions.calibrateshocks==0
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
 else
-    % just need some placeholders
-    z_gridvals_J=[];
-    pi_z_J=[];
+    % The shock grids depend on a parameter being calibrated, so they are rebuilt inside the objective function every evaluation. The
+    % z_grid and pi_z inputs are passed through: with an ExogShockFn they are only placeholders, but with only an EiidShockFn (the iid
+    % shock calibrated, z as the user gave it) they are the z grids themselves, and empty placeholders broke the setup (2026-10-07).
+    z_gridvals_J=z_grid;
+    pi_z_J=pi_z;
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
 % precomputed by the time we get to the value fn, stationary dist, etc. So
@@ -310,9 +320,11 @@ if prod(vfoptions.n_semiz)>0
         end
     end
 
-    vfoptions=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,vfoptions,3);
-    simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
-    simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
+    if caliboptions.calibsemiexo==0 % the semi-exogenous transitions do not depend on a calibrated parameter: build them once here
+        vfoptions=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,vfoptions,3);
+        simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
+        simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
+    end % (otherwise the objective function builds them every evaluation from SemiExoStateFn, which the setup removes from the options once used: building here too left the objective without it, 2026-10-07)
 
     % Regardless of whether they are done here of in _subfn, they will be precomputed by the time we get to the value fn, stationary dist, etc. So
     vfoptions.alreadygridvals_semiexo=1;
