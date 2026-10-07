@@ -1,6 +1,6 @@
 function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid, pi_z, simoptions)
-% simoptions.whichcombos ([numFnsToEvaluate, N_j, 1+number of conditional restrictions]) selects which (fn, restriction) combinations
-% are computed; the second dimension is the start age; see below.
+% simoptions.whichcombos ([numFnsToEvaluate, N_j, 1+number of conditional restrictions], optionally with a trailing type dimension of N_i+1)
+% selects which (fn, start age, restriction) combinations are computed, per type and grouped; see below.
 % Auto-covariances/-correlations (and transition probabilities) with permanent types.
 % Calls EvalFnOnAgentDist_AutoCorrTransProbs_FHorz() for each permanent type, and reports
 % the results by type and (by default) grouped over the types.
@@ -119,8 +119,14 @@ if useCondlRest==1
 else
     nwhichpages=1;
 end
+% A trailing type dimension may be added (2026-10-08): [.., N_i+1] selects per permanent type, in the order of Names_i, with the
+% last slot the grouped stats. A type's slot selects that type's own computation; the grouped slot forces every type's computation of
+% that combination (the grouped means, std devs, pair outputs and auto-covariances at a start age are built from every type's), and a type's output is reported
+% whenever it was computed. The grouped output is reported only where the grouped slot asks (the grouped age-j Mean/StdDeviation of a (fn, page)
+% wherever any grouped start age of it is on, as they are computed anyway). An input without the type
+% dimension applies to every ptype and to the grouped stats. Intended for calibration/estimation.
 if ~isfield(simoptions,'whichcombos')
-    whichcombos=ones(numFnsToEvaluate,N_j,nwhichpages);
+    whichcombosAll=ones(numFnsToEvaluate,N_j,nwhichpages,N_i+1);
 else
     whichcombos=simoptions.whichcombos;
     if isstruct(N_j)
@@ -134,13 +140,17 @@ else
     elseif ismatrix(whichcombos) && isequal(size(whichcombos),[numFnsToEvaluate,N_j])
         whichcombos=repmat(whichcombos,[1,1,nwhichpages]); % (fn, start age): apply to every page
     end
-    if ~isequal(size(whichcombos,1:3),[numFnsToEvaluate,N_j,nwhichpages])
-        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(N_j),',',num2str(nwhichpages),'] (number of FnsToEvaluate, N_j, 1+number of conditional restrictions)'])
+    if ndims(whichcombos)<=3 && isequal(size(whichcombos,1:3),[numFnsToEvaluate,N_j,nwhichpages])
+        whichcombos=repmat(whichcombos,[1,1,1,N_i+1]); % no type dimension: apply to every ptype and to the grouped stats
     end
-    whichcombos=double(whichcombos);
+    if ~isequal(size(whichcombos,1:4),[numFnsToEvaluate,N_j,nwhichpages,N_i+1])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(N_j),',',num2str(nwhichpages),'] (number of FnsToEvaluate, N_j, 1+number of conditional restrictions), optionally with a trailing type dimension of ',num2str(N_i+1),' (the permanent types in the order of Names_i, then the grouped stats)'])
+    end
+    whichcombosAll=double(whichcombos);
 end
-fnwanted=any(any(whichcombos,2),3); % numFnsToEvaluate x 1: the functions that get evaluated
-pagewanted=reshape(any(whichcombos,2),[numFnsToEvaluate,nwhichpages]); % (fn, page) combinations with any start age selected
+whichcombosG=whichcombosAll(:,:,:,N_i+1); % the grouped stats; whichcombosAll(:,:,:,ii) is ptype ii
+fnwantedG=any(any(whichcombosG,2),3); % numFnsToEvaluate x 1: the functions with some grouped output wanted
+pagewantedG=reshape(any(whichcombosG,2),[numFnsToEvaluate,nwhichpages]); % (fn, page) combinations with some grouped start age selected
 
 % The horizons and the suffixes of the output fields, exactly as in EvalFnOnAgentDist_AutoCorrTransProbs_FHorz
 horizons=unique([1,gather(simoptions.timehorizons(:)')]);
@@ -229,10 +239,14 @@ for ii=1:N_i
 
     % Which of the FnsToEvaluate are relevant to this type (kept as a structure)
     [FnsToEvaluate_temp,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    % This ptype's selection: its own slot, plus whatever the grouped stats need (a grouped slot forces every type's computation)
+    whichcombos_ii=max(whichcombosAll(:,:,:,ii),whichcombosG);
+    fnwanted_ii=any(any(whichcombos_ii,2),3); % numFnsToEvaluate x 1: the functions this type evaluates
+    pagewanted_ii=reshape(any(whichcombos_ii,2),[numFnsToEvaluate,nwhichpages]); % (fn, page) combinations with any start age selected for this type
     % Drop the functions that whichcombos does not want from this type's evaluation
-    FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii(:).*fnwanted;
+    FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii(:).*fnwanted_ii;
     for ff=1:numFnsToEvaluate
-        if fnwanted(ff)==0 && isfield(FnsToEvaluate_temp,FnsToEvalNames{ff})
+        if fnwanted_ii(ff)==0 && isfield(FnsToEvaluate_temp,FnsToEvalNames{ff})
             FnsToEvaluate_temp=rmfield(FnsToEvaluate_temp,FnsToEvalNames{ff});
         end
     end
@@ -245,7 +259,7 @@ for ii=1:N_i
     end
 
     %% Compute for this type
-    simoptions_temp.whichcombos=whichcombos(FnsAndPTypeIndicator_ii==1,:,:); % the selection for the functions this type evaluates, in their order (the per-type command acts on the start-age dimension)
+    simoptions_temp.whichcombos=whichcombos_ii(FnsAndPTypeIndicator_ii==1,:,:); % the selection for the functions this type evaluates, in their order (the per-type command acts on the start-age dimension)
     CorrTransProbs_ii=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_temp);
     CorrTransProbs_byType{ii}=CorrTransProbs_ii;
     if simoptions.groupptypesforstats==1 && usequantiles && ~isempty(transprobnames)
@@ -275,7 +289,7 @@ for ii=1:N_i
 
     % Store by type
     for ff=1:numFnsToEvaluate
-        if FnsAndPTypeIndicator_ii(ff)==1 && pagewanted(ff,1)
+        if FnsAndPTypeIndicator_ii(ff)==1 && pagewanted_ii(ff,1)
             CorrTransProbs.(FnsToEvalNames{ff}).(iistr)=CorrTransProbs_ii.(FnsToEvalNames{ff});
         end
     end
@@ -283,7 +297,7 @@ for ii=1:N_i
         for rr=1:length(CondlRestnFnNames)
             CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass.(iistr)=CorrTransProbs_ii.(CondlRestnFnNames{rr}).RestrictedSampleMass;
             for ff=1:numFnsToEvaluate
-                if FnsAndPTypeIndicator_ii(ff)==1 && pagewanted(ff,1+rr)
+                if FnsAndPTypeIndicator_ii(ff)==1 && pagewanted_ii(ff,1+rr)
                     CorrTransProbs.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=CorrTransProbs_ii.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff});
                 end
             end
@@ -299,10 +313,10 @@ if simoptions.groupptypesforstats==1
 
     for ff=1:numFnsToEvaluate
         fn=FnsToEvalNames{ff};
-        if ~fnwanted(ff) % no combination of this function is wanted
+        if ~fnwantedG(ff) % no grouped combination of this function is wanted
             continue
         end
-        if pagewanted(ff,1) % the grouped unrestricted outputs of this function are wanted
+        if pagewantedG(ff,1) % the grouped unrestricted outputs of this function are wanted
 
         % Per-type age-j means and std devs, and the pair covariances at each horizon, into arrays (NaN where not relevant/no mass)
         MeanVec=nan(N_i,N_j);
@@ -358,6 +372,9 @@ if simoptions.groupptypesforstats==1
                     end
                 end
             end
+            off=reshape(whichcombosG(ff,1:N_j-kk,1)==0,[1,N_j-kk]); % start ages the grouped slot does not ask for
+            AutoCovG(off)=NaN;
+            AutoCorrG(off)=NaN;
             CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])=AutoCovG;
             CorrTransProbs.(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorrG;
         end
@@ -381,6 +398,9 @@ if simoptions.groupptypesforstats==1
                 P_G_3d=nan(n_fvals,n_fvals,N_j-1);
             end
             for jj=1:N_j-1
+                if whichcombosG(ff,jj,1)==0
+                    continue % the grouped slot does not ask for start age jj: the cell stays empty (NaN slice under quantiles)
+                end
                 w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*AgeMasses(:,jj);
                 wnext=FnsAndPTypeIndicator(ff,:)'.*ptweights.*AgeMasses(:,jj+1);
                 inpool=false(N_i,1);
@@ -452,12 +472,12 @@ if simoptions.groupptypesforstats==1
                 CorrTransProbs.(fn).TransitionMass_j=massbin_j_G;
             end
         end
-        end % pagewanted(ff,1)
+        end % pagewantedG(ff,1)
 
         %% Grouped restricted
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
-                if pagewanted(ff,1+rr) % this restriction is wanted for this function
+                if pagewantedG(ff,1+rr) % the grouped outputs of this restriction are wanted for this function
                 rname=CondlRestnFnNames{rr};
                 % Per-type restricted masses, means, std devs
                 RSMVec=zeros(N_i,N_j); % restricted mass of each type at each age (includes the type's age weights)
@@ -537,6 +557,8 @@ if simoptions.groupptypesforstats==1
                             end
                         end
                     end
+                    off=reshape(whichcombosG(ff,1:N_j-kk,1+rr)==0,[1,N_j-kk]); % start ages the grouped slot does not ask for
+                    AutoCovRG(off)=NaN; AutoCorrRG(off)=NaN; PairMassG(off)=NaN; PairMeanxG(off)=NaN; PairMeanyG(off)=NaN; PairStdxG(off)=NaN; PairStdyG(off)=NaN;
                     CorrTransProbs.(rname).(fn).(['AutoCovariance',horizonstr{hh}])=AutoCovRG;
                     CorrTransProbs.(rname).(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorrRG;
                     CorrTransProbs.(rname).(fn).(['PairMass',horizonstr{hh}])=PairMassG;
@@ -545,7 +567,7 @@ if simoptions.groupptypesforstats==1
                     CorrTransProbs.(rname).(fn).(['PairStdDeviation_j',horizonstr{hh}])=PairStdxG;
                     CorrTransProbs.(rname).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}])=PairStdyG;
                 end
-                end % pagewanted(ff,1+rr)
+                end % pagewantedG(ff,1+rr)
             end
         end
     end

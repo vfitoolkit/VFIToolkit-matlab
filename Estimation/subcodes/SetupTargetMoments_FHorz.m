@@ -472,7 +472,7 @@ if useptype==0
     end
     %% CrossSectionCovarCorr (EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz) and AgeConditionalCrossSectionCovarCorr
     % (EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz): targets .(fn1).CovarianceWith.(fn2), .(fn1).CorrelationWith.(fn2),
-    % .(fn).Mean, .(fn).StdDeviation, .(fn).(fn) (the self-correlation), or the matrices .CovarianceMatrix / .CorrelationMatrix. Scalars and
+    % .(fn).Mean, .(fn).StdDeviation, or the matrices .CovarianceMatrix / .CorrelationMatrix (the self-correlation .(fn).(fn) is always one and cannot be targeted). Scalars and
     % [nFns,nFns] for the plain command; 1 x (number of age groups) and [nFns,nFns,number of age groups] for the age-conditional one, the age
     % axis as the command lays it out (simoptions.agegroupings, else N_j). NaN omits an entry (a pair, an age group, a matrix entry).
     % The selector is pair-shaped, [nFns,nFns(,ngroups)], symmetric, the diagonal being the own stats. A matrix target is indexed over
@@ -540,11 +540,11 @@ if useptype==0
                     end
                     rowfn1{cc}=a1;
                     rowfn2{cc}=a3;
-                elseif (any(strcmp(a2,{'Mean','StdDeviation'})) || strcmp(a2,a1)) && isempty(a3)
+                elseif any(strcmp(a2,{'Mean','StdDeviation'})) && isempty(a3)
                     rowfn1{cc}=a1;
                     rowfn2{cc}=a1;
                 else
-                    error(['TargetMoments.',xf,'.',a1,'.',a2,': the targets are Mean, StdDeviation, the self-correlation, CovarianceWith.(fn2), CorrelationWith.(fn2), or CovarianceMatrix/CorrelationMatrix'])
+                    error(['TargetMoments.',xf,'.',a1,'.',a2,': the targets are Mean, StdDeviation, CovarianceWith.(fn2), CorrelationWith.(fn2), or CovarianceMatrix/CorrelationMatrix (the self-correlation is always one and cannot be targeted)'])
                 end
             end
             FnsX=struct();
