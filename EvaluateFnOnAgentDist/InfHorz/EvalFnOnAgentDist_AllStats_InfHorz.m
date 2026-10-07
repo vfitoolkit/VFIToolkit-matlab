@@ -2,6 +2,9 @@ function AllStats=EvalFnOnAgentDist_AllStats_InfHorz(StationaryDist, Policy, Fns
 % Returns a wide variety of statistics
 %
 % simoptions optional inputs
+%
+% simoptions.whichcombos ([numFnsToEvaluate, 1+number of conditional restrictions]) selects which (fn, restriction) combinations are
+% computed, and simoptions.whichstats may be given per combination ([numFnsToEvaluate, 1+number of restrictions, 7]); see below.
 
 %%
 if ~exist('simoptions','var')
@@ -127,7 +130,7 @@ if isfield(simoptions,'conditionalrestrictions')
         CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames);
 
         RestrictionValues=logical(EvalFnOnAgentDist_Grid(CondlRestnFn, CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals));
-        RestrictionValues=reshape(RestrictionValues,[N_a*N_z,1]);
+        RestrictionValues=reshape(RestrictionValues,[N_a*max(N_z,1),1]); % (N_z is zero when there is no z)
 
         RestrictedStationaryDistVec=StationaryDistVec;
         RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
@@ -149,13 +152,59 @@ end
 
 
 
+%% simoptions.whichcombos and per-combination simoptions.whichstats
+% whichcombos: [numFnsToEvaluate, 1+number of conditional restrictions] of zeros/ones ([numFnsToEvaluate,1] without restrictions):
+% page 1 is the unrestricted stats, pages 2:end the restrictions in the fieldnames order of simoptions.conditionalrestrictions. Ones
+% are computed, zeros skipped (their output fields are simply absent; RestrictedSampleMass is always filled). Default all ones. A
+% vector of length numFnsToEvaluate with restrictions is applied to every page. Intended for calibration/estimation.
+% whichstats: the usual 1x7 vector, or [numFnsToEvaluate, 1+number of restrictions, 7] giving a whichstats vector for every
+% combination ([numFnsToEvaluate,7] is applied to every page). A combination asking for no statistic is skipped like a whichcombos zero.
+% (As EvalFnOnAgentDist_AllStats_FHorz_Case1.)
+numFnsToEvaluate=length(FnsToEvaluate);
+if useCondlRest==1
+    nwhichpages=1+length(CondlRestnFnNames);
+else
+    nwhichpages=1;
+end
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,nwhichpages);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if isvector(whichcombos) && numel(whichcombos)==numFnsToEvaluate
+        whichcombos=repmat(whichcombos(:),[1,nwhichpages]); % one entry per function: apply to every page
+    end
+    if ~isequal(size(whichcombos),[numFnsToEvaluate,nwhichpages])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(nwhichpages),'] (number of FnsToEvaluate, 1+number of conditional restrictions)'])
+    end
+    whichcombos=double(whichcombos);
+end
+wsG=simoptions.whichstats;
+if isvector(wsG) && numel(wsG)==7
+    whichstatsG=repmat(reshape(wsG,[1,1,7]),[numFnsToEvaluate,nwhichpages,1]);
+elseif ismatrix(wsG) && isequal(size(wsG),[numFnsToEvaluate,7])
+    whichstatsG=repmat(reshape(wsG,[numFnsToEvaluate,1,7]),[1,nwhichpages,1]);
+elseif isequal(size(wsG,1:3),[numFnsToEvaluate,nwhichpages,7])
+    whichstatsG=wsG;
+else
+    error(['simoptions.whichstats must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(nwhichpages),',7] (number of FnsToEvaluate, 1+number of conditional restrictions, 7), or [',num2str(numFnsToEvaluate),',7]'])
+end
+whichcombos=whichcombos.*any(whichstatsG,3); % a combination with no statistic requested is skipped altogether
+
 %%
 for ff=1:length(FnsToEvalNames)
+    if ~any(whichcombos(ff,:)) % no combination of this function is wanted
+        continue
+    end
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
     Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
     Values=reshape(Values,[N_a*max(N_z,1),1]);
 
-    AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+    if whichcombos(ff,1)==1 % the unrestricted stats of this function are wanted
+        AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,reshape(whichstatsG(ff,1,:),[1,7]));
+    end
 
     %% If there are any conditional restrictions then deal with these
     % Evaluate AllStats, but conditional on the restriction being one.
@@ -163,8 +212,8 @@ for ff=1:length(FnsToEvalNames)
         % Evaluate the conditional restrictions:
         % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
         for rr=1:length(CondlRestnFnNames)
-            if restrictedsamplemass(rr)>0
-                AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+            if whichcombos(ff,1+rr)==1 && restrictedsamplemass(rr)>0 % this restriction is wanted for this function and has mass
+                AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,reshape(whichstatsG(ff,1+rr,:),[1,7]));
             end
         end
     end

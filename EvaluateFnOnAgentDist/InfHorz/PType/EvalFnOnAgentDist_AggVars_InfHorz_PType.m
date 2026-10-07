@@ -4,6 +4,7 @@ function AggVars=EvalFnOnAgentDist_AggVars_InfHorz_PType(StationaryDist, Policy,
 %
 % simoptions.verbose=1 will give feedback
 % simoptions.verboseparams=1 will give further feedback on the param values of each permanent type
+% simoptions.whichcombos (a vector of zeros/ones, one per FnsToEvaluate) selects which functions are evaluated; see below.
 %
 % Rest of this description describes how those inputs not already used for
 % ValueFnIter_PType or StationaryDist_PType should be set up.
@@ -56,6 +57,23 @@ end
 if ~isfield(simoptions,'groupptypesforstats')
     simoptions.groupptypesforstats=1;
 end
+%% simoptions.whichcombos: which FnsToEvaluate to compute
+% A vector of zeros/ones of length numFnsToEvaluate (row or column). Ones are evaluated, zeros skipped: their Mean (per type and
+% grouped) is NaN. Default all ones. Intended for calibration/estimation, which only needs the targeted aggregates.
+% (As EvalFnOnAgentDist_AggVars_FHorz_Case1_PType.)
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,1);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ~(isvector(whichcombos) && numel(whichcombos)==numFnsToEvaluate)
+        error(['simoptions.whichcombos must be a vector of length ',num2str(numFnsToEvaluate),' (number of FnsToEvaluate)'])
+    end
+    whichcombos=double(whichcombos(:));
+end
+
 % One column per permanent type, so that each type's own values survive to the output; they are only
 % weighted and summed at the end
 AggVarsFull=zeros(numFnsToEvaluate,N_i,'gpuArray');
@@ -106,6 +124,13 @@ for ii=1:N_i
     l_z_temp=length(n_z_temp);
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
 
+    if ~any(whichcombos(WhichFnsForCurrentPType>0)) % none of the functions relevant to this type are wanted
+        continue
+    end
+    if isfield(simoptions,'whichcombos')
+        simoptions_temp.whichcombos=whichcombos(WhichFnsForCurrentPType>0); % the selection among the functions relevant to this type (same order)
+    end
+
     simoptions_temp.outputasstructure=0;
     StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
 
@@ -117,6 +142,7 @@ for ii=1:N_i
     end
 end
 
+AggVarsFull(whichcombos==0,:)=NaN; % the functions that whichcombos skipped
 AggVars2=sum(StationaryDist.ptweights'.*AggVarsFull,2); % sum across agents (ptweights stored as column)
 
 

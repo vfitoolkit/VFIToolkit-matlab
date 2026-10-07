@@ -6,9 +6,14 @@ function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz(Statio
 % Also reports the Mean and Standard Deviation of every function
 % And the Covariance of every pair of functions.
 %
+% simoptions.whichcombos ([numFnsToEvaluate, numFnsToEvaluate] of zeros/ones: the diagonal selects a function's Mean/StdDeviation, the
+% off-diagonal a pair's covariance/correlation; only the upper triangle is read) selects what is computed; see below.
+%
 % simoptions.conditionalrestrictions: evaluate the same statistics conditional on each restriction being one (not zero). The
 % restricted results are in CrossSectionCorr.(restrictionname), with the same fields as the unrestricted ones, plus
-% CrossSectionCorr.(restrictionname).RestrictedSampleMass. A restriction with zero mass gives a warning, and NaN.
+% CrossSectionCorr.(restrictionname).RestrictedSampleMass. A restriction with zero mass gives a warning, and NaN. With restrictions,
+% simoptions.whichcombos can also be given as [numFnsToEvaluate, numFnsToEvaluate, 1+number of conditional restrictions] (page 1
+% unrestricted, pages 2:end the restrictions).
 
 
 %%
@@ -145,27 +150,58 @@ if isfield(simoptions,'conditionalrestrictions')
         end
     end
 end
-pagewanted=true(nwhichpages,1); % a restriction of zero mass has nothing to compute (its entries are NaN)
-if useCondlRest==1
-    pagewanted(2:end)=(restrictedsamplemass>0);
+
+%% simoptions.whichcombos: which functions and pairs to compute
+% [numFnsToEvaluate, numFnsToEvaluate] of zeros/ones. The diagonal (ff,ff) selects the Mean and StdDeviation of function ff (and its
+% variance on the CovarianceMatrix diagonal); the off-diagonal (ff1,ff2) selects the covariance and correlation of the pair. Only the
+% upper triangle (ff1<=ff2) is read, so a symmetric matrix or just its upper triangle can be given. A function with nothing selected
+% (its diagonal and all its pairs zero) is not evaluated; a selected pair has both its functions evaluated (their means and std devs
+% are needed for the pair, and are then also reported only if the diagonal asks). Skipped entries are NaN. Default all ones.
+% With conditional restrictions it is [numFnsToEvaluate, numFnsToEvaluate, 1+number of conditional restrictions]: page 1 is the
+% unrestricted stats, pages 2:end the restrictions in the fieldnames order of simoptions.conditionalrestrictions. A
+% [numFnsToEvaluate, numFnsToEvaluate] input with restrictions is applied to every page. (As EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz.)
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate,nwhichpages);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ismatrix(whichcombos) && nwhichpages>1 && isequal(size(whichcombos),[numFnsToEvaluate,numFnsToEvaluate])
+        whichcombos=repmat(whichcombos,[1,1,nwhichpages]); % one matrix with restrictions: apply to every page
+    end
+    if ~isequal(size(whichcombos,1:3),[numFnsToEvaluate,numFnsToEvaluate,nwhichpages]) || ndims(whichcombos)>3
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(numFnsToEvaluate),',',num2str(nwhichpages),'] (number of FnsToEvaluate, twice, 1+number of conditional restrictions; the third dimension is dropped when there are no conditional restrictions)'])
+    end
+    whichcombos=double(whichcombos);
+    for pp=1:nwhichpages
+        whichcombos(:,:,pp)=max(triu(whichcombos(:,:,pp)),triu(whichcombos(:,:,pp))'); % symmetric, from the upper triangle
+    end
 end
+if useCondlRest==1
+    for rr=1:length(CondlRestnFnNames)
+        if restrictedsamplemass(rr)==0
+            whichcombos(:,:,1+rr)=0; % a restriction of zero mass has nothing to compute (its entries are NaN)
+        end
+    end
+end
+fnwantedpage=reshape(any(whichcombos,2),[numFnsToEvaluate,nwhichpages]); % the functions that get evaluated (their own stats or any pair), per page
+fnwanted=any(fnwantedpage,2); % the functions that get evaluated on any page
 
 % Each page is filled as its own output structure; page 1 (unrestricted) becomes CrossSectionCorr and pages 2:end CrossSectionCorr.(restrictionname)
 PageOut=cell(nwhichpages,1);
 for pp=1:nwhichpages
     PageOut{pp}=struct();
     % Report output by name, but also create the covariance matrix and the correlation matrix
-    if pp==1
-        PageOut{pp}.CovarianceMatrix=zeros(numFnsToEvaluate,numFnsToEvaluate);
-        PageOut{pp}.CorrelationMatrix=zeros(numFnsToEvaluate,numFnsToEvaluate);
-    else
-        PageOut{pp}.CovarianceMatrix=nan(numFnsToEvaluate,numFnsToEvaluate);
-        PageOut{pp}.CorrelationMatrix=nan(numFnsToEvaluate,numFnsToEvaluate);
-    end
+    PageOut{pp}.CovarianceMatrix=nan(numFnsToEvaluate,numFnsToEvaluate);
+    PageOut{pp}.CorrelationMatrix=nan(numFnsToEvaluate,numFnsToEvaluate);
 end
 
 %% Calculate all the cross-sectional correlations, note that this creates the 'upper triangular' part
 for ff1=1:numFnsToEvaluate
+    if ~fnwanted(ff1) % nothing involving this function is wanted
+        continue
+    end
     FnToEvaluateParamsCell1=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff1).Names);
     Values1=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff1}, FnToEvaluateParamsCell1,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
     Values1=reshape(Values1,[N_total,1]);
@@ -173,7 +209,7 @@ for ff1=1:numFnsToEvaluate
     Mean1=nan(nwhichpages,1);
     StdDev1=nan(nwhichpages,1);
     for pp=1:nwhichpages
-        if ~pagewanted(pp)
+        if ~fnwantedpage(ff1,pp) % nothing involving this function is wanted on this page
             continue
         end
         if pp==1
@@ -189,9 +225,9 @@ for ff1=1:numFnsToEvaluate
     end
 
     for ff2=ff1:numFnsToEvaluate
-        if ff1==ff2
+        if ff1==ff2 % the own stats of an evaluated function are byproducts of the pairs and are reported regardless of the diagonal
             for pp=1:nwhichpages
-                if pagewanted(pp)
+                if fnwantedpage(ff1,pp)
                     PageOut{pp}.(AggVarNames{ff1}).(AggVarNames{ff2})=1;
 
                     % and matrix version
@@ -200,31 +236,35 @@ for ff1=1:numFnsToEvaluate
                 end
             end
         else
-            FnToEvaluateParamsCell2=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff2).Names);
-            Values2=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff2}, FnToEvaluateParamsCell2,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-            Values2=reshape(Values2,[N_total,1]);
+            if any(whichcombos(ff1,ff2,:)) % the pair is wanted on some page
+                FnToEvaluateParamsCell2=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff2).Names);
+                Values2=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff2}, FnToEvaluateParamsCell2,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+                Values2=reshape(Values2,[N_total,1]);
+            end
             for pp=1:nwhichpages
-                if ~pagewanted(pp)
-                    continue
+                if whichcombos(ff1,ff2,pp)==1 % the pair is wanted on this page
+                    if pp==1
+                        PageDist=StationaryDistVec;
+                    else
+                        PageDist=StationaryDistVec.*RestrictionMask{pp-1}/restrictedsamplemass(pp-1); % the restricted distribution, normalised to mass one
+                    end
+                    Mean2=sum(Values2.*PageDist);
+                    StdDev2=sqrt(sum(PageDist.*((Values2-Mean2.*ones(N_total,1)).^2)));
+
+                    CoVar=sum((Values1-Mean1(pp)*ones(N_total,1,'gpuArray')).*(Values2-Mean2*ones(N_total,1,'gpuArray')).*PageDist);
+                    Corr=CoVar/(StdDev1(pp)*StdDev2);
+
+                    % Store them
+                    PageOut{pp}.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CoVar;
+                    PageOut{pp}.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=Corr;
+
+                    % and matrix version
+                    PageOut{pp}.CovarianceMatrix(ff1,ff2)=CoVar;
+                    PageOut{pp}.CorrelationMatrix(ff1,ff2)=Corr;
+                elseif fnwantedpage(ff1,pp) && fnwantedpage(ff2,pp) % the pair is not wanted but both functions are evaluated: NaN (the matrices stay NaN); with a partner that is not evaluated there is no field, as in the mirror below
+                    PageOut{pp}.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=NaN;
+                    PageOut{pp}.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=NaN;
                 end
-                if pp==1
-                    PageDist=StationaryDistVec;
-                else
-                    PageDist=StationaryDistVec.*RestrictionMask{pp-1}/restrictedsamplemass(pp-1); % the restricted distribution, normalised to mass one
-                end
-                Mean2=sum(Values2.*PageDist);
-                StdDev2=sqrt(sum(PageDist.*((Values2-Mean2.*ones(N_total,1)).^2)));
-
-                CoVar=sum((Values1-Mean1(pp)*ones(N_total,1,'gpuArray')).*(Values2-Mean2*ones(N_total,1,'gpuArray')).*PageDist);
-                Corr=CoVar/(StdDev1(pp)*StdDev2);
-
-                % Store them
-                PageOut{pp}.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CoVar;
-                PageOut{pp}.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=Corr;
-
-                % and matrix version
-                PageOut{pp}.CovarianceMatrix(ff1,ff2)=CoVar;
-                PageOut{pp}.CorrelationMatrix(ff1,ff2)=Corr;
             end
         end
     end
@@ -233,11 +273,11 @@ end
 
 %% Just to make them easier to find, fill in the 'lower triangular' part
 for pp=1:nwhichpages
-    if ~pagewanted(pp)
-        continue
-    end
     for ff1=1:numFnsToEvaluate
         for ff2=1:ff1-1
+            if ~(fnwantedpage(ff1,pp) && fnwantedpage(ff2,pp)) % a pair with a function that was not evaluated has no fields to mirror
+                continue
+            end
             PageOut{pp}.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=PageOut{pp}.(AggVarNames{ff2}).CovarianceWith.(AggVarNames{ff1});
             PageOut{pp}.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=PageOut{pp}.(AggVarNames{ff2}).CorrelationWith.(AggVarNames{ff1});
 

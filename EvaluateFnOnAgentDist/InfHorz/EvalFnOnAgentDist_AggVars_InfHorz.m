@@ -3,6 +3,10 @@ function AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist, Policy, FnsTo
 %
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 %
+% simoptions.whichcombos (a vector of zeros/ones, one per FnsToEvaluate) selects which functions are evaluated; the Mean of a skipped
+% function is NaN. Intended for calibration/estimation. (Not with the cpu, with entry/exit, or with FnsToEvaluate that use the
+% value function.)
+%
 % EntryExitParamNames and PolicyWhenExiting are optional inputs, only needed when using endogenous entry and endogenous exit.
 
 %%
@@ -40,6 +44,9 @@ if ~isfield(simoptions,'experienceassetze')
     simoptions.experienceassetze=0;
 end
 
+if isfield(simoptions,'whichcombos') && (simoptions.parallel<2 || isstruct(StationaryDist) || isfield(simoptions,'eval_valuefn'))
+    error('simoptions.whichcombos is not implemented for EvalFnOnAgentDist_AggVars_InfHorz on the cpu, with entry/exit, or with FnsToEvaluate that use the value function')
+end
 if simoptions.parallel<2
     AggVars=EvalFnOnAgentDist_AggVars_InfHorz_CPU(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
     return
@@ -120,6 +127,20 @@ if isfield(simoptions,'outputasstructure')
 end
 
 
+%% simoptions.whichcombos: which FnsToEvaluate to compute (a vector of zeros/ones of length numFnsToEvaluate; skipped Means are NaN)
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(length(FnsToEvaluate),1);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if ~(isvector(whichcombos) && numel(whichcombos)==length(FnsToEvaluate))
+        error(['simoptions.whichcombos must be a vector of length ',num2str(length(FnsToEvaluate)),' (number of FnsToEvaluate)'])
+    end
+    whichcombos=double(whichcombos(:));
+end
+
 %% Check for functions that use value function and send these off to a subversion called EvalFnOnAgentDist_AggVars_InfHorz_withV()
 if isfield(simoptions,'eval_valuefn')
     AggVarsExtra=struct();
@@ -191,6 +212,10 @@ StationaryDistVec=reshape(StationaryDist,[N_a*max(N_z,1),1]);
 AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
 for ff=1:length(FnsToEvaluate)
+    if whichcombos(ff)==0 % this function is not wanted
+        AggVars(ff)=NaN;
+        continue
+    end
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
     Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
     Values=reshape(Values,[N_a*max(N_z,1),1]);

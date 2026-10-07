@@ -29,6 +29,9 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz(StationaryD
 %   and the same under .(fnname).tperiodsK for each K in simoptions.timehorizons.
 % A restriction of zero mass gives a warning, NaN (and a PairMass of zero). TransitionProbs are not computed under conditional
 % restrictions.
+%
+% simoptions.whichcombos ([numFnsToEvaluate, 1+number of conditional restrictions] of zeros/ones) selects which (fn, restriction)
+% combinations are computed; see the whichcombos section below.
 
 %%
 if ~exist('simoptions','var')
@@ -202,6 +205,35 @@ if iscell(simoptions.transprobs)
     end
 end
 
+%% simoptions.whichcombos: which (fn, restriction) combinations to compute
+% [numFnsToEvaluate, 1+number of conditional restrictions] of zeros/ones ([numFnsToEvaluate,1] without restrictions): page 1 is the
+% unrestricted outputs (Mean, StdDeviation, the auto-covariances/-correlations at every horizon, TransitionProbs if requested), pages
+% 2:end the restrictions in the fieldnames order of simoptions.conditionalrestrictions (all their outputs, every horizon). Ones are
+% computed, zeros skipped: a skipped (fn, page) has no output fields at all, and a function with nothing selected on any page is not
+% evaluated. RestrictedSampleMass is always filled. Default all ones. A vector of length numFnsToEvaluate with restrictions is applied
+% to every page. (As EvalFnOnAgentDist_AutoCorrTransProbs_FHorz, without its start-age dimension.)
+if useCondlRest==1
+    nwhichpages=1+length(CondlRestnFnNames);
+else
+    nwhichpages=1;
+end
+numFnsToEvaluate=length(FnsToEvalNames);
+if ~isfield(simoptions,'whichcombos')
+    whichcombos=ones(numFnsToEvaluate,nwhichpages);
+else
+    whichcombos=simoptions.whichcombos;
+    if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
+        error('simoptions.whichcombos must contain only zeros and ones')
+    end
+    if isvector(whichcombos) && numel(whichcombos)==numFnsToEvaluate
+        whichcombos=repmat(whichcombos(:),[1,nwhichpages]); % one entry per function: apply to every page
+    end
+    if ~isequal(size(whichcombos),[numFnsToEvaluate,nwhichpages])
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(nwhichpages),'] (number of FnsToEvaluate, 1+number of conditional restrictions)'])
+    end
+    whichcombos=double(whichcombos);
+end
+
 %% The computation: never form the transition matrix
 % Cov(x_t,x_{t+k}) is the centered signed measure (dist.*(x-mean)) pushed k periods forward and then integrated against
 % x. The push is the two-step of Tan (2020, Economics Letters) that the stationary distribution iteration uses: the
@@ -252,41 +284,47 @@ end
 
 %%
 for ff=1:length(FnsToEvalNames)
+    if ~any(whichcombos(ff,:)) % no combination of this function is wanted
+        continue
+    end
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
     Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_ze,a_gridvals,ze_gridvals);
     Values=reshape(Values,[N_states,1]);
     Values_cpu=gather(Values);
-    %% Mean and standard deviation
-    meanV=sum(StationaryDist.*Values);
-    stddevV=sqrt(sum(StationaryDist.*(Values-meanV).^2));
-    CorrTransProbs.(FnsToEvalNames{ff}).Mean=meanV;
-    CorrTransProbs.(FnsToEvalNames{ff}).StdDeviation=stddevV;
-    %% Auto-covariance and auto-correlation at horizons 1 and simoptions.timehorizons
-    % Correlation(x,y)=Cov(x,y)/(stddev(x)*stddev(y)), with Cov(x_t,x_{t+k}) from the centered measure pushed k periods
-    Xc=Values_cpu-gather(meanV);
-    propagated=gather(StationaryDist).*Xc; % N_states x 1 signed measure, on the cpu
-    for kk=1:maxhorizon
-        % Tan step: one period forward
-        temp=Gammatranspose*propagated; % policy step: now over (a',z)
-        if N_z>0
-            temp=reshape(reshape(temp,[N_a,N_zr])*pi_z_cpu,[N_a*N_zr,1]); % z step
-        end
-        if N_e>0
-            temp=kron(pi_e_cpu,temp); % e step
-        end
-        propagated=temp;
-        if kk==1 || any(simoptions.timehorizons==kk)
-            Covar=propagated'*Xc;
-            Corr=Covar/(stddevV*stddevV);
-            if kk==1
-                CorrTransProbs.(FnsToEvalNames{ff}).AutoCovariance=Covar;
-                CorrTransProbs.(FnsToEvalNames{ff}).AutoCorrelation=Corr;
-            else
-                CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCovariance=Covar;
-                CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCorrelation=Corr;
+    if whichcombos(ff,1)==1 % the unrestricted outputs of this function are wanted
+        %% Mean and standard deviation
+        meanV=sum(StationaryDist.*Values);
+        stddevV=sqrt(sum(StationaryDist.*(Values-meanV).^2));
+        CorrTransProbs.(FnsToEvalNames{ff}).Mean=meanV;
+        CorrTransProbs.(FnsToEvalNames{ff}).StdDeviation=stddevV;
+        %% Auto-covariance and auto-correlation at horizons 1 and simoptions.timehorizons
+        % Correlation(x,y)=Cov(x,y)/(stddev(x)*stddev(y)), with Cov(x_t,x_{t+k}) from the centered measure pushed k periods
+        Xc=Values_cpu-gather(meanV);
+        propagated=gather(StationaryDist).*Xc; % N_states x 1 signed measure, on the cpu
+        for kk=1:maxhorizon
+            % Tan step: one period forward
+            temp=Gammatranspose*propagated; % policy step: now over (a',z)
+            if N_z>0
+                temp=reshape(reshape(temp,[N_a,N_zr])*pi_z_cpu,[N_a*N_zr,1]); % z step
+            end
+            if N_e>0
+                temp=kron(pi_e_cpu,temp); % e step
+            end
+            propagated=temp;
+            if kk==1 || any(simoptions.timehorizons==kk)
+                Covar=propagated'*Xc;
+                Corr=Covar/(stddevV*stddevV);
+                if kk==1
+                    CorrTransProbs.(FnsToEvalNames{ff}).AutoCovariance=Covar;
+                    CorrTransProbs.(FnsToEvalNames{ff}).AutoCorrelation=Corr;
+                else
+                    CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCovariance=Covar;
+                    CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCorrelation=Corr;
+                end
             end
         end
     end
+
     %% Conditional restrictions: the Mean/StdDeviation over those satisfying the restriction, and the auto-covariance over the
     % pairs that satisfy it now and k periods later. Three signed measures are propagated together (three columns of one Tan
     % step): the restricted mass m, m.*Xc and m.*Xc.^2 (Xc centered on the restricted mean). Masking the propagated measures with
@@ -296,6 +334,9 @@ for ff=1:length(FnsToEvalNames)
     if useCondlRest==1
         dist_cpu=gather(StationaryDist);
         for rr=1:length(CondlRestnFnNames)
+            if whichcombos(ff,1+rr)==0 % this restriction is not wanted for this function
+                continue
+            end
             rname=CondlRestnFnNames{rr};
             mr=dist_cpu.*RestrictionValues(:,rr); % restricted mass (not normalized)
             massr=sum(mr);
@@ -369,7 +410,7 @@ for ff=1:length(FnsToEvalNames)
     %% Transition probabilities between value bins (horizon 1 and simoptions.timehorizons): each origin bin's mass is
     % pushed forward (origin bins as columns, in blocks of 64) and binned by the function's value; row b is the
     % destination distribution of origin bin b, so rows sum to one
-    if simoptions.transprobs(ff)==1
+    if simoptions.transprobs(ff)==1 && whichcombos(ff,1)==1
         if isempty(simoptions.transprobquantiles)
             [~,~,indexes]=unique(Values_cpu);
             n_fvals=max(indexes); % number of unique values of the FnsToEvaluate{ff}
