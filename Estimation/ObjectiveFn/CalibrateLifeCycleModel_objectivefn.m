@@ -306,14 +306,19 @@ if caliboptions.verbose==1
     [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
     if caliboptions.vectoroutput==0
         fprintf('Current objective fn value is %8.12f \n', Obj)
+        if penalty>0
+            if Obj>0
+                fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
+            else  % Obj is negative, so penalty is to reduce magnitude
+                fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+            end
+        end
     elseif caliboptions.vectoroutput==2
+        % Obj is the vector of residuals here (with the penalty residual appended), so print its sum of squares; the penalty is a residual, not a multiplier
+        % [before 2026-10-07 the penalty print below sat outside this if, so with vectoroutput=2 it tested the vector Obj>0 (ill-defined) and described a multiplier that does not exist in the vector form]
         fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
-    end
-    if penalty>0
-        if Obj>0
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
-        else  % Obj is negative, so penalty is to reduce magnitude
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+        if penalty>0
+            fprintf('Current penalty residual is %8.6f (it adds %8.6f to the sum-of-squares) \n', sqrt(penalty), penalty)
         end
     end
 end
