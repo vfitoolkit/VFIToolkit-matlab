@@ -5,6 +5,10 @@ function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz(Statio
 % Since they are calculated anyway as intermediate steps,
 % Also reports the Mean and Standard Deviation of every function
 % And the Covariance of every pair of functions.
+%
+% simoptions.conditionalrestrictions: evaluate the same statistics conditional on each restriction being one (not zero). The
+% restricted results are in CrossSectionCorr.(restrictionname), with the same fields as the unrestricted ones, plus
+% CrossSectionCorr.(restrictionname).RestrictedSampleMass. A restriction with zero mass gives a warning, and NaN.
 
 
 %%
@@ -60,10 +64,6 @@ else
     end
 end
 
-if isfield(simoptions,'conditionalrestrictions')
-    warning('Have not yet implemented simoptions.conditionalrestrictions for CrossSectionCovarCorr_InfHorz so ignoring them, ask on forum if you need this')
-end
-
 %%
 l_a=length(n_a);
 
@@ -76,7 +76,6 @@ a_gridvals=CreateGridvals(n_a,a_grid,1);
 %%
 StationaryDistVec=reshape(StationaryDist,[N_a*max(N_z,1),1]);
 
-CrossSectionCorr=struct();
 
 PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
 % Note: must collapse n_a (and n_z) into N_a (and N_z) before the permute, as a_gridvals is
@@ -109,61 +108,152 @@ else
 end
 
 
-% Report output by name, but also create the covariance matrix and the correlation matrix
-CrossSectionCorr.CovarianceMatrix=zeros(length(FnsToEvaluate),length(FnsToEvaluate));
-CrossSectionCorr.CorrelationMatrix=zeros(length(FnsToEvaluate),length(FnsToEvaluate));
+N_total=N_a*max(N_z,1);
+numFnsToEvaluate=length(FnsToEvaluate);
+
+%% If there are any conditional restrictions, set up for these
+% Code works by evaluating the restriction and imposing this on the distribution (and renormalizing it).
+useCondlRest=0;
+nwhichpages=1; % 'pages': the unrestricted stats, then one per restriction
+if isfield(simoptions,'conditionalrestrictions')
+    useCondlRest=1;
+    CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
+    nwhichpages=1+length(CondlRestnFnNames);
+
+    restrictedsamplemass=nan(length(CondlRestnFnNames),1);
+    RestrictionMask=cell(length(CondlRestnFnNames),1); % each restriction kept as a logical mask over the grid; the restricted weights are formed from it where used
+
+    for rr=1:length(CondlRestnFnNames)
+        % The current conditional restriction function
+        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+        % Get parameter names for Conditional Restriction functions
+        temp=getAnonymousFnInputNames(CondlRestnFn);
+        if length(temp)>(l_daprime+l_a+l_z)
+            CondlRestnFnParamNames={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            CondlRestnFnParamNames={};
+        end
+        CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames);
+
+        RestrictionValues=logical(EvalFnOnAgentDist_Grid(CondlRestnFn, CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals));
+        RestrictionMask{rr}=reshape(RestrictionValues,[N_total,1]);
+        restrictedsamplemass(rr)=sum(StationaryDistVec.*RestrictionMask{rr}); % mass that satisfies the restriction
+
+        if restrictedsamplemass(rr)==0
+            warning('One of the conditional restrictions evaluates to a zero mass')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+        end
+    end
+end
+pagewanted=true(nwhichpages,1); % a restriction of zero mass has nothing to compute (its entries are NaN)
+if useCondlRest==1
+    pagewanted(2:end)=(restrictedsamplemass>0);
+end
+
+% Each page is filled as its own output structure; page 1 (unrestricted) becomes CrossSectionCorr and pages 2:end CrossSectionCorr.(restrictionname)
+PageOut=cell(nwhichpages,1);
+for pp=1:nwhichpages
+    PageOut{pp}=struct();
+    % Report output by name, but also create the covariance matrix and the correlation matrix
+    if pp==1
+        PageOut{pp}.CovarianceMatrix=zeros(numFnsToEvaluate,numFnsToEvaluate);
+        PageOut{pp}.CorrelationMatrix=zeros(numFnsToEvaluate,numFnsToEvaluate);
+    else
+        PageOut{pp}.CovarianceMatrix=nan(numFnsToEvaluate,numFnsToEvaluate);
+        PageOut{pp}.CorrelationMatrix=nan(numFnsToEvaluate,numFnsToEvaluate);
+    end
+end
 
 %% Calculate all the cross-sectional correlations, note that this creates the 'upper triangular' part
-for ff1=1:length(FnsToEvaluate)
+for ff1=1:numFnsToEvaluate
     FnToEvaluateParamsCell1=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff1).Names);
     Values1=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff1}, FnToEvaluateParamsCell1,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-    Values1=reshape(Values1,[N_a*max(N_z,1),1]);
+    Values1=reshape(Values1,[N_total,1]);
 
-    Mean1=sum(Values1.*StationaryDistVec);
-    StdDev1=sqrt(sum(StationaryDistVec.*((Values1-Mean1.*ones(N_a*max(N_z,1),1)).^2)));
+    Mean1=nan(nwhichpages,1);
+    StdDev1=nan(nwhichpages,1);
+    for pp=1:nwhichpages
+        if ~pagewanted(pp)
+            continue
+        end
+        if pp==1
+            PageDist=StationaryDistVec;
+        else
+            PageDist=StationaryDistVec.*RestrictionMask{pp-1}/restrictedsamplemass(pp-1); % the restricted distribution, normalised to mass one
+        end
+        Mean1(pp)=sum(Values1.*PageDist);
+        StdDev1(pp)=sqrt(sum(PageDist.*((Values1-Mean1(pp).*ones(N_total,1)).^2)));
 
-    CrossSectionCorr.(AggVarNames{ff1}).Mean=Mean1;
-    CrossSectionCorr.(AggVarNames{ff1}).StdDeviation=StdDev1;
+        PageOut{pp}.(AggVarNames{ff1}).Mean=Mean1(pp);
+        PageOut{pp}.(AggVarNames{ff1}).StdDeviation=StdDev1(pp);
+    end
 
-    for ff2=ff1:length(FnsToEvaluate)
+    for ff2=ff1:numFnsToEvaluate
         if ff1==ff2
-            CrossSectionCorr.(AggVarNames{ff1}).(AggVarNames{ff2})=1;
+            for pp=1:nwhichpages
+                if pagewanted(pp)
+                    PageOut{pp}.(AggVarNames{ff1}).(AggVarNames{ff2})=1;
 
-            % and matrix version
-            CrossSectionCorr.CovarianceMatrix(ff1,ff2)=StdDev1^2;
-            CrossSectionCorr.CorrelationMatrix(ff1,ff2)=1;
+                    % and matrix version
+                    PageOut{pp}.CovarianceMatrix(ff1,ff2)=StdDev1(pp)^2;
+                    PageOut{pp}.CorrelationMatrix(ff1,ff2)=1;
+                end
+            end
         else
             FnToEvaluateParamsCell2=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff2).Names);
             Values2=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff2}, FnToEvaluateParamsCell2,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-            Values2=reshape(Values2,[N_a*max(N_z,1),1]);
+            Values2=reshape(Values2,[N_total,1]);
+            for pp=1:nwhichpages
+                if ~pagewanted(pp)
+                    continue
+                end
+                if pp==1
+                    PageDist=StationaryDistVec;
+                else
+                    PageDist=StationaryDistVec.*RestrictionMask{pp-1}/restrictedsamplemass(pp-1); % the restricted distribution, normalised to mass one
+                end
+                Mean2=sum(Values2.*PageDist);
+                StdDev2=sqrt(sum(PageDist.*((Values2-Mean2.*ones(N_total,1)).^2)));
 
-            Mean2=sum(Values2.*StationaryDistVec);
-            StdDev2=sqrt(sum(StationaryDistVec.*((Values2-Mean2.*ones(N_a*max(N_z,1),1)).^2)));
+                CoVar=sum((Values1-Mean1(pp)*ones(N_total,1,'gpuArray')).*(Values2-Mean2*ones(N_total,1,'gpuArray')).*PageDist);
+                Corr=CoVar/(StdDev1(pp)*StdDev2);
 
-            CoVar=sum((Values1-Mean1*ones(N_a*max(N_z,1),1,'gpuArray')).*(Values2-Mean2*ones(N_a*max(N_z,1),1,'gpuArray')).*StationaryDistVec);
-            Corr=CoVar/(StdDev1*StdDev2);
+                % Store them
+                PageOut{pp}.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CoVar;
+                PageOut{pp}.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=Corr;
 
-            % Store them
-            CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CoVar;
-            CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=Corr;
-
-            % and matrix version
-            CrossSectionCorr.CovarianceMatrix(ff1,ff2)=CoVar;
-            CrossSectionCorr.CorrelationMatrix(ff1,ff2)=Corr;
+                % and matrix version
+                PageOut{pp}.CovarianceMatrix(ff1,ff2)=CoVar;
+                PageOut{pp}.CorrelationMatrix(ff1,ff2)=Corr;
+            end
         end
     end
 end
 
 
 %% Just to make them easier to find, fill in the 'lower triangular' part
-for ff1=1:length(FnsToEvaluate)
-    for ff2=1:ff1-1
-        CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CovarianceWith.(AggVarNames{ff1});
-        CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CorrelationWith.(AggVarNames{ff1});
+for pp=1:nwhichpages
+    if ~pagewanted(pp)
+        continue
+    end
+    for ff1=1:numFnsToEvaluate
+        for ff2=1:ff1-1
+            PageOut{pp}.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=PageOut{pp}.(AggVarNames{ff2}).CovarianceWith.(AggVarNames{ff1});
+            PageOut{pp}.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=PageOut{pp}.(AggVarNames{ff2}).CorrelationWith.(AggVarNames{ff1});
 
-        % and matrix version
-        CrossSectionCorr.CovarianceMatrix(ff1,ff2)=CrossSectionCorr.CovarianceMatrix(ff2,ff1);
-        CrossSectionCorr.CorrelationMatrix(ff1,ff2)=CrossSectionCorr.CorrelationMatrix(ff2,ff1);
+            % and matrix version
+            PageOut{pp}.CovarianceMatrix(ff1,ff2)=PageOut{pp}.CovarianceMatrix(ff2,ff1);
+            PageOut{pp}.CorrelationMatrix(ff1,ff2)=PageOut{pp}.CorrelationMatrix(ff2,ff1);
+        end
+    end
+end
+
+%% Assemble the output
+CrossSectionCorr=PageOut{1};
+if useCondlRest==1
+    for rr=1:length(CondlRestnFnNames)
+        CrossSectionCorr.(CondlRestnFnNames{rr})=PageOut{1+rr};
+        CrossSectionCorr.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass(rr);
     end
 end
 

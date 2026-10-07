@@ -119,7 +119,11 @@ if usingautocorr==1
 end
 if usingcrosssec==1
     simoptions.whichstats=CrossSecStats_whichstats;
-    CrossSectionCovarCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz(StationaryDist,Policy,FnsToEvaluate_CrossSecStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions);
+    simoptions_CrossSec=simoptions;
+    if isfield(simoptions_CrossSec,'conditionalrestrictions')
+        simoptions_CrossSec=rmfield(simoptions_CrossSec,'conditionalrestrictions'); % the targets are unrestricted covariances/correlations (the restrictions are for the AllStats targets)
+    end
+    CrossSectionCovarCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz(StationaryDist,Policy,FnsToEvaluate_CrossSecStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions_CrossSec);
 end
 
 %% Get current values of the target moments as a vector
