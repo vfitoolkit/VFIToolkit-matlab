@@ -71,7 +71,7 @@ if useptype==0
     end
     targetmomentvec=[]; % Can't preallocate as have no idea how big this will be
     if (usingautocorr==1 || usingcrosssec==1 || usingagecrosssec==1) && buildselectors==0
-        error('TargetMoments.AutoCorrTransProbs, .CrossSectionCovarCorr and .AgeConditionalCrossSectionCovarCorr need N_j and simoptions to be passed to SetupTargetMoments_FHorz (CalibrateLifeCycleModel does; the estimation commands do not yet support these targets)')
+        error('TargetMoments.AutoCorrTransProbs, .CrossSectionCovarCorr and .AgeConditionalCrossSectionCovarCorr need N_j and simoptions to be passed to SetupTargetMoments_FHorz (the calibration and estimation commands do; the three-input legacy call cannot take these targets)')
     end
     %% AllStats
     if usingallstats==1
