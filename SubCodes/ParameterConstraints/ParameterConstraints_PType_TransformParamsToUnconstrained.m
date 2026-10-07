@@ -12,9 +12,14 @@ function [calibparamsvec,caliboptions]=ParameterConstraints_PType_TransformParam
 % ParameterConstraints_TransformParamsToUnconstrained: transforms cparam to uparam
 % ParameterConstraints_TransformParamsToOriginal: transforms uparam to cparam
 %
-% - Constrain parameter to be positive
+% - Constrain parameter to be positive, caliboptions.constrainpositivemethod='log'
 %     uparam=log(cparam)
 %     cparam=exp(uparam)
+%
+% - Constrain parameter to be positive, caliboptions.constrainpositivemethod='softplus' (default)
+%     uparam=log(exp(cparam)-1)
+%     cparam=log(1+exp(uparam))
+%   See ParameterConstraints_TransformParamsToUnconstrained for which to use when.
 %
 % - Constrain parameter to be zero-to-one
 %     uparam=

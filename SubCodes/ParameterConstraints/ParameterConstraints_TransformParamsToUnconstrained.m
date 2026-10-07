@@ -111,7 +111,7 @@ if any(~ismember(caliboptions.constrainAtoBnames, CalibParamNames))
 end
 
 %% Convert the parameters
-for pp=1:length(CalibParamNames)
+for pp=1:length(calibparamsvecindex)-1 % one block per calibrated parameter, matching ParameterConstraints_TransformParamsToOriginal; every caller of this (non-PType) version has one block per name (a GEptype price is a single block of length N_i), the per-type blocks of a PType calibration go through ParameterConstraints_PType_TransformParamsToUnconstrained
     pp_index=calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1);
     if caliboptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
