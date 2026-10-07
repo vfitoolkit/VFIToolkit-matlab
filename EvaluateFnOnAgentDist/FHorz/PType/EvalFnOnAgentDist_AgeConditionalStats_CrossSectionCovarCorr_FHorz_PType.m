@@ -1,6 +1,8 @@
 function AgeConditionalCrossSectionCorr=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid, simoptions)
-% simoptions.whichcombos ([numFnsToEvaluate, numFnsToEvaluate, number of age groups], optionally with a trailing type dimension of N_i+1: diagonal = a function's own Mean/StdDeviation,
-% off-diagonal = a pair, third dimension = age group) selects which functions, pairs and age groups are computed; see below.
+% simoptions.whichcombos ([numFnsToEvaluate, numFnsToEvaluate, number of age groups], with a page dimension of 1+number of conditional
+% restrictions when there are restrictions, optionally with a trailing type dimension of N_i+1: diagonal = a function's own
+% Mean/StdDeviation, off-diagonal = a pair, third dimension = age group) selects which functions, pairs, age groups and restrictions
+% are computed; see below.
 % Age-conditional cross-sectional covariances/correlations between every pair of
 % FnsToEvaluate, with permanent types. Calls
 % EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz() for each permanent
@@ -28,7 +30,14 @@ function AgeConditionalCrossSectionCorr=EvalFnOnAgentDist_AgeConditionalStats_Cr
 % part (about the pooled means), and the grouped correlation is covariance/(std dev * std
 % dev) of the pooled population. A pair of functions is pooled over the types for which
 % both are relevant. A type with no mass in an age group is not in that pool; an empty pool
-% gives NaN. simoptions.groupptypesforstats=0 skips the grouped outputs.
+% gives NaN (the self-correlation included). simoptions.groupptypesforstats=0 skips the grouped outputs.
+%
+% With simoptions.conditionalrestrictions (a restriction may be a structure with a field per type), the same per type and grouped
+% under each restriction, in AgeConditionalCrossSectionCorr.(restriction): the per-type output is the type's restricted output of
+% the single-type command (normalised within each age group), and in each age group the types are pooled with weights
+% ptweights(ii)*(restricted mass of type ii in the age group). The restricted sample masses are
+%   AgeConditionalCrossSectionCorr.(restriction).RestrictedSampleMass.(typename)   1-by-N_j, the mass of the type at each age that satisfies it
+%   .RestrictedSampleMass.ByAge (1-by-N_j, a share of the whole population), .ByPType (N_i-by-1), .Total   as in LifeCycleProfiles_FHorz_Case1_PType
 
 if iscell(Names_i)
     N_i=length(Names_i);
@@ -83,9 +92,12 @@ if isfield(simoptions,'agejshifter')
 end
 ngroups=length(simoptions.agegroupings);
 
+useCondlRest=0;
+nwhichpages=1;
 if isfield(simoptions,'conditionalrestrictions')
-    warning('Have not yet implemented simoptions.conditionalrestrictions for AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType so ignoring them, ask on forum if you need this')
-    simoptions=rmfield(simoptions,'conditionalrestrictions'); % (the single-type command would compute them, but they are not reported by type or grouped)
+    useCondlRest=1;
+    CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
+    nwhichpages=1+length(CondlRestnFnNames);
 end
 
 if isstruct(FnsToEvaluate)
@@ -95,7 +107,7 @@ else
     error('You can only use PType when FnsToEvaluate is a structure')
 end
 
-%% simoptions.whichcombos: which functions, pairs and age groups to compute
+%% simoptions.whichcombos: which functions, pairs, age groups and restrictions to compute
 % [numFnsToEvaluate, numFnsToEvaluate, ngroups] of zeros/ones. In each age group the diagonal (ff,ff) selects the grouped Mean and
 % StdDeviation of function ff and the off-diagonal (ff1,ff2) selects the covariance and correlation of the pair (the own stats of every
 % function evaluated in an age group are reported, as byproducts of the pairs, so the diagonal matters only for a function with no selected pair there); only the upper
@@ -104,14 +116,19 @@ end
 % not evaluated at all; a selected pair has both its functions evaluated. Skipped entries are NaN: in the grouped output, and in the
 % per-type pair fields and per-type matrices (the per-type Mean and StdDeviation of an evaluated function are reported regardless,
 % the single-type command computes them anyway). Default all ones.
+% With conditional restrictions a page dimension follows: [numFnsToEvaluate, numFnsToEvaluate, ngroups, 1+number of conditional
+% restrictions], page 1 the unrestricted stats, pages 2:end the restrictions in the fieldnames order of
+% simoptions.conditionalrestrictions; an input without it applies to every page.
 % A trailing type dimension may be added (2026-10-08): [.., N_i+1] selects per permanent type, in the order of Names_i, with the
-% last slot the grouped stats. A type's slot selects that type's own computation; the grouped slot forces every type's computation of
+% last slot the grouped stats (so [nFns, nFns, ngroups, 1+number of restrictions, N_i+1] with restrictions, [nFns, nFns, ngroups, N_i+1]
+% without). A type's slot selects that type's own computation; the grouped slot forces every type's computation of
 % that combination (the grouped means, std devs and covariances are built from every type's), and a type's output is reported
 % whenever it was computed. The grouped output is reported only where the grouped slot asks (the grouped own stats of a function
 % wherever any grouped entry of that function's row is on, as they are byproducts of the pairs). An input without the type
-% dimension applies to every ptype and to the grouped stats. Intended for calibration/estimation.
+% dimension applies to every ptype and to the grouped stats. With restrictions, a four-dimensional input is read as having the page
+% dimension, not the type dimension. Intended for calibration/estimation.
 if ~isfield(simoptions,'whichcombos')
-    whichcombosAll=ones(numFnsToEvaluate,numFnsToEvaluate,ngroups,N_i+1);
+    whichcombosAll=ones(numFnsToEvaluate,numFnsToEvaluate,ngroups,nwhichpages,N_i+1);
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
@@ -121,28 +138,40 @@ else
         whichcombos=repmat(whichcombos,[1,1,ngroups]); % one matrix: apply to every age group
     end
     if ndims(whichcombos)<=3 && isequal(size(whichcombos,1:3),[numFnsToEvaluate,numFnsToEvaluate,ngroups])
-        whichcombos=repmat(whichcombos,[1,1,1,N_i+1]); % no type dimension: apply to every ptype and to the grouped stats
+        whichcombos=repmat(whichcombos,[1,1,1,nwhichpages]); % no page dimension: apply to every page
     end
-    if ~isequal(size(whichcombos,1:4),[numFnsToEvaluate,numFnsToEvaluate,ngroups,N_i+1])
-        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(numFnsToEvaluate),',',num2str(ngroups),'] (number of FnsToEvaluate, twice, number of age groups), optionally with a trailing type dimension of ',num2str(N_i+1),' (the permanent types in the order of Names_i, then the grouped stats)'])
+    if nwhichpages==1 && ndims(whichcombos)==4 && isequal(size(whichcombos),[numFnsToEvaluate,numFnsToEvaluate,ngroups,N_i+1])
+        whichcombos=reshape(whichcombos,[numFnsToEvaluate,numFnsToEvaluate,ngroups,1,N_i+1]); % no restrictions: the fourth dimension is the type dimension
+    elseif ndims(whichcombos)<=4 && isequal(size(whichcombos,1:4),[numFnsToEvaluate,numFnsToEvaluate,ngroups,nwhichpages])
+        whichcombos=repmat(whichcombos,[1,1,1,1,N_i+1]); % no type dimension: apply to every ptype and to the grouped stats
+    end
+    if ~isequal(size(whichcombos,1:5),[numFnsToEvaluate,numFnsToEvaluate,ngroups,nwhichpages,N_i+1]) || ndims(whichcombos)>5
+        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(numFnsToEvaluate),',',num2str(ngroups),',',num2str(nwhichpages),'] (number of FnsToEvaluate, twice, number of age groups, 1+number of conditional restrictions; the fourth dimension is dropped when there are no conditional restrictions), optionally with a trailing type dimension of ',num2str(N_i+1),' (the permanent types in the order of Names_i, then the grouped stats)'])
     end
     whichcombosAll=double(whichcombos);
     for ss=1:N_i+1
-        for kk=1:ngroups
-            whichcombosAll(:,:,kk,ss)=max(triu(whichcombosAll(:,:,kk,ss)),triu(whichcombosAll(:,:,kk,ss))'); % symmetric, from the upper triangle
+        for pp=1:nwhichpages
+            for kk=1:ngroups
+                whichcombosAll(:,:,kk,pp,ss)=max(triu(whichcombosAll(:,:,kk,pp,ss)),triu(whichcombosAll(:,:,kk,pp,ss))'); % symmetric, from the upper triangle
+            end
         end
     end
 end
-whichcombosG=whichcombosAll(:,:,:,N_i+1); % the grouped stats; whichcombosAll(:,:,:,ii) is ptype ii
+whichcombosG=whichcombosAll(:,:,:,:,N_i+1); % the grouped stats; whichcombosAll(:,:,:,:,ii) is ptype ii
 
 ptweights=gather(reshape(StationaryDist.ptweights,[N_i,1]));
 
-AgeConditionalCrossSectionCorr=struct();
+% Each page is filled as its own output structure; page 1 (unrestricted) becomes AgeConditionalCrossSectionCorr and pages 2:end AgeConditionalCrossSectionCorr.(restrictionname)
+PageOut=cell(nwhichpages,1);
+for pp=1:nwhichpages
+    PageOut{pp}=struct();
+end
 FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i);
-MeanVec=nan(numFnsToEvaluate,N_i,ngroups);
-StdDevVec=nan(numFnsToEvaluate,N_i,ngroups);
-CovarVec=nan(numFnsToEvaluate,numFnsToEvaluate,N_i,ngroups);
-GroupMasses=zeros(N_i,ngroups); % mass of each type in each age group (from that type's age weights)
+MeanVec=nan(numFnsToEvaluate,N_i,ngroups,nwhichpages);
+StdDevVec=nan(numFnsToEvaluate,N_i,ngroups,nwhichpages);
+CovarVec=nan(numFnsToEvaluate,numFnsToEvaluate,N_i,ngroups,nwhichpages);
+GroupMasses=zeros(N_i,ngroups,nwhichpages); % mass of each type in each age group (from that type's age weights), and in the restriction for pages 2:end
+RestrictedMassByAge=nan(N_i,N_j,nwhichpages-1); % the per-type restricted sample masses at each age
 
 %% Loop over the permanent types
 for ii=1:N_i
@@ -150,6 +179,19 @@ for ii=1:N_i
 
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,iistr); % Note: already check for existence of simoptions and created it if it was not inputted
+    % PType_Options only keeps a structure-valued option when it has a field for this type, so the
+    % conditional restrictions (a structure of functions) have to be put back; a restriction may
+    % itself be a structure with a field per type.
+    if useCondlRest==1
+        simoptions_temp.conditionalrestrictions=struct();
+        for rr=1:length(CondlRestnFnNames)
+            if isstruct(simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}))
+                simoptions_temp.conditionalrestrictions.(CondlRestnFnNames{rr})=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}).(iistr);
+            else
+                simoptions_temp.conditionalrestrictions.(CondlRestnFnNames{rr})=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+            end
+        end
+    end
 
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
@@ -192,8 +234,8 @@ for ii=1:N_i
     % Which of the FnsToEvaluate are relevant to this type (kept as a structure)
     [FnsToEvaluate_temp,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     % This ptype's selection: its own slot, plus whatever the grouped stats need (a grouped slot forces every type's computation)
-    whichcombos_ii=max(whichcombosAll(:,:,:,ii),whichcombosG);
-    fnwanted_ii=any(any(whichcombos_ii,2),3); % numFnsToEvaluate x 1: the functions this type evaluates (their own stats or any pair, in any age group)
+    whichcombos_ii=max(whichcombosAll(:,:,:,:,ii),whichcombosG);
+    fnwanted_ii=any(any(any(whichcombos_ii,2),3),4); % numFnsToEvaluate x 1: the functions this type evaluates (their own stats or any pair, in any age group, on any page)
     % Drop the functions that whichcombos does not want from this type's evaluation
     FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii(:).*fnwanted_ii;
     for ff=1:numFnsToEvaluate
@@ -212,7 +254,7 @@ for ii=1:N_i
         else
             jend=N_j;
         end
-        GroupMasses(ii,kk)=sum(AgeMasses_ii(j1:jend));
+        GroupMasses(ii,kk,1)=sum(AgeMasses_ii(j1:jend));
     end
 
     if sum(FnsAndPTypeIndicator_ii)==0
@@ -221,110 +263,120 @@ for ii=1:N_i
 
     %% Compute for this type
     idx_ii=find(FnsAndPTypeIndicator_ii==1); % the functions this type evaluates, in their order
-    simoptions_temp.whichcombos=whichcombos_ii(idx_ii,idx_ii,:); % the per-type command applies the selection itself (the NaN-ing below then finds nothing left to do)
+    simoptions_temp.whichcombos=whichcombos_ii(idx_ii,idx_ii,:,:); % the per-type command applies the selection itself (unselected entries NaN)
     AgeConditionalCrossSectionCorr_ii=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
 
-    % Store by type
-    for ff=1:numFnsToEvaluate
-        if FnsAndPTypeIndicator_ii(ff)==1
-            AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).(iistr)=AgeConditionalCrossSectionCorr_ii.(FnsToEvalNames{ff});
-            MeanVec(ff,ii,:)=reshape(gather(AgeConditionalCrossSectionCorr_ii.(FnsToEvalNames{ff}).Mean),[1,1,ngroups]);
-            StdDevVec(ff,ii,:)=reshape(gather(AgeConditionalCrossSectionCorr_ii.(FnsToEvalNames{ff}).StdDeviation),[1,1,ngroups]);
-        end
-    end
-    AgeConditionalCrossSectionCorr.CovarianceMatrix_ptype.(iistr)=AgeConditionalCrossSectionCorr_ii.CovarianceMatrix;
-    AgeConditionalCrossSectionCorr.CorrelationMatrix_ptype.(iistr)=AgeConditionalCrossSectionCorr_ii.CorrelationMatrix;
-    % The matrices of the type only cover the functions relevant to it, in their order
-    relevantfns=find(FnsAndPTypeIndicator_ii==1);
-    CovarVec(relevantfns,relevantfns,ii,:)=reshape(gather(AgeConditionalCrossSectionCorr_ii.CovarianceMatrix),[length(relevantfns),length(relevantfns),1,ngroups]);
-    % Per-type output: the (pair, age group) entries that whichcombos does not select are NaN (the single-type command computed every pair of the functions it was given)
-    for ff1=1:numFnsToEvaluate
-        for ff2=1:numFnsToEvaluate
-            if ff1~=ff2 && any(whichcombos_ii(ff1,ff2,:)==0) && FnsAndPTypeIndicator_ii(ff1)==1 && FnsAndPTypeIndicator_ii(ff2)==1
-                if isfield(AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff1}).(iistr),'CovarianceWith') && isfield(AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff1}).(iistr).CovarianceWith,FnsToEvalNames{ff2})
-                    offkk=reshape(whichcombos_ii(ff1,ff2,:)==0,[1,ngroups]);
-                    temp=AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff1}).(iistr).CovarianceWith.(FnsToEvalNames{ff2}); temp(offkk)=NaN; AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff1}).(iistr).CovarianceWith.(FnsToEvalNames{ff2})=temp;
-                    temp=AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff1}).(iistr).CorrelationWith.(FnsToEvalNames{ff2}); temp(offkk)=NaN; AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff1}).(iistr).CorrelationWith.(FnsToEvalNames{ff2})=temp;
+    % Store by type, page by page
+    relevantfns=find(FnsAndPTypeIndicator_ii==1); % the matrices of the type only cover the functions relevant to it, in their order
+    for pp=1:nwhichpages
+        if pp==1
+            Src=AgeConditionalCrossSectionCorr_ii;
+        else
+            Src=AgeConditionalCrossSectionCorr_ii.(CondlRestnFnNames{pp-1});
+            PageOut{pp}.RestrictedSampleMass.(iistr)=Src.RestrictedSampleMass;
+            RestrictedMassByAge(ii,:,pp-1)=reshape(gather(Src.RestrictedSampleMass),[1,N_j]);
+            for kk=1:ngroups
+                j1=simoptions.agegroupings(kk);
+                if kk<ngroups
+                    jend=simoptions.agegroupings(kk+1)-1;
+                else
+                    jend=N_j;
                 end
+                GroupMasses(ii,kk,pp)=sum(RestrictedMassByAge(ii,j1:jend,pp-1));
             end
         end
+        for ff=1:numFnsToEvaluate
+            if FnsAndPTypeIndicator_ii(ff)==1
+                PageOut{pp}.(FnsToEvalNames{ff}).(iistr)=Src.(FnsToEvalNames{ff});
+                MeanVec(ff,ii,:,pp)=reshape(gather(Src.(FnsToEvalNames{ff}).Mean),[1,1,ngroups]);
+                StdDevVec(ff,ii,:,pp)=reshape(gather(Src.(FnsToEvalNames{ff}).StdDeviation),[1,1,ngroups]);
+            end
+        end
+        PageOut{pp}.CovarianceMatrix_ptype.(iistr)=Src.CovarianceMatrix;
+        PageOut{pp}.CorrelationMatrix_ptype.(iistr)=Src.CorrelationMatrix;
+        CovarVec(relevantfns,relevantfns,ii,:,pp)=reshape(gather(Src.CovarianceMatrix),[length(relevantfns),length(relevantfns),1,ngroups]);
     end
-    masksub=whichcombos_ii(relevantfns,relevantfns,:);
-    for kk=1:ngroups
-        masksub(:,:,kk)=max(masksub(:,:,kk),eye(length(relevantfns))); % the per-type matrix diagonals (variances) are reported regardless
-    end
-    CovMat_ii=AgeConditionalCrossSectionCorr.CovarianceMatrix_ptype.(iistr); CovMat_ii(masksub==0)=NaN; AgeConditionalCrossSectionCorr.CovarianceMatrix_ptype.(iistr)=CovMat_ii;
-    CorrMat_ii=AgeConditionalCrossSectionCorr.CorrelationMatrix_ptype.(iistr); CorrMat_ii(masksub==0)=NaN; AgeConditionalCrossSectionCorr.CorrelationMatrix_ptype.(iistr)=CorrMat_ii;
 end
 
-%% Grouped: pool the types, age group by age group
+%% Grouped: pool the types, page by page and age group by age group
+if useCondlRest==1
+    for rr=1:length(CondlRestnFnNames)
+        PageOut{1+rr}.RestrictedSampleMass.ByAge=sum(RestrictedMassByAge(:,:,rr).*ptweights,1); % mass at each age that satisfies the restriction, as a share of the whole population
+        PageOut{1+rr}.RestrictedSampleMass.ByPType=sum(RestrictedMassByAge(:,:,rr),2); % conditional on type, what fraction satisfy the restriction
+        PageOut{1+rr}.RestrictedSampleMass.Total=sum(ptweights.*sum(RestrictedMassByAge(:,:,rr),2)); % what fraction of the population satisfy the restriction
+    end
+end
 if simoptions.groupptypesforstats==1
     if simoptions.verbose==1
         fprintf('Permanent type: Grouped Stats \n')
     end
-
-    AgeConditionalCrossSectionCorr.CovarianceMatrix=nan(numFnsToEvaluate,numFnsToEvaluate,ngroups);
-    AgeConditionalCrossSectionCorr.CorrelationMatrix=nan(numFnsToEvaluate,numFnsToEvaluate,ngroups);
-    for ff=1:numFnsToEvaluate
-        AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).Mean=nan(1,ngroups);
-        AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).StdDeviation=nan(1,ngroups);
-        AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=ones(1,ngroups);
-        notevaluated_ff=~reshape(any(whichcombosG(ff,:,:),2),[1,ngroups]); % the age groups in which nothing grouped of this function is wanted: its grouped self-correlation is NaN there (the age-group loop below skips them)
-        if any(notevaluated_ff)
-            AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})(notevaluated_ff)=NaN;
-        end
-        for ff2=1:numFnsToEvaluate
-            if ff2~=ff
-                AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).CovarianceWith.(FnsToEvalNames{ff2})=nan(1,ngroups);
-                AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).CorrelationWith.(FnsToEvalNames{ff2})=nan(1,ngroups);
-            end
-        end
-    end
-
-    for kk=1:ngroups
-        % Grouped Mean and StdDeviation of each function
-        MeanG=nan(numFnsToEvaluate,1);
+    for pp=1:nwhichpages
+        PageOut{pp}.CovarianceMatrix=nan(numFnsToEvaluate,numFnsToEvaluate,ngroups);
+        PageOut{pp}.CorrelationMatrix=nan(numFnsToEvaluate,numFnsToEvaluate,ngroups);
         for ff=1:numFnsToEvaluate
-            w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*GroupMasses(:,kk);
-            if any(whichcombosG(ff,:,kk)) && sum(w)>0 % something grouped of the function is wanted in this age group and it has a pool (otherwise everything stays NaN)
-                p=w/sum(w);
-                relevant=(w>0);
-                MeanG(ff)=sum(p(relevant).*MeanVec(ff,relevant,kk)');
-                StdDevG=sqrt(sum(p(relevant).*(StdDevVec(ff,relevant,kk)'.^2+(MeanVec(ff,relevant,kk)'-MeanG(ff)).^2)));
-                AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).Mean(kk)=MeanG(ff);
-                AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff}).StdDeviation(kk)=StdDevG;
-                AgeConditionalCrossSectionCorr.CovarianceMatrix(ff,ff,kk)=StdDevG^2;
-                AgeConditionalCrossSectionCorr.CorrelationMatrix(ff,ff,kk)=1;
+            PageOut{pp}.(FnsToEvalNames{ff}).Mean=nan(1,ngroups);
+            PageOut{pp}.(FnsToEvalNames{ff}).StdDeviation=nan(1,ngroups);
+            PageOut{pp}.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})=nan(1,ngroups); % one wherever the function is evaluated and has a pool (below)
+            for ff2=1:numFnsToEvaluate
+                if ff2~=ff
+                    PageOut{pp}.(FnsToEvalNames{ff}).CovarianceWith.(FnsToEvalNames{ff2})=nan(1,ngroups);
+                    PageOut{pp}.(FnsToEvalNames{ff}).CorrelationWith.(FnsToEvalNames{ff2})=nan(1,ngroups);
+                end
             end
         end
-
-        % Grouped covariance and correlation of each pair (pooled over the types for which both functions are relevant, about the pooled means of that pool)
-        for ff1=1:numFnsToEvaluate
-            for ff2=ff1+1:numFnsToEvaluate
-                w=FnsAndPTypeIndicator(ff1,:)'.*FnsAndPTypeIndicator(ff2,:)'.*ptweights.*GroupMasses(:,kk);
-                if whichcombosG(ff1,ff2,kk)==1 && sum(w)>0 % the grouped pair is wanted in this age group and has a pool
-                    p=w/sum(w);
+        for kk=1:ngroups
+            % Grouped Mean and StdDeviation of each function
+            MeanG=nan(numFnsToEvaluate,1);
+            for ff=1:numFnsToEvaluate
+                w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*GroupMasses(:,kk,pp);
+                relevant=(w>0); % (a type of zero weight, or with no (restricted) mass in the age group, is not in the pool)
+                if any(whichcombosG(ff,:,kk,pp)) && any(relevant) % something grouped of the function is wanted in this age group and it has a pool (otherwise everything stays NaN)
+                    p=w(relevant)/sum(w(relevant));
+                    MeanG(ff)=sum(p.*MeanVec(ff,relevant,kk,pp)');
+                    StdDevG=sqrt(sum(p.*(StdDevVec(ff,relevant,kk,pp)'.^2+(MeanVec(ff,relevant,kk,pp)'-MeanG(ff)).^2)));
+                    PageOut{pp}.(FnsToEvalNames{ff}).Mean(kk)=MeanG(ff);
+                    PageOut{pp}.(FnsToEvalNames{ff}).StdDeviation(kk)=StdDevG;
+                    PageOut{pp}.(FnsToEvalNames{ff}).(FnsToEvalNames{ff})(kk)=1;
+                    PageOut{pp}.CovarianceMatrix(ff,ff,kk)=StdDevG^2;
+                    PageOut{pp}.CorrelationMatrix(ff,ff,kk)=1;
+                end
+            end
+            % Grouped covariance and correlation of each pair (pooled over the types for which both functions are relevant, about the pooled means of that pool)
+            for ff1=1:numFnsToEvaluate
+                for ff2=ff1+1:numFnsToEvaluate
+                    w=FnsAndPTypeIndicator(ff1,:)'.*FnsAndPTypeIndicator(ff2,:)'.*ptweights.*GroupMasses(:,kk,pp);
                     relevant=(w>0);
-                    mu1=sum(p(relevant).*MeanVec(ff1,relevant,kk)');
-                    mu2=sum(p(relevant).*MeanVec(ff2,relevant,kk)');
-                    var1=sum(p(relevant).*(StdDevVec(ff1,relevant,kk)'.^2+(MeanVec(ff1,relevant,kk)'-mu1).^2));
-                    var2=sum(p(relevant).*(StdDevVec(ff2,relevant,kk)'.^2+(MeanVec(ff2,relevant,kk)'-mu2).^2));
-                    CoVar=sum(p(relevant).*(reshape(CovarVec(ff1,ff2,relevant,kk),[],1)+(MeanVec(ff1,relevant,kk)'-mu1).*(MeanVec(ff2,relevant,kk)'-mu2)));
-                    Corr=CoVar/sqrt(var1*var2);
-                    AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff1}).CovarianceWith.(FnsToEvalNames{ff2})(kk)=CoVar;
-                    AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff1}).CorrelationWith.(FnsToEvalNames{ff2})(kk)=Corr;
-                    AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff2}).CovarianceWith.(FnsToEvalNames{ff1})(kk)=CoVar;
-                    AgeConditionalCrossSectionCorr.(FnsToEvalNames{ff2}).CorrelationWith.(FnsToEvalNames{ff1})(kk)=Corr;
-                    AgeConditionalCrossSectionCorr.CovarianceMatrix(ff1,ff2,kk)=CoVar;
-                    AgeConditionalCrossSectionCorr.CovarianceMatrix(ff2,ff1,kk)=CoVar;
-                    AgeConditionalCrossSectionCorr.CorrelationMatrix(ff1,ff2,kk)=Corr;
-                    AgeConditionalCrossSectionCorr.CorrelationMatrix(ff2,ff1,kk)=Corr;
+                    if whichcombosG(ff1,ff2,kk,pp)==1 && any(relevant) % the grouped pair is wanted in this age group and has a pool
+                        p=w(relevant)/sum(w(relevant));
+                        mu1=sum(p.*MeanVec(ff1,relevant,kk,pp)');
+                        mu2=sum(p.*MeanVec(ff2,relevant,kk,pp)');
+                        var1=sum(p.*(StdDevVec(ff1,relevant,kk,pp)'.^2+(MeanVec(ff1,relevant,kk,pp)'-mu1).^2));
+                        var2=sum(p.*(StdDevVec(ff2,relevant,kk,pp)'.^2+(MeanVec(ff2,relevant,kk,pp)'-mu2).^2));
+                        CoVar=sum(p.*(reshape(CovarVec(ff1,ff2,relevant,kk,pp),[],1)+(MeanVec(ff1,relevant,kk,pp)'-mu1).*(MeanVec(ff2,relevant,kk,pp)'-mu2)));
+                        Corr=CoVar/sqrt(var1*var2);
+                        PageOut{pp}.(FnsToEvalNames{ff1}).CovarianceWith.(FnsToEvalNames{ff2})(kk)=CoVar;
+                        PageOut{pp}.(FnsToEvalNames{ff1}).CorrelationWith.(FnsToEvalNames{ff2})(kk)=Corr;
+                        PageOut{pp}.(FnsToEvalNames{ff2}).CovarianceWith.(FnsToEvalNames{ff1})(kk)=CoVar;
+                        PageOut{pp}.(FnsToEvalNames{ff2}).CorrelationWith.(FnsToEvalNames{ff1})(kk)=Corr;
+                        PageOut{pp}.CovarianceMatrix(ff1,ff2,kk)=CoVar;
+                        PageOut{pp}.CovarianceMatrix(ff2,ff1,kk)=CoVar;
+                        PageOut{pp}.CorrelationMatrix(ff1,ff2,kk)=Corr;
+                        PageOut{pp}.CorrelationMatrix(ff2,ff1,kk)=Corr;
+                    end
                 end
             end
         end
     end
 end
 
-AgeConditionalCrossSectionCorr.Notes='Per type: AgeConditionalCrossSectionCorr.(fn).(typename) is the output of EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz for that type, and CovarianceMatrix_ptype.(typename)/CorrelationMatrix_ptype.(typename) its matrices (over the functions relevant to that type; third index is the age group). Grouped (AgeConditionalCrossSectionCorr.(fn).Mean, .CovarianceWith, .CorrelationWith, CovarianceMatrix, CorrelationMatrix): in each age group the types are pooled with weights ptweights*(mass of the type in the age group), so the grouped covariance is the within-type covariance plus the between-type part about the pooled means, and the grouped correlation is that of the pooled population.';
+%% Assemble the output
+AgeConditionalCrossSectionCorr=PageOut{1};
+if useCondlRest==1
+    for rr=1:length(CondlRestnFnNames)
+        AgeConditionalCrossSectionCorr.(CondlRestnFnNames{rr})=PageOut{1+rr};
+    end
+end
+
+AgeConditionalCrossSectionCorr.Notes='Per type: AgeConditionalCrossSectionCorr.(fn).(typename) is the output of EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz for that type, and CovarianceMatrix_ptype.(typename)/CorrelationMatrix_ptype.(typename) its matrices (over the functions relevant to that type; third index is the age group). Grouped (AgeConditionalCrossSectionCorr.(fn).Mean, .CovarianceWith, .CorrelationWith, CovarianceMatrix, CorrelationMatrix): in each age group the types are pooled with weights ptweights*(mass of the type in the age group), so the grouped covariance is the within-type covariance plus the between-type part about the pooled means, and the grouped correlation is that of the pooled population. Under a conditional restriction (AgeConditionalCrossSectionCorr.(restriction)) the same, with the types pooled with weights ptweights*(restricted mass of the type in the age group).';
 
 end

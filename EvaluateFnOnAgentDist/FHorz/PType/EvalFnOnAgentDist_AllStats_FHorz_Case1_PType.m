@@ -566,8 +566,10 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         AllStats.(FnsToEvalNames{ff}).Variance=(AllStats.(FnsToEvalNames{ff}).StdDeviation)^2;
     end
 
-    % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
-    if ws1(5)==1
+    % With t-Digests the pooled extremes are only approximate, so the minimum and maximum are taken directly from the ptypes (and
+    % overwritten); without them the pooled stats are exact, and the minimum and maximum are those of the pooled population, as the
+    % other stats (the min/max over the ptypes differs from them, as the tolerance is then a mass within each ptype, not within the population)
+    if ws1(5)==1 && simoptions.groupusingtdigest==1
         AllStats.(FnsToEvalNames{ff}).Maximum=max(maxvaluevec(ff,:));
         AllStats.(FnsToEvalNames{ff}).Minimum=min(minvaluevec(ff,:));
     end

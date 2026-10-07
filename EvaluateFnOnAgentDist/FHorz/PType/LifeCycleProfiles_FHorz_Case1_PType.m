@@ -233,6 +233,7 @@ minvaluevec=nan(numFnsToEvaluate,N_i,maxngroups);
 maxvaluevec=nan(numFnsToEvaluate,N_i,maxngroups);
 MeanVec=nan(numFnsToEvaluate,N_i,maxngroups);
 StdDevVec=nan(numFnsToEvaluate,N_i,maxngroups);
+GroupMassVec=zeros(N_i,maxngroups); % mass of each ptype in each age group (its StationaryDist includes its own age weights, which can differ by ptype)
 AgeConditionalStats=struct();
 
 
@@ -861,7 +862,9 @@ for ff=1:numFnsToEvaluate
                     [SortedValues_jj,~,sortindex]=unique(Values_jj);
                     SortedWeights_jj=accumarray(sortindex,StationaryDistVec_jj,[],@sum);
 
-                    SortedWeights_jj=SortedWeights_jj/sum(SortedWeights_jj(:)); % Normalize conditional on jj (is later renormalized ii weight before storing for groupstats)
+                    groupmass_jj=sum(SortedWeights_jj(:)); % mass of this ptype in this age group
+                    GroupMassVec(ii,jjageshifted)=gather(groupmass_jj);
+                    SortedWeights_jj=SortedWeights_jj/groupmass_jj; % Normalize conditional on jj (is later reweighted by ptweights(ii)*groupmass_jj for groupstats)
 
                     %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and ff)
                     if whichcombos_ii(ff,jjs,1)==1 % the unrestricted stats of this (function, age group) are wanted for this ptype (its own slot, or forced by the grouped slot)
@@ -926,14 +929,14 @@ for ff=1:numFnsToEvaluate
                         if simoptions.groupusingtdigest==1
                             [C_jj,digestweights_jj,~]=createDigest(SortedValues_jj, SortedWeights_jj,delta,1); % 1 is presorted
                             Cmerge(merge_nsofar+1:merge_nsofar+length(C_jj))=C_jj;
-                            digestweightsmerge(merge_nsofar+1:merge_nsofar+length(C_jj))=digestweights_jj*StationaryDist.ptweights(ii);
+                            digestweightsmerge(merge_nsofar+1:merge_nsofar+length(C_jj))=digestweights_jj*StationaryDist.ptweights(ii)*groupmass_jj; % weight of the ptype in the age group: ptweights times its mass there (the ptypes can have different age weights)
                             merge_nsofar=merge_nsofar+length(C_jj);
                         elseif simoptions.ptypestorecpu==1
                             PoolValues=[PoolValues; gather(SortedValues_jj)];
-                            PoolWeights=[PoolWeights; gather(SortedWeights_jj)*gather(StationaryDist.ptweights(ii))];
+                            PoolWeights=[PoolWeights; gather(SortedWeights_jj)*gather(StationaryDist.ptweights(ii)*groupmass_jj)]; % weight of the ptype in the age group: ptweights times its mass there (the ptypes can have different age weights)
                         else
                             PoolValues=[PoolValues; SortedValues_jj];
-                            PoolWeights=[PoolWeights; SortedWeights_jj*StationaryDist.ptweights(ii)];
+                            PoolWeights=[PoolWeights; SortedWeights_jj*StationaryDist.ptweights(ii)*groupmass_jj]; % weight of the ptype in the age group: ptweights times its mass there (the ptypes can have different age weights)
                         end
                     end
 
@@ -1082,35 +1085,41 @@ for ff=1:numFnsToEvaluate
                 end
 
                 % Grouped mean and standard deviation are overwritten on a more direct calculation that does not involve the digests
-                SigmaNxi=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
+                % The weight of a ptype in the age group is ptweights times its mass in the age group (the ptypes can have different age weights)
+                wvec=FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*GroupMassVec(:,jj)';
+                relevant=(wvec>0); % the ptypes in the population of this age group for which the function is relevant
+                SigmaNxi=sum(wvec(relevant)); % The sum of the masses of the relevant types in the age group
 
                 % Mean
                 if ws(1)==1
-                    AgeConditionalStats.(FnsToEvalNames{ff}).Mean(jj)=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*MeanVec(ff,:,jj))/SigmaNxi;
+                    AgeConditionalStats.(FnsToEvalNames{ff}).Mean(jj)=sum(wvec(relevant).*MeanVec(ff,relevant,jj))/SigmaNxi;
                 end
 
-                % Standard Deviation
+                % Standard Deviation: within-type variances plus the between-type part (sum over pairs of types of w_i*w_k*(m_i-m_k)^2, over SigmaNxi^2)
                 if ws(3)==1
                     if N_i==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=StdDevVec(ff,:,jj);
                     else
                         temp2=zeros(N_i,1);
                         for ii=2:N_i
-                            if FnsAndPTypeIndicator(ff,ii)==1
+                            if relevant(ii)
                                 temp=MeanVec(ff,1:(ii-1),jj)-MeanVec(ff,ii,jj); % This bit with temp is just to handle numerical rounding errors where temp evaluated to negative with order -15
                                 if any(temp<0) && all(temp>10^(-12))
                                     temp=max(temp,0);
                                 end
-                                temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
+                                temp(~relevant(1:(ii-1)))=0; % (a ptype not in the population contributes nothing, and its NaN mean must not get in)
+                                temp2(ii)=wvec(ii)*sum(wvec(1:(ii-1)).*(temp.^2));
                             end
                         end
-                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*(StdDevVec(ff,:,jj).^2))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=sqrt(sum(wvec(relevant).*(StdDevVec(ff,relevant,jj).^2))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
                     end
                     AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj))^2;
                 end
 
-                % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
-                if ws(5)==1
+                % With t-Digests the pooled extremes are only approximate, so the minimum and maximum are taken directly from the ptypes (and
+                % overwritten); without them the pooled stats are exact, and the minimum and maximum are those of the pooled population, as the
+                % other stats (the min/max over the ptypes differs from them, as the tolerance is then a mass within each ptype, not within the population)
+                if ws(5)==1 && simoptions.groupusingtdigest==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(jj)=max(maxvaluevec(ff,:,jj));
                     AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(jj)=min(minvaluevec(ff,:,jj));
                 end
