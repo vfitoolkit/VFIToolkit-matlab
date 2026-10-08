@@ -149,91 +149,64 @@ end
 
 
 %% Get current values of the target moments as a vector
+% Each kind: walk the names of the target (two to five levels, the empty cells skipped) into the command's output, which has the same
+% nesting (restrictions, permanent types, MoreInequality, CovarianceWith/CorrelationWith and the matrices alike). A target that is NaN
+% in full (SetupTargetMoments_FHorz warned about it and selected nothing for it, so the command may not have created it) is skipped
+% and filled with NaN (it is dropped from the objective anyway) [2026-10-09; before, the walk died on the absent struct].
 currentmomentvec=zeros(size(targetmomentvec));
-if usingallstats==1
-    if isempty(allstatmomentnames{1,3})
-        currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2});
+sofar=0;
+for kindc=1:5
+    if kindc==1
+        kindusing=usingallstats;
+    elseif kindc==2
+        kindusing=usinglcp;
+    elseif kindc==3
+        kindusing=usingautocorr;
+    elseif kindc==4
+        kindusing=usingcrosssec;
     else
-        currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3});
+        kindusing=usingagecrosssec;
     end
-    for cc=2:size(allstatmomentnames,1)
-        if isempty(allstatmomentnames{cc,3})
-            currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2});
+    if kindusing==1
+        if kindc==1
+            kindnames=allstatmomentnames; kindcum=allstatcummomentsizes; kindout=AllStats;
+        elseif kindc==2
+            kindnames=acsmomentnames; kindcum=acscummomentsizes; kindout=AgeConditionalStats;
+        elseif kindc==3
+            kindnames=autocorrmomentnames; kindcum=autocorrcummomentsizes; kindout=CorrTransProbs;
+        elseif kindc==4
+            kindnames=crosssecmomentnames; kindcum=crossseccummomentsizes; kindout=CrossSectionCorr;
         else
-            currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2}).(allstatmomentnames{cc,3});
+            kindnames=agecrosssecmomentnames; kindcum=agecrossseccummomentsizes; kindout=AgeConditionalCrossSectionCorr;
         end
-    end
-end
-if usinglcp==1
-    sofar=allstatcummomentsizes(end);
-    if isempty(acsmomentnames{1,3})
-        currentmomentvec(sofar+1:sofar+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2});
-    else
-        currentmomentvec(sofar+1:sofar+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2}).(acsmomentnames{1,3});
-    end
-    for cc=2:size(acsmomentnames,1)
-        if isempty(acsmomentnames{cc,3})
-            currentmomentvec(sofar+acscummomentsizes(cc-1)+1:sofar+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2});
-        else
-            currentmomentvec(sofar+acscummomentsizes(cc-1)+1:sofar+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2}).(acsmomentnames{cc,3});
-        end
-    end
-end
-if usingautocorr==1
-    sofar=allstatcummomentsizes(end)+acscummomentsizes(end);
-    for cc=1:size(autocorrmomentnames,1)
-        temp=CorrTransProbs; % walk the one to three names of the target into the command's output (same nesting)
-        for kk=1:size(autocorrmomentnames,2)
-            if ~isempty(autocorrmomentnames{cc,kk})
-                temp=temp.(autocorrmomentnames{cc,kk});
+        for cc=1:size(kindnames,1)
+            if cc==1
+                idx=sofar+1:sofar+kindcum(1);
+            else
+                idx=sofar+kindcum(cc-1)+1:sofar+kindcum(cc);
             end
-        end
-        if cc==1
-            currentmomentvec(sofar+1:sofar+autocorrcummomentsizes(1))=temp(:);
-        else
-            currentmomentvec(sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc))=temp(:);
-        end
-    end
-end
-if usingcrosssec==1
-    sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end);
-    for cc=1:size(crosssecmomentnames,1)
-        temp=CrossSectionCorr; % walk the one to three names of the target into the command's output (same nesting)
-        for kk=1:size(crosssecmomentnames,2)
-            if ~isempty(crosssecmomentnames{cc,kk})
-                temp=temp.(crosssecmomentnames{cc,kk});
+            if all(isnan(targetmomentvec(idx)))
+                currentmomentvec(idx)=NaN;
+                continue
             end
-        end
-        if cc==1
-            currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=temp(:);
-        else
-            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=temp(:);
-        end
-    end
-end
-if usingagecrosssec==1
-    sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end);
-    for cc=1:size(agecrosssecmomentnames,1)
-        temp=AgeConditionalCrossSectionCorr; % walk the one to three names of the target into the command's output (same nesting)
-        for kk=1:size(agecrosssecmomentnames,2)
-            if ~isempty(agecrosssecmomentnames{cc,kk})
-                temp=temp.(agecrosssecmomentnames{cc,kk});
+            temp=kindout;
+            for kk=1:size(kindnames,2)
+                if ~isempty(kindnames{cc,kk})
+                    temp=temp.(kindnames{cc,kk});
+                end
             end
+            currentmomentvec(idx)=temp(:);
         end
-        if cc==1
-            currentmomentvec(sofar+1:sofar+agecrossseccummomentsizes(1))=temp(:);
-        else
-            currentmomentvec(sofar+agecrossseccummomentsizes(cc-1)+1:sofar+agecrossseccummomentsizes(cc))=temp(:);
-        end
+        sofar=sofar+kindcum(end);
     end
 end
 if usingcustomstats==1
-    sofar=allstatcummomentsizes(end)+acscummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end)+agecrossseccummomentsizes(end);
     currentmomentvec(sofar+1:sofar+cmscummomentsizes(1))=CustomStats.(cmsmomentnames{1,1});
     for cc=2:size(cmsmomentnames,1)
         currentmomentvec(sofar+cmscummomentsizes(cc-1)+1:sofar+cmscummomentsizes(cc))=CustomStats.(cmsmomentnames{cc,1});
     end
 end
+
 
 %% Option to log moments (if targets are log, then this will have been already applied)
 if any(caliboptions.logmoments>0) % need to log some moments

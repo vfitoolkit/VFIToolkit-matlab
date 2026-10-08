@@ -152,6 +152,13 @@ if useptype==0
         for cc=1:nrows
             ff=find(strcmp(FnNamesA,rowfn{cc}));
             pp=rowpage(cc);
+            temp=TargetMoments.AllStats; % the target's values: a target that is NaN in full selects nothing (it is dropped, with a warning below)
+            for kk=1:size(allstatmomentnames,2)
+                if ~isempty(allstatmomentnames{cc,kk})
+                    temp=temp.(allstatmomentnames{cc,kk});
+                end
+            end
+            rowallnan=all(isnan(temp(:)));
             % see StatsFromWeightedGrid: 1 Mean, 2 Median, 3 Variance/StdDeviation, 4 Gini(3)/LorenzCurve(1), 5 Minimum/Maximum, 6 Quantiles, 7 MoreInequality
             switch rowstat{cc}
                 case 'Mean'
@@ -178,7 +185,7 @@ if useptype==0
                 otherwise
                     error(['TargetMoments.AllStats: ',rowstat{cc},' is not a statistic that AllStats produces (Mean, Median, RatioMeanToMedian, Variance, StdDeviation, Gini, LorenzCurve, Minimum, Maximum, QuantileCutoffs, QuantileMeans, MoreInequality)'])
             end
-            if buildselectors==1 % (without simoptions the page of a restricted target is unknown and no selectors are built)
+            if buildselectors==1 && rowallnan==0 % (without simoptions the page of a restricted target is unknown and no selectors are built)
                 for ss=sidx
                     if ss==4 % Gini/LorenzCurve: 3 is Gini only, 1 is the Lorenz curve (and Gini); a LorenzCurve target overrides a Gini-only 3
                         if strcmp(rowstat{cc},'LorenzCurve')
@@ -633,6 +640,37 @@ if useptype==0
             agecrosssecmomentnames=xnames; agecrossseccummomentsizes=xcumsizes; FnsToEvaluate_AgeCrossSec=FnsX; AgeCrossSec_whichcombos=wcX;
         end
     end
+    %% A target that is NaN in full is dropped, with a warning (NaN is for omitting some entries of a target, ages or matrix entries; a
+    % target omitted in full should not be listed, and with caliboptions.whichcombos=1 nothing is computed for it)
+    nanchk_kinds={'AllStats','AgeConditionalStats','AutoCorrTransProbs','CrossSectionCovarCorr','AgeConditionalCrossSectionCovarCorr'};
+    nanchk_using=[usingallstats,usinglcp,usingautocorr,usingcrosssec,usingagecrosssec];
+    nanchk_sofar=0;
+    for nanchk_kk=1:5
+        if nanchk_using(nanchk_kk)==1
+            if nanchk_kk==1
+                nanchk_names=allstatmomentnames; nanchk_cum=allstatcummomentsizes;
+            elseif nanchk_kk==2
+                nanchk_names=acsmomentnames; nanchk_cum=acscummomentsizes;
+            elseif nanchk_kk==3
+                nanchk_names=autocorrmomentnames; nanchk_cum=autocorrcummomentsizes;
+            elseif nanchk_kk==4
+                nanchk_names=crosssecmomentnames; nanchk_cum=crossseccummomentsizes;
+            else
+                nanchk_names=agecrosssecmomentnames; nanchk_cum=agecrossseccummomentsizes;
+            end
+            for cc=1:size(nanchk_names,1)
+                if cc==1
+                    nanchk_idx=nanchk_sofar+1:nanchk_sofar+nanchk_cum(1);
+                else
+                    nanchk_idx=nanchk_sofar+nanchk_cum(cc-1)+1:nanchk_sofar+nanchk_cum(cc);
+                end
+                if all(isnan(targetmomentvec(nanchk_idx)))
+                    warning(['TargetMoments.',nanchk_kinds{nanchk_kk},'.',strjoin(nanchk_names(cc,~cellfun(@isempty,nanchk_names(cc,:))),'.'),' is NaN in full: a target that is omitted in full should not be listed (NaN is for omitting some of its entries); it is dropped'])
+                end
+            end
+            nanchk_sofar=nanchk_sofar+nanchk_cum(end);
+        end
+    end
     %% The selectors for simoptions.whichcombos/whichstats (used by CalibrateLifeCycleModel when caliboptions.whichcombos=1)
     selectors=struct();
     if buildselectors==1
@@ -810,6 +848,13 @@ elseif useptype==1
             ff=find(strcmp(FnNamesA,rowfn{cc}));
             pp=rowpage(cc);
             ss_slot=rowslot(cc);
+            temp=TargetMoments.AllStats; % the target's values: a target that is NaN in full selects nothing (it is dropped, with a warning below)
+            for kk=1:size(allstatmomentnames,2)
+                if ~isempty(allstatmomentnames{cc,kk})
+                    temp=temp.(allstatmomentnames{cc,kk});
+                end
+            end
+            rowallnan=all(isnan(temp(:)));
             switch rowstat{cc} % see StatsFromWeightedGrid: 1 Mean, 2 Median, 3 Variance/StdDeviation, 4 Gini(3)/LorenzCurve(1), 5 Minimum/Maximum, 6 Quantiles, 7 MoreInequality
                 case 'Mean'
                     AllStats_whichstats(1)=1; sidx=1;
@@ -835,7 +880,7 @@ elseif useptype==1
                 otherwise
                     error(['TargetMoments.AllStats: ',rowstat{cc},' is not a statistic that AllStats produces (Mean, Median, RatioMeanToMedian, Variance, StdDeviation, Gini, LorenzCurve, Minimum, Maximum, QuantileCutoffs, QuantileMeans, MoreInequality)'])
             end
-            if buildselectors==1
+            if buildselectors==1 && rowallnan==0
                 for ss=sidx
                     if ss==4 % Gini/LorenzCurve: 3 is Gini only, 1 is the Lorenz curve (and Gini); a LorenzCurve target overrides a Gini-only 3
                         if strcmp(rowstat{cc},'LorenzCurve')
@@ -1409,6 +1454,37 @@ elseif useptype==1
             crosssecmomentnames=xnames; crossseccummomentsizes=xcumsizes; FnsToEvaluate_CrossSec=FnsX; CrossSec_whichcombos=wcX;
         else
             agecrosssecmomentnames=xnames; agecrossseccummomentsizes=xcumsizes; FnsToEvaluate_AgeCrossSec=FnsX; AgeCrossSec_whichcombos=wcX;
+        end
+    end
+    %% A target that is NaN in full is dropped, with a warning (NaN is for omitting some entries of a target, ages or matrix entries; a
+    % target omitted in full should not be listed, and with caliboptions.whichcombos=1 nothing is computed for it)
+    nanchk_kinds={'AllStats','AgeConditionalStats','AutoCorrTransProbs','CrossSectionCovarCorr','AgeConditionalCrossSectionCovarCorr'};
+    nanchk_using=[usingallstats,usinglcp,usingautocorr,usingcrosssec,usingagecrosssec];
+    nanchk_sofar=0;
+    for nanchk_kk=1:5
+        if nanchk_using(nanchk_kk)==1
+            if nanchk_kk==1
+                nanchk_names=allstatmomentnames; nanchk_cum=allstatcummomentsizes;
+            elseif nanchk_kk==2
+                nanchk_names=acsmomentnames; nanchk_cum=acscummomentsizes;
+            elseif nanchk_kk==3
+                nanchk_names=autocorrmomentnames; nanchk_cum=autocorrcummomentsizes;
+            elseif nanchk_kk==4
+                nanchk_names=crosssecmomentnames; nanchk_cum=crossseccummomentsizes;
+            else
+                nanchk_names=agecrosssecmomentnames; nanchk_cum=agecrossseccummomentsizes;
+            end
+            for cc=1:size(nanchk_names,1)
+                if cc==1
+                    nanchk_idx=nanchk_sofar+1:nanchk_sofar+nanchk_cum(1);
+                else
+                    nanchk_idx=nanchk_sofar+nanchk_cum(cc-1)+1:nanchk_sofar+nanchk_cum(cc);
+                end
+                if all(isnan(targetmomentvec(nanchk_idx)))
+                    warning(['TargetMoments.',nanchk_kinds{nanchk_kk},'.',strjoin(nanchk_names(cc,~cellfun(@isempty,nanchk_names(cc,:))),'.'),' is NaN in full: a target that is omitted in full should not be listed (NaN is for omitting some of its entries); it is dropped'])
+                end
+            end
+            nanchk_sofar=nanchk_sofar+nanchk_cum(end);
         end
     end
     %% The selectors (used by CalibrateLifeCycleModel_PType when caliboptions.whichcombos=1)

@@ -475,6 +475,33 @@ if useptype==0
         CrossSec_whichcombos=[];
     end
 
+    %% A target that is NaN in full is dropped, with a warning (NaN is for omitting some entries of a target, matrix entries; a target
+    % omitted in full should not be listed, and with caliboptions.whichcombos=1 nothing is computed for it; the objective skips it)
+    nanchk_kinds={'AllStats','AutoCorrTransProbs','CrossSectionCovarCorr'};
+    nanchk_using=[usingallstats,usingautocorr,usingcrosssec];
+    nanchk_sofar=0;
+    for nanchk_kk=1:3
+        if nanchk_using(nanchk_kk)==1
+            if nanchk_kk==1
+                nanchk_names=allstatmomentnames; nanchk_cum=allstatcummomentsizes;
+            elseif nanchk_kk==2
+                nanchk_names=autocorrmomentnames; nanchk_cum=autocorrcummomentsizes;
+            else
+                nanchk_names=crosssecmomentnames; nanchk_cum=crossseccummomentsizes;
+            end
+            for cc=1:size(nanchk_names,1)
+                if cc==1
+                    nanchk_idx=nanchk_sofar+1:nanchk_sofar+nanchk_cum(1);
+                else
+                    nanchk_idx=nanchk_sofar+nanchk_cum(cc-1)+1:nanchk_sofar+nanchk_cum(cc);
+                end
+                if all(isnan(targetmomentvec(nanchk_idx)))
+                    warning(['TargetMoments.',nanchk_kinds{nanchk_kk},'.',strjoin(nanchk_names(cc,~cellfun(@isempty,nanchk_names(cc,:))),'.'),' is NaN in full: a target that is omitted in full should not be listed (NaN is for omitting some of its entries); it is dropped'])
+                end
+            end
+            nanchk_sofar=nanchk_sofar+nanchk_cum(end);
+        end
+    end
     %% The selectors for simoptions.whichcombos/whichstats (used by CalibrateInfHorzAgentModel when caliboptions.whichcombos=1)
     selectors=struct();
     if buildselectors==1
