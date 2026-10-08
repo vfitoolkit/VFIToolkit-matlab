@@ -76,12 +76,24 @@ qstar=qd(lin);
 rstar=rd(lin);
 lowstar=loweredge(lin);
 
+% THE TOP OF THE GRID. The agent distribution code always forms the UPPER grid point as P1+1 (see
+% TransitionPath_InfHorz_substeps_Step2_AdjustPolicy), so the toolkit's GI convention is P1<=N_a-1,
+% with the top grid point spelled (N_a-1, L2=ngridinterp+2) rather than (N_a, L2=1). The standard GI
+% raw gets this free from clamping its midpoint to [2,N_a-1]. Here loweredge+q reaches N_a exactly
+% when the window has slid to the top of the grid (loweredge=N_a-2n) and the optimum is the window's
+% top coarse point (q=2n, which forces r=0) -- a household saving to the top of the grid. That one
+% case is re-spelled onto the cell below, which is the SAME fine point.
+% Left unspelled it is an out-of-range index in the sparse() that builds the distribution transition,
+% and the error surfaces far away in AgentDist_InfHorz_TPath_SingleStep_nProbs_raw. The value fn
+% tests compare the DECODED fine point, which is correct either way, so they cannot see this: it is
+% a convention on the SPELLING, and only the agent distribution depends on it.
+attop=(lowstar+qstar==N_a);
 Policy(1,:,:)=shiftdim(dstar,-1);
-Policy(2,:,:)=shiftdim(lowstar+qstar,-1); % lower coarse grid point
-Policy(3,:,:)=shiftdim(rstar+1,-1);       % L2, from 1 (on the lower point) to 1+n2short
+Policy(2,:,:)=shiftdim(lowstar+qstar-attop,-1);        % lower coarse grid point, never N_a
+Policy(3,:,:)=shiftdim(rstar+1+attop*(1+n2short),-1);  % L2, 1 to 1+n2short, or n2short+2 at the very top
 
-% NOTE ON THE ENCODING, as in the no-d GI version: L2 runs 1 to 1+n2short and never reaches the
-% n2short+2 the GI raw can emit. (P1,n2short+2) and (P1+1,1) are the same fine point and this names
+% NOTE ON THE ENCODING, as in the no-d GI version: L2 runs 1 to 1+n2short, reaching the n2short+2
+% the GI raw can emit only in the top-of-grid case just above. (P1,n2short+2) and (P1+1,1) are the same fine point and this names
 % it the second way, always. Compare the decoded fine point, (1+n2short)*(P1-1)+L2.
 
 %% L2 flag, for the cell the chosen d landed in
