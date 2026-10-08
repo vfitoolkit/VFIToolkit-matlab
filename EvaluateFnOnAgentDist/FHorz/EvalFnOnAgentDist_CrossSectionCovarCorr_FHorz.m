@@ -22,7 +22,7 @@ if ~exist('simoptions','var')
     simoptions.gridinterplayer=0;
     simoptions.n_semiz=0;
     simoptions.n_e=0;
-    simoptions.warnzerorestrictedmass=1; % =0 silences the warning that a conditional restriction has zero mass (the PType wrappers set this, and warn once at the population level instead)
+    simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     % Internal options
     simoptions.alreadygridvals=0;
     simoptions.alreadygridvals_semiexo=0;
@@ -39,7 +39,7 @@ else
         simoptions.n_e=0;
     end
     if ~isfield(simoptions,'warnzerorestrictedmass')
-        simoptions.warnzerorestrictedmass=1; % =0 silences the warning that a conditional restriction has zero mass (the PType wrappers set this, and warn once at the population level instead)
+        simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     end
     % Internal options
     if ~isfield(simoptions,'alreadygridvals')
@@ -164,7 +164,7 @@ if useCondlRest==1
         restrictedsamplemass(rr)=sum(StationaryDistVec.*RestrictionMask{rr}); % mass that satisfies the restriction
 
         if restrictedsamplemass(rr)==0
-            if simoptions.warnzerorestrictedmass==1
+            if simoptions.warnzerorestrictedmass==2
                 warning('One of the conditional restrictions evaluates to a zero mass')
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
             end

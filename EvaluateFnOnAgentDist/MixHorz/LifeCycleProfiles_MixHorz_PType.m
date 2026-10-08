@@ -53,6 +53,7 @@ if ~exist('simoptions','var')
         % lowmemory=0 has outerloop over ptype and inner loop of fnstoeval; lowmemory=1 has outerloop over fnstoeval, inner loop over ptype
     simoptions.verbose=0;
     simoptions.verboseparams=0;
+    simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     simoptions.alreadygridvals_semiexo=0;
     defaultagegroupings=1;
     if isstruct(N_j)
@@ -92,6 +93,9 @@ else
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=100;
+    end
+    if ~isfield(simoptions,'warnzerorestrictedmass')
+        simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     end
     if ~isfield(simoptions,'agegroupings')
         defaultagegroupings=1;
@@ -593,6 +597,10 @@ if simoptions.lowmemory==0
                 RestrictionStruct_ii(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec;
 
                 AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(iistr)=restrictedsamplemass(ii,:,rr); % Seems likely this would be something user might want
+                if all(restrictedsamplemass(ii,:,rr)==0) && simoptions.warnzerorestrictedmass==2
+                    warning(['One of the conditional restrictions evaluates to a zero mass (at all j) for permanent type ',iistr])
+                    fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass for this permanent type \n'])
+                end
 
             end
         end
@@ -1173,8 +1181,8 @@ if simoptions.lowmemory==0
 
     if useCondlRest==1 % Store the restricted masses
         for rr=1:length(CondlRestnFnNames)
-            if sum(sum(restrictedsamplemass(:,:,rr)))==0
-                warning('One of the conditional restrictions evaluates to a zero mass')
+            if sum(sum(restrictedsamplemass(:,:,rr)))==0 && simoptions.warnzerorestrictedmass>=1
+                warning('One of the conditional restrictions evaluates to a zero mass (for every permanent type, at all j)')
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
             end
             % Note: restrictedsamplemass(ii,j,rr) is the mass of ptype ii at age j that satisfies the restriction, as a share of ptype ii (so it already includes the age weights)

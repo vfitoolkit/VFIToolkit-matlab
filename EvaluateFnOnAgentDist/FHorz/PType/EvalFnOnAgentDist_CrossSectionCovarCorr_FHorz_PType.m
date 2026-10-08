@@ -54,6 +54,7 @@ if ~exist('simoptions','var')
     simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu (off by default)
     simoptions.verbose=0;
     simoptions.verboseparams=0;
+    simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
 else
     if ~isfield(simoptions,'groupptypesforstats')
         simoptions.groupptypesforstats=1;
@@ -63,6 +64,9 @@ else
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
+    end
+    if ~isfield(simoptions,'warnzerorestrictedmass')
+        simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     end
     if ~isfield(simoptions,'verboseparams')
         simoptions.verboseparams=0;
@@ -152,7 +156,6 @@ for ii=1:N_i
 
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,iistr); % Note: already check for existence of simoptions and created it if it was not inputted
-    simoptions_temp.warnzerorestrictedmass=0; % a type with no mass under a restriction is not a warning (the population-level check is below)
     % PType_Options only keeps a structure-valued option when it has a field for this type, so the
     % conditional restrictions (a structure of functions) have to be put back; a restriction may
     % itself be a structure with a field per type.
@@ -263,7 +266,7 @@ if useCondlRest==1
     for rr=1:length(CondlRestnFnNames)
         PageOut{1+rr}.RestrictedSampleMass.ByPType=MassFactor(:,1+rr); % conditional on type, what fraction satisfy the restriction
         PageOut{1+rr}.RestrictedSampleMass.Total=sum(ptweights.*MassFactor(:,1+rr)); % what fraction of the population satisfy the restriction
-        if PageOut{1+rr}.RestrictedSampleMass.Total==0
+        if PageOut{1+rr}.RestrictedSampleMass.Total==0 && simoptions.warnzerorestrictedmass>=1
             warning('One of the conditional restrictions evaluates to a zero mass (for every permanent type)')
             fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
         end

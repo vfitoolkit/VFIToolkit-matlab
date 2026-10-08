@@ -205,7 +205,7 @@ if isfield(simoptions,'conditionalrestrictions')
             restrictedsamplemass=sum(RestrictedStationaryDistVec);
             RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass; % Normalize to mass one
 
-            if restrictedsamplemass==0
+            if restrictedsamplemass==0 && simoptions.warnzerorestrictedmass==2
                 warning('One of the conditional restrictions evaluates to a zero mass')
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
                 AggVars.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
@@ -262,7 +262,7 @@ if isfield(simoptions,'conditionalrestrictions')
             restrictedsamplemass=sum(RestrictedStationaryDistVec);
             RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass; % Normalize to mass one
 
-            if restrictedsamplemass==0
+            if restrictedsamplemass==0 && simoptions.warnzerorestrictedmass==2
                 warning('One of the conditional restrictions evaluates to a zero mass')
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
                 AggVars.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user

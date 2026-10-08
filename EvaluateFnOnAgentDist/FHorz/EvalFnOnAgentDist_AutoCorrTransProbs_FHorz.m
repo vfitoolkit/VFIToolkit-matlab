@@ -66,7 +66,7 @@ if ~exist('simoptions','var')
     simoptions.n_semiz=0;
     simoptions.n_e=0;
     % Other endogenous states
-    simoptions.warnzerorestrictedmass=1; % =0 silences the warning that a conditional restriction has zero mass (the PType wrappers set this, and warn once at the population level instead)
+    simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     simoptions.experienceasset=0;
     simoptions.inheritanceasset=0;
     % Internal options
@@ -96,7 +96,7 @@ else
         simoptions.n_e=0;
     end
     if ~isfield(simoptions,'warnzerorestrictedmass')
-        simoptions.warnzerorestrictedmass=1; % =0 silences the warning that a conditional restriction has zero mass (the PType wrappers set this, and warn once at the population level instead)
+        simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     end
     % Other endogenous states
     if ~isfield(simoptions,'experienceasset')
@@ -302,7 +302,7 @@ if isfield(simoptions,'conditionalrestrictions')
             end
         end
         CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass=sum(StationaryDist.*RestrictionValues(:,:,rr),1);
-        if all(CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass==0) && simoptions.warnzerorestrictedmass==1
+        if all(CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass==0) && simoptions.warnzerorestrictedmass==2
             warning('One of the conditional restrictions evaluates to a zero mass (at all j)')
             fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
         end

@@ -55,6 +55,7 @@ if ~exist('simoptions','var')
     simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     simoptions.verbose=0;
     simoptions.verboseparams=0;
+    simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
@@ -75,6 +76,9 @@ else
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=100;
+    end
+    if ~isfield(simoptions,'warnzerorestrictedmass')
+        simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     end
     if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=20; % by default gives ventiles
@@ -349,8 +353,8 @@ for ii=1:N_i
             % Store for later
             RestrictionStruct_ii(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec;
 
-            if restrictedsamplemass(ii,rr)==0
-                warning('One of the conditional restrictions evaluates to a zero mass')
+            if restrictedsamplemass(ii,rr)==0 && simoptions.warnzerorestrictedmass==2
+                warning(['One of the conditional restrictions evaluates to a zero mass for permanent type ',iistr])
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
                 AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(iistr)=restrictedsamplemass(ii,rr); % Just return this and hopefully it is clear to the user
             else
@@ -487,6 +491,10 @@ if useCondlRest==1
         % Population mass in the restriction. Note the per-ptype RestrictedSampleMass.(iistr) above are WITHIN-type shares, so this is
         % their ptweights-weighted sum, not their plain sum (which is not a mass at all and can exceed one). Always filled, whichcombos or not.
         AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr));
+        if AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes==0 && simoptions.warnzerorestrictedmass>=1
+            warning('One of the conditional restrictions evaluates to a zero mass (for every permanent type)')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+        end
     end
 end
 for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid

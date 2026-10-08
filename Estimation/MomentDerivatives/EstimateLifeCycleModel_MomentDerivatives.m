@@ -75,6 +75,9 @@ end
 if ~isfield(simoptions,'nquantiles')
     simoptions.nquantiles=20; % follow defaults elsewhere
 end
+if ~isfield(simoptions,'warnzerorestrictedmass')
+    simoptions.warnzerorestrictedmass=0; % the EvalFnOnAgentDist commands default to 2 (warn whenever a conditional restriction has zero mass); inside an estimation/calibration loop that would print on every evaluation, so default to silent
+end
 
 
 %% Setup for which parameters are being estimated

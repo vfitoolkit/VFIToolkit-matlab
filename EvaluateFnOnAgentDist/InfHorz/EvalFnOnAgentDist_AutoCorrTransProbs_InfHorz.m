@@ -48,6 +48,7 @@ if ~exist('simoptions','var')
     simoptions.experienceassetze=0;
     simoptions.inheritanceasset=0;
     simoptions.n_e=0;
+    simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     simoptions.n_semiz=0;
 else
     % Check simoptions for missing fields, if there are some fill them with the defaults
@@ -82,6 +83,9 @@ else
     end
     if ~isfield(simoptions,'n_e')
         simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'warnzerorestrictedmass')
+        simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     end
     if ~isfield(simoptions,'n_semiz')
         simoptions.n_semiz=0;
@@ -187,7 +191,7 @@ if isfield(simoptions,'conditionalrestrictions')
         CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames);
         RestrictionValues(:,rr)=reshape(gather(logical(EvalFnOnAgentDist_Grid(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_ze,a_gridvals,ze_gridvals))),[N_states,1]);
         CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass=sum(StationaryDist.*RestrictionValues(:,rr));
-        if CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass==0
+        if CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass==0 && simoptions.warnzerorestrictedmass==2
             warning('One of the conditional restrictions evaluates to a zero mass')
             fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
         end

@@ -445,6 +445,9 @@ end
 % precomputed by the time we get to the value fn, stationary dist, etc. So
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
+if ~isfield(simoptions,'warnzerorestrictedmass')
+    simoptions.warnzerorestrictedmass=0; % the EvalFnOnAgentDist commands default to 2 (warn whenever a conditional restriction has zero mass); inside an estimation/calibration loop that would print on every evaluation, so default to silent
+end
 
 % Same for semi-exogenous shocks
 estimoptions.calibsemiexo=0; % use =0 to also cover models without semi-exogenous shocks

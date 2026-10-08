@@ -55,6 +55,7 @@ if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
     simoptions.verbose=0;
     simoptions.verboseparams=0;
+    simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     simoptions.timehorizons=[];
 else
     if ~isfield(simoptions,'groupptypesforstats')
@@ -62,6 +63,9 @@ else
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
+    end
+    if ~isfield(simoptions,'warnzerorestrictedmass')
+        simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     end
     if ~isfield(simoptions,'verboseparams')
         simoptions.verboseparams=0;
@@ -237,6 +241,10 @@ if useCondlRest==1
         end
         CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByPType=RSMVec; % conditional on type, what fraction satisfy the restriction
         CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass.Total=sum(ptweights.*RSMVec); % what fraction of the population satisfy the restriction
+        if CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass.Total==0 && simoptions.warnzerorestrictedmass>=1
+            warning('One of the conditional restrictions evaluates to a zero mass (for every permanent type)')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+        end
     end
 end
 
