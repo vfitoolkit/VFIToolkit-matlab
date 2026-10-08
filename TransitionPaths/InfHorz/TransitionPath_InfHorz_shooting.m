@@ -55,12 +55,20 @@ end
 %     per-iteration movement that lsmovemax reports.
 % (2) RESIDUAL CONTAMINATION: at each iteration, the general eqm residual from the restricted sweep
 %     against the residual an EXACT sweep gives at the SAME prices. That difference is what Anderson
-%     would be differencing into DeltaF, and what matters is its size relative to the genuine change
-%     in residual between iterations, so both are accumulated and the ratio reported. Measuring this
-%     costs a second full iteration each time, which is why it is off by default.
+%     would be differencing into DeltaF. What matters is its size relative to the GENUINE change in
+%     residual between iterations, and that ratio is taken PER ITERATION, never as one maximum
+%     divided by another: the genuine change is largest early and the contamination matters most
+%     late, when the residual has nearly stopped moving, so dividing the two maxima would report a
+%     flattering number drawn from two different iterations. The per-iteration ratio's maximum, and
+%     its value on the last iteration, are the two numbers that bear on Anderson.
+%     Each ratio is taken between the two arrays' max-abs within one iteration, not elementwise: an
+%     individual condition can be momentarily stationary, giving a denominator near zero and a ratio
+%     that says nothing.
+%     Measuring this costs a second full iteration each time, which is why it is off by default.
 aprimeReferenceSeed=[];
 lscumulmax=0;
 lscontam=0; lsdF=0; GEcondnPathPrev=[];
+lsratiomax=0; lsratiolast=NaN; lscontamlast=NaN; lsdFlast=NaN; lsratioiter=0;
 converged=0;
 while itercounter<=transpathoptions.maxiter % convergence is tested further down, at the point where the distances are known, so that the loop stops on the path it just evaluated
 
@@ -166,16 +174,30 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
         else
             lscumulmax=max(lscumulmax,gather(max(abs(aprimeReferencePath-aprimeReferenceSeed),[],'all')));
         end
+        contamnow=NaN;
         if vfoptions.localsearch==1
             % The same prices, solved exactly. vfoptionsX is this iteration's options with the
             % restriction off; the reference goes in as [] because a standard sweep does not read one.
+            % PolicyIndexesPath goes in unchanged because Step1 treats it as scratch and overwrites it,
+            % so handing over the restricted sweep's copy cannot contaminate this exact evaluation.
             vfoptionsX=vfoptions;
             vfoptionsX.localsearch=0;
             GEcondnPathX=TransitionPath_InfHorz_singlepathiter(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, n_e, N_a, N_z, N_e, l_d, l_aprime, d_gridvals, aprime_gridvals, a_gridvals, a_grid, z_gridvals, e_gridvals, ze_gridvals, pi_z, pi_z_sparse, pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptionsX, simoptions, transpathoptions, itercounter, PolicyIndexesPath, [], N_probs, II1, II2);
-            lscontam=max(lscontam,gather(max(abs(GEcondnPath-GEcondnPathX),[],'all')));
+            contamnow=gather(max(abs(GEcondnPath-GEcondnPathX),[],'all'));
+            lscontam=max(lscontam,contamnow);
         end
+        dFnow=NaN;
         if ~isempty(GEcondnPathPrev)
-            lsdF=max(lsdF,gather(max(abs(GEcondnPath-GEcondnPathPrev),[],'all')));
+            dFnow=gather(max(abs(GEcondnPath-GEcondnPathPrev),[],'all'));
+            lsdF=max(lsdF,dFnow);
+        end
+        % Both defined means this is a restricted sweep with a predecessor, which is exactly an
+        % iteration whose residual difference Anderson would have put in DeltaF.
+        if ~isnan(contamnow) && ~isnan(dFnow)
+            rationow=contamnow/max(dFnow,realmin);
+            lsratiomax=max(lsratiomax,rationow);
+            lsratiolast=rationow; lscontamlast=contamnow; lsdFlast=dFnow;
+            lsratioiter=lsratioiter+1;
         end
         GEcondnPathPrev=GEcondnPath;
     end
@@ -238,7 +260,15 @@ if uselocalsearch==1
         % a residual against the genuine change in residual between iterations, which is the quantity
         % its DeltaF history actually holds.
         fprintf('Local search diagnostic: policy ended %i grid points from the FIRST reference (against %i per iteration), so a frozen reference needs nlocalsearch=%i \n',lscumulmax,lsmovemax,lscumulmax)
-        fprintf('Local search diagnostic: residual contamination %.3e against a between-iteration residual change of %.3e, a ratio of %.3e \n',lscontam,lsdF,lscontam/max(lsdF,realmin))
+        fprintf('Local search diagnostic: largest residual contamination %.3e, largest between-iteration residual change %.3e, over %i measured iteration(s) \n',lscontam,lsdF,lsratioiter)
+        fprintf('Local search diagnostic: the PER-ITERATION ratio of contamination to residual change peaked at %.3e, and on the last measured iteration was %.3e (contamination %.3e against a change of %.3e) \n',lsratiomax,lsratiolast,lscontamlast,lsdFlast)
+        % Below about 1e-2 the restricted residuals are signal and Anderson's DeltaF history is sound.
+        % Approaching or above 1 the differences Anderson would extrapolate from are mostly the error
+        % the restriction introduces, so a per-iteration reference cannot be handed to it and the
+        % choice is between a frozen reference and a fork that re-solves exactly before each update.
+        if lsratiomax>=1
+            fprintf('Local search diagnostic: WARNING the contamination reached the size of the residual change itself, so a per-iteration reference would give Anderson a DeltaF history made mostly of restriction error \n')
+        end
     end
 end
 
