@@ -66,6 +66,7 @@ if ~exist('simoptions','var')
     simoptions.n_semiz=0;
     simoptions.n_e=0;
     % Other endogenous states
+    simoptions.warnzerorestrictedmass=1; % =0 silences the warning that a conditional restriction has zero mass (the PType wrappers set this, and warn once at the population level instead)
     simoptions.experienceasset=0;
     simoptions.inheritanceasset=0;
     % Internal options
@@ -93,6 +94,9 @@ else
     end
     if ~isfield(simoptions,'n_e')
         simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'warnzerorestrictedmass')
+        simoptions.warnzerorestrictedmass=1; % =0 silences the warning that a conditional restriction has zero mass (the PType wrappers set this, and warn once at the population level instead)
     end
     % Other endogenous states
     if ~isfield(simoptions,'experienceasset')
@@ -298,7 +302,7 @@ if isfield(simoptions,'conditionalrestrictions')
             end
         end
         CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass=sum(StationaryDist.*RestrictionValues(:,:,rr),1);
-        if all(CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass==0)
+        if all(CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass==0) && simoptions.warnzerorestrictedmass==1
             warning('One of the conditional restrictions evaluates to a zero mass (at all j)')
             fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
         end

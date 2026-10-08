@@ -28,6 +28,7 @@ if ~exist('simoptions','var')
     simoptions.gridinterplayer=0;
     simoptions.n_semiz=0;
     simoptions.n_e=0;
+    simoptions.warnzerorestrictedmass=1; % =0 silences the warning that a conditional restriction has zero mass (the PType wrappers set this, and warn once at the population level instead)
     % Internal options
     simoptions.alreadygridvals=0;
     simoptions.alreadygridvals_semiexo=0;
@@ -45,6 +46,9 @@ else
     end
     if ~isfield(simoptions,'n_e')
         simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'warnzerorestrictedmass')
+        simoptions.warnzerorestrictedmass=1; % =0 silences the warning that a conditional restriction has zero mass (the PType wrappers set this, and warn once at the population level instead)
     end
     % Internal options
     if ~isfield(simoptions,'alreadygridvals')
@@ -191,7 +195,7 @@ if useCondlRest==1
         RestrictionMask{rr}=RestrictionValues;
         restrictedsamplemass(rr,:)=sum(StationaryDist.*RestrictionMask{rr},1); % mass at each age that satisfies the restriction (includes the age weights)
 
-        if all(restrictedsamplemass(rr,:)==0)
+        if all(restrictedsamplemass(rr,:)==0) && simoptions.warnzerorestrictedmass==1
             warning('One of the conditional restrictions evaluates to a zero mass (at all j)')
             fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
         end

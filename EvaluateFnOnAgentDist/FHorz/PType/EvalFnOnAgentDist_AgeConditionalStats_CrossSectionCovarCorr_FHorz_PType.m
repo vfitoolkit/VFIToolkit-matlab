@@ -179,6 +179,7 @@ for ii=1:N_i
 
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,iistr); % Note: already check for existence of simoptions and created it if it was not inputted
+    simoptions_temp.warnzerorestrictedmass=0; % a type with no mass under a restriction is not a warning (the population-level check is below)
     % PType_Options only keeps a structure-valued option when it has a field for this type, so the
     % conditional restrictions (a structure of functions) have to be put back; a restriction may
     % itself be a structure with a field per type.
@@ -304,6 +305,10 @@ if useCondlRest==1
         PageOut{1+rr}.RestrictedSampleMass.ByAge=sum(RestrictedMassByAge(:,:,rr).*ptweights,1); % mass at each age that satisfies the restriction, as a share of the whole population
         PageOut{1+rr}.RestrictedSampleMass.ByPType=sum(RestrictedMassByAge(:,:,rr),2); % conditional on type, what fraction satisfy the restriction
         PageOut{1+rr}.RestrictedSampleMass.Total=sum(ptweights.*sum(RestrictedMassByAge(:,:,rr),2)); % what fraction of the population satisfy the restriction
+        if PageOut{1+rr}.RestrictedSampleMass.Total==0
+            warning('One of the conditional restrictions evaluates to a zero mass (for every permanent type, at all j)')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+        end
     end
 end
 if simoptions.groupptypesforstats==1

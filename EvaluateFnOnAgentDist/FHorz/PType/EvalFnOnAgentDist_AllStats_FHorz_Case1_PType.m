@@ -305,10 +305,7 @@ for ii=1:N_i
             % Note: if the restriction is zero mass for this ptype its restricted stats are NaN (0/0 below), which is the correct
             % behaviour: the conditional moment of a group that does not exist is unknown (and the grouped stats are then also NaN).
             AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(iistr)=restrictedsamplemass(ii,rr); % Seems likely this would be something user might want
-            if restrictedsamplemass(ii,rr)==0
-                warning('One of the conditional restrictions evaluates to a zero mass')
-                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
-            end
+            % (a type with no mass under the restriction is not a warning: the population-level check is after the loop over types)
         end
     end
 
@@ -341,6 +338,10 @@ if useCondlRest==1
         % Population mass in the restriction: the per-ptype RestrictedSampleMass.(iistr) above are WITHIN-type shares, so this is their
         % ptweights-weighted sum (not their plain sum, which is not a mass at all and can exceed one). Always filled, whichcombos or not.
         AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(StationaryDist.ptweights(:).*restrictedsamplemass(:,rr));
+        if AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes==0
+            warning('One of the conditional restrictions evaluates to a zero mass (for every permanent type)')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+        end
     end
 end
 if simoptions.groupusingtdigest==1
