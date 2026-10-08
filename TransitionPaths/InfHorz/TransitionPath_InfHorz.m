@@ -185,6 +185,14 @@ end
 
 
 %% Check which vfoptions have been used, set all others to defaults
+% A diagnostic for vfoptions.localsearch, off by default. Defaulted HERE rather than inside the
+% localsearch validation, because TransitionPath_InfHorz_shooting reads it on every solve and MATLAB
+% evaluates the first operand of && before it can short-circuit, so an unset field errors even when
+% local search is off. See the report at the end of TransitionPath_InfHorz_shooting.
+if ~isfield(transpathoptions,'localsearchdiagnostic')
+    transpathoptions.localsearchdiagnostic=0;
+end
+
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
@@ -255,6 +263,22 @@ else
         % ngridinterp points between, so the layer would do nothing at all. Neither is a solver.
         if vfoptions.nlocalsearch<1
             error('vfoptions.nlocalsearch must be at least 1')
+        end
+        % nlocalsearch is the STARTING window. TransitionPath_InfHorz_shooting ratchets it: up by
+        % nlocalsearchup whenever the answer sat on a window edge anywhere (excluding the grid's own
+        % edges, which are corner solutions rather than a window that is too narrow), and down by
+        % nlocalsearchdown otherwise. It resets to nlocalsearch after every standard sweep.
+        % Up is larger than down by default because the costs are asymmetric: too narrow means an
+        % approximate sweep, recovered only through an extra verification round, while too wide costs
+        % only a little speed.
+        if ~isfield(vfoptions,'nlocalsearchup')
+            vfoptions.nlocalsearchup=2;
+        end
+        if ~isfield(vfoptions,'nlocalsearchdown')
+            vfoptions.nlocalsearchdown=1;
+        end
+        if vfoptions.nlocalsearchup<1 || vfoptions.nlocalsearchdown<1
+            error('vfoptions.nlocalsearchup and vfoptions.nlocalsearchdown must both be at least 1')
         end
         % Only the shooting algorithm carries the reference policy from one iteration to the next.
         % Anderson hands a PURE residual function to AndersonAcceleration, which is shared with the

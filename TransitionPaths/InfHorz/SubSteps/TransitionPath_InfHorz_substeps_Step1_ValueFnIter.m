@@ -55,11 +55,12 @@ elseif N_z>0 && N_e==0
     else
         aprimechannel=1+length(n_d);
     end
+    N_a=prod(n_a);
     if isempty(aprimeReferencePath)
-        aprimeReferencePath=zeros(1,prod(n_a),N_z,T-1,'gpuArray');
+        aprimeReferencePath=zeros(1,N_a,N_z,T-1,'gpuArray');
     end
     if vfoptions.localsearch==1
-        lsdiag.movemax=0; lsdiag.nbind=0; lsdiag.ntotal=0;
+        lsdiag.movemax=0; lsdiag.nedge=0; lsdiag.ntotal=0;
     end
     % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     % Since we won't need to keep the value functions for anything later we just store the current one in V
@@ -91,10 +92,35 @@ elseif N_z>0 && N_e==0
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
 
         if vfoptions.localsearch==1
-            lsmove=abs(aprimeRefNew-refslot);
-            lsdiag.movemax=max(lsdiag.movemax,gather(max(lsmove,[],'all')));
-            lsdiag.nbind=lsdiag.nbind+gather(sum(lsmove>=vfoptions.nlocalsearch,'all'));
-            lsdiag.ntotal=lsdiag.ntotal+numel(lsmove);
+            % THE EDGE TEST, which is what drives the ratchet on nlocalsearch. The window is
+            % recomputed here from the reference this sweep was handed, by the same line the raw uses.
+            nls=vfoptions.nlocalsearch;
+            loweredge=min(max(refslot-nls,1),N_a-2*nls);
+            if vfoptions.gridinterplayer==0
+                hitbottom=(Policy(aprimechannel,:,:)==loweredge);
+                hittop=(Policy(aprimechannel,:,:)==loweredge+2*nls);
+            else
+                % Only the window's two extreme COARSE points count. The top fine point of the window
+                % sits exactly on coarse node loweredge+2*nls, which the raw encodes as (that node,
+                % L2=1), and the bottom as (loweredge, L2=1). A fine point one step inside the last
+                % coarse point gives L2>1 and so correctly does not ratchet.
+                hitbottom=(Policy(aprimechannel,:,:)==loweredge) & (Policy(aprimechannel+1,:,:)==1);
+                hittop=(Policy(aprimechannel,:,:)==loweredge+2*nls) & (Policy(aprimechannel+1,:,:)==1);
+            end
+            % The CORNER EXCLUSIONS. An answer at the GRID's own edge is a corner solution -- the
+            % optimum the household wants is outside the grid -- not evidence that the window is too
+            % narrow. Without these a top-of-grid saver, or a household at its borrowing constraint,
+            % would sit on a window edge on every iteration forever and ratchet nlocalsearch to its
+            % cap, where the search covers the whole grid and the restriction is pure overhead.
+            hitbottom=hitbottom & (loweredge>1);
+            hittop=hittop & (loweredge+2*nls<N_a);
+            lsdiag.nedge=lsdiag.nedge+gather(sum(hitbottom | hittop,'all'));
+            % movemax is BOUNDED BY THE WINDOW: at most nls at an interior reference and 2*nls at the
+            % grid ends. So it reports what the window ALLOWED, not how far the policy would have
+            % moved. Reported for information, never used to set nlocalsearch -- a rule fed by a
+            % censored measurement can only ratchet downwards and never recover.
+            lsdiag.movemax=max(lsdiag.movemax,gather(max(abs(aprimeRefNew-refslot),[],'all')));
+            lsdiag.ntotal=lsdiag.ntotal+numel(refslot);
             aprimeReferencePath(:,:,:,T-ttr)=aprimeRefNew;
         else
             % Converted from Policy. That channel is the aprime index without the grid interpolation

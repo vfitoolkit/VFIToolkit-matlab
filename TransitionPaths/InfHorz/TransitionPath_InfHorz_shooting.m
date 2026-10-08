@@ -36,7 +36,31 @@ uselocalsearch=vfoptions.localsearch;
 vfoptions.localsearch=0; % iteration 1 is standard
 aprimeReferencePath=[];  % Step1 allocates and fills it on that first sweep
 nverify=0;
-lsmovemax=0; lsnbind=0; lsntotal=0;
+lsmovemax=0; lsnedge=0; lsntotal=0;
+% nlocalsearch is a STARTING window, not the window. It resets to the input value on entering local
+% search -- which happens after iteration 1 and after every verification sweep -- and then ratchets:
+% up by vfoptions.nlocalsearchup whenever the answer sat on a window edge anywhere, down by
+% nlocalsearchdown otherwise. Only restricted sweeps ratchet; a standard one has no window and so
+% gives no signal. The trajectory of nlocalsearch is the diagnostic worth reading: it is what window
+% THIS application needed, found by the solver rather than guessed in advance.
+if uselocalsearch==1
+    nlocalsearchstart=vfoptions.nlocalsearch;
+    nlocalsearchcap=floor((N_a-1)/2); % at the cap the window is the whole grid
+    lsnmin=Inf; lsnmax=0; lsnup=0; lsndown=0; lsnpinned=0;
+end
+% Two measurements for the Anderson question, both gated on transpathoptions.localsearchdiagnostic.
+% (1) CUMULATIVE movement: how far the policy ends up from the reference the FIRST standard sweep
+%     produced. A frozen reference -- which is what Anderson could have without forking the shared
+%     accelerator, since its closure can capture one by value -- has to span this, not the
+%     per-iteration movement that lsmovemax reports.
+% (2) RESIDUAL CONTAMINATION: at each iteration, the general eqm residual from the restricted sweep
+%     against the residual an EXACT sweep gives at the SAME prices. That difference is what Anderson
+%     would be differencing into DeltaF, and what matters is its size relative to the genuine change
+%     in residual between iterations, so both are accumulated and the ratio reported. Measuring this
+%     costs a second full iteration each time, which is why it is off by default.
+aprimeReferenceSeed=[];
+lscumulmax=0;
+lscontam=0; lsdF=0; GEcondnPathPrev=[];
 converged=0;
 while itercounter<=transpathoptions.maxiter % convergence is tested further down, at the point where the distances are known, so that the loop stops on the path it just evaluated
 
@@ -119,8 +143,41 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
     % be made exact per iteration, which is what Anderson would require and shooting does not.
     if ~isempty(lsdiag)
         lsmovemax=max(lsmovemax,lsdiag.movemax);
-        lsnbind=lsnbind+lsdiag.nbind;
+        lsnedge=lsnedge+lsdiag.nedge;
         lsntotal=lsntotal+lsdiag.ntotal;
+        lsnmin=min(lsnmin,vfoptions.nlocalsearch);
+        lsnmax=max(lsnmax,vfoptions.nlocalsearch);
+        if lsdiag.nedge>0
+            vfoptions.nlocalsearch=min(vfoptions.nlocalsearch+vfoptions.nlocalsearchup,nlocalsearchcap);
+            lsnup=lsnup+1;
+        else
+            vfoptions.nlocalsearch=max(vfoptions.nlocalsearch-vfoptions.nlocalsearchdown,1);
+            lsndown=lsndown+1;
+        end
+        if vfoptions.nlocalsearch>=nlocalsearchcap
+            lsnpinned=lsnpinned+1;
+        end
+    end
+
+    if uselocalsearch==1 && transpathoptions.localsearchdiagnostic==1
+        if isempty(aprimeReferenceSeed)
+            % Iteration 1 is the standard sweep, so this is the reference a frozen scheme would use
+            aprimeReferenceSeed=aprimeReferencePath;
+        else
+            lscumulmax=max(lscumulmax,gather(max(abs(aprimeReferencePath-aprimeReferenceSeed),[],'all')));
+        end
+        if vfoptions.localsearch==1
+            % The same prices, solved exactly. vfoptionsX is this iteration's options with the
+            % restriction off; the reference goes in as [] because a standard sweep does not read one.
+            vfoptionsX=vfoptions;
+            vfoptionsX.localsearch=0;
+            GEcondnPathX=TransitionPath_InfHorz_singlepathiter(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, n_e, N_a, N_z, N_e, l_d, l_aprime, d_gridvals, aprime_gridvals, a_gridvals, a_grid, z_gridvals, e_gridvals, ze_gridvals, pi_z, pi_z_sparse, pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptionsX, simoptions, transpathoptions, itercounter, PolicyIndexesPath, [], N_probs, II1, II2);
+            lscontam=max(lscontam,gather(max(abs(GEcondnPath-GEcondnPathX),[],'all')));
+        end
+        if ~isempty(GEcondnPathPrev)
+            lsdF=max(lsdF,gather(max(abs(GEcondnPath-GEcondnPathPrev),[],'all')));
+        end
+        GEcondnPathPrev=GEcondnPath;
     end
 
     if PricePathDist<=transpathoptions.toleranceGEprices && GEcondnPathDist<=transpathoptions.toleranceGEcondns
@@ -142,6 +199,7 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
 
     if uselocalsearch==1 && vfoptions.localsearch==0
         vfoptions.localsearch=1; % a reference exists now, so the restricted search can start
+        vfoptions.nlocalsearch=nlocalsearchstart; % the input value is the window used immediately after every standard sweep
     end
 
     PricePathOld=updatePricePath(PricePathOld,PricePathNew,transpathoptions,T);
@@ -164,7 +222,24 @@ end
 % Printed whenever local search was used, not only when verbose is on: it is one line, it reports an
 % opt-in feature, and the bind rate is the thing a user needs in order to choose nlocalsearch at all.
 if uselocalsearch==1
-    fprintf('Local search: %i iterations, of which %i standard verification sweep(s); the largest policy move from its reference was %i grid points, so nlocalsearch=%i would never have bound; the window bound at %.2f%% of state-periods \n',itercounter,nverify,lsmovemax,lsmovemax,100*lsnbind/max(lsntotal,1))
+    fprintf('Local search: %i iterations, of which %i standard verification sweep(s) \n',itercounter,nverify)
+    if lsnup+lsndown>0
+        fprintf('Local search: nlocalsearch started at %i, ranged %i to %i, ended at %i, with %i ratchet(s) up and %i down \n',nlocalsearchstart,lsnmin,lsnmax,vfoptions.nlocalsearch,lsnup,lsndown)
+        % movemax is bounded by the window, so it says what the window allowed and not how far the
+        % policy would have moved. The edge share is the signal the ratchet actually responds to.
+        fprintf('Local search: the answer sat on a window edge, excluding the grid ends, at %.2f%% of state-periods; the largest move from a reference was %i grid points, which the window bounds \n',100*lsnedge/max(lsntotal,1),lsmovemax)
+    end
+    if lsnpinned>0
+        fprintf('Local search: WARNING nlocalsearch reached its cap of %i on %i iteration(s). At the cap the window covers the whole grid AND pays the index overhead, so local search is strictly worse than not using it on this model. \n',nlocalsearchcap,lsnpinned)
+    end
+    if transpathoptions.localsearchdiagnostic==1
+        % lscumulmax is what a FROZEN reference would have to span, against lsmovemax for a refreshed
+        % one. lscontam over lsdF is the signal-to-noise Anderson would be working with: the error in
+        % a residual against the genuine change in residual between iterations, which is the quantity
+        % its DeltaF history actually holds.
+        fprintf('Local search diagnostic: policy ended %i grid points from the FIRST reference (against %i per iteration), so a frozen reference needs nlocalsearch=%i \n',lscumulmax,lsmovemax,lscumulmax)
+        fprintf('Local search diagnostic: residual contamination %.3e against a between-iteration residual change of %.3e, a ratio of %.3e \n',lscontam,lsdF,lscontam/max(lsdF,realmin))
+    end
 end
 
 
