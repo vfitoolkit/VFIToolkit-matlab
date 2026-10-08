@@ -1,7 +1,8 @@
 function Obj=CalibrateInfHorzAgentModel_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
-% needed to be able to run ValueFnIter, StationaryDist, AllStats and
-% LifeCycleProfiles. Lastly there is caliboptions.
+% needed to be able to run ValueFnIter, StationaryDist, AllStats,
+% AutoCorrTransProbs and CrossSectionCovarCorr. Lastly there is caliboptions, which also carries
+% caliboptions.whichcombos (1 or 0), caliboptions.selectors and caliboptions.autocorrtimehorizons from SetupTargetMoments_InfHorz.
 
 % Untransform the parameters (when dealing with constraints the inputs are the transformed parameters, so want to switch them back to original model parameters)
 [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
@@ -21,7 +22,7 @@ end
 
 for pp=1:length(CalibParamNames)
     if calibomitparams_counter(pp)>0
-        currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
+        currparamraw=calibomitparamsmatrix{sum(calibomitparams_counter(1:pp))}; % (a cell since 2026-10-08: one omitted-values vector per masked parameter, of any length)
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         Parameters.(CalibParamNames{pp})=currparamraw;
     else
@@ -65,81 +66,118 @@ if usingcustomstats==1
 end
 
 %% Calculate model stats
+% caliboptions.whichcombos=1 (CalibrateInfHorzAgentModel's default): the stats commands compute only the targeted (function, statistic,
+% restriction) combinations, through simoptions.whichcombos (and, for AllStats, a per-combination simoptions.whichstats) built by
+% SetupTargetMoments_InfHorz (caliboptions.selectors). =0: every statistic of every targeted function (whichstats all ones). The three
+% commands take differently shaped selectors, so each gets its own copy of simoptions. The conditional restrictions stay in simoptions
+% for all three (restricted AutoCorr and cross-section targets are allowed since 2026-10-08; the restrictions used to be stripped
+% before those two commands).
 if usingallstats==1
-    simoptions.whichstats=AllStats_whichstats;
-    AllStats=EvalFnOnAgentDist_AllStats_InfHorz(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions);
+    simoptions_AllStats=simoptions;
+    if caliboptions.whichcombos==1
+        simoptions_AllStats.whichcombos=caliboptions.selectors.AllStats.whichcombos;
+        simoptions_AllStats.whichstats=caliboptions.selectors.AllStats.whichstats;
+    else % caliboptions.whichcombos=0: every statistic of every targeted function
+        simoptions_AllStats.whichstats=ones(1,7);
+    end
+    AllStats=EvalFnOnAgentDist_AllStats_InfHorz(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions_AllStats);
 end
 if usingautocorr==1
-    simoptions.whichstats=AutoCorrStats_whichstats;
     simoptions_AutoCorr=simoptions;
-    if isfield(simoptions_AutoCorr,'conditionalrestrictions')
-        simoptions_AutoCorr=rmfield(simoptions_AutoCorr,'conditionalrestrictions'); % the targets are unrestricted auto-covariances/-correlations (the restrictions are for the AllStats targets)
+    if isfield(simoptions,'timehorizons')
+        simoptions_AutoCorr.timehorizons=union(simoptions.timehorizons,caliboptions.autocorrtimehorizons); % the horizons the targets name (their _kK suffixes), plus any the user asked for
+    else
+        simoptions_AutoCorr.timehorizons=caliboptions.autocorrtimehorizons;
+    end
+    if caliboptions.whichcombos==1
+        simoptions_AutoCorr.whichcombos=caliboptions.selectors.AutoCorr.whichcombos; % [nFns,1+nRestr] (the command has no per-combination whichstats; it reports its byproducts)
     end
     AutoCorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz(StationaryDist,Policy,FnsToEvaluate_AutoCorrStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,simoptions_AutoCorr);
 end
 if usingcrosssec==1
-    simoptions.whichstats=CrossSecStats_whichstats;
     simoptions_CrossSec=simoptions;
-    if isfield(simoptions_CrossSec,'conditionalrestrictions')
-        simoptions_CrossSec=rmfield(simoptions_CrossSec,'conditionalrestrictions'); % the targets are unrestricted covariances/correlations (the restrictions are for the AllStats targets)
+    if caliboptions.whichcombos==1
+        simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped, [nFns,nFns,1+nRestr] (the restricted targets are on pages 2:end)
     end
     CrossSectionCovarCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz(StationaryDist,Policy,FnsToEvaluate_CrossSecStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions_CrossSec);
 end
 
 
-
 %% Get current values of the target moments as a vector
+% Each kind: walk the names of the target (one to four levels, the empty cells skipped) into the command's output, which has the same
+% nesting (restrictions, MoreInequality, CovarianceWith/CorrelationWith and the matrices alike). An AutoCorr statistic with a _kK
+% horizon suffix is read from the command's .tperiodsK.(statistic). [Before 2026-10-08 the first cross-section row always read a
+% third name, so a two-level target (fn.Mean) as the first cross-section target errored.]
 currentmomentvec=zeros(size(targetmomentvec));
+sofar=0;
 if usingallstats==1
-    if isempty(allstatmomentnames{1,3})
-        currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2});
-    else
-        currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3});
-    end
-    for cc=2:size(allstatmomentnames,1)
-        if isempty(allstatmomentnames{cc,3})
-            currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2});
+    for cc=1:size(allstatmomentnames,1)
+        if cc==1
+            idx=sofar+1:sofar+allstatcummomentsizes(1);
         else
-            currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2}).(allstatmomentnames{cc,3});
+            idx=sofar+allstatcummomentsizes(cc-1)+1:sofar+allstatcummomentsizes(cc);
         end
+        if all(isnan(targetmomentvec(idx))) % a wholly omitted target: nothing was selected for it, so the command may not have computed (or created) it
+            currentmomentvec(idx)=NaN;
+            continue
+        end
+        temp=AllStats;
+        for kk=1:size(allstatmomentnames,2)
+            if ~isempty(allstatmomentnames{cc,kk})
+                temp=temp.(allstatmomentnames{cc,kk});
+            end
+        end
+        currentmomentvec(idx)=temp(:);
     end
+    sofar=sofar+allstatcummomentsizes(end);
 end
 if usingautocorr==1
-    sofar=allstatcummomentsizes(end);
-    if isempty(autocorrmomentnames{1,3})
-        currentmomentvec(sofar+1:sofar+autocorrcummomentsizes(1))=AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2});
-    else
-        currentmomentvec(sofar+1:sofar+autocorrcummomentsizes(1))=AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2}).(autocorrmomentnames{1,3});
-    end
-    for cc=2:size(autocorrmomentnames,1)
-        if isempty(autocorrmomentnames{cc,3})
-            currentmomentvec(sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc))=AutoCorrTransProbs.(autocorrmomentnames{cc,1}).(autocorrmomentnames{cc,2});
+    for cc=1:size(autocorrmomentnames,1)
+        if cc==1
+            idx=sofar+1:sofar+autocorrcummomentsizes(1);
         else
-            currentmomentvec(sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc))=AutoCorrTransProbs.(autocorrmomentnames{cc,1}).(autocorrmomentnames{cc,2}).(autocorrmomentnames{cc,3});
+            idx=sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc);
         end
+        if all(isnan(targetmomentvec(idx))) % a wholly omitted target (e.g. .(restriction).(fn).(stat)=NaN): its combination is off, so the command did not create the struct
+            currentmomentvec(idx)=NaN;
+            continue
+        end
+        names=autocorrmomentnames(cc,:);
+        names=names(~cellfun(@isempty,names));
+        tk=regexp(names{end},'_k(\d+)$','tokens','once'); % a horizon suffix: stat_kK is the command's .tperiodsK.(stat)
+        if ~isempty(tk)
+            names=[names(1:end-1),{['tperiods',tk{1}]},{names{end}(1:end-length(tk{1})-2)}];
+        end
+        temp=AutoCorrTransProbs;
+        for kk=1:numel(names)
+            temp=temp.(names{kk});
+        end
+        currentmomentvec(idx)=temp(:);
     end
+    sofar=sofar+autocorrcummomentsizes(end);
 end
 if usingcrosssec==1
-    sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end);
-    if isempty(crosssecmomentnames{1,3})
-        currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=CrossSectionCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3});
-    elseif isempty(crosssecmomentnames{1,4})
-        currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=CrossSectionCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3});
-    else
-        currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=CrossSectionCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3}).(crosssecmomentnames{1,4});
-    end
-    for cc=2:size(crosssecmomentnames,1)
-        if isempty(crosssecmomentnames{cc,3})
-            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=CrossSectionCovarCorr.(crosssecmomentnames{cc,1}).(crosssecmomentnames{cc,2});
-        elseif isempty(crosssecmomentnames{cc,4})
-            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=CrossSectionCovarCorr.(crosssecmomentnames{cc,1}).(crosssecmomentnames{cc,2}).(crosssecmomentnames{cc,3});
+    for cc=1:size(crosssecmomentnames,1)
+        if cc==1
+            idx=sofar+1:sofar+crossseccummomentsizes(1);
         else
-            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=CrossSectionCovarCorr.(crosssecmomentnames{cc,1}).(crosssecmomentnames{cc,2}).(crosssecmomentnames{cc,3}).(crosssecmomentnames{cc,4});
+            idx=sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc);
         end
+        if all(isnan(targetmomentvec(idx))) % a wholly omitted target: nothing was selected for it, so the command may not have created it
+            currentmomentvec(idx)=NaN;
+            continue
+        end
+        temp=CrossSectionCovarCorr;
+        for kk=1:size(crosssecmomentnames,2)
+            if ~isempty(crosssecmomentnames{cc,kk})
+                temp=temp.(crosssecmomentnames{cc,kk});
+            end
+        end
+        currentmomentvec(idx)=temp(:);
     end
+    sofar=sofar+crossseccummomentsizes(end);
 end
 if usingcustomstats==1
-    sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end);
     currentmomentvec(sofar+1:sofar+cmscummomentsizes(1))=CustomStats.(cmsmomentnames{1,1});
     for cc=2:size(cmsmomentnames,1)
         currentmomentvec(sofar+cmscummomentsizes(cc-1)+1:sofar+cmscummomentsizes(cc))=CustomStats.(cmsmomentnames{cc,1});
