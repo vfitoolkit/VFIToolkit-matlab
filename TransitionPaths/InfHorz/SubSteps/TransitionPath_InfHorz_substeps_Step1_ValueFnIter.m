@@ -100,12 +100,19 @@ elseif N_z>0 && N_e==0
                 hitbottom=(Policy(aprimechannel,:,:)==loweredge);
                 hittop=(Policy(aprimechannel,:,:)==loweredge+2*nls);
             else
-                % Only the window's two extreme COARSE points count. The top fine point of the window
-                % sits exactly on coarse node loweredge+2*nls, which the raw encodes as (that node,
-                % L2=1), and the bottom as (loweredge, L2=1). A fine point one step inside the last
-                % coarse point gives L2>1 and so correctly does not ratchet.
-                hitbottom=(Policy(aprimechannel,:,:)==loweredge) & (Policy(aprimechannel+1,:,:)==1);
-                hittop=(Policy(aprimechannel,:,:)==loweredge+2*nls) & (Policy(aprimechannel+1,:,:)==1);
+                % Only the window's two extreme COARSE points count: an answer strictly inside them
+                % is not evidence that the window is too narrow.
+                % Compared as the DECODED FINE POINT, never as the raw channels, because the two
+                % localsearch GI encodings spell that point differently. The one-pass raw keeps L2 in
+                % [1,1+ngridinterp] and always names the window's top point (loweredge+2n, L2=1); the
+                % two-layer raw inherits the standard GI spelling where L2 reaches ngridinterp+2, so
+                % the same point can come out as (loweredge+2n-1, L2=ngridinterp+2) instead. A channel
+                % test would see one spelling and miss the other. The decode is the same number for
+                % both, and reduces to the no-GI test above when ngridinterp is 0.
+                ngi=vfoptions.ngridinterp;
+                finenow=(1+ngi)*(Policy(aprimechannel,:,:)-1)+Policy(aprimechannel+1,:,:);
+                hitbottom=(finenow==(1+ngi)*(loweredge-1)+1);
+                hittop=(finenow==(1+ngi)*(loweredge+2*nls-1)+1);
             end
             % The CORNER EXCLUSIONS. An answer at the GRID's own edge is a corner solution -- the
             % optimum the household wants is outside the grid -- not evidence that the window is too

@@ -35,6 +35,7 @@ if exist('vfoptions','var')==0
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0;
     vfoptions.localsearch=0;
+    vfoptions.localsearchtwolayer=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'lowmemory')
@@ -94,6 +95,21 @@ else
         % has to be at least that long
         if n_a(1)<2*vfoptions.nlocalsearch+1
             error('vfoptions.nlocalsearch is too large for the grid: need n_a>=2*nlocalsearch+1')
+        end
+        % localsearchtwolayer picks between the two encodings of the SAME restriction under the
+        % grid interpolation layer, which search identically the same fine points:
+        %   0  one pass: all 2*nlocalsearch*(1+ngridinterp)+1 fine points of the window, one max.
+        %   1  two layers: a coarse max over the window's 2*nlocalsearch+1 points, then the
+        %      interpolation layer one coarse cell either side -- the same fine span. Its coarse
+        %      layer also produces the new reference directly, with no fine answer to round.
+        % One pass searches fewer points only at nlocalsearch=1; two layers grows at 2 points per
+        % unit of nlocalsearch against 2*(1+ngridinterp). Both are kept while the test bank times
+        % them against each other, and one will be dropped.
+        if ~isfield(vfoptions,'localsearchtwolayer')
+            vfoptions.localsearchtwolayer=0;
+        end
+        if vfoptions.localsearchtwolayer==1 && vfoptions.gridinterplayer==0
+            error('vfoptions.localsearchtwolayer=1 only means anything with vfoptions.gridinterplayer=1 (without the interpolation layer there is only one encoding)')
         end
     end
 end
