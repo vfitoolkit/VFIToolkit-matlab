@@ -59,7 +59,7 @@ if ~exist('simoptions','var')
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
-    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [7,1]; it can be up to [nFns, 1+nRestr, N_i+1, 7]
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
 else
     if ~isfield(simoptions,'groupptypesforstats')
@@ -92,7 +92,7 @@ else
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
     if ~isfield(simoptions,'whichstats')
-        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [7,1]; it can be up to [nFns, 1+nRestr, N_i+1, 7]
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
 end

@@ -39,7 +39,7 @@ if ~exist('simoptions','var')
     simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
-    simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+    simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [1,7]; it can be up to [nFns, nAgeGroups, 1+nRestr, 7]
     % Model Setup
     simoptions.gridinterplayer=0;
     simoptions.n_semiz=0;
@@ -79,9 +79,9 @@ else
     if ~isfield(simoptions,'whichstats')
         if any(simoptions.agegroupings(2:end)-simoptions.agegroupings(1:end-1)>4)
             % if some agegroupings are 'large', use the slower but lower memory versions
-            simoptions.whichstats=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+            simoptions.whichstats=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [1,7]; it can be up to [nFns, nAgeGroups, 1+nRestr, 7]
         else
-            simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+            simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [1,7]; it can be up to [nFns, nAgeGroups, 1+nRestr, 7]
         end
     end
     % Model Setup

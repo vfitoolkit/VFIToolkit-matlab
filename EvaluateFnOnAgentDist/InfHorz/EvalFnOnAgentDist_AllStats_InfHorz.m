@@ -10,7 +10,7 @@ function AllStats=EvalFnOnAgentDist_AllStats_InfHorz(StationaryDist, Policy, Fns
 if ~exist('simoptions','var')
     simoptions.npoints=100;
     simoptions.nquantiles=20;
-    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [7,1]; it can be up to [nFns, 1+nRestr, 7]
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.gridinterplayer=0;
@@ -27,7 +27,7 @@ else
         simoptions.nquantiles=20;
     end
     if ~isfield(simoptions,'whichstats')
-        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [7,1]; it can be up to [nFns, 1+nRestr, 7]
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     if ~isfield(simoptions,'tolerance')

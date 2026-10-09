@@ -77,7 +77,7 @@ if ~exist('simoptions','var')
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
-    simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+    simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [1,7]; it can be up to [nFns, nAgeGroups, 1+nRestr, N_i+1, 7]
     simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
     simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     % When calling as a subcommand, the following is used internally
@@ -133,9 +133,9 @@ else
         if ~isstruct(N_j)
             if any(simoptions.agegroupings(2:end)-simoptions.agegroupings(1:end-1)>4)
                 % if some agegroupings are 'large', use the slower but lower memory versions
-                simoptions.whichstats=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+                simoptions.whichstats=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [1,7]; it can be up to [nFns, nAgeGroups, 1+nRestr, N_i+1, 7]
             else
-                simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+                simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes % whichstats here is [1,7]; it can be up to [nFns, nAgeGroups, 1+nRestr, N_i+1, 7]
             end
         else
             for ii=1:N_i
