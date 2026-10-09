@@ -56,7 +56,7 @@ end
 % grouped) is NaN. Default all ones. Intended for calibration/estimation, which only needs the targeted aggregates.
 FnsToEvalNames=fieldnames(FnsToEvaluate);
 if ~isfield(simoptions,'whichcombos')
-    whichcombos=ones(numFnsToEvaluate,1);
+    whichcombos=ones(numFnsToEvaluate,1); % whichcombos here is [nFns, 1]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

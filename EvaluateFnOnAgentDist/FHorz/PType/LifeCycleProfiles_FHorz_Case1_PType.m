@@ -281,7 +281,7 @@ end
 % StdDeviation, Minimum and Maximum are built from every ptype's, so a grouped slot that is on also computes (and reports) that
 % combination for every ptype. simoptions.whichstats takes the same trailing dimension ([.., N_i+1, 7]); see below.
 if ~isfield(simoptions,'whichcombos')
-    whichcombosAll=ones(numFnsToEvaluate,maxngroups,nwhichpages,N_i+1);
+    whichcombosAll=ones(numFnsToEvaluate,maxngroups,nwhichpages,N_i+1); % whichcombos here is [nFns, nAgeGroups, 1+nRestr, N_i+1]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

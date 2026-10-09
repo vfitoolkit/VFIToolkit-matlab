@@ -132,7 +132,7 @@ end
 % dimension applies to every ptype and to the grouped stats. With restrictions, a four-dimensional input is read as having the page
 % dimension, not the type dimension. Intended for calibration/estimation.
 if ~isfield(simoptions,'whichcombos')
-    whichcombosAll=ones(numFnsToEvaluate,numFnsToEvaluate,ngroups,nwhichpages,N_i+1);
+    whichcombosAll=ones(numFnsToEvaluate,numFnsToEvaluate,ngroups,nwhichpages,N_i+1); % whichcombos here is [nFns, nFns, nAgeGroups, 1+nRestr, N_i+1]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

@@ -120,7 +120,7 @@ end
 % the unrestricted stats, pages 2:end the restrictions in the fieldnames order of simoptions.conditionalrestrictions. A
 % [numFnsToEvaluate, numFnsToEvaluate] or [numFnsToEvaluate, numFnsToEvaluate, ngroups] input with restrictions is applied to every page.
 if ~isfield(simoptions,'whichcombos')
-    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate,ngroups,nwhichpages);
+    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate,ngroups,nwhichpages); % whichcombos here is [nFns, nFns, nAgeGroups, 1+nRestr]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

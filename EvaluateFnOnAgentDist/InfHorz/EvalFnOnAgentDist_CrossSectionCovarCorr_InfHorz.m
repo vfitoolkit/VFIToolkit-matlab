@@ -165,7 +165,7 @@ end
 % unrestricted stats, pages 2:end the restrictions in the fieldnames order of simoptions.conditionalrestrictions. A
 % [numFnsToEvaluate, numFnsToEvaluate] input with restrictions is applied to every page. (As EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz.)
 if ~isfield(simoptions,'whichcombos')
-    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate,nwhichpages);
+    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate,nwhichpages); % whichcombos here is [nFns, nFns, 1+nRestr]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

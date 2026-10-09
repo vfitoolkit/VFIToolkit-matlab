@@ -185,7 +185,7 @@ else
     nwhichpages=1;
 end
 if ~isfield(simoptions,'whichcombos')
-    whichcombosAll=ones(numFnsToEvaluate,nwhichpages,N_i+1);
+    whichcombosAll=ones(numFnsToEvaluate,nwhichpages,N_i+1); % whichcombos here is [nFns, 1+nRestr, N_i+1]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

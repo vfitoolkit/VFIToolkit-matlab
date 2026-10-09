@@ -130,7 +130,7 @@ end
 % wherever any grouped start age of it is on, as they are computed anyway). An input without the type
 % dimension applies to every ptype and to the grouped stats. Intended for calibration/estimation.
 if ~isfield(simoptions,'whichcombos')
-    whichcombosAll=ones(numFnsToEvaluate,N_j,nwhichpages,N_i+1);
+    whichcombosAll=ones(numFnsToEvaluate,N_j,nwhichpages,N_i+1); % whichcombos here is [nFns, N_j, 1+nRestr, N_i+1]
 else
     whichcombos=simoptions.whichcombos;
     if isstruct(N_j)

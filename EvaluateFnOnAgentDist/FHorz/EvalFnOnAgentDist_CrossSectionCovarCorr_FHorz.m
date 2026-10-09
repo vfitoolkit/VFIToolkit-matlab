@@ -104,7 +104,7 @@ end
 % [numFnsToEvaluate, numFnsToEvaluate] input with restrictions is applied to every page.
 numFnsToEvaluate=length(FnsToEvaluate);
 if ~isfield(simoptions,'whichcombos')
-    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate,nwhichpages);
+    whichcombos=ones(numFnsToEvaluate,numFnsToEvaluate,nwhichpages); % whichcombos here is [nFns, nFns, 1+nRestr]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

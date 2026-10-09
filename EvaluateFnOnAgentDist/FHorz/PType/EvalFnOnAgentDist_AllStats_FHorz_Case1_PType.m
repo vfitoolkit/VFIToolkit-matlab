@@ -170,7 +170,7 @@ end
 % stats alike. The grouped Mean, StdDeviation, Minimum and Maximum are built from every ptype's, so a grouped slot that is on also
 % computes (and reports) that combination for every ptype.
 if ~isfield(simoptions,'whichcombos')
-    whichcombosAll=ones(numFnsToEvaluate,nwhichpages,N_i+1);
+    whichcombosAll=ones(numFnsToEvaluate,nwhichpages,N_i+1); % whichcombos here is [nFns, 1+nRestr, N_i+1]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

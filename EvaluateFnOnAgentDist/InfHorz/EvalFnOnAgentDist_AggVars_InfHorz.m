@@ -132,7 +132,7 @@ end
 
 %% simoptions.whichcombos: which FnsToEvaluate to compute (a vector of zeros/ones of length numFnsToEvaluate; skipped Means are NaN)
 if ~isfield(simoptions,'whichcombos')
-    whichcombos=ones(length(FnsToEvaluate),1);
+    whichcombos=ones(length(FnsToEvaluate),1); % whichcombos here is [nFns, 1]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

@@ -223,7 +223,7 @@ else
 end
 numFnsToEvaluate=length(FnsToEvalNames);
 if ~isfield(simoptions,'whichcombos')
-    whichcombos=ones(numFnsToEvaluate,nwhichpages);
+    whichcombos=ones(numFnsToEvaluate,nwhichpages); % whichcombos here is [nFns, 1+nRestr]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)

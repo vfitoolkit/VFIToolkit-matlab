@@ -62,7 +62,7 @@ end
 % grouped) is NaN. Default all ones. Intended for calibration/estimation, which only needs the targeted aggregates.
 % (As EvalFnOnAgentDist_AggVars_FHorz_Case1_PType.)
 if ~isfield(simoptions,'whichcombos')
-    whichcombos=ones(numFnsToEvaluate,1);
+    whichcombos=ones(numFnsToEvaluate,1); % whichcombos here is [nFns, 1]
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
