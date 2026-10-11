@@ -179,7 +179,7 @@ useCondlRest=0;
 if isfield(simoptions,'conditionalrestrictions')
     useCondlRest=1;
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
-    RestrictionValues=false(N_states,length(CondlRestnFnNames)); % logical masks, on the cpu (where the measures are propagated)
+    RestrictionValues=false(N_states,length(CondlRestnFnNames),'gpuArray'); % logical masks, on the gpu (where the measures are propagated)
     for rr=1:length(CondlRestnFnNames)
         CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
         temp=getAnonymousFnInputNames(CondlRestnFn);
@@ -189,7 +189,7 @@ if isfield(simoptions,'conditionalrestrictions')
             CondlRestnFnParamNames={};
         end
         CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames);
-        RestrictionValues(:,rr)=reshape(gather(logical(EvalFnOnAgentDist_Grid(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_ze,a_gridvals,ze_gridvals))),[N_states,1]);
+        RestrictionValues(:,rr)=reshape(logical(EvalFnOnAgentDist_Grid(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_ze,a_gridvals,ze_gridvals)),[N_states,1]);
         CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass=sum(StationaryDist.*RestrictionValues(:,rr));
         if CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass==0 && simoptions.warnzerorestrictedmass==2
             warning('One of the conditional restrictions evaluates to a zero mass')
@@ -242,8 +242,11 @@ end
 % Cov(x_t,x_{t+k}) is the centered signed measure (dist.*(x-mean)) pushed k periods forward and then integrated against
 % x. The push is the two-step of Tan (2020, Economics Letters) that the stationary distribution iteration uses: the
 % policy step (Gammatranspose, a sparse N_a*N_z by N_a*N_z*N_e matrix with one nonzero per state, or two with the grid
-% interpolation weights), then the shock step (times pi_z, then the kron with pi_e). The transition probabilities between
-% value bins push each origin bin's mass the same way.
+% interpolation weights), then the shock step (times pi_z, then pi_e along a new dimension, which is kron(pi_e,.) without
+% forming the kron). The policy step is a sparse gpuArray, built from the gpu policy indexes, and everything is pushed on
+% the gpu: the measures of every function of a chunk of functions (the unrestricted centered measure and the three
+% measures of each conditional restriction) are the columns of one matrix that goes through each step in one product;
+% the transition probabilities between value bins push each origin bin's mass the same way, in blocks of 64 bins.
 N_zr=max(N_z,1);
 N_er=max(N_e,1);
 Policy=reshape(Policy,[size(Policy,1),N_a,N_ze_reshape]);
@@ -260,210 +263,282 @@ else
 end
 % Policy_aprime is [N_a,N_ze_reshape]; add the markov-z index of each (z,e) column (z varies first) to get the index into (a',z)
 zindex=N_a*repmat(gpuArray(0:1:N_zr-1),1,N_er);
+Policy_aprimez=Policy_aprime+zindex; % [N_a,N_ze_reshape], on the gpu
 if simoptions.gridinterplayer==0
-    Policy_aprimez=gather(Policy_aprime+zindex);
-    Gammatranspose=sparse(reshape(Policy_aprimez,[],1),(1:1:N_states)',ones(N_states,1),N_a*N_zr,N_states);
+    Gammatranspose=sparse(reshape(Policy_aprimez,[],1),gpuArray((1:1:N_states)'),ones(N_states,1,'gpuArray'),N_a*N_zr,N_states); % sparse gpuArray
 elseif simoptions.gridinterplayer==1
     % two a' points per state: the lower grid point and the one above it, with the second-layer weights
-    Policy_aprimez=gather(cat(3,Policy_aprime,Policy_aprime+1)+zindex); % [N_a,N_ze_reshape,2]
     L2index=Policy(end-1,:,:); % L2 index (end-1 because end is L2flag)
     L2flag=Policy(end,:,:);
     L2index(L2flag==1)=1;                        % force all weight to lower grid point
     L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
-    probupper=shiftdim((L2index-1)/(simoptions.ngridinterp+1),1); % [N_a,N_ze_reshape]: probability of the upper grid point
-    PolicyProbs=gather(cat(3,1-probupper,probupper)); % [N_a,N_ze_reshape,2]
-    Gammatranspose=sparse(reshape(Policy_aprimez,[],1),repmat((1:1:N_states)',2,1),reshape(PolicyProbs,[],1),N_a*N_zr,N_states);
+    probupper=reshape((L2index-1)/(simoptions.ngridinterp+1),[],1); % [N_states,1]: probability of the upper grid point
+    Gammatranspose=sparse([reshape(Policy_aprimez,[],1);reshape(Policy_aprimez,[],1)+1],gpuArray(repmat((1:1:N_states)',2,1)),[1-probupper;probupper],N_a*N_zr,N_states); % sparse gpuArray
 end
 if N_z>0
-    pi_z_cpu=gather(pi_z);
+    pi_z_gpu=gpuArray(pi_z);
 end
 if N_e>0
-    pi_e_cpu=gather(simoptions.pi_e(:));
+    pi_e_gpu=gpuArray(reshape(simoptions.pi_e,[1,N_er]));
 end
 if ~isempty(simoptions.timehorizons)
     maxhorizon=max([1,simoptions.timehorizons(:)']);
 else
     maxhorizon=1;
 end
+reported=false(1,maxhorizon); % the horizons that are reported: 1 and simoptions.timehorizons
+reported(1)=true;
+for kk=2:maxhorizon
+    if any(simoptions.timehorizons==kk)
+        reported(kk)=true;
+    end
+end
+if useCondlRest==1
+    nRestr=length(CondlRestnFnNames);
+else
+    nRestr=0;
+end
 
-%%
-for ff=1:length(FnsToEvalNames)
+%% The outputs, for every function (NaN where not computed; PairMass zero)
+meanV=nan(numFnsToEvaluate,1,'gpuArray');
+stddevV=nan(numFnsToEvaluate,1,'gpuArray');
+Covar=nan(numFnsToEvaluate,maxhorizon,'gpuArray');
+Corr=nan(numFnsToEvaluate,maxhorizon,'gpuArray');
+if nRestr>0
+    MeanR=nan(numFnsToEvaluate,nRestr,'gpuArray');
+    StdDevR=nan(numFnsToEvaluate,nRestr,'gpuArray');
+    PairMass=zeros(numFnsToEvaluate,nRestr,maxhorizon,'gpuArray');
+    PairMean_t=nan(numFnsToEvaluate,nRestr,maxhorizon,'gpuArray');
+    PairMean_tplusk=nan(numFnsToEvaluate,nRestr,maxhorizon,'gpuArray');
+    PairStdDev_t=nan(numFnsToEvaluate,nRestr,maxhorizon,'gpuArray');
+    PairStdDev_tplusk=nan(numFnsToEvaluate,nRestr,maxhorizon,'gpuArray');
+    AutoCovR=nan(numFnsToEvaluate,nRestr,maxhorizon,'gpuArray');
+    AutoCorrR=nan(numFnsToEvaluate,nRestr,maxhorizon,'gpuArray');
+end
+P_v_cell=cell(numFnsToEvaluate,1); % the transition probabilities (n_fvals x n_fvals x maxhorizon) of the functions that request them
+
+%% The computation, in chunks of functions
+% A function that no (fn, page) combination of simoptions.whichcombos selects is not evaluated at all. The measures of a function
+% are one unrestricted column and three per restriction; the chunk of functions pushed together is sized so that these take at
+% most about 1 GB of gpu memory (one chunk in all but huge models).
+fnwanted=find(reshape(any(whichcombos,2),[1,numFnsToEvaluate])); % the functions with some combination wanted, as a row
+colsperfn=1+3*nRestr;
+maxfnchunk=max(1,floor(1e9/(8*N_states*colsperfn)));
+for fc=1:maxfnchunk:length(fnwanted)
+    ffs=fnwanted(fc:min(fc+maxfnchunk-1,length(fnwanted))); % the functions of this chunk, as indexes into FnsToEvalNames
+    nf=length(ffs);
+    % The values of the chunk's functions on the grid
+    Values_chunk=zeros(N_states,nf,'gpuArray');
+    for fi=1:nf
+        ff=ffs(fi);
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_ze,a_gridvals,ze_gridvals);
+        Values_chunk(:,fi)=reshape(Values,[N_states,1]);
+    end
+    % The measures to push, as the columns of one matrix, built for every function of the chunk at once: column colU(fi) is
+    % the centered measure dist.*Xc of function fi (when its unrestricted outputs are wanted), columns colR(fi,rr),+1,+2 are
+    % the restricted mass m, m.*Xc and m.*Xc.^2 of restriction rr (when wanted and of positive mass; Xc centered on the
+    % restricted mean). The means and standard deviations are one reduction over the chunk's columns each.
+    meanV_chunk=sum(StationaryDist.*Values_chunk,1); % 1 x nf
+    Xc_chunk=Values_chunk-meanV_chunk; % N_states x nf, centered on the unrestricted means
+    stddevV_chunk=sqrt(sum(StationaryDist.*Xc_chunk.^2,1)); % 1 x nf
+    wantU=(whichcombos(ffs,1)==1); % nf x 1: the functions whose unrestricted outputs are wanted
+    meanV(ffs(wantU))=reshape(meanV_chunk(wantU),[],1);
+    stddevV(ffs(wantU))=reshape(stddevV_chunk(wantU),[],1);
+    cols=zeros(N_states,nf*colsperfn,'gpuArray');
+    ncols=0;
+    colU=zeros(nf,1);
+    colR=zeros(nf,nRestr);
+    if any(wantU)
+        nU=sum(wantU);
+        cols(:,1:nU)=StationaryDist.*Xc_chunk(:,wantU); % the signed measures, one column per wanted function
+        colU(wantU)=1:nU;
+        ncols=nU;
+    end
+    % Conditional restrictions: the Mean/StdDeviation over those satisfying the restriction, and the measures of the pairs
+    % that satisfy it now and k periods later. [E_pair[(x_t-c)(x_{t+k}-mu_y)] is the pair covariance for ANY constant c,
+    % since E_pair[x_{t+k}-mu_y]=0, so centering x_t on the restricted mean rather than on the (not yet known) pair mean
+    % is exact.]
+    XcR_chunk=cell(nRestr,1); % the values centered on each restriction's mean, N_states x nf (only when the restriction has mass)
+    for rr=1:nRestr
+        wantR=(whichcombos(ffs,1+rr)==1); % nf x 1: the functions for which this restriction is wanted
+        if ~any(wantR)
+            continue
+        end
+        mr=StationaryDist.*RestrictionValues(:,rr); % restricted mass (not normalized)
+        massr=sum(mr);
+        if massr>0
+            MeanR_chunk=sum(mr.*Values_chunk,1)/massr; % 1 x nf
+            XcR_chunk{rr}=Values_chunk-MeanR_chunk;
+            StdDevR_chunk=sqrt(sum(mr.*XcR_chunk{rr}.^2,1)/massr);
+            MeanR(ffs(wantR),rr)=reshape(MeanR_chunk(wantR),[],1);
+            StdDevR(ffs(wantR),rr)=reshape(StdDevR_chunk(wantR),[],1);
+            nR=sum(wantR);
+            cols(:,ncols+1:3:ncols+3*nR-2)=mr.*ones(1,nR,'gpuArray');
+            cols(:,ncols+2:3:ncols+3*nR-1)=mr.*XcR_chunk{rr}(:,wantR);
+            cols(:,ncols+3:3:ncols+3*nR)=mr.*XcR_chunk{rr}(:,wantR).^2;
+            colR(wantR,rr)=ncols+1:3:ncols+3*nR-2;
+            ncols=ncols+3*nR;
+        end
+    end
+    propagated=cols(:,1:ncols); % the measures, pushed k periods forward below
+    for kk=1:maxhorizon
+        if ncols>0
+            % Tan step: one period forward, all the measures as columns
+            temp=Gammatranspose*propagated; % policy step: now over (a',z)
+            if N_z>0
+                temp=reshape(pagemtimes(reshape(temp,[N_a,N_zr,ncols]),pi_z_gpu),[N_a*N_zr,ncols]); % z step, every column at once
+            end
+            if N_e>0
+                temp=reshape(reshape(temp,[N_a*N_zr,1,ncols]).*pi_e_gpu,[N_states,ncols]); % e step: e is the slowest index of the states (the layout of kron(pi_e,.))
+            end
+            propagated=temp;
+        end
+        if ~reported(kk)
+            continue % a horizon that is not reported
+        end
+        % Read-outs at this horizon, every function at once (one reduction per statistic)
+        if any(wantU)
+            % Correlation(x,y)=Cov(x,y)/(stddev(x)*stddev(y)), with Cov(x_t,x_{t+k}) from the centered measure pushed k periods
+            CovU=sum(propagated(:,colU(wantU)).*Xc_chunk(:,wantU),1); % 1 x nU
+            Covar(ffs(wantU),kk)=reshape(CovU,[],1);
+            Corr(ffs(wantU),kk)=reshape(CovU./(stddevV_chunk(wantU).*stddevV_chunk(wantU)),[],1);
+        end
+        for rr=1:nRestr
+            fis=find(colR(:,rr)>0); % the chunk's functions with pair measures for this restriction
+            if isempty(fis)
+                continue
+            end
+            c1=colR(fis,rr)';
+            P1=propagated(:,c1).*RestrictionValues(:,rr); % the pairs: those who satisfy the restriction k periods later too (mass)
+            P2=propagated(:,c1+1).*RestrictionValues(:,rr); % mass.*Xc
+            P3=propagated(:,c1+2).*RestrictionValues(:,rr); % mass.*Xc.^2
+            Vf=Values_chunk(:,fis);
+            pm=sum(P1,1); % 1 x numel(fis): the pair masses
+            PairMass(ffs(fis),rr,kk)=reshape(pm,[],1);
+            d1=sum(P2,1)./pm; % pair mean of x_t, minus MeanR
+            muy=sum(P1.*Vf,1)./pm; % pair mean of x_{t+k}
+            varx=sum(P3,1)./pm-d1.^2;
+            vary=sum(P1.*(Vf-muy).^2,1)./pm;
+            covxy=sum(P2.*(Vf-muy),1)./pm;
+            sdx=sqrt(max(varx,0));
+            sdy=sqrt(vary);
+            haspm=gather(pm>0); % the outputs of a pair population of zero mass stay NaN (PairMass zero)
+            PairMean_t(ffs(fis(haspm)),rr,kk)=MeanR(ffs(fis(haspm)),rr)+reshape(d1(haspm),[],1);
+            PairMean_tplusk(ffs(fis(haspm)),rr,kk)=reshape(muy(haspm),[],1);
+            PairStdDev_t(ffs(fis(haspm)),rr,kk)=reshape(sdx(haspm),[],1);
+            PairStdDev_tplusk(ffs(fis(haspm)),rr,kk)=reshape(sdy(haspm),[],1);
+            AutoCovR(ffs(fis(haspm)),rr,kk)=reshape(covxy(haspm),[],1);
+            hasdenom=haspm & gather(sdx.*sdy>1e-15);
+            AutoCorrR(ffs(fis(hasdenom)),rr,kk)=reshape(covxy(hasdenom)./(sdx(hasdenom).*sdy(hasdenom)),[],1);
+        end
+    end
+
+    %% Transition probabilities between value bins (horizon 1 and simoptions.timehorizons): each origin bin's mass is
+    % pushed forward (origin bins as columns, in blocks of 64, on the gpu) and binned by the function's value; row b is the
+    % destination distribution of origin bin b, so rows sum to one (NaN where the origin bin has no mass)
+    for fi=1:nf
+        ff=ffs(fi);
+        if simoptions.transprobs(ff)==1 && whichcombos(ff,1)==1
+            Values=Values_chunk(:,fi);
+            if isempty(simoptions.transprobquantiles)
+                [~,~,indexes]=unique(gather(Values));
+                n_fvals=max(indexes); % number of unique values of the FnsToEvaluate{ff}
+            else
+                % Convert from values into quantile indexes
+                [SortedValues,sortindex]=sort(Values);
+                SortedDist=StationaryDist(sortindex);
+                CumSortedDist=cumsum(SortedDist);
+                quantilecutoffs=nan(simoptions.transprobquantiles-1,1,'gpuArray');
+                for qq=1:simoptions.transprobquantiles-1
+                    [~,qqind]=max(CumSortedDist>qq*1/simoptions.transprobquantiles);
+                    quantilecutoffs(qq)=SortedValues(qqind);
+                end
+                quantilesindicator=zeros(size(Values),'gpuArray');
+                quantilesindicator(Values<=quantilecutoffs(1))=1;
+                for qq=2:simoptions.transprobquantiles-1
+                    quantilesindicator(logical((Values>quantilecutoffs(qq-1)).*(Values<=quantilecutoffs(qq))))=qq;
+                end
+                quantilesindicator(Values>quantilecutoffs(end))=simoptions.transprobquantiles;
+                indexes=gather(quantilesindicator);
+                n_fvals=simoptions.transprobquantiles;
+            end
+            dist_cpu=gather(StationaryDist);
+            massPerBin=accumarray(indexes,dist_cpu,[n_fvals,1]);
+            S_dest=sparse(gpuArray((1:1:N_states)'),gpuArray(indexes),ones(N_states,1,'gpuArray'),N_states,n_fvals); % destination bin indicator (the same bins at every horizon), sparse gpuArray
+            P_v=zeros(n_fvals,n_fvals,maxhorizon); % the third index is the horizon (only 1 and simoptions.timehorizons are filled)
+            for b1=1:64:n_fvals
+                b2=min(b1+63,n_fvals);
+                inblock=find(indexes>=b1 & indexes<=b2);
+                temp=zeros(N_states,b2-b1+1,'gpuArray'); % the origin bins' masses, one column each
+                temp(gpuArray(inblock+N_states*(indexes(inblock)-b1)))=gpuArray(dist_cpu(inblock));
+                for kk=1:maxhorizon
+                    temp=Gammatranspose*temp;
+                    if N_z>0
+                        temp=reshape(pagemtimes(reshape(temp,[N_a,N_zr,b2-b1+1]),pi_z_gpu),[N_a*N_zr,b2-b1+1]);
+                    end
+                    if N_e>0
+                        temp=reshape(reshape(temp,[N_a*N_zr,1,b2-b1+1]).*pi_e_gpu,[N_states,b2-b1+1]);
+                    end
+                    if reported(kk)
+                        P_v(b1:b2,:,kk)=gather((S_dest'*temp)')./massPerBin(b1:b2);
+                    end
+                end
+            end
+            P_v_cell{ff}=P_v;
+        end
+    end
+end
+
+%% Report, function by function in the order of FnsToEvaluate
+for ff=1:numFnsToEvaluate
+    fn=FnsToEvalNames{ff};
     if ~any(whichcombos(ff,:)) % no combination of this function is wanted
         continue
     end
-    FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-    Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_ze,a_gridvals,ze_gridvals);
-    Values=reshape(Values,[N_states,1]);
-    Values_cpu=gather(Values);
-    if whichcombos(ff,1)==1 % the unrestricted outputs of this function are wanted
-        %% Mean and standard deviation
-        meanV=sum(StationaryDist.*Values);
-        stddevV=sqrt(sum(StationaryDist.*(Values-meanV).^2));
-        CorrTransProbs.(FnsToEvalNames{ff}).Mean=meanV;
-        CorrTransProbs.(FnsToEvalNames{ff}).StdDeviation=stddevV;
-        %% Auto-covariance and auto-correlation at horizons 1 and simoptions.timehorizons
-        % Correlation(x,y)=Cov(x,y)/(stddev(x)*stddev(y)), with Cov(x_t,x_{t+k}) from the centered measure pushed k periods
-        Xc=Values_cpu-gather(meanV);
-        propagated=gather(StationaryDist).*Xc; % N_states x 1 signed measure, on the cpu
-        for kk=1:maxhorizon
-            % Tan step: one period forward
-            temp=Gammatranspose*propagated; % policy step: now over (a',z)
-            if N_z>0
-                temp=reshape(reshape(temp,[N_a,N_zr])*pi_z_cpu,[N_a*N_zr,1]); % z step
-            end
-            if N_e>0
-                temp=kron(pi_e_cpu,temp); % e step
-            end
-            propagated=temp;
-            if kk==1 || any(simoptions.timehorizons==kk)
-                Covar=propagated'*Xc;
-                Corr=Covar/(stddevV*stddevV);
-                if kk==1
-                    CorrTransProbs.(FnsToEvalNames{ff}).AutoCovariance=Covar;
-                    CorrTransProbs.(FnsToEvalNames{ff}).AutoCorrelation=Corr;
-                else
-                    CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCovariance=Covar;
-                    CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCorrelation=Corr;
-                end
-            end
-        end
-    end
-
-    %% Conditional restrictions: the Mean/StdDeviation over those satisfying the restriction, and the auto-covariance over the
-    % pairs that satisfy it now and k periods later. Three signed measures are propagated together (three columns of one Tan
-    % step): the restricted mass m, m.*Xc and m.*Xc.^2 (Xc centered on the restricted mean). Masking the propagated measures with
-    % the restriction gives the pair population, and its mass, its means and variances of x_t and x_{t+k}, and their covariance
-    % follow. [E_pair[(x_t-c)(x_{t+k}-mu_y)] is the pair covariance for ANY constant c, since E_pair[x_{t+k}-mu_y]=0, so centering
-    % x_t on the restricted mean rather than on the (not yet known) pair mean is exact.]
-    if useCondlRest==1
-        dist_cpu=gather(StationaryDist);
-        for rr=1:length(CondlRestnFnNames)
-            if whichcombos(ff,1+rr)==0 % this restriction is not wanted for this function
-                continue
-            end
-            rname=CondlRestnFnNames{rr};
-            mr=dist_cpu.*RestrictionValues(:,rr); % restricted mass (not normalized)
-            massr=sum(mr);
-            MeanR=NaN; StdDevR=NaN;
-            if massr>0
-                MeanR=sum(mr.*Values_cpu)/massr;
-                StdDevR=sqrt(sum(mr.*(Values_cpu-MeanR).^2)/massr);
-            end
-            CorrTransProbs.(rname).(FnsToEvalNames{ff}).Mean=MeanR;
-            CorrTransProbs.(rname).(FnsToEvalNames{ff}).StdDeviation=StdDevR;
-            if massr>0
-                XcR=Values_cpu-MeanR;
-                propagated=[mr, mr.*XcR, mr.*XcR.^2]; % N_states x 3, on the cpu
-            end
-            for kk=1:maxhorizon
-                if massr>0
-                    % Tan step: one period forward, the three measures as three columns
-                    temp=Gammatranspose*propagated; % policy step: now over (a',z)
-                    if N_z>0
-                        for cc=1:3
-                            temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_cpu,[N_a*N_zr,1]); % z step
-                        end
-                    end
-                    if N_e>0
-                        temp=kron(pi_e_cpu,temp); % e step
-                    end
-                    propagated=temp;
-                end
-                if ~(kk==1 || any(simoptions.timehorizons==kk))
-                    continue % a horizon that is not reported
-                end
-                PairMass=0; PairMean_t=NaN; PairMean_tplusk=NaN; PairStdDev_t=NaN; PairStdDev_tplusk=NaN; AutoCovR=NaN; AutoCorrR=NaN;
-                if massr>0
-                    pairs=propagated.*RestrictionValues(:,rr); % keep those who satisfy the restriction k periods later too
-                    PairMass=sum(pairs(:,1));
-                    if PairMass>0
-                        d1=sum(pairs(:,2))/PairMass; % pair mean of x_t, minus MeanR
-                        muy=sum(pairs(:,1).*Values_cpu)/PairMass; % pair mean of x_{t+k}
-                        varx=sum(pairs(:,3))/PairMass-d1^2;
-                        vary=sum(pairs(:,1).*(Values_cpu-muy).^2)/PairMass;
-                        AutoCovR=sum(pairs(:,2).*(Values_cpu-muy))/PairMass;
-                        PairMean_t=MeanR+d1;
-                        PairMean_tplusk=muy;
-                        PairStdDev_t=sqrt(max(varx,0));
-                        PairStdDev_tplusk=sqrt(vary);
-                        if PairStdDev_t*PairStdDev_tplusk>1e-15
-                            AutoCorrR=AutoCovR/(PairStdDev_t*PairStdDev_tplusk);
-                        end
-                    end
-                end
-                if kk==1
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).AutoCovariance=AutoCovR;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).AutoCorrelation=AutoCorrR;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairMass=PairMass;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairMean_t=PairMean_t;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairMean_tplusk=PairMean_tplusk;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairStdDeviation_t=PairStdDev_t;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).PairStdDeviation_tplusk=PairStdDev_tplusk;
-                else
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCovariance=AutoCovR;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).AutoCorrelation=AutoCorrR;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairMass=PairMass;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairMean_t=PairMean_t;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairMean_tplusk=PairMean_tplusk;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairStdDeviation_t=PairStdDev_t;
-                    CorrTransProbs.(rname).(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).PairStdDeviation_tplusk=PairStdDev_tplusk;
-                end
-            end
-        end
-    end
-    %% Transition probabilities between value bins (horizon 1 and simoptions.timehorizons): each origin bin's mass is
-    % pushed forward (origin bins as columns, in blocks of 64) and binned by the function's value; row b is the
-    % destination distribution of origin bin b, so rows sum to one
-    if simoptions.transprobs(ff)==1 && whichcombos(ff,1)==1
-        if isempty(simoptions.transprobquantiles)
-            [~,~,indexes]=unique(Values_cpu);
-            n_fvals=max(indexes); % number of unique values of the FnsToEvaluate{ff}
-        else
-            % Convert from values into quantile indexes
-            [SortedValues,sortindex]=sort(Values);
-            SortedDist=StationaryDist(sortindex);
-            CumSortedDist=cumsum(SortedDist);
-            quantilecutoffs=nan(simoptions.transprobquantiles-1,1,'gpuArray');
-            for qq=1:simoptions.transprobquantiles-1
-                [~,qqind]=max(CumSortedDist>qq*1/simoptions.transprobquantiles);
-                quantilecutoffs(qq)=SortedValues(qqind);
-            end
-            quantilesindicator=zeros(size(Values),'gpuArray');
-            quantilesindicator(Values<=quantilecutoffs(1))=1;
-            for qq=2:simoptions.transprobquantiles-1
-                quantilesindicator(logical((Values>quantilecutoffs(qq-1)).*(Values<=quantilecutoffs(qq))))=qq;
-            end
-            quantilesindicator(Values>quantilecutoffs(end))=simoptions.transprobquantiles;
-            indexes=gather(quantilesindicator);
-            n_fvals=simoptions.transprobquantiles;
-        end
-        dist_cpu=gather(StationaryDist);
-        massPerBin=accumarray(indexes,dist_cpu,[n_fvals,1]);
-        S_dest=sparse(1:N_states,indexes,1,N_states,n_fvals); % destination bin indicator (the same bins at every horizon)
-        P_v=zeros(n_fvals,n_fvals,maxhorizon); % the third index is the horizon (only 1 and simoptions.timehorizons are filled)
-        for b1=1:64:n_fvals
-            b2=min(b1+63,n_fvals);
-            inblock=(indexes>=b1 & indexes<=b2);
-            temp=sparse(find(inblock),indexes(inblock)-b1+1,dist_cpu(inblock),N_states,b2-b1+1); % the origin bins' masses, one column each
-            for kk=1:maxhorizon
-                temp=full(Gammatranspose*temp);
-                if N_z>0
-                    for cc=1:size(temp,2)
-                        temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_zr])*pi_z_cpu,[N_a*N_zr,1]);
-                    end
-                end
-                if N_e>0
-                    temp=kron(pi_e_cpu,temp);
-                end
-                if kk==1 || any(simoptions.timehorizons==kk)
-                    P_v(b1:b2,:,kk)=(S_dest'*temp)'./massPerBin(b1:b2);
-                end
-            end
-        end
-        CorrTransProbs.(FnsToEvalNames{ff}).TransitionProbs=P_v(:,:,1);
+    if whichcombos(ff,1)==1
+        CorrTransProbs.(fn).Mean=meanV(ff);
+        CorrTransProbs.(fn).StdDeviation=stddevV(ff);
+        CorrTransProbs.(fn).AutoCovariance=Covar(ff,1);
+        CorrTransProbs.(fn).AutoCorrelation=Corr(ff,1);
         for kk=2:maxhorizon
-            if any(simoptions.timehorizons==kk)
-                CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(kk)]).TransitionProbs=P_v(:,:,kk);
+            if reported(kk)
+                CorrTransProbs.(fn).(['tperiods',num2str(kk)]).AutoCovariance=Covar(ff,kk);
+                CorrTransProbs.(fn).(['tperiods',num2str(kk)]).AutoCorrelation=Corr(ff,kk);
+            end
+        end
+    end
+    for rr=1:nRestr
+        if whichcombos(ff,1+rr)==0 % this restriction is not wanted for this function
+            continue
+        end
+        rname=CondlRestnFnNames{rr};
+        CorrTransProbs.(rname).(fn).Mean=MeanR(ff,rr);
+        CorrTransProbs.(rname).(fn).StdDeviation=StdDevR(ff,rr);
+        CorrTransProbs.(rname).(fn).AutoCovariance=AutoCovR(ff,rr,1);
+        CorrTransProbs.(rname).(fn).AutoCorrelation=AutoCorrR(ff,rr,1);
+        CorrTransProbs.(rname).(fn).PairMass=PairMass(ff,rr,1);
+        CorrTransProbs.(rname).(fn).PairMean_t=PairMean_t(ff,rr,1);
+        CorrTransProbs.(rname).(fn).PairMean_tplusk=PairMean_tplusk(ff,rr,1);
+        CorrTransProbs.(rname).(fn).PairStdDeviation_t=PairStdDev_t(ff,rr,1);
+        CorrTransProbs.(rname).(fn).PairStdDeviation_tplusk=PairStdDev_tplusk(ff,rr,1);
+        for kk=2:maxhorizon
+            if reported(kk)
+                CorrTransProbs.(rname).(fn).(['tperiods',num2str(kk)]).AutoCovariance=AutoCovR(ff,rr,kk);
+                CorrTransProbs.(rname).(fn).(['tperiods',num2str(kk)]).AutoCorrelation=AutoCorrR(ff,rr,kk);
+                CorrTransProbs.(rname).(fn).(['tperiods',num2str(kk)]).PairMass=PairMass(ff,rr,kk);
+                CorrTransProbs.(rname).(fn).(['tperiods',num2str(kk)]).PairMean_t=PairMean_t(ff,rr,kk);
+                CorrTransProbs.(rname).(fn).(['tperiods',num2str(kk)]).PairMean_tplusk=PairMean_tplusk(ff,rr,kk);
+                CorrTransProbs.(rname).(fn).(['tperiods',num2str(kk)]).PairStdDeviation_t=PairStdDev_t(ff,rr,kk);
+                CorrTransProbs.(rname).(fn).(['tperiods',num2str(kk)]).PairStdDeviation_tplusk=PairStdDev_tplusk(ff,rr,kk);
+            end
+        end
+    end
+    if simoptions.transprobs(ff)==1 && whichcombos(ff,1)==1
+        CorrTransProbs.(fn).TransitionProbs=P_v_cell{ff}(:,:,1);
+        for kk=2:maxhorizon
+            if reported(kk)
+                CorrTransProbs.(fn).(['tperiods',num2str(kk)]).TransitionProbs=P_v_cell{ff}(:,:,kk);
             end
         end
     end
