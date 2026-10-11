@@ -1,7 +1,8 @@
 function Obj=CalibrateLifeCycleModel_withCohorts_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, targetmomentvec, cohortmoments, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % As CalibrateLifeCycleModel_objectivefn, but with cohorts entering the model at different ages
 % (caliboptions.cohortagejshifter): jequaloneDist is a cell, one entry per cohort, each cohort gets its own
-% agent distribution (StationaryDist_FHorz_Case1 with simoptions.jequaloneDistAge) and its own statistics,
+% agent distribution (StationaryDist_FHorz_Case1 with simoptions.jequaloneDistAge at its entry age and simoptions.lastDistAge at
+% the last age its targets need, or estimoptions.cohortlastage(cc) if given) and its own statistics,
 % and the moments are stacked cohort by cohort as set up by SetupTargetMoments_FHorz_withCohorts (which
 % gives cohortmoments).
 % Age weights by cohort: simoptions.agemass_withCohort (ncohorts-by-N_j) if given, otherwise every cohort has the
@@ -53,7 +54,9 @@ end
 
 
 %% Solve the model
+vftimer=tic;
 [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+vftime=toc(vftimer); % (for verbose)
 
 if caliboptions.simulatemoments==1
     error('caliboptions.simulatemoments=1 (bootstrap by panel simulation) is not implemented together with cohortagejshifter')
@@ -74,14 +77,25 @@ simoptions.agemass_withCohort=mewjc; % so StationaryDist_FHorz_Case1 knows the a
 
 %% Agent distribution and statistics, cohort by cohort, and the current values of the target moments as a vector
 currentmomentvec=zeros(size(targetmomentvec));
+cohorttimes=zeros(ncohorts,4); % per cohort: agent dist, AllStats, LifeCycleProfiles, AutoCorr (seconds, for verbose)
+lastages=zeros(1,ncohorts);
 for cc=1:ncohorts
     simoptions.jequaloneDistAge=caliboptions.cohortagejshifter(cc);
+    if isfield(caliboptions,'cohortlastage')
+        simoptions.lastDistAge=caliboptions.cohortlastage(cc); % user override of the last age the cohort's distribution is computed to
+    else
+        simoptions.lastDistAge=cohortmoments.lastage(cc); % the last age this cohort's targets need (SetupTargetMoments_FHorz_withCohorts): no need to iterate the distribution beyond it
+    end
+    lastages(cc)=simoptions.lastDistAge;
+    cohorttimer=tic;
     Parameters.(AgeWeightParamNames{1})=mewjc(cc,:);
     StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist{cc},AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+    cohorttimes(cc,1)=toc(cohorttimer); cohorttimer=tic;
     sofar=cohortmoments.offset(cc);
     if cohortmoments.usingallstats(cc)==1
         simoptions.whichstats=cohortmoments.AllStats_whichstats{cc};
         AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, cohortmoments.FnsToEvaluate_AllStats{cc},Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
+        cohorttimes(cc,2)=toc(cohorttimer); cohorttimer=tic;
         allstatmomentnames=cohortmoments.allstatmomentnames{cc};
         allstatcummomentsizes=cohortmoments.allstatcummomentsizes{cc};
         if isempty(allstatmomentnames{1,3})
@@ -101,6 +115,7 @@ for cc=1:ncohorts
     if cohortmoments.usinglcp(cc)==1
         simoptions.whichstats=cohortmoments.ACStats_whichstats{cc};
         AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,cohortmoments.FnsToEvaluate_ACStats{cc},Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
+        cohorttimes(cc,3)=toc(cohorttimer); cohorttimer=tic;
         acsmomentnames=cohortmoments.acsmomentnames{cc};
         acscummomentsizes=cohortmoments.acscummomentsizes{cc};
         if isempty(acsmomentnames{1,3})
@@ -131,6 +146,7 @@ for cc=1:ncohorts
         simoptions_acr=simoptions;
         simoptions_acr.timehorizons=cohortmoments.acrhorizons{cc};
         CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist,Policy,cohortmoments.FnsToEvaluate_AutoCorr{cc},Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions_acr);
+        cohorttimes(cc,4)=toc(cohorttimer); cohorttimer=tic;
         for mm=1:size(acrmomentnames,1)
             if mm==1
                 ind1=sofar+1;
@@ -144,6 +160,14 @@ for cc=1:ncohorts
                 currentmomentvec(ind1:ind2)=CorrTransProbs.(acrmomentnames{mm,1}).(acrmomentnames{mm,2}).(acrmomentnames{mm,4});
             end
         end
+    end
+end
+
+%% Verbose: where the time went
+if caliboptions.verbose==1
+    fprintf('withCohorts objective fn: value fn %.1f seconds \n',vftime)
+    for cc=1:ncohorts
+        fprintf('   cohort %i (ages %i to %i): agent dist %.1f, AllStats %.1f, LifeCycleProfiles %.1f, AutoCorr %.1f seconds \n',cc,caliboptions.cohortagejshifter(cc),lastages(cc),cohorttimes(cc,1),cohorttimes(cc,2),cohorttimes(cc,3),cohorttimes(cc,4))
     end
 end
 

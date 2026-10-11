@@ -25,6 +25,7 @@ if exist('simoptions','var')==0
     simoptions.jequaloneDist_usergrids=1; % =1: pass jequaloneDist (as a function) the z_grid in the form the user input; =0: pass the internal joint-grid form
                                           % Note: default is 1 here, the opposite of CustomModelStats_usergrids, as jequaloneDist functions are written against the user's own grid
     simoptions.jequaloneDistAge=1; % jequaloneDist is the distribution at this age (=1 is the standard first period)
+    simoptions.lastDistAge=N_j; % the distribution is only computed up to this age (zero mass after it); used by the withCohorts estimation to stop a cohort at its last targeted age
     simoptions.agemass_withCohort=[]; % non-empty when the age weights are cohort masses (set by the withCohorts estimation), so they need not sum to one
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
@@ -85,6 +86,9 @@ else
     end
     if ~isfield(simoptions,'jequaloneDistAge')
         simoptions.jequaloneDistAge=1; % jequaloneDist is the distribution at this age (=1 is the standard first period)
+    end
+    if ~isfield(simoptions,'lastDistAge')
+        simoptions.lastDistAge=N_j; % the distribution is only computed up to this age (zero mass after it); used by the withCohorts estimation to stop a cohort at its last targeted age
     end
     if ~isfield(simoptions,'agemass_withCohort')
         simoptions.agemass_withCohort=[]; % non-empty when the age weights are cohort masses (set by the withCohorts estimation), so they need not sum to one
@@ -229,8 +233,11 @@ if abs(sum(jequaloneDist(:))-1)>10^(-9)
     error('The jequaloneDist must be of mass one')
 end
 
-%% If jequaloneDist is for an age other than j=1
-if simoptions.jequaloneDistAge>1
+%% If jequaloneDist is for an age other than j=1, or the distribution is only wanted up to an age before N_j
+if simoptions.lastDistAge<simoptions.jequaloneDistAge || simoptions.lastDistAge>N_j
+    error('simoptions.lastDistAge must be between simoptions.jequaloneDistAge and N_j')
+end
+if simoptions.jequaloneDistAge>1 || simoptions.lastDistAge<N_j
     if exist('z_gridvals_J','var')
         simoptions.z_gridvals_J=z_gridvals_J; % StationaryDist_FHorz_altj0 needs to slice it by age
     end

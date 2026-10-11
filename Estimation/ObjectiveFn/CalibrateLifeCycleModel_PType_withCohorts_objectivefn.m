@@ -1,7 +1,8 @@
 function Obj=CalibrateLifeCycleModel_PType_withCohorts_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, targetmomentvec, cohortmoments, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % As CalibrateLifeCycleModel_PType_objectivefn, but with cohorts entering the model at different ages
 % (caliboptions.cohortagejshifter): jequaloneDist is a cell over cohorts, each a structure over ptypes; each cohort
-% gets its own agent distribution (StationaryDist_Case1_FHorz_PType with simoptions.jequaloneDistAge, and with the
+% gets its own agent distribution (StationaryDist_Case1_FHorz_PType with simoptions.jequaloneDistAge at its entry age and
+% simoptions.lastDistAge at the last age its targets need, or estimoptions.cohortlastage(cc) if given; and with the
 % ptype weights scaled by the ptypes' masses in that cohort) and its own statistics, and the moments are stacked
 % cohort by cohort as set up by SetupTargetMoments_FHorz_withCohorts (which gives cohortmoments).
 % Age weights by cohort: simoptions.agemass_withCohort (ncohorts-by-N_j, or a structure of these by ptype) if given,
@@ -82,7 +83,9 @@ end
 
 
 %% Solve the model
+vftimer=tic;
 [~, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+vftime=toc(vftimer); % (for verbose)
 
 %% Age weights and ptype weights by cohort
 ncohorts=caliboptions.ncohorts;
@@ -109,8 +112,17 @@ simoptions.agemass_withCohort=mewjc; % so StationaryDist_FHorz_Case1 knows the a
 
 %% Agent distribution and statistics, cohort by cohort, and the current values of the target moments as a vector
 currentmomentvec=zeros(size(targetmomentvec));
+cohorttimes=zeros(ncohorts,4); % per cohort: agent dist, AllStats, LifeCycleProfiles, AutoCorr (seconds, for verbose)
+lastages=zeros(1,ncohorts);
 for cc=1:ncohorts
     simoptions.jequaloneDistAge=caliboptions.cohortagejshifter(cc);
+    if isfield(caliboptions,'cohortlastage')
+        simoptions.lastDistAge=caliboptions.cohortlastage(cc); % user override of the last age the cohort's distribution is computed to
+    else
+        simoptions.lastDistAge=cohortmoments.lastage(cc); % the last age this cohort's targets need (SetupTargetMoments_FHorz_withCohorts): no need to iterate the distribution beyond it
+    end
+    lastages(cc)=simoptions.lastDistAge;
+    cohorttimer=tic;
     if isstruct(mewjc)
         for ii=1:N_i
             Parameters.(AgeWeightParamNames{1}).(Names_i{ii})=mewjc.(Names_i{ii})(cc,:);
@@ -122,10 +134,12 @@ for cc=1:ncohorts
     ptw=ptweights0.*caliboptions.cohortmasses(:,cc);
     Parameters.(PTypeDistParamNames{1})=ptw/sum(ptw);
     StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist{cc},AgeWeightParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z_J,Parameters,simoptions);
+    cohorttimes(cc,1)=toc(cohorttimer); cohorttimer=tic;
     sofar=cohortmoments.offset(cc);
     if cohortmoments.usingallstats(cc)==1
         simoptions.whichstats=cohortmoments.AllStats_whichstats{cc};
         AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist,Policy,cohortmoments.FnsToEvaluate_AllStats{cc},Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions);
+        cohorttimes(cc,2)=toc(cohorttimer); cohorttimer=tic;
         allstatmomentnames=cohortmoments.allstatmomentnames{cc};
         allstatcummomentsizes=cohortmoments.allstatcummomentsizes{cc};
         for mm=1:size(allstatmomentnames,1)
@@ -150,6 +164,7 @@ for cc=1:ncohorts
     if cohortmoments.usinglcp(cc)==1
         simoptions.whichstats=cohortmoments.ACStats_whichstats{cc};
         AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,cohortmoments.FnsToEvaluate_ACStats{cc},Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions);
+        cohorttimes(cc,3)=toc(cohorttimer); cohorttimer=tic;
         acsmomentnames=cohortmoments.acsmomentnames{cc};
         acscummomentsizes=cohortmoments.acscummomentsizes{cc};
         for mm=1:size(acsmomentnames,1)
@@ -185,6 +200,7 @@ for cc=1:ncohorts
         simoptions_acr=simoptions;
         simoptions_acr.timehorizons=cohortmoments.acrhorizons{cc};
         CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(StationaryDist,Policy,cohortmoments.FnsToEvaluate_AutoCorr{cc},Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions_acr);
+        cohorttimes(cc,4)=toc(cohorttimer); cohorttimer=tic;
         for mm=1:size(acrmomentnames,1)
             if mm==1
                 ind1=sofar+1;
@@ -209,6 +225,14 @@ for cc=1:ncohorts
     end
 end
 Parameters.(PTypeDistParamNames{1})=ptweights_orig; % restore
+
+%% Verbose: where the time went
+if caliboptions.verbose==1
+    fprintf('withCohorts objective fn: value fn %.1f seconds \n',vftime)
+    for cc=1:ncohorts
+        fprintf('   cohort %i (ages %i to %i): agent dist %.1f, AllStats %.1f, LifeCycleProfiles %.1f, AutoCorr %.1f seconds \n',cc,caliboptions.cohortagejshifter(cc),lastages(cc),cohorttimes(cc,1),cohorttimes(cc,2),cohorttimes(cc,3),cohorttimes(cc,4))
+    end
+end
 
 %% Option to log moments (if targets are log, then this will have been already applied)
 if any(caliboptions.logmoments>0) % need to log some moments

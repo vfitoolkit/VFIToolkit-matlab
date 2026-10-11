@@ -20,7 +20,9 @@ function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(Ta
 % allstatcummomentsizes{cc}, AllStats_whichstats{cc}, FnsToEvaluate_AllStats{cc}, acsmomentnames{cc},
 % acscummomentsizes{cc}, ACStats_whichstats{cc}, FnsToEvaluate_ACStats{cc}, acrmomentnames{cc} (rows of
 % {restriction or '', fn, ptype or '', stat}), acrcummomentsizes{cc}, acrhorizons{cc} (the horizons K>=2 needed),
-% FnsToEvaluate_AutoCorr{cc}, and offset(cc) (start of the cohort's segment of targetmomentvec).
+% FnsToEvaluate_AutoCorr{cc}, offset(cc) (start of the cohort's segment of targetmomentvec), and lastage(cc) (the last age any of
+% the cohort's targets needs: the objective fn sets simoptions.lastDistAge to it so the cohort's agent distribution stops there;
+% N_j when the cohort has AllStats targets, which pool every age).
 
 ncohorts=length(cohortagejshifter);
 
@@ -80,6 +82,11 @@ for cc=1:ncohorts
         if any(~isnan(temp(1:j0-1,:)),'all')
             error(['TargetMoments.AgeConditionalStats.',cohortstr,' has non-NaN targets at ages before the cohort enters (age ',num2str(j0),'); these must be NaN'])
         end
+        if any(~isnan(temp),'all')
+            lastage_lcp=find(any(~isnan(temp),2),1,'last'); % the last targeted age
+        else
+            lastage_lcp=j0;
+        end
     end
 
     %% AutoCorr targets of this cohort
@@ -110,6 +117,7 @@ for cc=1:ncohorts
         acrmomentsizes=[];
         acrhorizons=[];
         targetmomentvec_acr=[];
+        lastage_acr=j0;
         for nn=1:size(nodes,1)
             b1vec=fieldnames(nodes{nn,3});
             entries=cell(0,3); % {ptype or '', stat, value}
@@ -148,8 +156,10 @@ for cc=1:ncohorts
                         acrhorizons=[acrhorizons,kk]; %#ok<AGROW>
                     end
                     expectedlength=N_j-kk;
+                    kneeded=kk; % index jj of a horizon-K target is the pair (jj, jj+K), so age jj+K is needed
                 elseif strcmp(statname,'Mean') || strcmp(statname,'StdDeviation')
                     expectedlength=N_j;
+                    kneeded=0;
                 else
                     error(['TargetMoments.AutoCorr.',cohortstr,': ',statname,' is not a recognised statistic (use AutoCorrelation, AutoCovariance, AutoCorrelation_kK, AutoCovariance_kK, Mean or StdDeviation)'])
                 end
@@ -160,6 +170,9 @@ for cc=1:ncohorts
                 val=val(:); % column
                 if any(~isnan(val(1:j0-1)))
                     error(['TargetMoments.AutoCorr.',cohortstr,': ',statname,' has non-NaN targets at ages before the cohort enters (age ',num2str(j0),'); these must be NaN'])
+                end
+                if any(~isnan(val))
+                    lastage_acr=max(lastage_acr,find(~isnan(val),1,'last')+kneeded);
                 end
                 acrmomentnames(end+1,:)={nodes{nn,1},nodes{nn,2},entries{ee,1},statname}; %#ok<AGROW>
                 acrmomentsizes(end+1)=length(val); %#ok<AGROW>
@@ -183,6 +196,19 @@ for cc=1:ncohorts
         cohortmoments.acrhorizons{cc}=[];
         cohortmoments.FnsToEvaluate_AutoCorr{cc}=struct();
     end
+
+    %% The last age this cohort's targets need (the objective fn stops the cohort's agent distribution there, simoptions.lastDistAge)
+    lastage=j0;
+    if cohortmoments.usingallstats(cc)==1
+        lastage=N_j; % AllStats pool every age
+    end
+    if cohortmoments.usinglcp(cc)==1
+        lastage=max(lastage,lastage_lcp);
+    end
+    if cohortmoments.usingautocorr(cc)==1
+        lastage=max(lastage,lastage_acr);
+    end
+    cohortmoments.lastage(cc)=lastage;
 
     cohortmoments.offset(cc)=length(targetmomentvec);
     targetmomentvec=[targetmomentvec; targetmomentvec_cc];

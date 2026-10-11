@@ -1,12 +1,19 @@
 function [V, Policy, aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_raw(Vnext,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions)
-% Local search with a decision variable AND the grid interpolation layer. For each d, aprime is
-% restricted to the 2*nlocalsearch+1 coarse points around aprimeReferencePolicy(d,a,z), with
-% ngridinterp points between each consecutive pair, and d is searched in full. One max over all of
-% those fine points per d, then one over d. No coarse layer, as in the no-d GI version.
+% Local search with a decision variable AND the grid interpolation layer, in TWO LAYERS: a coarse max
+% over the window per d, then the interpolation layer around the winner per d.
 %
-% The reference is a COARSE aprime index per (d,a,z), [N_d,N_a,N_z] -- see the header of
-% ValueFnIter_InfHorz_TPath_SingleStep_LS1_raw for why it has to condition on d, and why that is
-% not the same thing as being shaped like Policy.
+% BOTH LAYERS ARE CONDITIONAL ON d, exactly as the window is, and for the same reason: the reference
+% has to exist for every d and not only the one this period's dstar picked, or the next sweep has no
+% centre for the others. So layer 1 maxes over the coarse window separately for each d, and ITS
+% ANSWER IS THE NEW REFERENCE -- a coarse index per (d,a,z), taken straight, with no fine answer to
+% compress. Layer 2 then polishes, again per d, and only after that is the max over d taken.
+%
+% THE WINDOW. The coarse argmax is CLAMPED to the window's interior, [loweredge+1, loweredge+2n-1],
+% so layer 2's one coarse cell either side reaches exactly from coarse loweredge to coarse
+% loweredge+2n, per d. The union of layer-2 sets over every possible layer-1 argmax is exactly the
+% window, which is what preserves the window guarantee and the ratchet's edge test.
+%
+% See the no-d version's header for why two layers rather than one, and for the encoding note.
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -22,9 +29,10 @@ aprimeReferencePolicy=reshape(aprimeReferencePolicy,[N_d,N_a,N_z]);
 
 % Grid interpolation
 n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
+n2long=2*n2short+3;            % the interpolation layer's search set, exactly as in the standard GI raw
 aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
 n2aprime=length(aprime_grid);
-nLS=2*n*(1+n2short)+1; % 2n+1 coarse points, n2short between each consecutive pair
+nC=2*n+1; % the coarse window
 
 Policy=zeros(4,N_a,N_z,'gpuArray'); % d, lower coarse point, L2, L2flag
 
@@ -41,73 +49,82 @@ EV=sum(EV,2); % [N_a,1,N_z]
 
 EVinterp=interp1(a_grid,EV,aprime_grid);
 
-%% The window, in fine grid points, one per (d,a,z)
+%% The window, in COARSE grid points, one per (d,a,z)
 loweredge=min(max(aprimeReferencePolicy-n,1),N_a-2*n); % [N_d,N_a,N_z], a coarse index
-% Coarse point i sits at fine index 1+(i-1)*(1+n2short), which is how the GI raw writes
-% midpoint+(midpoint-1)*n2short. Take every fine point from coarse loweredge to coarse loweredge+2n.
-aprimeindexes=reshape(loweredge+(loweredge-1)*n2short,[N_d,1,N_a,N_z])+(0:1:2*n*(1+n2short)); % [N_d,nLS,N_a,N_z]
 
+%% LAYER 1: the coarse max over the window, per d
+% On the COARSE EV, not EVinterp: layer 1 never needs the fine grid.
+coarseindexes=reshape(loweredge,[N_d,1,N_a,N_z])+(0:1:2*n); % [N_d,nC,N_a,N_z], coarse indices
 % Level 3 returns [N_d,N_aprime,N_a,N_z] without folding d and aprime together, which is what the
-% two maxima below want
-ReturnMatrix=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, aprime_grid(aprimeindexes), a_grid, z_gridvals, ReturnFnParamsVec,3);
+% per-d max below wants
+ReturnMatrix1=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, a_grid(coarseindexes), a_grid, z_gridvals, ReturnFnParamsVec,3);
+coarsez=coarseindexes+N_a*shiftdim((0:1:N_z-1),-2);
+entireRHS1=ReturnMatrix1+DiscountFactorParamsVec*EV(coarsez);
+[~,offset1]=max(entireRHS1,[],2);                      % [N_d,1,N_a,N_z]
+% COARSEOFFSET IS 0-BASED, in every localsearch raw: it is the number of grid steps the window's
+% argmax sits ABOVE loweredge, so it runs 0 to 2n and the grid index is loweredge+coarseoffset.
+% One name and one base across all four raws deliberately -- a 1-based offset converted with
+% loweredge+offset-1 reads almost identically, and getting the two confused shifts every window
+% centre by one grid point without erroring, because the window absorbs it.
+coarseoffset=reshape(offset1,[N_d,N_a,N_z])-1;         % 0 to 2n, steps above loweredge, per d
+
+%% The new reference, the SAME object as the input: a COARSE aprime index per (d,a,z)
+% THE LAYER 1 ANSWER, taken straight, per d. No fine answer to compress and no rounding step to get
+% wrong. It is the UNCLAMPED argmax: if the coarse optimum for this d sits on a window end then that
+% is where this d's policy is heading, and the reference should say so even though the clamp stops
+% layer 2 centring there.
+aprimeReferencePolicyNew=loweredge+coarseoffset;
+
+%% LAYER 2: the interpolation layer, one coarse cell either side of the clamped midpoint, per d
+% The clamp keeps layer 2 inside the window and keeps every fine index in range: midpoint>=2 puts
+% the lowest searched point at (1+n2short)*(midpoint-2)+1>=1, and midpoint<=N_a-1 puts the highest at
+% (1+n2short)*midpoint+1<=n2aprime.
+midpoint=loweredge+min(max(coarseoffset,1),2*n-1);     % [N_d,N_a,N_z]
+aprimeindexes=reshape(midpoint+(midpoint-1)*n2short,[N_d,1,N_a,N_z])+(-n2short-1:1:1+n2short); % [N_d,n2long,N_a,N_z]
+ReturnMatrix2=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, aprime_grid(aprimeindexes), a_grid, z_gridvals, ReturnFnParamsVec,3);
 aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_z-1),-2);
 % Discounting applied AFTER the gather, the same order the GI raw uses, so that the two can be held
 % to a bit-for-bit identity where they search the same points
-entireRHS=ReturnMatrix+DiscountFactorParamsVec*EVinterp(aprimez);
+entireRHS2=ReturnMatrix2+DiscountFactorParamsVec*EVinterp(aprimez);
+[Vd,offsetL2]=max(entireRHS2,[],2);                    % [N_d,1,N_a,N_z]
+L2d=reshape(offsetL2,[N_d,N_a,N_z]);                   % 1 to n2long, per d
 
-%% Two maxima: the best fine point for each d, which is the new reference, then the best d
-[Vd,offsetd]=max(entireRHS,[],2);                   % [N_d,1,N_a,N_z]
-kd=reshape(offsetd,[N_d,N_a,N_z])-1;                % fine steps above coarse loweredge, per d
-qd=floor(kd/(1+n2short));                           % whole coarse steps
-rd=kd-qd*(1+n2short);                               % remainder inside the cell, 0 to n2short
-
-%% The new reference, the SAME object as the input: a COARSE aprime index per (d,a,z)
-% The per-d answer is a fine point, compressed to the nearest coarse one. It cannot run off the top:
-% loweredge+qd=N_a only happens at qd=2n, which forces rd=0.
-aprimeReferencePolicyNew=loweredge+qd+round(rd/(1+n2short));
-
-[V,dstar]=max(reshape(Vd,[N_d,N_a,N_z]),[],1);      % [1,N_a,N_z]
+%% Then the max over d
+[V,dstar]=max(reshape(Vd,[N_d,N_a,N_z]),[],1);         % [1,N_a,N_z]
 V=reshape(V,[N_a,N_z]);
 dstar=reshape(dstar,[N_a,N_z]);
 
 % Everything below is read AT THE CHOSEN d, which is the thing to get wrong here
-lin=dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_z-1);     % [N_a,N_z], into an [N_d,N_a,N_z] array
-qstar=qd(lin);
-rstar=rd(lin);
-lowstar=loweredge(lin);
-
-% THE TOP OF THE GRID. The agent distribution code always forms the UPPER grid point as P1+1 (see
-% TransitionPath_InfHorz_substeps_Step2_AdjustPolicy), so the toolkit's GI convention is P1<=N_a-1,
-% with the top grid point spelled (N_a-1, L2=ngridinterp+2) rather than (N_a, L2=1). The standard GI
-% raw gets this free from clamping its midpoint to [2,N_a-1]. Here loweredge+q reaches N_a exactly
-% when the window has slid to the top of the grid (loweredge=N_a-2n) and the optimum is the window's
-% top coarse point (q=2n, which forces r=0) -- a household saving to the top of the grid. That one
-% case is re-spelled onto the cell below, which is the SAME fine point.
-% Left unspelled it is an out-of-range index in the sparse() that builds the distribution transition,
-% and the error surfaces far away in AgentDist_InfHorz_TPath_SingleStep_nProbs_raw. The value fn
-% tests compare the DECODED fine point, which is correct either way, so they cannot see this: it is
-% a convention on the SPELLING, and only the agent distribution depends on it.
-attop=(lowstar+qstar==N_a);
-Policy(1,:,:)=shiftdim(dstar,-1);
-Policy(2,:,:)=shiftdim(lowstar+qstar-attop,-1);        % lower coarse grid point, never N_a
-Policy(3,:,:)=shiftdim(rstar+1+attop*(1+n2short),-1);  % L2, 1 to 1+n2short, or n2short+2 at the very top
-
-% NOTE ON THE ENCODING, as in the no-d GI version: L2 runs 1 to 1+n2short, reaching the n2short+2
-% the GI raw can emit only in the top-of-grid case just above. (P1,n2short+2) and (P1+1,1) are the same fine point and this names
-% it the second way, always. Compare the decoded fine point, (1+n2short)*(P1-1)+L2.
+lin=dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_z-1);        % [N_a,N_z], into an [N_d,N_a,N_z] array
+L2star=L2d(lin);
+midstar=midpoint(lin);
 
 %% L2 flag, for the cell the chosen d landed in
-% Same rule and same reduction to the GI raw at nlocalsearch=1 as the no-d GI version, with the cell
-% endpoints now located in the chosen d's row of ReturnMatrix. qd=2n means the optimum sits exactly
-% on the top coarse point of the window, where there is no cell above and rd=0 makes the flag 2
-% regardless, so qflag is clamped by one cell to keep the lookup in range.
-qflagstar=min(qstar,2*n-1);
-base=dstar+N_d*nLS*(0:1:N_a-1)'+N_d*nLS*N_a*(0:1:N_z-1); % window position 1, at the chosen d
-linidx_lower=base+N_d*qflagstar*(1+n2short);
-linidx_upper=linidx_lower+N_d*(1+n2short);
-isInfLower=(ReturnMatrix(linidx_lower)==-Inf);
-isInfUpper=(ReturnMatrix(linidx_upper)==-Inf);
-strictlyinside=(rstar>=1);
-Policy(4,:,:)=shiftdim(2+(strictlyinside & isInfLower)-(strictlyinside & isInfUpper),-1);
+% Layer 2's window is structurally the standard GI raw's -- n2long points, one coarse cell either
+% side of a midpoint -- so this is that raw's rule, with the two cell endpoints at window positions
+% 1 and n2long in the chosen d's row of ReturnMatrix2. Computed from L2star BEFORE the re-spelling
+% below, again as in the standard GI raw.
+base=dstar+N_d*n2long*(0:1:N_a-1)'+N_d*n2long*N_a*(0:1:N_z-1); % window position 1, at the chosen d
+linidx_lower=base;
+linidx_upper=base+N_d*(n2long-1);
+isInfLower=(ReturnMatrix2(linidx_lower)==-Inf);
+isInfUpper=(ReturnMatrix2(linidx_upper)==-Inf);
+inLowerStrict=(L2star>=2)         & (L2star<=n2short+1);
+inUpperStrict=(L2star>=n2short+3) & (L2star<=n2long-1);
+Policy(4,:,:)=shiftdim(2+(inLowerStrict & isInfLower)-(inUpperStrict & isInfUpper),-1);
+
+%% Policy, re-spelled from (midpoint, offset within n2long) to (lower coarse point, L2)
+% The standard GI raw's lines. L2star below n2short+2 means the answer is in the cell BELOW the
+% midpoint, so the lower coarse point is midpoint-1 and L2 counts up from there; otherwise the cell
+% is the one above and L2 counts from the midpoint itself. L2 ends up in [1,n2short+2].
+adjust=(L2star<1+n2short+1);
+Policy(1,:,:)=shiftdim(dstar,-1);
+Policy(2,:,:)=shiftdim(midstar-adjust,-1);
+Policy(3,:,:)=shiftdim(adjust.*L2star+(1-adjust).*(L2star-n2short-1),-1);
+
+% NOTE ON THE ENCODING, inherited from the standard GI raw: L2 reaches n2short+2 here, so the
+% window's top fine point can come out as either (loweredge+2n, 1) or (loweredge+2n-1, n2short+2).
+% Those are the same fine point. Anything comparing these raws, and the ratchet's edge test in
+% Step1, must use the DECODED fine point (1+n2short)*(P1-1)+L2 and never the raw channels.
 
 end

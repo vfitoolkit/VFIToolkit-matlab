@@ -5,6 +5,11 @@ if isfield(simoptions,'jequaloneDistAge')
         error('simoptions.jequaloneDistAge>1 is not implemented for the CPU (simoptions.parallel<2); it needs the GPU')
     end
 end
+if isfield(simoptions,'lastDistAge')
+    if simoptions.lastDistAge<N_j
+        error('simoptions.lastDistAge<N_j is not implemented for the CPU (simoptions.parallel<2); it needs the GPU')
+    end
+end
 
 if prod(n_d)==0
     l_d=0;
