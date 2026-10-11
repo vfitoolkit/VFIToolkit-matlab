@@ -47,7 +47,19 @@ if ~isfield(andersonoptions,'maxiter')
 end
 
 %% Solve
-[p,GEcondns,output]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,DistanceFn,reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+% WITH LOCAL SEARCH the residual carries state -- the reference policy the restricted value fn search
+% centres its window on -- so it goes to the forked accelerator. The two closures are the same shim
+% called two ways: the restricted residual Anderson iterates on, and an unrestricted VerifyFn that
+% certifies convergence before it is believed. The reference starts empty and the shim makes the
+% first sweep unrestricted, which is what builds it.
+% ShootingMapFn and DistanceFn are unchanged and still pure: neither touches the value function.
+if vfoptions.localsearch==1
+    GEcondnsFnLS=@(p,ref) TransitionPath_InfHorz_Anderson_resid(p,ref,1,nPrices, PricePathNames,PricePathSizeVec,ParamPath,ParamPathNames,ParamPathSizeVec,T,V_final,AgentDist_initial,n_d,n_a,n_z,n_e,N_a,N_z,N_e,l_d,l_aprime,d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e,ReturnFn,FnsToEvaluateCell,AggVarNames,FnsToEvaluateParamNames,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,Parameters,DiscountFactorParamNames,ReturnFnParamNames,use_tminus1price,use_tminus1params,use_tplus1price,use_tminus1AggVars,use_stockvars,tminus1priceNames,tminus1paramNames,tplus1priceNames,tplus1pricePathkk,tminus1AggVarsNames,stockvarsNames,stockvarInPricePathNames,vfoptions,simoptions,transpathoptions,itercounter,PolicyIndexesPath,N_probs,II1,II2);
+    VerifyFnLS=@(p) TransitionPath_InfHorz_Anderson_resid(p,[],0,nPrices, PricePathNames,PricePathSizeVec,ParamPath,ParamPathNames,ParamPathSizeVec,T,V_final,AgentDist_initial,n_d,n_a,n_z,n_e,N_a,N_z,N_e,l_d,l_aprime,d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e,ReturnFn,FnsToEvaluateCell,AggVarNames,FnsToEvaluateParamNames,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,Parameters,DiscountFactorParamNames,ReturnFnParamNames,use_tminus1price,use_tminus1params,use_tplus1price,use_tminus1AggVars,use_stockvars,tminus1priceNames,tminus1paramNames,tplus1priceNames,tplus1pricePathkk,tminus1AggVarsNames,stockvarsNames,stockvarInPricePathNames,vfoptions,simoptions,transpathoptions,itercounter,PolicyIndexesPath,N_probs,II1,II2);
+    [p,GEcondns,output]=AndersonAccelerationTPath(GEcondnsFnLS,ShootingMapFn,DistanceFn,VerifyFnLS,[],reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+else
+    [p,GEcondns,output]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,DistanceFn,reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+end
 
 PricePathOld=reshape(p,T,nPrices);
 GEcondnPath=reshape(GEcondns,T-1,nGEcondns);
@@ -57,6 +69,9 @@ if transpathoptions.verbose==1
     fprintf('Current distance of the general eqm conditions from zero: %8.6f \n', DistanceFn(GEcondns))
     fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1) \n',DistanceFn(GEcondns)/transpathoptions.toleranceGEcondns)
     fprintf('Number of Anderson steps rejected by the safeguard along the way: %i \n',output.nrejectedsteps)
+    if isfield(output,'nverify')
+        fprintf('Local search: %i unrestricted certification sweep(s), of which %i put the solve back outside tolerance and restarted the history \n',output.nverify,output.nverifyfailed)
+    end
 end
 
 %% Create plots of the transition path

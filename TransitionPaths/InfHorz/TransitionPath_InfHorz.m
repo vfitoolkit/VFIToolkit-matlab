@@ -280,16 +280,20 @@ else
         if vfoptions.nlocalsearchup<1 || vfoptions.nlocalsearchdown<1
             error('vfoptions.nlocalsearchup and vfoptions.nlocalsearchdown must both be at least 1')
         end
-        % Only the shooting algorithm carries the reference policy from one iteration to the next.
-        % Anderson hands a PURE residual function to AndersonAcceleration, which is shared with the
-        % stationary general eqm code, so state cannot be threaded through it without changing that
-        % shared contract. Quasi-Newton perturbs prices to build a Jacobian, where the reference has
-        % to be the baseline path's rather than the previous perturbation's, which is a separate
-        % design question. Without this refusal both would run every iteration against the stay-put
+        % SHOOTING (GEnewprice=3) and ANDERSON (GEnewprice=2) both carry the reference from one
+        % iteration to the next. Anderson does it through AndersonAccelerationTPath, a fork of the
+        % accelerator: the shared AndersonAcceleration takes a PURE residual function and serves the
+        % stationary general eqm code too, so state could not be threaded through it without changing
+        % that contract for a caller which has none.
+        % QUASI-NEWTON (GEnewprice=1) is still refused. It perturbs prices to build a Jacobian, and
+        % the reference for a perturbed path has to be the BASELINE path's rather than the previous
+        % perturbation's, or each column of the Jacobian is computed against a different restriction.
+        % That is a separate design question, not plumbing.
+        % Without a refusal the unsupported algorithms would run every iteration against the stay-put
         % default reference and never take a verification sweep, and so return a wrong path in
         % silence -- which is the worst thing this option could do.
-        if transpathoptions.GEnewprice~=3
-            error('vfoptions.localsearch=1 currently requires transpathoptions.GEnewprice=3 (the shooting algorithm)')
+        if transpathoptions.GEnewprice~=3 && transpathoptions.GEnewprice~=2
+            error('vfoptions.localsearch=1 currently requires transpathoptions.GEnewprice=3 (shooting) or 2 (Anderson)')
         end
         % prod(...)>0 as well as isfield, because this command sets vfoptions.n_e=0 and
         % vfoptions.n_semiz=0 above, so the fields exist on every model and isfield alone would
