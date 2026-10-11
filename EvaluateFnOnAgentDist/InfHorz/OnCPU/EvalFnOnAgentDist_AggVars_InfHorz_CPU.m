@@ -69,7 +69,8 @@ if l_d>0
             end
             % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
             temp=Values.*StationaryDistVec;
-            AggVars(ff)=sum(temp(~isnan(temp)));
+            temp(StationaryDistVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+            AggVars(ff)=sum(temp);
         else
             FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
             Values=zeros(N_a*N_z,1);
@@ -80,7 +81,8 @@ if l_d>0
             end
             % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
             temp=Values.*StationaryDistVec;
-            AggVars(ff)=sum(temp(~isnan(temp)));
+            temp(StationaryDistVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+            AggVars(ff)=sum(temp);
         end
     end
 
@@ -97,7 +99,8 @@ else % l_d=0
             end
             % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
             temp=Values.*StationaryDistVec;
-            AggVars(ff)=sum(temp(~isnan(temp)));
+            temp(StationaryDistVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+            AggVars(ff)=sum(temp);
         else
             FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
             Values=zeros(N_a*N_z,1);
@@ -108,7 +111,8 @@ else % l_d=0
             end
             % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
             temp=Values.*StationaryDistVec;
-            AggVars(ff)=sum(temp(~isnan(temp)));
+            temp(StationaryDistVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+            AggVars(ff)=sum(temp);
         end
     end
 end

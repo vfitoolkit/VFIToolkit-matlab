@@ -82,7 +82,8 @@ if Parallel==2
         % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec
         % (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
         temp=Values.*StationaryDistpdfVec;
-        AggVars(ff)=sum(temp(~isnan(temp)));
+        temp(StationaryDistpdfVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+        AggVars(ff)=sum(temp);
     end
 
 else
@@ -148,7 +149,8 @@ else
             end
             % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
             temp=Values.*StationaryDistpdfVec;
-            AggVars(ff)=sum(temp(~isnan(temp)));
+            temp(StationaryDistpdfVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+            AggVars(ff)=sum(temp);
         end
 
     else %l_d=0
@@ -176,7 +178,8 @@ else
             end
             % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
             temp=Values.*StationaryDistpdfVec;
-            AggVars(ff)=sum(temp(~isnan(temp)));
+            temp(StationaryDistpdfVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+            AggVars(ff)=sum(temp);
         end
     end
 

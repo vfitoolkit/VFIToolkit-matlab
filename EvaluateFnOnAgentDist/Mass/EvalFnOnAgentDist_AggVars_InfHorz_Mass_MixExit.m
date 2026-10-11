@@ -108,7 +108,8 @@ if Parallel==2
         end
         % Following commented out line is just doing the same as the above four if statements but in a single line. Is residual code from earlier version.
 %         temp=exitprobs(1)*Values.*StationaryDistpdfVec+exitprobs(2)*((1-ProbOfExit).*Values+ProbOfExit.*ValuesWhenExiting).*StationaryDistpdfVec+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
-        AggVars(ff)=sum(temp(~isnan(temp)));
+        temp(StationaryDistpdfVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+        AggVars(ff)=sum(temp);
     end
 
 else
@@ -201,7 +202,8 @@ else
             if ExitStatus(4)==1
                 temp=temp+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
             end
-            AggVars(ff)=sum(temp(~isnan(temp)));
+            temp(StationaryDistpdfVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+            AggVars(ff)=sum(temp);
         end
 
     else %l_d=0
@@ -267,7 +269,8 @@ else
             if ExitStatus(4)==1
                 temp=temp+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
             end
-            AggVars(ff)=sum(temp(~isnan(temp)));
+            temp(StationaryDistpdfVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+            AggVars(ff)=sum(temp);
         end
     end
 

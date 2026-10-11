@@ -224,7 +224,8 @@ for ff=1:length(FnsToEvaluate)
     Values=reshape(Values,[N_a*max(N_z,1),1]);
     % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
     temp=Values.*StationaryDistVec;
-    AggVars(ff)=sum(temp(~isnan(temp)));
+    temp(StationaryDistVec==0)=0; % only zero-mass points are dropped; a NaN with positive mass stays NaN
+    AggVars(ff)=sum(temp);
 end
 
 
