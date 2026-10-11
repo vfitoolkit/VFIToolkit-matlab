@@ -68,7 +68,13 @@ entireRHS=ReturnMatrix+DiscountedEV(aprimez);
 V=reshape(V,[N_a,N_z]);
 
 % aprimeindexes(k,a,z)=loweredge(a,z)+(k-1), so the decode is just the offset from loweredge
-aprimeindexstar=loweredge+reshape(maxindex,[N_a,N_z])-1;
+% COARSEOFFSET IS 0-BASED, in every localsearch raw: it is the number of grid steps the window's
+% argmax sits ABOVE loweredge, so it runs 0 to 2n and the grid index is loweredge+coarseoffset.
+% One name and one base across all four raws deliberately -- a 1-based offset converted with
+% loweredge+offset-1 reads almost identically, and getting the two confused shifts every window
+% centre by one grid point without erroring, because the window absorbs it.
+coarseoffset=reshape(maxindex,[N_a,N_z])-1; % 0 to 2n, steps above loweredge
+aprimeindexstar=loweredge+coarseoffset;
 
 %% The new reference, which is the SAME object as the input: one aprime index per state, [1,N_a,N_z]
 % With no d it is just the chosen aprime, so it coincides with Policy here. It is returned all the

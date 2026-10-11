@@ -310,31 +310,13 @@ else
         if n_a(1)<2*vfoptions.nlocalsearch+1
             error('vfoptions.nlocalsearch is too large for the grid: need n_a>=2*nlocalsearch+1')
         end
-        % localsearchtwolayer picks between the two encodings of the SAME restriction under the
-        % grid interpolation layer, which search identically the same fine points:
-        %   0  one pass: all 2*nlocalsearch*(1+ngridinterp)+1 fine points of the window, one max.
-        %   1  two layers: a coarse max over the window's 2*nlocalsearch+1 points, then the
-        %      interpolation layer one coarse cell either side -- the same fine span. Its coarse
-        %      layer also produces the new reference directly, with no fine answer to round.
-        % One pass searches fewer points only at nlocalsearch=1; two layers grows at 2 points per
-        % unit of nlocalsearch against 2*(1+ngridinterp). Both are kept while the test bank times
-        % them against each other, and one will be dropped.
-        if ~isfield(vfoptions,'localsearchtwolayer')
-            vfoptions.localsearchtwolayer=0;
-        end
-        if vfoptions.localsearchtwolayer==1 && vfoptions.gridinterplayer==0
-            error('vfoptions.localsearchtwolayer=1 only means anything with vfoptions.gridinterplayer=1 (without the interpolation layer there is only one encoding)')
-        end
-        % The general eqm scheme is NO-d ONLY. The first path iteration is a standard sweep whose
-        % Policy becomes the reference, and with a d the reference has to exist for every d and not
-        % just the one that sweep chose, which no standard raw produces. Refused by name here
-        % because without it Step1 allocates a [1,N_a,N_z] reference, the dispatcher then rejects its
-        % shape, and the error talks about aprimeReferencePolicy rather than about d.
-        % (The with-d localsearch raws themselves are implemented and tested; it is only carrying a
-        % reference across general eqm iterations that is not.)
-        if n_d(1)~=0
-            error('vfoptions.localsearch=1 is not yet implemented with a d variable inside a general eqm transition path (the restricted value fn step with d is, see ValueFnOnTransPath_InfHorz)')
-        end
+        % WITH A d, the standard sweeps of the solve become SEED sweeps: unrestricted, but returning
+        % a coarse aprime argmax per (d,a,z) so that the next restricted sweep has a window centre
+        % for every d and not only the one that sweep chose. Those sweeps ignore
+        % vfoptions.divideandconquer, because a per-d reference has to come from the raw and
+        % threading a third output through the DC family would mean touching eight raws instead of
+        % two. The answer a verification sweep certifies is unchanged -- it is unrestricted either
+        % way -- and a solve takes one or two of them against dozens of restricted sweeps.
     end
 end
 

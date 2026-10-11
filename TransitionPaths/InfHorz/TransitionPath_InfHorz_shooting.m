@@ -34,9 +34,16 @@ itercounter=1;
 % existing non-convergence warning is what fires. nverify is reported for exactly that reason.
 uselocalsearch=vfoptions.localsearch;
 vfoptions.localsearch=0; % iteration 1 is standard
+% localsearchseed tells the single-step dispatcher that a standard sweep must ALSO leave behind a
+% reference for the next restricted sweep. It is set on exactly the sweeps where localsearch is off
+% but in use for the solve -- iteration 1 and every verification sweep -- and is what makes the
+% scheme work with a d, where the reference has to exist for every d and not only the one the sweep
+% chose. With no d it also unifies the reference: both kinds of sweep now return the coarse argmax
+% of their own search, where the standard sweep used to have its converted from Policy.
+vfoptions.localsearchseed=uselocalsearch;
 aprimeReferencePath=[];  % Step1 allocates and fills it on that first sweep
 nverify=0;
-lsmovemax=0; lsnedge=0; lsntotal=0;
+lsmovemax=0; lsnedge=0; lsntotal=0; lsnedgedstar=0; lsntotaldstar=0;
 % nlocalsearch is a STARTING window, not the window. It resets to the input value on entering local
 % search -- which happens after iteration 1 and after every verification sweep -- and then ratchets:
 % up by vfoptions.nlocalsearchup whenever the answer sat on a window edge anywhere, down by
@@ -153,6 +160,8 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
         lsmovemax=max(lsmovemax,lsdiag.movemax);
         lsnedge=lsnedge+lsdiag.nedge;
         lsntotal=lsntotal+lsdiag.ntotal;
+        lsnedgedstar=lsnedgedstar+lsdiag.nedgedstar;
+        lsntotaldstar=lsntotaldstar+lsdiag.ntotaldstar;
         lsnmin=min(lsnmin,vfoptions.nlocalsearch);
         lsnmax=max(lsnmax,vfoptions.nlocalsearch);
         if lsdiag.nedge>0
@@ -210,6 +219,7 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
             % Converged under local search. Re-evaluate THIS SAME path with a standard sweep: the
             % prices are deliberately NOT updated, or the check would be of a different path.
             vfoptions.localsearch=0;
+            vfoptions.localsearchseed=1; % the verification sweep reseeds the reference, per d
             nverify=nverify+1;
             if transpathoptions.verbose==1
                 fprintf('Local search converged at iteration %i, checking it with a standard sweep \n',itercounter)
@@ -221,6 +231,7 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
 
     if uselocalsearch==1 && vfoptions.localsearch==0
         vfoptions.localsearch=1; % a reference exists now, so the restricted search can start
+        vfoptions.localsearchseed=0;
         vfoptions.nlocalsearch=nlocalsearchstart; % the input value is the window used immediately after every standard sweep
     end
 
@@ -250,6 +261,21 @@ if uselocalsearch==1
         % movemax is bounded by the window, so it says what the window allowed and not how far the
         % policy would have moved. The edge share is the signal the ratchet actually responds to.
         fprintf('Local search: the answer sat on a window edge, excluding the grid ends, at %.2f%% of state-periods; the largest move from a reference was %i grid points, which the window bounds \n',100*lsnedge/max(lsntotal,1),lsmovemax)
+        % WITH A d THERE ARE TWO READINGS, and the ratchet is driven by the ALL-d one. That is a
+        % choice about robustness, not about this model: a d whose window truncated it might have won
+        % on a wider window, and that loss is invisible without computing it, so the count has to
+        % include the d values the period rejected.
+        % DO NOT SWITCH IT TO THE CHOSEN-d RATE ON THE STRENGTH OF THESE TWO NUMBERS. On a model where
+        % the optimal aprime varies smoothly and monotonically in d, every per-d reference is well
+        % centred, so the all-d rate comes out LOWER than the chosen-d rate -- 0.16% against 0.64% on
+        % the doPart(6) labour-supply model -- and looks like the weaker signal. Where d has no such
+        % ordering, a rejected d's optimum can sit far from its reference and bind, and that is
+        % precisely the d the chosen-d count cannot see.
+        % The chosen-d rate is printed because it answers a different question: whether the
+        % restriction bound the policy that was actually realised.
+        if lsntotaldstar>0
+            fprintf('Local search: that edge rate is over every d; at the CHOSEN d only it is %.2f%% of state-periods \n',100*lsnedgedstar/max(lsntotaldstar,1))
+        end
     end
     if lsnpinned>0
         fprintf('Local search: WARNING nlocalsearch reached its cap of %i on %i iteration(s). At the cap the window covers the whole grid AND pays the index overhead, so local search is strictly worse than not using it on this model. \n',nlocalsearchcap,lsnpinned)

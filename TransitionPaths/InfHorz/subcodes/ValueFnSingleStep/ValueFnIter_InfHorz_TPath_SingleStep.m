@@ -23,32 +23,69 @@ elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     error('EpsteinZin Preferences Not yet supported')
 end
 
+% localsearchseed is INTERNAL: Step1 sets it, no user does, so it is defaulted here rather than in
+% the commands, and it is defaulted ABOVE ITS FIRST READ. The seed block below is the first read, and
+% MATLAB evaluates it before any later default could run, so a caller that does not set the field --
+% every caller that does not come through Step1, the test bank included -- errors on a missing field
+% name instead of taking the ordinary path. The same ordering mistake was made once before with
+% transpathoptions.localsearchdiagnostic in TransitionPath_InfHorz_shooting.
+if ~isfield(vfoptions,'localsearchseed')
+    vfoptions.localsearchseed=0;
+end
+
+%% The SEED sweep: unrestricted, but returning a reference for vfoptions.localsearch
+% Set by Step1 on the standard sweeps of a localsearch solve -- iteration 1 and every verification
+% sweep -- never by a user. Those sweeps have to leave behind a reference for the NEXT restricted
+% sweep, and with a d that means one coarse aprime per (d,a,z) and not just for the d they chose.
+%
+% IT IGNORES vfoptions.divideandconquer, deliberately. A per-d reference has to come from the raw,
+% and threading a third output through the DC family would mean touching eight raws instead of two.
+% The verification sweep is unrestricted either way, so the answer it certifies is unchanged; what is
+% given up is DC's speed on iteration 1 and on each verification sweep, measured at 2.4x with d and a
+% net loss without it. A solve takes one or two of those sweeps against dozens of restricted ones.
+%
+% Each branch returns a reference built the same way: THE COARSE ARGMAX OF THE UNRESTRICTED SEARCH.
+% Without the interpolation layer that is just the chosen aprime (per d, where there is a d); with
+% it, it is the standard GI raw's own midpoint, which is the unrestricted version of exactly what
+% the restricted GI raw's first layer produces. So the reference means one thing whichever sweep
+% built it, which it did not when the standard sweep's reference was converted from Policy by
+% rounding a fine answer to the nearest coarse point.
+if vfoptions.localsearchseed==1
+    if isscalar(n_a) && N_z>0
+        if vfoptions.gridinterplayer==0
+            if N_d==0
+                % No d, no interpolation layer: Policy's aprime channel IS the reference, so no
+                % separate raw is needed.
+                [VKron,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                PolicyKron=reshape(Policy,[size(Policy,1),N_a,N_z]);
+                aprimeReferencePolicyNew=PolicyKron(1,:,:);
+            else
+                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LSseed_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else
+            if N_d==0
+                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        end
+    else
+        error('vfoptions.localsearch=1 is currently only implemented for one endogenous state, with z (no e, no semiz)')
+    end
+    return
+end
+
 %% Local search: aprime restricted to a window around aprimeReferencePolicy
 % Sits ahead of the gridinterplayer and divideandconquer branches because it is an
 % alternative to them, not a tier on top. Divide-and-conquer restricts the search a
 % different way, so the combination is refused.
-% With the grid interpolation layer there are TWO encodings of the same restriction, chosen by
-% vfoptions.localsearchtwolayer, and they search identically the same set of fine points:
-%   0 (one pass): the LS1_GI1 raw puts the ngridinterp points between each consecutive pair of the
-%     window's coarse points and takes ONE max over all of them. No coarse layer at all.
-%   1 (two layers): the LS1_GI1_twolayer raw maxes over the window's coarse points first, clamps
-%     that argmax to the window interior, and runs the interpolation layer one coarse cell either
-%     side -- which reaches exactly the same fine points. Its coarse layer also hands back the new
-%     reference directly, with no fine answer to compress.
-% The two are kept side by side so the test bank can time them against each other; one will be
-% dropped once that is measured.
+% The grid interpolation layer is NOT a tier on top either: the LS1_GI1 raw does the whole thing
+% itself, maxing over the window's coarse points, clamping that argmax to the window interior, and
+% running the interpolation layer one coarse cell either side -- which covers exactly the window.
+% Its coarse layer also hands back the new reference directly, with no fine answer to compress.
 if vfoptions.localsearch==1
     if vfoptions.divideandconquer==1
         error('vfoptions.localsearch=1 cannot yet be combined with vfoptions.divideandconquer=1')
-    end
-    % Defaulted HERE, unlike every other field this dispatcher reads, and deliberately. This
-    % dispatcher is called DIRECTLY by callers holding their own vfoptions -- the test bank does so
-    % throughout -- and not only through the commands that fill in defaults. localsearchtwolayer was
-    % added after those callers were written, so without this guard every existing direct call that
-    % uses local search with the interpolation layer would fail on a missing field, and the error
-    % would name the field rather than anything the caller did wrong.
-    if ~isfield(vfoptions,'localsearchtwolayer')
-        vfoptions.localsearchtwolayer=0;
     end
     if isscalar(n_a) && N_z>0
         % The reference holds the aprime index at the centre of each window, indexed by everything
@@ -67,18 +104,14 @@ if vfoptions.localsearch==1
         if N_d==0
             if vfoptions.gridinterplayer==0
                 [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
-            elseif vfoptions.localsearchtwolayer==0
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
             else
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_twolayer_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
             end
         else
             if vfoptions.gridinterplayer==0
                 [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_raw(VKron,n_d,n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
-            elseif vfoptions.localsearchtwolayer==0
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_raw(VKron,n_d,n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
             else
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_twolayer_raw(VKron,n_d,n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_GI1_raw(VKron,n_d,n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
             end
         end
     else

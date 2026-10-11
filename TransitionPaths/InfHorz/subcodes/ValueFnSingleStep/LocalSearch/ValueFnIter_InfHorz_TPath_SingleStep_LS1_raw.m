@@ -64,8 +64,14 @@ entireRHS=ReturnMatrix+DiscountedEV(aprimez);
 % construction that has drifted before in this family.
 % It does change tie-breaking: a single folded max breaks a tie by linear order (d fastest), this
 % breaks it by lowest d among the per-d maxima. Two names for one value, like the DC tie artefact.
-[Vd,offsetd]=max(entireRHS,[],2);                               % [N_d,1,N_a,N_z]
-aprimeReferencePolicyNew=loweredge+reshape(offsetd,[N_d,N_a,N_z])-1;
+[Vd,offset1]=max(entireRHS,[],2);                               % [N_d,1,N_a,N_z]
+% COARSEOFFSET IS 0-BASED, in every localsearch raw: it is the number of grid steps the window's
+% argmax sits ABOVE loweredge, so it runs 0 to 2n and the grid index is loweredge+coarseoffset.
+% One name and one base across all four raws deliberately -- a 1-based offset converted with
+% loweredge+offset-1 reads almost identically, and getting the two confused shifts every window
+% centre by one grid point without erroring, because the window absorbs it.
+coarseoffset=reshape(offset1,[N_d,N_a,N_z])-1;                  % 0 to 2n, steps above loweredge, per d
+aprimeReferencePolicyNew=loweredge+coarseoffset;
 
 [V,dstar]=max(reshape(Vd,[N_d,N_a,N_z]),[],1);                  % [1,N_a,N_z]
 V=reshape(V,[N_a,N_z]);

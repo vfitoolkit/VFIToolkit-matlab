@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_raw(Vnext,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_raw(Vnext,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -29,7 +29,8 @@ n2aprime=length(aprime_grid);
 % aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
 
 V=zeros(N_a,N_z,'gpuArray');
-Policy=zeros(4,N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z (extra channel for PolicyL2flag pilot)
+Policy=zeros(4,N_a,N_z,'gpuArray');
+aprimeReferencePolicyNew=zeros(N_d,N_a,N_z,'gpuArray'); % the third output, see where it is filled below %first dim indexes the optimal choice for d and aprime rest of dimensions a,z (extra channel for PolicyL2flag pilot)
 
 %%
 % Create a vector containing all the return function parameters (in order)
@@ -59,6 +60,14 @@ if vfoptions.lowmemory==0
     % midpoint is n_d-by-1-by-n_a-by-n_z
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
+    % THE THIRD OUTPUT, aprimeReferencePolicyNew, is for vfoptions.localsearch. It is the COARSE argmax
+    % over aprime FOR EACH d -- the midpoint this raw already computes and then reads only at the chosen
+    % d -- so it costs nothing to return. A localsearch solve needs a reference for every d and not just
+    % the one dstar picked, or the next restricted sweep has no window centre for the others, and that
+    % is a thing no standard raw other than this family can produce. Callers taking two outputs are
+    % unaffected.
+    % midpoint is clamped to [2,N_a-1] here, which is harmless for a window centre: loweredge slides.
+    aprimeReferencePolicyNew=reshape(midpoint,[N_d,N_a,N_z]);
     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals,ReturnFnParamsVec,2);
     aprimez=aprimeindexes+n2aprime*zBind;
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[N_d*n2long,N_a,N_z]);
@@ -97,6 +106,8 @@ elseif vfoptions.lowmemory==1
         % Turn this into the 'midpoint'
         midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is n_d-by-1-by-n_a
+        % The third output, filled per z here. See the lowmemory==0 branch for what it is.
+        aprimeReferencePolicyNew(:,:,z_c)=reshape(midpoint,[N_d,N_a]);
         aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a
         ReturnMatrix_ii_z=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,special_n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);

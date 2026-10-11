@@ -19,6 +19,18 @@ VPath=[];
 % therefore the measurement that says whether this scheme could be made exact per iteration, which is
 % what Anderson would need and shooting does not.
 lsdiag=[];
+% localsearchseed is INTERNAL -- the TPath solver sets it on the standard sweeps of a localsearch
+% solve -- and it is defaulted HERE, above its first read further down, because THIS FILE reads it
+% itself and so cannot rely on the dispatcher's own default. Step1 is reached from every TPath
+% solver, including the ones that never touch local search (Anderson, quasi-Newton, the triangular
+% Jacobian build), and those pass a vfoptions that has never heard of the field. Without this a
+% perfectly ordinary transition path dies on an unrecognised field name.
+% Third time this ordering has bitten in this feature, after transpathoptions.localsearchdiagnostic
+% in TransitionPath_InfHorz_shooting and this same field in the dispatcher: a new option must be
+% defaulted in EVERY file that reads it, above the read, not just in the file where the bug surfaced.
+if ~isfield(vfoptions,'localsearchseed')
+    vfoptions.localsearchseed=0;
+end
 if vfoptions.localsearch==1 && isempty(aprimeReferencePath)
     error('vfoptions.localsearch=1 reached Step1 with no aprimeReferencePath: the first sweep of a solve has to be a standard one, which is what builds it')
 end
@@ -48,19 +60,21 @@ if N_z==0 && N_e==0
         PolicyIndexesPath(:,:,T-tt)=Policy;
     end
 elseif N_z>0 && N_e==0
-    % aprimechannel is the Policy channel the aprime index sits in: 1 with no d, 2 with one, since d
-    % comes first. Only used by the standard-sweep conversion above.
-    if n_d(1)==0
-        aprimechannel=1;
-    else
-        aprimechannel=1+length(n_d);
-    end
     N_a=prod(n_a);
-    if isempty(aprimeReferencePath)
-        aprimeReferencePath=zeros(1,N_a,N_z,T-1,'gpuArray');
+    % THE REFERENCE IS INDEXED BY WHATEVER THE SEARCH CONDITIONS ON: (a,z) with no d and (d,a,z) with
+    % one, so the leading dimension is 1 or N_d. That single difference is the whole of what
+    % conditioning on d means here, and getting it wrong is what kept local search out of a general
+    % eqm path with a d -- a [1,N_a,N_z] reference reaches the dispatcher, which rejects its shape and
+    % complains about aprimeReferencePolicy rather than about d.
+    N_dref=max(prod(n_d),1);
+    % Allocated ONLY when a sweep is going to fill it. With a d the array is N_d times what it was,
+    % so on a big grid it is hundreds of megabytes -- 51*1001*5*50 doubles on the doPart(5) grid --
+    % and every ordinary transition path, which never reads it, was paying for that.
+    if isempty(aprimeReferencePath) && (vfoptions.localsearch==1 || vfoptions.localsearchseed==1)
+        aprimeReferencePath=zeros(N_dref,N_a,N_z,T-1,'gpuArray');
     end
     if vfoptions.localsearch==1
-        lsdiag.movemax=0; lsdiag.nedge=0; lsdiag.ntotal=0;
+        lsdiag.movemax=0; lsdiag.nedge=0; lsdiag.ntotal=0; lsdiag.nedgedstar=0; lsdiag.ntotaldstar=0;
     end
     % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     % Since we won't need to keep the value functions for anything later we just store the current one in V
@@ -96,24 +110,16 @@ elseif N_z>0 && N_e==0
             % recomputed here from the reference this sweep was handed, by the same line the raw uses.
             nls=vfoptions.nlocalsearch;
             loweredge=min(max(refslot-nls,1),N_a-2*nls);
-            if vfoptions.gridinterplayer==0
-                hitbottom=(Policy(aprimechannel,:,:)==loweredge);
-                hittop=(Policy(aprimechannel,:,:)==loweredge+2*nls);
-            else
-                % Only the window's two extreme COARSE points count: an answer strictly inside them
-                % is not evidence that the window is too narrow.
-                % Compared as the DECODED FINE POINT, never as the raw channels, because the two
-                % localsearch GI encodings spell that point differently. The one-pass raw keeps L2 in
-                % [1,1+ngridinterp] and always names the window's top point (loweredge+2n, L2=1); the
-                % two-layer raw inherits the standard GI spelling where L2 reaches ngridinterp+2, so
-                % the same point can come out as (loweredge+2n-1, L2=ngridinterp+2) instead. A channel
-                % test would see one spelling and miss the other. The decode is the same number for
-                % both, and reduces to the no-GI test above when ngridinterp is 0.
-                ngi=vfoptions.ngridinterp;
-                finenow=(1+ngi)*(Policy(aprimechannel,:,:)-1)+Policy(aprimechannel+1,:,:);
-                hitbottom=(finenow==(1+ngi)*(loweredge-1)+1);
-                hittop=(finenow==(1+ngi)*(loweredge+2*nls-1)+1);
-            end
+            % Tested on aprimeRefNew, NOT on Policy. aprimeRefNew is each d's argmax WITHIN ITS OWN
+            % WINDOW -- the coarse argmax under the interpolation layer, the chosen aprime without one
+            % -- so this is a single line whether or not there is a d and whether or not there is an
+            % interpolation layer. No Policy channels, no fine-point decode, and no dependence on
+            % which of the two legal spellings of a coarse node the raw happened to emit.
+            % It also tests the right event. The window can only have changed the answer if the argmax
+            % it returned sat on a window END; anywhere strictly inside, the unrestricted argmax was
+            % inside the window and was taken.
+            hitbottom=(aprimeRefNew==loweredge);
+            hittop=(aprimeRefNew==loweredge+2*nls);
             % The CORNER EXCLUSIONS. An answer at the GRID's own edge is a corner solution -- the
             % optimum the household wants is outside the grid -- not evidence that the window is too
             % narrow. Without these a top-of-grid saver, or a household at its borrowing constraint,
@@ -121,23 +127,46 @@ elseif N_z>0 && N_e==0
             % cap, where the search covers the whole grid and the restriction is pure overhead.
             hitbottom=hitbottom & (loweredge>1);
             hittop=hittop & (loweredge+2*nls<N_a);
-            lsdiag.nedge=lsdiag.nedge+gather(sum(hitbottom | hittop,'all'));
+            hitedge=(hitbottom | hittop);
+            lsdiag.nedge=lsdiag.nedge+gather(sum(hitedge,'all'));
+            lsdiag.ntotal=lsdiag.ntotal+numel(refslot);
+            % WITH A d, COUNTED OVER EVERY d AND NOT ONLY THE CHOSEN ONE. A d whose window truncated
+            % it might have won with a wider window, and that loss cannot be seen without computing
+            % it, so the count has to include the d values this period rejected.
+            % THE MEASUREMENT POINTS THE OTHER WAY AND IS NOT THE REASON. On the labour-supply model
+            % in doPart(6) the all-d rate came in at 0.16% against 0.64% at the chosen d, so counting
+            % over every d DILUTES the signal rather than inflating it: most d values sit well inside
+            % their windows and it is the d that wins that presses against its edge. That is an
+            % artefact of a model where the optimal aprime varies smoothly and monotonically in d, so
+            % the per-d references are all well centred. Where d has no such ordering -- a discrete
+            % occupational or participation choice, anything interacting with aprime through a
+            % non-convexity -- a rejected d's optimum can sit far from its reference, its window binds,
+            % and it is exactly that d which could have won on a wider window. The chosen-d count is
+            % blind to it. So the all-d count is kept for the models it protects, not for this one.
+            % The chosen-d rate is still accumulated and reported, as the thing to read when asking
+            % whether the restriction bound the REALISED policy.
+            if N_dref>1
+                dstar=Policy(1,:,:);
+                linstar=dstar+N_dref*(0:1:N_a-1)+N_dref*N_a*shiftdim((0:1:N_z-1),-1);
+                lsdiag.nedgedstar=lsdiag.nedgedstar+gather(sum(hitedge(linstar),'all'));
+                lsdiag.ntotaldstar=lsdiag.ntotaldstar+numel(dstar);
+            end
             % movemax is BOUNDED BY THE WINDOW: at most nls at an interior reference and 2*nls at the
             % grid ends. So it reports what the window ALLOWED, not how far the policy would have
             % moved. Reported for information, never used to set nlocalsearch -- a rule fed by a
             % censored measurement can only ratchet downwards and never recover.
             lsdiag.movemax=max(lsdiag.movemax,gather(max(abs(aprimeRefNew-refslot),[],'all')));
-            lsdiag.ntotal=lsdiag.ntotal+numel(refslot);
             aprimeReferencePath(:,:,:,T-ttr)=aprimeRefNew;
-        else
-            % Converted from Policy. That channel is the aprime index without the grid interpolation
-            % layer, and with it that channel and the next are the lower coarse point and the L2
-            % index, which compress to the nearest coarse point.
-            if vfoptions.gridinterplayer==0
-                aprimeReferencePath(:,:,:,T-ttr)=Policy(aprimechannel,:,:);
-            else
-                aprimeReferencePath(:,:,:,T-ttr)=Policy(aprimechannel,:,:)+round((Policy(aprimechannel+1,:,:)-1)/(1+vfoptions.ngridinterp));
-            end
+        elseif vfoptions.localsearchseed==1
+            % A SEED SWEEP: unrestricted, but the dispatcher returned a reference for the next
+            % restricted sweep. Every branch of it builds that reference the same way -- the coarse
+            % argmax of the unrestricted search, per d where there is a d -- so the reference means
+            % one thing whichever sweep produced it.
+            % This replaces a conversion from Policy, which could only ever recover the chosen d's
+            % aprime and which under the interpolation layer rounded a FINE answer to the nearest
+            % coarse point, so it meant something subtly different from the restricted sweep's own
+            % first-layer argmax.
+            aprimeReferencePath(:,:,:,T-ttr)=aprimeRefNew;
         end
     end
 elseif N_z==0 && N_e>0
