@@ -13,11 +13,19 @@ function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetzFnMatrix(aprimeFn, 
 % where every d must be evaluated.
 %
 % Output sizes:
-%   a2primeIndexes - shape depends on aprimeIndexAsColumn:
-%                      1 => column vector [N_d*N_a2*N_z, 1]
-%                      2 => matrix [N_d, N_a2, N_z]
-%                      3 => matrix [N_d*N_a2, N_z]
-%   a2primeProbs   - [N_d, N_a2, N_z]
+%   l_a2==1 (legacy):
+%     a2primeIndexes - shape depends on aprimeIndexAsColumn:
+%                        1 => column vector [N_d*N_a2*N_z, 1]
+%                        2 => matrix [N_d, N_a2, N_z]
+%                        3 => matrix [N_d*N_a2, N_z]
+%     a2primeProbs   - [N_d, N_a2, N_z]
+%   l_a2==2 (multi-dim, per-dim factored):
+%     a2primeIndexes - col=1 => [l_a2, N_d*N_a2*N_z]
+%                      col=3 => [l_a2, N_d*N_a2, N_z]
+%                      col=2 => [l_a2, N_d, N_a2, N_z]
+%     a2primeProbs   - lower-grid index + prob of lower, per a2 dimension.
+%     Caller folds the four corners and does nested 2-corner interp with skipinterp
+%     at each level (plus per-contribution isnan cleanup for 0*(-Inf)).
 
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
@@ -41,7 +49,12 @@ if l_d>4
 end
 l_z=length(n_z);
 
-if nargin(aprimeFn)~=l_d+l_a2+l_z+length(aprimeFnParams)
+if l_a2>2
+    error('experienceassetz does not allow for more than two experience assets (you have length(n_a2)>2)')
+end
+if nargin(aprimeFn)~=l_d+l_a2+l_z+(l_a2>=2)+length(aprimeFnParams)
+    % When l_a2>=2, aprimeFn takes an extra 'whicha' integer selector slot, which sits
+    % after z and before the parameters: aprimeFn(d,a2_1,a2_2,z,whicha,params...)
     error('Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
 end
 
@@ -57,7 +70,15 @@ if l_d>=1
         end
     end
 end
-a2vals=shiftdim(a2_grid,-1);
+if l_a2==1
+    a2vals=shiftdim(a2_grid,-1);
+else % l_a2==2: a2_grid is the STACKED grid, split it per dimension
+    n_a2_1=n_a2(1); n_a2_2=n_a2(2);
+    a2_grid_1=a2_grid(1:n_a2_1);
+    a2_grid_2=a2_grid(n_a2_1+1:n_a2_1+n_a2_2);
+    a2_1_vals=shiftdim(a2_grid_1,-1); % dim 2
+    a2_2_vals=shiftdim(a2_grid_2,-2); % dim 3
+end
 if l_z>=1
     z1vals=shiftdim(z_gridvals(:,1),-1-l_a2);
     if l_z>=2
@@ -74,45 +95,107 @@ if l_z>=1
     end
 end
 
-if l_z==1
-    if l_d==1
-        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, z1vals, ParamCell{:});
-    elseif l_d==2
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, z1vals, ParamCell{:});
-    elseif l_d==3
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, z1vals, ParamCell{:});
-    elseif l_d==4
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, z1vals, ParamCell{:});
+if l_a2==1
+    if l_z==1
+        if l_d==1
+            a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, z1vals, ParamCell{:});
+        elseif l_d==2
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, z1vals, ParamCell{:});
+        elseif l_d==3
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, z1vals, ParamCell{:});
+        elseif l_d==4
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, z1vals, ParamCell{:});
+        end
+    elseif l_z==2
+        if l_d==1
+            a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, z1vals,z2vals, ParamCell{:});
+        elseif l_d==2
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, z1vals,z2vals, ParamCell{:});
+        elseif l_d==3
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, z1vals,z2vals, ParamCell{:});
+        elseif l_d==4
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, z1vals,z2vals, ParamCell{:});
+        end
+    elseif l_z==3
+        if l_d==1
+            a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, z1vals,z2vals,z3vals, ParamCell{:});
+        elseif l_d==2
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, z1vals,z2vals,z3vals, ParamCell{:});
+        elseif l_d==3
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, z1vals,z2vals,z3vals, ParamCell{:});
+        elseif l_d==4
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, z1vals,z2vals,z3vals, ParamCell{:});
+        end
+    elseif l_z==4
+        if l_d==1
+            a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+        elseif l_d==2
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+        elseif l_d==3
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+        elseif l_d==4
+            a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+        end
     end
-elseif l_z==2
-    if l_d==1
-        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, z1vals,z2vals, ParamCell{:});
-    elseif l_d==2
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, z1vals,z2vals, ParamCell{:});
-    elseif l_d==3
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, z1vals,z2vals, ParamCell{:});
-    elseif l_d==4
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, z1vals,z2vals, ParamCell{:});
-    end
-elseif l_z==3
-    if l_d==1
-        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, z1vals,z2vals,z3vals, ParamCell{:});
-    elseif l_d==2
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, z1vals,z2vals,z3vals, ParamCell{:});
-    elseif l_d==3
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, z1vals,z2vals,z3vals, ParamCell{:});
-    elseif l_d==4
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, z1vals,z2vals,z3vals, ParamCell{:});
-    end
-elseif l_z==4
-    if l_d==1
-        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
-    elseif l_d==2
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
-    elseif l_d==3
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
-    elseif l_d==4
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+else
+    % l_a2==2: GPU arrayfun is scalar-output only, so call aprimeFn once per a2 dimension
+    % with the 'whicha' selector (which sits after z and before the parameters).
+    if l_z==1
+        if l_d==1
+            a2primeVals_1=arrayfun(aprimeFn, d1vals, a2_1_vals,a2_2_vals, z1vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals, a2_1_vals,a2_2_vals, z1vals, 2, ParamCell{:});
+        elseif l_d==2
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals,a2_2_vals, z1vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals,a2_2_vals, z1vals, 2, ParamCell{:});
+        elseif l_d==3
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals,a2_2_vals, z1vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals,a2_2_vals, z1vals, 2, ParamCell{:});
+        elseif l_d==4
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals,a2_2_vals, z1vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals,a2_2_vals, z1vals, 2, ParamCell{:});
+        end
+    elseif l_z==2
+        if l_d==1
+            a2primeVals_1=arrayfun(aprimeFn, d1vals, a2_1_vals,a2_2_vals, z1vals,z2vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals, a2_1_vals,a2_2_vals, z1vals,z2vals, 2, ParamCell{:});
+        elseif l_d==2
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals,a2_2_vals, z1vals,z2vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals,a2_2_vals, z1vals,z2vals, 2, ParamCell{:});
+        elseif l_d==3
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals,a2_2_vals, z1vals,z2vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals,a2_2_vals, z1vals,z2vals, 2, ParamCell{:});
+        elseif l_d==4
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals,a2_2_vals, z1vals,z2vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals,a2_2_vals, z1vals,z2vals, 2, ParamCell{:});
+        end
+    elseif l_z==3
+        if l_d==1
+            a2primeVals_1=arrayfun(aprimeFn, d1vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals, 2, ParamCell{:});
+        elseif l_d==2
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals, 2, ParamCell{:});
+        elseif l_d==3
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals, 2, ParamCell{:});
+        elseif l_d==4
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals, 2, ParamCell{:});
+        end
+    elseif l_z==4
+        if l_d==1
+            a2primeVals_1=arrayfun(aprimeFn, d1vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals,z4vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals,z4vals, 2, ParamCell{:});
+        elseif l_d==2
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals,z4vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals,z4vals, 2, ParamCell{:});
+        elseif l_d==3
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals,z4vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals,z4vals, 2, ParamCell{:});
+        elseif l_d==4
+            a2primeVals_1=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals,z4vals, 1, ParamCell{:});
+            a2primeVals_2=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2_1_vals,a2_2_vals, z1vals,z2vals,z3vals,z4vals, 2, ParamCell{:});
+        end
     end
 end
 
@@ -176,6 +259,88 @@ if l_a2==1
         a2primeIndexes=reshape(a2primeIndexes,[N_d,N_a2,N_z]);
     end
     a2primeProbs=reshape(a2primeProbs,[N_d,N_a2,N_z]);
+
+elseif l_a2==2
+    %% Multi-dim a2 (l_a2=2): bilinear interp, per-dim factored output.
+    % All shape contracts match the l_a2==1 path above, with a leading l_a2 dimension.
+    a2primeVals_1=reshape(a2primeVals_1,[1,N_d*N_a2*N_z]);
+    a2primeVals_2=reshape(a2primeVals_2,[1,N_d*N_a2*N_z]);
+    a2_griddiff_1=a2_grid_1(2:end)-a2_grid_1(1:end-1);
+    a2_griddiff_2=a2_grid_2(2:end)-a2_grid_2(1:end-1);
+
+    % --- a2 dim 1 ---
+    if N_d*N_a2*N_z*n_a2_1<1000000
+        [~,loIdx_1]=max((a2_grid_1>a2primeVals_1),[],1);
+        loIdx_1=loIdx_1-1;
+        loIdx_1(loIdx_1==0)=1;
+        loIdx_1=loIdx_1(:); % force column: when n_a2_1==2, a2_griddiff_1 is scalar and would otherwise return the shape of loIdx_1
+        aprime_residual_1=a2primeVals_1(:)-a2_grid_1(loIdx_1);
+        prob_1=1-aprime_residual_1./a2_griddiff_1(loIdx_1);
+        offTopOfGrid_1=(a2primeVals_1(:)>=a2_grid_1(end));
+        loIdx_1(offTopOfGrid_1)=n_a2_1-1;
+        prob_1(offTopOfGrid_1)=0;
+        offBottomOfGrid_1=(a2primeVals_1(:)<=a2_grid_1(1));
+        prob_1(offBottomOfGrid_1)=1;
+    else
+        loIdx_1=discretize(a2primeVals_1,a2_grid_1);
+        offBottomOfGrid_1=(a2primeVals_1(:)<=a2_grid_1(1));
+        loIdx_1(offBottomOfGrid_1)=1;
+        offTopOfGrid_1=(a2primeVals_1(:)>=a2_grid_1(end));
+        loIdx_1(offTopOfGrid_1)=n_a2_1-1;
+        loIdx_1=loIdx_1(:); % force column (see above)
+        aprime_residual_1=a2primeVals_1(:)-a2_grid_1(loIdx_1);
+        prob_1=1-aprime_residual_1./a2_griddiff_1(loIdx_1);
+        prob_1(offBottomOfGrid_1)=1;
+        prob_1(offTopOfGrid_1)=0;
+    end
+
+    % --- a2 dim 2 ---
+    if N_d*N_a2*N_z*n_a2_2<1000000
+        [~,loIdx_2]=max((a2_grid_2>a2primeVals_2),[],1);
+        loIdx_2=loIdx_2-1;
+        loIdx_2(loIdx_2==0)=1;
+        loIdx_2=loIdx_2(:); % force column: when n_a2_2==2, a2_griddiff_2 is scalar (see dim 1 note above)
+        aprime_residual_2=a2primeVals_2(:)-a2_grid_2(loIdx_2);
+        prob_2=1-aprime_residual_2./a2_griddiff_2(loIdx_2);
+        offTopOfGrid_2=(a2primeVals_2(:)>=a2_grid_2(end));
+        loIdx_2(offTopOfGrid_2)=n_a2_2-1;
+        prob_2(offTopOfGrid_2)=0;
+        offBottomOfGrid_2=(a2primeVals_2(:)<=a2_grid_2(1));
+        prob_2(offBottomOfGrid_2)=1;
+    else
+        loIdx_2=discretize(a2primeVals_2,a2_grid_2);
+        offBottomOfGrid_2=(a2primeVals_2(:)<=a2_grid_2(1));
+        loIdx_2(offBottomOfGrid_2)=1;
+        offTopOfGrid_2=(a2primeVals_2(:)>=a2_grid_2(end));
+        loIdx_2(offTopOfGrid_2)=n_a2_2-1;
+        loIdx_2=loIdx_2(:); % force column (see above)
+        aprime_residual_2=a2primeVals_2(:)-a2_grid_2(loIdx_2);
+        prob_2=1-aprime_residual_2./a2_griddiff_2(loIdx_2);
+        prob_2(offBottomOfGrid_2)=1;
+        prob_2(offTopOfGrid_2)=0;
+    end
+
+    % Per-dim factored output (NOT Kron-folded):
+    %   a2primeIndexes(k,:) = lower-grid index in the a2_k dim (1..n_a2(k))
+    %   a2primeProbs(k,:)   = probability of that lower grid point
+    % Caller does nested 2-corner interp with skipinterp at each level.
+    a2primeIndexes=zeros(l_a2,N_d*N_a2*N_z,'gpuArray');
+    a2primeProbs=zeros(l_a2,N_d*N_a2*N_z,'gpuArray');
+    a2primeIndexes(1,:)=loIdx_1(:);
+    a2primeIndexes(2,:)=loIdx_2(:);
+    a2primeProbs(1,:)=prob_1(:);
+    a2primeProbs(2,:)=prob_2(:);
+
+    if aprimeIndexAsColumn==1 % column-flat layout
+        % already [l_a2, N_d*N_a2*N_z]
+    elseif aprimeIndexAsColumn==3 % value fn with another asset uses 3
+        a2primeIndexes=reshape(a2primeIndexes,[l_a2,N_d*N_a2,N_z]);
+    else % aprimeIndexAsColumn==2 % matrix layout
+        a2primeIndexes=reshape(a2primeIndexes,[l_a2,N_d,N_a2,N_z]);
+    end
+    % Note: every consumer reads this as a2primeProbs(k,:), and A(k,:) ravels identically
+    % whatever the trailing shape, so one reshape serves all three layouts (matches the ze builder).
+    a2primeProbs=reshape(a2primeProbs,[l_a2,N_d,N_a2,N_z]);
 end
 
 

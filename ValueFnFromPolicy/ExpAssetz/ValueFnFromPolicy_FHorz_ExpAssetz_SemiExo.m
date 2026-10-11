@@ -59,19 +59,20 @@ l_z=length(n_z);
 % noa1 case: when n_a is scalar (experience asset is the only endogenous state) use n_a1=0, N_a1=0
 % (toolkit convention; matches StationaryDist_FHorz_ExpAssetzSemiExo). Note we have to override l_a1=0
 % because length(0)=1, not 0. Downstream, N_a1kron=1 makes the kron-index lookup reduce to a2primeIndex.
-if isscalar(n_a)
+l_a2=vfoptions.experienceassetz; % l_a2 = number of a2 (experience-asset) dims
+if length(n_a)<=l_a2
     n_a1=0;
     N_a1=0;
     l_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-l_a2);
     N_a1=prod(n_a1);
     l_a1=length(n_a1);
 end
 N_a1kron=max(N_a1,1); % effective a1 stride in the joint aprime index (1 in the noa1 case)
-n_a2=n_a(end);
+n_a2=n_a(end-l_a2+1:end); % the last l_a2 dims are the experience asset(s)
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a2=length(n_a2);
+% l_a2 already set from vfoptions.experienceassetz above
 
 % Which d drives the experience asset. With semiz, d ordering is [...other, d_expasset, d_semiz];
 % the last l_dsemiz are for semiz, the l_d2 immediately before them drive the expasset.
@@ -84,8 +85,8 @@ whichisdforexpasset=(l_d-l_dsemiz-l_d2+1):(l_d-l_dsemiz);
 
 % aprimeFnParamNames: leading inputs are (d_expasset..., a2, z...)
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_z)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_z+1:end}};
+if length(temp)>(l_d2+l_a2+l_z+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+l_z+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2,z), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end
@@ -217,16 +218,48 @@ for reverse_j=0:N_j-1
             d2_jj=d_semiz_idx(:,:,jj); % [N_a, N_shocks]
             a1p_r=reshape(a1p,[N_a, N_semiz, N_z]);
             d2_r =reshape(d2_jj,[N_a, N_semiz, N_z]);
-            a2pIdx=reshape(a2primeIndex,[N_a, N_semiz, N_z]);
-            a2pPrb=reshape(a2primeProbs,[N_a, N_semiz, N_z]);
-            aprime_low=a1p_r+N_a1kron*(a2pIdx-1); % (a1p_r all ones in the noa1 case)
-            aprime_up =a1p_r+N_a1kron*(a2pIdx);
             base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_r(:)-1), [N_a, N_semiz, N_z]);
-            lo_idx=aprime_low+base_off;
-            up_idx=aprime_up +base_off;
-            EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_z]);
-            EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_z]);
-            EVnext_atpolicy=a2pPrb.*EV_lo+(1-a2pPrb).*EV_up;
+            if l_a2==1
+                a2pIdx=reshape(a2primeIndex,[N_a, N_semiz, N_z]);
+                a2pPrb=reshape(a2primeProbs,[N_a, N_semiz, N_z]);
+                aprime_low=a1p_r+N_a1kron*(a2pIdx-1); % (a1p_r all ones in the noa1 case)
+                aprime_up =a1p_r+N_a1kron*(a2pIdx);
+                lo_idx=aprime_low+base_off;
+                up_idx=aprime_up +base_off;
+                EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_z]);
+                EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_z]);
+                EVnext_atpolicy=a2pPrb.*EV_lo+(1-a2pPrb).*EV_up;
+            else
+                % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored. Nested 2-corner interpolation
+                % with skipinterp at each level (mirrors ValueFnFromPolicy_FHorz_ExpAsset_SemiExo).
+                n_a2_1=n_a2(1);
+                loIdx_1=reshape(a2primeIndex(:,1,:),[N_a, N_semiz, N_z]);
+                loIdx_2=reshape(a2primeIndex(:,2,:),[N_a, N_semiz, N_z]);
+                prob_1=reshape(a2primeProbs(:,1,:),[N_a, N_semiz, N_z]);
+                prob_2=reshape(a2primeProbs(:,2,:),[N_a, N_semiz, N_z]);
+                aprime_ll=a1p_r+N_a1kron*(loIdx_1+n_a2_1*(loIdx_2-1)-1);
+                aprime_hl=a1p_r+N_a1kron*((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1);
+                aprime_lh=a1p_r+N_a1kron*(loIdx_1+n_a2_1*loIdx_2-1);
+                aprime_hh=a1p_r+N_a1kron*((loIdx_1+1)+n_a2_1*loIdx_2-1);
+                ll_idx=aprime_ll+base_off; hl_idx=aprime_hl+base_off;
+                lh_idx=aprime_lh+base_off; hh_idx=aprime_hh+base_off;
+                V_ll=reshape(EVnext_byd2(ll_idx(:)),[N_a, N_semiz, N_z]);
+                V_hl=reshape(EVnext_byd2(hl_idx(:)),[N_a, N_semiz, N_z]);
+                V_lh=reshape(EVnext_byd2(lh_idx(:)),[N_a, N_semiz, N_z]);
+                V_hh=reshape(EVnext_byd2(hh_idx(:)),[N_a, N_semiz, N_z]);
+                p1_loy=prob_1; p1_loy(V_ll==V_hl)=0;
+                c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+                EV_loy=c_ll+c_hl;
+                p1_hiy=prob_1; p1_hiy(V_lh==V_hh)=0;
+                c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+                EV_hiy=c_lh+c_hh;
+                p2=prob_2; p2(EV_loy==EV_hiy)=0;
+                c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                EVnext_atpolicy=c_loy+c_hiy;
+            end
             V(:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks]);
         else
             EVnext_atpolicy=zeros(N_a, N_semiz, N_z, N_e, 'gpuArray');
@@ -234,16 +267,48 @@ for reverse_j=0:N_j-1
                 block=(e_c-1)*N_shocks + (1:N_shocks);
                 a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                 d2_e =reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
-                a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_z]);
-                a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_z]);
-                aprime_low_e=a1p_e+N_a1kron*(a2pIdx_e-1); % (a1p_e all ones in the noa1 case)
-                aprime_up_e =a1p_e+N_a1kron*(a2pIdx_e);
                 base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1), [N_a, N_semiz, N_z]);
-                lo_idx=aprime_low_e+base_off;
-                up_idx=aprime_up_e +base_off;
-                EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_z]);
-                EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_z]);
-                EVnext_atpolicy(:,:,:,e_c)=a2pPrb_e.*EV_lo+(1-a2pPrb_e).*EV_up;
+                if l_a2==1
+                    a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_z]);
+                    a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_z]);
+                    aprime_low_e=a1p_e+N_a1kron*(a2pIdx_e-1); % (a1p_e all ones in the noa1 case)
+                    aprime_up_e =a1p_e+N_a1kron*(a2pIdx_e);
+                    lo_idx=aprime_low_e+base_off;
+                    up_idx=aprime_up_e +base_off;
+                    EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_z]);
+                    EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_z]);
+                    EVnext_atpolicy(:,:,:,e_c)=a2pPrb_e.*EV_lo+(1-a2pPrb_e).*EV_up;
+                else
+                    % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored. Nested 2-corner interpolation
+                    % with skipinterp at each level (mirrors ValueFnFromPolicy_FHorz_ExpAsset_SemiExo).
+                    n_a2_1=n_a2(1);
+                    loIdx_1=reshape(a2primeIndex(:,1,block),[N_a, N_semiz, N_z]);
+                    loIdx_2=reshape(a2primeIndex(:,2,block),[N_a, N_semiz, N_z]);
+                    prob_1=reshape(a2primeProbs(:,1,block),[N_a, N_semiz, N_z]);
+                    prob_2=reshape(a2primeProbs(:,2,block),[N_a, N_semiz, N_z]);
+                    aprime_ll=a1p_e+N_a1kron*(loIdx_1+n_a2_1*(loIdx_2-1)-1);
+                    aprime_hl=a1p_e+N_a1kron*((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1);
+                    aprime_lh=a1p_e+N_a1kron*(loIdx_1+n_a2_1*loIdx_2-1);
+                    aprime_hh=a1p_e+N_a1kron*((loIdx_1+1)+n_a2_1*loIdx_2-1);
+                    ll_idx=aprime_ll+base_off; hl_idx=aprime_hl+base_off;
+                    lh_idx=aprime_lh+base_off; hh_idx=aprime_hh+base_off;
+                    V_ll=reshape(EVnext_byd2(ll_idx(:)),[N_a, N_semiz, N_z]);
+                    V_hl=reshape(EVnext_byd2(hl_idx(:)),[N_a, N_semiz, N_z]);
+                    V_lh=reshape(EVnext_byd2(lh_idx(:)),[N_a, N_semiz, N_z]);
+                    V_hh=reshape(EVnext_byd2(hh_idx(:)),[N_a, N_semiz, N_z]);
+                    p1_loy=prob_1; p1_loy(V_ll==V_hl)=0;
+                    c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+                    c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+                    EV_loy=c_ll+c_hl;
+                    p1_hiy=prob_1; p1_hiy(V_lh==V_hh)=0;
+                    c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+                    c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+                    EV_hiy=c_lh+c_hh;
+                    p2=prob_2; p2(EV_loy==EV_hiy)=0;
+                    c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                    c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                    EVnext_atpolicy(:,:,:,e_c)=c_loy+c_hiy;
+                end
             end
             V(:,:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks, N_e]);
         end

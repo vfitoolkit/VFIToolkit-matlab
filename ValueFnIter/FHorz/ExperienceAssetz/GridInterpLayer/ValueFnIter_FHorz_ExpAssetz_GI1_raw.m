@@ -111,20 +111,57 @@ else
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix(aprimeFn, n_d2, n_a2, n_z, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_z], whereas aprimeProbs is [N_d2,N_a2,N_z]   (N_z here is the current z)
 
-    aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]
-    aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]
-    aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z); % [N_d2*N_a1,N_a2,N_z]    (z dim already present, no repmat over z; but need to add zprime)
+    if length(n_a2)==1
+        aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]
+        aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]
+        aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z); % [N_d2*N_a1,N_a2,N_z]    (z dim already present, no repmat over z; but need to add zprime)
 
-    Vlower=reshape(EVpre(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z,N_z]); % (d2*a1prime,a2,z_cur,zprime)
-    Vupper=reshape(EVpre(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z,N_z]);
-    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
-    skipinterp=(Vlower==Vupper);
-    aprimeProbs(skipinterp)=0; % effectively skips interpolation
+        Vlower=reshape(EVpre(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z,N_z]); % (d2*a1prime,a2,z_cur,zprime)
+        Vupper=reshape(EVpre(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z,N_z]);
+        % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+        skipinterp=(Vlower==Vupper);
+        aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
-    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2*a1prime,a2,z_cur,zprime)
-    EV(aprimeProbs==0)=Vupper(aprimeProbs==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-    EV(aprimeProbs==1)=Vlower(aprimeProbs==1);
+        % Switch EV from being in terms of a2prime to being in terms of d2 and a2
+        EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2*a1prime,a2,z_cur,zprime)
+        EV(aprimeProbs==0)=Vupper(aprimeProbs==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+        EV(aprimeProbs==1)=Vlower(aprimeProbs==1);
+    else
+        % l_a2==2: a2primeIndex/a2primeProbs are [l_a2,N_d2,N_a2,N_z] per-dim factored. Fold the two
+        % per-dim lower indexes into the four corners of the a2 lattice, offset each by a1prime
+        % exactly as the l_a2==1 arm does, then do a nested 2-corner interp with skipinterp at each
+        % level and per-contribution NaN cleanup so 0*(-Inf) does not poison the sum.
+        n_a2_1=n_a2(1);
+        loIdx_1=reshape(a2primeIndex(1,:,:,:),[N_d2,N_a2,N_z]);
+        loIdx_2=reshape(a2primeIndex(2,:,:,:),[N_d2,N_a2,N_z]);
+        prob_1=reshape(a2primeProbs(1,:,:,:),[N_d2,N_a2,N_z]);
+        prob_2=reshape(a2primeProbs(2,:,:,:),[N_d2,N_a2,N_z]);
+        a1prime_offsets=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z);
+        aprime_ll=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*(loIdx_2-1)-1,N_a1,1,1);
+        aprime_hl=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1,N_a1,1,1);
+        aprime_lh=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*loIdx_2-1,N_a1,1,1);
+        aprime_hh=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*loIdx_2-1,N_a1,1,1);
+        prob_1_exp=repmat(prob_1,N_a1,1,1,N_z);
+        prob_2_exp=repmat(prob_2,N_a1,1,1,N_z);
+        V_ll=reshape(EVpre(aprime_ll(:),:),[N_d2*N_a1,N_a2,N_z,N_z]);
+        V_hl=reshape(EVpre(aprime_hl(:),:),[N_d2*N_a1,N_a2,N_z,N_z]);
+        V_lh=reshape(EVpre(aprime_lh(:),:),[N_d2*N_a1,N_a2,N_z,N_z]);
+        V_hh=reshape(EVpre(aprime_hh(:),:),[N_d2*N_a1,N_a2,N_z,N_z]);
+        % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+        p1_loy=prob_1_exp; p1_loy(V_ll==V_hl)=0;
+        c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+        c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+        EV_loy=c_ll+c_hl;
+        p1_hiy=prob_1_exp; p1_hiy(V_lh==V_hh)=0;
+        c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+        c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+        EV_hiy=c_lh+c_hh;
+        % outer level: interpolate those two over the a2_2 dimension
+        p2=prob_2_exp; p2(EV_loy==EV_hiy)=0;
+        c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+        c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+        EV=c_loy+c_hiy;
+    end
     % Already applied the probabilities from interpolating onto grid
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j),-2); % pi[z_cur,z_prime] shaped [1,1,z_cur,z_prime] -- no transpose since current z is dim 3
@@ -232,20 +269,57 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetzFnMatrix(aprimeFn, n_d2, n_a2, n_z, d2_gridvals, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_z], whereas aprimeProbs is [N_d2,N_a2,N_z]   (N_z here is the current z)
 
-    aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]
-    aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]
-    aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z); % [N_d2*N_a1,N_a2,N_z]    (z dim already present, no repmat over z; but need to add zprime)
+    if length(n_a2)==1
+        aprimeIndex=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]
+        aprimeplus1Index=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_z]
+        aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z); % [N_d2*N_a1,N_a2,N_z]    (z dim already present, no repmat over z; but need to add zprime)
 
-    Vlower=reshape(V(aprimeIndex(:),:,jj+1),[N_d2*N_a1,N_a2,N_z,N_z]); % (d2*a1prime,a2,z_cur,zprime)
-    Vupper=reshape(V(aprimeplus1Index(:),:,jj+1),[N_d2*N_a1,N_a2,N_z,N_z]);
-    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
-    skipinterp=(Vlower==Vupper);
-    aprimeProbs(skipinterp)=0; % effectively skips interpolation
+        Vlower=reshape(V(aprimeIndex(:),:,jj+1),[N_d2*N_a1,N_a2,N_z,N_z]); % (d2*a1prime,a2,z_cur,zprime)
+        Vupper=reshape(V(aprimeplus1Index(:),:,jj+1),[N_d2*N_a1,N_a2,N_z,N_z]);
+        % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+        skipinterp=(Vlower==Vupper);
+        aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
-    % Switch EV from being in terms of a2prime to being in terms of d2 and a2
-    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2*a1prime,a2,z_cur,zprime)
-    EV(aprimeProbs==0)=Vupper(aprimeProbs==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
-    EV(aprimeProbs==1)=Vlower(aprimeProbs==1);
+        % Switch EV from being in terms of a2prime to being in terms of d2 and a2
+        EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2*a1prime,a2,z_cur,zprime)
+        EV(aprimeProbs==0)=Vupper(aprimeProbs==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
+        EV(aprimeProbs==1)=Vlower(aprimeProbs==1);
+    else
+        % l_a2==2: a2primeIndex/a2primeProbs are [l_a2,N_d2,N_a2,N_z] per-dim factored. Fold the two
+        % per-dim lower indexes into the four corners of the a2 lattice, offset each by a1prime
+        % exactly as the l_a2==1 arm does, then do a nested 2-corner interp with skipinterp at each
+        % level and per-contribution NaN cleanup so 0*(-Inf) does not poison the sum.
+        n_a2_1=n_a2(1);
+        loIdx_1=reshape(a2primeIndex(1,:,:,:),[N_d2,N_a2,N_z]);
+        loIdx_2=reshape(a2primeIndex(2,:,:,:),[N_d2,N_a2,N_z]);
+        prob_1=reshape(a2primeProbs(1,:,:,:),[N_d2,N_a2,N_z]);
+        prob_2=reshape(a2primeProbs(2,:,:,:),[N_d2,N_a2,N_z]);
+        a1prime_offsets=repelem(gpuArray(1:1:N_a1)',N_d2,N_a2,N_z);
+        aprime_ll=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*(loIdx_2-1)-1,N_a1,1,1);
+        aprime_hl=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1,N_a1,1,1);
+        aprime_lh=a1prime_offsets+N_a1*repmat(loIdx_1+n_a2_1*loIdx_2-1,N_a1,1,1);
+        aprime_hh=a1prime_offsets+N_a1*repmat((loIdx_1+1)+n_a2_1*loIdx_2-1,N_a1,1,1);
+        prob_1_exp=repmat(prob_1,N_a1,1,1,N_z);
+        prob_2_exp=repmat(prob_2,N_a1,1,1,N_z);
+        V_ll=reshape(V(aprime_ll(:),:,jj+1),[N_d2*N_a1,N_a2,N_z,N_z]);
+        V_hl=reshape(V(aprime_hl(:),:,jj+1),[N_d2*N_a1,N_a2,N_z,N_z]);
+        V_lh=reshape(V(aprime_lh(:),:,jj+1),[N_d2*N_a1,N_a2,N_z,N_z]);
+        V_hh=reshape(V(aprime_hh(:),:,jj+1),[N_d2*N_a1,N_a2,N_z,N_z]);
+        % inner level: interpolate over the a2_1 dimension, at each a2_2 corner
+        p1_loy=prob_1_exp; p1_loy(V_ll==V_hl)=0;
+        c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+        c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+        EV_loy=c_ll+c_hl;
+        p1_hiy=prob_1_exp; p1_hiy(V_lh==V_hh)=0;
+        c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+        c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+        EV_hiy=c_lh+c_hh;
+        % outer level: interpolate those two over the a2_2 dimension
+        p2=prob_2_exp; p2(EV_loy==EV_hiy)=0;
+        c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+        c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+        EV=c_loy+c_hiy;
+    end
     % Already applied the probabilities from interpolating onto grid
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj),-2); % pi[z_cur,z_prime] shaped [1,1,z_cur,z_prime] -- no transpose since current z is dim 3

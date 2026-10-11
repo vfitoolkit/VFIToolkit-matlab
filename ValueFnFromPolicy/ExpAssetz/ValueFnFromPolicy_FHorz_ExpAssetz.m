@@ -41,21 +41,22 @@ l_z=length(n_z);
 % noa1 case: when n_a is scalar (experience asset is the only endogenous state) use n_a1=0, N_a1=0
 % (toolkit convention; matches StationaryDist_FHorz_ExpAssetz). Note we have to override l_a1=0
 % because length(0)=1, not 0. Downstream, N_a1kron=1 makes the kron-index lookup reduce to a2primeIndex.
-if isscalar(n_a)
+l_a2=vfoptions.experienceassetz; % l_a2 = number of a2 (experience-asset) dims
+if length(n_a)<=l_a2
     n_a1=0;
     N_a1=0;
     l_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-l_a2);
     N_a1=prod(n_a1);
     l_a1=length(n_a1);
 end
 N_a1kron=max(N_a1,1); % effective a1 stride in the joint aprime index (1 in the noa1 case)
-n_a2=n_a(end);
+n_a2=n_a(end-l_a2+1:end); % the last l_a2 dims are the experience asset(s)
 % N_a2=prod(n_a2);
 % a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a2=length(n_a2);
+% l_a2 already set from vfoptions.experienceassetz above
 
 % Which d affects the experience asset (default: last d only)
 if isfield(vfoptions,'l_dexperienceassetz')
@@ -68,8 +69,8 @@ whichisdforexpasset=(l_d-l_d2+1):l_d;
 
 % aprimeFnParamNames: first inputs are (d_expasset..., a2, z)
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_z)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_z+1:end}};
+if length(temp)>(l_d2+l_a2+l_z+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+l_z+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2,z), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end
@@ -130,12 +131,22 @@ for reverse_j=0:N_j-1
         % shape [N_a, N_z]
     else
         Policy_zE=reshape(Policy(:,:,:,jj),[l_d+l_a1, N_a, N_z, N_e]);
-        a2primeIndex=zeros(N_a, N_z, N_e, 'gpuArray');
-        a2primeProbs=zeros(N_a, N_z, N_e, 'gpuArray');
+        if l_a2==1
+            a2primeIndex=zeros(N_a, N_z, N_e, 'gpuArray');
+            a2primeProbs=zeros(N_a, N_z, N_e, 'gpuArray');
+        else % l_a2==2: the helper returns a leading per-dim factored dimension
+            a2primeIndex=zeros(N_a, l_a2, N_z, N_e, 'gpuArray');
+            a2primeProbs=zeros(N_a, l_a2, N_z, N_e, 'gpuArray');
+        end
         for e_idx=1:N_e
             [a2pi, a2pp]=CreateaprimePolicyExperienceAssetz(Policy_zE(:,:,:,e_idx), aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_z, 0,N_z,0, d_grid, a2_grid, z_gridvals_J(:,:,jj), aprimeFnParamsVec);
-            a2primeIndex(:,:,e_idx)=a2pi;
-            a2primeProbs(:,:,e_idx)=a2pp;
+            if l_a2==1
+                a2primeIndex(:,:,e_idx)=a2pi;
+                a2primeProbs(:,:,e_idx)=a2pp;
+            else
+                a2primeIndex(:,:,:,e_idx)=a2pi;
+                a2primeProbs(:,:,:,e_idx)=a2pp;
+            end
         end
     end
 
@@ -169,26 +180,94 @@ for reverse_j=0:N_j-1
 
         % Step 4: interpolated lookup
         if N_e==0
-            a1p=Policy_a1prime(:,:,jj); % [N_a, N_z] (all ones in the noa1 case)
-            aprime_low=a1p+N_a1kron*(a2primeIndex-1);
-            aprime_up =a1p+N_a1kron*(a2primeIndex);
-            zidxoffset=N_a*gpuArray(0:N_z-1); % [1, N_z]
-            lin_low=aprime_low+zidxoffset;
-            lin_up =aprime_up +zidxoffset;
-            EV_low=reshape(EVnext(lin_low(:)),[N_a,N_z]);
-            EV_up =reshape(EVnext(lin_up(:)), [N_a,N_z]);
-            EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
+            if l_a2==1
+                a1p=Policy_a1prime(:,:,jj); % [N_a, N_z] (all ones in the noa1 case)
+                aprime_low=a1p+N_a1kron*(a2primeIndex-1);
+                aprime_up =a1p+N_a1kron*(a2primeIndex);
+                zidxoffset=N_a*gpuArray(0:N_z-1); % [1, N_z]
+                lin_low=aprime_low+zidxoffset;
+                lin_up =aprime_up +zidxoffset;
+                EV_low=reshape(EVnext(lin_low(:)),[N_a,N_z]);
+                EV_up =reshape(EVnext(lin_up(:)), [N_a,N_z]);
+                EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
+            else
+                % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored. Nested 2-corner interpolation
+                % with skipinterp at each level (mirrors ValueFnFromPolicy_FHorz_ExpAsset).
+                n_a2_1=n_a2(1);
+                loIdx_1=reshape(a2primeIndex(:,1,:),[N_a,N_z]);
+                loIdx_2=reshape(a2primeIndex(:,2,:),[N_a,N_z]);
+                prob_1=reshape(a2primeProbs(:,1,:),[N_a,N_z]);
+                prob_2=reshape(a2primeProbs(:,2,:),[N_a,N_z]);
+                a1p=Policy_a1prime(:,:,jj); % [N_a, N_z] (all ones in the noa1 case)
+                aprime_ll=a1p+N_a1kron*(loIdx_1+n_a2_1*(loIdx_2-1)-1);
+                aprime_hl=a1p+N_a1kron*((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1);
+                aprime_lh=a1p+N_a1kron*(loIdx_1+n_a2_1*loIdx_2-1);
+                aprime_hh=a1p+N_a1kron*((loIdx_1+1)+n_a2_1*loIdx_2-1);
+                zidxoffset=N_a*gpuArray(0:N_z-1); % [1, N_z]
+                lin_ll=aprime_ll+zidxoffset; lin_hl=aprime_hl+zidxoffset;
+                lin_lh=aprime_lh+zidxoffset; lin_hh=aprime_hh+zidxoffset;
+                V_ll=reshape(EVnext(lin_ll(:)),[N_a,N_z]);
+                V_hl=reshape(EVnext(lin_hl(:)),[N_a,N_z]);
+                V_lh=reshape(EVnext(lin_lh(:)),[N_a,N_z]);
+                V_hh=reshape(EVnext(lin_hh(:)),[N_a,N_z]);
+                p1_loy=prob_1; p1_loy(V_ll==V_hl)=0;
+                c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+                EV_loy=c_ll+c_hl;
+                p1_hiy=prob_1; p1_hiy(V_lh==V_hh)=0;
+                c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+                EV_hiy=c_lh+c_hh;
+                p2=prob_2; p2(EV_loy==EV_hiy)=0;
+                c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                EVnext_atpolicy=c_loy+c_hiy;
+            end
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         else
-            a1p=reshape(Policy_a1prime(:,:,jj),[N_a, N_z, N_e]); % (all ones in the noa1 case)
-            aprime_low=a1p+N_a1kron*(a2primeIndex-1);
-            aprime_up =a1p+N_a1kron*(a2primeIndex);
-            zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1]);
-            lin_low=aprime_low+zidxoffset;
-            lin_up =aprime_up +zidxoffset;
-            EV_low=reshape(EVnext(lin_low(:)),[N_a,N_z,N_e]);
-            EV_up =reshape(EVnext(lin_up(:)), [N_a,N_z,N_e]);
-            EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
+            if l_a2==1
+                a1p=reshape(Policy_a1prime(:,:,jj),[N_a, N_z, N_e]); % (all ones in the noa1 case)
+                aprime_low=a1p+N_a1kron*(a2primeIndex-1);
+                aprime_up =a1p+N_a1kron*(a2primeIndex);
+                zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1]);
+                lin_low=aprime_low+zidxoffset;
+                lin_up =aprime_up +zidxoffset;
+                EV_low=reshape(EVnext(lin_low(:)),[N_a,N_z,N_e]);
+                EV_up =reshape(EVnext(lin_up(:)), [N_a,N_z,N_e]);
+                EVnext_atpolicy=a2primeProbs.*EV_low+(1-a2primeProbs).*EV_up;
+            else
+                % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored. Nested 2-corner interpolation
+                % with skipinterp at each level (mirrors ValueFnFromPolicy_FHorz_ExpAsset).
+                n_a2_1=n_a2(1);
+                loIdx_1=reshape(a2primeIndex(:,1,:,:),[N_a,N_z,N_e]);
+                loIdx_2=reshape(a2primeIndex(:,2,:,:),[N_a,N_z,N_e]);
+                prob_1=reshape(a2primeProbs(:,1,:,:),[N_a,N_z,N_e]);
+                prob_2=reshape(a2primeProbs(:,2,:,:),[N_a,N_z,N_e]);
+                a1p=reshape(Policy_a1prime(:,:,jj),[N_a, N_z, N_e]); % (all ones in the noa1 case)
+                aprime_ll=a1p+N_a1kron*(loIdx_1+n_a2_1*(loIdx_2-1)-1);
+                aprime_hl=a1p+N_a1kron*((loIdx_1+1)+n_a2_1*(loIdx_2-1)-1);
+                aprime_lh=a1p+N_a1kron*(loIdx_1+n_a2_1*loIdx_2-1);
+                aprime_hh=a1p+N_a1kron*((loIdx_1+1)+n_a2_1*loIdx_2-1);
+                zidxoffset=reshape(N_a*gpuArray(0:N_z-1),[1,N_z,1]);
+                lin_ll=aprime_ll+zidxoffset; lin_hl=aprime_hl+zidxoffset;
+                lin_lh=aprime_lh+zidxoffset; lin_hh=aprime_hh+zidxoffset;
+                V_ll=reshape(EVnext(lin_ll(:)),[N_a,N_z,N_e]);
+                V_hl=reshape(EVnext(lin_hl(:)),[N_a,N_z,N_e]);
+                V_lh=reshape(EVnext(lin_lh(:)),[N_a,N_z,N_e]);
+                V_hh=reshape(EVnext(lin_hh(:)),[N_a,N_z,N_e]);
+                p1_loy=prob_1; p1_loy(V_ll==V_hl)=0;
+                c_ll=p1_loy.*V_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_loy).*V_hl; c_hl(isnan(c_hl))=0;
+                EV_loy=c_ll+c_hl;
+                p1_hiy=prob_1; p1_hiy(V_lh==V_hh)=0;
+                c_lh=p1_hiy.*V_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hiy).*V_hh; c_hh(isnan(c_hh))=0;
+                EV_hiy=c_lh+c_hh;
+                p2=prob_2; p2(EV_loy==EV_hiy)=0;
+                c_loy=p2.*EV_loy; c_loy(isnan(c_loy))=0;
+                c_hiy=(1-p2).*EV_hiy; c_hiy(isnan(c_hiy))=0;
+                EVnext_atpolicy=c_loy+c_hiy;
+            end
             V(:,:,:,jj)=F_jj+beta*EVnext_atpolicy;
         end
     end

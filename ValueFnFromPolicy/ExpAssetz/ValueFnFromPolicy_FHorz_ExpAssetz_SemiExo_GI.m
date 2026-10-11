@@ -54,9 +54,9 @@ if isscalar(n_a)
     varargout={V};
     return
 end
-n_a1=n_a(1:end-1);
+n_a1=n_a(1:end-vfoptions.experienceassetz);
 N_a1=prod(n_a1);
-n_a2=n_a(end);
+n_a2=n_a(end-vfoptions.experienceassetz+1:end); % last vfoptions.experienceassetz dims are the experience asset
 a2_grid=a_grid(sum(n_a1)+1:end);
 l_a1=length(n_a1);
 l_a2=length(n_a2);
@@ -69,8 +69,8 @@ end
 whichisdforexpasset=(l_d-l_dsemiz-l_d2+1):(l_d-l_dsemiz);
 
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_z)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_z+1:end}};
+if length(temp)>(l_d2+l_a2+l_z+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+l_z+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2,z), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end
@@ -216,20 +216,44 @@ for reverse_j=0:N_j-1
             d2_jj=d_semiz_idx(:,:,jj);
             a1l_r=reshape(a1l,[N_a, N_semiz, N_z]); a1u_r=reshape(a1u,[N_a, N_semiz, N_z]);
             wa1l_r=reshape(wa1l,[N_a, N_semiz, N_z]); wa1u_r=reshape(wa1u,[N_a, N_semiz, N_z]);
-            a2l=reshape(a2primeIndex,[N_a, N_semiz, N_z]); a2u=a2l+1;
-            wa2l=reshape(a2primeProbs,[N_a, N_semiz, N_z]); wa2u=1-wa2l;
             d2_r=reshape(d2_jj,[N_a, N_semiz, N_z]);
             base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_r(:)-1), [N_a, N_semiz, N_z]);
-            lin_LL=a1l_r+N_a1*(a2l-1)+base_off;
-            lin_LU=a1l_r+N_a1*(a2u-1)+base_off;
-            lin_UL=a1u_r+N_a1*(a2l-1)+base_off;
-            lin_UU=a1u_r+N_a1*(a2u-1)+base_off;
-            EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_z]);
-            EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_z]);
-            EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_z]);
-            EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_z]);
-            EVnext_atpolicy=wa1l_r.*wa2l.*EV_LL + wa1l_r.*wa2u.*EV_LU + wa1u_r.*wa2l.*EV_UL + wa1u_r.*wa2u.*EV_UU;
-            EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
+            if l_a2==1
+                a2l=reshape(a2primeIndex,[N_a, N_semiz, N_z]); a2u=a2l+1;
+                wa2l=reshape(a2primeProbs,[N_a, N_semiz, N_z]); wa2u=1-wa2l;
+                lin_LL=a1l_r+N_a1*(a2l-1)+base_off;
+                lin_LU=a1l_r+N_a1*(a2u-1)+base_off;
+                lin_UL=a1u_r+N_a1*(a2l-1)+base_off;
+                lin_UU=a1u_r+N_a1*(a2u-1)+base_off;
+                EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_z]);
+                EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_z]);
+                EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_z]);
+                EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_z]);
+                EVnext_atpolicy=wa1l_r.*wa2l.*EV_LL + wa1l_r.*wa2u.*EV_LU + wa1u_r.*wa2l.*EV_UL + wa1u_r.*wa2u.*EV_UU;
+                EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
+            else
+                % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored, so the corner count doubles:
+                % 2 (a1) x 2 (a2_1) x 2 (a2_2) = 8. Same FLAT weight-product as the l_a2==1 arm above
+                % (this file's convention, not the raws' nested skipinterp).
+                n_a2_1=n_a2(1);
+                lo1=reshape(a2primeIndex(:,1,:),[N_a, N_semiz, N_z]); lo2=reshape(a2primeIndex(:,2,:),[N_a, N_semiz, N_z]);
+                pr1=reshape(a2primeProbs(:,1,:),[N_a, N_semiz, N_z]); pr2=reshape(a2primeProbs(:,2,:),[N_a, N_semiz, N_z]);
+                EVnext_atpolicy_acc=zeros([N_a, N_semiz, N_z],'like',EVnext_byd2);
+                bits=[0 0; 1 0; 0 1; 1 1];
+                for c=1:4
+                    b1=bits(c,1); b2=bits(c,2);
+                    a2k=(lo1+b1)+n_a2_1*((lo2+b2)-1);
+                    w2=pr1; if b1==1, w2=1-w2; end
+                    q2=pr2; if b2==1, q2=1-q2; end
+                    linl=a1l_r+N_a1*(a2k-1)+base_off;
+                    linu=a1u_r+N_a1*(a2k-1)+base_off;
+                    EV_l=reshape(EVnext_byd2(linl(:)),[N_a, N_semiz, N_z]);
+                    EV_u=reshape(EVnext_byd2(linu(:)),[N_a, N_semiz, N_z]);
+                    EVnext_atpolicy_acc=EVnext_atpolicy_acc+wa1l_r.*w2.*q2.*EV_l+wa1u_r.*w2.*q2.*EV_u;
+                end
+                EVnext_atpolicy_acc(isnan(EVnext_atpolicy_acc))=0; % zero corner weights times -Inf next-states give NaN
+                EVnext_atpolicy=EVnext_atpolicy_acc;
+            end
             V(:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks]);
         else
             EVnext_atpolicy=zeros(N_a, N_semiz, N_z, N_e, 'gpuArray');
@@ -239,19 +263,43 @@ for reverse_j=0:N_j-1
                 a1u_e=reshape(a1_upper(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                 wa1l_e=reshape(w_a1_lower(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                 wa1u_e=reshape(w_a1_upper(:,:,e_c,jj),[N_a, N_semiz, N_z]);
-                a2l_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_z]); a2u_e=a2l_e+1;
-                wa2l_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_z]); wa2u_e=1-wa2l_e;
                 d2_e=reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                 base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1), [N_a, N_semiz, N_z]);
-                lin_LL=a1l_e+N_a1*(a2l_e-1)+base_off;
-                lin_LU=a1l_e+N_a1*(a2u_e-1)+base_off;
-                lin_UL=a1u_e+N_a1*(a2l_e-1)+base_off;
-                lin_UU=a1u_e+N_a1*(a2u_e-1)+base_off;
-                EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_z]);
-                EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_z]);
-                EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_z]);
-                EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_z]);
-                EVnext_atpolicy(:,:,:,e_c)=wa1l_e.*wa2l_e.*EV_LL + wa1l_e.*wa2u_e.*EV_LU + wa1u_e.*wa2l_e.*EV_UL + wa1u_e.*wa2u_e.*EV_UU;
+                if l_a2==1
+                    a2l_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_z]); a2u_e=a2l_e+1;
+                    wa2l_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_z]); wa2u_e=1-wa2l_e;
+                    lin_LL=a1l_e+N_a1*(a2l_e-1)+base_off;
+                    lin_LU=a1l_e+N_a1*(a2u_e-1)+base_off;
+                    lin_UL=a1u_e+N_a1*(a2l_e-1)+base_off;
+                    lin_UU=a1u_e+N_a1*(a2u_e-1)+base_off;
+                    EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_z]);
+                    EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_z]);
+                    EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_z]);
+                    EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_z]);
+                    EVnext_atpolicy(:,:,:,e_c)=wa1l_e.*wa2l_e.*EV_LL + wa1l_e.*wa2u_e.*EV_LU + wa1u_e.*wa2l_e.*EV_UL + wa1u_e.*wa2u_e.*EV_UU;
+                else
+                    % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored, so the corner count doubles:
+                    % 2 (a1) x 2 (a2_1) x 2 (a2_2) = 8. Same FLAT weight-product as the l_a2==1 arm above
+                    % (this file's convention, not the raws' nested skipinterp).
+                    n_a2_1=n_a2(1);
+                    lo1=reshape(a2primeIndex(:,1,block),[N_a, N_semiz, N_z]); lo2=reshape(a2primeIndex(:,2,block),[N_a, N_semiz, N_z]);
+                    pr1=reshape(a2primeProbs(:,1,block),[N_a, N_semiz, N_z]); pr2=reshape(a2primeProbs(:,2,block),[N_a, N_semiz, N_z]);
+                    EVnext_atpolicy_acc=zeros([N_a, N_semiz, N_z],'like',EVnext_byd2);
+                    bits=[0 0; 1 0; 0 1; 1 1];
+                    for c=1:4
+                        b1=bits(c,1); b2=bits(c,2);
+                        a2k=(lo1+b1)+n_a2_1*((lo2+b2)-1);
+                        w2=pr1; if b1==1, w2=1-w2; end
+                        q2=pr2; if b2==1, q2=1-q2; end
+                        linl=a1l_e+N_a1*(a2k-1)+base_off;
+                        linu=a1u_e+N_a1*(a2k-1)+base_off;
+                        EV_l=reshape(EVnext_byd2(linl(:)),[N_a, N_semiz, N_z]);
+                        EV_u=reshape(EVnext_byd2(linu(:)),[N_a, N_semiz, N_z]);
+                        EVnext_atpolicy_acc=EVnext_atpolicy_acc+wa1l_e.*w2.*q2.*EV_l+wa1u_e.*w2.*q2.*EV_u;
+                    end
+                    EVnext_atpolicy_acc(isnan(EVnext_atpolicy_acc))=0; % zero corner weights times -Inf next-states give NaN
+                    EVnext_atpolicy(:,:,:,e_c)=EVnext_atpolicy_acc;
+                end
             end
             V(:,:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks, N_e]);
         end
