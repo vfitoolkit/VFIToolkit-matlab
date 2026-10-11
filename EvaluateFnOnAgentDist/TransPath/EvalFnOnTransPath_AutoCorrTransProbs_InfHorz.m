@@ -171,15 +171,17 @@ end
 
 
 %%
-PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
+PolicyPath=gpuArray(reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]));
 PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_grid,aprime_grid,simoptions,1);
 l_daprime=size(PolicyValuesPath,1);
 PolicyValuesPermutePath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_z,T]),[2,3,1,4]); %[N_a,N_z,l_d+l_a,T]
 
-AgentDistPath=reshape(AgentDistPath,[N_a*N_z,T]);
+N_states=N_a*N_z;
+AgentDistPath=gpuArray(reshape(AgentDistPath,[N_states,T]));
+numFnsToEvaluate=length(FnsToEvalNames);
 
 % preallocate
-for ff=1:length(FnsToEvalNames)
+for ff=1:numFnsToEvaluate
     CorrTransProbsPath.(FnsToEvalNames{ff}).Mean=zeros(1,T);
     CorrTransProbsPath.(FnsToEvalNames{ff}).StdDeviation=zeros(1,T);
     CorrTransProbsPath.(FnsToEvalNames{ff}).AutoCovariance=zeros(1,T);
@@ -187,12 +189,26 @@ for ff=1:length(FnsToEvalNames)
     % cannot preallocate for TransProbs, as do not yet know size, instead do it in t==2 of loop over tt below
 end
 
-% The lag of each FnToEvaluate has to be kept per FnToEvaluate, one column each.
-Values_all=zeros(N_a*N_z,length(FnsToEvalNames));
-meanV_all=zeros(1,length(FnsToEvalNames));
-stddevV_all=zeros(1,length(FnsToEvalNames));
-
-
+%% The push from period tt-1 to tt is the Tan (2020) two-step: the policy step with the period tt-1 policy (a sparse
+% gpuArray built from the gpu policy slice, one nonzero per state, or two with the grid-interpolation weights), then
+% pi_z; the full transition matrix is never formed. The centered lag measures of every function are the columns of one
+% matrix and go through the step in one product; the transition probabilities push each origin bin's mass the same way,
+% in blocks of 64 bins, on the gpu.
+zindex=N_a*gpuArray(0:1:N_z-1); % the z index of each column, to get the index into (a',z)
+if simoptions.gridinterplayer==0
+    IIind=gpuArray((1:1:N_states)');
+elseif simoptions.gridinterplayer==1
+    IIind=gpuArray(repmat((1:1:N_states)',2,1));
+end
+if N_z>1
+    pi_z_gpu=gpuArray(pi_z);
+end
+% This period's values, means and standard deviations of every function (one column each), kept as the lag for the next period
+Values_now=zeros(N_states,numFnsToEvaluate,'gpuArray');
+vv_now=cell(numFnsToEvaluate,1); % the distinct values and the bin index of each state (functions with transition probabilities), kept as the lag
+indexes_now=cell(numFnsToEvaluate,1);
+meanV_now=zeros(1,numFnsToEvaluate,'gpuArray');
+stddevV_now=zeros(1,numFnsToEvaluate,'gpuArray');
 
 %%
 for tt=1:T
@@ -241,16 +257,42 @@ for tt=1:T
     end
 
     PolicyValuesPermute=PolicyValuesPermutePath(:,:,:,tt);
-    AgentDist=AgentDistPath(:,tt); % [N_a*N_z,T]
+    AgentDist=AgentDistPath(:,tt); % [N_states,1]
 
     if tt>1
         AgentDist_lag=AgentDistPath(:,tt-1);
+        Values_lag=Values_now;
+        meanV_lag=meanV_now;
+        stddevV_lag=stddevV_now;
+        vv_lag=vv_now;
+        indexes_lag_all=indexes_now;
     end
 
-    %% The push from period tt-1 to tt: the Tan (2020) two-step (policy step with the period tt-1 policy, then pi_z); the
-    % full transition matrix is never formed
+    %% This period's values of every function, and their means and standard deviations (one reduction each over the columns)
+    Values_now=zeros(N_states,numFnsToEvaluate,'gpuArray');
+    for ff=1:numFnsToEvaluate
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluateCell{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+        Values_now(:,ff)=reshape(Values,[N_states,1]);
+    end
+    meanV_now=sum(AgentDist.*Values_now,1);
+    stddevV_now=sqrt(sum(AgentDist.*(Values_now-meanV_now).^2,1));
+    for ff=1:numFnsToEvaluate
+        if simoptions.transprobs(ff)==1
+            [vv_now{ff},~,indexes_now{ff}]=unique(Values_now(:,ff)); % on the gpu; the bin of each state
+        end
+    end
+    meanV_cpu=gather(meanV_now);
+    stddevV_cpu=gather(stddevV_now);
+    for ff=1:numFnsToEvaluate
+        CorrTransProbsPath.(FnsToEvalNames{ff}).Mean(tt)=meanV_cpu(ff);
+        CorrTransProbsPath.(FnsToEvalNames{ff}).StdDeviation(tt)=stddevV_cpu(ff);
+    end
+
+    %% Can only calculate the rest from period 2 on (tt is treated as next period, tt-1 as this period)
     if tt>1
-        Policy_lag=reshape(PolicyPath(:,:,:,tt-1),[size(PolicyPath,1),N_a,N_z]);
+        % The policy step of period tt-1
+        Policy_lag=PolicyPath(:,:,:,tt-1); % [size(PolicyPath,1),N_a,N_z]
         if l_a==1
             Policy_aprime=shiftdim(Policy_lag(l_d+1,:,:),1);
         elseif l_a==2
@@ -262,94 +304,62 @@ for tt=1:T
         else
             error('EvalFnOnTransPath_AutoCorrTransProbs_InfHorz cannot handle length(n_a)>4, contact me if you need this')
         end
-        zindex=N_a*gpuArray(0:1:N_z-1); % the z index of each column, to get the index into (a',z)
+        Policy_aprimez=reshape(Policy_aprime+zindex,[],1); % [N_states,1], index into (a',z), on the gpu
         if simoptions.gridinterplayer==0
-            Gammatranspose_lag=sparse(reshape(gather(Policy_aprime+zindex),[],1),(1:1:N_a*N_z)',ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
+            Gammatranspose_lag=sparse(Policy_aprimez,IIind,ones(N_states,1,'gpuArray'),N_states,N_states); % sparse gpuArray
         elseif simoptions.gridinterplayer==1
             % two a' points per state: the lower grid point and the one above it, with the second-layer weights
-            Policy_aprimez=gather(cat(3,Policy_aprime,Policy_aprime+1)+zindex); % [N_a,N_z,2]
             L2index=Policy_lag(end-1,:,:); % L2 index (end-1 because end is L2flag)
             L2flag=Policy_lag(end,:,:);
             L2index(L2flag==1)=1;                        % force all weight to lower grid point
             L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
-            probupper=shiftdim((L2index-1)/(simoptions.ngridinterp+1),1); % [N_a,N_z]: probability of the upper grid point
-            PolicyProbs=gather(cat(3,1-probupper,probupper)); % [N_a,N_z,2]
-            Gammatranspose_lag=sparse(reshape(Policy_aprimez,[],1),repmat((1:1:N_a*N_z)',2,1),reshape(PolicyProbs,[],1),N_a*N_z,N_a*N_z);
-        end
-        if tt==2
-            pi_z_cpu=gather(pi_z);
-        end
-    end
-    %% Can only calculate most stats from period 2 on
-    for ff=1:length(FnsToEvalNames)
-        if tt>1
-            Values_lag=Values_all(:,ff);
-            meanV_lag=meanV_all(ff);
-            stddevV_lag=stddevV_all(ff);
+            probupper=reshape((L2index-1)/(simoptions.ngridinterp+1),[],1); % [N_states,1]: probability of the upper grid point
+            Gammatranspose_lag=sparse([Policy_aprimez;Policy_aprimez+1],IIind,[1-probupper;probupper],N_states,N_states); % sparse gpuArray
         end
 
-        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-        Values=EvalFnOnAgentDist_Grid(FnsToEvaluateCell{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-        Values=reshape(Values,[N_a*N_z,1]);
-
-
-        %% Calculate the correlation (tt is treated as next period, tt-1 as this period)
-        % Correlation(x,y)=Cov(x,u)/(stddev(x)*stddev(y))
-        % So first calculate the covariance and the two standard deviations
-
-        % We don't need lag for some basics
-        meanV=sum(AgentDist.*Values);
-        stddevV=sqrt(sum(AgentDist.*(Values-meanV).^2));
-        CorrTransProbsPath.(FnsToEvalNames{ff}).Mean(tt)=meanV;
-        CorrTransProbsPath.(FnsToEvalNames{ff}).StdDeviation(tt)=stddevV;
-        % Keep this period's values for use as the lag when tt+1 comes round to this same ff
-        Values_all(:,ff)=Values;
-        meanV_all(ff)=meanV;
-        stddevV_all(ff)=stddevV;
-
-        % For autocovar and autocorr we can do them from tt=2 on
-        if tt>1
-            % Calculate covariance between this period and next period values
-            % Covar is E[(x_{t-1}-mean_{t-1})(y_t-mean_t)] over the joint distribution of the state pair, which is the
-            % lag distribution pushed one period: so the lag distribution is the weight here (weighting by AgentDist
-            % instead would apply the step twice).
-            % The centered lag measure AgentDist_lag.*(x_{t-1}-mean) is pushed one period and integrated against (x_t-mean)
-            propagated=Gammatranspose_lag*(gather(AgentDist_lag).*(gather(Values_lag)-gather(meanV_lag)));
-            if N_z>1
-                propagated=reshape(reshape(propagated,[N_a,N_z])*pi_z_cpu,[N_a*N_z,1]);
-            end
-            Covar=propagated'*(gather(Values)-gather(meanV));
-            % Calculate the correlation
-            Corr=Covar/(stddevV_lag*stddevV);
-            CorrTransProbsPath.(FnsToEvalNames{ff}).AutoCovariance(tt-1)=Covar;
-            CorrTransProbsPath.(FnsToEvalNames{ff}).AutoCorrelation(tt-1)=Corr;
+        %% Auto-covariance and auto-correlation between periods tt-1 and tt, every function at once
+        % Covar is E[(x_{t-1}-mean_{t-1})(y_t-mean_t)] over the joint distribution of the state pair, which is the lag
+        % distribution pushed one period: so the lag distribution is the weight here (weighting by AgentDist instead would
+        % apply the step twice). The centered lag measures AgentDist_lag.*(x_{t-1}-mean) are pushed one period and
+        % integrated against (x_t-mean).
+        propagated=Gammatranspose_lag*(AgentDist_lag.*(Values_lag-meanV_lag)); % N_states x numFnsToEvaluate
+        if N_z>1
+            propagated=reshape(pagemtimes(reshape(propagated,[N_a,N_z,numFnsToEvaluate]),pi_z_gpu),[N_states,numFnsToEvaluate]);
+        end
+        Covar=sum(propagated.*(Values_now-meanV_now),1);
+        Corr=Covar./(stddevV_lag.*stddevV_now);
+        Covar_cpu=gather(Covar);
+        Corr_cpu=gather(Corr);
+        for ff=1:numFnsToEvaluate
+            CorrTransProbsPath.(FnsToEvalNames{ff}).AutoCovariance(tt-1)=Covar_cpu(ff);
+            CorrTransProbsPath.(FnsToEvalNames{ff}).AutoCorrelation(tt-1)=Corr_cpu(ff);
         end
 
-
-        %% Calculate transition probabilities (tt is treated as next period, tt-1 as this period)
-        if tt>1
+        %% Transition probabilities between the value bins of period tt-1 and period tt
+        for ff=1:numFnsToEvaluate
             if simoptions.transprobs(ff)==1
-                [vv,~,indexes]=unique(gather(Values));
-                [vv2,~,indexes_lag]=unique(gather(Values_lag));
+                vv=vv_now{ff};
+                indexes=indexes_now{ff};
+                vv2=vv_lag{ff};
+                indexes_lag=indexes_lag_all{ff};
                 if isequal(vv,vv2) % cannot handle the case where it is not just same list of values every period (e.g., cannot handle that in some period we don't see one of the values)
                     n_fvals=length(vv); % number of unique values of the FnsToEvaluate{ff}
                     % Each origin bin's lag mass is pushed one period (origin bins as columns, in blocks of 64) and binned by
                     % the period-tt value; row b of P_v is the destination distribution of origin bin b (conditioned on the
                     % period tt-1 value bin, so sum(P_v,2) is one where the bin has mass)
-                    dist_lag_cpu=gather(AgentDist_lag);
-                    massPerBin=accumarray(indexes_lag,dist_lag_cpu,[n_fvals,1]);
-                    S_dest=sparse(1:N_a*N_z,indexes,1,N_a*N_z,n_fvals); % destination bin indicator
+                    massPerBin=gather(accumarray(indexes_lag,AgentDist_lag,[n_fvals,1]));
+                    S_dest=sparse(gpuArray((1:1:N_states)'),indexes,ones(N_states,1,'gpuArray'),N_states,n_fvals); % destination bin indicator, sparse gpuArray
                     P_v=zeros(n_fvals,n_fvals); % transition probabilities for the values
                     for b1=1:64:n_fvals
                         b2=min(b1+63,n_fvals);
-                        inblock=(indexes_lag>=b1 & indexes_lag<=b2);
-                        temp=full(Gammatranspose_lag*sparse(find(inblock),indexes_lag(inblock)-b1+1,dist_lag_cpu(inblock),N_a*N_z,b2-b1+1));
+                        inblock=find(indexes_lag>=b1 & indexes_lag<=b2); % on the gpu
+                        temp=zeros(N_states,b2-b1+1,'gpuArray'); % the origin bins' lag masses, one column each
+                        temp(inblock+N_states*(indexes_lag(inblock)-b1))=AgentDist_lag(inblock);
+                        temp=Gammatranspose_lag*temp;
                         if N_z>1
-                            for cc=1:size(temp,2)
-                                temp(:,cc)=reshape(reshape(temp(:,cc),[N_a,N_z])*pi_z_cpu,[N_a*N_z,1]);
-                            end
+                            temp=reshape(pagemtimes(reshape(temp,[N_a,N_z,b2-b1+1]),pi_z_gpu),[N_states,b2-b1+1]);
                         end
-                        P_v(b1:b2,:)=(S_dest'*temp)'./massPerBin(b1:b2);
+                        P_v(b1:b2,:)=gather((S_dest'*temp)')./massPerBin(b1:b2);
                     end
                     if tt==2
                         CorrTransProbsPath.(FnsToEvalNames{ff}).TransitionProbs=repmat(P_v,1,1,T-1);
