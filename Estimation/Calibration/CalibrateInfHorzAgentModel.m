@@ -69,6 +69,12 @@ end
 caliboptions.simulatemoments=0; % Not needed here (the objectivefn is shared with other estimation commands)
 caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with other estimation commands)
 
+if ~isfield(caliboptions,'ParametrizeParamsFn_InputNames')
+    caliboptions.ParametrizeParamsFn_InputNames={}; % the Parameters fields ParametrizeParamsFn reads; left empty it is filled automatically by ParseParametrizeParamsFn (only relevant when using ParametrizeParamsFn)
+end
+if ~isfield(caliboptions,'ParametrizeParamsFn_OutputNames')
+    caliboptions.ParametrizeParamsFn_OutputNames={}; % the Parameters fields ParametrizeParamsFn writes; left empty it is filled automatically by ParseParametrizeParamsFn. Used to detect whether the shock processes depend on the calibrated parameters (via the derived parameters); set it yourself if the automatic probe cannot see a write (see ParseParametrizeParamsFn)
+end
 caliboptions.useCustomModelStats=0;
 if isfield(caliboptions,'CustomModelStats')
     caliboptions.useCustomModelStats=1;
@@ -172,19 +178,52 @@ FnsToEvaluateParamNames=[];
 %% Set up exogenous shock grids now (so they can then just be reused every time)
 % Check if using ExogShockFn or EiidShockFn, and if so, do these use a
 % parameter that is being calibrated
-caliboptions.calibrateshocks=0; % set to one if need to redo shocks for each new calib parameter vector
+% With ParametrizeParamsFn the shocks can depend on the calibrated parameters INDIRECTLY, through the derived parameters it writes,
+% so dependence is detected by name-matching the shock-fn inputs against CalibParamNames PLUS the fields ParametrizeParamsFn writes
+% (caliboptions.ParametrizeParamsFn_InputNames/_OutputNames; left at the {} default they are filled by ParseParametrizeParamsFn,
+% which probes the function -- see there for its one known blind spot). If the probe fails, the shocks are conservatively treated
+% as dependent. A user-set caliboptions.calibrateshocks always wins (see below).
+effectiveCalibParamNames=CalibParamNames;
+parametrizefailed=0;
+if ~isempty(ParametrizeParamsFn)
+    if isempty(caliboptions.ParametrizeParamsFn_InputNames) || isempty(caliboptions.ParametrizeParamsFn_OutputNames)
+        [parsedInputNames,parsedOutputNames,parametrizefailed]=ParseParametrizeParamsFn(ParametrizeParamsFn,Parameters);
+        if parametrizefailed==0
+            if isempty(caliboptions.ParametrizeParamsFn_InputNames)
+                caliboptions.ParametrizeParamsFn_InputNames=parsedInputNames;
+            end
+            if isempty(caliboptions.ParametrizeParamsFn_OutputNames) % user-given names are never overwritten
+                caliboptions.ParametrizeParamsFn_OutputNames=parsedOutputNames;
+            end
+        end
+    end
+    effectiveCalibParamNames=union(CalibParamNames,caliboptions.ParametrizeParamsFn_OutputNames);
+end
+
+usersetcalibrateshocks=isfield(caliboptions,'calibrateshocks'); % the user can force 0/1 (their setting always wins); otherwise set automatically here
+autocalibrateshocks=0; % set to one if need to redo shocks for each new calib parameter vector
 if isfield(vfoptions,'ExogShockFn')
     temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-    % can just leave action space in here as we only use it to see if CalibParamNames is part of it
-    if ~isempty(intersect(temp,CalibParamNames))
-        caliboptions.calibrateshocks=1;
+    % can just leave action space in here as we only use it to see if effectiveCalibParamNames is part of it
+    if ~isempty(intersect(temp,effectiveCalibParamNames)) || parametrizefailed==1
+        autocalibrateshocks=1;
     end
 end
 if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either alone should trigger redoing the shocks (the InfHorz value function has no e, so this is for the day it does)
     temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-    % can just leave action space in here as we only use it to see if CalibParamNames is part of it
-    if ~isempty(intersect(temp,CalibParamNames))
-        caliboptions.calibrateshocks=1;
+    % can just leave action space in here as we only use it to see if effectiveCalibParamNames is part of it
+    if ~isempty(intersect(temp,effectiveCalibParamNames)) || parametrizefailed==1
+        autocalibrateshocks=1;
+    end
+end
+if usersetcalibrateshocks==1
+    if caliboptions.calibrateshocks==0 && autocalibrateshocks==1
+        warning('You set caliboptions.calibrateshocks=0, but the shock processes appear to depend on the calibrated parameters (directly, or via ParametrizeParamsFn): trusting your setting, the shocks will NOT be rebuilt during the calibration')
+    end
+else
+    caliboptions.calibrateshocks=autocalibrateshocks;
+    if parametrizefailed==1 && autocalibrateshocks==1
+        fprintf('Note: could not parse ParametrizeParamsFn to discover which parameters it writes, so the shock processes will be rebuilt at every evaluation (give caliboptions.ParametrizeParamsFn_OutputNames, or set caliboptions.calibrateshocks=0, to override) \n')
     end
 end
 if caliboptions.calibrateshocks==0

@@ -51,6 +51,12 @@ if ~isfield(estimoptions,'logmoments')
 end
 estimoptions.simulatemoments=0; % Set to zero to get point estimates, is needed later if you bootstrap standard errors
 
+if ~isfield(estimoptions,'ParametrizeParamsFn_InputNames')
+    estimoptions.ParametrizeParamsFn_InputNames={}; % the Parameters fields ParametrizeParamsFn reads; left empty it is filled automatically by ParseParametrizeParamsFn (only relevant when using ParametrizeParamsFn)
+end
+if ~isfield(estimoptions,'ParametrizeParamsFn_OutputNames')
+    estimoptions.ParametrizeParamsFn_OutputNames={}; % the Parameters fields ParametrizeParamsFn writes; left empty it is filled automatically by ParseParametrizeParamsFn. Used to detect whether the shock processes depend on the parameters (via the derived parameters); set it yourself if the automatic probe cannot see a write (see ParseParametrizeParamsFn)
+end
 estimoptions.useCustomModelStats=0;
 estimoptions.whichcombos=0; % the derivatives are of every statistic of every function, so the stats commands compute everything (there are no selectors here)
 if isfield(estimoptions,'CustomModelStats')
@@ -300,17 +306,50 @@ targetmomentvec=zeros(allstatcummomentsizes(end)+acscummomentsizes(end),1);
 ReturnFnParamNames=[];
 FnsToEvaluateParamNames=[];
 
-estimoptions.calibrateshocks=0; % set to one if need to redo shocks for each new parameter vector
+% With ParametrizeParamsFn the shocks can depend on the parameters INDIRECTLY, through the derived parameters it writes, so
+% dependence is detected by name-matching the shock-fn inputs against EstimParamNames PLUS the fields ParametrizeParamsFn writes
+% (estimoptions.ParametrizeParamsFn_InputNames/_OutputNames; left at the {} default they are filled by ParseParametrizeParamsFn,
+% which probes the function -- see there for its one known blind spot). If the probe fails, the shocks are conservatively treated
+% as dependent. A user-set estimoptions.calibrateshocks always wins (see below).
+effectiveEstimParamNames=EstimParamNames;
+parametrizefailed=0;
+if ~isempty(ParametrizeParamsFn)
+    if isempty(estimoptions.ParametrizeParamsFn_InputNames) || isempty(estimoptions.ParametrizeParamsFn_OutputNames)
+        [parsedInputNames,parsedOutputNames,parametrizefailed]=ParseParametrizeParamsFn(ParametrizeParamsFn,Parameters);
+        if parametrizefailed==0
+            if isempty(estimoptions.ParametrizeParamsFn_InputNames)
+                estimoptions.ParametrizeParamsFn_InputNames=parsedInputNames;
+            end
+            if isempty(estimoptions.ParametrizeParamsFn_OutputNames) % user-given names are never overwritten
+                estimoptions.ParametrizeParamsFn_OutputNames=parsedOutputNames;
+            end
+        end
+    end
+    effectiveEstimParamNames=union(EstimParamNames,estimoptions.ParametrizeParamsFn_OutputNames);
+end
+
+usersetcalibrateshocks=isfield(estimoptions,'calibrateshocks'); % the user can force 0/1 (their setting always wins); otherwise set automatically here
+autocalibrateshocks=0; % set to one if need to redo shocks for each new parameter vector
 if isfield(vfoptions,'ExogShockFn')
     temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-    if ~isempty(intersect(temp,EstimParamNames))
-        estimoptions.calibrateshocks=1;
+    if ~isempty(intersect(temp,effectiveEstimParamNames)) || parametrizefailed==1
+        autocalibrateshocks=1;
     end
 end
 if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either alone should trigger redoing the shocks (before 2026-10-07 this read an undefined CalibParamNames and any EiidShockFn triggered the rebuild)
     temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-    if ~isempty(intersect(temp,EstimParamNames))
-        estimoptions.calibrateshocks=1;
+    if ~isempty(intersect(temp,effectiveEstimParamNames)) || parametrizefailed==1
+        autocalibrateshocks=1;
+    end
+end
+if usersetcalibrateshocks==1
+    if estimoptions.calibrateshocks==0 && autocalibrateshocks==1
+        warning('You set estimoptions.calibrateshocks=0, but the shock processes appear to depend on the parameters (directly, or via ParametrizeParamsFn): trusting your setting, the shocks will NOT be rebuilt when computing the moment derivatives')
+    end
+else
+    estimoptions.calibrateshocks=autocalibrateshocks;
+    if parametrizefailed==1 && autocalibrateshocks==1
+        fprintf('Note: could not parse ParametrizeParamsFn to discover which parameters it writes, so the shock processes will be rebuilt at every evaluation (give estimoptions.ParametrizeParamsFn_OutputNames, or set estimoptions.calibrateshocks=0, to override) \n')
     end
 end
 if estimoptions.calibrateshocks==0

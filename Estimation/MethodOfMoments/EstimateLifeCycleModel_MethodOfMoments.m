@@ -112,6 +112,12 @@ end
 if ~isfield(estimoptions,'whichcombos')
     estimoptions.whichcombos=1; % =1: the stats commands compute only the targeted (function, statistic, restriction, age) combinations, through the selectors SetupTargetMoments_FHorz builds (as CalibrateLifeCycleModel); =0: every statistic of every targeted function. The moments are identical either way.
 end
+if ~isfield(estimoptions,'ParametrizeParamsFn_InputNames')
+    estimoptions.ParametrizeParamsFn_InputNames={}; % the Parameters fields ParametrizeParamsFn reads; left empty it is filled automatically by ParseParametrizeParamsFn (only relevant when using ParametrizeParamsFn)
+end
+if ~isfield(estimoptions,'ParametrizeParamsFn_OutputNames')
+    estimoptions.ParametrizeParamsFn_OutputNames={}; % the Parameters fields ParametrizeParamsFn writes; left empty it is filled automatically by ParseParametrizeParamsFn. Used to detect whether the shock processes depend on the estimated parameters (via the derived parameters); set it yourself if the automatic probe cannot see a write (see ParseParametrizeParamsFn)
+end
 estimoptions.useCustomModelStats=0;
 if isfield(estimoptions,'CustomModelStats')
     estimoptions.useCustomModelStats=1;
@@ -282,19 +288,56 @@ end
 ReturnFnParamNames=[];
 FnsToEvaluateParamNames=[];
 
-estimoptions.calibrateshocks=0; % set to one if need to redo shocks for each new estim parameter vector
+% With ParametrizeParamsFn the shocks can depend on the estimated parameters
+% INDIRECTLY, through the derived parameters it writes (e.g. a shock-fn input
+% derived from an estimated parameter). So dependence is detected by
+% name-matching the shock-fn inputs against EstimParamNames PLUS the fields
+% ParametrizeParamsFn writes. The user can give the latter directly in
+% estimoptions.ParametrizeParamsFn_OutputNames (and _InputNames); left at the
+% {} default they are filled by probing the function (ParseParametrizeParamsFn;
+% see there for its one known blind spot). If the probe fails, the shocks are
+% conservatively treated as dependent (rebuilt every evaluation).
+effectiveEstimParamNames=EstimParamNames;
+parametrizefailed=0;
+if ~isempty(ParametrizeParamsFn)
+    if isempty(estimoptions.ParametrizeParamsFn_InputNames) || isempty(estimoptions.ParametrizeParamsFn_OutputNames)
+        [parsedInputNames,parsedOutputNames,parametrizefailed]=ParseParametrizeParamsFn(ParametrizeParamsFn,Parameters);
+        if parametrizefailed==0
+            if isempty(estimoptions.ParametrizeParamsFn_InputNames)
+                estimoptions.ParametrizeParamsFn_InputNames=parsedInputNames;
+            end
+            if isempty(estimoptions.ParametrizeParamsFn_OutputNames) % user-given names are never overwritten
+                estimoptions.ParametrizeParamsFn_OutputNames=parsedOutputNames;
+            end
+        end
+    end
+    effectiveEstimParamNames=union(EstimParamNames,estimoptions.ParametrizeParamsFn_OutputNames);
+end
+
+usersetcalibrateshocks=isfield(estimoptions,'calibrateshocks'); % the user can force 0/1 (their setting always wins); otherwise set automatically here
+autocalibrateshocks=0; % set to one if need to redo shocks for each new estim parameter vector
 if isfield(vfoptions,'ExogShockFn')
     temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-    % can just leave action space in here as we only use it to see if EstimParamNames is part of it
-    if ~isempty(intersect(temp,EstimParamNames))
-        estimoptions.calibrateshocks=1;
+    % can just leave action space in here as we only use it to see if effectiveEstimParamNames is part of it
+    if ~isempty(intersect(temp,effectiveEstimParamNames)) || parametrizefailed==1
+        autocalibrateshocks=1;
     end
 end
 if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either alone should trigger redoing the shocks
     temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-    % can just leave action space in here as we only use it to see if EstimParamNames is part of it
-    if ~isempty(intersect(temp,EstimParamNames))
-        estimoptions.calibrateshocks=1;
+    % can just leave action space in here as we only use it to see if effectiveEstimParamNames is part of it
+    if ~isempty(intersect(temp,effectiveEstimParamNames)) || parametrizefailed==1
+        autocalibrateshocks=1;
+    end
+end
+if usersetcalibrateshocks==1
+    if estimoptions.calibrateshocks==0 && autocalibrateshocks==1
+        warning('You set estimoptions.calibrateshocks=0, but the shock processes appear to depend on the estimated parameters (directly, or via ParametrizeParamsFn): trusting your setting, the shocks will NOT be rebuilt during the estimation')
+    end
+else
+    estimoptions.calibrateshocks=autocalibrateshocks;
+    if parametrizefailed==1 && autocalibrateshocks==1
+        fprintf('Note: could not parse ParametrizeParamsFn to discover which parameters it writes, so the shock processes will be rebuilt at every estimation evaluation (give estimoptions.ParametrizeParamsFn_OutputNames, or set estimoptions.calibrateshocks=0, to override) \n')
     end
 end
 if ~isfield(simoptions,'jequaloneDist_usergrids')

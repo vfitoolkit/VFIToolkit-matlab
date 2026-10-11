@@ -143,6 +143,17 @@ if isfield(options,'ExogShockFn')
         end
     else
         options.ExogShockFnParamNames=getAnonymousFnInputNames(options.ExogShockFn);
+        % A shared ExogShockFn whose PARAMETERS depend on permanent type (a
+        % struct field of Parameters, e.g. Params.phi.(Names_i{ii})) must be
+        % evaluated per type: CreateVectorFromParams cannot read a struct
+        % parameter, the per-type branch slices Parameters by type first.
+        % (The shared handle and names are expanded to the per-type form
+        % just before the per-type branches below.)
+        for pp=1:length(options.ExogShockFnParamNames)
+            if isfield(Parameters,options.ExogShockFnParamNames{pp}) && isstruct(Parameters.(options.ExogShockFnParamNames{pp}))
+                zdependsonptype=1;
+            end
+        end
     end
 end
 
@@ -184,6 +195,14 @@ else
             end
         else
             options.EiidShockFnParamNames=getAnonymousFnInputNames(options.EiidShockFn);
+            % A shared EiidShockFn with a permanent-type-dependent (struct)
+            % parameter must be evaluated per type (see the matching
+            % ExogShockFn comment above)
+            for pp=1:length(options.EiidShockFnParamNames)
+                if isfield(Parameters,options.EiidShockFnParamNames{pp}) && isstruct(Parameters.(options.EiidShockFnParamNames{pp}))
+                    edependsonptype=1;
+                end
+            end
         end
     end
 end
@@ -196,6 +215,18 @@ end
 %% Deal with z variables
 if isstruct(N_j) && zdependsonptype==0 % z itself is common to the types, but with a per-type N_j the age-dependent grids differ in length by type: build them per type (the per-type branch takes a shared z_grid and pi_z as they are)
     zdependsonptype=1;
+end
+if zdependsonptype>0 && isfield(options,'ExogShockFn')
+    if ~isstruct(options.ExogShockFn) % the per-type branches index ExogShockFn and ExogShockFnParamNames by type: expand a shared handle to the per-type form
+        sharedExogShockFn=options.ExogShockFn;
+        sharedExogShockFnParamNames=options.ExogShockFnParamNames;
+        options=rmfield(options,'ExogShockFn');
+        options=rmfield(options,'ExogShockFnParamNames');
+        for ii=1:length(Names_i)
+            options.ExogShockFn.(Names_i{ii})=sharedExogShockFn;
+            options.ExogShockFnParamNames.(Names_i{ii})=sharedExogShockFnParamNames;
+        end
+    end
 end
 if zdependsonptype==0
     % Convert to z_gridvals_J (age-dependent joint grids) and corresponding
@@ -386,6 +417,10 @@ if zdependsonptype==0
 elseif zdependsonptype==1
 
     for ii=1:length(Names_i)
+        % Slice permanent-type-dependent parameters to this type (struct
+        % fields and N_i-dimension vectors/matrices, the single-level PType
+        % convention) so CreateVectorFromParams below gets scalars/age-vectors
+        Parameters_ii=PType_setup_Parameters(ii,Names_i{ii},length(Names_i),Parameters,3);
         if ~isstruct(n_z)
             n_z_temp=n_z;
         else
@@ -427,7 +462,7 @@ elseif zdependsonptype==1
                 z_gridvals_J_temp=zeros(prod(n_z_temp),length(n_z_temp),N_j_temp,'gpuArray');
                 if isfield(options,'ExogShockFn')
                     for jj=1:N_j_temp
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}),jj);
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.ExogShockFnParamNames.(Names_i{ii}),jj);
                         ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                         for pp=1:length(ExogShockFnParamsVec)
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
@@ -478,7 +513,7 @@ elseif zdependsonptype==1
                 if isfield(options,'ExogShockFn')
                     pi_z_J_temp=zeros(prod(n_z_temp),prod(n_z_temp),N_jpiz_temp,'gpuArray');
                     for jj=1:N_jpiz_temp
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}),jj);
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.ExogShockFnParamNames.(Names_i{ii}),jj);
                         ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                         for pp=1:length(ExogShockFnParamsVec)
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
@@ -521,7 +556,7 @@ elseif zdependsonptype==1
                 if isfield(options,'ExogShockFn')
                     pi_z_J_temp=zeros(prod(n_z_temp),prod(n_z_temp),N_jpiz_temp,'gpuArray');
                     for jj=1:N_j_temp
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}),jj);
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.ExogShockFnParamNames.(Names_i{ii}),jj);
                         ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                         for pp=1:length(ExogShockFnParamsVec)
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
@@ -585,6 +620,7 @@ elseif zdependsonptype==1
 elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for z_grid &/or pi_z
 
     for ii=1:length(Names_i)
+        Parameters_ii=PType_setup_Parameters(ii,Names_i{ii},length(Names_i),Parameters,3); % slice ptype-dependent parameters to this type
         if ~isstruct(n_z)
             n_z_temp=n_z;
         else
@@ -626,7 +662,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                 z_gridvals_J_temp=zeros(prod(n_z_temp),length(n_z_temp),N_j_temp,'gpuArray');
                 if isfield(options,'ExogShockFn')
                     for jj=1:N_j_temp
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}),jj);
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.ExogShockFnParamNames.(Names_i{ii}),jj);
                         ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                         for pp=1:length(ExogShockFnParamsVec)
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
@@ -695,7 +731,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                 if isfield(options,'ExogShockFn')
                     pi_z_J_temp=zeros(prod(n_z_temp),prod(n_z_temp),N_jpiz_temp,'gpuArray');
                     for jj=1:N_jpiz_temp
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}),jj);
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.ExogShockFnParamNames.(Names_i{ii}),jj);
                         ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                         for pp=1:length(ExogShockFnParamsVec)
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
@@ -745,7 +781,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                 if isfield(options,'ExogShockFn')
                     pi_z_J_temp=zeros(prod(n_z_temp),prod(n_z_temp),N_jpiz_temp,'gpuArray');
                     for jj=1:N_j_temp
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}),jj);
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.ExogShockFnParamNames.(Names_i{ii}),jj);
                         ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                         for pp=1:length(ExogShockFnParamsVec)
                             ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
@@ -838,6 +874,18 @@ end
 %% If using e variable, do same for this
 if isstruct(N_j) && edependsonptype==0 && isfield(options,'e_grid') % likewise for e (with EiidShockFn and no e_grid the per-type branch cannot be used; that combination is not handled)
     edependsonptype=1;
+end
+if edependsonptype>0 && isfield(options,'EiidShockFn')
+    if ~isstruct(options.EiidShockFn) % the per-type branches index EiidShockFn and EiidShockFnParamNames by type: expand a shared handle to the per-type form
+        sharedEiidShockFn=options.EiidShockFn;
+        sharedEiidShockFnParamNames=options.EiidShockFnParamNames;
+        options=rmfield(options,'EiidShockFn');
+        options=rmfield(options,'EiidShockFnParamNames');
+        for ii=1:length(Names_i)
+            options.EiidShockFn.(Names_i{ii})=sharedEiidShockFn;
+            options.EiidShockFnParamNames.(Names_i{ii})=sharedEiidShockFnParamNames;
+        end
+    end
 end
 if edependsonptype==0
     if prod(n_e)==0
@@ -976,6 +1024,7 @@ if edependsonptype==0
     end
 elseif edependsonptype==1
     for ii=1:length(Names_i)
+        Parameters_ii=PType_setup_Parameters(ii,Names_i{ii},length(Names_i),Parameters,3); % slice ptype-dependent parameters to this type
         if ~isstruct(n_e)
             n_e_temp=n_e;
         else
@@ -1007,7 +1056,7 @@ elseif edependsonptype==1
                 e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),N_j_temp,'gpuArray');
                 if isfield(options,'EiidShockFn')
                     for jj=1:N_j_temp
-                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.EiidShockFnParamNames.(Names_i{ii}),jj);
                         EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
                         for pp=1:length(EiidShockFnParamsVec)
                             EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
@@ -1048,7 +1097,7 @@ elseif edependsonptype==1
                 if isfield(options,'EiidShockFn')
                     pi_e_J_temp=zeros(prod(n_e_temp),N_jpie_temp,'gpuArray');
                     for jj=1:N_j_temp
-                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.EiidShockFnParamNames.(Names_i{ii}),jj);
                         EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
                         for pp=1:length(EiidShockFnParamsVec)
                             EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
@@ -1081,7 +1130,7 @@ elseif edependsonptype==1
                 if isfield(options,'EiidShockFn')
                     pi_e_J_temp=zeros(prod(n_e_temp),N_jpie_temp,'gpuArray');
                     for jj=1:N_j_temp
-                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.EiidShockFnParamNames.(Names_i{ii}),jj);
                         EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
                         for pp=1:length(EiidShockFnParamsVec)
                             EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
@@ -1131,6 +1180,7 @@ elseif edependsonptype==1
     end
 elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for e_grid &/or pi_e
     for ii=1:length(Names_i)
+        Parameters_ii=PType_setup_Parameters(ii,Names_i{ii},length(Names_i),Parameters,3); % slice ptype-dependent parameters to this type
         if ~isstruct(n_e)
             n_e_temp=n_e;
         else
@@ -1161,7 +1211,7 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                 e_gridvals_J_temp=zeros(prod(n_e_temp),length(n_e_temp),N_j_temp,'gpuArray');
                 if isfield(options,'EiidShockFn')
                     for jj=1:N_j_temp
-                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.EiidShockFnParamNames.(Names_i{ii}),jj);
                         EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
                         for pp=1:length(EiidShockFnParamsVec)
                             EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
@@ -1220,7 +1270,7 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                 if isfield(options,'EiidShockFn')
                     pi_e_J_temp=zeros(prod(n_e_temp),N_jpie_temp,'gpuArray');
                     for jj=1:N_j_temp
-                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.EiidShockFnParamNames.(Names_i{ii}),jj);
                         EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
                         for pp=1:length(EiidShockFnParamsVec)
                             EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
@@ -1259,7 +1309,7 @@ elseif edependsonptype==2 % dependence of ptype via last dimension of matrix for
                 if isfield(options,'EiidShockFn')
                     pi_e_J_temp=zeros(prod(n_e_temp),N_jpie_temp,'gpuArray');
                     for jj=1:N_j_temp
-                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames.(Names_i{ii}),jj);
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters_ii, options.EiidShockFnParamNames.(Names_i{ii}),jj);
                         EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
                         for pp=1:length(EiidShockFnParamsVec)
                             EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
