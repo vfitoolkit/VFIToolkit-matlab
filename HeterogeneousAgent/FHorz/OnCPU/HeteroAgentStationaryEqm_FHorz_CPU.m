@@ -79,7 +79,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_FHorz_CPU_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
 
     % CPU: hardcodes fminalgo=1
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,GEparamsvec0);
+    minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxIter',heteroagentoptions.maxiter,'MaxFunEvals',heteroagentoptions.maxiter); % same maxiter convention in every stationary GE command, MaxIter=MaxFunEvals=maxiter (until 2026-10-09 fminsearch was given no options here, so it ignored maxiter and both tolerances)
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,GEparamsvec0,minoptions);
 
     % p_eqm_vec contains the (transformed) unconstrained parameters, not the original (constrained) parameter values.
     [p_eqm_vec,~]=ParameterConstraints_TransformParamsToOriginal(p_eqm_vec,0:1:nGEParams,GEPriceParamNames,heteroagentoptions);

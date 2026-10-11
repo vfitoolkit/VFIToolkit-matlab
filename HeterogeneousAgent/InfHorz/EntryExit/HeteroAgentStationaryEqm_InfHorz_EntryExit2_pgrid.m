@@ -116,7 +116,7 @@ if l_p>1
     if heteroagentoptions.multiGEcriterion==0
         GeneralEqmConditions(:,1)=sum(abs(multiGEweightsKron.*GeneralEqmConditionsKron),2);
     elseif heteroagentoptions.multiGEcriterion==1 %the measure of general eqm is to take the sum of squares of each of the general eqm conditions holding
-        GeneralEqmConditions(:,1)=sum(multiGEweightsKron.*(GeneralEqmConditionsKron.^2),2);
+        GeneralEqmConditions(:,1)=sqrt(sum(multiGEweightsKron.*(GeneralEqmConditionsKron.^2),2));
     end
     GeneralEqmConditions(:,2:end)=multiGEweightsKron.*GeneralEqmConditionsKron;
     GeneralEqmConditions=reshape(GeneralEqmConditions,[n_p,1+l_p]);

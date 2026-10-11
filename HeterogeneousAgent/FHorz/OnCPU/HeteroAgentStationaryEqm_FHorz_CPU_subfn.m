@@ -1,7 +1,7 @@
 function GeneralEqmConditions=HeteroAgentStationaryEqm_FHorz_CPU_subfn(GEpricesvec, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z_J, d_grid, a_grid, z_gridvals_J, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions)
 
 heteroagentparamsvecindex=0:1:length(GEpricesvec);
-[GEpricesvec,~]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
+[GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
 
 %%
 for ii=1:nGEprices
@@ -40,11 +40,19 @@ if heteroagentoptions.outputGEform==0 % scalar
     elseif heteroagentoptions.multiGEcriterion==1 % the measure of market clearance is to take the sum of squares of clearance in each market
         GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));
     end
+    if penalty>0 % a constrained price was clipped at the cutoffs of its transform, so the model was not given the price the optimizer chose; inflate the criterion to push it back
+        GeneralEqmConditions=1.2*penalty*GeneralEqmConditions; % 20% markup, plus the size of the violation
+    end
     if heteroagentoptions.outputgather==1
         GeneralEqmConditions=gather(GeneralEqmConditions);
     end
 elseif heteroagentoptions.outputGEform==1 % vector
     GeneralEqmConditions=GeneralEqmConditionsVec;
+    if heteroagentoptions.outputgather==1
+        GeneralEqmConditions=gather(GeneralEqmConditions);
+    end
+elseif heteroagentoptions.outputGEform==3 % vector of lsqnonlin() residuals: weighted by sqrt(multiGEweights), so the sum of squares is the multiGEcriterion=1 criterion squared; sqrt(penalty) appended so a clipped constrained price adds penalty to the sum of squares (0 inside the cutoffs, which keeps the residual length constant)
+    GeneralEqmConditions=[sqrt(heteroagentoptions.multiGEweights).*GeneralEqmConditionsVec, sqrt(penalty)];
     if heteroagentoptions.outputgather==1
         GeneralEqmConditions=gather(GeneralEqmConditions);
     end

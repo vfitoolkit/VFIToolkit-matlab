@@ -15,7 +15,7 @@ function GeneralEqmConditions=HeteroAgentStationaryEqm_FHorz_PType2L_subfn(GEpri
 % EvalFnOnAgentDist_AggVars_FHorz_Case1.
 
 heteroagentparamsvecindex=0:1:length(GEpricesvec);
-[GEpricesvec,~]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
+[GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
 
 if heteroagentoptions.verbose==2
     fprintf(' \n')
@@ -92,13 +92,21 @@ if heteroagentoptions.outputGEform==0 % scalar
     if heteroagentoptions.multiGEcriterion==0
         GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
     elseif heteroagentoptions.multiGEcriterion==1
-        GeneralEqmConditions=sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2));
+        GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));
+    end
+    if penalty>0 % a constrained price was clipped at the cutoffs of its transform, so the model was not given the price the optimizer chose; inflate the criterion to push it back
+        GeneralEqmConditions=1.2*penalty*GeneralEqmConditions; % 20% markup, plus the size of the violation
     end
     if heteroagentoptions.outputgather==1
         GeneralEqmConditions=gather(GeneralEqmConditions);
     end
 elseif heteroagentoptions.outputGEform==1 % vector
     GeneralEqmConditions=GeneralEqmConditionsVec;
+    if heteroagentoptions.outputgather==1
+        GeneralEqmConditions=gather(GeneralEqmConditions);
+    end
+elseif heteroagentoptions.outputGEform==3 % vector of lsqnonlin() residuals: weighted by sqrt(multiGEweights), so the sum of squares is the multiGEcriterion=1 criterion squared; sqrt(penalty) appended so a clipped constrained price adds penalty to the sum of squares (0 inside the cutoffs, which keeps the residual length constant)
+    GeneralEqmConditions=[sqrt(heteroagentoptions.multiGEweights).*GeneralEqmConditionsVec, sqrt(penalty)];
     if heteroagentoptions.outputgather==1
         GeneralEqmConditions=gather(GeneralEqmConditions);
     end

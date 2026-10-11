@@ -671,11 +671,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             heteroagentoptions.outputGEform=1; % vector
             GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
         elseif heteroagentoptions.fminalgo==8
-            heteroagentoptions.outputGEform=1; % vector
-            weightsbackup=heteroagentoptions.multiGEweights;
-            heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+            heteroagentoptions.outputGEform=3; % vector of lsqnonlin() residuals: GE conditions weighted by sqrt(multiGEweights), with the constraint penalty appended
             GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
-            heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
         end
     else % some general eqm conditions hold conditional on ptype, which needs the by-ptype subfn
         if heteroagentoptions.fminalgo~=8 && heteroagentoptions.fminalgo~=3
@@ -684,17 +681,14 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             heteroagentoptions.outputGEform=1; % vector
             GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, GEpriceindexes, GEprice_ptype, heteroagentoptions);
         elseif heteroagentoptions.fminalgo==8
-            heteroagentoptions.outputGEform=1; % vector
-            weightsbackup=heteroagentoptions.multiGEweights;
-            heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+            heteroagentoptions.outputGEform=3; % vector of lsqnonlin() residuals: GE conditions weighted by sqrt(multiGEweights), with the constraint penalty appended
             GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_InfHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, GEpriceindexes, GEprice_ptype, heteroagentoptions);
-            heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
         end
     end
 
     % Choosing algorithm for the optimization problem
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
-    minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns);
+    minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxIter',heteroagentoptions.maxiter,'MaxFunEvals',heteroagentoptions.maxiter); % same maxiter convention in every stationary GE command, MaxIter=MaxFunEvals=maxiter (until 2026-10-09 maxiter was not passed here, so fminsearch/fzero/fmincon/fsolve ignored heteroagentoptions.maxiter)
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
     if N_p~=0 % Solving on p_grid
         p_gridvals=CreateGridvals(n_p,heteroagentoptions.p_grid,1);

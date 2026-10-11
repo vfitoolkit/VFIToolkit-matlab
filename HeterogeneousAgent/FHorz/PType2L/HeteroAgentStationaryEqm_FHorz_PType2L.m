@@ -69,7 +69,7 @@ if ~isfield(heteroagentoptions,'multiGEcriterion'), heteroagentoptions.multiGEcr
 if ~isfield(heteroagentoptions,'multiGEweights'),   heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns))); end
 if ~isfield(heteroagentoptions,'toleranceGEprices'), heteroagentoptions.toleranceGEprices=10^(-4); end
 if ~isfield(heteroagentoptions,'toleranceGEcondns'), heteroagentoptions.toleranceGEcondns=10^(-4); end
-if ~isfield(heteroagentoptions,'maxiter'),           heteroagentoptions.maxiter=200*length(GEPriceParamNames); end
+if ~isfield(heteroagentoptions,'maxiter'),           heteroagentoptions.maxiter=1000; end % 1000 in every stationary GE command since 2026-10-09 (was 200*length(GEPriceParamNames))
 if N_p~=0 && ~isfield(heteroagentoptions,'p_grid')
     error('You have set n_p to a non-zero value, but not declared heteroagentoptions.p_grid')
 end
@@ -437,14 +437,11 @@ if heteroagentoptions.maxiter>0
         heteroagentoptions.outputGEform=1;
         GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_FHorz_PType2L_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
     elseif heteroagentoptions.fminalgo==8
-        heteroagentoptions.outputGEform=1;
-        weightsbackup=heteroagentoptions.multiGEweights;
-        heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights);
+        heteroagentoptions.outputGEform=3; % vector of lsqnonlin() residuals: GE conditions weighted by sqrt(multiGEweights), with the constraint penalty appended
         GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_FHorz_PType2L_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
-        heteroagentoptions.multiGEweights=weightsbackup;
     end
 
-    minoptions=optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter);
+    minoptions=optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxIter',heteroagentoptions.maxiter,'MaxFunEvals',heteroagentoptions.maxiter); % same maxiter convention in every stationary GE command, MaxIter=MaxFunEvals=maxiter (standardised 2026-10-09)
     p_eqm_index=nan;
     if N_p~=0
         p_gridvals=CreateGridvals(n_p,heteroagentoptions.p_grid,1);

@@ -106,7 +106,7 @@ else
         heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
     if ~isfield(heteroagentoptions,'maxiter')
-        heteroagentoptions.maxiter=200*length(GEPriceParamNames); % =0 just evaluate (rather than solves for) GE condns
+        heteroagentoptions.maxiter=1000; % =0 just evaluate (rather than solves for) GE condns [1000 in every stationary GE command since 2026-10-09; was 200*length(GEPriceParamNames) here]
     end
     if N_p~=0
         if ~isfield(heteroagentoptions,'p_grid')
@@ -731,11 +731,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             heteroagentoptions.outputGEform=1; % vector
             GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
         elseif heteroagentoptions.fminalgo==8
-            heteroagentoptions.outputGEform=1; % vector
-            weightsbackup=heteroagentoptions.multiGEweights;
-            heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+            heteroagentoptions.outputGEform=3; % vector of lsqnonlin() residuals: GE conditions weighted by sqrt(multiGEweights), with the constraint penalty appended
             GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices,heteroagentoptions);
-            heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
         end
     else % some GE condns depend on ptype
         if heteroagentoptions.fminalgo~=8 && heteroagentoptions.fminalgo~=3
@@ -744,17 +741,14 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             heteroagentoptions.outputGEform=1; % vector
             GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
         elseif heteroagentoptions.fminalgo==8
-            heteroagentoptions.outputGEform=1; % vector
-            weightsbackup=heteroagentoptions.multiGEweights;
-            heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+            heteroagentoptions.outputGEform=3; % vector of lsqnonlin() residuals: GE conditions weighted by sqrt(multiGEweights), with the constraint penalty appended
             GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
-            heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
         end
     end
 
     % Choosing algorithm for the optimization problem
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
-    minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter);
+    minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxIter',heteroagentoptions.maxiter,'MaxFunEvals',heteroagentoptions.maxiter); % same maxiter convention in every stationary GE command, MaxIter=MaxFunEvals=maxiter (standardised 2026-10-09)
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
     if N_p~=0 % Solving on p_grid
         p_gridvals=CreateGridvals(n_p,heteroagentoptions.p_grid,1);
