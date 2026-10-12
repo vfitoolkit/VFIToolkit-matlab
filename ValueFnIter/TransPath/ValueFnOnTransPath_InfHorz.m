@@ -1,4 +1,4 @@
-function [VPath,PolicyPath,aprimeReferencePath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 % transpathoptions, vfoptions and simoptions are optional inputs
 
 if prod(n_z)>1 && all(size(d_grid)==[prod(n_z),prod(n_z)])
@@ -75,7 +75,36 @@ else
     end
     if ~isfield(vfoptions,'localsearch')
         vfoptions.localsearch=0;
-    elseif vfoptions.localsearch==1
+    end
+    % LOCAL SEARCH IS IGNORED HERE AT vfoptions.localsearch=1, WHICH IS THE VALUE THE SOLVER USES.
+    % This command produces the value and policy path that the welfare numbers, the agent
+    % distribution and every downstream statistic are built from, and those should come from an
+    % unrestricted search. In TransitionPath_InfHorz a restricted sweep is safe because a final
+    % unrestricted sweep certifies the answer before it is accepted; a single backward pass has
+    % nothing to certify against, so a restricted answer here would simply be trusted. The speed
+    % on offer is one pass, against a solve that takes tens of them.
+    % IT IS IGNORED RATHER THAN REFUSED because people reuse the vfoptions they gave the solver,
+    % where localsearch=1 is exactly what they were told to set. Refusing would make every local
+    % search user carry a second options struct and would buy nothing.
+    % IT WARNS, unlike vfoptions.lowmemory which the restricted sweeps ignore in silence. Ignoring
+    % lowmemory is the intended behaviour and costs nothing; here the user has asked for something
+    % that would quietly degrade the numbers every statistic downstream rests on, so they are told.
+    % localsearch=2 FORCES IT, for a caller who has seen the warning, accepts that this pass is
+    % uncertified, and wants the speed on a big model -- and for the test bank, which has to be able
+    % to exercise the restricted path through this command at all.
+    if vfoptions.localsearch==1
+        warning(['ValueFnOnTransPath_InfHorz: vfoptions.localsearch=1 is IGNORED here and the value ' ...
+            'and policy path are computed with a full unrestricted search. This command has no ' ...
+            'verification sweep to certify a restricted answer against, and its output is what the ' ...
+            'welfare numbers and the agent distribution are built from. Set vfoptions.localsearch=2 ' ...
+            'to force the restricted search anyway.'])
+        vfoptions.localsearch=0;
+    elseif vfoptions.localsearch==2
+        vfoptions.localsearch=1; % forced, deliberately, by a caller who asked twice
+    elseif vfoptions.localsearch>2
+        error('vfoptions.localsearch must be 0, 1 (ignored here, with a warning) or 2 (forced)')
+    end
+    if vfoptions.localsearch==1
         if ~isfield(vfoptions,'nlocalsearch')
             error('When using vfoptions.localsearch=1 you must set vfoptions.nlocalsearch')
         end
@@ -168,21 +197,18 @@ N_z=prod(n_z);
 N_a=prod(n_a);
 
 %% Local search: the reference policy the window is centred on
-% This command takes no aprimeReferencePolicy input. With vfoptions.localsearch=1 it builds
-% the default here -- the reference aprime grid point IS the current a grid point, so the
-% window sits around staying put -- and hands it to the single step. Built once, outside the
-% loop over t, because it does not vary by period.
-% This is the place a genuine reference would later be constructed (the obvious candidate on
-% a backward sweep being the previous pass's Policy, which the loop already holds), which is
-% why it is built here rather than left to the dispatcher. The dispatcher keeps its own
-% default for the [] case, since other callers rely on it.
-if vfoptions.localsearch==1
-    % [1,N_a,N_z] with no d, [N_d,N_a,N_z] with one: one aprime index per state the search
-    % conditions on. With d the default says the same aprime whatever d is being considered.
-    aprimeReferencePolicy=repmat((1:1:N_a),[max(N_d,1),1,N_z]);
-else
-    aprimeReferencePolicy=[];
-end
+% THE REFERENCE IS LEFT EMPTY AND THE DISPATCHER'S OWN DEFAULT IS USED. It used to be built here,
+% as the current a index -- the window centred on staying put -- once, outside the loop over t, and
+% handed unchanged to every period. That was the trap: it looked like a placeholder for something
+% better while silently restricting every period's search to a window around the household's
+% current wealth, and the third output recorded a reference that was never fed back.
+% Reaching localsearch=1 here now means the caller passed localsearch=2, having been warned, so the
+% dispatcher's stay-put default is what they get. Nothing in this command carries a reference from
+% one period to the next; the reference ITERATION exists only in TransitionPath_InfHorz_shooting and
+% AndersonAccelerationTPath, where a verification sweep certifies the result.
+% The tempting design is to centre period t's window on period t+1's answer, which is defensible
+% within one backward pass because prices move smoothly. It is still uncertified, so it is not done.
+aprimeReferencePolicy=[];
 
 V_final=reshape(V_final,[N_a,N_z]);
 
@@ -217,13 +243,11 @@ end
 PolicyIndexesPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
 PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_z]);
 
-aprimeReferencePathKron=zeros(max(N_d,1),N_a,N_z,T-1,'gpuArray'); % Periods 1 to T-1
-% T-1 periods, NOT T like PolicyIndexesPath. Period T is the only one this command does not solve --
-% V_final and Policy_final are given -- and no per-d aprime optimum exists for it anyway, since
-% Policy_final holds aprime only at its own optimal d. So the array holds exactly the periods that
-% were solved, which are also the periods a path solve recomputes. Do not index it in lockstep with
-% PolicyPath. The experience asset branch leaves it at zero, since the ExpAsset single step has no
-% reference output (and local search is refused there).
+% NO aprimeReferencePath OUTPUT. It was returned for five days, read by nothing, and under the
+% normal path -- localsearch=1, which this command ignores -- it would have been an array of zeros
+% that looked like a reference. The reference a restricted sweep produces is only meaningful to a
+% caller that feeds it back, and the only callers that do are TransitionPath_InfHorz_shooting and
+% AndersonAccelerationTPath, which get it from TransitionPath_InfHorz_singlepathiter instead.
 
 
 %%
@@ -244,10 +268,7 @@ if vfoptions.experienceasset==0
             pi_z=transpathoptions.pi_z_T(:,:,T-ttr);
         end
 
-        [V, Policy, aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
-        if vfoptions.localsearch==1
-            aprimeReferencePathKron(:,:,:,T-ttr)=aprimeReferencePolicyNew;
-        end
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
@@ -322,7 +343,6 @@ end
 %% Unkron to get into the shape for output
 VPath=reshape(VKronPath,[n_a,n_z,T]);
 PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_z,T]);
-aprimeReferencePath=reshape(aprimeReferencePathKron,[max(N_d,1),n_a,n_z,T-1]);
 
 
 end

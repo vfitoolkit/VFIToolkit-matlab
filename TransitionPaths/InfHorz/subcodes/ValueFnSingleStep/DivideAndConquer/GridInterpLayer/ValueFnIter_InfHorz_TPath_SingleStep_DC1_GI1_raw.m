@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_raw(Vnext,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_raw(Vnext,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -9,6 +9,7 @@ if vfoptions.lowmemory==0
     midpoints=zeros(N_d,1,N_a,N_z,'gpuArray');
 elseif vfoptions.lowmemory==1 % loops over z
     midpoints=zeros(N_d,1,N_a,'gpuArray');
+    aprimeReferencePolicyNew=zeros(N_d,N_a,N_z,'gpuArray'); % the third output, filled per z below
     special_n_z=ones(1,length(n_z));
 end
 
@@ -88,6 +89,12 @@ if vfoptions.lowmemory==0
     % Turn this into the 'midpoint'
     midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is n_d-by-1-by-n_a-by-n_z
+    % THE THIRD OUTPUT, for vfoptions.localsearch, costs nothing here. This raw already builds a per-d
+    % midpoint over EVERY a -- its interpolation layer needs one -- so unlike the non-GI DC raw there is
+    % no folded max to split: level 1 fills midpoints at level1ii, and level 2 already maxes over aprime
+    % per d (dimension 2) rather than over a folded (d,aprime). The clamp to [2,N_a-1] above makes it the
+    % same object GI1_raw returns, so a restricted sweep gets the same convention whichever raw seeded it.
+    aprimeReferencePolicyNew=reshape(midpoints,[N_d,N_a,N_z]);
     aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals,ReturnFnParamsVec,2);
@@ -150,6 +157,8 @@ elseif vfoptions.lowmemory==1
         % Turn this into the 'midpoint'
         midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is n_d-by-1-by-n_a
+        % The third output, filled per z here. See the lowmemory==0 branch for what it is.
+        aprimeReferencePolicyNew(:,:,z_c)=reshape(midpoints,[N_d,N_a]);
         aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,special_n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);

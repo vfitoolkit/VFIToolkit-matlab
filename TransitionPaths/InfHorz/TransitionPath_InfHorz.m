@@ -254,6 +254,15 @@ else
     end
     if ~isfield(vfoptions,'localsearch')
         vfoptions.localsearch=0;
+    % ONLY 0 AND 1 ARE MEANINGFUL HERE. ValueFnOnTransPath_InfHorz reads a THIRD value: it ignores
+    % localsearch=1 with a warning, because it has no verification sweep to certify a restricted answer
+    % against, and takes localsearch=2 as "force it anyway". A vfoptions struct carrying that 2 can
+    % easily reach this command instead -- the test bank hands related structs to both -- and 2 would
+    % otherwise fall through every ==1 test below, running an unrestricted search AND skipping the whole
+    % localsearch validation block: no nlocalsearch requirement, no grid-size check, none of the
+    % refusals. Silently. So it is refused by name.
+    elseif vfoptions.localsearch~=0 && vfoptions.localsearch~=1
+        error('vfoptions.localsearch must be 0 or 1 here; the value 2 is only meaningful to ValueFnOnTransPath_InfHorz, which uses it to force a restricted search it would otherwise ignore')
     elseif vfoptions.localsearch==1
         if ~isfield(vfoptions,'nlocalsearch')
             error('When using vfoptions.localsearch=1 you must set vfoptions.nlocalsearch')
@@ -316,11 +325,13 @@ else
         end
         % WITH A d, the standard sweeps of the solve become SEED sweeps: unrestricted, but returning
         % a coarse aprime argmax per (d,a,z) so that the next restricted sweep has a window centre
-        % for every d and not only the one that sweep chose. Those sweeps ignore
-        % vfoptions.divideandconquer, because a per-d reference has to come from the raw and
-        % threading a third output through the DC family would mean touching eight raws instead of
-        % two. The answer a verification sweep certifies is unchanged -- it is unrestricted either
-        % way -- and a solve takes one or two of them against dozens of restricted sweeps.
+        % for every d and not only the one that sweep chose.
+        % SEED SWEEPS HONOUR vfoptions.divideandconquer, which matters because DC is a memory option
+        % and the seed sweep is the unrestricted one: with a d and no interpolation layer its return
+        % matrix is about 2 GB at N_d=51, N_a=1001, N_z=5, against about 63 MB under DC. A model that
+        % needs DC to be solvable at all can therefore still use local search.
+        % The RESTRICTED sweeps still refuse DC -- they restrict the search a different way -- and
+        % they ignore vfoptions.lowmemory, since a window fits whatever the full sweep needs.
     end
 end
 

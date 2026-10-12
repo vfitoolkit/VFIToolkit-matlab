@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_nod_raw(Vnext,n_a,n_z, a_grid, z_gridvals,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy, aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_nod_raw(Vnext,n_a,n_z, a_grid, z_gridvals,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -8,6 +8,7 @@ if vfoptions.lowmemory==0
     midpoints=zeros(1,N_a,N_z,'gpuArray');
 elseif vfoptions.lowmemory==1 % loops over z
     midpoints=zeros(1,N_a,'gpuArray');
+    aprimeReferencePolicyNew=zeros(1,N_a,N_z,'gpuArray'); % the third output, filled per z below
     special_n_z=ones(1,length(n_z));
 end
 
@@ -80,6 +81,11 @@ if vfoptions.lowmemory==0
 
     % Turn this into the 'midpoint'
     midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+    % THE THIRD OUTPUT, for vfoptions.localsearch, costs nothing: this raw already builds a midpoint
+    % over EVERY a because its interpolation layer needs one, and the clamp above makes it the same
+    % object GI1_nod_raw returns. So divide-and-conquer can be honoured on a seed sweep without the
+    % reference meaning anything different from the non-DC case.
+    aprimeReferencePolicyNew=reshape(midpoints,[1,N_a,N_z]);
     % midpoint is 1-by-n_a-by-n_z
     aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
@@ -147,6 +153,8 @@ elseif vfoptions.lowmemory==1
 
         % Turn this into the 'midpoint'
         midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        % The third output, filled per z here. See the lowmemory==0 branch.
+        aprimeReferencePolicyNew(1,:,z_c)=reshape(midpoints,[1,N_a]);
         % midpoint is 1-by-n_a
         aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a

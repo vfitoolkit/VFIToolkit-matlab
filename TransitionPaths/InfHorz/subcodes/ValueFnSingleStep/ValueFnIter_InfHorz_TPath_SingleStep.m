@@ -38,11 +38,13 @@ end
 % sweep -- never by a user. Those sweeps have to leave behind a reference for the NEXT restricted
 % sweep, and with a d that means one coarse aprime per (d,a,z) and not just for the d they chose.
 %
-% IT IGNORES vfoptions.divideandconquer, deliberately. A per-d reference has to come from the raw,
-% and threading a third output through the DC family would mean touching eight raws instead of two.
-% The verification sweep is unrestricted either way, so the answer it certifies is unchanged; what is
-% given up is DC's speed on iteration 1 and on each verification sweep, measured at 2.4x with d and a
-% net loss without it. A solve takes one or two of those sweeps against dozens of restricted ones.
+% IT HONOURS vfoptions.divideandconquer. This was first built ignoring it, on the argument that a
+% per-d reference has to come from the raw and the DC family would be too many raws to touch. That
+% argument was wrong twice over: DC is a MEMORY option here, not just a speed one, so ignoring it
+% means a model that needs DC to be solvable at all cannot use local search -- and the DC raws turned
+% out to be nearly free, because DC1_GI1 and DC1_GI1_nod already build a per-d midpoint over every a
+% for their own interpolation layer, DC1_nod has nothing folded so its Policy already is the argmax,
+% and only DC1_raw needed real work.
 %
 % Each branch returns a reference built the same way: THE COARSE ARGMAX OF THE UNRESTRICTED SEARCH.
 % Without the interpolation layer that is just the chosen aprime (per d, where there is a d); with
@@ -52,21 +54,50 @@ end
 % rounding a fine answer to the nearest coarse point.
 if vfoptions.localsearchseed==1
     if isscalar(n_a) && N_z>0
+        % IT HONOURS vfoptions.divideandconquer, which matters because DC is a MEMORY option here and
+        % not just a speed one. The seed sweep is the UNRESTRICTED one: with a d, no interpolation
+        % layer, N_d=51, N_a=1001 and N_z=5 its return matrix is [51,1001,1001,5], about 2 GB, where
+        % DC at level1n=31 makes it [51,1001,31,5], about 63 MB. Ignoring DC here would mean a model
+        % that needs DC to be solvable at all cannot use local search -- which is exactly the size of
+        % model local search is for.
+        % Every branch returns the same object, THE COARSE ARGMAX OF THE UNRESTRICTED SEARCH, so the
+        % reference means one thing whichever raw produced it:
+        %   no d, no GI: nothing is folded and there is no interpolation layer, so Policy's aprime
+        %     channel IS the argmax. True of the DC raw as well, so neither needed changing.
+        %   no d, GI and with d, GI: the raw's own midpoint, clamped to [2,N_a-1]. The DC+GI raws
+        %     already built one over every a for their interpolation layer, so they were nearly free.
+        %   with d, no GI: a per-d argmax, which no single max over a folded (d,aprime) dimension can
+        %     give. LSseed_raw unfolds it; DC1_raw splits its level-2 max into one over aprime and
+        %     then one over d, which also cut a reduction it was doing twice.
         if vfoptions.gridinterplayer==0
             if N_d==0
-                % No d, no interpolation layer: Policy's aprime channel IS the reference, so no
-                % separate raw is needed.
-                [VKron,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                if vfoptions.divideandconquer==0
+                    [VKron,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
                 PolicyKron=reshape(Policy,[size(Policy,1),N_a,N_z]);
                 aprimeReferencePolicyNew=PolicyKron(1,:,:);
             else
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LSseed_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                if vfoptions.divideandconquer==0
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LSseed_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
             end
         else
             if N_d==0
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                if vfoptions.divideandconquer==0
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
             else
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                if vfoptions.divideandconquer==0
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_GI1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_raw(VKron,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
             end
         end
     else
@@ -83,6 +114,17 @@ end
 % itself, maxing over the window's coarse points, clamping that argmax to the window interior, and
 % running the interpolation layer one coarse cell either side -- which covers exactly the window.
 % Its coarse layer also hands back the new reference directly, with no fine answer to compress.
+% ONLY 0 AND 1 ARE MEANINGFUL HERE. ValueFnOnTransPath_InfHorz reads a THIRD value: it ignores
+% localsearch=1 with a warning, because it has no verification sweep to certify a restricted answer
+% against, and takes localsearch=2 as "force it anyway". A vfoptions struct carrying that 2 can
+% easily reach this command instead -- the test bank hands related structs to both -- and 2 would
+% otherwise fall through every ==1 test below, running an unrestricted search AND skipping the whole
+% localsearch validation block: no nlocalsearch requirement, no grid-size check, none of the
+% refusals. Silently. So it is refused by name.
+if vfoptions.localsearch~=0 && vfoptions.localsearch~=1
+    error('vfoptions.localsearch must be 0 or 1 here; the value 2 is only meaningful to ValueFnOnTransPath_InfHorz, which uses it to force a restricted search it would otherwise ignore')
+end
+
 if vfoptions.localsearch==1
     if vfoptions.divideandconquer==1
         error('vfoptions.localsearch=1 cannot yet be combined with vfoptions.divideandconquer=1')
