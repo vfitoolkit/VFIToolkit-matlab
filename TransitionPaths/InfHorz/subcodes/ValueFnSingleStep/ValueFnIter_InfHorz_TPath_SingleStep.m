@@ -101,6 +101,18 @@ if vfoptions.localsearch==1
             % numel rather than size(...,3) because MATLAB drops a trailing singleton when N_z==1
             error('aprimeReferencePolicy must hold one aprime index per state the search conditions on: [1,N_a,N_z] with no d, [N_d,N_a,N_z] with d')
         end
+        % LOWMEMORY IS IGNORED ON A RESTRICTED SWEEP, SILENTLY AND BY DESIGN. lowmemory exists because
+        % the unrestricted return matrix does not fit; the restricted one is a window and does fit, so
+        % looping over z there would cost launches for nothing. The SEED sweeps above are the full
+        % sweeps and they honour it, which is the point: a model that needs lowmemory to solve at all
+        % can now use local search, where before the raws refused the combination outright.
+        % THE ONE CASE THIS GETS WRONG is left to fail. The ratchet's cap is floor((N_a-1)/2), where
+        % 2*nlocalsearch+1 reaches N_a and the restricted matrix is the same size as the unrestricted
+        % one, so a model that needed lowmemory will run out of memory there. The cap warning in
+        % TransitionPath_InfHorz_shooting already says local search is strictly worse than not using
+        % it at the cap; this just means the user finds out by running out of memory rather than by
+        % reading it.
+        vfoptions.lowmemory=0;
         if N_d==0
             if vfoptions.gridinterplayer==0
                 [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_LS1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);

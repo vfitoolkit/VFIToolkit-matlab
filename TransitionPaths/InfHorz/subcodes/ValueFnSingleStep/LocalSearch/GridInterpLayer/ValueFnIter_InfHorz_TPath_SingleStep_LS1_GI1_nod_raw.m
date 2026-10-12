@@ -42,9 +42,8 @@ function [V, Policy, aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleS
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory is not used with vfoptions.localsearch=1 (the local window is already small in memory)')
-end
+% lowmemory is not read here. The dispatcher zeroes it before calling a restricted raw, because a
+% window fits in memory whatever the full sweep needs; the seed sweeps are the ones that honour it.
 
 n=vfoptions.nlocalsearch;
 

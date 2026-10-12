@@ -27,7 +27,10 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory is not used with vfoptions.localsearch=1 (the seed sweep of a localsearch solve holds the whole unrestricted return matrix, as the standard sweep it replaces does)')
+    special_n_z=ones(1,length(n_z));
+    V=zeros(N_a,N_z,'gpuArray');
+    dstar=zeros(N_a,N_z,'gpuArray');
+    aprimeReferencePolicyNew=zeros(N_d,N_a,N_z,'gpuArray');
 end
 
 % Create a vector containing all the return function parameters (in order)
@@ -36,29 +39,62 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-%% Expected value
-EV=Vnext.*shiftdim(pi_z',-1);
-EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-EV=sum(EV,2); % [N_a,1,N_z]
+%% LOWMEMORY IS HONOURED HERE, unlike on a restricted sweep where the dispatcher zeroes it. This is
+%% the full sweep, and it holds the LARGEST array in the whole local search feature: the level 1
+%% matrix is [N_d,N_a,N_a,N_z], which at N_d=51, N_a=1001, N_z=5 is 255 million doubles, about 2 GB.
+%% Looping over z brings that to one [N_d,N_a,N_a] slice at a time, about 409 MB. Without this branch
+%% the promise that lowmemory applies to the full sweep would be broken in exactly the corner where
+%% the option gets set -- with a d, no interpolation layer, on a big grid.
+%% The two branches are the same arithmetic and differ only in how much of it is resident, so they
+%% agree exactly; the test bank holds them to that.
+if vfoptions.lowmemory==0
 
-%% Level 1 keeps d and aprime in separate dimensions, (d,aprime,a,z), which is what the per-d max
-%% below needs. The folded raw uses level 0 and repelem(EV,N_d,1,1); unfolded, EV broadcasts.
-ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,1);
-entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
+    %% Expected value
+    EV=Vnext.*shiftdim(pi_z',-1);
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+    EV=sum(EV,2); % [N_a,1,N_z]
 
-%% Two maxima. The first is over aprime FOR EACH d and is the whole point of this raw.
-[Vd,offset1]=max(entireRHS,[],2);                   % [N_d,1,N_a,N_z]
+    % Level 1 keeps d and aprime in separate dimensions, (d,aprime,a,z), which is what the per-d max
+    % below needs. The folded raw uses level 0 and repelem(EV,N_d,1,1); unfolded, EV broadcasts.
+    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,1);
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
 
-%% The new reference: the aprime argmax per (d,a,z), over the WHOLE grid
-% There is no window here, so the argmax is already a grid index in [1,N_a] and needs no loweredge
-% offset -- unlike the restricted raws, where coarseoffset is 0-based and the index is
-% loweredge+coarseoffset.
-aprimeReferencePolicyNew=reshape(offset1,[N_d,N_a,N_z]);
+    % Two maxima. The first is over aprime FOR EACH d and is the whole point of this raw.
+    [Vd,offset1]=max(entireRHS,[],2);                   % [N_d,1,N_a,N_z]
 
-%% Then the max over d
-[V,dstar]=max(reshape(Vd,[N_d,N_a,N_z]),[],1);      % [1,N_a,N_z]
-V=reshape(V,[N_a,N_z]);
-dstar=reshape(dstar,[N_a,N_z]);
+    % The new reference: the aprime argmax per (d,a,z), over the WHOLE grid. There is no window here,
+    % so the argmax is already a grid index in [1,N_a] and needs no loweredge offset -- unlike the
+    % restricted raws, where coarseoffset is 0-based and the index is loweredge+coarseoffset.
+    aprimeReferencePolicyNew=reshape(offset1,[N_d,N_a,N_z]);
+
+    % Then the max over d
+    [V,dstar]=max(reshape(Vd,[N_d,N_a,N_z]),[],1);      % [1,N_a,N_z]
+    V=reshape(V,[N_a,N_z]);
+    dstar=reshape(dstar,[N_a,N_z]);
+
+elseif vfoptions.lowmemory==1
+
+    for z_c=1:N_z
+        z_val=z_gridvals(z_c,:);
+
+        EV_z=Vnext.*pi_z(z_c,:);
+        EV_z(isnan(EV_z))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+        EV_z=sum(EV_z,2); % [N_a,1]
+
+        ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
+        % [N_d,N_a,N_a] against shiftdim(EV_z,-1)=[1,N_a,1]: EV depends on aprime, which is dimension
+        % 2, and not on a, which is dimension 3. Same broadcast as the lowmemory==0 branch above.
+        entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*shiftdim(EV_z,-1);
+
+        [Vd_z,offset1_z]=max(entireRHS_z,[],2);         % [N_d,1,N_a]
+        aprimeReferencePolicyNew(:,:,z_c)=reshape(offset1_z,[N_d,N_a]);
+
+        [V_z,dstar_z]=max(reshape(Vd_z,[N_d,N_a]),[],1); % [1,N_a]
+        V(:,z_c)=V_z';
+        dstar(:,z_c)=dstar_z';
+    end
+
+end
 
 % aprime at the chosen d. The lookup must use dstar and not the state index, which is the one thing
 % to get wrong here.
