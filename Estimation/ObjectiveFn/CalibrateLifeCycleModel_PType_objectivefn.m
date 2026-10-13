@@ -130,6 +130,11 @@ if usingautocorr==1
     if caliboptions.whichcombos==1
         simoptions_AutoCorr.whichcombos=caliboptions.selectors.AutoCorr.whichcombos; % [nFns,N_j,1+nRestr,N_i+1], by start age
     end
+    if isfield(caliboptions,'selectors') % the window and log rows the targets name: simoptions.ntimeperiods, ntimeperiodstype, logwhichcombos (set whatever caliboptions.whichcombos, as they decide which outputs there are)
+        simoptions_AutoCorr.ntimeperiods=caliboptions.selectors.AutoCorr.ntimeperiods;
+        simoptions_AutoCorr.ntimeperiodstype=caliboptions.selectors.AutoCorr.ntimeperiodstype;
+        simoptions_AutoCorr.logwhichcombos=caliboptions.selectors.AutoCorr.logwhichcombos;
+    end
     CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(StationaryDist,Policy,FnsToEvaluate_AutoCorr,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions_AutoCorr);
 end
 if usingcrosssec==1

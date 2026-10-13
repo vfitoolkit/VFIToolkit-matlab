@@ -17,7 +17,7 @@ function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmoment
 % .AgeConditionalCrossSectionCovarCorr (the age-conditional version), each nested like its command's output. They enter targetmomentvec
 % after AgeConditionalStats and before CustomModelStats, with their own using* flag, names table, cumulative sizes, reduced FnsToEvaluate
 % and selector (selectors.AutoCorr/.CrossSec/.AgeCrossSec, whichcombos only: these commands have no per-combination whichstats);
-% autocorrtimehorizons holds the horizons K>=2 read off the AutoCorr target names, for simoptions.timehorizons.
+% autocorrtimehorizons holds the horizons read off the AutoCorr target names (1 for one without a _horizonK suffix), for simoptions.timehorizons.
 
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
 if isfield(TargetMoments,'AllStats')
@@ -364,9 +364,9 @@ if useptype==0
     end
     %% AutoCorrTransProbs (EvalFnOnAgentDist_AutoCorrTransProbs_FHorz): targets .(fn).(stat) and .(restriction).(fn).(stat); the stat is
     % Mean or StdDeviation (1 x N_j), or AutoCorrelation/AutoCovariance/PairMass/PairMean_j/PairMean_jplusk/PairStdDeviation_j/PairStdDeviation_jplusk
-    % at horizon one (no suffix, 1 x N_j-1) or at horizon K (suffix _kK, 1 x N_j-K). TransitionProbs cannot be targeted (use CustomModelStats).
-    % The selector is by start age: entry j of a horizon-K target selects start age j (Mean/StdDeviation: age j). Horizons K>=2 are read off
-    % the names and returned in autocorrtimehorizons for simoptions.timehorizons.
+    % at horizon one (no suffix, 1 x N_j-1) or at horizon K (suffix _horizonK, 1 x N_j-K). TransitionProbs cannot be targeted (use CustomModelStats).
+    % The selector is by start age: entry j of a horizon-K target selects start age j (Mean/StdDeviation: age j). The horizons (1 for a
+    % target without a suffix) are read off the names and returned in autocorrtimehorizons for simoptions.timehorizons.
     if usingautocorr==1
         autocorrmomentnames=cell(0,3);
         autocorrmomentsizes=[];
@@ -397,10 +397,26 @@ if useptype==0
         rowfn=cell(nrows,1);
         rowstat=cell(nrows,1);
         rowpage=zeros(nrows,1);
+        % The output rows of the command: a FnsToEvaluate name, or (simoptions.ntimeperiods, simoptions.logwhichcombos) fnname_log,
+        % fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log: rowbase is the FnsToEvaluate,
+        % rowM the number of periods (1 for a single period), rowtype 'average' or 'sum' (M>1), rowlog 1 for the log
+        rowbase=cell(nrows,1);
+        rowM=ones(nrows,1);
+        rowtype=cell(nrows,1);
+        rowlog=zeros(nrows,1);
         for cc=1:nrows
             a1=autocorrmomentnames{cc,1}; a2=autocorrmomentnames{cc,2}; a3=autocorrmomentnames{cc,3};
             isrestr=any(strcmp(RestrNames,a1));
             isfn=any(strcmp(FnNamesAll,a1));
+            if ~isfn % a window or log row of a FnsToEvaluate
+                tk=regexp(a1,'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                    isfn=true;
+                else
+                    tk=regexp(a1,'^(.+)_log$','tokens','once');
+                    isfn=(~isempty(tk) && any(strcmp(FnNamesAll,tk{1})));
+                end
+            end
             if isrestr && isfn
                 error(['TargetMoments.AutoCorrTransProbs.',a1,': this name is both a FnsToEvaluate and a conditional restriction, so the target is ambiguous'])
             elseif isrestr
@@ -418,31 +434,65 @@ if useptype==0
                 rowfn{cc}=a1;
                 rowstat{cc}=a2;
             else
-                error(['TargetMoments.AutoCorrTransProbs.',a1,' is neither a FnsToEvaluate nor a conditional restriction in simoptions.conditionalrestrictions'])
+                error(['TargetMoments.AutoCorrTransProbs.',a1,' is neither a FnsToEvaluate (or one of its rows fnname_log, fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log) nor a conditional restriction in simoptions.conditionalrestrictions'])
             end
+            rowbase{cc}=rowfn{cc};
             if ~any(strcmp(FnNamesAll,rowfn{cc}))
-                error(['TargetMoments.AutoCorrTransProbs: ',rowfn{cc},' is not one of the FnsToEvaluate'])
+                tk=regexp(rowfn{cc},'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                    rowbase{cc}=tk{1};
+                    rowM(cc)=str2double(tk{2});
+                    rowtype{cc}=lower(tk{3});
+                    rowlog(cc)=~isempty(tk{4});
+                    if rowM(cc)<2
+                        error(['TargetMoments.AutoCorrTransProbs: ',rowfn{cc},' names a window of ',tk{2},' periods: a single period is the FnsToEvaluate name itself (',tk{1},', or ',tk{1},'_log)'])
+                    end
+                else
+                    tk=regexp(rowfn{cc},'^(.+)_log$','tokens','once');
+                    if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                        rowbase{cc}=tk{1};
+                        rowlog(cc)=1;
+                    else
+                        error(['TargetMoments.AutoCorrTransProbs: ',rowfn{cc},' is not one of the FnsToEvaluate (nor fnname_log, fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log of one)'])
+                    end
+                end
             end
         end
         FnsToEvaluate_AutoCorr=struct();
         for ff=1:length(FnNamesAll)
-            if any(strcmp(rowfn,FnNamesAll{ff}))
+            if any(strcmp(rowbase,FnNamesAll{ff}))
                 FnsToEvaluate_AutoCorr.(FnNamesAll{ff})=FnsToEvaluate.(FnNamesAll{ff});
             end
         end
         FnNamesAC=fieldnames(FnsToEvaluate_AutoCorr);
+        % simoptions.ntimeperiods (the window lengths the targets name, 1 for a single period) and simoptions.ntimeperiodstype
+        % (one per command call, so the targets cannot mix MperiodAverage and MperiodSum)
+        AutoCorr_ntimeperiods=unique(rowM(:)');
+        wtypes=unique(rowtype(rowM>1));
+        if length(wtypes)>1
+            error('TargetMoments.AutoCorrTransProbs: the targets name both MperiodAverage and MperiodSum rows, but the command computes one or the other in a call (simoptions.ntimeperiodstype): use one of them for all the targets')
+        elseif isscalar(wtypes)
+            AutoCorr_ntimeperiodstype=wtypes{1};
+        else
+            AutoCorr_ntimeperiodstype='average';
+        end
+        nblocksAC=length(AutoCorr_ntimeperiods);
         autocorrtimehorizons=[];
         if buildselectors==1
-            AutoCorr_whichcombos=zeros(length(FnNamesAC),N_j,1+nRestr);
+            % rows in blocks of the window lengths (as simoptions.whichcombos with simoptions.ntimeperiods), and the log combinations
+            AutoCorr_whichcombos=zeros(nblocksAC*length(FnNamesAC),N_j,1+nRestr);
+            AutoCorr_logwhichcombos=zeros(nblocksAC*length(FnNamesAC),N_j,1+nRestr);
+            AutoCorr_levelcombos=zeros(nblocksAC*length(FnNamesAC),N_j,1+nRestr);
         else
             AutoCorr_whichcombos=[];
+            AutoCorr_logwhichcombos=0;
         end
         for cc=1:nrows
             stat=rowstat{cc};
-            tk=regexp(stat,'_k(\d+)$','tokens','once'); % the horizon suffix
+            tk=regexp(stat,'_horizon(\d+)$','tokens','once'); % the horizon suffix
             if ~isempty(tk)
                 K=str2double(tk{1});
-                base=stat(1:end-length(tk{1})-2);
+                base=stat(1:end-length(tk{1})-8); % strip _horizonK
             else
                 K=1;
                 base=stat;
@@ -450,10 +500,10 @@ if useptype==0
             if any(strcmp(stat,{'Mean','StdDeviation'}))
                 K=0;
             elseif ~any(strcmp(base,{'AutoCorrelation','AutoCovariance','PairMass','PairMean_j','PairMean_jplusk','PairStdDeviation_j','PairStdDeviation_jplusk'}))
-                error(['TargetMoments.AutoCorrTransProbs: ',stat,' is not a targetable output (Mean, StdDeviation, AutoCorrelation, AutoCovariance and the Pair byproducts, each with an optional _kK horizon suffix; TransitionProbs cannot be targeted, use CustomModelStats)'])
+                error(['TargetMoments.AutoCorrTransProbs: ',stat,' is not a targetable output (Mean, StdDeviation, AutoCorrelation, AutoCovariance and the Pair byproducts, each with an optional _horizonK suffix for horizon K>1; TransitionProbs cannot be targeted, use CustomModelStats)'])
             end
-            if K>=2
-                autocorrtimehorizons=[autocorrtimehorizons,K];
+            if K>=1
+                autocorrtimehorizons=[autocorrtimehorizons,K]; % the command computes exactly the horizons asked for (horizon 1 too)
             end
             if buildselectors==1
                 if isempty(autocorrmomentnames{cc,3})
@@ -464,10 +514,19 @@ if useptype==0
                 if ~(isvector(temp) && numel(temp)==N_j-K)
                     error(['TargetMoments.AutoCorrTransProbs target ',rowfn{cc},' ',stat,' has ',num2str(numel(temp)),' entries, but it is 1 x ',num2str(N_j-K),' (N_j minus the horizon)'])
                 end
-                ff=find(strcmp(FnNamesAC,rowfn{cc}));
+                ff=(find(AutoCorr_ntimeperiods==rowM(cc))-1)*length(FnNamesAC)+find(strcmp(FnNamesAC,rowbase{cc})); % the row: the block of its window length
                 pp=rowpage(cc);
-                AutoCorr_whichcombos(ff,1:N_j-K,pp)=max(AutoCorr_whichcombos(ff,1:N_j-K,pp),double(reshape(~isnan(temp),1,[]))); % entry j selects start age j
+                sel=double(reshape(~isnan(temp),1,[]));
+                AutoCorr_whichcombos(ff,1:N_j-K,pp)=max(AutoCorr_whichcombos(ff,1:N_j-K,pp),sel); % entry j selects start age j
+                if rowlog(cc)==1
+                    AutoCorr_logwhichcombos(ff,1:N_j-K,pp)=max(AutoCorr_logwhichcombos(ff,1:N_j-K,pp),sel);
+                else
+                    AutoCorr_levelcombos(ff,1:N_j-K,pp)=max(AutoCorr_levelcombos(ff,1:N_j-K,pp),sel);
+                end
             end
+        end
+        if buildselectors==1 && any(AutoCorr_logwhichcombos(:) & AutoCorr_levelcombos(:))
+            error('TargetMoments.AutoCorrTransProbs: some targets ask for both a statistic and its log (fnname... and fnname..._log) at the same start age and restriction, but the command computes one or the other for each (simoptions.logwhichcombos): target only one of them at each start age')
         end
         autocorrtimehorizons=unique(autocorrtimehorizons);
     else
@@ -476,6 +535,9 @@ if useptype==0
         FnsToEvaluate_AutoCorr=struct();
         autocorrtimehorizons=[];
         AutoCorr_whichcombos=[];
+        AutoCorr_ntimeperiods=1;
+        AutoCorr_ntimeperiodstype='average';
+        AutoCorr_logwhichcombos=0;
     end
     %% CrossSectionCovarCorr (EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz) and AgeConditionalCrossSectionCovarCorr
     % (EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz): targets .(fn1).CovarianceWith.(fn2), .(fn1).CorrelationWith.(fn2),
@@ -679,6 +741,9 @@ if useptype==0
         selectors.ACStats.whichcombos=ACStats_whichcombos;
         selectors.ACStats.whichstats=ACStats_whichstatsArr;
         selectors.AutoCorr.whichcombos=AutoCorr_whichcombos;
+        selectors.AutoCorr.ntimeperiods=AutoCorr_ntimeperiods; % the window lengths the targets name (simoptions.ntimeperiods; the rows of whichcombos are in blocks of these)
+        selectors.AutoCorr.ntimeperiodstype=AutoCorr_ntimeperiodstype; % simoptions.ntimeperiodstype
+        selectors.AutoCorr.logwhichcombos=AutoCorr_logwhichcombos; % simoptions.logwhichcombos (the targets named ..._log)
         selectors.CrossSec.whichcombos=CrossSec_whichcombos;
         selectors.AgeCrossSec.whichcombos=AgeCrossSec_whichcombos;
     end
@@ -1106,11 +1171,11 @@ elseif useptype==1
     %% AutoCorrTransProbs (EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType): targets .(fn).(stat) and .(restriction).(fn).(stat) (the grouped
     % output) and .(fn).(type).(stat) and .(restriction).(fn).(type).(stat) (a permanent type's own output), nested as the command's output.
     % The stat is Mean or StdDeviation (1 x N_j), or AutoCorrelation/AutoCovariance/PairMass/PairMean_j/PairMean_jplusk/PairStdDeviation_j/
-    % PairStdDeviation_jplusk at horizon one (no suffix, 1 x N_j-1) or at horizon K (suffix _kK, 1 x N_j-K). TransitionProbs cannot be
+    % PairStdDeviation_jplusk at horizon one (no suffix, 1 x N_j-1) or at horizon K (suffix _horizonK, 1 x N_j-K). TransitionProbs cannot be
     % targeted (use CustomModelStats). The selector is [nFns,N_j,1+nRestr,N_i+1]: entry j of a horizon-K target selects start age j
     % (Mean/StdDeviation: age j) in the target's slot, a type's slot or the grouped slot N_i+1 (which makes the command compute every
-    % type at that start age, as the grouped output is pooled from them). Horizons K>=2 are read off the names and returned in
-    % autocorrtimehorizons for simoptions.timehorizons. N_j must be common to the types and there can be no agejshifter (the PType
+    % type at that start age, as the grouped output is pooled from them). The horizons (1 for a target without a suffix) are read off
+    % the names and returned in autocorrtimehorizons for simoptions.timehorizons. N_j must be common to the types and there can be no agejshifter (the PType
     % command does not implement them with simoptions.whichcombos).
     if usingautocorr==1
         if buildselectors==0
@@ -1165,12 +1230,27 @@ elseif useptype==1
         rowstat=cell(nrows,1);
         rowpage=zeros(nrows,1);
         rowslot=zeros(nrows,1);
+        % The output rows of the command (as without permanent types): rowbase the FnsToEvaluate, rowM the number of periods, rowtype
+        % 'average' or 'sum', rowlog 1 for the log
+        rowbase=cell(nrows,1);
+        rowM=ones(nrows,1);
+        rowtype=cell(nrows,1);
+        rowlog=zeros(nrows,1);
         for cc=1:nrows
             names=autocorrmomentnames(cc,:);
             names=names(~cellfun(@isempty,names));
             a1=names{1};
             isrestr=any(strcmp(RestrNames,a1));
             isfn=any(strcmp(FnNamesAll,a1));
+            if ~isfn % a window or log row of a FnsToEvaluate
+                tk=regexp(a1,'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                    isfn=true;
+                else
+                    tk=regexp(a1,'^(.+)_log$','tokens','once');
+                    isfn=(~isempty(tk) && any(strcmp(FnNamesAll,tk{1})));
+                end
+            end
             if isrestr && isfn
                 error(['TargetMoments.AutoCorrTransProbs.',a1,': this name is both a FnsToEvaluate and a conditional restriction, so the target is ambiguous'])
             elseif isrestr
@@ -1185,10 +1265,28 @@ elseif useptype==1
                 rowfn{cc}=a1;
                 rest=names(2:end);
             else
-                error(['TargetMoments.AutoCorrTransProbs.',a1,' is neither a FnsToEvaluate nor a conditional restriction in simoptions.conditionalrestrictions'])
+                error(['TargetMoments.AutoCorrTransProbs.',a1,' is neither a FnsToEvaluate (or one of its rows fnname_log, fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log) nor a conditional restriction in simoptions.conditionalrestrictions'])
             end
+            rowbase{cc}=rowfn{cc};
             if ~any(strcmp(FnNamesAll,rowfn{cc}))
-                error(['TargetMoments.AutoCorrTransProbs: ',rowfn{cc},' is not one of the FnsToEvaluate'])
+                tk=regexp(rowfn{cc},'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                    rowbase{cc}=tk{1};
+                    rowM(cc)=str2double(tk{2});
+                    rowtype{cc}=lower(tk{3});
+                    rowlog(cc)=~isempty(tk{4});
+                    if rowM(cc)<2
+                        error(['TargetMoments.AutoCorrTransProbs: ',rowfn{cc},' names a window of ',tk{2},' periods: a single period is the FnsToEvaluate name itself (',tk{1},', or ',tk{1},'_log)'])
+                    end
+                else
+                    tk=regexp(rowfn{cc},'^(.+)_log$','tokens','once');
+                    if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                        rowbase{cc}=tk{1};
+                        rowlog(cc)=1;
+                    else
+                        error(['TargetMoments.AutoCorrTransProbs: ',rowfn{cc},' is not one of the FnsToEvaluate (nor fnname_log, fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log of one)'])
+                    end
+                end
             end
             if isempty(rest)
                 error(['TargetMoments.AutoCorrTransProbs: the target for ',rowfn{cc},' needs a statistic (e.g. .AutoCorrelation)'])
@@ -1209,19 +1307,34 @@ elseif useptype==1
         end
         FnsToEvaluate_AutoCorr=struct();
         for ff=1:length(FnNamesAll)
-            if any(strcmp(rowfn,FnNamesAll{ff}))
+            if any(strcmp(rowbase,FnNamesAll{ff}))
                 FnsToEvaluate_AutoCorr.(FnNamesAll{ff})=FnsToEvaluate.(FnNamesAll{ff});
             end
         end
         FnNamesAC=fieldnames(FnsToEvaluate_AutoCorr);
+        % simoptions.ntimeperiods and simoptions.ntimeperiodstype (one per command call: the targets cannot mix MperiodAverage and MperiodSum)
+        AutoCorr_ntimeperiods=unique(rowM(:)');
+        wtypes=unique(rowtype(rowM>1));
+        if length(wtypes)>1
+            error('TargetMoments.AutoCorrTransProbs: the targets name both MperiodAverage and MperiodSum rows, but the command computes one or the other in a call (simoptions.ntimeperiodstype): use one of them for all the targets')
+        elseif isscalar(wtypes)
+            AutoCorr_ntimeperiodstype=wtypes{1};
+        else
+            AutoCorr_ntimeperiodstype='average';
+        end
+        nblocksAC=length(AutoCorr_ntimeperiods);
         autocorrtimehorizons=[];
-        AutoCorr_whichcombos=zeros(length(FnNamesAC),N_j,1+nRestr,N_i+1);
+        % rows in blocks of the window lengths; logwhichcombos has no type dimension (the PType command applies it to every type and
+        % the grouped stats), so a log target of one type or the grouped stats makes that combination the log for all of them
+        AutoCorr_whichcombos=zeros(nblocksAC*length(FnNamesAC),N_j,1+nRestr,N_i+1);
+        AutoCorr_logwhichcombos=zeros(nblocksAC*length(FnNamesAC),N_j,1+nRestr);
+        AutoCorr_levelcombos=zeros(nblocksAC*length(FnNamesAC),N_j,1+nRestr);
         for cc=1:nrows
             stat=rowstat{cc};
-            tk=regexp(stat,'_k(\d+)$','tokens','once'); % the horizon suffix
+            tk=regexp(stat,'_horizon(\d+)$','tokens','once'); % the horizon suffix
             if ~isempty(tk)
                 K=str2double(tk{1});
-                base=stat(1:end-length(tk{1})-2);
+                base=stat(1:end-length(tk{1})-8); % strip _horizonK
             else
                 K=1;
                 base=stat;
@@ -1229,10 +1342,10 @@ elseif useptype==1
             if any(strcmp(stat,{'Mean','StdDeviation'}))
                 K=0;
             elseif ~any(strcmp(base,{'AutoCorrelation','AutoCovariance','PairMass','PairMean_j','PairMean_jplusk','PairStdDeviation_j','PairStdDeviation_jplusk'}))
-                error(['TargetMoments.AutoCorrTransProbs: ',stat,' is not a targetable output (Mean, StdDeviation, AutoCorrelation, AutoCovariance and the Pair byproducts, each with an optional _kK horizon suffix; TransitionProbs cannot be targeted, use CustomModelStats)'])
+                error(['TargetMoments.AutoCorrTransProbs: ',stat,' is not a targetable output (Mean, StdDeviation, AutoCorrelation, AutoCovariance and the Pair byproducts, each with an optional _horizonK suffix for horizon K>1; TransitionProbs cannot be targeted, use CustomModelStats)'])
             end
-            if K>=2
-                autocorrtimehorizons=[autocorrtimehorizons,K];
+            if K>=1
+                autocorrtimehorizons=[autocorrtimehorizons,K]; % the command computes exactly the horizons asked for (horizon 1 too)
             end
             names=autocorrmomentnames(cc,:);
             names=names(~cellfun(@isempty,names));
@@ -1243,10 +1356,19 @@ elseif useptype==1
             if ~(isvector(temp) && numel(temp)==N_j-K)
                 error(['TargetMoments.AutoCorrTransProbs target ',rowfn{cc},' ',stat,' has ',num2str(numel(temp)),' entries, but it is 1 x ',num2str(N_j-K),' (N_j minus the horizon)'])
             end
-            ff=find(strcmp(FnNamesAC,rowfn{cc}));
+            ff=(find(AutoCorr_ntimeperiods==rowM(cc))-1)*length(FnNamesAC)+find(strcmp(FnNamesAC,rowbase{cc})); % the row: the block of its window length
             pp=rowpage(cc);
             ss_slot=rowslot(cc);
-            AutoCorr_whichcombos(ff,1:N_j-K,pp,ss_slot)=max(AutoCorr_whichcombos(ff,1:N_j-K,pp,ss_slot),double(reshape(~isnan(temp),1,[]))); % entry j selects start age j
+            sel=double(reshape(~isnan(temp),1,[]));
+            AutoCorr_whichcombos(ff,1:N_j-K,pp,ss_slot)=max(AutoCorr_whichcombos(ff,1:N_j-K,pp,ss_slot),sel); % entry j selects start age j
+            if rowlog(cc)==1
+                AutoCorr_logwhichcombos(ff,1:N_j-K,pp)=max(AutoCorr_logwhichcombos(ff,1:N_j-K,pp),sel);
+            else
+                AutoCorr_levelcombos(ff,1:N_j-K,pp)=max(AutoCorr_levelcombos(ff,1:N_j-K,pp),sel);
+            end
+        end
+        if any(AutoCorr_logwhichcombos(:) & AutoCorr_levelcombos(:))
+            error('TargetMoments.AutoCorrTransProbs: some targets ask for both a statistic and its log (fnname... and fnname..._log) at the same start age and restriction (for any permanent type or the grouped stats), but the command computes one or the other for each (simoptions.logwhichcombos): target only one of them at each start age')
         end
         autocorrtimehorizons=unique(autocorrtimehorizons);
     else
@@ -1255,6 +1377,9 @@ elseif useptype==1
         FnsToEvaluate_AutoCorr=struct();
         autocorrtimehorizons=[];
         AutoCorr_whichcombos=[];
+        AutoCorr_ntimeperiods=1;
+        AutoCorr_ntimeperiodstype='average';
+        AutoCorr_logwhichcombos=0;
     end
     %% CrossSectionCovarCorr (EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz_PType) and AgeConditionalCrossSectionCovarCorr
     % (EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType), nested as the commands' outputs: grouped targets
@@ -1495,6 +1620,9 @@ elseif useptype==1
         selectors.ACStats.whichcombos=ACStats_whichcombos;
         selectors.ACStats.whichstats=ACStats_whichstatsArr;
         selectors.AutoCorr.whichcombos=AutoCorr_whichcombos;
+        selectors.AutoCorr.ntimeperiods=AutoCorr_ntimeperiods; % the window lengths the targets name (simoptions.ntimeperiods; the rows of whichcombos are in blocks of these)
+        selectors.AutoCorr.ntimeperiodstype=AutoCorr_ntimeperiodstype; % simoptions.ntimeperiodstype
+        selectors.AutoCorr.logwhichcombos=AutoCorr_logwhichcombos; % simoptions.logwhichcombos (the targets named ..._log; no type dimension)
         selectors.CrossSec.whichcombos=CrossSec_whichcombos;
         selectors.AgeCrossSec.whichcombos=AgeCrossSec_whichcombos;
     end

@@ -10,8 +10,8 @@ function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(Ta
 % AutoCorr targets (added 2026-09-29) are the outputs of EvalFnOnAgentDist_AutoCorrTransProbs_FHorz (or its PType
 % wrapper): TargetMoments.AutoCorr.cohortC.fn.stat, or .cohortC.restriction.fn.stat (restriction is a name in
 % simoptions.conditionalrestrictions), and with permanent types also .fn.ptype.stat and .restriction.fn.ptype.stat.
-% stat is AutoCorrelation or AutoCovariance (the horizon-1 fields, vectors of length N_j-1), AutoCorrelation_kK or
-% AutoCovariance_kK (horizon K, vectors of length N_j-K; the needed horizons are put into simoptions.timehorizons by
+% stat is AutoCorrelation or AutoCovariance (the horizon-1 fields, vectors of length N_j-1), AutoCorrelation_horizonK or
+% AutoCovariance_horizonK (horizon K, vectors of length N_j-K; the needed horizons are put into simoptions.timehorizons by
 % the objective function), or Mean or StdDeviation (length N_j). Index jj of a horizon-K target is the pair of ages
 % (jj, jj+K); entries with jj before the cohort's entry age must be NaN.
 %
@@ -19,7 +19,7 @@ function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(Ta
 % that cohort's moments: usingallstats(cc), usinglcp(cc), usingautocorr(cc), allstatmomentnames{cc},
 % allstatcummomentsizes{cc}, AllStats_whichstats{cc}, FnsToEvaluate_AllStats{cc}, acsmomentnames{cc},
 % acscummomentsizes{cc}, ACStats_whichstats{cc}, FnsToEvaluate_ACStats{cc}, acrmomentnames{cc} (rows of
-% {restriction or '', fn, ptype or '', stat}), acrcummomentsizes{cc}, acrhorizons{cc} (the horizons K>=2 needed),
+% {restriction or '', fn, ptype or '', stat}), acrcummomentsizes{cc}, acrhorizons{cc} (the horizons needed, 1 included),
 % FnsToEvaluate_AutoCorr{cc}, offset(cc) (start of the cohort's segment of targetmomentvec), and lastage(cc) (the last age any of
 % the cohort's targets needs: the objective fn sets simoptions.lastDistAge to it so the cohort's agent distribution stops there;
 % N_j when the cohort has AllStats targets, which pool every age).
@@ -94,24 +94,69 @@ for cc=1:ncohorts
         TM=TargetMoments.AutoCorr.(cohortstr);
         % First list the (restriction, fn) nodes: a first-level name that is a FnsToEvaluate name is a function (no
         % restriction), otherwise it is a restriction whose fields must be FnsToEvaluate names
-        nodes=cell(0,3); % {restriction or '', fn, the structure of stats below it}
+        % (a FnsToEvaluate name here may also be one of its rows of simoptions.ntimeperiods/logwhichcombos: fnname_log,
+        % fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log)
+        nodes=cell(0,7); % {restriction or '', row name, the structure of stats below it, the FnsToEvaluate, M, 'average'/'sum' (M>1), log}
         a1vec=fieldnames(TM);
         for a1=1:length(a1vec)
-            if any(strcmp(a1vec{a1},FnNamesAll))
-                nodes(end+1,:)={'',a1vec{a1},TM.(a1vec{a1})}; %#ok<AGROW>
+            if isstruct(TM.(a1vec{a1}))
+                n_a2=length(fieldnames(TM.(a1vec{a1})));
             else
-                if ~isstruct(TM.(a1vec{a1}))
-                    error(['TargetMoments.AutoCorr.',cohortstr,'.',a1vec{a1},' is neither a FnsToEvaluate name nor a restriction (a structure of FnsToEvaluate names)'])
+                n_a2=0;
+            end
+            for a2=0:n_a2 % a2=0: a1 as the row; a2>0: a1 as a restriction
+                if a2==0
+                    rowname=a1vec{a1};
+                else
+                    a2vec=fieldnames(TM.(a1vec{a1}));
+                    rowname=a2vec{a2};
                 end
-                a2vec=fieldnames(TM.(a1vec{a1}));
-                for a2=1:length(a2vec)
-                    if ~any(strcmp(a2vec{a2},FnNamesAll))
-                        error(['TargetMoments.AutoCorr.',cohortstr,'.',a1vec{a1},'.',a2vec{a2},': ',a2vec{a2},' is not a FnsToEvaluate name (below a restriction there must be a FnsToEvaluate name)'])
+                % the FnsToEvaluate, the number of periods and the log of the row
+                rbase=''; rM=1; rtype=''; rlog=0;
+                if any(strcmp(rowname,FnNamesAll))
+                    rbase=rowname;
+                else
+                    tk=regexp(rowname,'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                    if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                        rbase=tk{1}; rM=str2double(tk{2}); rtype=lower(tk{3}); rlog=~isempty(tk{4});
+                        if rM<2
+                            error(['TargetMoments.AutoCorr.',cohortstr,': ',rowname,' names a window of ',tk{2},' periods: a single period is the FnsToEvaluate name itself (',tk{1},', or ',tk{1},'_log)'])
+                        end
+                    else
+                        tk=regexp(rowname,'^(.+)_log$','tokens','once');
+                        if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                            rbase=tk{1}; rlog=1;
+                        end
                     end
-                    nodes(end+1,:)={a1vec{a1},a2vec{a2},TM.(a1vec{a1}).(a2vec{a2})}; %#ok<AGROW>
+                end
+                if a2==0
+                    if ~isempty(rbase)
+                        nodes(end+1,:)={'',rowname,TM.(a1vec{a1}),rbase,rM,rtype,rlog}; %#ok<AGROW>
+                        break % a row, not a restriction
+                    elseif ~isstruct(TM.(a1vec{a1}))
+                        error(['TargetMoments.AutoCorr.',cohortstr,'.',a1vec{a1},' is neither a FnsToEvaluate name (or one of its rows fnname_log, fnname_MperiodAverage, ...) nor a restriction (a structure of FnsToEvaluate names)'])
+                    end
+                else
+                    if isempty(rbase)
+                        error(['TargetMoments.AutoCorr.',cohortstr,'.',a1vec{a1},'.',rowname,': ',rowname,' is not a FnsToEvaluate name, nor fnname_log, fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log of one (below a restriction there must be one)'])
+                    end
+                    nodes(end+1,:)={a1vec{a1},rowname,TM.(a1vec{a1}).(rowname),rbase,rM,rtype,rlog}; %#ok<AGROW>
                 end
             end
         end
+        % simoptions.ntimeperiods and simoptions.ntimeperiodstype of this cohort (one type per command call: the targets cannot mix MperiodAverage and MperiodSum)
+        acrM=cell2mat(nodes(:,5));
+        wtypes=unique(nodes(acrM>1,6));
+        if length(wtypes)>1
+            error(['TargetMoments.AutoCorr.',cohortstr,': the targets name both MperiodAverage and MperiodSum rows, but the command computes one or the other in a call (simoptions.ntimeperiodstype): use one of them for all the targets'])
+        elseif isscalar(wtypes)
+            cohortmoments.acrntimeperiodstype{cc}=wtypes{1};
+        else
+            cohortmoments.acrntimeperiodstype{cc}='average';
+        end
+        cohortmoments.acrntimeperiods{cc}=unique(acrM(:)');
+        acrlog=cell(0,4); % {restriction or '', FnsToEvaluate, M, 1 x N_j selection}: the start ages of the targets of the log (simoptions.logwhichcombos)
+        acrlevel=cell(0,4); % the same for the targets at the level (to refuse a target of both at one start age)
         % Then the stats (or ptype then stats) below each node
         acrmomentnames=cell(0,4);
         acrmomentsizes=[];
@@ -144,16 +189,16 @@ for cc=1:ncohorts
                     end
                     if isempty(suffix)
                         kk=1;
-                    elseif length(suffix)>2 && strcmp(suffix(1:2),'_k') && ~isnan(str2double(suffix(3:end))) && str2double(suffix(3:end))==round(str2double(suffix(3:end))) && str2double(suffix(3:end))>=1
-                        kk=str2double(suffix(3:end));
+                    elseif length(suffix)>8 && strcmp(suffix(1:8),'_horizon') && ~isnan(str2double(suffix(9:end))) && str2double(suffix(9:end))==round(str2double(suffix(9:end))) && str2double(suffix(9:end))>=1
+                        kk=str2double(suffix(9:end));
                     else
-                        error(['TargetMoments.AutoCorr.',cohortstr,': ',statname,' is not a recognised statistic (use AutoCorrelation, AutoCovariance, AutoCorrelation_kK, AutoCovariance_kK, Mean or StdDeviation)'])
+                        error(['TargetMoments.AutoCorr.',cohortstr,': ',statname,' is not a recognised statistic (use AutoCorrelation, AutoCovariance, AutoCorrelation_horizonK, AutoCovariance_horizonK, Mean or StdDeviation)'])
                     end
                     if kk>N_j-1
                         error(['TargetMoments.AutoCorr.',cohortstr,': ',statname,' asks for a horizon larger than N_j-1'])
                     end
-                    if kk>=2
-                        acrhorizons=[acrhorizons,kk]; %#ok<AGROW>
+                    if kk>=1
+                        acrhorizons=[acrhorizons,kk]; %#ok<AGROW> the command computes exactly the horizons asked for (horizon 1 too)
                     end
                     expectedlength=N_j-kk;
                     kneeded=kk; % index jj of a horizon-K target is the pair (jj, jj+K), so age jj+K is needed
@@ -161,7 +206,7 @@ for cc=1:ncohorts
                     expectedlength=N_j;
                     kneeded=0;
                 else
-                    error(['TargetMoments.AutoCorr.',cohortstr,': ',statname,' is not a recognised statistic (use AutoCorrelation, AutoCovariance, AutoCorrelation_kK, AutoCovariance_kK, Mean or StdDeviation)'])
+                    error(['TargetMoments.AutoCorr.',cohortstr,': ',statname,' is not a recognised statistic (use AutoCorrelation, AutoCovariance, AutoCorrelation_horizonK, AutoCovariance_horizonK, Mean or StdDeviation)'])
                 end
                 val=entries{ee,3};
                 if length(val)~=expectedlength
@@ -172,18 +217,34 @@ for cc=1:ncohorts
                     error(['TargetMoments.AutoCorr.',cohortstr,': ',statname,' has non-NaN targets at ages before the cohort enters (age ',num2str(j0),'); these must be NaN'])
                 end
                 if any(~isnan(val))
-                    lastage_acr=max(lastage_acr,find(~isnan(val),1,'last')+kneeded);
+                    lastage_acr=max(lastage_acr,find(~isnan(val),1,'last')+kneeded+nodes{nn,5}-1); % an M-period window starting at the last age of the horizon runs M-1 ages further
                 end
                 acrmomentnames(end+1,:)={nodes{nn,1},nodes{nn,2},entries{ee,1},statname}; %#ok<AGROW>
                 acrmomentsizes(end+1)=length(val); %#ok<AGROW>
                 targetmomentvec_acr=[targetmomentvec_acr; val]; %#ok<AGROW>
+                sel=zeros(1,N_j);
+                sel(1:length(val))=~isnan(val'); % entry j selects start age j
+                if nodes{nn,7}==1
+                    acrlog(end+1,:)={nodes{nn,1},nodes{nn,4},nodes{nn,5},sel}; %#ok<AGROW>
+                else
+                    acrlevel(end+1,:)={nodes{nn,1},nodes{nn,4},nodes{nn,5},sel}; %#ok<AGROW>
+                end
             end
         end
+        % A target of a statistic and one of its log at the same start age and restriction cannot both be computed (simoptions.logwhichcombos)
+        for l1=1:size(acrlog,1)
+            for l2=1:size(acrlevel,1)
+                if strcmp(acrlog{l1,1},acrlevel{l2,1}) && strcmp(acrlog{l1,2},acrlevel{l2,2}) && acrlog{l1,3}==acrlevel{l2,3} && any(acrlog{l1,4} & acrlevel{l2,4})
+                    error(['TargetMoments.AutoCorr.',cohortstr,': some targets ask for both a statistic of ',acrlog{l1,2},' and of its log at the same start age and restriction, but the command computes one or the other for each (simoptions.logwhichcombos): target only one of them at each start age'])
+                end
+            end
+        end
+        cohortmoments.acrlog{cc}=acrlog;
         cohortmoments.acrmomentnames{cc}=acrmomentnames;
         cohortmoments.acrcummomentsizes{cc}=cumsum(acrmomentsizes);
         cohortmoments.acrhorizons{cc}=unique(acrhorizons);
         FnsToEvaluate_AutoCorr=struct();
-        fnsused=unique(nodes(:,2));
+        fnsused=unique(nodes(:,4)); % the FnsToEvaluate of the rows
         for ff=1:length(fnsused)
             FnsToEvaluate_AutoCorr.(fnsused{ff})=FnsToEvaluate.(fnsused{ff});
         end
@@ -195,6 +256,9 @@ for cc=1:ncohorts
         cohortmoments.acrcummomentsizes{cc}=0;
         cohortmoments.acrhorizons{cc}=[];
         cohortmoments.FnsToEvaluate_AutoCorr{cc}=struct();
+        cohortmoments.acrntimeperiods{cc}=1;
+        cohortmoments.acrntimeperiodstype{cc}='average';
+        cohortmoments.acrlog{cc}=cell(0,4);
     end
 
     %% The last age this cohort's targets need (the objective fn stops the cohort's agent distribution there, simoptions.lastDistAge)

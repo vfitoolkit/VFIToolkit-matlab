@@ -199,6 +199,31 @@ for cc=1:ncohorts
         end
         simoptions_acr=simoptions;
         simoptions_acr.timehorizons=cohortmoments.acrhorizons{cc};
+        % the window and log rows the targets name: simoptions.ntimeperiods, ntimeperiodstype and logwhichcombos (rows in blocks of
+        % the window lengths, the FnsToEvaluate in the order of cohortmoments.FnsToEvaluate_AutoCorr; pages the unrestricted and then
+        % the restrictions in the order of simoptions.conditionalrestrictions)
+        simoptions_acr.ntimeperiods=cohortmoments.acrntimeperiods{cc};
+        simoptions_acr.ntimeperiodstype=cohortmoments.acrntimeperiodstype{cc};
+        acrlog=cohortmoments.acrlog{cc};
+        if ~isempty(acrlog)
+            fnsAC=fieldnames(cohortmoments.FnsToEvaluate_AutoCorr{cc});
+            if isfield(simoptions,'conditionalrestrictions')
+                rnamesAC=fieldnames(simoptions.conditionalrestrictions);
+            else
+                rnamesAC={};
+            end
+            logwc=zeros(length(simoptions_acr.ntimeperiods)*length(fnsAC),N_j,1+length(rnamesAC));
+            for mm=1:size(acrlog,1)
+                rowAC=(find(simoptions_acr.ntimeperiods==acrlog{mm,3})-1)*length(fnsAC)+find(strcmp(fnsAC,acrlog{mm,2}));
+                if isempty(acrlog{mm,1})
+                    pageAC=1;
+                else
+                    pageAC=1+find(strcmp(rnamesAC,acrlog{mm,1}));
+                end
+                logwc(rowAC,:,pageAC)=max(logwc(rowAC,:,pageAC),acrlog{mm,4});
+            end
+            simoptions_acr.logwhichcombos=logwc;
+        end
         CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(StationaryDist,Policy,cohortmoments.FnsToEvaluate_AutoCorr{cc},Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions_acr);
         cohorttimes(cc,4)=toc(cohorttimer); cohorttimer=tic;
         for mm=1:size(acrmomentnames,1)

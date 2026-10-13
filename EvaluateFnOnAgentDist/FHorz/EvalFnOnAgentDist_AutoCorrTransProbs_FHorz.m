@@ -1,15 +1,14 @@
 function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, pi_z, simoptions)
 % Returns stats on (auto) correlation and transition probabilities for FHorz models.
-% Auto-correlation/-covariance are reported per-age (j -> j+1), so length N_j-1.
 % Mean and StdDeviation are reported per-age, so length N_j.
 %
 % Use simoptions.transprobs={'name1','name2',...} (cell of FnsToEval names) to
 % request transition probabilities for those functions (none by default).
 %
-% Use simoptions.timehorizons=[2,5] (vector of horizons k>=2) to also get the
-% auto-covariance/-correlation between age j and age j+k (the horizon 1 is
-% always computed). Horizon k is reported in fields with the suffix _kK, e.g.
-% AutoCovariance_k2 is 1 x (N_j-2) with index jj the pair (age jj, age jj+2).
+% Use simoptions.timehorizons (default 1) to choose the horizons K of the auto-covariances/-correlations between age j and
+% age j+K: exactly the horizons listed are computed, e.g. simoptions.timehorizons=[1,2,4]. Horizon 1 is reported without a
+% suffix (AutoCovariance, AutoCorrelation, ... 1 x (N_j-1)), horizon K>1 with the suffix _horizonK (AutoCovariance_horizon2,
+% ... 1 x (N_j-K), index jj the pair (age jj, age jj+K)). So simoptions.timehorizons=2 gives only the _horizon2 fields.
 %
 % Use simoptions.conditionalrestrictions (structure of functions, same form as
 % FnsToEvaluate, returning 0/1) to also get everything conditional on a
@@ -21,11 +20,12 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 % Outputs (per FnsToEvaluate field):
 %   .Mean             1 x N_j
 %   .StdDeviation     1 x N_j
-%   .AutoCovariance   1 x (N_j-1)   Cov(x_j, x_{j+1}), with x_j centered on Mean(j) and x_{j+1} on Mean(j+1)
-%   .AutoCorrelation  1 x (N_j-1)   AutoCovariance/(StdDeviation(j)*StdDeviation(j+1))
-%   .AutoCovariance_kK, .AutoCorrelation_kK   1 x (N_j-K), for each K in simoptions.timehorizons
+%   .AutoCovariance   1 x (N_j-1)   Cov(x_j, x_{j+1}), with x_j centered on Mean(j) and x_{j+1} on Mean(j+1)   (when 1 is in timehorizons)
+%   .AutoCorrelation  1 x (N_j-1)   AutoCovariance/(StdDeviation(j)*StdDeviation(j+1))                        (when 1 is in timehorizons)
+%   .AutoCovariance_horizonK, .AutoCorrelation_horizonK   1 x (N_j-K), for each K>1 in simoptions.timehorizons
 %   .TransitionProbs  cell {N_j-1} of n_fvals_j x n_fvals_{j+1} matrices (default),
 %                     or n_fvals x n_fvals x (N_j-1) array when simoptions.transprobquantiles is set
+%                     (always one period ahead, whatever the timehorizons)
 %   .TransitionValues_j, .TransitionValues_jplus1  cells {N_j-1} of the unique function
 %                     values labelling the rows/columns of TransitionProbs{jj}
 %                     (not provided when simoptions.transprobquantiles is set)
@@ -42,16 +42,16 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 %                     age j satisfies the restriction; NaN only when age j has no mass at all.
 %   .(fnname).PairMean_j, .PairMean_jplusk, .PairStdDeviation_j, .PairStdDeviation_jplusk   1 x (N_j-1),
 %                     the means/std devs of x_j and of x_{j+1} in the pair population
-%   and the same with suffix _kK for each K in simoptions.timehorizons (all 1 x (N_j-K))
+%   and the same with the suffix _horizonK for each K>1 in simoptions.timehorizons (all 1 x (N_j-K))
 %   TransitionProbs are not computed under conditional restrictions.
 %
 % Use simoptions.ntimeperiods (default 1) to get the same statistics of the sum or average of a function over M consecutive
 % periods: the statistic of a person at age j is W_j=x_j+...+x_{j+M-1} (simoptions.ntimeperiodstype='sum'), or that divided
 % by M (simoptions.ntimeperiodstype='average', the default). A vector, e.g. simoptions.ntimeperiods=[1,2,5], gives each of
-% them (M=1 is the single-period statistic). AutoCovariance_kK/AutoCorrelation_kK is then between the window starting at
-% age j and the window starting at age j+K, where K is in model periods (the same horizons as for M=1, simoptions.timehorizons,
-% and horizon 1 is always computed; when K<M the two windows share M-K periods, and a warning says so). Conditional
-% restrictions are evaluated at the two window start ages, j and j+K (as for M=1, where these are the two ages of the pair).
+% them (M=1 is the single-period statistic). The auto-covariance/-correlation at horizon K is then between the window
+% starting at age j and the window starting at age j+K, where K is in model periods (simoptions.timehorizons; when K<M the
+% two windows share M-K periods, and a warning says so). Conditional restrictions are evaluated at the two window start
+% ages, j and j+K (as for M=1, where these are the two ages of the pair).
 % The M=1 outputs are under CorrTransProbs.(fnname) as always; the M>1 outputs are under CorrTransProbs.([fnname,'_',M,'periodAverage'])
 % (or 'periodSum'), e.g. CorrTransProbs.earnings_2periodAverage, with the same fields: Mean and StdDeviation are of W_j
 % (1 x N_j), the auto-covariances 1 x (N_j-K), and the last M-1 entries of each are NaN (the window runs past age N_j).
@@ -59,6 +59,15 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 % With ntimeperiods of length L, simoptions.whichcombos may have L*numFnsToEvaluate rows, in blocks of numFnsToEvaluate
 % in the order of simoptions.ntimeperiods (row (ll-1)*numFnsToEvaluate+ff is function ff with M=ntimeperiods(ll)); a
 % whichcombos with numFnsToEvaluate rows applies to every M.
+%
+% Use simoptions.logwhichcombos (zeros and ones, the same shapes as simoptions.whichcombos, or a scalar 0 or 1 for all; default
+% 0) to get the statistics of the log of the function (M=1) or of the log of the M-period sum/average (log of the average,
+% not the average of the logs) at the combinations where it is one: those are reported under [fnname,'_log'] (or
+% [fnname,'_',M,'periodAverage_log']) instead of fnname, with the same fields. The function (or its sum) must be positive
+% on every agent with positive mass in the populations used (an error says where it is not; use a conditional
+% restriction, e.g. alive, or a floor in the FnsToEvaluate). The log of the M-period sum/average is implemented for M=2,
+% and needs non-overlapping windows (horizons K>=2); it is exact for any function (the log of the window is put on the edges
+% of the transition between the two ages).
 %
 % Note: an age with zero mass (e.g. before the entry age of a cohort started using
 % simoptions.jequaloneDistAge) gets NaN in every output that involves it.
@@ -73,11 +82,12 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1);
-    simoptions.timehorizons=[]; % multi-period horizons (horizon 1 is always calculated)
+    simoptions.timehorizons=1; % the horizons of the auto-covariances/-correlations (exactly these are computed)
     simoptions.transprobquantiles=[];
     simoptions.agegroupings=1:1:N_j; % age bins -- not yet implemented (default = each age separately)
     simoptions.ntimeperiods=1; % the statistics of the sum/average over M consecutive periods, for each M in ntimeperiods (1 is the single period)
     simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
+    simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos, or a scalar)
     % Model setup
     simoptions.gridinterplayer=0;
     simoptions.n_semiz=0;
@@ -94,7 +104,10 @@ else
         simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1);
     end
     if ~isfield(simoptions,'timehorizons')
-        simoptions.timehorizons=[];
+        simoptions.timehorizons=1; % the horizons of the auto-covariances/-correlations (exactly these are computed)
+    end
+    if ~isfield(simoptions,'logwhichcombos')
+        simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos, or a scalar)
     end
     if ~isfield(simoptions,'transprobquantiles')
         simoptions.transprobquantiles=[];
@@ -141,22 +154,26 @@ if ~isequal(simoptions.agegroupings,1:1:N_j)
     error('AutoCorrTransProbs_FHorz: simoptions.agegroupings (age bins) not yet implemented; will implement later')
 end
 
-%% Time horizons: horizon 1 is always done, the others come from simoptions.timehorizons
-if ~isempty(simoptions.timehorizons)
-    if any(simoptions.timehorizons<1) || any(simoptions.timehorizons~=round(simoptions.timehorizons))
-        error('AutoCorrTransProbs_FHorz: simoptions.timehorizons must be positive integers')
-    end
-    if any(simoptions.timehorizons>N_j-1)
-        error('AutoCorrTransProbs_FHorz: simoptions.timehorizons cannot exceed N_j-1 (there is no pair of ages that far apart)')
-    end
+%% Time horizons: exactly those in simoptions.timehorizons (default 1)
+if isempty(simoptions.timehorizons)
+    simoptions.timehorizons=1;
 end
-horizons=unique([1,gather(simoptions.timehorizons(:)')]); % sorted, starts with 1
+if any(simoptions.timehorizons<1) || any(simoptions.timehorizons~=round(simoptions.timehorizons))
+    error('AutoCorrTransProbs_FHorz: simoptions.timehorizons must be positive integers')
+end
+if any(simoptions.timehorizons>N_j-1)
+    error('AutoCorrTransProbs_FHorz: simoptions.timehorizons cannot exceed N_j-1 (there is no pair of ages that far apart)')
+end
+horizons=unique(gather(simoptions.timehorizons(:)')); % sorted
 nhorizons=length(horizons);
 Kmax=horizons(end);
 horizonstr=cell(1,nhorizons); % suffix of the output field names
-horizonstr{1}=''; % horizon 1 has no suffix (AutoCovariance, AutoCorrelation, ...)
-for hh=2:nhorizons
-    horizonstr{hh}=['_k',num2str(horizons(hh))];
+for hh=1:nhorizons
+    if horizons(hh)==1
+        horizonstr{hh}=''; % horizon 1 has no suffix (AutoCovariance, AutoCorrelation, ...)
+    else
+        horizonstr{hh}=['_horizon',num2str(horizons(hh))];
+    end
 end
 
 %% Multi-period sums/averages: simoptions.ntimeperiods (the window lengths M, 1 is the single period) and simoptions.ntimeperiodstype
@@ -187,7 +204,7 @@ if strcmp(simoptions.ntimeperiodstype,'average')
 else
     windowstr='periodSum';
 end
-% Overlapping windows: the window starting at j and the one starting at j+K share M-K periods when K<M (horizon 1 is always computed)
+% Overlapping windows: the window starting at j and the one starting at j+K share M-K periods when K<M (a horizon in simoptions.timehorizons below M)
 if nW>0
     overlapstr='';
     for lw=1:nW
@@ -197,7 +214,7 @@ if nW>0
         end
     end
     if ~isempty(overlapstr)
-        warning(['AutoCorrTransProbs_FHorz: some of the windows are overlapping (the windows starting at ages j and j+K share M-K periods when the horizon K is less than the number of periods M; horizon 1 is always computed):',overlapstr])
+        warning(['AutoCorrTransProbs_FHorz: some of the windows are overlapping (the windows starting at ages j and j+K share M-K periods when the horizon K is less than the number of periods M):',overlapstr])
     end
 end
 
@@ -443,6 +460,84 @@ if ~has1 && ~isfield(simoptions,'whichcombos')
     whichcombos=zeros(numFnsToEvaluate,N_j,nwhichpages); % the single-period statistics are not wanted
 end
 
+%% simoptions.logwhichcombos: the combinations (of whichcombos) whose statistics are of the log
+% The same shapes as whichcombos (rows in blocks of simoptions.ntimeperiods), or a scalar 0/1 for every combination. A one at
+% (row, j, page) where whichcombos also has a one: the outputs starting at age j of that row and page are of log(x) (M=1) or of
+% log(W_j), the log of the M-period sum/average, and are reported under [rowname,'_log'] instead of rowname.
+logwc=simoptions.logwhichcombos;
+if ~(isnumeric(logwc) || islogical(logwc)) || any(logwc(:)~=0 & logwc(:)~=1)
+    error('simoptions.logwhichcombos must contain only zeros and ones')
+end
+if isscalar(logwc)
+    logwc=logwc*ones(nrowswc,N_j,nwhichpages);
+else
+    nrowsin=size(logwc,1); % numFnsToEvaluate, or nblocks*numFnsToEvaluate
+    if ismatrix(logwc) && isequal(size(logwc),[nrowsin,nwhichpages]) && nwhichpages~=N_j && (nrowsin==numFnsToEvaluate || nrowsin==nrowswc)
+        logwc=repmat(reshape(logwc,[nrowsin,1,nwhichpages]),[1,N_j,1]); % (fn, page): apply to every start age
+    elseif ismatrix(logwc) && isequal(size(logwc),[nrowsin,N_j]) && (nrowsin==numFnsToEvaluate || nrowsin==nrowswc)
+        logwc=repmat(logwc,[1,1,nwhichpages]); % (fn, start age): apply to every page
+    end
+    if nblocks>1 && nrowsin==numFnsToEvaluate
+        logwc=repmat(logwc,[nblocks,1,1]); % one selection for every M
+    end
+    if ~isequal(size(logwc,1:3),[nrowswc,N_j,nwhichpages])
+        error(['simoptions.logwhichcombos must be a scalar 0 or 1, or of the size of simoptions.whichcombos: [',num2str(nrowswc),',',num2str(N_j),',',num2str(nwhichpages),'] (length of simoptions.ntimeperiods times the number of FnsToEvaluate, N_j, 1+number of conditional restrictions), or with ',num2str(numFnsToEvaluate),' rows to apply to every M, or the same 2-D forms as whichcombos'])
+    end
+    logwc=double(logwc);
+end
+uselog=any(logwc(:));
+if uselog
+    % Split each selection into its level part (whichcombos, whichcombosW keep only those) and its log part
+    logwc1=zeros(numFnsToEvaluate,N_j,nwhichpages); % the M=1 block of logwhichcombos
+    if has1
+        bb=find(ntimeperiods==1);
+        logwc1=logwc((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:);
+    end
+    wcLog1=whichcombos.*logwc1; % the M=1 combinations of the log
+    whichcombos=whichcombos.*(1-logwc1);
+    if nW>0
+        wcLogW=zeros(numFnsToEvaluate,N_j,nwhichpages,nW); % the window combinations of the log
+        for lw=1:nW
+            bb=find(ntimeperiods==windowM(lw));
+            wcLogW(:,:,:,lw)=whichcombosW(:,:,:,lw).*logwc((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:);
+            whichcombosW(:,:,:,lw)=whichcombosW(:,:,:,lw).*(1-logwc((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:));
+        end
+        for lw=1:nW
+            if any(wcLogW(:,:,:,lw),'all') && windowM(lw)>2
+                error(['AutoCorrTransProbs_FHorz: simoptions.logwhichcombos asks for the log of the ',num2str(windowM(lw)),'-period sum/average, but the log of a multi-period sum/average is only implemented for 2 periods (simoptions.ntimeperiods=2)'])
+            end
+            if any(wcLogW(:,:,:,lw),'all') && any(horizons<windowM(lw))
+                error(['AutoCorrTransProbs_FHorz: simoptions.logwhichcombos asks for the log of the ',num2str(windowM(lw)),'-period sum/average with simoptions.timehorizons including ',num2str(horizons(horizons<windowM(lw))),': the windows starting at ages j and j+K overlap when K<',num2str(windowM(lw)),', which is not implemented for the log (use horizons K>=',num2str(windowM(lw)),', e.g. timehorizons=[2,4] for consecutive two-period windows)'])
+            end
+        end
+    end
+    % The M=1 log rows are extra functions (fnname_log) whose values are the log of the function's values: they then go through
+    % exactly the single-period computation. fnlogbase(ff) is the function an extra function is the log of (0 for the given ones).
+    fnlogbase=zeros(1,numFnsToEvaluate);
+    for ff=1:numFnsToEvaluate
+        if any(wcLog1(ff,:,:),'all')
+            nF=length(FnsToEvalNames)+1;
+            FnsToEvaluate{nF}=FnsToEvaluate{ff};
+            FnsToEvaluateParamNames(nF).Names=FnsToEvaluateParamNames(ff).Names;
+            FnsToEvalNames{nF}=[FnsToEvalNames{ff},'_log'];
+            simoptions.transprobs(nF)=0;
+            whichcombos(nF,:,:)=wcLog1(ff,:,:);
+            if nW>0
+                whichcombosW(nF,:,:,:)=0;
+                wcLogW(nF,:,:,:)=0;
+            end
+            fnlogbase(nF)=ff;
+        end
+    end
+    numFnsToEvaluate=length(FnsToEvalNames);
+else
+    fnlogbase=zeros(1,numFnsToEvaluate);
+end
+uselogW=0; % some window combination is of the log
+if uselog && nW>0
+    uselogW=any(wcLogW(:));
+end
+
 
 
 %% The computation: never form the per-age transition matrix
@@ -611,6 +706,38 @@ if nW>0
         end
     end
 end
+% The log-of-window outputs (simoptions.logwhichcombos on M=2 rows), computed with the log of the sum (the log of the average
+% is that minus log(M): the means are shifted when reporting, the rest is the same)
+if uselogW
+    LMean=nan(numFnsToEvaluate,N_j,nW,'gpuArray');
+    LStdDev=nan(numFnsToEvaluate,N_j,nW,'gpuArray');
+    LAutoCov=cell(1,nhorizons);
+    LAutoCorr=cell(1,nhorizons);
+    for hh=1:nhorizons
+        LAutoCov{hh}=nan(numFnsToEvaluate,N_j-horizons(hh),nW,'gpuArray');
+        LAutoCorr{hh}=nan(numFnsToEvaluate,N_j-horizons(hh),nW,'gpuArray');
+    end
+    if nRestr>0
+        LMeanR=nan(numFnsToEvaluate,N_j,nRestr,nW,'gpuArray');
+        LStdDevR=nan(numFnsToEvaluate,N_j,nRestr,nW,'gpuArray');
+        LAutoCovR=cell(1,nhorizons);
+        LAutoCorrR=cell(1,nhorizons);
+        LPairMass=cell(1,nhorizons);
+        LPairMean_j=cell(1,nhorizons);
+        LPairMean_jplusk=cell(1,nhorizons);
+        LPairStdDev_j=cell(1,nhorizons);
+        LPairStdDev_jplusk=cell(1,nhorizons);
+        for hh=1:nhorizons
+            LAutoCovR{hh}=nan(numFnsToEvaluate,N_j-horizons(hh),nRestr,nW,'gpuArray');
+            LAutoCorrR{hh}=nan(numFnsToEvaluate,N_j-horizons(hh),nRestr,nW,'gpuArray');
+            LPairMass{hh}=nan(numFnsToEvaluate,N_j-horizons(hh),nRestr,nW,'gpuArray');
+            LPairMean_j{hh}=nan(numFnsToEvaluate,N_j-horizons(hh),nRestr,nW,'gpuArray');
+            LPairMean_jplusk{hh}=nan(numFnsToEvaluate,N_j-horizons(hh),nRestr,nW,'gpuArray');
+            LPairStdDev_j{hh}=nan(numFnsToEvaluate,N_j-horizons(hh),nRestr,nW,'gpuArray');
+            LPairStdDev_jplusk{hh}=nan(numFnsToEvaluate,N_j-horizons(hh),nRestr,nW,'gpuArray');
+        end
+    end
+end
 % Transition probabilities between value bins (only when requested for a function, and only when its unrestricted page selects some start age): horizon 1, unrestricted
 dotransprobs=zeros(numFnsToEvaluate,1);
 for ff=1:numFnsToEvaluate
@@ -653,8 +780,14 @@ fnwantedmask=any(any(whichcombos,2),3);
 if nW>0
     fnwantedmask=fnwantedmask | any(any(any(whichcombosW,2),3),4); % a function wanted only for some window length is evaluated too
 end
+if uselogW
+    fnwantedmask=fnwantedmask | any(any(any(wcLogW,2),3),4); % a function wanted only for the log of a window
+end
 fnwanted=find(reshape(fnwantedmask,[1,numFnsToEvaluate])); % the functions with some combination wanted, as a row
 colsperfn=(1+3*nRestr)*Kmax+nW*(1+nRestr)*(3*(Kmax+Mmax)+6*nhorizons*Mmax); % the window measures: three per (origin, page) and six per (origin, page, horizon) (see below)
+if uselogW
+    colsperfn=colsperfn+(1+nRestr)*3*Kmax; % the log windows: three per (origin, page)
+end
 maxfnchunk=max(1,floor(1e9/(8*N_states*colsperfn)));
 maxgroups=Kmax*(1+nRestr)+nW*(1+nRestr)*((Kmax+Mmax)+nhorizons*Mmax); % the most in-flight groups of columns a function can have (an origin age and a page is a group)
 for fc=1:maxfnchunk:length(fnwanted)
@@ -674,6 +807,11 @@ for fc=1:maxfnchunk:length(fnwanted)
     %           selected it starts a kind 2 group at each age j0+K.
     %   kind 2, the pair (j0, j0+K): m0, m0*S1, m0*S1^2, m0*S2, m0*S2^2, m0*S1*S2 (six columns), started at age j0+K from the
     %           kind 1 group (masked by the restriction at age j0+K), read at age j0+K+M-1.
+    % The log of the 2-period window (simoptions.logwhichcombos), with g(s_t,s_t+1)=log(x_t+x_t+1) and H_t(s)=E[g|s_t=s], H2_t
+    % the same for g^2 (computed at each age over the edges of the transition, see (v-L)), and gc=g-c with c the mean of g at the start age:
+    %   kind 4, the pairs of start age j0: m0, m0*gc, m0*gc^2 (three columns), started at age j0 (over the age-j0+1 states, the forward
+    %           push of the start mass over the edges weighted by 1, gc, gc^2), read at each age j0+K with H_j0+K and H2_j0+K
+    %           (masked by the restriction at age j0+K): given the state at j0+K the second window is independent of the first.
     inflight=zeros(N_states,0,'gpuArray'); % the measures in flight, replaced once per age: [the kept columns, the new origin's columns] then the push
     ncols=0;
     ngrp=0;
@@ -699,6 +837,25 @@ for fc=1:maxfnchunk:length(fnwanted)
             slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,1),l_daprime,n_a,n_semizze,a_gridvals,semizze_gridvals_J(:,:,1));
             Values_next(:,fi)=reshape(slice,[N_states,1]);
         end
+        if fnlogbase(ff)>0
+            % An extra function fnname_log (simoptions.logwhichcombos): the log of the values. They must be positive on every agent
+            % with positive mass in the populations (pages) used; elsewhere (no mass) the value is set to log(1)=0 so it is finite.
+            used=false(N_states,1,'gpuArray');
+            if any(whichcombos(ff,:,1))
+                used=used | (StationaryDist(:,1)>0);
+            end
+            for rr=1:nRestr
+                if any(whichcombos(ff,:,1+rr))
+                    used=used | (StationaryDist(:,1).*RestrictionValues(:,1,rr)>0);
+                end
+            end
+            if any(Values_next(:,fi)<=0 & used)
+                error(['AutoCorrTransProbs_FHorz: simoptions.logwhichcombos asks for the log of ',FnsToEvalNames{fnlogbase(ff)},', but at age 1 it is zero or negative for some agents with positive mass in the population used (the whole age if the unrestricted outputs are wanted, else those satisfying the conditional restrictions that are wanted). The log needs it to be positive for all of them: use a conditional restriction (e.g. alive) to leave out the agents where it is not, or put a floor in the FnsToEvaluate.'])
+            end
+            temp=Values_next(:,fi);
+            temp(temp<=0)=1;
+            Values_next(:,fi)=log(temp);
+        end
     end
     for jj=1:N_j
         Values_j=Values_next; % N_states x nf, the values of the chunk's functions at age jj
@@ -712,6 +869,24 @@ for fc=1:maxfnchunk:length(fnwanted)
                 else
                     slice=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff},FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,jj+1),l_daprime,n_a,n_semizze,a_gridvals,semizze_gridvals_J(:,:,jj+1));
                     Values_next(:,fi)=reshape(slice,[N_states,1]);
+                end
+                if fnlogbase(ff)>0
+                    % An extra function fnname_log: the log of the values (as at age 1 above)
+                    used=false(N_states,1,'gpuArray');
+                    if any(whichcombos(ff,:,1))
+                        used=used | (StationaryDist(:,jj+1)>0);
+                    end
+                    for rr=1:nRestr
+                        if any(whichcombos(ff,:,1+rr))
+                            used=used | (StationaryDist(:,jj+1).*RestrictionValues(:,jj+1,rr)>0);
+                        end
+                    end
+                    if any(Values_next(:,fi)<=0 & used)
+                        error(['AutoCorrTransProbs_FHorz: simoptions.logwhichcombos asks for the log of ',FnsToEvalNames{fnlogbase(ff)},', but at age ',num2str(jj+1),' it is zero or negative for some agents with positive mass in the population used (the whole age if the unrestricted outputs are wanted, else those satisfying the conditional restrictions that are wanted). The log needs it to be positive for all of them: use a conditional restriction (e.g. alive) to leave out the agents where it is not, or put a floor in the FnsToEvaluate.'])
+                    end
+                    temp=Values_next(:,fi);
+                    temp(temp<=0)=1;
+                    Values_next(:,fi)=log(temp);
                 end
             end
         end
@@ -805,9 +980,12 @@ for fc=1:maxfnchunk:length(fnwanted)
         spawn_rr=zeros(1,0);
         spawn_lw=zeros(1,0);
         spawn_hh=zeros(1,0);
+        spawn_kind=zeros(1,0); % 2 (the level pairs; the log pairs are started in (v-L))
+        spawn_w=zeros(1,0); % the number of columns
+        spawn_last=zeros(1,0); % the last age the group is needed at
         if nW>0
             for g=1:ngrp
-                if grp_kind(g)==0
+                if grp_kind(g)==0 || grp_kind(g)>=3 % the single-period groups, and the log windows (iii-L)
                     continue
                 end
                 fi=grp_fi(g);
@@ -853,6 +1031,9 @@ for fc=1:maxfnchunk:length(fnwanted)
                             spawn_rr(nspawn)=rr;
                             spawn_lw(nspawn)=lw;
                             spawn_hh(nspawn)=hh;
+                            spawn_kind(nspawn)=2;
+                            spawn_w(nspawn)=6;
+                            spawn_last(nspawn)=jj+M-1;
                         end
                     end
                     % Add age jj to the first window (the origin age was added when the group started)
@@ -977,6 +1158,8 @@ for fc=1:maxfnchunk:length(fnwanted)
             if nW>0
                 iswindow=(grp_kind(1:ngrp)~=0);
                 keepg(iswindow)=(jj+1<=grp_last(iswindow)); % a window group is kept until its last age
+                islogpair=(grp_kind(1:ngrp)==4);
+                keepg(islogpair)=(jj<=grp_last(islogpair)); % a kind 4 group is read at age jj after this drop (in (v-L)), so it is kept through its last age
             end
             keepcols=false(1,ncols);
             for g=1:ngrp
@@ -1108,24 +1291,26 @@ for fc=1:maxfnchunk:length(fnwanted)
                     end
                 end
             end
-            % The kind 2 groups started at age jj in (iii-w) go after the new origin's columns
+            % The groups started at age jj in (iii-w) go after the new origin's columns
+            spawnoffset=0;
             for ss=1:nspawn
                 ngrp=ngrp+1;
                 grp_origin(ngrp)=spawn_origin(ss);
                 grp_fi(ngrp)=spawn_fi(ss);
                 grp_rr(ngrp)=spawn_rr(ss);
-                grp_col(ngrp)=nkeepcols+nnew+6*(ss-1)+1;
-                grp_kind(ngrp)=2;
-                grp_w(ngrp)=6;
+                grp_col(ngrp)=nkeepcols+nnew+spawnoffset+1;
+                grp_kind(ngrp)=spawn_kind(ss);
+                grp_w(ngrp)=spawn_w(ss);
                 grp_lw(ngrp)=spawn_lw(ss);
                 grp_hh(ngrp)=spawn_hh(ss);
                 grp_sel(ngrp)=0;
-                grp_last(ngrp)=spawn_origin(ss)+horizons(spawn_hh(ss))+windowM(spawn_lw(ss))-1;
+                grp_last(ngrp)=spawn_last(ss);
+                spawnoffset=spawnoffset+spawn_w(ss);
             end
             % The push input of age jj: the kept columns and the new origin's columns (one copy; nothing when nothing changed)
             if nspawn>0
                 inflight=[inflight(:,keepcols),newcols(:,1:nnew),spawncols{:}];
-                ncols=nkeepcols+nnew+6*nspawn;
+                ncols=nkeepcols+nnew+spawnoffset;
             elseif nkeepcols<ncols || nnew>0
                 inflight=[inflight(:,keepcols),newcols(:,1:nnew)];
                 ncols=nkeepcols+nnew;
@@ -1141,7 +1326,17 @@ for fc=1:maxfnchunk:length(fnwanted)
                 end
             end
 
-            if ncols>0 || anytransprobs==1
+            % The log windows of age jj (when wanted) also use the age-jj policy step, in a backward step (v-L)
+            needH=0;
+            if uselogW && hasmassJ(jj) && hasmassJ(jj+1)
+                for fi=1:nf
+                    if any(wcLogW(ffs(fi),:,:,:),'all')
+                        needH=1;
+                    end
+                end
+            end
+
+            if ncols>0 || anytransprobs==1 || needH==1
                 % The policy step of age jj: maps a measure over the age-jj states (a,semiz,z,e) to a measure over (a',semiz',z) [z kept, e summed out]
                 if N_semiz==0
                     if simoptions.gridinterplayer==0
@@ -1163,6 +1358,205 @@ for fc=1:maxfnchunk:length(fnwanted)
                     end
                 end
 
+                % (v-L) The log of the 2-period windows at age jj (before the push, so the in-flight measures are over the age-jj
+                % states). The window log(x_jj(s)+x_jj+1(s')) depends on the transition (s,s'), so it is put on the edges of the age-jj
+                % transition: the nonzeros of the policy step (s to (a',semiz',z), with its probability) times each z' (pi_z) and each
+                % e' (pi_e of age jj+1) give every edge (s,s') with its probability, and a weight on the edges is summed over the
+                % edges into s (a backward step) or into s' (a forward push). This is exact for any function (one pass over the edges
+                % for each e', N_z' columns at a time). H(s)=E[log(x_jj+x_jj+1)|s_jj=s], H2 the same for the square, and HB the
+                % probability that x_jj+x_jj+1<=0. Then the Mean and StdDeviation of log W_jj over each page wanted (sums of m0*H,
+                % m0*H2), the reads of the kind 4 groups whose second window starts at jj (given the state at jj the second window does
+                % not depend on the first, so the pair moments are sums of the in-flight m0, m0*gc, m0*gc^2 against H and H2), and the
+                % start of the kind 4 groups of start age jj (the forward push of the start mass weighted by gc=log(x_jj+x_jj+1)-c,
+                % c the mean of log W_jj on the page), which join the in-flight measures after the push below.
+                nlogstart=0;
+                logstartcols=cell(1,0);
+                logstart_fi=zeros(1,0);
+                logstart_rr=zeros(1,0);
+                logstart_lw=zeros(1,0);
+                logstart_last=zeros(1,0);
+                if needH==1
+                    [eG_row,eG_src,eG_val]=find(Gammatranspose_jj); % the nonzeros of the policy step: the (a',semiz',z) index, the age-jj state, the probability
+                    eG_as=mod(eG_row-1,N_a*N_semizr)+1; % the (a',semiz') part
+                    if N_z>0
+                        eG_pz=pi_z_J_gpu(floor((eG_row-1)/(N_a*N_semizr))+1,:,jj); % nnz x N_zr: the probability of each z' given the age-jj z
+                    else
+                        eG_pz=ones(numel(eG_row),1,'gpuArray');
+                    end
+                    eG_dest0=eG_as+N_a*N_semizr*(0:1:N_zr-1); % nnz x N_zr: the age-jj+1 state of each edge, for e'=1
+                    for fi=1:nf
+                        ff=ffs(fi);
+                        for lw=1:nW
+                            if windowM(lw)~=2 || ~any(wcLogW(ff,:,:,lw),'all')
+                                continue
+                            end
+                            xt=Values_j(:,fi);
+                            xn=Values_next(:,fi);
+                            H=zeros(N_states,1,'gpuArray');
+                            H2=zeros(N_states,1,'gpuArray');
+                            HB=zeros(N_states,1,'gpuArray');
+                            for ee=1:N_er
+                                if N_e>0
+                                    eG_w=eG_val.*eG_pz*pi_e_J_gpu(ee,jj+1); % nnz x N_zr: the probability of each edge
+                                else
+                                    eG_w=eG_val.*eG_pz;
+                                end
+                                eG_dest=eG_dest0+N_a*N_semizr*N_zr*(ee-1);
+                                W=xt(eG_src)+xn(eG_dest); % the 2-period sum on each edge
+                                bad=(W<=0);
+                                W(bad)=1;
+                                G=log(W);
+                                H=H+accumarray(eG_src,sum(eG_w.*G,2),[N_states,1]);
+                                H2=H2+accumarray(eG_src,sum(eG_w.*G.^2,2),[N_states,1]);
+                                HB=HB+accumarray(eG_src,sum(eG_w.*bad,2),[N_states,1]);
+                            end
+                            % The Mean and StdDeviation of log W_jj, over each page whose log is wanted at some start age
+                            for pp=1:nwhichpages
+                                if ~any(wcLogW(ff,:,pp,lw))
+                                    continue
+                                end
+                                rr=pp-1;
+                                if rr==0
+                                    m0=StationaryDist(:,jj)./massJ(jj);
+                                else
+                                    m0=StationaryDist(:,jj).*RestrictionValues(:,jj,rr);
+                                end
+                                mass=sum(m0);
+                                if mass>0
+                                    if sum(m0.*HB)>0
+                                        error(['AutoCorrTransProbs_FHorz: simoptions.logwhichcombos asks for the log of the 2-period sum/average of ',FnsToEvalNames{ff},' starting at age ',num2str(jj),', but it is zero or negative for some agents with positive mass in the population used (the whole age if the unrestricted outputs are wanted, else those satisfying the conditional restriction at the start age). The log needs it to be positive for all of them: use a conditional restriction (e.g. alive) to leave out the agents where it is not, or put a floor in the FnsToEvaluate.'])
+                                    end
+                                    e1=sum(m0.*H)/mass;
+                                    E2=sum(m0.*H2)/mass;
+                                    v1=E2-e1^2;
+                                    if v1<=64*eps*E2
+                                        v1=0; % below the rounding level of the difference it was computed as
+                                    end
+                                    if rr==0
+                                        LMean(ff,jj,lw)=e1;
+                                        LStdDev(ff,jj,lw)=sqrt(v1);
+                                    else
+                                        LMeanR(ff,jj,rr,lw)=e1;
+                                        LStdDevR(ff,jj,rr,lw)=sqrt(v1);
+                                    end
+                                end
+                            end
+                            % The pairs (j0, jj) of the kind 4 groups of this function and window length
+                            for g=1:ngrp
+                                if grp_kind(g)~=4 || grp_fi(g)~=fi || grp_lw(g)~=lw
+                                    continue
+                                end
+                                jj0=grp_origin(g);
+                                hh=find(horizons==jj-jj0);
+                                if isempty(hh) || ~all(hasmassJ([jj0,jj0+1,jj,jj+1]))
+                                    continue
+                                end
+                                rr=grp_rr(g);
+                                c0=grp_col(g);
+                                if rr==0
+                                    pairs=inflight(:,c0:c0+2);
+                                else
+                                    pairs=inflight(:,c0:c0+2).*RestrictionValues(:,jj,rr); % keep those who satisfy the restriction at age jj too
+                                end
+                                pairmass=sum(pairs(:,1));
+                                if rr>0
+                                    LPairMass{hh}(ff,jj0,rr,lw)=pairmass;
+                                end
+                                if pairmass>0
+                                    if sum(pairs(:,1).*HB)>0
+                                        error(['AutoCorrTransProbs_FHorz: simoptions.logwhichcombos asks for the log of the 2-period sum/average of ',FnsToEvalNames{ff},' starting at age ',num2str(jj),' (the second window of the pairs starting at age ',num2str(jj0),'), but it is zero or negative for some agents with positive mass in the pair population. The log needs it to be positive for all of them: use a conditional restriction (e.g. alive) to leave out the agents where it is not, or put a floor in the FnsToEvaluate.'])
+                                    end
+                                    e1=sum(pairs(:,2))/pairmass;
+                                    raw1=sum(pairs(:,3))/pairmass;
+                                    v1=raw1-e1^2;
+                                    if v1<=64*eps*raw1
+                                        v1=0; % below the rounding level of the difference it was computed as
+                                    end
+                                    e2=sum(pairs(:,1).*H)/pairmass;
+                                    raw2=sum(pairs(:,1).*H2)/pairmass;
+                                    v2=raw2-e2^2;
+                                    if v2<=64*eps*raw2
+                                        v2=0;
+                                    end
+                                    covxy=sum(pairs(:,2).*H)/pairmass-e1*e2;
+                                    denom=sqrt(v1)*sqrt(v2);
+                                    if rr==0
+                                        LAutoCov{hh}(ff,jj0,lw)=covxy;
+                                        if denom>1e-15
+                                            LAutoCorr{hh}(ff,jj0,lw)=covxy/denom;
+                                        end
+                                    else
+                                        cmean=LMeanR(ff,jj0,rr,lw); % the centering constant of gc (as in (iii-L))
+                                        if isnan(cmean)
+                                            cmean=0;
+                                        end
+                                        LPairMean_j{hh}(ff,jj0,rr,lw)=cmean+e1;
+                                        LPairMean_jplusk{hh}(ff,jj0,rr,lw)=e2;
+                                        LPairStdDev_j{hh}(ff,jj0,rr,lw)=sqrt(v1);
+                                        LPairStdDev_jplusk{hh}(ff,jj0,rr,lw)=sqrt(v2);
+                                        LAutoCovR{hh}(ff,jj0,rr,lw)=covxy;
+                                        if denom>1e-15
+                                            LAutoCorrR{hh}(ff,jj0,rr,lw)=covxy/denom;
+                                        end
+                                    end
+                                end
+                            end
+                            % Start the pairs of start age jj (kind 4) on each page whose start age jj is selected for the log: the first
+                            % window ends at age jj+1, so its measures over the age-jj+1 states, m0, m0*gc and m0*gc^2, are the forward
+                            % push of the start mass over the edges, weighted by 1, gc and gc^2 (gc=log(x_jj+x_jj+1)-c)
+                            Kfit=horizons(jj+horizons+1<=N_j); % the horizons whose second window fits
+                            if ~isempty(Kfit)
+                                for pp=1:nwhichpages
+                                    if wcLogW(ff,jj,pp,lw)~=1
+                                        continue
+                                    end
+                                    rr=pp-1;
+                                    if rr==0
+                                        m0=StationaryDist(:,jj)./massJ(jj);
+                                        cmean=LMean(ff,jj,lw);
+                                    else
+                                        m0=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
+                                        if sum(m0)==0
+                                            for hh=1:nhorizons
+                                                if jj+horizons(hh)+1<=N_j
+                                                    LPairMass{hh}(ff,jj,rr,lw)=0; % nobody at age jj satisfies the restriction (the age itself has mass)
+                                                end
+                                            end
+                                            continue
+                                        end
+                                        cmean=LMeanR(ff,jj,rr,lw);
+                                    end
+                                    if isnan(cmean)
+                                        cmean=0;
+                                    end
+                                    F3=zeros(N_states,3,'gpuArray');
+                                    for ee=1:N_er
+                                        if N_e>0
+                                            eG_w=eG_val.*eG_pz*pi_e_J_gpu(ee,jj+1);
+                                        else
+                                            eG_w=eG_val.*eG_pz;
+                                        end
+                                        eG_dest=eG_dest0+N_a*N_semizr*N_zr*(ee-1);
+                                        W=xt(eG_src)+xn(eG_dest);
+                                        W(W<=0)=1; % no mass there (the Mean above refused W<=0 with mass on this page)
+                                        Gc=log(W)-cmean;
+                                        mw=m0(eG_src).*eG_w; % nnz x N_zr: the start mass on each edge
+                                        F3(:,1)=F3(:,1)+accumarray(eG_dest(:),mw(:),[N_states,1]);
+                                        F3(:,2)=F3(:,2)+accumarray(eG_dest(:),mw(:).*Gc(:),[N_states,1]);
+                                        F3(:,3)=F3(:,3)+accumarray(eG_dest(:),mw(:).*Gc(:).^2,[N_states,1]);
+                                    end
+                                    nlogstart=nlogstart+1;
+                                    logstartcols{nlogstart}=F3;
+                                    logstart_fi(nlogstart)=fi;
+                                    logstart_rr(nlogstart)=rr;
+                                    logstart_lw(nlogstart)=lw;
+                                    logstart_last(nlogstart)=jj+max(Kfit);
+                                end
+                            end
+                        end
+                    end
+                end
+
                 % The push from age jj to age jj+1 of everything in flight: the Tan step, all the measures as columns
                 if ncols>0
                     temp=Gammatranspose_jj*inflight; % policy step: now over (a',semiz',z), (N_a*N_semizr*N_zr) x ncols
@@ -1173,6 +1567,24 @@ for fc=1:maxfnchunk:length(fnwanted)
                         temp=reshape(reshape(temp,[N_a*N_semizr*N_zr,1,ncols]).*reshape(pi_e_J_gpu(:,jj+1),[1,N_er]),[N_states,ncols]); % e step: the e realized at age jj+1 is the slowest index of the states (the layout of kron(pi_e,.))
                     end
                     inflight=temp; % now measures over the age-(jj+1) states (no copy)
+                end
+                % The kind 4 groups started at age jj in (v-L), already over the age-jj+1 states, go after the pushed measures
+                if nlogstart>0
+                    for ss=1:nlogstart
+                        ngrp=ngrp+1;
+                        grp_origin(ngrp)=jj;
+                        grp_fi(ngrp)=logstart_fi(ss);
+                        grp_rr(ngrp)=logstart_rr(ss);
+                        grp_col(ngrp)=ncols+3*(ss-1)+1;
+                        grp_kind(ngrp)=4;
+                        grp_w(ngrp)=3;
+                        grp_lw(ngrp)=logstart_lw(ss);
+                        grp_hh(ngrp)=0;
+                        grp_sel(ngrp)=0;
+                        grp_last(ngrp)=logstart_last(ss);
+                    end
+                    inflight=[inflight,logstartcols{:}];
+                    ncols=ncols+3*nlogstart;
                 end
 
                 % (iv) Transition probabilities between value bins at age jj (unrestricted, horizon 1), on the cpu as the
@@ -1351,9 +1763,56 @@ for lw=1:nW
     end
 end
 
-CorrTransProbs.Notes='Mean and StdDeviation are 1xN_j. AutoCovariance and AutoCorrelation are 1x(N_j-1), with index jj corresponding to the transition from age jj to age jj+1; AutoCovariance_kK and AutoCorrelation_kK (for K in simoptions.timehorizons) are 1x(N_j-K), index jj is the pair of ages jj and jj+K. Under a conditional restriction the auto-covariances are over the pairs that satisfy the restriction at both ages, centered on the pair means (PairMean_j, PairMean_jplusk), and PairMass is the population mass of those pairs. TransitionProbs (when requested) is a cell {N_j-1} of (possibly varying-size) matrices, or a 3-D (nquantiles, nquantiles, N_j-1) array when simoptions.transprobquantiles is set. TransitionValues_j and TransitionValues_jplus1 (cells {N_j-1}) give the unique function values labelling the rows and columns of TransitionProbs{jj} respectively, and TransitionMass_j (cell {N_j-1}) gives the within-age mass of each origin bin/row (none of these are provided when using transprobquantiles, where bins are quantiles rather than values).';
+% The log-of-window outputs, under [fnname,'_',M,'periodAverage_log'] (or 'periodSum_log'); computed with the log of the sum,
+% so for averages the means are shifted by -log(M) (the std devs, covariances, correlations and pair masses are the same)
+for lw=1:nW
+    if ~uselogW
+        break
+    end
+    M=windowM(lw);
+    if strcmp(simoptions.ntimeperiodstype,'average')
+        logshift=log(M);
+    else
+        logshift=0;
+    end
+    for ff=1:numFnsToEvaluate
+        if ~any(wcLogW(ff,:,:,lw),'all') % the log of this function and window length is not wanted
+            continue
+        end
+        lname=[FnsToEvalNames{ff},'_',num2str(M),windowstr,'_log'];
+        if any(wcLogW(ff,:,1,lw)) % the unrestricted outputs are wanted
+            CorrTransProbs.(lname).Mean=LMean(ff,:,lw)-logshift;
+            CorrTransProbs.(lname).StdDeviation=LStdDev(ff,:,lw);
+            for hh=1:nhorizons
+                CorrTransProbs.(lname).(['AutoCovariance',horizonstr{hh}])=LAutoCov{hh}(ff,:,lw);
+                CorrTransProbs.(lname).(['AutoCorrelation',horizonstr{hh}])=LAutoCorr{hh}(ff,:,lw);
+            end
+        end
+        for rr=1:nRestr
+            if ~any(wcLogW(ff,:,1+rr,lw)) % this restriction is not wanted for the log of this function and window length
+                continue
+            end
+            CorrTransProbs.(CondlRestnFnNames{rr}).(lname).Mean=LMeanR(ff,:,rr,lw)-logshift;
+            CorrTransProbs.(CondlRestnFnNames{rr}).(lname).StdDeviation=LStdDevR(ff,:,rr,lw);
+            for hh=1:nhorizons
+                CorrTransProbs.(CondlRestnFnNames{rr}).(lname).(['AutoCovariance',horizonstr{hh}])=LAutoCovR{hh}(ff,:,rr,lw);
+                CorrTransProbs.(CondlRestnFnNames{rr}).(lname).(['AutoCorrelation',horizonstr{hh}])=LAutoCorrR{hh}(ff,:,rr,lw);
+                CorrTransProbs.(CondlRestnFnNames{rr}).(lname).(['PairMass',horizonstr{hh}])=LPairMass{hh}(ff,:,rr,lw);
+                CorrTransProbs.(CondlRestnFnNames{rr}).(lname).(['PairMean_j',horizonstr{hh}])=LPairMean_j{hh}(ff,:,rr,lw)-logshift;
+                CorrTransProbs.(CondlRestnFnNames{rr}).(lname).(['PairMean_jplusk',horizonstr{hh}])=LPairMean_jplusk{hh}(ff,:,rr,lw)-logshift;
+                CorrTransProbs.(CondlRestnFnNames{rr}).(lname).(['PairStdDeviation_j',horizonstr{hh}])=LPairStdDev_j{hh}(ff,:,rr,lw);
+                CorrTransProbs.(CondlRestnFnNames{rr}).(lname).(['PairStdDeviation_jplusk',horizonstr{hh}])=LPairStdDev_jplusk{hh}(ff,:,rr,lw);
+            end
+        end
+    end
+end
+
+CorrTransProbs.Notes='Mean and StdDeviation are 1xN_j. The auto-covariances and auto-correlations are computed at exactly the horizons K in simoptions.timehorizons (default 1): AutoCovariance and AutoCorrelation (horizon 1) are 1x(N_j-1), index jj the pair of ages jj and jj+1; AutoCovariance_horizonK and AutoCorrelation_horizonK (K>1) are 1x(N_j-K), index jj the pair of ages jj and jj+K. Under a conditional restriction the auto-covariances are over the pairs that satisfy the restriction at both ages, centered on the pair means (PairMean_j, PairMean_jplusk), and PairMass is the population mass of those pairs. TransitionProbs (when requested) is a cell {N_j-1} of (possibly varying-size) matrices, or a 3-D (nquantiles, nquantiles, N_j-1) array when simoptions.transprobquantiles is set. TransitionValues_j and TransitionValues_jplus1 (cells {N_j-1}) give the unique function values labelling the rows and columns of TransitionProbs{jj} respectively, and TransitionMass_j (cell {N_j-1}) gives the within-age mass of each origin bin/row (none of these are provided when using transprobquantiles, where bins are quantiles rather than values).';
 if nW>0
     CorrTransProbs.Notes=[CorrTransProbs.Notes,' The fields fnname_MperiodAverage (or fnname_MperiodSum), for each M>1 in simoptions.ntimeperiods, are the same statistics of the average (sum) W_j of the function over the M ages j,...,j+M-1: Mean and StdDeviation of W_j, and the auto-covariances/-correlations between W_j and W_{j+K} (the windows starting at ages j and j+K, K in model periods; the windows overlap when K<M); under a conditional restriction the pairs satisfy the restriction at the two window start ages j and j+K. The last M-1 entries are NaN (the window runs past age N_j).'];
+end
+if uselog
+    CorrTransProbs.Notes=[CorrTransProbs.Notes,' The fields fnname_log and fnname_MperiodAverage_log (or _MperiodSum_log) are the same statistics of the log of the function, or of the log of its M-period average (sum), at the combinations where simoptions.logwhichcombos is one.'];
 end
 
 end
