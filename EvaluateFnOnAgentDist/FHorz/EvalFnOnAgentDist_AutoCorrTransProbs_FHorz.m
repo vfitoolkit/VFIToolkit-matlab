@@ -67,7 +67,9 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 % on every agent with positive mass in the populations used (an error says where it is not; use a conditional
 % restriction, e.g. alive, or a floor in the FnsToEvaluate). The log of the M-period sum/average is implemented for M=2,
 % and needs non-overlapping windows (horizons K>=2); it is exact for any function (the log of the window is put on the edges
-% of the transition between the two ages).
+% of the transition between the two ages). The Mean and StdDeviation of the log of a window are computed only at the
+% ages the selection needs (the selected start ages, and those plus each horizon), and are NaN at the others (unlike the level
+% windows and fnname_log, which report them at every age: for the log of a window each age costs a pass over the transition).
 %
 % Note: an age with zero mass (e.g. before the entry age of a cohort started using
 % simoptions.jequaloneDistAge) gets NaN in every output that involves it.
@@ -825,6 +827,29 @@ for fc=1:maxfnchunk:length(fnwanted)
     grp_hh=zeros(1,nf*maxgroups);
     grp_last=zeros(1,nf*maxgroups);
     grp_sel=zeros(1,nf*maxgroups);
+    % The ages at which the log windows of the chunk's functions are needed (simoptions.logwhichcombos): a selected start age j0
+    % (on some page: its Mean and StdDeviation, and the start of its pairs) and j0+K for each horizon K whose second window fits
+    % (the reads of the pairs). H, and so the Mean and StdDeviation of the log window, is computed only at these ages.
+    needLogAge=false(nf,max(nW,1),N_j);
+    if uselogW
+        for fi=1:nf
+            for lw=1:nW
+                if windowM(lw)~=2
+                    continue
+                end
+                selj=reshape(any(wcLogW(ffs(fi),:,:,lw),3),[1,N_j]); % the start ages selected on some page
+                selj(N_j)=false; % (a window starting at age N_j does not fit)
+                needLogAge(fi,lw,:)=reshape(selj,[1,1,N_j]);
+                for hh=1:nhorizons
+                    for j0=find(selj)
+                        if j0+horizons(hh)+1<=N_j
+                            needLogAge(fi,lw,j0+horizons(hh))=true;
+                        end
+                    end
+                end
+            end
+        end
+    end
     % (i) Values of the chunk's functions, one age at a time, evaluated one age ahead (the transition probabilities of
     % age jj need the values at jj+1): Values_next holds age 1 here, and age jj+1 inside the loop
     Values_next=zeros(N_states,nf,'gpuArray');
@@ -1330,7 +1355,7 @@ for fc=1:maxfnchunk:length(fnwanted)
             needH=0;
             if uselogW && hasmassJ(jj) && hasmassJ(jj+1)
                 for fi=1:nf
-                    if any(wcLogW(ffs(fi),:,:,:),'all')
+                    if any(needLogAge(fi,:,jj)) % some log window of this function needs age jj
                         needH=1;
                     end
                 end
@@ -1387,7 +1412,7 @@ for fc=1:maxfnchunk:length(fnwanted)
                     for fi=1:nf
                         ff=ffs(fi);
                         for lw=1:nW
-                            if windowM(lw)~=2 || ~any(wcLogW(ff,:,:,lw),'all')
+                            if windowM(lw)~=2 || ~needLogAge(fi,lw,jj) % age jj is not a selected start age nor a read of one
                                 continue
                             end
                             xt=Values_j(:,fi);
@@ -1395,6 +1420,8 @@ for fc=1:maxfnchunk:length(fnwanted)
                             H=zeros(N_states,1,'gpuArray');
                             H2=zeros(N_states,1,'gpuArray');
                             HB=zeros(N_states,1,'gpuArray');
+                            eG_wcache=cell(1,N_er); % the probabilities and the log of the 2-period sum on the edges, for each e', computed once and used again for the forward starts below
+                            eG_Gcache=cell(1,N_er);
                             for ee=1:N_er
                                 if N_e>0
                                     eG_w=eG_val.*eG_pz*pi_e_J_gpu(ee,jj+1); % nnz x N_zr: the probability of each edge
@@ -1409,6 +1436,8 @@ for fc=1:maxfnchunk:length(fnwanted)
                                 H=H+accumarray(eG_src,sum(eG_w.*G,2),[N_states,1]);
                                 H2=H2+accumarray(eG_src,sum(eG_w.*G.^2,2),[N_states,1]);
                                 HB=HB+accumarray(eG_src,sum(eG_w.*bad,2),[N_states,1]);
+                                eG_wcache{ee}=eG_w;
+                                eG_Gcache{ee}=G; % (log(1)=0 where the sum is not positive: those edges carry no mass on the pages used, else the Mean below errors)
                             end
                             % The Mean and StdDeviation of log W_jj, over each page whose log is wanted at some start age
                             for pp=1:nwhichpages
@@ -1531,16 +1560,9 @@ for fc=1:maxfnchunk:length(fnwanted)
                                     end
                                     F3=zeros(N_states,3,'gpuArray');
                                     for ee=1:N_er
-                                        if N_e>0
-                                            eG_w=eG_val.*eG_pz*pi_e_J_gpu(ee,jj+1);
-                                        else
-                                            eG_w=eG_val.*eG_pz;
-                                        end
                                         eG_dest=eG_dest0+N_a*N_semizr*N_zr*(ee-1);
-                                        W=xt(eG_src)+xn(eG_dest);
-                                        W(W<=0)=1; % no mass there (the Mean above refused W<=0 with mass on this page)
-                                        Gc=log(W)-cmean;
-                                        mw=m0(eG_src).*eG_w; % nnz x N_zr: the start mass on each edge
+                                        Gc=eG_Gcache{ee}-cmean; % the edge weights computed for H above
+                                        mw=m0(eG_src).*eG_wcache{ee}; % nnz x N_zr: the start mass on each edge
                                         F3(:,1)=F3(:,1)+accumarray(eG_dest(:),mw(:),[N_states,1]);
                                         F3(:,2)=F3(:,2)+accumarray(eG_dest(:),mw(:).*Gc(:),[N_states,1]);
                                         F3(:,3)=F3(:,3)+accumarray(eG_dest(:),mw(:).*Gc(:).^2,[N_states,1]);
