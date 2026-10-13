@@ -14,7 +14,10 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(Station
 % N_j must be the same for all types (no per-type N_j, no agejshifter).
 %
 % See EvalFnOnAgentDist_AutoCorrTransProbs_FHorz for the simoptions (timehorizons,
-% conditionalrestrictions, transprobs, transprobquantiles) and the outputs.
+% conditionalrestrictions, transprobs, transprobquantiles, ntimeperiods, ntimeperiodstype) and the outputs.
+% With simoptions.ntimeperiods (multi-period sums/averages) the outputs of the window rows, [fnname,'_',M,'periodAverage']
+% (or 'periodSum'), are reported per type and grouped exactly as those of a function (a window row is a function whose
+% age-j value is the sum/average over ages j,...,j+M-1), and the rows of simoptions.whichcombos are in blocks of the window lengths.
 %
 % Output:
 %   CorrTransProbs.(fnname).(typename)   the per-type output of EvalFnOnAgentDist_AutoCorrTransProbs_FHorz
@@ -61,6 +64,8 @@ if ~exist('simoptions','var')
     simoptions.verboseparams=0;
     simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     simoptions.timehorizons=[];
+    simoptions.ntimeperiods=1; % the statistics of the sum/average over M consecutive periods, for each M in ntimeperiods (1 is the single period)
+    simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
 else
     if ~isfield(simoptions,'groupptypesforstats')
         simoptions.groupptypesforstats=1;
@@ -79,6 +84,12 @@ else
     end
     if ~isfield(simoptions,'timehorizons')
         simoptions.timehorizons=[];
+    end
+    if ~isfield(simoptions,'ntimeperiods')
+        simoptions.ntimeperiods=1; % the statistics of the sum/average over M consecutive periods, for each M in ntimeperiods (1 is the single period)
+    end
+    if ~isfield(simoptions,'ntimeperiodstype')
+        simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
     end
 end
 
@@ -109,6 +120,31 @@ if isfield(simoptions,'conditionalrestrictions')
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
 end
 
+% The rows: simoptions.ntimeperiods gives blocks of numFnsToEvaluate rows, one per window length M (in the order given); row
+% (bb-1)*numFnsToEvaluate+ff is function ff with M=ntimeperiods(bb), reported under the function name when M=1 and under
+% [fnname,'_',M,'periodAverage'] (or 'periodSum') when M>1. The per-type command checks the values.
+ntimeperiods=gather(simoptions.ntimeperiods(:)');
+nblocks=length(ntimeperiods);
+nrowswc=nblocks*numFnsToEvaluate;
+if strcmp(simoptions.ntimeperiodstype,'sum')
+    windowstr='periodSum';
+else
+    windowstr='periodAverage';
+end
+rowff=zeros(nrowswc,1); % the function of each row
+RowNames=cell(nrowswc,1); % the output name of each row
+for bb=1:nblocks
+    for ff=1:numFnsToEvaluate
+        r=(bb-1)*numFnsToEvaluate+ff;
+        rowff(r)=ff;
+        if ntimeperiods(bb)==1
+            RowNames{r}=FnsToEvalNames{ff};
+        else
+            RowNames{r}=[FnsToEvalNames{ff},'_',num2str(ntimeperiods(bb)),windowstr];
+        end
+    end
+end
+
 %% simoptions.whichcombos: which (fn, start age, restriction) combinations to compute
 % [numFnsToEvaluate, N_j, 1+number of conditional restrictions] of zeros/ones: page 1 is the unrestricted outputs, pages 2:end the
 % restrictions in the fieldnames order of simoptions.conditionalrestrictions; the second dimension is the start age of the
@@ -129,8 +165,10 @@ end
 % whenever it was computed. The grouped output is reported only where the grouped slot asks (the grouped age-j Mean/StdDeviation of a (fn, page)
 % wherever any grouped start age of it is on, as they are computed anyway). An input without the type
 % dimension applies to every ptype and to the grouped stats. Intended for calibration/estimation.
+% With simoptions.ntimeperiods of length L>1 the rows are the L blocks of the window lengths (see above); an input with
+% numFnsToEvaluate rows applies to every M.
 if ~isfield(simoptions,'whichcombos')
-    whichcombosAll=ones(numFnsToEvaluate,N_j,nwhichpages,N_i+1); % whichcombos here is [nFns, N_j, 1+nRestr, N_i+1]
+    whichcombosAll=ones(nrowswc,N_j,nwhichpages,N_i+1); % whichcombos here is [nRows, N_j, 1+nRestr, N_i+1]
 else
     whichcombos=simoptions.whichcombos;
     if isstruct(N_j)
@@ -139,22 +177,30 @@ else
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
         error('simoptions.whichcombos must contain only zeros and ones')
     end
-    if ismatrix(whichcombos) && isequal(size(whichcombos),[numFnsToEvaluate,nwhichpages]) && nwhichpages~=N_j
-        whichcombos=repmat(reshape(whichcombos,[numFnsToEvaluate,1,nwhichpages]),[1,N_j,1]); % (fn, page): apply to every start age
-    elseif ismatrix(whichcombos) && isequal(size(whichcombos),[numFnsToEvaluate,N_j])
+    nrowsin=size(whichcombos,1); % numFnsToEvaluate, or nblocks*numFnsToEvaluate
+    if ismatrix(whichcombos) && isequal(size(whichcombos),[nrowsin,nwhichpages]) && nwhichpages~=N_j && (nrowsin==numFnsToEvaluate || nrowsin==nrowswc)
+        whichcombos=repmat(reshape(whichcombos,[nrowsin,1,nwhichpages]),[1,N_j,1]); % (fn, page): apply to every start age
+    elseif ismatrix(whichcombos) && isequal(size(whichcombos),[nrowsin,N_j]) && (nrowsin==numFnsToEvaluate || nrowsin==nrowswc)
         whichcombos=repmat(whichcombos,[1,1,nwhichpages]); % (fn, start age): apply to every page
     end
-    if ndims(whichcombos)<=3 && isequal(size(whichcombos,1:3),[numFnsToEvaluate,N_j,nwhichpages])
+    if nblocks>1 && nrowsin==numFnsToEvaluate
+        whichcombos=repmat(whichcombos,[nblocks,1,1,1]); % one selection for every M
+    end
+    if ndims(whichcombos)<=3 && isequal(size(whichcombos,1:3),[nrowswc,N_j,nwhichpages])
         whichcombos=repmat(whichcombos,[1,1,1,N_i+1]); % no type dimension: apply to every ptype and to the grouped stats
     end
-    if ~isequal(size(whichcombos,1:4),[numFnsToEvaluate,N_j,nwhichpages,N_i+1])
-        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(N_j),',',num2str(nwhichpages),'] (number of FnsToEvaluate, N_j, 1+number of conditional restrictions), optionally with a trailing type dimension of ',num2str(N_i+1),' (the permanent types in the order of Names_i, then the grouped stats)'])
+    if ~isequal(size(whichcombos,1:4),[nrowswc,N_j,nwhichpages,N_i+1])
+        if nblocks==1
+            error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(N_j),',',num2str(nwhichpages),'] (number of FnsToEvaluate, N_j, 1+number of conditional restrictions), optionally with a trailing type dimension of ',num2str(N_i+1),' (the permanent types in the order of Names_i, then the grouped stats)'])
+        else
+            error(['simoptions.whichcombos must be of size [',num2str(nrowswc),',',num2str(N_j),',',num2str(nwhichpages),'] (length of simoptions.ntimeperiods times the number of FnsToEvaluate, N_j, 1+number of conditional restrictions), or have ',num2str(numFnsToEvaluate),' rows to apply to every M, optionally with a trailing type dimension of ',num2str(N_i+1),' (the permanent types in the order of Names_i, then the grouped stats)'])
+        end
     end
     whichcombosAll=double(whichcombos);
 end
 whichcombosG=whichcombosAll(:,:,:,N_i+1); % the grouped stats; whichcombosAll(:,:,:,ii) is ptype ii
-fnwantedG=any(any(whichcombosG,2),3); % numFnsToEvaluate x 1: the functions with some grouped output wanted
-pagewantedG=reshape(any(whichcombosG,2),[numFnsToEvaluate,nwhichpages]); % (fn, page) combinations with some grouped start age selected
+rowwantedG=any(any(whichcombosG,2),3); % nRows x 1: the rows with some grouped output wanted
+pagewantedG=reshape(any(whichcombosG,2),[nrowswc,nwhichpages]); % (row, page) combinations with some grouped start age selected
 
 % The horizons and the suffixes of the output fields, exactly as in EvalFnOnAgentDist_AutoCorrTransProbs_FHorz
 horizons=unique([1,gather(simoptions.timehorizons(:)')]);
@@ -245,8 +291,9 @@ for ii=1:N_i
     [FnsToEvaluate_temp,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     % This ptype's selection: its own slot, plus whatever the grouped stats need (a grouped slot forces every type's computation)
     whichcombos_ii=max(whichcombosAll(:,:,:,ii),whichcombosG);
-    fnwanted_ii=any(any(whichcombos_ii,2),3); % numFnsToEvaluate x 1: the functions this type evaluates
-    pagewanted_ii=reshape(any(whichcombos_ii,2),[numFnsToEvaluate,nwhichpages]); % (fn, page) combinations with any start age selected for this type
+    rowwanted_ii=any(any(whichcombos_ii,2),3); % nRows x 1
+    fnwanted_ii=any(reshape(rowwanted_ii,[numFnsToEvaluate,nblocks]),2); % numFnsToEvaluate x 1: the functions this type evaluates (for some window length)
+    pagewanted_ii=reshape(any(whichcombos_ii,2),[nrowswc,nwhichpages]); % (row, page) combinations with any start age selected for this type
     % Drop the functions that whichcombos does not want from this type's evaluation
     FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii(:).*fnwanted_ii;
     for ff=1:numFnsToEvaluate
@@ -263,7 +310,7 @@ for ii=1:N_i
     end
 
     %% Compute for this type
-    simoptions_temp.whichcombos=whichcombos_ii(FnsAndPTypeIndicator_ii==1,:,:); % the selection for the functions this type evaluates, in their order (the per-type command acts on the start-age dimension)
+    simoptions_temp.whichcombos=whichcombos_ii(repmat(FnsAndPTypeIndicator_ii==1,nblocks,1),:,:); % the selection for the functions this type evaluates, in their order within each block of rows (the per-type command acts on the start-age dimension)
     CorrTransProbs_ii=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_temp);
     CorrTransProbs_byType{ii}=CorrTransProbs_ii;
     if simoptions.groupptypesforstats==1 && usequantiles && ~isempty(transprobnames)
@@ -274,6 +321,7 @@ for ii=1:N_i
         simoptions_temp_uv=rmfield(simoptions_temp_uv,'whichcombos'); % the grouped TransitionProbs pool every age
         simoptions_temp_uv.transprobquantiles=[];
         simoptions_temp_uv.timehorizons=[];
+        simoptions_temp_uv.ntimeperiods=1; % transition probabilities are single-period
         if isfield(simoptions_temp_uv,'conditionalrestrictions')
             simoptions_temp_uv=rmfield(simoptions_temp_uv,'conditionalrestrictions');
         end
@@ -292,17 +340,17 @@ for ii=1:N_i
     end
 
     % Store by type
-    for ff=1:numFnsToEvaluate
-        if FnsAndPTypeIndicator_ii(ff)==1 && pagewanted_ii(ff,1)
-            CorrTransProbs.(FnsToEvalNames{ff}).(iistr)=CorrTransProbs_ii.(FnsToEvalNames{ff});
+    for r=1:nrowswc
+        if FnsAndPTypeIndicator_ii(rowff(r))==1 && pagewanted_ii(r,1)
+            CorrTransProbs.(RowNames{r}).(iistr)=CorrTransProbs_ii.(RowNames{r});
         end
     end
     if useCondlRest==1
         for rr=1:length(CondlRestnFnNames)
             CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass.(iistr)=CorrTransProbs_ii.(CondlRestnFnNames{rr}).RestrictedSampleMass;
-            for ff=1:numFnsToEvaluate
-                if FnsAndPTypeIndicator_ii(ff)==1 && pagewanted_ii(ff,1+rr)
-                    CorrTransProbs.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(iistr)=CorrTransProbs_ii.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff});
+            for r=1:nrowswc
+                if FnsAndPTypeIndicator_ii(rowff(r))==1 && pagewanted_ii(r,1+rr)
+                    CorrTransProbs.(CondlRestnFnNames{rr}).(RowNames{r}).(iistr)=CorrTransProbs_ii.(CondlRestnFnNames{rr}).(RowNames{r});
                 end
             end
         end
@@ -315,12 +363,13 @@ if simoptions.groupptypesforstats==1
         fprintf('Permanent type: Grouped Stats \n')
     end
 
-    for ff=1:numFnsToEvaluate
-        fn=FnsToEvalNames{ff};
-        if ~fnwantedG(ff) % no grouped combination of this function is wanted
+    for r=1:nrowswc % the rows: each function for each window length (a window row pools exactly as a single-period function)
+        ff=rowff(r);
+        fn=RowNames{r};
+        if ~rowwantedG(r) % no grouped combination of this row is wanted
             continue
         end
-        if pagewantedG(ff,1) % the grouped unrestricted outputs of this function are wanted
+        if pagewantedG(r,1) % the grouped unrestricted outputs of this function are wanted
 
         % Per-type age-j means and std devs, and the pair covariances at each horizon, into arrays (NaN where not relevant/no mass)
         MeanVec=nan(N_i,N_j);
@@ -376,7 +425,7 @@ if simoptions.groupptypesforstats==1
                     end
                 end
             end
-            off=reshape(whichcombosG(ff,1:N_j-kk,1)==0,[1,N_j-kk]); % start ages the grouped slot does not ask for
+            off=reshape(whichcombosG(r,1:N_j-kk,1)==0,[1,N_j-kk]); % start ages the grouped slot does not ask for
             AutoCovG(off)=NaN;
             AutoCorrG(off)=NaN;
             CorrTransProbs.(fn).(['AutoCovariance',horizonstr{hh}])=AutoCovG;
@@ -402,7 +451,7 @@ if simoptions.groupptypesforstats==1
                 P_G_3d=nan(n_fvals,n_fvals,N_j-1);
             end
             for jj=1:N_j-1
-                if whichcombosG(ff,jj,1)==0
+                if whichcombosG(r,jj,1)==0
                     continue % the grouped slot does not ask for start age jj: the cell stays empty (NaN slice under quantiles)
                 end
                 w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*AgeMasses(:,jj);
@@ -476,12 +525,12 @@ if simoptions.groupptypesforstats==1
                 CorrTransProbs.(fn).TransitionMass_j=massbin_j_G;
             end
         end
-        end % pagewantedG(ff,1)
+        end % pagewantedG(r,1)
 
         %% Grouped restricted
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
-                if pagewantedG(ff,1+rr) % the grouped outputs of this restriction are wanted for this function
+                if pagewantedG(r,1+rr) % the grouped outputs of this restriction are wanted for this function
                 rname=CondlRestnFnNames{rr};
                 % Per-type restricted masses, means, std devs
                 RSMVec=zeros(N_i,N_j); % restricted mass of each type at each age (includes the type's age weights)
@@ -561,7 +610,7 @@ if simoptions.groupptypesforstats==1
                             end
                         end
                     end
-                    off=reshape(whichcombosG(ff,1:N_j-kk,1+rr)==0,[1,N_j-kk]); % start ages the grouped slot does not ask for
+                    off=reshape(whichcombosG(r,1:N_j-kk,1+rr)==0,[1,N_j-kk]); % start ages the grouped slot does not ask for
                     AutoCovRG(off)=NaN; AutoCorrRG(off)=NaN; PairMassG(off)=NaN; PairMeanxG(off)=NaN; PairMeanyG(off)=NaN; PairStdxG(off)=NaN; PairStdyG(off)=NaN;
                     CorrTransProbs.(rname).(fn).(['AutoCovariance',horizonstr{hh}])=AutoCovRG;
                     CorrTransProbs.(rname).(fn).(['AutoCorrelation',horizonstr{hh}])=AutoCorrRG;
@@ -571,7 +620,7 @@ if simoptions.groupptypesforstats==1
                     CorrTransProbs.(rname).(fn).(['PairStdDeviation_j',horizonstr{hh}])=PairStdxG;
                     CorrTransProbs.(rname).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}])=PairStdyG;
                 end
-                end % pagewantedG(ff,1+rr)
+                end % pagewantedG(r,1+rr)
             end
         end
     end
@@ -598,5 +647,8 @@ if simoptions.groupptypesforstats==1
 end
 
 CorrTransProbs.Notes='Per type: CorrTransProbs.(fn).(typename) is the output of EvalFnOnAgentDist_AutoCorrTransProbs_FHorz for that type (see its Notes). Grouped (CorrTransProbs.(fn).Mean etc.): Mean and StdDeviation at age j pool the types with weights ptweights*(mass of the type at age j); AutoCovariance and AutoCorrelation (and the _kK horizons) pool the pair populations of the types with weights ptweights*(pair mass), about the pooled pair means, so AutoCorrelation is the correlation of the pooled pair population. The same under each conditional restriction, where PairMass is the population mass of the pairs. Grouped TransitionProbs (when requested) pool the joint distributions of (value at j, value at j+1) of the types with weights ptweights*(mass of the type at age j) over the union of the value bins of the types, each row divided by the pooled mass of its origin bin (TransitionValues_j, TransitionValues_jplus1 label the union bins and TransitionMass_j is their within-age share of the pooled population); with simoptions.transprobquantiles the pooled joint is coarsened to the quantile bins of the pooled age-j and age-(j+1) value distributions.';
+if any(ntimeperiods>1)
+    CorrTransProbs.Notes=[CorrTransProbs.Notes,' The fields fnname_MperiodAverage (or fnname_MperiodSum), for each M>1 in simoptions.ntimeperiods, are the same statistics of the average (sum) of the function over M consecutive ages (see EvalFnOnAgentDist_AutoCorrTransProbs_FHorz), per type and grouped, pooled in the same way.'];
+end
 
 end
