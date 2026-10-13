@@ -330,8 +330,10 @@ else
         % and the seed sweep is the unrestricted one: with a d and no interpolation layer its return
         % matrix is about 2 GB at N_d=51, N_a=1001, N_z=5, against about 63 MB under DC. A model that
         % needs DC to be solvable at all can therefore still use local search.
-        % The RESTRICTED sweeps still refuse DC -- they restrict the search a different way -- and
-        % they ignore vfoptions.lowmemory, since a window fits whatever the full sweep needs.
+        % The RESTRICTED sweeps IGNORE DC, silently, as they ignore vfoptions.lowmemory: a window
+        % fits whatever the full sweep needs, and the window IS the restriction, so DC has nothing to
+        % add there. They used to REFUSE it, which meant a user who set divideandconquer for the
+        % memory reason above hit an error on the first restricted sweep and could not solve at all.
     end
 end
 

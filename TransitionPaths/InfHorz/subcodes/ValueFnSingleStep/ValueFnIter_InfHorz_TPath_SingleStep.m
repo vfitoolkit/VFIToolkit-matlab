@@ -126,9 +126,17 @@ if vfoptions.localsearch~=0 && vfoptions.localsearch~=1
 end
 
 if vfoptions.localsearch==1
-    if vfoptions.divideandconquer==1
-        error('vfoptions.localsearch=1 cannot yet be combined with vfoptions.divideandconquer=1')
-    end
+    % DIVIDE-AND-CONQUER IS IGNORED ON A RESTRICTED SWEEP, silently, exactly as lowmemory is. This
+    % used to be an ERROR, which made the whole combination unusable: the SEED sweeps honour DC
+    % because they are the full sweeps and DC is what keeps them in memory, so a user who sets
+    % divideandconquer=1 for that reason -- the only reason to set it on a big model -- hit the
+    % refusal on the first restricted sweep and could not solve at all. The two options do not
+    % compose on a restricted sweep (the window IS the restriction, and DC restricts the same search
+    % a different way), but that is a reason to ignore DC here, not to refuse the solve.
+    % So on a localsearch solve: full sweeps use DC and lowmemory as given, restricted sweeps use
+    % neither. Both are ignored in silence because that is the intended behaviour and a warning per
+    % period would be noise; it is documented on the options instead.
+    vfoptions.divideandconquer=0;
     if isscalar(n_a) && N_z>0
         % The reference holds the aprime index at the centre of each window, indexed by everything
         % the search conditions on: (a,z) with no d, and (d,a,z) with one. N_dref is 1 in the first
@@ -143,7 +151,7 @@ if vfoptions.localsearch==1
             % numel rather than size(...,3) because MATLAB drops a trailing singleton when N_z==1
             error('aprimeReferencePolicy must hold one aprime index per state the search conditions on: [1,N_a,N_z] with no d, [N_d,N_a,N_z] with d')
         end
-        % LOWMEMORY IS IGNORED ON A RESTRICTED SWEEP, SILENTLY AND BY DESIGN. lowmemory exists because
+        % LOWMEMORY IS IGNORED ON A RESTRICTED SWEEP TOO, SILENTLY AND BY DESIGN. lowmemory exists because
         % the unrestricted return matrix does not fit; the restricted one is a window and does fit, so
         % looping over z there would cost launches for nothing. The SEED sweeps above are the full
         % sweeps and they honour it, which is the point: a model that needs lowmemory to solve at all
