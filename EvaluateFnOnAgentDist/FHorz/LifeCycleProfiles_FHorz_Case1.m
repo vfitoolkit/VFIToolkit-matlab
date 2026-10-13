@@ -10,6 +10,30 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy
 %
 % Note that the quantile are what are typically reported as life-cycle profiles (or more precisely, the quantile cutoffs).
 %
+% Use simoptions.ntimeperiods (default 1) to get the same statistics of the sum or average of a function over M consecutive
+% periods: the statistic of a person at age j is W_j=x_j+...+x_{j+M-1} (simoptions.ntimeperiodstype='sum'), or that divided
+% by M (simoptions.ntimeperiodstype='average', the default). A vector, e.g. simoptions.ntimeperiods=[1,2,5], gives each of
+% them (M=1 is the single-period statistic). Any M>1 needs simoptions.agegroupings=1:1:N_j (the default), and needs the
+% transition probabilities of z as simoptions.pi_z (the same shapes as the pi_z input of StationaryDist_FHorz_Case1; not
+% needed with simoptions.ExogShockFn); the e and semi-exogenous shocks are read from simoptions as usual. All of the
+% statistics of W_j are exact (W_j depends on the path of the states from j to j+M-1, which is enumerated: the paths that
+% reach the same state with the same partial sum are merged, there is no approximation; the cost grows with M as the number
+% of distinct (state, partial sum) pairs, so a large M with many shocks can run out of memory). Conditional restrictions
+% are evaluated at the window start age j. The M=1 outputs are under AgeConditionalStats.(fnname) as always; the M>1
+% outputs are under AgeConditionalStats.([fnname,'_',M,'periodAverage']) (or 'periodSum'), e.g. earnings_2periodAverage,
+% with the same fields (1 x N_j, the last M-1 entries NaN as the window runs past age N_j). An age with zero mass is NaN.
+% With ntimeperiods of length L, simoptions.whichcombos and simoptions.whichstats may have L*numFnsToEvaluate rows, in
+% blocks of numFnsToEvaluate in the order of simoptions.ntimeperiods (row (ll-1)*numFnsToEvaluate+ff is function ff with
+% M=ntimeperiods(ll)); numFnsToEvaluate rows apply to every M.
+% Use simoptions.logwhichcombos (zeros and ones, the same shapes as simoptions.whichcombos, or a scalar 0 or 1 for all; default
+% 0) to get the statistics of the log of the function (M=1) or of the log of the M-period sum/average (log of the average,
+% not the average of the logs) at the combinations where it is one: those are reported under [fnname,'_log'] (or
+% [fnname,'_',M,'periodAverage_log']) instead of fnname, with the same fields. The function (or its sum) must be positive
+% on every agent with positive mass in the populations used (an error says where it is not; use a conditional
+% restriction, e.g. alive, or a floor in the FnsToEvaluate). The log of M=1 works with any agegroupings.
+% The new outputs (M>1 and the logs) have fields only for the (row, restriction) that whichcombos selects at some age, and a
+% function all of whose single-period selections on a page are of the log has only the fnname_log fields there.
+%
 % Output takes following form
 % ngroups=length(options.agegroupings);
 % AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups);
@@ -45,6 +69,9 @@ if ~exist('simoptions','var')
     simoptions.n_semiz=0;
     simoptions.n_e=0;
     simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
+    simoptions.ntimeperiods=1; % the statistics of the sum/average over M consecutive periods, for each M in ntimeperiods (1 is the single period)
+    simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
+    simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos, or a scalar)
     % When calling as a subcommand, the following is used internally
     simoptions.alreadygridvals=0;
     simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
@@ -97,6 +124,15 @@ else
     if ~isfield(simoptions,'warnzerorestrictedmass')
         simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
     end
+    if ~isfield(simoptions,'ntimeperiods')
+        simoptions.ntimeperiods=1; % the statistics of the sum/average over M consecutive periods, for each M in ntimeperiods (1 is the single period)
+    end
+    if ~isfield(simoptions,'ntimeperiodstype')
+        simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
+    end
+    if ~isfield(simoptions,'logwhichcombos')
+        simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos, or a scalar)
+    end
     % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
@@ -120,10 +156,43 @@ if isstruct(FnsToEvaluate)
 else
     numFnsToEvaluate=length(FnsToEvaluate);
 end
+numFnsBase=numFnsToEvaluate; % the functions given (the log rows of M=1 are added as extra functions below)
 
+%% Multi-period sums/averages: simoptions.ntimeperiods (the window lengths M, 1 is the single period) and simoptions.ntimeperiodstype
+ntimeperiods=gather(simoptions.ntimeperiods(:)'); % the order is kept: it is the order of the row blocks of whichcombos
+if isempty(ntimeperiods) || ~isnumeric(ntimeperiods) || any(ntimeperiods<1) || any(ntimeperiods~=round(ntimeperiods))
+    error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods must be a vector of positive integers (the number of periods summed/averaged over, 1 is the single period)')
+end
+if length(unique(ntimeperiods))<length(ntimeperiods)
+    error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods must not contain repeated values')
+end
+if any(ntimeperiods>N_j)
+    error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods cannot exceed N_j (no window of that many periods fits in the life cycle)')
+end
+if ~(ischar(simoptions.ntimeperiodstype) || isstring(simoptions.ntimeperiodstype)) || ~any(strcmp(simoptions.ntimeperiodstype,{'average','sum'}))
+    error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiodstype must be ''average'' or ''sum''')
+end
+nblocks=length(ntimeperiods); % the number of row blocks of whichcombos
+has1=any(ntimeperiods==1); % the single-period statistics are wanted
+windowM=ntimeperiods(ntimeperiods>1); % the window lengths M>1, in the order given
+nW=length(windowM);
+if strcmp(simoptions.ntimeperiodstype,'average')
+    windowstr='periodAverage';
+else
+    windowstr='periodSum';
+end
+if nW>0 && ~isequal(reshape(gather(simoptions.agegroupings),1,[]),1:1:N_j)
+    error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 (multi-period sums/averages) can only be used with simoptions.agegroupings=1:1:N_j (the default); the statistics of W_j are by window start age j')
+end
+if (nW>0 || any(simoptions.logwhichcombos(:))) && ~isstruct(FnsToEvaluate)
+    error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods and simoptions.logwhichcombos need FnsToEvaluate as a structure (the output names are made from its field names)')
+end
 
 %%
 if simoptions.parallel==1
+    if nW>0 || any(simoptions.logwhichcombos(:))
+        error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 and simoptions.logwhichcombos are only implemented on the gpu')
+    end
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_cpu(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
     return
 end
@@ -135,6 +204,9 @@ a_grid=gpuArray(a_grid);
 
 %% Exogenous shock grids
 % Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
+% (the windows need the transition probabilities of the three separately: keep the shapes and simoptions as given)
+n_zW=n_z;
+simoptionsW=simoptions;
 [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 
 
@@ -195,37 +267,164 @@ if isfield(simoptions,'conditionalrestrictions')
 else
     nwhichpages=1;
 end
+% With simoptions.ntimeperiods of length L>1 the rows (of both) are L blocks of numFnsToEvaluate, one block per M in the order of
+% simoptions.ntimeperiods; an input with numFnsToEvaluate rows applies to every M. Internally whichcombos and whichstatsArr are the
+% M=1 block (zeros when 1 is not in ntimeperiods) and whichcombosW(:,:,:,lw), whichstatsW(:,:,:,:,lw) the block of windowM(lw).
+nrowswc=nblocks*numFnsToEvaluate;
 if ~isfield(simoptions,'whichcombos')
     whichcombos=ones(numFnsToEvaluate,ngroups,nwhichpages); % whichcombos here is [nFns, nAgeGroups, 1+nRestr]
+    if nW>0
+        whichcombosW=ones(numFnsToEvaluate,ngroups,nwhichpages,nW);
+    end
+    if ~has1
+        whichcombos=zeros(numFnsToEvaluate,ngroups,nwhichpages); % the single-period statistics are not wanted
+    end
 else
     whichcombos=simoptions.whichcombos;
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
         error('simoptions.whichcombos must contain only zeros and ones')
     end
-    if ismatrix(whichcombos) && nwhichpages>1 && isequal(size(whichcombos),[numFnsToEvaluate,ngroups])
+    nrowsin=size(whichcombos,1); % numFnsToEvaluate, or nblocks*numFnsToEvaluate
+    if ismatrix(whichcombos) && nwhichpages>1 && isequal(size(whichcombos),[nrowsin,ngroups]) && (nrowsin==numFnsToEvaluate || nrowsin==nrowswc)
         whichcombos=repmat(whichcombos,[1,1,nwhichpages]); % 2D input with restrictions: apply to every page
     end
-    if ~isequal(size(whichcombos,1:3),[numFnsToEvaluate,ngroups,nwhichpages])
-        error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(ngroups),',',num2str(nwhichpages),'] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions; the third dimension is dropped when there are no conditional restrictions)'])
+    if nblocks>1 && nrowsin==numFnsToEvaluate
+        whichcombos=repmat(whichcombos,[nblocks,1,1]); % one selection for every M
+    end
+    if ~isequal(size(whichcombos,1:3),[nrowswc,ngroups,nwhichpages])
+        if nblocks==1
+            error(['simoptions.whichcombos must be of size [',num2str(numFnsToEvaluate),',',num2str(ngroups),',',num2str(nwhichpages),'] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions; the third dimension is dropped when there are no conditional restrictions)'])
+        else
+            error(['simoptions.whichcombos must be of size [',num2str(nrowswc),',',num2str(ngroups),',',num2str(nwhichpages),'] (length of simoptions.ntimeperiods times the number of FnsToEvaluate, N_j, 1+number of conditional restrictions; the third dimension is dropped when there are no conditional restrictions), or have ',num2str(numFnsToEvaluate),' rows to apply to every M'])
+        end
     end
     whichcombos=double(whichcombos);
+    if nblocks>1 || ~has1
+        whichcombosRows=whichcombos;
+        if has1
+            bb=find(ntimeperiods==1);
+            whichcombos=whichcombosRows((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:);
+        else
+            whichcombos=zeros(numFnsToEvaluate,ngroups,nwhichpages);
+        end
+        whichcombosW=zeros(numFnsToEvaluate,ngroups,nwhichpages,nW);
+        for lw=1:nW
+            bb=find(ntimeperiods==windowM(lw));
+            whichcombosW(:,:,:,lw)=whichcombosRows((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:);
+        end
+    end
 end
 wsG=simoptions.whichstats;
 if isvector(wsG) && numel(wsG)==7
-    whichstatsArr=repmat(reshape(wsG,[1,1,1,7]),[numFnsToEvaluate,ngroups,nwhichpages,1]);
-elseif ndims(wsG)==3 && isequal(size(wsG),[numFnsToEvaluate,ngroups,7])
-    whichstatsArr=repmat(reshape(wsG,[numFnsToEvaluate,ngroups,1,7]),[1,1,nwhichpages,1]);
-elseif isequal(size(wsG,1:4),[numFnsToEvaluate,ngroups,nwhichpages,7])
-    whichstatsArr=wsG;
+    whichstatsRows=repmat(reshape(wsG,[1,1,1,7]),[nrowswc,ngroups,nwhichpages,1]);
+elseif ndims(wsG)==3 && (isequal(size(wsG),[numFnsToEvaluate,ngroups,7]) || isequal(size(wsG),[nrowswc,ngroups,7]))
+    whichstatsRows=repmat(reshape(wsG,[size(wsG,1),ngroups,1,7]),[1,1,nwhichpages,1]);
+elseif isequal(size(wsG,1:4),[numFnsToEvaluate,ngroups,nwhichpages,7]) || isequal(size(wsG,1:4),[nrowswc,ngroups,nwhichpages,7])
+    whichstatsRows=wsG;
 else
-    error(['simoptions.whichstats must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(ngroups),',',num2str(nwhichpages),',7] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions, 7), or [',num2str(numFnsToEvaluate),',',num2str(ngroups),',7]'])
+    if nblocks==1
+        error(['simoptions.whichstats must be a 1x7 vector, or of size [',num2str(numFnsToEvaluate),',',num2str(ngroups),',',num2str(nwhichpages),',7] (number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions, 7), or [',num2str(numFnsToEvaluate),',',num2str(ngroups),',7]'])
+    else
+        error(['simoptions.whichstats must be a 1x7 vector, or of size [',num2str(nrowswc),',',num2str(ngroups),',',num2str(nwhichpages),',7] (length of simoptions.ntimeperiods times the number of FnsToEvaluate, N_j, 1+number of conditional restrictions, 7), or [',num2str(nrowswc),',',num2str(ngroups),',7], or either with ',num2str(numFnsToEvaluate),' rows to apply to every M'])
+    end
+end
+if nblocks>1 && size(whichstatsRows,1)==numFnsToEvaluate
+    whichstatsRows=repmat(whichstatsRows,[nblocks,1,1,1]); % one whichstats for every M
+end
+if has1
+    bb=find(ntimeperiods==1);
+    whichstatsArr=whichstatsRows((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:,:);
+else
+    whichstatsArr=zeros(numFnsToEvaluate,ngroups,nwhichpages,7);
+end
+if nW>0
+    whichstatsW=zeros(numFnsToEvaluate,ngroups,nwhichpages,7,nW);
+    for lw=1:nW
+        bb=find(ntimeperiods==windowM(lw));
+        whichstatsW(:,:,:,:,lw)=whichstatsRows((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:,:);
+    end
+end
+
+%% simoptions.logwhichcombos: the combinations (of whichcombos) whose statistics are of the log
+% The same shapes as whichcombos (rows in blocks of simoptions.ntimeperiods), or a scalar 0/1 for every combination. A one at
+% (row, age group, page) where whichcombos also has a one: the statistics of that row and page are of log(x) (M=1) or of
+% log(W_j), the log of the M-period sum/average, and are reported under [rowname,'_log'] instead of rowname.
+logwc=simoptions.logwhichcombos;
+if ~(isnumeric(logwc) || islogical(logwc)) || any(logwc(:)~=0 & logwc(:)~=1)
+    error('simoptions.logwhichcombos must contain only zeros and ones')
+end
+if isscalar(logwc)
+    logwc=logwc*ones(nrowswc,ngroups,nwhichpages);
+else
+    nrowsin=size(logwc,1); % numFnsToEvaluate, or nblocks*numFnsToEvaluate
+    if ismatrix(logwc) && nwhichpages>1 && isequal(size(logwc),[nrowsin,ngroups]) && (nrowsin==numFnsToEvaluate || nrowsin==nrowswc)
+        logwc=repmat(logwc,[1,1,nwhichpages]); % 2D input with restrictions: apply to every page
+    end
+    if nblocks>1 && nrowsin==numFnsToEvaluate
+        logwc=repmat(logwc,[nblocks,1,1]); % one selection for every M
+    end
+    if ~isequal(size(logwc,1:3),[nrowswc,ngroups,nwhichpages])
+        error(['simoptions.logwhichcombos must be a scalar 0 or 1, or of the size of simoptions.whichcombos: [',num2str(nrowswc),',',num2str(ngroups),',',num2str(nwhichpages),'] (length of simoptions.ntimeperiods times the number of FnsToEvaluate, number of age groups, 1+number of conditional restrictions), or with ',num2str(numFnsToEvaluate),' rows to apply to every M, or the same 2-D form as whichcombos'])
+    end
+    logwc=double(logwc);
+end
+uselog=any(logwc(:));
+if nW>0
+    wcLogW=zeros(numFnsToEvaluate,ngroups,nwhichpages,nW); % the window combinations of the log
+end
+fnlogbase=zeros(1,numFnsToEvaluate); % fnlogbase(ff) is the function an extra function is the log of (0 for the given ones)
+logonlyBase=zeros(numFnsBase,nwhichpages); % a given function whose M=1 selections on a page are all of the log: it has no fields there (only fnname_log)
+if uselog
+    % Split each selection into its level part (whichcombos, whichcombosW keep only those) and its log part
+    logwc1=zeros(numFnsToEvaluate,ngroups,nwhichpages); % the M=1 block of logwhichcombos
+    if has1
+        bb=find(ntimeperiods==1);
+        logwc1=logwc((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:);
+    end
+    wcLog1=whichcombos.*logwc1; % the M=1 combinations of the log
+    whichcombos=whichcombos.*(1-logwc1);
+    for ff=1:numFnsBase
+        for pp=1:nwhichpages
+            logonlyBase(ff,pp)=any(wcLog1(ff,:,pp)) && ~any(whichcombos(ff,:,pp));
+        end
+    end
+    for lw=1:nW
+        bb=find(ntimeperiods==windowM(lw));
+        wcLogW(:,:,:,lw)=whichcombosW(:,:,:,lw).*logwc((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:);
+        whichcombosW(:,:,:,lw)=whichcombosW(:,:,:,lw).*(1-logwc((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:));
+    end
+    % The M=1 log rows are extra functions (fnname_log) whose values are the log of the function's values: they then go through
+    % exactly the single-period computation, with the whichstats of the function
+    for ff=1:numFnsBase
+        if any(wcLog1(ff,:,:),'all')
+            nF=length(FnsToEvalNames)+1;
+            FnsToEvaluate{nF}=FnsToEvaluate{ff};
+            FnsToEvaluateParamNames(nF).Names=FnsToEvaluateParamNames(ff).Names;
+            FnsToEvalNames{nF}=[FnsToEvalNames{ff},'_log'];
+            whichcombos(nF,:,:)=wcLog1(ff,:,:);
+            whichstatsArr(nF,:,:,:)=whichstatsArr(ff,:,:,:);
+            fnlogbase(nF)=ff;
+        end
+    end
+    numFnsToEvaluate=length(FnsToEvalNames);
 end
 whichcombos=whichcombos.*any(whichstatsArr,4); % a combination with no statistic requested is skipped altogether
+if nW>0
+    for lw=1:nW
+        whichcombosW(:,:,:,lw)=whichcombosW(:,:,:,lw).*any(whichstatsW(:,:,:,:,lw),4);
+        wcLogW(:,:,:,lw)=wcLogW(:,:,:,lw).*any(whichstatsW(:,:,:,:,lw),4);
+        whichcombosW(:,N_j-windowM(lw)+2:N_j,:,lw)=0; % no window of M periods starts after age N_j-M+1
+        wcLogW(:,N_j-windowM(lw)+2:N_j,:,lw)=0;
+    end
+end
 
 
 % Preallocate various things for the stats (as many will have jj as a dimension)
 % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
 for ff=1:numFnsToEvaluate
+    if (fnlogbase(ff)==0 && (~has1 || logonlyBase(ff,1))) || (fnlogbase(ff)>0 && ~any(whichcombos(ff,:,1))) % the single period is not wanted (or only its log), or this log row is not selected on this page
+        continue
+    end
     % whichstats for this fn across its age groups: a statistic is preallocated if any age group asks for it (the Lorenz curve if any age group has 1<=whichstats(4)<3)
     wsP=max(reshape(whichstatsArr(ff,:,1,:),[ngroups,7]),[],1);
     ws4=reshape(whichstatsArr(ff,:,1,4),[1,ngroups]);
@@ -334,6 +533,9 @@ if isfield(simoptions,'conditionalrestrictions')
         % Preallocate various things for the stats (as many will have jj as a dimension)
         % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
         for ff=1:numFnsToEvaluate
+            if (fnlogbase(ff)==0 && (~has1 || logonlyBase(ff,1+rr))) || (fnlogbase(ff)>0 && ~any(whichcombos(ff,:,1+rr))) % as above
+                continue
+            end
             wsP=max(reshape(whichstatsArr(ff,:,1+rr,:),[ngroups,7]),[],1); % as above, for this restriction
             ws4=reshape(whichstatsArr(ff,:,1+rr,4),[1,ngroups]);
             if any(ws4>=1 & ws4<3)
@@ -414,6 +616,24 @@ if N_z==0
             end
 
             Values=reshape(Values,[N_a*(jend-j1+1),1]);
+            if fnlogbase(ff)>0 % a log row (simoptions.logwhichcombos): the statistics are of the log of the function
+                usedmass_kk=false(N_a*(jend-j1+1),1,'gpuArray'); % the points with positive mass in the populations used
+                if whichcombos(ff,kk,1)==1
+                    usedmass_kk=usedmass_kk | (StationaryDistVec_kk>0);
+                end
+                if useCondlRest==1
+                    for rr=1:length(CondlRestnFnNames)
+                        if whichcombos(ff,kk,1+rr)==1
+                            usedmass_kk=usedmass_kk | reshape(StationaryDist(:,j1:jend).*RestrictionMask{rr}(:,j1:jend)>0,[N_a*(jend-j1+1),1]);
+                        end
+                    end
+                end
+                if any(Values(usedmass_kk)<=0)
+                    error(['LifeCycleProfiles_FHorz_Case1: simoptions.logwhichcombos asks for the log of ',FnsToEvalNames{fnlogbase(ff)},' at the age group starting at age ',num2str(j1),', but it is not positive on some points with positive mass (use a conditional restriction, or a floor in the FnsToEvaluate)'])
+                end
+                Values(Values<=0)=1; % points with no mass in any population used (their weight is zero), log(1)=0 keeps them finite
+                Values=log(Values);
+            end
 
             if useCondlRest==1
                 % The conditional restrictions only change the weights, so sort Values once and reuse the sort for the unrestricted stats and for every restriction
@@ -558,6 +778,24 @@ else
             end
 
             Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
+            if fnlogbase(ff)>0 % a log row (simoptions.logwhichcombos): the statistics are of the log of the function
+                usedmass_kk=false(N_a*N_z*(jend-j1+1),1,'gpuArray'); % the points with positive mass in the populations used
+                if whichcombos(ff,kk,1)==1
+                    usedmass_kk=usedmass_kk | (StationaryDistVec_kk>0);
+                end
+                if useCondlRest==1
+                    for rr=1:length(CondlRestnFnNames)
+                        if whichcombos(ff,kk,1+rr)==1
+                            usedmass_kk=usedmass_kk | reshape(StationaryDist(:,j1:jend).*RestrictionMask{rr}(:,j1:jend)>0,[N_a*N_z*(jend-j1+1),1]);
+                        end
+                    end
+                end
+                if any(Values(usedmass_kk)<=0)
+                    error(['LifeCycleProfiles_FHorz_Case1: simoptions.logwhichcombos asks for the log of ',FnsToEvalNames{fnlogbase(ff)},' at the age group starting at age ',num2str(j1),', but it is not positive on some points with positive mass (use a conditional restriction, or a floor in the FnsToEvaluate)'])
+                end
+                Values(Values<=0)=1; % points with no mass in any population used (their weight is zero), log(1)=0 keeps them finite
+                Values=log(Values);
+            end
             if useCondlRest==1
                 % The conditional restrictions only change the weights, so sort Values once and reuse the sort for the unrestricted stats and for every restriction
                 % (only the points with positive mass are sorted; every restricted distribution is zero outside these)
@@ -671,6 +909,443 @@ else
         end
     end
 end
+
+
+%% Multi-period sums/averages (simoptions.ntimeperiods with M>1): the statistics of W_j=x_j+...+x_{j+M-1} by start age j
+% W_j depends on the path of the states from age j to j+M-1, so its distribution is that of a list of (state, partial sum, mass):
+% at the start age the list is the agent distribution at j (one entry per state with positive mass, partial sum x_j, one mass
+% column per population used: unrestricted, and each conditional restriction evaluated at j), and each age it is extended along
+% every transition of the age (the policy step: a', and semiz' with gridinterplayer weights; times each z' with pi_z; times each
+% e' with the next age's pi_e), adding x at the new state to the partial sum. Entries with the same state and the same partial
+% sum have the same future, so they are merged (their masses added): the list is exact, there is no grid for the sums. After
+% M-1 extensions the partial sums are W_j with their masses, and every statistic is that of these weighted values. The lists
+% of all start ages and functions in flight are extended age by age, so each age's policy step is built once.
+if nW>0
+    if (isfield(simoptions,'experienceasset') && simoptions.experienceasset>=1) || (isfield(simoptions,'inheritanceasset') && simoptions.inheritanceasset==1) || (isfield(simoptions,'residualasset') && simoptions.residualasset==1)
+        error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 is not yet implemented with experience, inheritance or residual assets, ask on forum if you need this')
+    end
+    % The wanted combinations: level (whichcombosW) and log (wcLogW), by (function, start age, page, window length)
+    wantW=(whichcombosW+wcLogW)>0;
+    Mstop=zeros(numFnsBase,N_j); % the longest window wanted at each (function, start age)
+    for lw=1:nW
+        Mstop=max(Mstop,windowM(lw)*reshape(any(wantW(:,:,:,lw),3),[numFnsBase,N_j]));
+    end
+    pagesW=any(wantW,4); % [numFnsBase,N_j,nwhichpages]: the pages wanted at each (function, start age)
+
+    % Preallocate the outputs of the windows: fields only for the (row, page) selected at some start age
+    WNames=cell(numFnsBase,nW,2); % the output names: level and log
+    for ff=1:numFnsBase
+        for lw=1:nW
+            WNames{ff,lw,1}=[FnsToEvalNames{ff},'_',num2str(windowM(lw)),windowstr];
+            WNames{ff,lw,2}=[FnsToEvalNames{ff},'_',num2str(windowM(lw)),windowstr,'_log'];
+            for kind=1:2
+                for pp=1:nwhichpages
+                    if kind==1
+                        selW=reshape(whichcombosW(ff,:,pp,lw),[1,N_j]);
+                    else
+                        selW=reshape(wcLogW(ff,:,pp,lw),[1,N_j]);
+                    end
+                    if ~any(selW)
+                        continue
+                    end
+                    wsP=max(reshape(whichstatsW(ff,selW==1,pp,:,lw),[sum(selW),7]),[],1); % a statistic is preallocated if a selected start age asks for it
+                    ws4=reshape(whichstatsW(ff,selW==1,pp,4,lw),[1,sum(selW)]);
+                    if any(ws4>=1 & ws4<3)
+                        wsP(4)=1;
+                    end
+                    SS=struct();
+                    if wsP(1)==1
+                        SS.Mean=nan(1,N_j,'gpuArray');
+                    end
+                    if wsP(2)==1
+                        SS.Median=nan(1,N_j,'gpuArray');
+                    end
+                    if wsP(1)==1 && wsP(2)==1
+                        SS.RatioMeanToMedian=nan(1,N_j,'gpuArray');
+                    end
+                    if wsP(3)==1
+                        SS.Variance=nan(1,N_j,'gpuArray');
+                        SS.StdDeviation=nan(1,N_j,'gpuArray');
+                    end
+                    if wsP(4)>=1
+                        SS.Gini=nan(1,N_j,'gpuArray');
+                        if wsP(4)<3
+                            SS.LorenzCurve=nan(simoptions.npoints,N_j,'gpuArray');
+                        end
+                    end
+                    if wsP(5)==1
+                        SS.Minimum=nan(1,N_j,'gpuArray');
+                        SS.Maximum=nan(1,N_j,'gpuArray');
+                    end
+                    if wsP(6)>=1
+                        SS.QuantileCutoffs=nan(simoptions.nquantiles+1,N_j,'gpuArray'); % Includes the min and max values
+                        SS.QuantileMeans=nan(simoptions.nquantiles,N_j,'gpuArray');
+                    end
+                    if wsP(7)==1
+                        SS.MoreInequality.Top1share=nan(1,N_j,'gpuArray');
+                        SS.MoreInequality.Top5share=nan(1,N_j,'gpuArray');
+                        SS.MoreInequality.Top10share=nan(1,N_j,'gpuArray');
+                        SS.MoreInequality.Bottom50share=nan(1,N_j,'gpuArray');
+                        SS.MoreInequality.Percentile50th=nan(1,N_j,'gpuArray');
+                        SS.MoreInequality.Percentile90th=nan(1,N_j,'gpuArray');
+                        SS.MoreInequality.Percentile95th=nan(1,N_j,'gpuArray');
+                        SS.MoreInequality.Percentile99th=nan(1,N_j,'gpuArray');
+                    end
+                    if pp==1
+                        AgeConditionalStats.(WNames{ff,lw,kind})=SS;
+                    else
+                        AgeConditionalStats.(CondlRestnFnNames{pp-1}).(WNames{ff,lw,kind})=SS;
+                    end
+                end
+            end
+        end
+    end
+
+    % The shocks, separately: (semiz,z,e) [whichever are present], the states are ordered (a,semiz,z,e)
+    N_zW=prod(n_zW);
+    N_e=prod(simoptionsW.n_e);
+    N_semiz=prod(simoptionsW.n_semiz);
+    N_semizr=max(N_semiz,1);
+    N_zr=max(N_zW,1);
+    N_er=max(N_e,1);
+    N_states=N_a*N_semizr*N_zr*N_er;
+    if N_zW>0 || N_e>0
+        if N_zW>0 && ~isfield(simoptionsW,'pi_z') && ~isfield(simoptionsW,'ExogShockFn')
+            error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 needs the transition probabilities of z, give them as simoptions.pi_z (the same as the pi_z input of StationaryDist_FHorz_Case1)')
+        end
+        if isfield(simoptionsW,'pi_z')
+            pi_zW=simoptionsW.pi_z;
+        else
+            pi_zW=[];
+        end
+        [~,pi_z_J,simoptionsW]=ExogShockSetup_FHorz(n_zW,z_grid,pi_zW,N_j,Parameters,simoptionsW,2,0);
+        if N_zW>0
+            pi_z_J_gpu=gpuArray(pi_z_J);
+        end
+        if N_e>0
+            pi_e_J_gpu=gpuArray(simoptionsW.pi_e_J);
+        end
+    end
+    if N_semiz>0
+        if ~isfield(simoptionsW,'l_dsemiz')
+            simoptionsW.l_dsemiz=1; % by default, just one decision variable is used for the semi-exo state
+        end
+        simoptionsW=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,simoptionsW,2);
+    end
+
+    % The policy step: the indexes and weights of a' (and of the semi-exogenous transition) that each age's sparse matrix is built from
+    if isempty(n_d) || prod(n_d)==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    PolicyW=reshape(Policy,[size(Policy,1),N_a,N_semizr*N_zr*N_er,N_j]);
+    if l_a==1
+        Policy_aprime=shiftdim(PolicyW(l_d+1,:,:,:),1);
+    elseif l_a==2
+        Policy_aprime=shiftdim(PolicyW(l_d+1,:,:,:)+n_a(1)*(PolicyW(l_d+2,:,:,:)-1),1);
+    elseif l_a==3
+        Policy_aprime=shiftdim(PolicyW(l_d+1,:,:,:)+n_a(1)*(PolicyW(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyW(l_d+3,:,:,:)-1),1);
+    elseif l_a==4
+        Policy_aprime=shiftdim(PolicyW(l_d+1,:,:,:)+n_a(1)*(PolicyW(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyW(l_d+3,:,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyW(l_d+4,:,:,:)-1),1);
+    else
+        error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 cannot handle length(n_a)>4, contact me if you need this')
+    end
+    % Policy_aprime is [N_a,N_semizr*N_zr*N_er,N_j]
+    if simoptions.gridinterplayer==1
+        % two a' points per state: the lower grid point and the one above it, with the second-layer weights
+        L2index=PolicyW(end-1,:,:,:); % L2 index (end-1 because end is L2flag)
+        L2flag=PolicyW(end,:,:,:);
+        L2index(L2flag==1)=1;                        % force all weight to lower grid point
+        L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+        probupper=shiftdim((L2index-1)/(simoptions.ngridinterp+1),1); % [N_a,N_semizr*N_zr*N_er,N_j]: probability of the upper grid point
+    end
+    if N_semiz==0
+        % Add the z index of each (z,e) column (z varies first) to get the index into (a',z)
+        zindex=N_a*repmat(gpuArray(0:1:N_zr-1),1,N_er);
+        Policy_aprimez=Policy_aprime+zindex; % [N_a,N_zr*N_er,N_j], index into (a',z)
+        if simoptions.gridinterplayer==0
+            IIind=gpuArray((1:1:N_states)');
+        elseif simoptions.gridinterplayer==1
+            IIind=gpuArray(repmat((1:1:N_states)',2,1));
+        end
+    else
+        % Semi-exogenous state (as StationaryDist_FHorz_Iteration_SemiExo_raw): from (a,semiz,z,e) to (a',semiz',z) with the
+        % transition probabilities pi_semiz_J(semiz,semiz',dsemiz,jj) of the semi-exogenous decision dsemiz taken at the state
+        % (only the N_semizshort largest entries of each row of pi_semiz_J are kept, which is all of the nonzeros)
+        l_d1=l_d-simoptionsW.l_dsemiz; % the last l_dsemiz decision variables are the ones that influence semiz
+        N_dsemiz=prod(n_d(l_d1+1:l_d));
+        if simoptionsW.l_dsemiz==1
+            Policy_dsemiexo=PolicyW(l_d1+1,:,:,:);
+        elseif simoptionsW.l_dsemiz==2
+            Policy_dsemiexo=PolicyW(l_d1+1,:,:,:)+n_d(l_d1+1)*(PolicyW(l_d1+2,:,:,:)-1);
+        elseif simoptionsW.l_dsemiz==3
+            Policy_dsemiexo=PolicyW(l_d1+1,:,:,:)+n_d(l_d1+1)*(PolicyW(l_d1+2,:,:,:)-1)+n_d(l_d1+1)*n_d(l_d1+2)*(PolicyW(l_d1+3,:,:,:)-1);
+        elseif simoptionsW.l_dsemiz==4
+            Policy_dsemiexo=PolicyW(l_d1+1,:,:,:)+n_d(l_d1+1)*(PolicyW(l_d1+2,:,:,:)-1)+n_d(l_d1+1)*n_d(l_d1+2)*(PolicyW(l_d1+3,:,:,:)-1)+n_d(l_d1+1)*n_d(l_d1+2)*n_d(l_d1+3)*(PolicyW(l_d1+4,:,:,:)-1);
+        end
+        Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_states,1,N_j]));
+        N_semizshort=max(max(max(sum((simoptionsW.pi_semiz_J>0),2))));
+        [pi_semiz_J_short,idx]=sort(simoptionsW.pi_semiz_J,2); % puts the zeros on the left
+        pi_semiz_J_short=gather(pi_semiz_J_short(:,end-N_semizshort+1:end,:,:)); % [N_semiz,N_semizshort,N_dsemiz,N_j-1]
+        idxshort=gather(idx(:,end-N_semizshort+1:end,:,:)); % the semiz' each kept entry belongs to
+        semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_zr*N_er,1)+N_semiz*(0:1:N_semizshort-1); % [N_states,N_semizshort]: the semiz of each state, offset to each column of pi_semiz_J_short
+        zprimeoffset=repmat(repelem(N_a*N_semiz*(0:1:N_zr-1)',N_a*N_semiz,1),N_er,1); % [N_states,1]: the z of each state, as an offset into (a',semiz',z)
+        Policy_aprime_cpu=gather(reshape(Policy_aprime,[N_states,1,N_j]));
+        if simoptions.gridinterplayer==0
+            II2=repelem((1:1:N_states)',1,N_semizshort);
+        elseif simoptions.gridinterplayer==1
+            Policy_aprime2_cpu=cat(2,Policy_aprime_cpu,Policy_aprime_cpu+1); % [N_states,2,N_j]: the lower grid point and the one above it
+            probupper_cpu=gather(reshape(probupper,[N_states,1,N_j]));
+            PolicyProbs_cpu=cat(2,1-probupper_cpu,probupper_cpu); % [N_states,2,N_j]
+            II2=repelem((1:1:N_states)',1,2*N_semizshort);
+        end
+    end
+
+    % The values of each function with a window wanted, at every age
+    ValuesW=cell(numFnsBase,1);
+    for ff=1:numFnsBase
+        if ~any(Mstop(ff,:))
+            continue
+        end
+        ValuesW{ff}=nan(N_states,N_j,'gpuArray');
+        for jj=1:N_j
+            FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
+            if N_z==0
+                ValuesW{ff}(:,jj)=reshape(EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,0,a_gridvals,[]),[N_states,1]);
+            else
+                ValuesW{ff}(:,jj)=reshape(EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj)),[N_states,1]);
+            end
+        end
+    end
+
+    % The lists in flight: function, start age, pages (with positive start mass), and the entries (state, partial sum, mass per page)
+    Lff=zeros(1,0);
+    Lj=zeros(1,0);
+    Lpages=cell(1,0);
+    Lst=cell(1,0);
+    LS=cell(1,0);
+    Lm=cell(1,0);
+    for jj=1:N_j
+        % (i) Start the lists of start age jj
+        massjj=sum(StationaryDist(:,jj));
+        for ff=1:numFnsBase
+            if Mstop(ff,jj)==0 || massjj==0
+                continue
+            end
+            pagesL=find(reshape(pagesW(ff,jj,:),[1,nwhichpages]));
+            m0=zeros(N_states,length(pagesL),'gpuArray');
+            for pp=1:length(pagesL)
+                if pagesL(pp)==1
+                    m0(:,pp)=StationaryDist(:,jj);
+                else
+                    m0(:,pp)=StationaryDist(:,jj).*RestrictionMask{pagesL(pp)-1}(:,jj); % the restriction is evaluated at the start age
+                end
+            end
+            colmass=gather(sum(m0,1));
+            keep=(colmass>0); % a page with no mass at the start age stays NaN
+            if ~any(keep)
+                continue
+            end
+            m0=m0(:,keep)./colmass(keep);
+            pagesL=pagesL(keep);
+            st=find(any(m0>0,2));
+            Lff=[Lff,ff]; %#ok<AGROW>
+            Lj=[Lj,jj]; %#ok<AGROW>
+            Lpages=[Lpages,{pagesL}]; %#ok<AGROW>
+            Lst=[Lst,{st}]; %#ok<AGROW>
+            LS=[LS,{ValuesW{ff}(st,jj)}]; %#ok<AGROW>
+            Lm=[Lm,{m0(st,:)}]; %#ok<AGROW>
+        end
+
+        % (ii) Read the windows that end at age jj: a list of start age j has the M-period sums for M=jj-j+1
+        for ll=1:length(Lff)
+            ff=Lff(ll);
+            j0=Lj(ll);
+            lw=find(windowM==jj-j0+1);
+            if isempty(lw)
+                continue
+            end
+            M=windowM(lw);
+            for pp=1:length(Lpages{ll})
+                pg=Lpages{ll}(pp);
+                for kind=1:2
+                    if (kind==1 && whichcombosW(ff,j0,pg,lw)==0) || (kind==2 && wcLogW(ff,j0,pg,lw)==0)
+                        continue
+                    end
+                    w=Lm{ll}(:,pp);
+                    pos=(w>0);
+                    vals=LS{ll}(pos);
+                    w=w(pos);
+                    w=w/sum(w);
+                    if strcmp(simoptions.ntimeperiodstype,'average')
+                        vals=vals/M;
+                    end
+                    if kind==2
+                        if any(vals<=0)
+                            error(['LifeCycleProfiles_FHorz_Case1: simoptions.logwhichcombos asks for the log of the ',num2str(M),'-period sum/average of ',FnsToEvalNames{ff},' starting at age ',num2str(j0),', but it is not positive for some agents with positive mass (use a conditional restriction, or a floor in the FnsToEvaluate)'])
+                        end
+                        vals=log(vals);
+                    end
+                    ws=reshape(whichstatsW(ff,j0,pg,:,lw),[1,7]);
+                    tempStats=StatsFromWeightedGrid(vals,w,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,ws);
+
+                    % Store them in AgeConditionalStats
+                    if pg==1
+                        SS=AgeConditionalStats.(WNames{ff,lw,kind});
+                    else
+                        SS=AgeConditionalStats.(CondlRestnFnNames{pg-1}).(WNames{ff,lw,kind});
+                    end
+                    if ws(1)==1
+                        SS.Mean(j0)=tempStats.Mean;
+                    end
+                    if ws(2)==1
+                        SS.Median(j0)=tempStats.Median;
+                        if ws(1)==1
+                            SS.RatioMeanToMedian(j0)=tempStats.RatioMeanToMedian;
+                        end
+                    end
+                    if ws(3)==1
+                        SS.Variance(j0)=tempStats.Variance;
+                        SS.StdDeviation(j0)=tempStats.StdDeviation;
+                    end
+                    if ws(4)>=1
+                        SS.Gini(j0)=tempStats.Gini;
+                        if ws(4)<3
+                            SS.LorenzCurve(:,j0)=tempStats.LorenzCurve;
+                        end
+                    end
+                    if ws(5)==1
+                        SS.Minimum(j0)=tempStats.Minimum;
+                        SS.Maximum(j0)=tempStats.Maximum;
+                    end
+                    if ws(6)>=1
+                        SS.QuantileCutoffs(:,j0)=tempStats.QuantileCutoffs;
+                        SS.QuantileMeans(:,j0)=tempStats.QuantileMeans;
+                    end
+                    if ws(7)==1
+                        SS.MoreInequality.Top1share(j0)=tempStats.MoreInequality.Top1share;
+                        SS.MoreInequality.Top5share(j0)=tempStats.MoreInequality.Top5share;
+                        SS.MoreInequality.Top10share(j0)=tempStats.MoreInequality.Top10share;
+                        SS.MoreInequality.Bottom50share(j0)=tempStats.MoreInequality.Bottom50share;
+                        SS.MoreInequality.Percentile50th(j0)=tempStats.MoreInequality.Percentile50th;
+                        SS.MoreInequality.Percentile90th(j0)=tempStats.MoreInequality.Percentile90th;
+                        SS.MoreInequality.Percentile95th(j0)=tempStats.MoreInequality.Percentile95th;
+                        SS.MoreInequality.Percentile99th(j0)=tempStats.MoreInequality.Percentile99th;
+                    end
+                    if pg==1
+                        AgeConditionalStats.(WNames{ff,lw,kind})=SS;
+                    else
+                        AgeConditionalStats.(CondlRestnFnNames{pg-1}).(WNames{ff,lw,kind})=SS;
+                    end
+                end
+            end
+        end
+
+        % (iii) Drop the lists whose longest window has been read
+        done=false(1,length(Lff));
+        for ll=1:length(Lff)
+            if jj-Lj(ll)+1>=Mstop(Lff(ll),Lj(ll))
+                done(ll)=true;
+            end
+        end
+        Lff=Lff(~done);
+        Lj=Lj(~done);
+        Lpages=Lpages(~done);
+        Lst=Lst(~done);
+        LS=LS(~done);
+        Lm=Lm(~done);
+        if isempty(Lff)
+            continue
+        end
+
+        % (iv) Extend every list in flight from age jj to jj+1
+        % The policy step of age jj: maps a measure over the age-jj states (a,semiz,z,e) to a measure over (a',semiz',z) [z kept, e summed out]
+        if N_semiz==0
+            if simoptions.gridinterplayer==0
+                Gammatranspose_jj=sparse(reshape(Policy_aprimez(:,:,jj),[],1),IIind,ones(N_states,1,'gpuArray'),N_a*N_zr,N_states); % sparse gpuArray
+            elseif simoptions.gridinterplayer==1
+                Policy_aprimez_jj=reshape(Policy_aprimez(:,:,jj),[],1); % the lower grid point of each state (the upper one is the next index)
+                probupper_jj=reshape(probupper(:,:,jj),[],1);
+                Gammatranspose_jj=sparse([Policy_aprimez_jj;Policy_aprimez_jj+1],IIind,[1-probupper_jj;probupper_jj],N_a*N_zr,N_states); % sparse gpuArray
+            end
+        else
+            semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % linear index into pi_semiz_J_short and idxshort
+            if simoptions.gridinterplayer==0
+                Policy_aprimesemizz_jj=repelem(Policy_aprime_cpu(:,1,jj),1,N_semizshort)+N_a*(idxshort(semizindex_short_jj)-1)+zprimeoffset; % [N_states,N_semizshort]: index into (a',semiz',z)
+                Gammatranspose_jj=sparse(gpuArray(Policy_aprimesemizz_jj),gpuArray(II2),gpuArray(pi_semiz_J_short(semizindex_short_jj)),N_a*N_semiz*N_zr,N_states); % sparse gpuArray
+            elseif simoptions.gridinterplayer==1
+                Policy_aprimesemizz_jj=repelem(Policy_aprime2_cpu(:,:,jj),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short_jj)-1),1,2)+zprimeoffset; % [N_states,2*N_semizshort]: the two grid points, each with every semiz'
+                PolicyProbs_jj=repelem(PolicyProbs_cpu(:,:,jj),1,N_semizshort).*repmat(pi_semiz_J_short(semizindex_short_jj),1,2);
+                Gammatranspose_jj=sparse(gpuArray(Policy_aprimesemizz_jj),gpuArray(II2),gpuArray(PolicyProbs_jj),N_a*N_semiz*N_zr,N_states); % sparse gpuArray; sparse() accumulates repeated indexes (the two grid points coincide only at the top of the grid)
+            end
+        end
+        % Its nonzeros, grouped by the age-jj state (src): eG_ptr(s) is the number of nonzeros of the states before s, eG_cnt(s) those of s
+        [eG_row,eG_src,eG_val]=find(Gammatranspose_jj); % the (a',semiz',z) index, the age-jj state, the probability
+        [eG_src,ord]=sort(eG_src);
+        eG_row=eG_row(ord);
+        eG_val=eG_val(ord);
+        eG_as=mod(eG_row-1,N_a*N_semizr)+1; % the (a',semiz') part
+        eG_zr=floor((eG_row-1)/(N_a*N_semizr))+1; % the age-jj z (kept by the policy step)
+        eG_cnt=accumarray(eG_src,1,[N_states,1]);
+        eG_ptr=cumsum(eG_cnt)-eG_cnt;
+        % The offsets of each (z',e') of age jj+1, and its probability
+        destoffset=N_a*N_semizr*(0:1:N_zr-1)+reshape(N_a*N_semizr*N_zr*(0:1:N_er-1),[1,1,N_er]); % 1 x N_zr x N_er
+        if N_e>0
+            pe=reshape(pi_e_J_gpu(:,jj+1),[1,1,N_er]);
+        else
+            pe=1;
+        end
+        for ll=1:length(Lff)
+            ff=Lff(ll);
+            st=Lst{ll};
+            % every entry times every nonzero of its state's policy step
+            c=eG_cnt(st);
+            s0=cumsum(c)-c+1; % the first row of each entry (every state has at least one nonzero)
+            ntot=gather(sum(c));
+            mark=zeros(ntot,1,'gpuArray');
+            mark(s0)=1;
+            ie=cumsum(mark); % the entry of each row
+            g=eG_ptr(st(ie))+((1:1:ntot)'-s0(ie)+1); % the nonzero of each row
+            if N_zW>0
+                P=eG_val(g).*pi_z_J_gpu(eG_zr(g),:,jj).*pe; % ntot x N_zr x N_er: the probability of each (a',semiz',z',e')
+            else
+                P=eG_val(g).*pe;
+            end
+            D=eG_as(g)+destoffset; % ntot x N_zr x N_er: the age-jj+1 state
+            P=P(:);
+            D=D(:);
+            ie=repmat(ie,N_zr*N_er,1);
+            keep=(P>0);
+            P=P(keep);
+            D=D(keep);
+            ie=ie(keep);
+            newm=Lm{ll}(ie,:).*P;
+            newS=LS{ll}(ie)+ValuesW{ff}(D,jj+1);
+            if jj+1-Lj(ll)+1<Mstop(ff,Lj(ll))
+                % merge the entries with the same state and partial sum (the list is extended again)
+                [B,ord]=sortrows([D,newS]);
+                first=[true;any(B(2:end,:)~=B(1:end-1,:),2)];
+                grp=cumsum(first);
+                newm=newm(ord,:);
+                ngrp=gather(grp(end));
+                mm=zeros(ngrp,size(newm,2),'gpuArray');
+                for pp=1:size(newm,2)
+                    mm(:,pp)=accumarray(grp,newm(:,pp),[ngrp,1]);
+                end
+                Lst{ll}=B(first,1);
+                LS{ll}=B(first,2);
+                Lm{ll}=mm;
+            else
+                % the next age is the last of this list: only the partial sums and masses are read
+                Lst{ll}=D;
+                LS{ll}=newS;
+                Lm{ll}=newm;
+            end
+        end
+    end
+end
+
 
 
 
