@@ -582,9 +582,15 @@ if simoptions.groupptypesforstats==1
                 RSMVec=zeros(N_i,N_j); % restricted mass of each type at each age (includes the type's age weights)
                 MeanRVec=nan(N_i,N_j);
                 StdDevRVec=nan(N_i,N_j);
+                windowrow=0; % a window row: its restricted Mean and StdDeviation are over those satisfying the restriction at every age of the window, so the types pool with that mass (the row's RestrictedSampleMass)
                 for ii=1:N_i
                     if FnsAndPTypeIndicator(ff,ii)==1
-                        RSMVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).RestrictedSampleMass);
+                        if isfield(CorrTransProbs_byType{ii}.(rname).(fn),'RestrictedSampleMass')
+                            RSMVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).RestrictedSampleMass);
+                            windowrow=1;
+                        else
+                            RSMVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).RestrictedSampleMass);
+                        end
                         MeanRVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).Mean);
                         StdDevRVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).StdDeviation);
                     end
@@ -602,6 +608,9 @@ if simoptions.groupptypesforstats==1
                 end
                 CorrTransProbs.(rname).(fn).Mean=MeanRG;
                 CorrTransProbs.(rname).(fn).StdDeviation=StdDevRG;
+                if windowrow==1 % the population mass at the start age that satisfies the restriction at every age of the window
+                    CorrTransProbs.(rname).(fn).RestrictedSampleMass=sum(FnsAndPTypeIndicator(ff,:)'.*ptweights.*RSMVec,1);
+                end
 
                 % Pairs at each horizon: pool with weight ptweights(ii)*PairMass_ii(j0), about the pooled pair means
                 for hh=1:nhorizons

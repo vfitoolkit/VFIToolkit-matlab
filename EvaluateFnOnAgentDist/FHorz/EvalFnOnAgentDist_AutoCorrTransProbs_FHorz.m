@@ -50,8 +50,11 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 % by M (simoptions.ntimeperiodstype='average', the default). A vector, e.g. simoptions.ntimeperiods=[1,2,5], gives each of
 % them (M=1 is the single-period statistic). The auto-covariance/-correlation at horizon K is then between the window
 % starting at age j and the window starting at age j+K, where K is in model periods (simoptions.timehorizons; when K<M the
-% two windows share M-K periods, and a warning says so). Conditional restrictions are evaluated at the two window start
-% ages, j and j+K (as for M=1, where these are the two ages of the pair).
+% two windows share M-K periods, and a warning says so). A conditional restriction must hold at every age of a window: the
+% restricted Mean and StdDeviation of W_j are over those who satisfy it at every age j to j+M-1, and the restricted pair
+% outputs over those who satisfy it at every age of both windows (for M=1 these are the two ages of the pair, j and j+K).
+% Each restricted window output has a field RestrictedSampleMass (1 x N_j): the mass at the start age (with the age
+% weights) that satisfies the restriction at every age of the window.
 % The M=1 outputs are under CorrTransProbs.(fnname) as always; the M>1 outputs are under CorrTransProbs.([fnname,'_',M,'periodAverage'])
 % (or 'periodSum'), e.g. CorrTransProbs.earnings_2periodAverage, with the same fields: Mean and StdDeviation are of W_j
 % (1 x N_j), the auto-covariances 1 x (N_j-K), and the last M-1 entries of each are NaN (the window runs past age N_j).
@@ -690,6 +693,7 @@ if nW>0
     if nRestr>0
         WMeanR=nan(numFnsToEvaluate,N_j,nRestr,nW,'gpuArray');
         WStdDevR=nan(numFnsToEvaluate,N_j,nRestr,nW,'gpuArray');
+        WRSMass=nan(numFnsToEvaluate,N_j,nRestr,nW,'gpuArray'); % the mass at the start age (with the age weights) that satisfies the restriction at every age of the window
         WAutoCovR=cell(1,nhorizons);
         WAutoCorrR=cell(1,nhorizons);
         WPairMass=cell(1,nhorizons);
@@ -722,6 +726,7 @@ if uselogW
     if nRestr>0
         LMeanR=nan(numFnsToEvaluate,N_j,nRestr,nW,'gpuArray');
         LStdDevR=nan(numFnsToEvaluate,N_j,nRestr,nW,'gpuArray');
+        LRSMass=nan(numFnsToEvaluate,N_j,nRestr,nW,'gpuArray'); % the same for the log of the window (only at the ages computed)
         LAutoCovR=cell(1,nhorizons);
         LAutoCorrR=cell(1,nhorizons);
         LPairMass=cell(1,nhorizons);
@@ -1034,6 +1039,16 @@ for fc=1:maxfnchunk:length(fnwanted)
                 end
                 xt=Values_j(:,fi)-cjj;
                 a1=double(jj<=jj0+M-1); % age jj is in the first window
+                % a conditional restriction must hold at every age of a window: keep only those who satisfy it at age jj when age
+                % jj is in a window of the group (kind 1: its first window; kind 2: its second window, whose first age was masked when
+                % it started) [the start age of each window is masked where the group starts]
+                if rr>0
+                    if grp_kind(g)==1 && a1==1 && jj>jj0
+                        inflight(:,c0:c0+2)=inflight(:,c0:c0+2).*RestrictionValues(:,jj,rr);
+                    elseif grp_kind(g)==2 && jj>jj0+horizons(grp_hh(g))
+                        inflight(:,c0:c0+5)=inflight(:,c0:c0+5).*RestrictionValues(:,jj,rr);
+                    end
+                end
                 if grp_kind(g)==1
                     % Start the pair (jj0, jj) when the start age jj0 is selected, jj-jj0 is a horizon and the second window fits:
                     % the kind 1 measures (masked by the restriction at age jj), with age jj added (b=1, a=a1)
@@ -1070,6 +1085,9 @@ for fc=1:maxfnchunk:length(fnwanted)
                     % The Mean and StdDeviation of W_jj0, at the end of the first window
                     if jj==jj0+M-1 && all(hasmassJ(jj0:jj))
                         mass=sum(inflight(:,c0));
+                        if rr>0
+                            WRSMass(ff,jj0,rr,lw)=mass; % those who satisfy the restriction at every age of the window
+                        end
                         if mass>0
                             csum=0; % the sum of the centering constants over the window
                             for tt=jj0:jj
@@ -1278,6 +1296,7 @@ for fc=1:maxfnchunk:length(fnwanted)
                             else
                                 m0=StationaryDist(:,jj).*RestrictionValues(:,jj,rr); % restricted mass at age jj (not normalized: includes the age weight)
                                 if sum(m0)==0
+                                    WRSMass(ff,jj,rr,lw)=0; % nobody at age jj satisfies the restriction (the age itself has mass)
                                     if sel==1
                                         for hh=1:nhorizons
                                             if jj+horizons(hh)+M-1<=N_j
@@ -1420,6 +1439,14 @@ for fc=1:maxfnchunk:length(fnwanted)
                             H=zeros(N_states,1,'gpuArray');
                             H2=zeros(N_states,1,'gpuArray');
                             HB=zeros(N_states,1,'gpuArray');
+                            % A conditional restriction must hold at both ages of the window: for each restriction whose log is wanted,
+                            % the same sums over the edges whose age-jj+1 state satisfies it (Hr, H2r, HBr), and Pr(s) the probability of
+                            % satisfying it at age jj+1 given s at jj (the restriction at age jj is applied to the measures below)
+                            rrlog=find(reshape(any(wcLogW(ff,:,2:end,lw),2),1,[]));
+                            Hr=cell(1,nRestr); H2r=cell(1,nRestr); HBr=cell(1,nRestr); Pr=cell(1,nRestr);
+                            for rr=rrlog
+                                Hr{rr}=zeros(N_states,1,'gpuArray'); H2r{rr}=zeros(N_states,1,'gpuArray'); HBr{rr}=zeros(N_states,1,'gpuArray'); Pr{rr}=zeros(N_states,1,'gpuArray');
+                            end
                             eG_wcache=cell(1,N_er); % the probabilities and the log of the 2-period sum on the edges, for each e', computed once and used again for the forward starts below
                             eG_Gcache=cell(1,N_er);
                             for ee=1:N_er
@@ -1436,6 +1463,14 @@ for fc=1:maxfnchunk:length(fnwanted)
                                 H=H+accumarray(eG_src,sum(eG_w.*G,2),[N_states,1]);
                                 H2=H2+accumarray(eG_src,sum(eG_w.*G.^2,2),[N_states,1]);
                                 HB=HB+accumarray(eG_src,sum(eG_w.*bad,2),[N_states,1]);
+                                for rr=rrlog
+                                    Rnext=RestrictionValues(:,jj+1,rr);
+                                    wR=eG_w.*Rnext(eG_dest); % the edges into a state satisfying the restriction at age jj+1
+                                    Hr{rr}=Hr{rr}+accumarray(eG_src,sum(wR.*G,2),[N_states,1]);
+                                    H2r{rr}=H2r{rr}+accumarray(eG_src,sum(wR.*G.^2,2),[N_states,1]);
+                                    HBr{rr}=HBr{rr}+accumarray(eG_src,sum(wR.*bad,2),[N_states,1]);
+                                    Pr{rr}=Pr{rr}+accumarray(eG_src,sum(wR,2),[N_states,1]);
+                                end
                                 eG_wcache{ee}=eG_w;
                                 eG_Gcache{ee}=G; % (log(1)=0 where the sum is not positive: those edges carry no mass on the pages used, else the Mean below errors)
                             end
@@ -1447,16 +1482,20 @@ for fc=1:maxfnchunk:length(fnwanted)
                                 rr=pp-1;
                                 if rr==0
                                     m0=StationaryDist(:,jj)./massJ(jj);
+                                    mass=sum(m0);
+                                    HBp=HB; Hp=H; H2p=H2;
                                 else
                                     m0=StationaryDist(:,jj).*RestrictionValues(:,jj,rr);
+                                    mass=sum(m0.*Pr{rr}); % those who satisfy the restriction at both ages of the window
+                                    LRSMass(ff,jj,rr,lw)=mass;
+                                    HBp=HBr{rr}; Hp=Hr{rr}; H2p=H2r{rr};
                                 end
-                                mass=sum(m0);
                                 if mass>0
-                                    if sum(m0.*HB)>0
-                                        error(['AutoCorrTransProbs_FHorz: simoptions.logwhichcombos asks for the log of the 2-period sum/average of ',FnsToEvalNames{ff},' starting at age ',num2str(jj),', but it is zero or negative for some agents with positive mass in the population used (the whole age if the unrestricted outputs are wanted, else those satisfying the conditional restriction at the start age). The log needs it to be positive for all of them: use a conditional restriction (e.g. alive) to leave out the agents where it is not, or put a floor in the FnsToEvaluate.'])
+                                    if sum(m0.*HBp)>0
+                                        error(['AutoCorrTransProbs_FHorz: simoptions.logwhichcombos asks for the log of the 2-period sum/average of ',FnsToEvalNames{ff},' starting at age ',num2str(jj),', but it is zero or negative for some agents with positive mass in the population used (the whole age if the unrestricted outputs are wanted, else those satisfying the conditional restriction at both ages of the window). The log needs it to be positive for all of them: use a conditional restriction (e.g. alive) to leave out the agents where it is not, or put a floor in the FnsToEvaluate.'])
                                     end
-                                    e1=sum(m0.*H)/mass;
-                                    E2=sum(m0.*H2)/mass;
+                                    e1=sum(m0.*Hp)/mass;
+                                    E2=sum(m0.*H2p)/mass;
                                     v1=E2-e1^2;
                                     if v1<=64*eps*E2
                                         v1=0; % below the rounding level of the difference it was computed as
@@ -1484,15 +1523,19 @@ for fc=1:maxfnchunk:length(fnwanted)
                                 c0=grp_col(g);
                                 if rr==0
                                     pairs=inflight(:,c0:c0+2);
+                                    pairmass=sum(pairs(:,1));
+                                    HBp=HB; Hp=H; H2p=H2;
                                 else
                                     pairs=inflight(:,c0:c0+2).*RestrictionValues(:,jj,rr); % keep those who satisfy the restriction at age jj too
+                                    pairs=pairs.*Pr{rr}; % and at age jj+1, the second age of the second window (the first window's two ages were masked where the group started)
+                                    pairmass=sum(pairs(:,1));
+                                    HBp=HBr{rr}./max(Pr{rr},realmin); Hp=Hr{rr}./max(Pr{rr},realmin); H2p=H2r{rr}./max(Pr{rr},realmin); % the conditional expectations given the restriction holds at jj+1 (where Pr is 0 the pair mass is 0 too)
                                 end
-                                pairmass=sum(pairs(:,1));
                                 if rr>0
                                     LPairMass{hh}(ff,jj0,rr,lw)=pairmass;
                                 end
                                 if pairmass>0
-                                    if sum(pairs(:,1).*HB)>0
+                                    if sum(pairs(:,1).*HBp)>0
                                         error(['AutoCorrTransProbs_FHorz: simoptions.logwhichcombos asks for the log of the 2-period sum/average of ',FnsToEvalNames{ff},' starting at age ',num2str(jj),' (the second window of the pairs starting at age ',num2str(jj0),'), but it is zero or negative for some agents with positive mass in the pair population. The log needs it to be positive for all of them: use a conditional restriction (e.g. alive) to leave out the agents where it is not, or put a floor in the FnsToEvaluate.'])
                                     end
                                     e1=sum(pairs(:,2))/pairmass;
@@ -1501,13 +1544,13 @@ for fc=1:maxfnchunk:length(fnwanted)
                                     if v1<=64*eps*raw1
                                         v1=0; % below the rounding level of the difference it was computed as
                                     end
-                                    e2=sum(pairs(:,1).*H)/pairmass;
-                                    raw2=sum(pairs(:,1).*H2)/pairmass;
+                                    e2=sum(pairs(:,1).*Hp)/pairmass;
+                                    raw2=sum(pairs(:,1).*H2p)/pairmass;
                                     v2=raw2-e2^2;
                                     if v2<=64*eps*raw2
                                         v2=0;
                                     end
-                                    covxy=sum(pairs(:,2).*H)/pairmass-e1*e2;
+                                    covxy=sum(pairs(:,2).*Hp)/pairmass-e1*e2;
                                     denom=sqrt(v1)*sqrt(v2);
                                     if rr==0
                                         LAutoCov{hh}(ff,jj0,lw)=covxy;
@@ -1563,6 +1606,10 @@ for fc=1:maxfnchunk:length(fnwanted)
                                         eG_dest=eG_dest0+N_a*N_semizr*N_zr*(ee-1);
                                         Gc=eG_Gcache{ee}-cmean; % the edge weights computed for H above
                                         mw=m0(eG_src).*eG_wcache{ee}; % nnz x N_zr: the start mass on each edge
+                                        if rr>0
+                                            Rnext=RestrictionValues(:,jj+1,rr);
+                                            mw=mw.*Rnext(eG_dest); % the restriction must hold at age jj+1 too (the second age of the first window)
+                                        end
                                         F3(:,1)=F3(:,1)+accumarray(eG_dest(:),mw(:),[N_states,1]);
                                         F3(:,2)=F3(:,2)+accumarray(eG_dest(:),mw(:).*Gc(:),[N_states,1]);
                                         F3(:,3)=F3(:,3)+accumarray(eG_dest(:),mw(:).*Gc(:).^2,[N_states,1]);
@@ -1772,6 +1819,7 @@ for lw=1:nW
             end
             CorrTransProbs.(CondlRestnFnNames{rr}).(wname).Mean=scale1*WMeanR(ff,:,rr,lw);
             CorrTransProbs.(CondlRestnFnNames{rr}).(wname).StdDeviation=scale1*WStdDevR(ff,:,rr,lw);
+            CorrTransProbs.(CondlRestnFnNames{rr}).(wname).RestrictedSampleMass=WRSMass(ff,:,rr,lw); % the start mass that satisfies the restriction at every age of the window
             for hh=1:nhorizons
                 CorrTransProbs.(CondlRestnFnNames{rr}).(wname).(['AutoCovariance',horizonstr{hh}])=scale1^2*WAutoCovR{hh}(ff,:,rr,lw);
                 CorrTransProbs.(CondlRestnFnNames{rr}).(wname).(['AutoCorrelation',horizonstr{hh}])=WAutoCorrR{hh}(ff,:,rr,lw);
@@ -1816,6 +1864,7 @@ for lw=1:nW
             end
             CorrTransProbs.(CondlRestnFnNames{rr}).(lname).Mean=LMeanR(ff,:,rr,lw)-logshift;
             CorrTransProbs.(CondlRestnFnNames{rr}).(lname).StdDeviation=LStdDevR(ff,:,rr,lw);
+            CorrTransProbs.(CondlRestnFnNames{rr}).(lname).RestrictedSampleMass=LRSMass(ff,:,rr,lw); % the start mass that satisfies the restriction at both ages of the window (at the ages computed)
             for hh=1:nhorizons
                 CorrTransProbs.(CondlRestnFnNames{rr}).(lname).(['AutoCovariance',horizonstr{hh}])=LAutoCovR{hh}(ff,:,rr,lw);
                 CorrTransProbs.(CondlRestnFnNames{rr}).(lname).(['AutoCorrelation',horizonstr{hh}])=LAutoCorrR{hh}(ff,:,rr,lw);

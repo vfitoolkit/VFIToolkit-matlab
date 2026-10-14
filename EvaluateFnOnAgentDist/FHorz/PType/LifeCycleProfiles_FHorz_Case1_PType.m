@@ -297,7 +297,10 @@ end
 % type dimension (it applies to every ptype and to the grouped stats alike), or is a scalar. M>1 needs agegroupings=1:1:N_j,
 % the same N_j for every ptype, no agejshifter, and simoptions.pi_z (z transitions; may depend on ptype as pi_z does). The
 % per-ptype window statistics are those of LifeCycleProfiles_FHorz_Case1; the grouped ones pool the exact path lists of every
-% ptype (each ptype weighted by ptweights times its mass at the start age, or its restricted mass there).
+% ptype (each ptype weighted by ptweights times its mass at the start age, or its restricted mass there). A conditional
+% restriction must hold at every age of the window; a restricted window output has a field RestrictedSampleMass (1 x N_j): the
+% mass at the start age (with the age weights) that satisfies the restriction in all M periods, within the ptype for a ptype's
+% field and in the population (ptweights) for the grouped one.
 % Internally: the M=1 rows (with an extra function fnname_log, the log of fnname, for each function with a log row) are handed
 % to the single-period code below as simoptions.whichcombos (and whichstats), and the window rows are kept for the window section.
 ntimeperiods=gather(simoptions.ntimeperiods(:)'); % the order is kept: it is the order of the row blocks of whichcombos
@@ -1536,6 +1539,9 @@ if nW>0
                             SS.MoreInequality.Percentile95th=nan(1,N_j,'gpuArray');
                             SS.MoreInequality.Percentile99th=nan(1,N_j,'gpuArray');
                         end
+                        if pp>1
+                            SS.RestrictedSampleMass=nan(1,N_j,'gpuArray'); % the start mass that satisfies the restriction at every age of the window
+                        end
                         if slot<=N_i
                             if pp==1
                                 AgeConditionalStats.(WNames{ff,lw,kind}).(Names_i{slot})=SS;
@@ -1710,6 +1716,18 @@ if nW>0
             for lw=1:nW
                 M=windowM(lw);
                 for pp=1:nwhichpages
+                    if pp>1 % the population mass at the start age that satisfies the restriction at every age of the window
+                        if isempty(PoolM{ff,lw,pp})
+                            poolmass=0;
+                        else
+                            poolmass=sum(PoolM{ff,lw,pp});
+                        end
+                        for kind=1:2
+                            if (kind==1 && wcW(ff,jj,pp,N_i+1,lw)==1) || (kind==2 && wcLogW(ff,jj,pp,N_i+1,lw)==1)
+                                AgeConditionalStats.(CondlRestnFnNames{pp-1}).(WNames{ff,lw,kind}).RestrictedSampleMass(jj)=poolmass;
+                            end
+                        end
+                    end
                     if isempty(PoolS{ff,lw,pp}) || sum(PoolM{ff,lw,pp})==0
                         continue % no ptype has mass there: stays NaN
                     end

@@ -18,8 +18,10 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy
 % needed with simoptions.ExogShockFn); the e and semi-exogenous shocks are read from simoptions as usual. All of the
 % statistics of W_j are exact (W_j depends on the path of the states from j to j+M-1, which is enumerated: the paths that
 % reach the same state with the same partial sum are merged, there is no approximation; the cost grows with M as the number
-% of distinct (state, partial sum) pairs, so a large M with many shocks can run out of memory). Conditional restrictions
-% are evaluated at the window start age j. The M=1 outputs are under AgeConditionalStats.(fnname) as always; the M>1
+% of distinct (state, partial sum) pairs, so a large M with many shocks can run out of memory). A conditional restriction
+% must hold at every age of the window (j to j+M-1): the restricted statistics of W_j are those of the agents who satisfy it
+% in all M periods, and each restricted window output has a field RestrictedSampleMass (1 x N_j), their mass at the start
+% age (with the age weights, as the single-period RestrictedSampleMass). The M=1 outputs are under AgeConditionalStats.(fnname) as always; the M>1
 % outputs are under AgeConditionalStats.([fnname,'_',M,'periodAverage']) (or 'periodSum'), e.g. earnings_2periodAverage,
 % with the same fields (1 x N_j, the last M-1 entries NaN as the window runs past age N_j). An age with zero mass is NaN.
 % With ntimeperiods of length L, simoptions.whichcombos and simoptions.whichstats may have L*numFnsToEvaluate rows, in
@@ -1008,6 +1010,9 @@ if nW>0
                         SS.MoreInequality.Percentile95th=nan(1,N_j,'gpuArray');
                         SS.MoreInequality.Percentile99th=nan(1,N_j,'gpuArray');
                     end
+                    if pp>1
+                        SS.RestrictedSampleMass=nan(1,N_j,'gpuArray'); % the mass at the start age (with the age weights, as the single-period RestrictedSampleMass) that satisfies the restriction at every age of the window
+                    end
                     if pp==1
                         AgeConditionalStats.(WNames{ff,lw,kind})=SS;
                     else
@@ -1149,11 +1154,11 @@ if nW>0
     Lst=cell(1,0);
     LS=cell(1,0);
     Lm=cell(1,0);
+    Lcm=cell(1,0); % the mass of each page at the start age (the list masses are shares of it)
     for jj=1:N_j
         % (i) Start the lists of start age jj
-        massjj=sum(StationaryDist(:,jj));
         for ff=1:numFnsBase
-            if Mstop(ff,jj)==0 || massjj==0
+            if Mstop(ff,jj)==0
                 continue
             end
             pagesL=find(reshape(pagesW(ff,jj,:),[1,nwhichpages]));
@@ -1162,11 +1167,20 @@ if nW>0
                 if pagesL(pp)==1
                     m0(:,pp)=StationaryDist(:,jj);
                 else
-                    m0(:,pp)=StationaryDist(:,jj).*RestrictionMask{pagesL(pp)-1}(:,jj); % the restriction is evaluated at the start age
+                    m0(:,pp)=StationaryDist(:,jj).*RestrictionMask{pagesL(pp)-1}(:,jj); % the restriction at the start age (and below, at every later age of the window)
                 end
             end
             colmass=gather(sum(m0,1));
-            keep=(colmass>0); % a page with no mass at the start age stays NaN
+            keep=(colmass>0); % a page with no mass at the start age stays NaN (its RestrictedSampleMass is zero)
+            for pp=find(~keep & pagesL>1)
+                for lw=1:nW
+                    for kind=1:2
+                        if (kind==1 && whichcombosW(ff,jj,pagesL(pp),lw)==1) || (kind==2 && wcLogW(ff,jj,pagesL(pp),lw)==1)
+                            AgeConditionalStats.(CondlRestnFnNames{pagesL(pp)-1}).(WNames{ff,lw,kind}).RestrictedSampleMass(jj)=0;
+                        end
+                    end
+                end
+            end
             if ~any(keep)
                 continue
             end
@@ -1179,6 +1193,7 @@ if nW>0
             Lst=[Lst,{st}]; %#ok<AGROW>
             LS=[LS,{ValuesW{ff}(st,jj)}]; %#ok<AGROW>
             Lm=[Lm,{m0(st,:)}]; %#ok<AGROW>
+            Lcm=[Lcm,{colmass(keep)}]; %#ok<AGROW>
         end
 
         % (ii) Read the windows that end at age jj: a list of start age j has the M-period sums for M=jj-j+1
@@ -1222,6 +1237,7 @@ if nW>0
                         SS=AgeConditionalStats.(WNames{ff,lw,kind});
                     else
                         SS=AgeConditionalStats.(CondlRestnFnNames{pg-1}).(WNames{ff,lw,kind});
+                        SS.RestrictedSampleMass(j0)=Lcm{ll}(pp)*sum(Lm{ll}(:,pp)); % the start mass that satisfies the restriction at every age of the window
                     end
                     if ws(1)==1
                         SS.Mean(j0)=tempStats.Mean;
@@ -1282,6 +1298,7 @@ if nW>0
         Lst=Lst(~done);
         LS=LS(~done);
         Lm=Lm(~done);
+        Lcm=Lcm(~done);
         if isempty(Lff)
             continue
         end
@@ -1348,6 +1365,21 @@ if nW>0
             D=D(keep);
             ie=ie(keep);
             newm=Lm{ll}(ie,:).*P;
+            % a conditional restriction must hold at every age of the window: the mass of a restricted page keeps only the paths
+            % whose age-jj+1 state satisfies it (the paths that leave the restriction are dropped from that page)
+            restrdrop=0;
+            for pp=1:length(Lpages{ll})
+                if Lpages{ll}(pp)>1
+                    newm(:,pp)=newm(:,pp).*RestrictionMask{Lpages{ll}(pp)-1}(D,jj+1);
+                    restrdrop=1;
+                end
+            end
+            if restrdrop==1
+                keep=any(newm>0,2);
+                newm=newm(keep,:);
+                D=D(keep);
+                ie=ie(keep);
+            end
             newS=LS{ll}(ie)+ValuesW{ff}(D,jj+1);
             if jj+1-Lj(ll)+1<Mstop(ff,Lj(ll))
                 % merge the entries with the same state and partial sum (the list is extended again)
