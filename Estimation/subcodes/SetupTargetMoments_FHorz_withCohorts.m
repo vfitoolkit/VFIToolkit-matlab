@@ -9,6 +9,10 @@ function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(Ta
 % AgeConditionalStats targets may name the window and log rows (fnname_log, fnname_MperiodAverage, ...; 2026-10-14): cohortmoments
 % acsntimeperiods{cc}, acsntimeperiodstype{cc} and acslog{cc} (rows {restriction or '', FnsToEvaluate, M, 1 x N_j selection}) let the objective set
 % simoptions.ntimeperiods, ntimeperiodstype and logwhichcombos; the last age of an M-period window target is M-1 ages after its start.
+% TargetMoments.CustomModelStats.cohortC.(name) (2026-10-14): the same estimoptions.CustomModelStats function as without cohorts,
+% called once per cohort on that cohort's agent distribution (simoptions.jequaloneDistAge is its entry age); each target is a
+% vector (NaN where not targeted), stacked last within the cohort (after AutoCorr): cohortmoments.usingcustomstats(cc),
+% cmsmomentnames{cc}, cmscummomentsizes{cc}. The function may use any age, so such a cohort's distribution runs to N_j.
 %
 % AutoCorr targets (added 2026-09-29) are the outputs of EvalFnOnAgentDist_AutoCorrTransProbs_FHorz (or its PType
 % wrapper): TargetMoments.AutoCorr.cohortC.fn.stat, or .cohortC.restriction.fn.stat (restriction is a name in
@@ -30,7 +34,7 @@ function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(Ta
 ncohorts=length(cohortagejshifter);
 
 % Only cohortC names are allowed at the top level
-for ss={'AllStats','AgeConditionalStats','AutoCorr'}
+for ss={'AllStats','AgeConditionalStats','AutoCorr','CustomModelStats'}
     if isfield(TargetMoments,ss{1})
         temp=fieldnames(TargetMoments.(ss{1}));
         for tt=1:length(temp)
@@ -43,10 +47,6 @@ for ss={'AllStats','AgeConditionalStats','AutoCorr'}
         end
     end
 end
-if isfield(TargetMoments,'CustomModelStats')
-    error('TargetMoments.CustomModelStats is not implemented together with estimoptions.cohortagejshifter (if you want this, ask on the forum, discourse.vfitoolkit.com)')
-end
-
 FnNamesAll=fieldnames(FnsToEvaluate);
 
 targetmomentvec=[];
@@ -70,7 +70,13 @@ for cc=1:ncohorts
             cohortmoments.usingautocorr(cc)=1;
         end
     end
-    if isempty(fieldnames(TargetMoments_cc)) && cohortmoments.usingautocorr(cc)==0
+    cohortmoments.usingcustomstats(cc)=0;
+    if isfield(TargetMoments,'CustomModelStats')
+        if isfield(TargetMoments.CustomModelStats,cohortstr)
+            cohortmoments.usingcustomstats(cc)=1;
+        end
+    end
+    if isempty(fieldnames(TargetMoments_cc)) && cohortmoments.usingautocorr(cc)==0 && cohortmoments.usingcustomstats(cc)==0
         error(['estimoptions.cohortagejshifter is being used, so targets must be by cohort, but there are no targets for ',cohortstr])
     end
     [targetmomentvec_cc,cohortmoments.usingallstats(cc),cohortmoments.usinglcp(cc),~, cohortmoments.allstatmomentnames{cc},cohortmoments.allstatcummomentsizes{cc},cohortmoments.AllStats_whichstats{cc},cohortmoments.FnsToEvaluate_AllStats{cc}, cohortmoments.acsmomentnames{cc}, cohortmoments.acscummomentsizes{cc}, cohortmoments.ACStats_whichstats{cc},cohortmoments.FnsToEvaluate_ACStats{cc}, ~,~]=SetupTargetMoments_FHorz(TargetMoments_cc,FnsToEvaluate,useptype);
@@ -346,10 +352,34 @@ for cc=1:ncohorts
         cohortmoments.acrlog{cc}=cell(0,4);
     end
 
+    %% CustomModelStats targets of this cohort: the same function as without cohorts, called on this cohort's agent distribution
+    if cohortmoments.usingcustomstats(cc)==1
+        cmsnames=fieldnames(TargetMoments.CustomModelStats.(cohortstr));
+        cmssizes=zeros(1,length(cmsnames));
+        targetmomentvec_cms=[];
+        for mm=1:length(cmsnames)
+            val=TargetMoments.CustomModelStats.(cohortstr).(cmsnames{mm});
+            if isstruct(val) || ~isnumeric(val)
+                error(['TargetMoments.CustomModelStats.',cohortstr,'.',cmsnames{mm},' must be a numeric vector (the value of the field of that name that estimoptions.CustomModelStats returns; NaN where not targeted)'])
+            end
+            targetmomentvec_cms=[targetmomentvec_cms; val(:)]; %#ok<AGROW>
+            cmssizes(mm)=numel(val);
+        end
+        cohortmoments.cmsmomentnames{cc}=cmsnames;
+        cohortmoments.cmscummomentsizes{cc}=cumsum(cmssizes);
+        targetmomentvec_cc=[targetmomentvec_cc; targetmomentvec_cms];
+    else
+        cohortmoments.cmsmomentnames{cc}=cell(0,1);
+        cohortmoments.cmscummomentsizes{cc}=0;
+    end
+
     %% The last age this cohort's targets need (the objective fn stops the cohort's agent distribution there, simoptions.lastDistAge)
     lastage=j0;
     if cohortmoments.usingallstats(cc)==1
         lastage=N_j; % AllStats pool every age
+    end
+    if cohortmoments.usingcustomstats(cc)==1
+        lastage=N_j; % CustomModelStats may use any age
     end
     if cohortmoments.usinglcp(cc)==1
         lastage=max(lastage,lastage_lcp);

@@ -46,7 +46,8 @@ end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,0);
+    KeepOriginalGrid=(isfield(cohortmoments,'usingcustomstats') && any(cohortmoments.usingcustomstats) && caliboptions.CustomModelStats_usergrids==1); % the user's own grids, for CustomModelStats
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3,KeepOriginalGrid);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
@@ -55,7 +56,11 @@ end
 
 %% Solve the model
 vftimer=tic;
-[~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+if isfield(cohortmoments,'usingcustomstats') && any(cohortmoments.usingcustomstats)
+    [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions); % CustomModelStats is given V
+else
+    [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+end
 vftime=toc(vftimer); % (for verbose)
 
 if caliboptions.simulatemoments==1
@@ -213,6 +218,41 @@ for cc=1:ncohorts
             else
                 currentmomentvec(ind1:ind2)=CorrTransProbs.(acrmomentnames{mm,1}).(acrmomentnames{mm,2}).(acrmomentnames{mm,4});
             end
+        end
+        sofar=sofar+acrcummomentsizes(end);
+    end
+    if isfield(cohortmoments,'usingcustomstats') && cohortmoments.usingcustomstats(cc)==1
+        % CustomModelStats targets: the user's function (as without cohorts) on this cohort's agent distribution; it is given the
+        % user's own vfoptions and simoptions, with simoptions.jequaloneDistAge (the cohort's entry age) and lastDistAge set
+        simoptions_cms=caliboptions.CustomModelStatsInputs.simoptions;
+        simoptions_cms.jequaloneDistAge=caliboptions.cohortagejshifter(cc);
+        simoptions_cms.lastDistAge=simoptions.lastDistAge;
+        if caliboptions.CustomModelStats_usergrids==0
+            CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,simoptions_cms);
+        else
+            if caliboptions.calibrateshocks==1 % shock grids depend on parameters being estimated, so give the user's own grids as rebuilt from the current parameters
+                caliboptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
+                caliboptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
+            end
+            CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,simoptions_cms);
+        end
+        cmsmomentnames=cohortmoments.cmsmomentnames{cc};
+        cmscummomentsizes=cohortmoments.cmscummomentsizes{cc};
+        for mm=1:length(cmsmomentnames)
+            if ~isfield(CustomStats,cmsmomentnames{mm})
+                error(['TargetMoments.CustomModelStats.cohort',num2str(cc),'.',cmsmomentnames{mm},' is targeted, but estimoptions.CustomModelStats does not return a field of that name'])
+            end
+            if mm==1
+                ind1=sofar+1;
+            else
+                ind1=sofar+cmscummomentsizes(mm-1)+1;
+            end
+            ind2=sofar+cmscummomentsizes(mm);
+            val=gather(CustomStats.(cmsmomentnames{mm}));
+            if numel(val)~=ind2-ind1+1
+                error(['estimoptions.CustomModelStats returns ',cmsmomentnames{mm},' with ',num2str(numel(val)),' entries, but its target (cohort ',num2str(cc),') has ',num2str(ind2-ind1+1)])
+            end
+            currentmomentvec(ind1:ind2)=val(:);
         end
     end
 end

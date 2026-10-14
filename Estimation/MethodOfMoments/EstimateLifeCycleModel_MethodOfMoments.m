@@ -259,7 +259,9 @@ if ~(isscalar(estimoptions.cohortagejshifter) && estimoptions.cohortagejshifter=
         error('estimoptions.bootstrapStdErrors=1 is not implemented together with estimoptions.cohortagejshifter')
     end
     if isfield(TargetMoments,'CustomModelStats')
-        error('TargetMoments.CustomModelStats is not implemented together with estimoptions.cohortagejshifter (if you want this, ask on the forum, discourse.vfitoolkit.com)')
+        if estimoptions.useCustomModelStats==0
+            error('TargetMoments.CustomModelStats (by cohort, TargetMoments.CustomModelStats.cohortC.(name)) needs estimoptions.CustomModelStats, the function that computes them (it is called once per cohort, on that cohort''s agent distribution, with simoptions.jequaloneDistAge its entry age)')
+        end
     end
     if estimoptions.verbose==1
         fprintf('Cohorts: %i cohorts entering at ages %s with masses %s \n',estimoptions.ncohorts,mat2str(estimoptions.cohortagejshifter),mat2str(estimoptions.cohortmasses,4))
