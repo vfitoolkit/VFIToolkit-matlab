@@ -13,6 +13,8 @@ N_d3=prod(n_d3);
 N_d12=N_d1*N_d2;
 N_a2=prod(n_a2);
 N_a=N_a2;
+a2_gridvals=CreateGridvals(n_a2,a2_grid,1); % [N_a2, l_a2]; a2_grid stays STACKED for the
+% aprimeFn builders, which split it themselves, but the ReturnFn matrix builders want gridvals
 N_z=prod(n_z);
 N_semiz=prod(n_semiz);
 N_bothz=prod(n_bothz);
@@ -48,7 +50,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a2, n_bothz, d123_gridvals, a2_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a2, n_bothz, d123_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
         d12_ind=rem(maxindex-1,N_d12)+1;
@@ -59,7 +61,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         for z_c=1:N_z
             semizblock=(z_c-1)*N_semiz+(1:1:N_semiz);
             z_valblock=bothz_gridvals_J(semizblock,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a2, special_n_semizblock, d123_gridvals, a2_grid, z_valblock, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a2, special_n_semizblock, d123_gridvals, a2_gridvals, z_valblock, ReturnFnParamsVec);
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,semizblock,N_j)=shiftdim(Vtemp,1);
             d12_ind=rem(maxindex-1,N_d12)+1;
@@ -70,7 +72,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==2 % joint loop over bothz
         for z_c=1:N_bothz
             z_val=bothz_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a2, special_n_bothz, d123_gridvals, a2_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a2, special_n_bothz, d123_gridvals, a2_gridvals, z_val, ReturnFnParamsVec);
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
             d12_ind=rem(maxindex-1,N_d12)+1;
@@ -103,7 +105,7 @@ else
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            ReturnMatrix_d3=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, n_bothz, d123_gridvals_val, a2_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d3=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, n_bothz, d123_gridvals_val, a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0;
@@ -136,7 +138,7 @@ else
             for z_c=1:N_z
                 semizblock=(z_c-1)*N_semiz+(1:1:N_semiz);
                 z_valblock=bothz_gridvals_J(semizblock,:,N_j);
-                ReturnMatrix_d3z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, special_n_semizblock, d123_gridvals_val, a2_grid, z_valblock, ReturnFnParamsVec);
+                ReturnMatrix_d3z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, special_n_semizblock, d123_gridvals_val, a2_gridvals, z_valblock, ReturnFnParamsVec);
 
                 EV=V_Jplus1.*shiftdim(pi_bothz(semizblock,:)',-1); % [N_a, N_bothz_next, N_semiz]
                 EV(isnan(EV))=0;
@@ -166,7 +168,7 @@ else
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_d3z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, special_n_bothz, d123_gridvals_val, a2_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d3z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, special_n_bothz, d123_gridvals_val, a2_gridvals, z_val, ReturnFnParamsVec);
 
                 EV_z=V_Jplus1.*pi_bothz(z_c,:);
                 EV_z(isnan(EV_z))=0;
@@ -237,7 +239,7 @@ for reverse_j=1:N_j-1
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            ReturnMatrix_d3=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, n_bothz, d123_gridvals_val, a2_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d3=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, n_bothz, d123_gridvals_val, a2_gridvals, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
             EV=EVpre.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0;
@@ -270,7 +272,7 @@ for reverse_j=1:N_j-1
             for z_c=1:N_z
                 semizblock=(z_c-1)*N_semiz+(1:1:N_semiz);
                 z_valblock=bothz_gridvals_J(semizblock,:,jj);
-                ReturnMatrix_d3z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, special_n_semizblock, d123_gridvals_val, a2_grid, z_valblock, ReturnFnParamsVec);
+                ReturnMatrix_d3z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, special_n_semizblock, d123_gridvals_val, a2_gridvals, z_valblock, ReturnFnParamsVec);
 
                 EV=EVpre.*shiftdim(pi_bothz(semizblock,:)',-1);
                 EV(isnan(EV))=0;
@@ -300,7 +302,7 @@ for reverse_j=1:N_j-1
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
-                ReturnMatrix_d3z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, special_n_bothz, d123_gridvals_val, a2_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d3z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d1,n_d2,1], n_a2, special_n_bothz, d123_gridvals_val, a2_gridvals, z_val, ReturnFnParamsVec);
 
                 EV_z=EVpre.*pi_bothz(z_c,:);
                 EV_z(isnan(EV_z))=0;

@@ -84,8 +84,8 @@ whichisdforexpasset=(l_d-l_dsemiz-l_d2+1):(l_d-l_dsemiz);
 
 % aprimeFnParamNames: leading inputs are (d_expasset..., a2, semiz...)
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_semiz)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_semiz+1:end}};
+if length(temp)>(l_d2+l_a2+l_semiz+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+l_semiz+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2,semiz), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end
@@ -170,6 +170,15 @@ for reverse_j=0:N_j-1
         Policy_slice=reshape(Policy_k(:,:,:,:,jj), [l_d+l_a1, N_a, N_shocks*N_e]);
     end
     [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetsemiz(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, n_semiz, N_semiz, N_zloc, N_e, d_grid, a2_grid, semiz_gridvals_J(:,:,jj), aprimeFnParamsVec);
+    if length(n_a2)==2
+        % l_a2==2: the builder returns [N_a,l_a2,N_semizze] per-dim factored. Pull the two lower
+        % indexes and their probabilities out into exactly the [N_a,N_semizze] shape that the
+        % l_a2==1 a2primeIndex/a2primeProbs have, so each branch below can slice them identically.
+        loIdx_1=reshape(a2primeIndex(:,1,:),size(a2primeProbs,1),[]);
+        loIdx_2=reshape(a2primeIndex(:,2,:),size(a2primeProbs,1),[]);
+        pr_1=reshape(a2primeProbs(:,1,:),size(a2primeProbs,1),[]);
+        pr_2=reshape(a2primeProbs(:,2,:),size(a2primeProbs,1),[]);
+    end
     % Shapes:
     %   N_e==0: [N_a, N_shocks]            (where N_shocks = N_semiz*N_zloc)
     %   N_e>0:  [N_a, N_shocks*N_e]
@@ -222,18 +231,51 @@ for reverse_j=0:N_j-1
             d2_jj=d_semiz_idx(:,:,jj); % [N_a, N_shocks]
             a1p_r=reshape(a1p,[N_a, N_semiz, N_zloc]);
             d2_r =reshape(d2_jj,[N_a, N_semiz, N_zloc]);
-            a2pIdx=reshape(a2primeIndex,[N_a, N_semiz, N_zloc]);
-            a2pPrb=reshape(a2primeProbs,[N_a, N_semiz, N_zloc]);
-            aprime_low=a1p_r+N_a1*(a2pIdx-1);
-            aprime_up =a1p_r+N_a1*(a2pIdx);
             base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_zloc*(d2_r(:)-1), [N_a, N_semiz, N_zloc]);
-            lo_idx=aprime_low+base_off;
-            up_idx=aprime_up +base_off;
-            EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_zloc]);
-            EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_zloc]);
-            EVnext_atpolicy=a2pPrb.*EV_lo+(1-a2pPrb).*EV_up; % a zero weight against an infinite node gives 0*(-Inf)=NaN, so read the weighted node directly
-            EVnext_atpolicy(a2pPrb==1)=EV_lo(a2pPrb==1);
-            EVnext_atpolicy(a2pPrb==0)=EV_up(a2pPrb==0);
+            if length(n_a2)==1
+                a2pIdx=reshape(a2primeIndex,[N_a, N_semiz, N_zloc]);
+                a2pPrb=reshape(a2primeProbs,[N_a, N_semiz, N_zloc]);
+                aprime_low=a1p_r+N_a1*(a2pIdx-1);
+                aprime_up =a1p_r+N_a1*(a2pIdx);
+                lo_idx=aprime_low+base_off;
+                up_idx=aprime_up +base_off;
+                EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_zloc]);
+                EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_zloc]);
+                EVnext_atpolicy=a2pPrb.*EV_lo+(1-a2pPrb).*EV_up; % a zero weight against an infinite node gives 0*(-Inf)=NaN, so read the weighted node directly
+                EVnext_atpolicy(a2pPrb==1)=EV_lo(a2pPrb==1);
+                EVnext_atpolicy(a2pPrb==0)=EV_up(a2pPrb==0);
+            else
+                lo1=reshape(loIdx_1,[N_a, N_semiz, N_zloc]); lo2=reshape(loIdx_2,[N_a, N_semiz, N_zloc]);
+                pq_1=reshape(pr_1,[N_a, N_semiz, N_zloc]); pq_2=reshape(pr_2,[N_a, N_semiz, N_zloc]);
+            n_a2_1=n_a2(1);
+            a2c_ll=lo1+n_a2_1*(lo2-1);
+            a2c_hl=(lo1+1)+n_a2_1*(lo2-1);
+            a2c_lh=lo1+n_a2_1*lo2;
+            a2c_hh=(lo1+1)+n_a2_1*lo2;
+            ll_idx=a1p_r+N_a1*(a2c_ll-1)+base_off;
+            hl_idx=a1p_r+N_a1*(a2c_hl-1)+base_off;
+            lh_idx=a1p_r+N_a1*(a2c_lh-1)+base_off;
+            hh_idx=a1p_r+N_a1*(a2c_hh-1)+base_off;
+            V_ll=reshape(EVnext_byd2(ll_idx(:)),[N_a, N_semiz, N_zloc]);
+            V_hl=reshape(EVnext_byd2(hl_idx(:)),[N_a, N_semiz, N_zloc]);
+            V_lh=reshape(EVnext_byd2(lh_idx(:)),[N_a, N_semiz, N_zloc]);
+            V_hh=reshape(EVnext_byd2(hh_idx(:)),[N_a, N_semiz, N_zloc]);
+            % nested two-corner interp: a2 dim 1 inner, dim 2 outer, with skipinterp at each
+            % level and per-contribution NaN cleanup so a zero weight against an infinite
+            % node (0*(-Inf)=NaN) does not poison the sum
+            p1_lo=pq_1; p1_lo(V_ll==V_hl)=0;
+            c_ll=p1_lo.*V_ll; c_ll(isnan(c_ll))=0;
+            c_hl=(1-p1_lo).*V_hl; c_hl(isnan(c_hl))=0;
+            EV_lo2=c_ll+c_hl;
+            p1_hi=pq_1; p1_hi(V_lh==V_hh)=0;
+            c_lh=p1_hi.*V_lh; c_lh(isnan(c_lh))=0;
+            c_hh=(1-p1_hi).*V_hh; c_hh(isnan(c_hh))=0;
+            EV_hi2=c_lh+c_hh;
+            p2=pq_2; p2(EV_lo2==EV_hi2)=0;
+            c_lo=p2.*EV_lo2; c_lo(isnan(c_lo))=0;
+            c_hi=(1-p2).*EV_hi2; c_hi(isnan(c_hi))=0;
+            EVnext_atpolicy=c_lo+c_hi;
+            end
             V(:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks]);
         else
             EVnext_atpolicy=zeros(N_a, N_semiz, N_zloc, N_e, 'gpuArray');
@@ -241,18 +283,51 @@ for reverse_j=0:N_j-1
                 block=(e_c-1)*N_shocks + (1:N_shocks);
                 a1p_e=reshape(a1prime_idx(:,:,e_c,jj),[N_a, N_semiz, N_zloc]);
                 d2_e =reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz, N_zloc]);
-                a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_zloc]);
-                a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_zloc]);
-                aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
-                aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
                 base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_zloc*(d2_e(:)-1), [N_a, N_semiz, N_zloc]);
-                lo_idx=aprime_low_e+base_off;
-                up_idx=aprime_up_e +base_off;
-                EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_zloc]);
-                EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_zloc]);
-                EVnext_atpolicy_e=a2pPrb_e.*EV_lo+(1-a2pPrb_e).*EV_up; % a zero weight against an infinite node gives 0*(-Inf)=NaN, so read the weighted node directly
-                EVnext_atpolicy_e(a2pPrb_e==1)=EV_lo(a2pPrb_e==1);
-                EVnext_atpolicy_e(a2pPrb_e==0)=EV_up(a2pPrb_e==0);
+                if length(n_a2)==1
+                    a2pIdx_e=reshape(a2primeIndex(:,block),[N_a, N_semiz, N_zloc]);
+                    a2pPrb_e=reshape(a2primeProbs(:,block),[N_a, N_semiz, N_zloc]);
+                    aprime_low_e=a1p_e+N_a1*(a2pIdx_e-1);
+                    aprime_up_e =a1p_e+N_a1*(a2pIdx_e);
+                    lo_idx=aprime_low_e+base_off;
+                    up_idx=aprime_up_e +base_off;
+                    EV_lo=reshape(EVnext_byd2(lo_idx(:)),[N_a, N_semiz, N_zloc]);
+                    EV_up=reshape(EVnext_byd2(up_idx(:)),[N_a, N_semiz, N_zloc]);
+                    EVnext_atpolicy_e=a2pPrb_e.*EV_lo+(1-a2pPrb_e).*EV_up; % a zero weight against an infinite node gives 0*(-Inf)=NaN, so read the weighted node directly
+                    EVnext_atpolicy_e(a2pPrb_e==1)=EV_lo(a2pPrb_e==1);
+                    EVnext_atpolicy_e(a2pPrb_e==0)=EV_up(a2pPrb_e==0);
+                else
+                    lo1=reshape(loIdx_1(:,block),[N_a, N_semiz, N_zloc]); lo2=reshape(loIdx_2(:,block),[N_a, N_semiz, N_zloc]);
+                    pq_1=reshape(pr_1(:,block),[N_a, N_semiz, N_zloc]); pq_2=reshape(pr_2(:,block),[N_a, N_semiz, N_zloc]);
+                n_a2_1=n_a2(1);
+                a2c_ll=lo1+n_a2_1*(lo2-1);
+                a2c_hl=(lo1+1)+n_a2_1*(lo2-1);
+                a2c_lh=lo1+n_a2_1*lo2;
+                a2c_hh=(lo1+1)+n_a2_1*lo2;
+                ll_idx=a1p_e+N_a1*(a2c_ll-1)+base_off;
+                hl_idx=a1p_e+N_a1*(a2c_hl-1)+base_off;
+                lh_idx=a1p_e+N_a1*(a2c_lh-1)+base_off;
+                hh_idx=a1p_e+N_a1*(a2c_hh-1)+base_off;
+                V_ll=reshape(EVnext_byd2(ll_idx(:)),[N_a, N_semiz, N_zloc]);
+                V_hl=reshape(EVnext_byd2(hl_idx(:)),[N_a, N_semiz, N_zloc]);
+                V_lh=reshape(EVnext_byd2(lh_idx(:)),[N_a, N_semiz, N_zloc]);
+                V_hh=reshape(EVnext_byd2(hh_idx(:)),[N_a, N_semiz, N_zloc]);
+                % nested two-corner interp: a2 dim 1 inner, dim 2 outer, with skipinterp at each
+                % level and per-contribution NaN cleanup so a zero weight against an infinite
+                % node (0*(-Inf)=NaN) does not poison the sum
+                p1_lo=pq_1; p1_lo(V_ll==V_hl)=0;
+                c_ll=p1_lo.*V_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*V_hl; c_hl(isnan(c_hl))=0;
+                EV_lo2=c_ll+c_hl;
+                p1_hi=pq_1; p1_hi(V_lh==V_hh)=0;
+                c_lh=p1_hi.*V_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*V_hh; c_hh(isnan(c_hh))=0;
+                EV_hi2=c_lh+c_hh;
+                p2=pq_2; p2(EV_lo2==EV_hi2)=0;
+                c_lo=p2.*EV_lo2; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi2; c_hi(isnan(c_hi))=0;
+                EVnext_atpolicy_e=c_lo+c_hi;
+                end
                 EVnext_atpolicy(:,:,:,e_c)=EVnext_atpolicy_e;
             end
             V(:,:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks, N_e]);

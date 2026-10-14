@@ -26,8 +26,8 @@ l_d2=length(n_d2);
 l_a2=length(n_a2);
 l_semiz=length(n_semiz);
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_semiz)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_semiz+1:end}};
+if length(temp)>(l_d2+l_a2+l_semiz+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+l_semiz+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2,semiz), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end
