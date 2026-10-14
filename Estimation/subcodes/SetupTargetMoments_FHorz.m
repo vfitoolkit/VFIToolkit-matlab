@@ -24,6 +24,14 @@ function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmoment
 % logwhichcombos (no type dimension) and agegroupings (1:N_j when the targets are all windows and simoptions.agegroupings is not
 % 1:N_j, else []); when single-period targets by age groups and window targets are both present, split=1 and the window targets are a
 % second LifeCycleProfiles call, selectors.ACStatsW (by start age, the same fields).
+% CrossSectionCovarCorr and AgeConditionalCrossSectionCovarCorr targets may also be of the windows of simoptions.ntimeperiods
+% (2026-10-14): fnname_MperiodAverage (or _MperiodSum) with Mean, StdDeviation, CovarianceWith.(fn2_MperiodAverage) and
+% CorrelationWith.(fn2_MperiodAverage) (pairs of the same window only), and the matrices CovarianceMatrix_MperiodAverage/
+% CorrelationMatrix_MperiodAverage, under the restrictions too (with permanent types also per type, fnname_MperiodAverage.(type).Mean ...);
+% an age-conditional window target is by start age (1 x N_j, [nFns,nFns,N_j] for a matrix). selectors.CrossSec/.AgeCrossSec then have
+% ntimeperiods (the rows and columns of whichcombos are in blocks of these) and ntimeperiodstype; .AgeCrossSec also agegroupings
+% (1:N_j when the targets are all windows and simoptions.agegroupings is not 1:N_j, else []) and split (=1 when single-period targets
+% by age groups and window targets are both present: the windows are a second call, selectors.AgeCrossSecW, by start age).
 
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
 if isfield(TargetMoments,'AllStats')
@@ -736,6 +744,8 @@ if useptype==0
             rowfn2=cell(nrows,1);
             rowpage=zeros(nrows,1);
             rowmatrix=zeros(nrows,1);
+            rowM=ones(nrows,1); % the window length of the target (simoptions.ntimeperiods; 1 for the single period)
+            rowwtype=cell(nrows,1); % 'average' or 'sum' for a window target
             for cc=1:nrows
                 names=xnames(cc,:);
                 names=names(~cellfun(@isempty,names));
@@ -755,22 +765,50 @@ if useptype==0
                     rest=names;
                 end
                 b1=rest{1};
+                % A window of simoptions.ntimeperiods (2026-10-14): fnname_MperiodAverage (or _MperiodSum), and the matrices
+                % CovarianceMatrix_MperiodAverage/CorrelationMatrix_MperiodAverage; rowfn1/rowfn2 are then the FnsToEvaluate, rowM the M
                 if isscalar(rest) % a matrix
-                    if ~any(strcmp(b1,{'CovarianceMatrix','CorrelationMatrix'}))
-                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': a target with no statistic must be CovarianceMatrix or CorrelationMatrix'])
+                    tkm=regexp(b1,'^(CovarianceMatrix|CorrelationMatrix)_(\d+)period(Average|Sum)$','tokens','once');
+                    if ~isempty(tkm)
+                        rowM(cc)=str2double(tkm{2}); rowwtype{cc}=lower(tkm{3});
+                    elseif ~any(strcmp(b1,{'CovarianceMatrix','CorrelationMatrix'}))
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': a target with no statistic must be CovarianceMatrix or CorrelationMatrix (or CovarianceMatrix_MperiodAverage, ... of a window)'])
                     end
                     rowmatrix(cc)=1;
-                elseif ~any(strcmp(FnNamesAll,b1))
-                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',b1,' is not one of the FnsToEvaluate (nor a conditional restriction in simoptions.conditionalrestrictions, nor CovarianceMatrix/CorrelationMatrix)'])
+                else
+                    tk1=regexp(b1,'^(.+)_(\d+)period(Average|Sum)$','tokens','once');
+                    if any(strcmp(FnNamesAll,b1))
+                        base1=b1;
+                    elseif ~isempty(tk1) && any(strcmp(FnNamesAll,tk1{1}))
+                        base1=tk1{1}; rowM(cc)=str2double(tk1{2}); rowwtype{cc}=lower(tk1{3});
+                    else
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',b1,' is not one of the FnsToEvaluate (nor fnname_MperiodAverage/fnname_MperiodSum of one, nor a conditional restriction in simoptions.conditionalrestrictions, nor CovarianceMatrix/CorrelationMatrix)'])
+                    end
+                end
+                if rowM(cc)<2 && ~isempty(rowwtype{cc})
+                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': a window has at least 2 periods (use the name without the window for the single period)'])
+                elseif rowM(cc)>N_j
+                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the window cannot be longer than N_j periods'])
+                end
+                if rowmatrix(cc)==1
+                    % (the matrix is over every FnsToEvaluate)
                 elseif any(strcmp(rest{2},{'CovarianceWith','CorrelationWith'}))
-                    if numel(rest)~=3 || ~any(strcmp(FnNamesAll,rest{3}))
+                    if numel(rest)~=3
                         error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',rest{2},' needs a second FnsToEvaluate name'])
                     end
-                    rowfn1{cc}=b1;
-                    rowfn2{cc}=rest{3};
+                    tk2=regexp(rest{3},'^(.+)_(\d+)period(Average|Sum)$','tokens','once');
+                    if rowM(cc)==1 && any(strcmp(FnNamesAll,rest{3}))
+                        base2=rest{3};
+                    elseif rowM(cc)>1 && ~isempty(tk2) && any(strcmp(FnNamesAll,tk2{1})) && str2double(tk2{2})==rowM(cc) && strcmpi(tk2{3},rowwtype{cc})
+                        base2=tk2{1};
+                    else
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',rest{2},' needs a second FnsToEvaluate name, of the same window as the first (only windows of the same length are paired: fn1_MperiodAverage.',rest{2},'.fn2_MperiodAverage)'])
+                    end
+                    rowfn1{cc}=base1;
+                    rowfn2{cc}=base2;
                 elseif numel(rest)==2 && any(strcmp(rest{2},{'Mean','StdDeviation'}))
-                    rowfn1{cc}=b1;
-                    rowfn2{cc}=b1;
+                    rowfn1{cc}=base1;
+                    rowfn2{cc}=base1;
                 elseif numel(rest)==2 && strcmp(rest{2},b1)
                     error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the self-correlation is always one and cannot be targeted'])
                 else
@@ -784,8 +822,41 @@ if useptype==0
                 end
             end
             FnNamesX=fieldnames(FnsX);
+            nFX=length(FnNamesX);
+            % The window lengths and type the targets name: simoptions.ntimeperiods (ntMain, in increasing order; whichcombos is block
+            % diagonal in blocks of these) and simoptions.ntimeperiodstype, one per command call. The age-conditional windows are by
+            % start age (agegroupings 1:N_j): with single-period targets by other age groups the windows are a second call (splitX=1,
+            % ntW), and with window targets only the call uses agegroupings 1:N_j.
+            wtypes=unique(rowwtype(rowM>1));
+            if length(wtypes)>1
+                error(['TargetMoments.',xf,': the targets name both MperiodAverage and MperiodSum windows, but the command computes one or the other in a call (simoptions.ntimeperiodstype): use one of them for all the targets'])
+            elseif isscalar(wtypes)
+                Xtype=wtypes{1};
+            else
+                Xtype='average';
+            end
+            agedefaultX=1;
+            if xx==2
+                agedefaultX=(~isfield(simoptions,'agegroupings') || isequal(reshape(simoptions.agegroupings,1,[]),1:1:N_j));
+            end
+            splitX=(xx==2 && any(rowM>1) && any(rowM==1) && ~agedefaultX);
+            if splitX
+                ntMain=1;
+                ntW=unique(rowM(rowM>1))';
+            else
+                ntMain=unique(rowM)';
+                ntW=[];
+            end
+            if xx==1
+                nageMain=1;
+            elseif any(ntMain>1)
+                nageMain=N_j; % by start age
+            else
+                nageMain=nage;
+            end
             if buildselectors==1
-                wcX=zeros(length(FnNamesX),length(FnNamesX),nage,1+nRestr);
+                wcX=zeros(length(ntMain)*nFX,length(ntMain)*nFX,nageMain,1+nRestr);
+                wcXW=zeros(length(ntW)*nFX,length(ntW)*nFX,N_j,1+nRestr);
                 for cc=1:nrows
                     temp=TargetMoments.(xf);
                     for kk=1:size(xnames,2)
@@ -794,39 +865,71 @@ if useptype==0
                         end
                     end
                     pp=rowpage(cc);
+                    inW=(splitX && rowM(cc)>1); % (in the second call)
+                    if inW
+                        off=(find(ntW==rowM(cc))-1)*nFX; nagecc=N_j;
+                    else
+                        off=(find(ntMain==rowM(cc))-1)*nFX; nagecc=nageMain;
+                    end
+                    if rowM(cc)>1
+                        agestr='start ages (N_j: a window is by its start age)';
+                    else
+                        agestr='age groups';
+                    end
+                    blk=off+1:off+nFX;
                     if rowmatrix(cc)==1 % a matrix: non-NaN entries select the pairs
-                        if ~isequal(size(temp,1:3),[length(FnNamesX),length(FnNamesX),nage])
-                            error(['TargetMoments.',xf,' target ',strjoin(xnames(cc,~cellfun(@isempty,xnames(cc,:))),'.'),' must be of size [',num2str(length(FnNamesX)),',',num2str(length(FnNamesX)),',',num2str(nage),'] (number of FnsToEvaluate, twice, number of age groups), NaN where not wanted'])
+                        if ~isequal(size(temp,1:3),[nFX,nFX,nagecc])
+                            error(['TargetMoments.',xf,' target ',strjoin(xnames(cc,~cellfun(@isempty,xnames(cc,:))),'.'),' must be of size [',num2str(nFX),',',num2str(nFX),',',num2str(nagecc),'] (number of FnsToEvaluate, twice, number of ',agestr,'), NaN where not wanted'])
                         end
                         on=double(~isnan(temp));
-                        wcX(:,:,:,pp)=max(wcX(:,:,:,pp),max(on,permute(on,[2,1,3]))); % symmetric: the commands read the upper triangle, a lower-triangle entry alone must still select the pair
-                    else
-                        if ~(isvector(temp) && numel(temp)==nage)
-                            error(['TargetMoments.',xf,' target ',strjoin(xnames(cc,~cellfun(@isempty,xnames(cc,:))),'.'),' has ',num2str(numel(temp)),' entries, but there are ',num2str(nage),' age groups'])
+                        on=max(on,permute(on,[2,1,3])); % symmetric: the commands read the upper triangle, a lower-triangle entry alone must still select the pair
+                        if inW
+                            wcXW(blk,blk,:,pp)=max(wcXW(blk,blk,:,pp),on);
+                        else
+                            wcX(blk,blk,:,pp)=max(wcX(blk,blk,:,pp),on);
                         end
-                        f1=find(strcmp(FnNamesX,rowfn1{cc}));
-                        f2=find(strcmp(FnNamesX,rowfn2{cc}));
-                        on=double(reshape(~isnan(temp),[1,1,nage]));
-                        wcX(f1,f2,:,pp)=max(wcX(f1,f2,:,pp),on);
-                        wcX(f2,f1,:,pp)=max(wcX(f2,f1,:,pp),on);
+                    else
+                        if ~(isvector(temp) && numel(temp)==nagecc)
+                            error(['TargetMoments.',xf,' target ',strjoin(xnames(cc,~cellfun(@isempty,xnames(cc,:))),'.'),' has ',num2str(numel(temp)),' entries, but there are ',num2str(nagecc),' ',agestr])
+                        end
+                        f1=off+find(strcmp(FnNamesX,rowfn1{cc}));
+                        f2=off+find(strcmp(FnNamesX,rowfn2{cc}));
+                        on=double(reshape(~isnan(temp),[1,1,nagecc]));
+                        if inW
+                            wcXW(f1,f2,:,pp)=max(wcXW(f1,f2,:,pp),on);
+                            wcXW(f2,f1,:,pp)=max(wcXW(f2,f1,:,pp),on);
+                        else
+                            wcX(f1,f2,:,pp)=max(wcX(f1,f2,:,pp),on);
+                            wcX(f2,f1,:,pp)=max(wcX(f2,f1,:,pp),on);
+                        end
                     end
                 end
                 if xx==1
-                    wcX=reshape(wcX,[length(FnNamesX),length(FnNamesX),1+nRestr]); % (nage is one)
+                    wcX=reshape(wcX,[length(ntMain)*nFX,length(ntMain)*nFX,1+nRestr]); % (nage is one)
                 end
             else
                 wcX=[];
+                wcXW=[];
             end
         else
             xnames=cell(1,4);
             xcumsizes=0;
             FnsX=struct();
             wcX=[];
+            wcXW=[];
+            ntMain=1; ntW=[]; Xtype='average'; splitX=0; agedefaultX=1;
         end
         if xx==1
             crosssecmomentnames=xnames; crossseccummomentsizes=xcumsizes; FnsToEvaluate_CrossSec=FnsX; CrossSec_whichcombos=wcX;
+            CrossSec_ntimeperiods=ntMain; CrossSec_ntimeperiodstype=Xtype;
         else
             agecrosssecmomentnames=xnames; agecrossseccummomentsizes=xcumsizes; FnsToEvaluate_AgeCrossSec=FnsX; AgeCrossSec_whichcombos=wcX;
+            AgeCrossSec_ntimeperiods=ntMain; AgeCrossSec_ntimeperiodstype=Xtype; AgeCrossSec_split=splitX; AgeCrossSecW_whichcombos=wcXW; AgeCrossSecW_ntimeperiods=ntW;
+            if any(ntMain>1) && ~agedefaultX
+                AgeCrossSec_agegroupings=1:1:N_j; % window targets only: by start age
+            else
+                AgeCrossSec_agegroupings=[];
+            end
         end
     end
     %% A target that is NaN in full is dropped, with a warning (NaN is for omitting some entries of a target, ages or matrix entries; a
@@ -896,6 +999,21 @@ if useptype==0
         selectors.AutoCorr.logwhichcombos=AutoCorr_logwhichcombos; % simoptions.logwhichcombos (the targets named ..._log)
         selectors.CrossSec.whichcombos=CrossSec_whichcombos;
         selectors.AgeCrossSec.whichcombos=AgeCrossSec_whichcombos;
+        % The windows the CrossSec targets name (simoptions.ntimeperiods; the rows and columns of whichcombos are in blocks of these):
+        % ntimeperiods, ntimeperiodstype; for the age-conditional command also agegroupings (1:N_j when the targets are all windows and
+        % simoptions.agegroupings is not 1:N_j, else []) and split (=1: the window targets are a second call, AgeCrossSecW, by start age)
+        selectors.CrossSec.ntimeperiods=CrossSec_ntimeperiods;
+        selectors.CrossSec.ntimeperiodstype=CrossSec_ntimeperiodstype;
+        selectors.AgeCrossSec.ntimeperiods=AgeCrossSec_ntimeperiods;
+        selectors.AgeCrossSec.ntimeperiodstype=AgeCrossSec_ntimeperiodstype;
+        selectors.AgeCrossSec.agegroupings=AgeCrossSec_agegroupings;
+        selectors.AgeCrossSec.split=AgeCrossSec_split;
+        if AgeCrossSec_split==1
+            selectors.AgeCrossSecW.whichcombos=AgeCrossSecW_whichcombos;
+            selectors.AgeCrossSecW.ntimeperiods=AgeCrossSecW_ntimeperiods;
+            selectors.AgeCrossSecW.ntimeperiodstype=AgeCrossSec_ntimeperiodstype;
+            selectors.AgeCrossSecW.agegroupings=1:1:N_j;
+        end
     end
 elseif useptype==1
     % With permanent types a target has two to four names: fn.stat (grouped), fn.type.stat, restriction.fn.stat (grouped),
@@ -1747,6 +1865,8 @@ elseif useptype==1
             rowpage=zeros(nrows,1);
             rowslot=zeros(nrows,1);
             rowmatrix=zeros(nrows,1);
+            rowM=ones(nrows,1); % the window length of the target (simoptions.ntimeperiods; 1 for the single period)
+            rowwtype=cell(nrows,1); % 'average' or 'sum' for a window target
             for cc=1:nrows
                 names=xnames(cc,:);
                 names=names(~cellfun(@isempty,names));
@@ -1766,16 +1886,27 @@ elseif useptype==1
                     rest=names;
                 end
                 b1=rest{1};
+                % A window of simoptions.ntimeperiods (2026-10-14): fnname_MperiodAverage (or _MperiodSum), and the grouped matrices
+                % CovarianceMatrix_MperiodAverage/CorrelationMatrix_MperiodAverage; rowfn1/rowfn2 are then the FnsToEvaluate, rowM the M
+                tk1=regexp(b1,'^(.+)_(\d+)period(Average|Sum)$','tokens','once');
+                tkm=regexp(b1,'^(CovarianceMatrix|CorrelationMatrix)_(\d+)period(Average|Sum)$','tokens','once');
                 if isscalar(rest) % a grouped matrix
-                    if ~any(strcmp(b1,{'CovarianceMatrix','CorrelationMatrix'}))
-                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': a target with no statistic must be CovarianceMatrix or CorrelationMatrix'])
+                    if ~isempty(tkm)
+                        rowM(cc)=str2double(tkm{2}); rowwtype{cc}=lower(tkm{3});
+                    elseif ~any(strcmp(b1,{'CovarianceMatrix','CorrelationMatrix'}))
+                        error(['TargetMoments.',xf,'.',strjoin(names,'.'),': a target with no statistic must be CovarianceMatrix or CorrelationMatrix (or CovarianceMatrix_MperiodAverage, ... of a window)'])
                     end
                     rowmatrix(cc)=1; rowslot(cc)=N_i+1;
-                elseif any(strcmp(b1,{'CovarianceMatrix_ptype','CorrelationMatrix_ptype'}))
+                elseif any(strcmp(b1,{'CovarianceMatrix_ptype','CorrelationMatrix_ptype'})) || ~isempty(regexp(b1,'^(CovarianceMatrix|CorrelationMatrix)_\d+period(Average|Sum)_ptype$','once'))
                     error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the per-type matrices cannot be targeted (the commands shrink them to the functions evaluated for the type); target the per-type pairs .(fn1).(type).CovarianceWith.(fn2) instead'])
-                elseif ~any(strcmp(FnNamesAll,b1))
-                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',b1,' is not one of the FnsToEvaluate (nor a conditional restriction in simoptions.conditionalrestrictions, nor CovarianceMatrix/CorrelationMatrix)'])
+                elseif ~any(strcmp(FnNamesAll,b1)) && ~(~isempty(tk1) && any(strcmp(FnNamesAll,tk1{1})))
+                    error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',b1,' is not one of the FnsToEvaluate (nor fnname_MperiodAverage/fnname_MperiodSum of one, nor a conditional restriction in simoptions.conditionalrestrictions, nor CovarianceMatrix/CorrelationMatrix)'])
                 else
+                    if any(strcmp(FnNamesAll,b1))
+                        base1=b1;
+                    else
+                        base1=tk1{1}; rowM(cc)=str2double(tk1{2}); rowwtype{cc}=lower(tk1{3});
+                    end
                     if any(strcmp(Names_i,rest{2})) % per type: .(fn).(type).(...)
                         rowslot(cc)=find(strcmp(Names_i,rest{2}));
                         rest2=rest(3:end);
@@ -1786,12 +1917,20 @@ elseif useptype==1
                     if isempty(rest2)
                         error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the target needs Mean, StdDeviation, CovarianceWith.(fn2) or CorrelationWith.(fn2) (after the type name for a per-type target)'])
                     elseif any(strcmp(rest2{1},{'CovarianceWith','CorrelationWith'}))
-                        if numel(rest2)~=2 || ~any(strcmp(FnNamesAll,rest2{2}))
+                        if numel(rest2)~=2
                             error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',rest2{1},' needs a second FnsToEvaluate name'])
                         end
-                        rowfn1{cc}=b1; rowfn2{cc}=rest2{2};
+                        tk2=regexp(rest2{2},'^(.+)_(\d+)period(Average|Sum)$','tokens','once');
+                        if rowM(cc)==1 && any(strcmp(FnNamesAll,rest2{2}))
+                            base2=rest2{2};
+                        elseif rowM(cc)>1 && ~isempty(tk2) && any(strcmp(FnNamesAll,tk2{1})) && str2double(tk2{2})==rowM(cc) && strcmpi(tk2{3},rowwtype{cc})
+                            base2=tk2{1};
+                        else
+                            error(['TargetMoments.',xf,'.',strjoin(names,'.'),': ',rest2{1},' needs a second FnsToEvaluate name, of the same window as the first (only windows of the same length are paired: fn1_MperiodAverage.',rest2{1},'.fn2_MperiodAverage)'])
+                        end
+                        rowfn1{cc}=base1; rowfn2{cc}=base2;
                     elseif isscalar(rest2) && any(strcmp(rest2{1},{'Mean','StdDeviation'}))
-                        rowfn1{cc}=b1; rowfn2{cc}=b1;
+                        rowfn1{cc}=base1; rowfn2{cc}=base1;
                     elseif isscalar(rest2) && strcmp(rest2{1},b1)
                         error(['TargetMoments.',xf,'.',strjoin(names,'.'),': the self-correlation is always one and cannot be targeted'])
                     else
@@ -1806,7 +1945,51 @@ elseif useptype==1
                 end
             end
             FnNamesX=fieldnames(FnsX);
-            wcX=zeros(length(FnNamesX),length(FnNamesX),nage,1+nRestr,N_i+1);
+            nFX=length(FnNamesX);
+            for cc=1:nrows
+                if ~isempty(rowwtype{cc}) && rowM(cc)<2
+                    error(['TargetMoments.',xf,'.',strjoin(xnames(cc,~cellfun(@isempty,xnames(cc,:))),'.'),': a window has at least 2 periods (use the name without the window for the single period)'])
+                elseif ~isstruct(N_j) && rowM(cc)>N_j
+                    error(['TargetMoments.',xf,'.',strjoin(xnames(cc,~cellfun(@isempty,xnames(cc,:))),'.'),': the window cannot be longer than N_j periods'])
+                end
+            end
+            % The window lengths and type the targets name: simoptions.ntimeperiods (ntMain, in increasing order; whichcombos is block
+            % diagonal in blocks of these) and simoptions.ntimeperiodstype, one per command call. The age-conditional windows are by
+            % start age (agegroupings 1:N_j): with single-period targets by other age groups the windows are a second call (splitX=1,
+            % ntW), and with window targets only the call uses agegroupings 1:N_j.
+            wtypes=unique(rowwtype(rowM>1));
+            if length(wtypes)>1
+                error(['TargetMoments.',xf,': the targets name both MperiodAverage and MperiodSum windows, but the command computes one or the other in a call (simoptions.ntimeperiodstype): use one of them for all the targets'])
+            elseif isscalar(wtypes)
+                Xtype=wtypes{1};
+            else
+                Xtype='average';
+            end
+            agedefaultX=1;
+            if xx==2
+                agedefaultX=(~isfield(simoptions,'agegroupings') || isequal(reshape(simoptions.agegroupings,1,[]),1:1:N_j));
+            end
+            splitX=(xx==2 && any(rowM>1) && any(rowM==1) && ~agedefaultX);
+            if splitX
+                ntMain=1;
+                ntW=unique(rowM(rowM>1))';
+            else
+                ntMain=unique(rowM)';
+                ntW=[];
+            end
+            if xx==1
+                nageMain=1;
+            elseif any(ntMain>1)
+                nageMain=N_j; % by start age
+            else
+                nageMain=nage;
+            end
+            wcX=zeros(length(ntMain)*nFX,length(ntMain)*nFX,nageMain,1+nRestr,N_i+1);
+            if splitX
+                wcXW=zeros(length(ntW)*nFX,length(ntW)*nFX,N_j,1+nRestr,N_i+1);
+            else
+                wcXW=[]; % (N_j may be a structure for the pooled command)
+            end
             for cc=1:nrows
                 names=xnames(cc,:);
                 names=names(~cellfun(@isempty,names));
@@ -1816,43 +1999,77 @@ elseif useptype==1
                 end
                 pp=rowpage(cc);
                 ss_slot=rowslot(cc);
+                inW=(splitX && rowM(cc)>1); % (in the second call)
+                if inW
+                    off=(find(ntW==rowM(cc))-1)*nFX; nagecc=N_j;
+                else
+                    off=(find(ntMain==rowM(cc))-1)*nFX; nagecc=nageMain;
+                end
+                if rowM(cc)>1
+                    agestr='start ages (N_j: a window is by its start age)';
+                else
+                    agestr='age groups';
+                end
+                blk=off+1:off+nFX;
                 if rowmatrix(cc)==1 % a matrix: non-NaN entries select the pairs (symmetrised: the commands read the upper triangle)
-                    if ~isequal(size(temp,1:3),[length(FnNamesX),length(FnNamesX),nage])
-                        error(['TargetMoments.',xf,' target ',strjoin(names,'.'),' must be of size [',num2str(length(FnNamesX)),',',num2str(length(FnNamesX)),',',num2str(nage),'] (number of FnsToEvaluate, twice, number of age groups), NaN where not wanted'])
+                    if ~isequal(size(temp,1:3),[nFX,nFX,nagecc])
+                        error(['TargetMoments.',xf,' target ',strjoin(names,'.'),' must be of size [',num2str(nFX),',',num2str(nFX),',',num2str(nagecc),'] (number of FnsToEvaluate, twice, number of ',agestr,'), NaN where not wanted'])
                     end
                     on=double(~isnan(temp));
-                    wcX(:,:,:,pp,ss_slot)=max(wcX(:,:,:,pp,ss_slot),max(on,permute(on,[2,1,3])));
-                else
-                    if ~(isvector(temp) && numel(temp)==nage)
-                        error(['TargetMoments.',xf,' target ',strjoin(names,'.'),' has ',num2str(numel(temp)),' entries, but there are ',num2str(nage),' age groups'])
+                    on=max(on,permute(on,[2,1,3]));
+                    if inW
+                        wcXW(blk,blk,:,pp,ss_slot)=max(wcXW(blk,blk,:,pp,ss_slot),on);
+                    else
+                        wcX(blk,blk,:,pp,ss_slot)=max(wcX(blk,blk,:,pp,ss_slot),on);
                     end
-                    f1=find(strcmp(FnNamesX,rowfn1{cc}));
-                    f2=find(strcmp(FnNamesX,rowfn2{cc}));
-                    on=double(reshape(~isnan(temp),[1,1,nage]));
-                    wcX(f1,f2,:,pp,ss_slot)=max(wcX(f1,f2,:,pp,ss_slot),on);
-                    wcX(f2,f1,:,pp,ss_slot)=max(wcX(f2,f1,:,pp,ss_slot),on);
+                else
+                    if ~(isvector(temp) && numel(temp)==nagecc)
+                        error(['TargetMoments.',xf,' target ',strjoin(names,'.'),' has ',num2str(numel(temp)),' entries, but there are ',num2str(nagecc),' ',agestr])
+                    end
+                    f1=off+find(strcmp(FnNamesX,rowfn1{cc}));
+                    f2=off+find(strcmp(FnNamesX,rowfn2{cc}));
+                    on=double(reshape(~isnan(temp),[1,1,nagecc]));
+                    if inW
+                        wcXW(f1,f2,:,pp,ss_slot)=max(wcXW(f1,f2,:,pp,ss_slot),on);
+                        wcXW(f2,f1,:,pp,ss_slot)=max(wcXW(f2,f1,:,pp,ss_slot),on);
+                    else
+                        wcX(f1,f2,:,pp,ss_slot)=max(wcX(f1,f2,:,pp,ss_slot),on);
+                        wcX(f2,f1,:,pp,ss_slot)=max(wcX(f2,f1,:,pp,ss_slot),on);
+                    end
                 end
             end
             % the shapes the commands read: the page dimension only with restrictions, nage only for the age-conditional command
             if xx==1
                 if nRestr==0
-                    wcX=reshape(wcX,[length(FnNamesX),length(FnNamesX),N_i+1]);
+                    wcX=reshape(wcX,[length(ntMain)*nFX,length(ntMain)*nFX,N_i+1]);
                 else
-                    wcX=reshape(wcX,[length(FnNamesX),length(FnNamesX),1+nRestr,N_i+1]);
+                    wcX=reshape(wcX,[length(ntMain)*nFX,length(ntMain)*nFX,1+nRestr,N_i+1]);
                 end
             elseif nRestr==0
-                wcX=reshape(wcX,[length(FnNamesX),length(FnNamesX),nage,N_i+1]);
+                wcX=reshape(wcX,[length(ntMain)*nFX,length(ntMain)*nFX,nageMain,N_i+1]);
+                if splitX
+                    wcXW=reshape(wcXW,[length(ntW)*nFX,length(ntW)*nFX,N_j,N_i+1]);
+                end
             end
         else
             xnames=cell(1,5);
             xcumsizes=0;
             FnsX=struct();
             wcX=[];
+            wcXW=[];
+            ntMain=1; ntW=[]; Xtype='average'; splitX=0; agedefaultX=1;
         end
         if xx==1
             crosssecmomentnames=xnames; crossseccummomentsizes=xcumsizes; FnsToEvaluate_CrossSec=FnsX; CrossSec_whichcombos=wcX;
+            CrossSec_ntimeperiods=ntMain; CrossSec_ntimeperiodstype=Xtype;
         else
             agecrosssecmomentnames=xnames; agecrossseccummomentsizes=xcumsizes; FnsToEvaluate_AgeCrossSec=FnsX; AgeCrossSec_whichcombos=wcX;
+            AgeCrossSec_ntimeperiods=ntMain; AgeCrossSec_ntimeperiodstype=Xtype; AgeCrossSec_split=splitX; AgeCrossSecW_whichcombos=wcXW; AgeCrossSecW_ntimeperiods=ntW;
+            if any(ntMain>1) && ~agedefaultX
+                AgeCrossSec_agegroupings=1:1:N_j; % window targets only: by start age
+            else
+                AgeCrossSec_agegroupings=[];
+            end
         end
     end
     %% A target that is NaN in full is dropped, with a warning (NaN is for omitting some entries of a target, ages or matrix entries; a
@@ -1920,6 +2137,20 @@ elseif useptype==1
         selectors.AutoCorr.logwhichcombos=AutoCorr_logwhichcombos; % simoptions.logwhichcombos (the targets named ..._log; no type dimension)
         selectors.CrossSec.whichcombos=CrossSec_whichcombos;
         selectors.AgeCrossSec.whichcombos=AgeCrossSec_whichcombos;
+        % The windows the CrossSec targets name (as without permanent types): ntimeperiods, ntimeperiodstype; for the age-conditional
+        % command also agegroupings and split (=1: the window targets are a second call, AgeCrossSecW, by start age)
+        selectors.CrossSec.ntimeperiods=CrossSec_ntimeperiods;
+        selectors.CrossSec.ntimeperiodstype=CrossSec_ntimeperiodstype;
+        selectors.AgeCrossSec.ntimeperiods=AgeCrossSec_ntimeperiods;
+        selectors.AgeCrossSec.ntimeperiodstype=AgeCrossSec_ntimeperiodstype;
+        selectors.AgeCrossSec.agegroupings=AgeCrossSec_agegroupings;
+        selectors.AgeCrossSec.split=AgeCrossSec_split;
+        if AgeCrossSec_split==1
+            selectors.AgeCrossSecW.whichcombos=AgeCrossSecW_whichcombos;
+            selectors.AgeCrossSecW.ntimeperiods=AgeCrossSecW_ntimeperiods;
+            selectors.AgeCrossSecW.ntimeperiodstype=AgeCrossSec_ntimeperiodstype;
+            selectors.AgeCrossSecW.agegroupings=1:1:N_j;
+        end
     end
 end
 

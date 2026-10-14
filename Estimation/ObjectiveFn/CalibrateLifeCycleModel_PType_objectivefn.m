@@ -186,16 +186,62 @@ end
 if usingcrosssec==1
     simoptions_CrossSec=simoptions;
     if caliboptions.whichcombos==1
-        simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped, [nFns,nFns,N_i+1], or [nFns,nFns,1+nRestr,N_i+1] with conditional restrictions (restricted targets on pages 2:end)
+        simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped, [nFns,nFns,N_i+1], or [nFns,nFns,1+nRestr,N_i+1] with conditional restrictions (restricted targets on pages 2:end); in blocks of ntimeperiods with window targets
+    end
+    if isfield(caliboptions,'selectors') && isfield(caliboptions.selectors,'CrossSec') && isfield(caliboptions.selectors.CrossSec,'ntimeperiods') && any(caliboptions.selectors.CrossSec.ntimeperiods>1)
+        % the windows the targets name (set whatever caliboptions.whichcombos, as they decide which outputs there are)
+        simoptions_CrossSec.ntimeperiods=caliboptions.selectors.CrossSec.ntimeperiods;
+        simoptions_CrossSec.ntimeperiodstype=caliboptions.selectors.CrossSec.ntimeperiodstype;
+        simoptions_CrossSec.pi_z=pi_z_J; % the windows need the z transitions (a structure by ptype, or with a trailing type dimension, as pi_z)
     end
     CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz_PType(StationaryDist,Policy,FnsToEvaluate_CrossSec,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_CrossSec);
 end
 if usingagecrosssec==1
     simoptions_AgeCrossSec=simoptions;
     if caliboptions.whichcombos==1
-        simoptions_AgeCrossSec.whichcombos=caliboptions.selectors.AgeCrossSec.whichcombos; % pair-shaped per age group, [nFns,nFns,ngroups,N_i+1], or [nFns,nFns,ngroups,1+nRestr,N_i+1] with conditional restrictions
+        simoptions_AgeCrossSec.whichcombos=caliboptions.selectors.AgeCrossSec.whichcombos; % pair-shaped per age group, [nFns,nFns,ngroups,N_i+1], or [nFns,nFns,ngroups,1+nRestr,N_i+1] with conditional restrictions; in blocks of ntimeperiods with window targets
+    end
+    usingagecrosssecW=(isfield(caliboptions,'selectors') && isfield(caliboptions.selectors,'AgeCrossSec') && isfield(caliboptions.selectors.AgeCrossSec,'ntimeperiods'));
+    if usingagecrosssecW && any(caliboptions.selectors.AgeCrossSec.ntimeperiods>1)
+        % the windows the targets name (set whatever caliboptions.whichcombos, as they decide which outputs there are)
+        simoptions_AgeCrossSec.ntimeperiods=caliboptions.selectors.AgeCrossSec.ntimeperiods;
+        simoptions_AgeCrossSec.ntimeperiodstype=caliboptions.selectors.AgeCrossSec.ntimeperiodstype;
+        simoptions_AgeCrossSec.pi_z=pi_z_J; % the windows need the z transitions
+        if ~isempty(caliboptions.selectors.AgeCrossSec.agegroupings)
+            simoptions_AgeCrossSec.agegroupings=caliboptions.selectors.AgeCrossSec.agegroupings; % only window targets: by start age
+        end
     end
     AgeConditionalCrossSectionCorr=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType(StationaryDist,Policy,FnsToEvaluate_AgeCrossSec,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_AgeCrossSec);
+    if usingagecrosssecW && caliboptions.selectors.AgeCrossSec.split==1
+        % the single-period targets are by age groups, so the window targets (by start age) are a second call, merged into the output
+        simoptions_AgeCrossSecW=simoptions;
+        if caliboptions.whichcombos==1
+            simoptions_AgeCrossSecW.whichcombos=caliboptions.selectors.AgeCrossSecW.whichcombos;
+        end
+        simoptions_AgeCrossSecW.ntimeperiods=caliboptions.selectors.AgeCrossSecW.ntimeperiods;
+        simoptions_AgeCrossSecW.ntimeperiodstype=caliboptions.selectors.AgeCrossSecW.ntimeperiodstype;
+        simoptions_AgeCrossSecW.agegroupings=caliboptions.selectors.AgeCrossSecW.agegroupings;
+        simoptions_AgeCrossSecW.pi_z=pi_z_J;
+        AgeConditionalCrossSectionCorrW=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType(StationaryDist,Policy,FnsToEvaluate_AgeCrossSec,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_AgeCrossSecW);
+        if isfield(simoptions,'conditionalrestrictions')
+            restrnamesW=fieldnames(simoptions.conditionalrestrictions);
+        else
+            restrnamesW={};
+        end
+        fW=fieldnames(AgeConditionalCrossSectionCorrW);
+        for kk=1:length(fW)
+            if any(strcmp(restrnamesW,fW{kk}))
+                fR=fieldnames(AgeConditionalCrossSectionCorrW.(fW{kk}));
+                for rr=1:length(fR)
+                    if ~isempty(regexp(fR{rr},'_\d+period(Average|Sum)(_ptype)?$','once')) % the window fields (the restriction's single-period fields are those of the first call)
+                        AgeConditionalCrossSectionCorr.(fW{kk}).(fR{rr})=AgeConditionalCrossSectionCorrW.(fW{kk}).(fR{rr});
+                    end
+                end
+            elseif ~isempty(regexp(fW{kk},'_\d+period(Average|Sum)(_ptype)?$','once'))
+                AgeConditionalCrossSectionCorr.(fW{kk})=AgeConditionalCrossSectionCorrW.(fW{kk});
+            end
+        end
+    end
 end
 
 
