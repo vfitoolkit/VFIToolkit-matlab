@@ -32,6 +32,22 @@ function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz_PType(St
 % type's population mass in the restriction), so the grouped stats are those of the pooled
 % restricted population; a type with no restricted mass is not in the pool.
 % simoptions.groupptypesforstats=0 skips the grouped outputs.
+%
+% simoptions.ntimeperiods (default 1; a vector, e.g. [1,2]) and simoptions.ntimeperiodstype ('average', the default, or 'sum'): as in
+% EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz, the same statistics of the M-period sums/averages of the functions, pooled over the
+% start ages whose window fits (pairs only between windows of the same length), per type and grouped:
+%   CrossSectionCorr.(fn_2periodAverage).(typename)   the type's window output
+%   CrossSectionCorr.CovarianceMatrix_2periodAverage_ptype.(typename), .CorrelationMatrix_2periodAverage_ptype.(typename)
+%   CrossSectionCorr.(fn_2periodAverage).Mean, .StdDeviation, .CovarianceWith.(fn2_2periodAverage), ...   grouped
+%   CrossSectionCorr.CovarianceMatrix_2periodAverage, .CorrelationMatrix_2periodAverage   grouped (nFn x nFn)
+% Grouped: the types are pooled with weights ptweights(ii)*(the mass of type ii's window population: its mass at the start ages
+% 1:N_j-M+1), so exactly the statistics of the pooled population's windows. A conditional restriction must hold at every age of the
+% window: the restricted weights are ptweights(ii)*(the mass of type ii at the start ages that satisfies it throughout), and
+%   CrossSectionCorr.(restriction).RestrictedSampleMass_2periodAverage.(typename)   that mass within the type
+%   .RestrictedSampleMass_2periodAverage.ByPType (N_i x 1), .Total (a share of the whole population)
+% M>1 needs simoptions.pi_z (the z transitions; may depend on ptype as pi_z does). whichcombos is then block diagonal,
+% [L*nFns, L*nFns, 1+nRestr, N_i+1] with L=length(ntimeperiods) (blocks in the order of ntimeperiods; the page and type dimensions as
+% usual; an nFns x nFns form applies to every block); the off-diagonal blocks must be zero.
 
 if iscell(Names_i)
     N_i=length(Names_i);
@@ -55,6 +71,8 @@ if ~exist('simoptions','var')
     simoptions.verbose=0;
     simoptions.verboseparams=0;
     simoptions.warnzerorestrictedmass=2; % =2 (default) warns when a conditional restriction has zero mass; =1 silences the per-type warnings but the PType commands still warn once at the population level; =0 silences both (the calibration/estimation commands default to 0)
+    simoptions.ntimeperiods=1; % the statistics of the sums/averages over M consecutive periods, for each M in ntimeperiods (1 is the single period)
+    simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
 else
     if ~isfield(simoptions,'groupptypesforstats')
         simoptions.groupptypesforstats=1;
@@ -71,6 +89,12 @@ else
     if ~isfield(simoptions,'verboseparams')
         simoptions.verboseparams=0;
     end
+    if ~isfield(simoptions,'ntimeperiods')
+        simoptions.ntimeperiods=1; % the statistics of the sums/averages over M consecutive periods, for each M in ntimeperiods (1 is the single period)
+    end
+    if ~isfield(simoptions,'ntimeperiodstype')
+        simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
+    end
 end
 
 useCondlRest=0;
@@ -86,6 +110,27 @@ if isstruct(FnsToEvaluate)
     numFnsToEvaluate=length(FnsToEvalNames);
 else
     error('You can only use PType when FnsToEvaluate is a structure')
+end
+
+%% Multi-period sums/averages: simoptions.ntimeperiods (the window lengths M, 1 is the single period) and simoptions.ntimeperiodstype
+ntimeperiods=gather(simoptions.ntimeperiods(:)'); % the order is kept: it is the order of the blocks of whichcombos
+if isempty(ntimeperiods) || ~isnumeric(ntimeperiods) || any(ntimeperiods<1) || any(ntimeperiods~=round(ntimeperiods))
+    error('EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz_PType: simoptions.ntimeperiods must be a vector of positive integers (the number of periods summed/averaged over, 1 is the single period)')
+end
+if length(unique(ntimeperiods))<length(ntimeperiods)
+    error('EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz_PType: simoptions.ntimeperiods must not contain repeated values')
+end
+if ~(ischar(simoptions.ntimeperiodstype) || isstring(simoptions.ntimeperiodstype)) || ~any(strcmp(simoptions.ntimeperiodstype,{'average','sum'}))
+    error('EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz_PType: simoptions.ntimeperiodstype must be ''average'' or ''sum''')
+end
+nblocks=length(ntimeperiods);
+has1=any(ntimeperiods==1);
+windowM=ntimeperiods(ntimeperiods>1);
+nW=length(windowM);
+if strcmp(simoptions.ntimeperiodstype,'average')
+    windowstr='periodAverage';
+else
+    windowstr='periodSum';
 end
 
 %% simoptions.whichcombos: which functions, pairs and restrictions to compute
@@ -106,7 +151,64 @@ end
 % function's row is on, as they are byproducts of the pairs). An input without the type dimension applies to every ptype and to the
 % grouped stats. With restrictions, a three-dimensional input is read as having the page dimension, not the type dimension.
 % Intended for calibration/estimation.
-if ~isfield(simoptions,'whichcombos')
+% With simoptions.ntimeperiods of length L>1 (or without 1 in it) whichcombos is block diagonal, [L*nFns, L*nFns, 1+nRestr, N_i+1],
+% one nFns x nFns block per window length in the order of ntimeperiods (an nFns x nFns form, with or without the page and type
+% dimensions, applies to every block); the off-diagonal blocks pair windows of different lengths and must be zero. Internally
+% whichcombosAll is the M=1 block (zeros when 1 is not in ntimeperiods) and whichcombosWAll(:,:,:,:,lw) the block of windowM(lw).
+if ~(nblocks==1 && has1)
+    nRwc=nblocks*numFnsToEvaluate;
+    if ~isfield(simoptions,'whichcombos')
+        wcIn=repmat(kron(eye(nblocks),ones(numFnsToEvaluate)),[1,1,nwhichpages,N_i+1]); % every function and pair of each window length (block diagonal)
+    else
+        wcIn=simoptions.whichcombos;
+        if ~(isnumeric(wcIn) || islogical(wcIn)) || any(wcIn(:)~=0 & wcIn(:)~=1)
+            error('simoptions.whichcombos must contain only zeros and ones')
+        end
+        wcIn=double(wcIn);
+        if size(wcIn,1)==numFnsToEvaluate && size(wcIn,2)==numFnsToEvaluate && nRwc~=numFnsToEvaluate % one block for every window length
+            szIn=size(wcIn);
+            if length(szIn)==2
+                szIn=[szIn,1];
+            end
+            temp=zeros([nRwc,nRwc,szIn(3:end)]);
+            for bb=1:nblocks
+                temp((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,(bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:)=wcIn(:,:,:);
+            end
+            wcIn=temp;
+        end
+        if ismatrix(wcIn) && isequal(size(wcIn),[nRwc,nRwc])
+            wcIn=repmat(wcIn,[1,1,nwhichpages]); % one matrix: apply to every page
+        end
+        if nwhichpages==1 && ndims(wcIn)==3 && isequal(size(wcIn),[nRwc,nRwc,N_i+1])
+            wcIn=reshape(wcIn,[nRwc,nRwc,1,N_i+1]); % no restrictions: the third dimension is the type dimension
+        elseif ndims(wcIn)<=3 && isequal(size(wcIn,1:3),[nRwc,nRwc,nwhichpages])
+            wcIn=repmat(wcIn,[1,1,1,N_i+1]); % no type dimension: apply to every ptype and to the grouped stats
+        end
+        if ~isequal(size(wcIn,1:4),[nRwc,nRwc,nwhichpages,N_i+1]) || ndims(wcIn)>4
+            error(['simoptions.whichcombos must be of size [',num2str(nRwc),',',num2str(nRwc),',',num2str(nwhichpages),'] (length of simoptions.ntimeperiods times the number of FnsToEvaluate, twice, 1+number of conditional restrictions; block diagonal), optionally with a trailing type dimension of ',num2str(N_i+1),' (the permanent types in the order of Names_i, then the grouped stats), or have ',num2str(numFnsToEvaluate),' rows and columns to apply to every window length'])
+        end
+    end
+    for ss=1:N_i+1
+        for pp=1:nwhichpages
+            wcIn(:,:,pp,ss)=max(triu(wcIn(:,:,pp,ss)),triu(wcIn(:,:,pp,ss))'); % symmetric, from the upper triangle
+        end
+    end
+    blockmask=kron(eye(nblocks),ones(numFnsToEvaluate));
+    if any(wcIn.*(1-blockmask)~=0,'all')
+        error('simoptions.whichcombos selects a pair of windows of different lengths (an off-diagonal block); only windows of the same length are paired')
+    end
+    if has1
+        bb=find(ntimeperiods==1);
+        whichcombosAll=wcIn((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,(bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:);
+    else
+        whichcombosAll=zeros(numFnsToEvaluate,numFnsToEvaluate,nwhichpages,N_i+1);
+    end
+    whichcombosWAll=zeros(numFnsToEvaluate,numFnsToEvaluate,nwhichpages,N_i+1,nW);
+    for lw=1:nW
+        bb=find(ntimeperiods==windowM(lw));
+        whichcombosWAll(:,:,:,:,lw)=wcIn((bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,(bb-1)*numFnsToEvaluate+1:bb*numFnsToEvaluate,:,:);
+    end
+elseif ~isfield(simoptions,'whichcombos')
     whichcombosAll=ones(numFnsToEvaluate,numFnsToEvaluate,nwhichpages,N_i+1); % whichcombos here is [nFns, nFns, 1+nRestr, N_i+1]
 else
     whichcombos=simoptions.whichcombos;
@@ -148,6 +250,12 @@ CovarVec=nan(numFnsToEvaluate,numFnsToEvaluate,N_i,nwhichpages);
 MassFactor=ones(N_i,nwhichpages); % the weight of a type in the pool of a page, relative to ptweights: one for the unrestricted page, the restricted sample mass of the type for a restriction
 if useCondlRest==1
     MassFactor(:,2:end)=NaN; % (filled from the per-type outputs)
+end
+if nW>0
+    whichcombosWG=reshape(whichcombosWAll(:,:,:,N_i+1,:),[numFnsToEvaluate,numFnsToEvaluate,nwhichpages,nW]); % the grouped window stats
+    WMeanVec=nan(numFnsToEvaluate,N_i,nwhichpages,nW); % the per-type window means
+    WCovVec=nan(numFnsToEvaluate,numFnsToEvaluate,N_i,nwhichpages,nW); % the per-type window covariances
+    WMassVec=nan(N_i,nwhichpages,nW); % the mass of the type's window population (its mass at the start ages whose window fits, or the mass there that satisfies the restriction throughout the window)
 end
 
 %% Loop over the permanent types
@@ -192,7 +300,19 @@ for ii=1:N_i
     [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
 
     % Exogenous shocks
-    [n_z_temp,z_grid_temp,~,simoptions_temp]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,[],simoptions_temp,3);
+    if nW>0 % the windows need the z transitions of this type (simoptions.pi_z, which may depend on ptype as pi_z does)
+        if isfield(simoptions_temp,'pi_z')
+            pi_z_in=simoptions_temp.pi_z;
+        else
+            pi_z_in=[];
+        end
+        [n_z_temp,z_grid_temp,pi_z_temp,simoptions_temp]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,pi_z_in,simoptions_temp,3);
+        if ~isempty(pi_z_temp)
+            simoptions_temp.pi_z=pi_z_temp;
+        end
+    else
+        [n_z_temp,z_grid_temp,~,simoptions_temp]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,[],simoptions_temp,3);
+    end
 
     % Parameters
     Parameters_temp=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
@@ -219,6 +339,10 @@ for ii=1:N_i
     % This ptype's selection: its own slot, plus whatever the grouped stats need (a grouped slot forces every type's computation)
     whichcombos_ii=max(whichcombosAll(:,:,:,ii),whichcombosG);
     fnwanted_ii=any(any(whichcombos_ii,2),3); % numFnsToEvaluate x 1: the functions this type evaluates (their own stats or any pair, on any page)
+    if nW>0
+        whichcombosW_ii=reshape(max(whichcombosWAll(:,:,:,ii,:),whichcombosWAll(:,:,:,N_i+1,:)),[numFnsToEvaluate,numFnsToEvaluate,nwhichpages,nW]); % (the same for the windows)
+        fnwanted_ii=fnwanted_ii | reshape(any(reshape(whichcombosW_ii,[numFnsToEvaluate,numFnsToEvaluate*nwhichpages*nW]),2),[numFnsToEvaluate,1]);
+    end
     % Drop the functions that whichcombos does not want from this type's evaluation
     FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii(:).*fnwanted_ii;
     for ff=1:numFnsToEvaluate
@@ -234,7 +358,21 @@ for ii=1:N_i
 
     %% Compute for this type
     idx_ii=find(FnsAndPTypeIndicator_ii==1); % the functions this type evaluates, in their order
-    simoptions_temp.whichcombos=whichcombos_ii(idx_ii,idx_ii,:); % the per-type command applies the selection itself (unselected pairs NaN, a function with nothing selected on a page absent from it)
+    if nblocks==1 && has1
+        simoptions_temp.whichcombos=whichcombos_ii(idx_ii,idx_ii,:); % the per-type command applies the selection itself (unselected pairs NaN, a function with nothing selected on a page absent from it)
+    else
+        % block diagonal over the window lengths, in the order of ntimeperiods, over the functions this type evaluates
+        nii=length(idx_ii);
+        wcT=zeros(nblocks*nii,nblocks*nii,nwhichpages);
+        for bb=1:nblocks
+            if ntimeperiods(bb)==1
+                wcT((bb-1)*nii+1:bb*nii,(bb-1)*nii+1:bb*nii,:)=whichcombos_ii(idx_ii,idx_ii,:);
+            else
+                wcT((bb-1)*nii+1:bb*nii,(bb-1)*nii+1:bb*nii,:)=whichcombosW_ii(idx_ii,idx_ii,:,windowM==ntimeperiods(bb));
+            end
+        end
+        simoptions_temp.whichcombos=wcT;
+    end
     CrossSectionCorr_ii=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
 
     % Store by type, page by page
@@ -247,17 +385,43 @@ for ii=1:N_i
             MassFactor(ii,pp)=gather(Src.RestrictedSampleMass);
             PageOut{pp}.RestrictedSampleMass.(iistr)=Src.RestrictedSampleMass;
         end
-        for ff=1:numFnsToEvaluate
-            if FnsAndPTypeIndicator_ii(ff)==1 && isfield(Src,FnsToEvalNames{ff})
-                PageOut{pp}.(FnsToEvalNames{ff}).(iistr)=Src.(FnsToEvalNames{ff});
-                EvalInd(ff,ii,pp)=1;
-                MeanVec(ff,ii,pp)=gather(Src.(FnsToEvalNames{ff}).Mean);
-                StdDevVec(ff,ii,pp)=gather(Src.(FnsToEvalNames{ff}).StdDeviation);
+        if has1 % (without 1 in ntimeperiods the per-type command has no single-period fields)
+            for ff=1:numFnsToEvaluate
+                if FnsAndPTypeIndicator_ii(ff)==1 && isfield(Src,FnsToEvalNames{ff})
+                    PageOut{pp}.(FnsToEvalNames{ff}).(iistr)=Src.(FnsToEvalNames{ff});
+                    EvalInd(ff,ii,pp)=1;
+                    MeanVec(ff,ii,pp)=gather(Src.(FnsToEvalNames{ff}).Mean);
+                    StdDevVec(ff,ii,pp)=gather(Src.(FnsToEvalNames{ff}).StdDeviation);
+                end
+            end
+            PageOut{pp}.CovarianceMatrix_ptype.(iistr)=Src.CovarianceMatrix;
+            PageOut{pp}.CorrelationMatrix_ptype.(iistr)=Src.CorrelationMatrix;
+            CovarVec(relevantfns,relevantfns,ii,pp)=gather(Src.CovarianceMatrix);
+        end
+        % The windows of this type (the fields its command created: a function with some selection on the page for that M)
+        for lw=1:nW
+            Mstr=[num2str(windowM(lw)),windowstr];
+            if ~isfield(Src,['CovarianceMatrix_',Mstr])
+                continue % nothing of this window length on this page for this type
+            end
+            for ff=1:numFnsToEvaluate
+                wn=[FnsToEvalNames{ff},'_',Mstr];
+                if FnsAndPTypeIndicator_ii(ff)==1 && isfield(Src,wn)
+                    PageOut{pp}.(wn).(iistr)=Src.(wn);
+                    WMeanVec(ff,ii,pp,lw)=gather(Src.(wn).Mean);
+                end
+            end
+            PageOut{pp}.(['CovarianceMatrix_',Mstr,'_ptype']).(iistr)=Src.(['CovarianceMatrix_',Mstr]);
+            PageOut{pp}.(['CorrelationMatrix_',Mstr,'_ptype']).(iistr)=Src.(['CorrelationMatrix_',Mstr]);
+            WCovVec(relevantfns,relevantfns,ii,pp,lw)=gather(Src.(['CovarianceMatrix_',Mstr]));
+            if pp==1
+                AgeMasses_ii=gather(sum(reshape(StationaryDist_temp,[numel(StationaryDist_temp)/N_j_temp,N_j_temp]),1));
+                WMassVec(ii,pp,lw)=sum(AgeMasses_ii(1:N_j_temp-windowM(lw)+1)); % the window population: everyone of the type at a start age whose window fits
+            else
+                PageOut{pp}.(['RestrictedSampleMass_',Mstr]).(iistr)=Src.(['RestrictedSampleMass_',Mstr]);
+                WMassVec(ii,pp,lw)=gather(Src.(['RestrictedSampleMass_',Mstr]));
             end
         end
-        PageOut{pp}.CovarianceMatrix_ptype.(iistr)=Src.CovarianceMatrix;
-        PageOut{pp}.CorrelationMatrix_ptype.(iistr)=Src.CorrelationMatrix;
-        CovarVec(relevantfns,relevantfns,ii,pp)=gather(Src.CovarianceMatrix);
     end
 end
 
@@ -270,9 +434,94 @@ if useCondlRest==1
             warning('One of the conditional restrictions evaluates to a zero mass (for every permanent type)')
             fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
         end
+        for lw=1:nW
+            Mstr=[num2str(windowM(lw)),windowstr];
+            if ~isfield(PageOut{1+rr},['RestrictedSampleMass_',Mstr])
+                continue % no type computed this window length under this restriction
+            end
+            PageOut{1+rr}.(['RestrictedSampleMass_',Mstr]).ByPType=WMassVec(:,1+rr,lw); % conditional on type, the mass at the start ages that satisfies the restriction at every age of the window
+            PageOut{1+rr}.(['RestrictedSampleMass_',Mstr]).Total=sum(ptweights.*WMassVec(:,1+rr,lw),'omitnan'); % as a share of the whole population
+        end
     end
 end
-if simoptions.groupptypesforstats==1
+if simoptions.groupptypesforstats==1 && nW>0
+    % Grouped window stats: the types are pooled with weights ptweights*(the mass of the type's window population); the grouped mean is
+    % the weighted mean, the grouped (co)variance the weighted within-type (co)variance plus the between-type part about the pooled
+    % means (a pair pooled over the types that have both functions), so exactly the statistics of the pooled population's windows.
+    % Fields for a function with some grouped selection on the page.
+    for lw=1:nW
+        Mstr=[num2str(windowM(lw)),windowstr];
+        for pp=1:nwhichpages
+            fnp=find(any(whichcombosWG(:,:,pp,lw),2))';
+            if isempty(fnp)
+                continue
+            end
+            wn=cell(1,numFnsToEvaluate);
+            for ff=1:numFnsToEvaluate
+                wn{ff}=[FnsToEvalNames{ff},'_',Mstr];
+            end
+            GCov=nan(numFnsToEvaluate,numFnsToEvaluate);
+            GCorr=nan(numFnsToEvaluate,numFnsToEvaluate);
+            GMean=nan(numFnsToEvaluate,1);
+            wi=ptweights.*WMassVec(:,pp,lw);
+            wi(isnan(wi))=0;
+            for ff=fnp
+                mu_i=reshape(WMeanVec(ff,:,pp,lw),[N_i,1]);
+                use=(wi>0) & ~isnan(mu_i);
+                if any(use)
+                    p_i=wi(use)/sum(wi(use));
+                    GMean(ff)=sum(p_i.*mu_i(use));
+                    GCov(ff,ff)=sum(p_i.*(reshape(WCovVec(ff,ff,use,pp,lw),[],1)+(mu_i(use)-GMean(ff)).^2));
+                    GCorr(ff,ff)=1;
+                end
+            end
+            for ff=fnp
+                for gf=fnp
+                    if gf<=ff || whichcombosWG(ff,gf,pp,lw)==0
+                        continue
+                    end
+                    muf=reshape(WMeanVec(ff,:,pp,lw),[N_i,1]);
+                    mug=reshape(WMeanVec(gf,:,pp,lw),[N_i,1]);
+                    cv_i=reshape(WCovVec(ff,gf,:,pp,lw),[N_i,1]);
+                    vf_i=reshape(WCovVec(ff,ff,:,pp,lw),[N_i,1]);
+                    vg_i=reshape(WCovVec(gf,gf,:,pp,lw),[N_i,1]);
+                    use=(wi>0) & ~isnan(muf) & ~isnan(mug) & ~isnan(cv_i);
+                    if any(use)
+                        p_i=wi(use)/sum(wi(use));
+                        mu1=sum(p_i.*muf(use));
+                        mu2=sum(p_i.*mug(use));
+                        var1=sum(p_i.*(vf_i(use)+(muf(use)-mu1).^2));
+                        var2=sum(p_i.*(vg_i(use)+(mug(use)-mu2).^2));
+                        GCov(ff,gf)=sum(p_i.*(cv_i(use)+(muf(use)-mu1).*(mug(use)-mu2)));
+                        GCov(gf,ff)=GCov(ff,gf);
+                        denom=sqrt(max(var1,0))*sqrt(max(var2,0));
+                        if denom>1e-15
+                            GCorr(ff,gf)=GCov(ff,gf)/denom;
+                            GCorr(gf,ff)=GCorr(ff,gf);
+                        end
+                    end
+                end
+            end
+            for ff=fnp
+                PageOut{pp}.(wn{ff}).Mean=GMean(ff);
+                PageOut{pp}.(wn{ff}).StdDeviation=sqrt(max(GCov(ff,ff),0));
+                if isnan(GCov(ff,ff))
+                    PageOut{pp}.(wn{ff}).StdDeviation=NaN;
+                end
+                PageOut{pp}.(wn{ff}).(wn{ff})=GCorr(ff,ff);
+                for gf=fnp
+                    if gf~=ff
+                        PageOut{pp}.(wn{ff}).CovarianceWith.(wn{gf})=GCov(ff,gf);
+                        PageOut{pp}.(wn{ff}).CorrelationWith.(wn{gf})=GCorr(ff,gf);
+                    end
+                end
+            end
+            PageOut{pp}.(['CovarianceMatrix_',Mstr])=GCov;
+            PageOut{pp}.(['CorrelationMatrix_',Mstr])=GCorr;
+        end
+    end
+end
+if simoptions.groupptypesforstats==1 && has1 % (without 1 in ntimeperiods: no single-period stats)
     if simoptions.verbose==1
         fprintf('Permanent type: Grouped Stats \n')
     end
@@ -341,5 +590,8 @@ if useCondlRest==1
 end
 
 CrossSectionCorr.Notes='Per type: CrossSectionCorr.(fn).(typename) is the output of EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz for that type, and CovarianceMatrix_ptype.(typename)/CorrelationMatrix_ptype.(typename) its matrices (over the functions relevant to that type). Grouped (CrossSectionCorr.(fn).Mean, .CovarianceWith, .CorrelationWith, CovarianceMatrix, CorrelationMatrix): the types are pooled with weights ptweights, so the grouped covariance is the within-type covariance plus the between-type part about the pooled means, and the grouped correlation is that of the pooled population. Under a conditional restriction (CrossSectionCorr.(restriction)) the same, with the types pooled with weights ptweights times their restricted sample mass.';
+if nW>0
+    CrossSectionCorr.Notes=[CrossSectionCorr.Notes,' Windows (simoptions.ntimeperiods): fn_MperiodAverage (or _MperiodSum) per type and grouped, with CovarianceMatrix_MperiodAverage (grouped) and CovarianceMatrix_MperiodAverage_ptype.(typename); grouped with weights ptweights*(the mass of the type at the start ages whose window fits, or the mass there that satisfies the restriction at every age of the window).'];
+end
 
 end
