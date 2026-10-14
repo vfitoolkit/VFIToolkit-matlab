@@ -2,8 +2,8 @@ function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(Ta
 % Targets by cohort: TargetMoments.AgeConditionalStats.cohortC.(...), TargetMoments.AllStats.cohortC.(...) and
 % TargetMoments.AutoCorr.cohortC.(...), where C=1,...,ncohorts indexes the entry ages in cohortagejshifter (an ordinal,
 % not the age itself). Below the cohortC level the structure is exactly as without cohorts (fn.stat, or
-% restriction.fn.stat). Age-conditional targets are N_j vectors and must be NaN before the cohort's entry age (the
-% model has no mass there).
+% restriction.fn.stat). Age-conditional targets are N_j vectors, or matrices with N_j columns (QuantileCutoffs: age is the
+% column), and must be NaN before the cohort's entry age (the model has no mass there).
 % Each cohort is parsed by SetupTargetMoments_FHorz() (useptype=0 or 1, as for the standard parser), and the moments
 % are stacked cohort by cohort (within a cohort: AllStats, then AgeConditionalStats, then AutoCorr).
 % AgeConditionalStats targets may name the window and log rows (fnname_log, fnname_MperiodAverage, ...; 2026-10-14): cohortmoments
@@ -83,19 +83,7 @@ for cc=1:ncohorts
     % Age-conditional targets before the cohort's entry age must be NaN
     j0=cohortagejshifter(cc);
     if cohortmoments.usinglcp(cc)==1
-        temp=targetmomentvec_cc(cohortmoments.allstatcummomentsizes{cc}(end)+1:cohortmoments.allstatcummomentsizes{cc}(end)+cohortmoments.acscummomentsizes{cc}(end)); % the age-conditional part
-        if mod(length(temp),N_j)~=0
-            error(['TargetMoments.AgeConditionalStats.',cohortstr,': age-conditional targets must be vectors of length N_j (NaN for ages not targeted)'])
-        end
-        temp=reshape(temp,N_j,[]); % (age, moment)
-        if any(~isnan(temp(1:j0-1,:)),'all')
-            error(['TargetMoments.AgeConditionalStats.',cohortstr,' has non-NaN targets at ages before the cohort enters (age ',num2str(j0),'); these must be NaN'])
-        end
-        if any(~isnan(temp),'all')
-            lastage_lcp=find(any(~isnan(temp),2),1,'last'); % the last targeted age
-        else
-            lastage_lcp=j0;
-        end
+        lastage_lcp=j0; % raised to the last targeted age of each target below (the ages of a target come from its own shape: a matrix target such as QuantileCutoffs has N_j columns)
         % The window and log rows of this cohort's AgeConditionalStats targets (fnname_log, fnname_MperiodAverage, fnname_MperiodSum,
         % fnname_MperiodAverage_log, fnname_MperiodSum_log; a window target is by start age): simoptions.ntimeperiods, ntimeperiodstype and
         % the start ages of the log targets (for simoptions.logwhichcombos), and an M-period window starting at the last targeted age runs M-1 ages further
@@ -107,6 +95,21 @@ for cc=1:ncohorts
         for mm=1:size(acsnames,1)
             names=acsnames(mm,:);
             names=names(~cellfun(@isempty,names));
+            % The ages this target selects: a vector of length N_j, or a matrix with N_j columns (age is the column; e.g. QuantileCutoffs)
+            val=TargetMoments_cc.AgeConditionalStats;
+            for kk=1:length(names)
+                val=val.(names{kk});
+            end
+            if isvector(val) && numel(val)==N_j
+                sel=reshape(~isnan(val),[1,N_j]);
+            elseif size(val,2)==N_j
+                sel=any(~isnan(val),1);
+            else
+                error(['TargetMoments.AgeConditionalStats.',cohortstr,'.',strjoin(names,'.'),': age-conditional targets must be vectors of length N_j, or matrices with N_j columns (NaN for ages not targeted)'])
+            end
+            if any(sel(1:j0-1))
+                error(['TargetMoments.AgeConditionalStats.',cohortstr,'.',strjoin(names,'.'),' has non-NaN targets at ages before the cohort enters (age ',num2str(j0),'); these must be NaN'])
+            end
             rowname=names{1};
             restr='';
             rbase=''; rM=1; rlog=0;
@@ -131,25 +134,17 @@ for cc=1:ncohorts
                 rowname=names{2};
             end
             if isempty(rbase)
+                if any(sel)
+                    lastage_lcp=max(lastage_lcp,find(sel,1,'last'));
+                end
                 continue % (SetupTargetMoments_FHorz has checked the names)
             end
             acsM(mm)=rM;
-            val=TargetMoments_cc.AgeConditionalStats;
-            for kk=1:length(names)
-                val=val.(names{kk});
-            end
-            if isvector(val) && numel(val)==N_j
-                sel=reshape(~isnan(val),[1,N_j]);
-            elseif size(val,2)==N_j
-                sel=any(~isnan(val),1);
-            else
-                sel=false(1,N_j);
-            end
             if rM>1 && any(sel(N_j-rM+2:N_j))
                 error(['TargetMoments.AgeConditionalStats.',cohortstr,': ',rowname,' is targeted at a start age after N_j-',num2str(rM-1),', where the ',num2str(rM),'-period window runs past age N_j (these entries must be NaN)'])
             end
-            if rM>1 && any(sel)
-                lastage_lcp=max(lastage_lcp,find(sel,1,'last')+rM-1);
+            if any(sel)
+                lastage_lcp=max(lastage_lcp,find(sel,1,'last')+rM-1); % the last targeted age (an M-period window starting there runs M-1 ages further)
             end
             if rlog==1
                 acslog(end+1,:)={restr,rbase,rM,double(sel)}; %#ok<AGROW>
