@@ -166,12 +166,12 @@ elseif N_z>0 && N_e==0
     clear PolicyIndexesPath PolicyaprimePath L2index
     if simoptions.experienceasset>=1
         if simoptions.setup_experienceasset.N_a1==0
-            PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+            PolicyaprimezPath=repmat(PolicyaprimezPath,1,2,1)+a2primeIndexesPath;
         else
-            PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+            PolicyaprimezPath=repmat(PolicyaprimezPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
         end
         if exist('PolicyProbsPath','var')
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
         else
             PolicyProbsPath=a2primeProbsPath;
         end
@@ -218,12 +218,12 @@ elseif N_z==0 && N_e>0
     clear PolicyIndexesPath L2index
     if simoptions.experienceasset>=1
         if simoptions.setup_experienceasset.N_a1==0
-            PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+            PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+a2primeIndexesPath;
         else
-            PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+            PolicyaprimePath=repmat(PolicyaprimePath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
         end
         if exist('PolicyProbsPath','var')
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
         else
             PolicyProbsPath=a2primeProbsPath;
         end
@@ -272,12 +272,12 @@ elseif N_z>0 && N_e>0
     clear PolicyIndexesPath PolicyaprimePath L2index
     if simoptions.experienceasset>=1
         if simoptions.setup_experienceasset.N_a1==0
-            PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+            PolicyaprimezPath=repmat(PolicyaprimezPath,1,2,1)+a2primeIndexesPath;
         else
-            PolicyaprimePath=repmat(PolicyaprimezPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+            PolicyaprimezPath=repmat(PolicyaprimezPath,1,2,1)+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
         end
         if exist('PolicyProbsPath','var')
-            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*a2primeProbsPath;
         else
             PolicyProbsPath=a2primeProbsPath;
         end
