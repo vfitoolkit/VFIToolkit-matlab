@@ -53,20 +53,22 @@ l_a=length(n_a);
 % noa1 case (n_a is scalar -- experience asset is the only endogenous state): GI refines a1, which
 % doesn't apply when there's no a1. Fall back to non-GI SemiExo version (which handles noa1 correctly).
 % Matches the upstream VFI convention (noa1 has no GI/DC/DC+GI raw files).
-if isscalar(n_a)
+% vfoptions.experienceassetu is the *count* of EAU dims (1 or 2).
+l_a2=vfoptions.experienceassetu;
+if length(n_a)<=l_a2
     vfoptions.gridinterplayer=0;
     V=ValueFnFromPolicy_FHorz_ExpAssetu_SemiExo(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     varargout={V};
     return
 end
-n_a1=n_a(1:end-1);
+n_a1=n_a(1:end-l_a2);
 N_a1=prod(n_a1);
-n_a2=n_a(end);
+n_a2=n_a(end-l_a2+1:end); % last l_a2 dims are the experience asset(s)
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
 l_a1=length(n_a1);
-l_a2=length(n_a2);
+% l_a2 already set from vfoptions.experienceassetu above
 l_aprime=l_a1; % Policy stores a1prime only (plus L2 in GI); a2prime implicit
 
 if isfield(vfoptions,'l_dexperienceassetu')
@@ -78,8 +80,8 @@ whichisdforexpasset=(l_d-l_dsemiz-l_d2+1):(l_d-l_dsemiz);
 n_d2=n_d(whichisdforexpasset);
 
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_u)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_u+1:end}};
+if length(temp)>(l_d2+l_a2+l_u+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+l_u+(l_a2>=2)+1:end}};
 else
     aprimeFnParamNames={};
 end
@@ -185,6 +187,14 @@ for reverse_j=0:N_j-1
         Policy_slice=reshape(Policy_k(:,:,:,:,jj), [size_first, N_a, N_shocks*N_e]);
     end
     [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetu(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, N_shocks*max(N_e,1), n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec);
+    if length(n_a2)==2
+        % l_a2==2: per-dim factored output; pull out the two lower indexes and their probs, shaped
+        % exactly as the l_a2==1 a2primeIndex/a2primeProbs, then each branch folds the a2 lattice.
+        loIdx_1=reshape(a2primeIndex(:,1,:,:),[N_a,N_shocks*max(N_e,1),N_u]);
+        loIdx_2=reshape(a2primeIndex(:,2,:,:),[N_a,N_shocks*max(N_e,1),N_u]);
+        pr_1=reshape(a2primeProbs(:,1,:,:),[N_a,N_shocks*max(N_e,1),N_u]);
+        pr_2=reshape(a2primeProbs(:,2,:,:),[N_a,N_shocks*max(N_e,1),N_u]);
+    end
     % Shapes:
     %   N_e==0: [N_a, N_shocks,    N_u]
     %   N_e>0:  [N_a, N_shocks*N_e, N_u]
@@ -254,46 +264,98 @@ for reverse_j=0:N_j-1
             if N_z==0
                 a1l_r=reshape(a1l,[N_a, N_semiz]); a1u_r=reshape(a1u,[N_a, N_semiz]);
                 wa1l_r=reshape(wa1l,[N_a, N_semiz]); wa1u_r=reshape(wa1u,[N_a, N_semiz]);
-                a2l=a2primeIndex;       a2u=a2primeIndex+1;    % [N_a, N_semiz, N_u]
-                wa2l=a2primeProbs;      wa2u=1-a2primeProbs;
-                d2_r=reshape(d2_jj,[N_a, N_semiz]);
-                base_off=reshape(N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_r(:)-1), [N_a, N_semiz]);
-                lin_LL=a1l_r+N_a1*(a2l-1)+base_off; % broadcasts over u -> [N_a, N_semiz, N_u]
-                lin_LU=a1l_r+N_a1*(a2u-1)+base_off;
-                lin_UL=a1u_r+N_a1*(a2l-1)+base_off;
-                lin_UU=a1u_r+N_a1*(a2u-1)+base_off;
-                EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_u]);
-                EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_u]);
-                EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_u]);
-                EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_u]);
-                % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero each term BEFORE summing
-                per_u=wa1l_r.*wa2l.*EV_LL; per_u(isnan(per_u))=0;
-                EVterm=wa1l_r.*wa2u.*EV_LU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
-                EVterm=wa1u_r.*wa2l.*EV_UL; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
-                EVterm=wa1u_r.*wa2u.*EV_UU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                if length(n_a2)==1
+                    a2l=a2primeIndex;       a2u=a2primeIndex+1;    % [N_a, N_semiz, N_u]
+                    wa2l=a2primeProbs;      wa2u=1-a2primeProbs;
+                    d2_r=reshape(d2_jj,[N_a, N_semiz]);
+                    base_off=reshape(N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_r(:)-1), [N_a, N_semiz]);
+                    lin_LL=a1l_r+N_a1*(a2l-1)+base_off; % broadcasts over u -> [N_a, N_semiz, N_u]
+                    lin_LU=a1l_r+N_a1*(a2u-1)+base_off;
+                    lin_UL=a1u_r+N_a1*(a2l-1)+base_off;
+                    lin_UU=a1u_r+N_a1*(a2u-1)+base_off;
+                    EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_u]);
+                    EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_u]);
+                    EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_u]);
+                    EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_u]);
+                    % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero each term BEFORE summing
+                    per_u=wa1l_r.*wa2l.*EV_LL; per_u(isnan(per_u))=0;
+                    EVterm=wa1l_r.*wa2u.*EV_LU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    EVterm=wa1u_r.*wa2l.*EV_UL; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    EVterm=wa1u_r.*wa2u.*EV_UU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                else
+                    % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored, so the corner count doubles:
+                    % 2 (a1) x 2 (a2_1) x 2 (a2_2) = 8. Same FLAT weight product as the l_a2==1 arm above
+                    % (this file class's convention), each term NaN-zeroed before it is added. d2_r/base_off
+                    % are recomputed here: they depend only on names outside this guard.
+                    n_a2_1=n_a2(1);
+                    lo1=loIdx_1; lo2=loIdx_2;
+                    pq_1=pr_1; pq_2=pr_2;
+                    d2_r=reshape(d2_jj,[N_a, N_semiz]);
+                    base_off=reshape(N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_r(:)-1), [N_a, N_semiz]);
+                    per_u=zeros([N_a, N_semiz, N_u],'like',EVnext_byd2);
+                    bits=[0 0; 1 0; 0 1; 1 1];
+                    for c=1:4
+                        b1=bits(c,1); b2=bits(c,2);
+                        a2k=(lo1+b1)+n_a2_1*((lo2+b2)-1);
+                        w2=pq_1; if b1==1, w2=1-w2; end
+                        q2=pq_2; if b2==1, q2=1-q2; end
+                        linl=a1l_r+N_a1*(a2k-1)+base_off;
+                        linu=a1u_r+N_a1*(a2k-1)+base_off;
+                        EV_L=reshape(EVnext_byd2(linl(:)),[N_a, N_semiz, N_u]);
+                        EV_U=reshape(EVnext_byd2(linu(:)),[N_a, N_semiz, N_u]);
+                        EVterm=wa1l_r.*w2.*q2.*EV_L; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                        EVterm=wa1u_r.*w2.*q2.*EV_U; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    end
+                end
                 EVw=per_u .* shiftdim(pi_u,-2); EVw(isnan(EVw))=0; % zero the zero-weight terms BEFORE summing (after the sum would destroy it)
                 EVnext_atpolicy=sum(EVw,3); % [N_a, N_semiz]
                 V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
             else
                 a1l_r=reshape(a1l,[N_a, N_semiz, N_z]); a1u_r=reshape(a1u,[N_a, N_semiz, N_z]);
                 wa1l_r=reshape(wa1l,[N_a, N_semiz, N_z]); wa1u_r=reshape(wa1u,[N_a, N_semiz, N_z]);
-                a2l=reshape(a2primeIndex,[N_a, N_semiz, N_z, N_u]); a2u=a2l+1;
-                wa2l=reshape(a2primeProbs,[N_a, N_semiz, N_z, N_u]); wa2u=1-wa2l;
-                d2_r=reshape(d2_jj,[N_a, N_semiz, N_z]);
-                base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_r(:)-1), [N_a, N_semiz, N_z]);
-                lin_LL=a1l_r+N_a1*(a2l-1)+base_off;
-                lin_LU=a1l_r+N_a1*(a2u-1)+base_off;
-                lin_UL=a1u_r+N_a1*(a2l-1)+base_off;
-                lin_UU=a1u_r+N_a1*(a2u-1)+base_off;
-                EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_z, N_u]);
-                EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_z, N_u]);
-                EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_z, N_u]);
-                EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_z, N_u]);
-                % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero each term BEFORE summing
-                per_u=wa1l_r.*wa2l.*EV_LL; per_u(isnan(per_u))=0;
-                EVterm=wa1l_r.*wa2u.*EV_LU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
-                EVterm=wa1u_r.*wa2l.*EV_UL; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
-                EVterm=wa1u_r.*wa2u.*EV_UU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                if length(n_a2)==1
+                    a2l=reshape(a2primeIndex,[N_a, N_semiz, N_z, N_u]); a2u=a2l+1;
+                    wa2l=reshape(a2primeProbs,[N_a, N_semiz, N_z, N_u]); wa2u=1-wa2l;
+                    d2_r=reshape(d2_jj,[N_a, N_semiz, N_z]);
+                    base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_r(:)-1), [N_a, N_semiz, N_z]);
+                    lin_LL=a1l_r+N_a1*(a2l-1)+base_off;
+                    lin_LU=a1l_r+N_a1*(a2u-1)+base_off;
+                    lin_UL=a1u_r+N_a1*(a2l-1)+base_off;
+                    lin_UU=a1u_r+N_a1*(a2u-1)+base_off;
+                    EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_z, N_u]);
+                    EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_z, N_u]);
+                    EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_z, N_u]);
+                    EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_z, N_u]);
+                    % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero each term BEFORE summing
+                    per_u=wa1l_r.*wa2l.*EV_LL; per_u(isnan(per_u))=0;
+                    EVterm=wa1l_r.*wa2u.*EV_LU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    EVterm=wa1u_r.*wa2l.*EV_UL; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    EVterm=wa1u_r.*wa2u.*EV_UU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                else
+                    % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored, so the corner count doubles:
+                    % 2 (a1) x 2 (a2_1) x 2 (a2_2) = 8. Same FLAT weight product as the l_a2==1 arm above
+                    % (this file class's convention), each term NaN-zeroed before it is added. d2_r/base_off
+                    % are recomputed here: they depend only on names outside this guard.
+                    n_a2_1=n_a2(1);
+                    lo1=reshape(loIdx_1,[N_a, N_semiz, N_z, N_u]); lo2=reshape(loIdx_2,[N_a, N_semiz, N_z, N_u]);
+                    pq_1=reshape(pr_1,[N_a, N_semiz, N_z, N_u]); pq_2=reshape(pr_2,[N_a, N_semiz, N_z, N_u]);
+                    d2_r=reshape(d2_jj,[N_a, N_semiz, N_z]);
+                    base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_r(:)-1), [N_a, N_semiz, N_z]);
+                    per_u=zeros([N_a, N_semiz, N_z, N_u],'like',EVnext_byd2);
+                    bits=[0 0; 1 0; 0 1; 1 1];
+                    for c=1:4
+                        b1=bits(c,1); b2=bits(c,2);
+                        a2k=(lo1+b1)+n_a2_1*((lo2+b2)-1);
+                        w2=pq_1; if b1==1, w2=1-w2; end
+                        q2=pq_2; if b2==1, q2=1-q2; end
+                        linl=a1l_r+N_a1*(a2k-1)+base_off;
+                        linu=a1u_r+N_a1*(a2k-1)+base_off;
+                        EV_L=reshape(EVnext_byd2(linl(:)),[N_a, N_semiz, N_z, N_u]);
+                        EV_U=reshape(EVnext_byd2(linu(:)),[N_a, N_semiz, N_z, N_u]);
+                        EVterm=wa1l_r.*w2.*q2.*EV_L; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                        EVterm=wa1u_r.*w2.*q2.*EV_U; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    end
+                end
                 EVw=per_u .* shiftdim(pi_u,-3); EVw(isnan(EVw))=0; % zero the zero-weight terms BEFORE summing (after the sum would destroy it)
                 EVnext_atpolicy=sum(EVw,4); % [N_a, N_semiz, N_z]
                 V(:,:,jj)=F_jj+beta*reshape(EVnext_atpolicy, [N_a, N_shocks]);
@@ -307,25 +369,51 @@ for reverse_j=0:N_j-1
                     a1u_e=reshape(a1_upper(:,:,e_c,jj),[N_a, N_semiz]);
                     wa1l_e=reshape(w_a1_lower(:,:,e_c,jj),[N_a, N_semiz]);
                     wa1u_e=reshape(w_a1_upper(:,:,e_c,jj),[N_a, N_semiz]);
-                    a2l_e=reshape(a2primeIndex(:,block,:),[N_a, N_semiz, N_u]);
-                    a2u_e=a2l_e+1;
-                    wa2l_e=reshape(a2primeProbs(:,block,:),[N_a, N_semiz, N_u]);
-                    wa2u_e=1-wa2l_e;
+                    % Hoisted above the l_a2 guard: both arms build base_off from it.
                     d2_e=reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz]);
-                    base_off=reshape(N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_e(:)-1), [N_a, N_semiz]);
-                    lin_LL=a1l_e+N_a1*(a2l_e-1)+base_off;
-                    lin_LU=a1l_e+N_a1*(a2u_e-1)+base_off;
-                    lin_UL=a1u_e+N_a1*(a2l_e-1)+base_off;
-                    lin_UU=a1u_e+N_a1*(a2u_e-1)+base_off;
-                    EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_u]);
-                    EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_u]);
-                    EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_u]);
-                    EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_u]);
-                    % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero each term BEFORE summing
-                    per_u=wa1l_e.*wa2l_e.*EV_LL; per_u(isnan(per_u))=0;
-                    EVterm=wa1l_e.*wa2u_e.*EV_LU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
-                    EVterm=wa1u_e.*wa2l_e.*EV_UL; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
-                    EVterm=wa1u_e.*wa2u_e.*EV_UU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    if length(n_a2)==1
+                        a2l_e=reshape(a2primeIndex(:,block,:),[N_a, N_semiz, N_u]);
+                        a2u_e=a2l_e+1;
+                        wa2l_e=reshape(a2primeProbs(:,block,:),[N_a, N_semiz, N_u]);
+                        wa2u_e=1-wa2l_e;
+                        base_off=reshape(N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_e(:)-1), [N_a, N_semiz]);
+                        lin_LL=a1l_e+N_a1*(a2l_e-1)+base_off;
+                        lin_LU=a1l_e+N_a1*(a2u_e-1)+base_off;
+                        lin_UL=a1u_e+N_a1*(a2l_e-1)+base_off;
+                        lin_UU=a1u_e+N_a1*(a2u_e-1)+base_off;
+                        EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_u]);
+                        EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_u]);
+                        EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_u]);
+                        EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_u]);
+                        % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero each term BEFORE summing
+                        per_u=wa1l_e.*wa2l_e.*EV_LL; per_u(isnan(per_u))=0;
+                        EVterm=wa1l_e.*wa2u_e.*EV_LU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                        EVterm=wa1u_e.*wa2l_e.*EV_UL; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                        EVterm=wa1u_e.*wa2u_e.*EV_UU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    else
+                        % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored, so the corner count doubles:
+                        % 2 (a1) x 2 (a2_1) x 2 (a2_2) = 8. Same FLAT weight product as the l_a2==1 arm above
+                        % (this file class's convention), each term NaN-zeroed before it is added. base_off is
+                        % recomputed here from d2_e, which is hoisted above the guard.
+                        n_a2_1=n_a2(1);
+                        lo1=reshape(loIdx_1(:,block,:),[N_a, N_semiz, N_u]); lo2=reshape(loIdx_2(:,block,:),[N_a, N_semiz, N_u]);
+                        pq_1=reshape(pr_1(:,block,:),[N_a, N_semiz, N_u]); pq_2=reshape(pr_2(:,block,:),[N_a, N_semiz, N_u]);
+                        base_off=reshape(N_a*(SZ_grid_noz(:)-1)+N_a*N_semiz*(d2_e(:)-1), [N_a, N_semiz]);
+                        per_u=zeros([N_a, N_semiz, N_u],'like',EVnext_byd2);
+                        bits=[0 0; 1 0; 0 1; 1 1];
+                        for c=1:4
+                            b1=bits(c,1); b2=bits(c,2);
+                            a2k=(lo1+b1)+n_a2_1*((lo2+b2)-1);
+                            w2=pq_1; if b1==1, w2=1-w2; end
+                            q2=pq_2; if b2==1, q2=1-q2; end
+                            linl=a1l_e+N_a1*(a2k-1)+base_off;
+                            linu=a1u_e+N_a1*(a2k-1)+base_off;
+                            EV_L=reshape(EVnext_byd2(linl(:)),[N_a, N_semiz, N_u]);
+                            EV_U=reshape(EVnext_byd2(linu(:)),[N_a, N_semiz, N_u]);
+                            EVterm=wa1l_e.*w2.*q2.*EV_L; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                            EVterm=wa1u_e.*w2.*q2.*EV_U; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                        end
+                    end
                     EVnext_atpolicy(:,:,e_c)=sum(per_u .* shiftdim(pi_u,-2), 3);
                 end
                 EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN
@@ -338,25 +426,51 @@ for reverse_j=0:N_j-1
                     a1u_e=reshape(a1_upper(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                     wa1l_e=reshape(w_a1_lower(:,:,e_c,jj),[N_a, N_semiz, N_z]);
                     wa1u_e=reshape(w_a1_upper(:,:,e_c,jj),[N_a, N_semiz, N_z]);
-                    a2l_e=reshape(a2primeIndex(:,block,:),[N_a, N_semiz, N_z, N_u]);
-                    a2u_e=a2l_e+1;
-                    wa2l_e=reshape(a2primeProbs(:,block,:),[N_a, N_semiz, N_z, N_u]);
-                    wa2u_e=1-wa2l_e;
+                    % Hoisted above the l_a2 guard: both arms build base_off from it.
                     d2_e=reshape(d_semiz_idx(:,:,e_c,jj),[N_a, N_semiz, N_z]);
-                    base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1), [N_a, N_semiz, N_z]);
-                    lin_LL=a1l_e+N_a1*(a2l_e-1)+base_off;
-                    lin_LU=a1l_e+N_a1*(a2u_e-1)+base_off;
-                    lin_UL=a1u_e+N_a1*(a2l_e-1)+base_off;
-                    lin_UU=a1u_e+N_a1*(a2u_e-1)+base_off;
-                    EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_z, N_u]);
-                    EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_z, N_u]);
-                    EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_z, N_u]);
-                    EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_z, N_u]);
-                    % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero each term BEFORE summing
-                    per_u=wa1l_e.*wa2l_e.*EV_LL; per_u(isnan(per_u))=0;
-                    EVterm=wa1l_e.*wa2u_e.*EV_LU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
-                    EVterm=wa1u_e.*wa2l_e.*EV_UL; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
-                    EVterm=wa1u_e.*wa2u_e.*EV_UU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    if length(n_a2)==1
+                        a2l_e=reshape(a2primeIndex(:,block,:),[N_a, N_semiz, N_z, N_u]);
+                        a2u_e=a2l_e+1;
+                        wa2l_e=reshape(a2primeProbs(:,block,:),[N_a, N_semiz, N_z, N_u]);
+                        wa2u_e=1-wa2l_e;
+                        base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1), [N_a, N_semiz, N_z]);
+                        lin_LL=a1l_e+N_a1*(a2l_e-1)+base_off;
+                        lin_LU=a1l_e+N_a1*(a2u_e-1)+base_off;
+                        lin_UL=a1u_e+N_a1*(a2l_e-1)+base_off;
+                        lin_UU=a1u_e+N_a1*(a2u_e-1)+base_off;
+                        EV_LL=reshape(EVnext_byd2(lin_LL(:)),[N_a, N_semiz, N_z, N_u]);
+                        EV_LU=reshape(EVnext_byd2(lin_LU(:)),[N_a, N_semiz, N_z, N_u]);
+                        EV_UL=reshape(EVnext_byd2(lin_UL(:)),[N_a, N_semiz, N_z, N_u]);
+                        EV_UU=reshape(EVnext_byd2(lin_UU(:)),[N_a, N_semiz, N_z, N_u]);
+                        % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero each term BEFORE summing
+                        per_u=wa1l_e.*wa2l_e.*EV_LL; per_u(isnan(per_u))=0;
+                        EVterm=wa1l_e.*wa2u_e.*EV_LU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                        EVterm=wa1u_e.*wa2l_e.*EV_UL; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                        EVterm=wa1u_e.*wa2u_e.*EV_UU; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                    else
+                        % l_a2==2: a2primeIndex/a2primeProbs are per-dim factored, so the corner count doubles:
+                        % 2 (a1) x 2 (a2_1) x 2 (a2_2) = 8. Same FLAT weight product as the l_a2==1 arm above
+                        % (this file class's convention), each term NaN-zeroed before it is added. base_off is
+                        % recomputed here from d2_e, which is hoisted above the guard.
+                        n_a2_1=n_a2(1);
+                        lo1=reshape(loIdx_1(:,block,:),[N_a, N_semiz, N_z, N_u]); lo2=reshape(loIdx_2(:,block,:),[N_a, N_semiz, N_z, N_u]);
+                        pq_1=reshape(pr_1(:,block,:),[N_a, N_semiz, N_z, N_u]); pq_2=reshape(pr_2(:,block,:),[N_a, N_semiz, N_z, N_u]);
+                        base_off=reshape(N_a*(SZ_grid(:)-1)+N_a*N_semiz*(Z_grid(:)-1)+N_a*N_semiz*N_z*(d2_e(:)-1), [N_a, N_semiz, N_z]);
+                        per_u=zeros([N_a, N_semiz, N_z, N_u],'like',EVnext_byd2);
+                        bits=[0 0; 1 0; 0 1; 1 1];
+                        for c=1:4
+                            b1=bits(c,1); b2=bits(c,2);
+                            a2k=(lo1+b1)+n_a2_1*((lo2+b2)-1);
+                            w2=pq_1; if b1==1, w2=1-w2; end
+                            q2=pq_2; if b2==1, q2=1-q2; end
+                            linl=a1l_e+N_a1*(a2k-1)+base_off;
+                            linu=a1u_e+N_a1*(a2k-1)+base_off;
+                            EV_L=reshape(EVnext_byd2(linl(:)),[N_a, N_semiz, N_z, N_u]);
+                            EV_U=reshape(EVnext_byd2(linu(:)),[N_a, N_semiz, N_z, N_u]);
+                            EVterm=wa1l_e.*w2.*q2.*EV_L; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                            EVterm=wa1u_e.*w2.*q2.*EV_U; EVterm(isnan(EVterm))=0; per_u=per_u+EVterm;
+                        end
+                    end
                     EVnext_atpolicy(:,:,:,e_c)=sum(per_u .* shiftdim(pi_u,-3), 4);
                 end
                 EVnext_atpolicy(isnan(EVnext_atpolicy))=0; % zero corner weights times -Inf next-states give NaN

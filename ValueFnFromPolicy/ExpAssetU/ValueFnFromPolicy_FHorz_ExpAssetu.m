@@ -52,20 +52,22 @@ l_a=length(n_a);
 % noa1 case (n_a is scalar -- experience asset is the only endogenous state): use n_a1=0, N_a1=0
 % (toolkit convention; matches StationaryDist_FHorz_ExpAssetu). Note we have to override l_a1=0
 % because length(0)=1, not 0. Downstream, the lookup section has explicit `if N_a1==0` branches.
-if isscalar(n_a)
+% vfoptions.experienceassetu is the *count* of EAU dims (1 or 2).
+l_a2=vfoptions.experienceassetu;
+if length(n_a)<=l_a2
     n_a1=0;
     N_a1=0;
     l_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-l_a2);
     N_a1=prod(n_a1);
     l_a1=length(n_a1);
 end
-n_a2=n_a(end);
+n_a2=n_a(end-l_a2+1:end); % last l_a2 dims are the experience asset(s)
 N_a2=prod(n_a2);
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
-l_a2=length(n_a2);
+% l_a2 already set from vfoptions.experienceassetu above
 l_aprime=l_a1; % Policy stores a1prime only (a2prime implicit); 0 in the noa1 case
 
 % Which d affects the experience asset (default: last d only)
@@ -79,8 +81,8 @@ n_d2=n_d(end-l_d2+1:end);
 
 % aprimeFnParamNames: first inputs are (d_expasset..., a2, u)
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_u)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_u+1:end}};
+if length(temp)>(l_d2+l_a2+l_u+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+l_u+(l_a2>=2)+1:end}};
 else
     aprimeFnParamNames={};
 end
@@ -164,6 +166,23 @@ for reverse_j=0:N_j-1
 
     % Step 1: a2primeIndex, a2primeProbs -- helper adds the u dim
     [a2primeIndex, a2primeProbs]=CreateaprimePolicyExperienceAssetu(Policy_slice, aprimeFn, whichisdforexpasset, n_d, n_a1, n_a2, N_ze, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec);
+    if length(n_a2)==2
+        % l_a2==2: the helper returns PER-DIM FACTORED output with the a2-dim index right after N_a.
+        % Pull out the two lower indexes and their probs, each shaped exactly as the l_a2==1
+        % a2primeIndex/a2primeProbs would be, so each branch below can reshape them as it reshapes
+        % a2primeIndex and then Kron-fold the four corners of the a2 lattice.
+        if N_ze==0
+            loIdx_1=reshape(a2primeIndex(:,1,:),[N_a,N_u]);
+            loIdx_2=reshape(a2primeIndex(:,2,:),[N_a,N_u]);
+            pr_1=reshape(a2primeProbs(:,1,:),[N_a,N_u]);
+            pr_2=reshape(a2primeProbs(:,2,:),[N_a,N_u]);
+        else
+            loIdx_1=reshape(a2primeIndex(:,1,:,:),[N_a,N_ze,N_u]);
+            loIdx_2=reshape(a2primeIndex(:,2,:,:),[N_a,N_ze,N_u]);
+            pr_1=reshape(a2primeProbs(:,1,:,:),[N_a,N_ze,N_u]);
+            pr_2=reshape(a2primeProbs(:,2,:,:),[N_a,N_ze,N_u]);
+        end
+    end
     % shape:  N_z==0 && N_e==0 -> [N_a, N_u];  else -> [N_a, N_ze, N_u]
 
     % Step 2: ReturnFn at policy (u does not enter Return)
@@ -212,90 +231,264 @@ for reverse_j=0:N_j-1
         % BEFORE pi_z multiplication and isnan clear, so NaN from skipinterp
         % absorbs -Inf at non-skipinterp positions within the same (a,z,z') cell.
         if N_z==0 && N_e==0
-            if N_a1==0
-                aprime_low=a2primeIndex;     % [N_a, N_u]
-                aprime_up =a2primeIndex+1;
+            if length(n_a2)==1
+                if N_a1==0
+                    aprime_low=a2primeIndex;     % [N_a, N_u]
+                    aprime_up =a2primeIndex+1;
+                else
+                    a1p=a1prime_idx(:,jj); % [N_a]
+                    aprime_low=a1p+N_a1*(a2primeIndex-1); % [N_a, N_u]
+                    aprime_up =a1p+N_a1*(a2primeIndex);
+                end
+                Vlower=reshape(EVnext(aprime_low(:)),[N_a,N_u]);
+                Vupper=reshape(EVnext(aprime_up(:)), [N_a,N_u]);
+                a2pPrb=a2primeProbs;
+                a2pPrb(Vlower==Vupper)=0; % skipinterp
+                EV=a2pPrb.*Vlower+(1-a2pPrb).*Vupper;
+                EV(a2pPrb==0)=Vupper(a2pPrb==0); % a zero weight against an infinite node gives 0*(-Inf)=NaN
+                EV(a2pPrb==1)=Vlower(a2pPrb==1);
             else
-                a1p=a1prime_idx(:,jj); % [N_a]
-                aprime_low=a1p+N_a1*(a2primeIndex-1); % [N_a, N_u]
-                aprime_up =a1p+N_a1*(a2primeIndex);
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each level
+                % and per-contribution NaN cleanup so a zero weight against an infinite node (0*(-Inf)=NaN)
+                % does not poison the sum. The pi_u sum below is unchanged.
+                n_a2_1=n_a2(1);
+                lo1=loIdx_1; lo2=loIdx_2;
+                pq_1=pr_1; pq_2=pr_2;
+                a2c_ll=lo1+n_a2_1*(lo2-1);
+                a2c_hl=(lo1+1)+n_a2_1*(lo2-1);
+                a2c_lh=lo1+n_a2_1*lo2;
+                a2c_hh=(lo1+1)+n_a2_1*lo2;
+                if N_a1==0
+                    ap_ll=a2c_ll;
+                    ap_hl=a2c_hl;
+                    ap_lh=a2c_lh;
+                    ap_hh=a2c_hh;
+                else
+                    a1p=a1prime_idx(:,jj);
+                    ap_ll=a1p+N_a1*(a2c_ll-1);
+                    ap_hl=a1p+N_a1*(a2c_hl-1);
+                    ap_lh=a1p+N_a1*(a2c_lh-1);
+                    ap_hh=a1p+N_a1*(a2c_hh-1);
+                end
+                V_ll=reshape(EVnext(ap_ll(:)),[N_a,N_u]);
+                V_hl=reshape(EVnext(ap_hl(:)),[N_a,N_u]);
+                V_lh=reshape(EVnext(ap_lh(:)),[N_a,N_u]);
+                V_hh=reshape(EVnext(ap_hh(:)),[N_a,N_u]);
+                pp_1=pq_1;
+                pp_2=pq_2;
+                p1_lo=pp_1; p1_lo(V_ll==V_hl)=0;
+                c_ll=p1_lo.*V_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*V_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=pp_1; p1_hi(V_lh==V_hh)=0;
+                c_lh=p1_hi.*V_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*V_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                p2=pp_2; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                EV=c_lo+c_hi;
             end
-            Vlower=reshape(EVnext(aprime_low(:)),[N_a,N_u]);
-            Vupper=reshape(EVnext(aprime_up(:)), [N_a,N_u]);
-            a2pPrb=a2primeProbs;
-            a2pPrb(Vlower==Vupper)=0; % skipinterp
-            EV=a2pPrb.*Vlower+(1-a2pPrb).*Vupper;
-            EV(a2pPrb==0)=Vupper(a2pPrb==0); % a zero weight against an infinite node gives 0*(-Inf)=NaN
-            EV(a2pPrb==1)=Vlower(a2pPrb==1);
             EVw=EV .* shiftdim(pi_u,-1); EVw(isnan(EVw))=0; % zero the zero-weight terms BEFORE summing (after the sum would destroy it)
             EVnext_atpolicy=sum(EVw,2); % sum over u -> [N_a, 1]
             V(:,jj)=F_jj+beta*EVnext_atpolicy;
         elseif N_z==0 && N_e>0
-            if N_a1==0
-                aprime_low=a2primeIndex;     % [N_a, N_e, N_u]
-                aprime_up =a2primeIndex+1;
+            if length(n_a2)==1
+                if N_a1==0
+                    aprime_low=a2primeIndex;     % [N_a, N_e, N_u]
+                    aprime_up =a2primeIndex+1;
+                else
+                    a1p=a1prime_idx(:,:,jj); % [N_a, N_e]
+                    aprime_low=a1p+N_a1*(a2primeIndex-1); % broadcast -> [N_a, N_e, N_u]
+                    aprime_up =a1p+N_a1*(a2primeIndex);
+                end
+                % EVnext already has pi_e summed out (e is iid); matches standard VFI noz+e EVpre.
+                Vlower=reshape(EVnext(aprime_low(:)),[N_a,N_e,N_u]);
+                Vupper=reshape(EVnext(aprime_up(:)), [N_a,N_e,N_u]);
+                a2pPrb=a2primeProbs;
+                a2pPrb(Vlower==Vupper)=0; % skipinterp on pi_e-collapsed EVnext
+                EV=a2pPrb.*Vlower+(1-a2pPrb).*Vupper;
+                EV(a2pPrb==0)=Vupper(a2pPrb==0); % a zero weight against an infinite node gives 0*(-Inf)=NaN
+                EV(a2pPrb==1)=Vlower(a2pPrb==1);
             else
-                a1p=a1prime_idx(:,:,jj); % [N_a, N_e]
-                aprime_low=a1p+N_a1*(a2primeIndex-1); % broadcast -> [N_a, N_e, N_u]
-                aprime_up =a1p+N_a1*(a2primeIndex);
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each level
+                % and per-contribution NaN cleanup so a zero weight against an infinite node (0*(-Inf)=NaN)
+                % does not poison the sum. The pi_u sum below is unchanged.
+                n_a2_1=n_a2(1);
+                lo1=loIdx_1; lo2=loIdx_2;
+                pq_1=pr_1; pq_2=pr_2;
+                a2c_ll=lo1+n_a2_1*(lo2-1);
+                a2c_hl=(lo1+1)+n_a2_1*(lo2-1);
+                a2c_lh=lo1+n_a2_1*lo2;
+                a2c_hh=(lo1+1)+n_a2_1*lo2;
+                if N_a1==0
+                    ap_ll=a2c_ll;
+                    ap_hl=a2c_hl;
+                    ap_lh=a2c_lh;
+                    ap_hh=a2c_hh;
+                else
+                    a1p=a1prime_idx(:,:,jj);
+                    ap_ll=a1p+N_a1*(a2c_ll-1);
+                    ap_hl=a1p+N_a1*(a2c_hl-1);
+                    ap_lh=a1p+N_a1*(a2c_lh-1);
+                    ap_hh=a1p+N_a1*(a2c_hh-1);
+                end
+                V_ll=reshape(EVnext(ap_ll(:)),[N_a,N_e,N_u]);
+                V_hl=reshape(EVnext(ap_hl(:)),[N_a,N_e,N_u]);
+                V_lh=reshape(EVnext(ap_lh(:)),[N_a,N_e,N_u]);
+                V_hh=reshape(EVnext(ap_hh(:)),[N_a,N_e,N_u]);
+                pp_1=pq_1;
+                pp_2=pq_2;
+                p1_lo=pp_1; p1_lo(V_ll==V_hl)=0;
+                c_ll=p1_lo.*V_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*V_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=pp_1; p1_hi(V_lh==V_hh)=0;
+                c_lh=p1_hi.*V_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*V_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                p2=pp_2; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                EV=c_lo+c_hi;
             end
-            % EVnext already has pi_e summed out (e is iid); matches standard VFI noz+e EVpre.
-            Vlower=reshape(EVnext(aprime_low(:)),[N_a,N_e,N_u]);
-            Vupper=reshape(EVnext(aprime_up(:)), [N_a,N_e,N_u]);
-            a2pPrb=a2primeProbs;
-            a2pPrb(Vlower==Vupper)=0; % skipinterp on pi_e-collapsed EVnext
-            EV=a2pPrb.*Vlower+(1-a2pPrb).*Vupper;
-            EV(a2pPrb==0)=Vupper(a2pPrb==0); % a zero weight against an infinite node gives 0*(-Inf)=NaN
-            EV(a2pPrb==1)=Vlower(a2pPrb==1);
             EVw=EV .* shiftdim(pi_u,-2); EVw(isnan(EVw))=0; % zero the zero-weight terms BEFORE summing (after the sum would destroy it)
             EVnext_atpolicy=sum(EVw,3); % sum over u -> [N_a, N_e]
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         elseif N_z>0 && N_e==0
-            if N_a1==0
-                aprime_low=a2primeIndex;     % [N_a, N_z, N_u]
-                aprime_up =a2primeIndex+1;
-            else
-                a1p=a1prime_idx(:,:,jj);
-                aprime_low=a1p+N_a1*(a2primeIndex-1); % broadcast -> [N_a, N_z, N_u]
-                aprime_up =a1p+N_a1*(a2primeIndex);
-            end
             % Per-z' interpolation against V(:,:,jj+1) directly (not EVnext, which has pi_z already summed).
+            % Hoisted above the l_a2 guard: both arms look up into Vnext with the same z' offset.
             Vnext=V(:,:,jj+1); % [N_a, N_z']
             zprimeoffset=reshape(N_a*gpuArray(0:N_z-1),[1,1,1,N_z]); % [1,1,1,N_z']
-            Vlower=reshape(Vnext(aprime_low+zprimeoffset),[N_a,N_z,N_u,N_z]);
-            Vupper=reshape(Vnext(aprime_up +zprimeoffset),[N_a,N_z,N_u,N_z]);
-            a2pPrb4=repmat(a2primeProbs,[1,1,1,N_z]);
-            a2pPrb4(Vlower==Vupper)=0; % skipinterp
-            EV4=a2pPrb4.*Vlower+(1-a2pPrb4).*Vupper; % [N_a, N_z, N_u, N_z']
-            EV4(a2pPrb4==0)=Vupper(a2pPrb4==0); % a zero weight against an infinite node gives 0*(-Inf)=NaN
-            EV4(a2pPrb4==1)=Vlower(a2pPrb4==1);
+            if length(n_a2)==1
+                if N_a1==0
+                    aprime_low=a2primeIndex;     % [N_a, N_z, N_u]
+                    aprime_up =a2primeIndex+1;
+                else
+                    a1p=a1prime_idx(:,:,jj);
+                    aprime_low=a1p+N_a1*(a2primeIndex-1); % broadcast -> [N_a, N_z, N_u]
+                    aprime_up =a1p+N_a1*(a2primeIndex);
+                end
+                Vlower=reshape(Vnext(aprime_low+zprimeoffset),[N_a,N_z,N_u,N_z]);
+                Vupper=reshape(Vnext(aprime_up +zprimeoffset),[N_a,N_z,N_u,N_z]);
+                a2pPrb4=repmat(a2primeProbs,[1,1,1,N_z]);
+                a2pPrb4(Vlower==Vupper)=0; % skipinterp
+                EV4=a2pPrb4.*Vlower+(1-a2pPrb4).*Vupper; % [N_a, N_z, N_u, N_z']
+                EV4(a2pPrb4==0)=Vupper(a2pPrb4==0); % a zero weight against an infinite node gives 0*(-Inf)=NaN
+                EV4(a2pPrb4==1)=Vlower(a2pPrb4==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each level
+                % and per-contribution NaN cleanup so a zero weight against an infinite node (0*(-Inf)=NaN)
+                % does not poison the sum. The pi_u sum below is unchanged.
+                n_a2_1=n_a2(1);
+                lo1=loIdx_1; lo2=loIdx_2;
+                pq_1=pr_1; pq_2=pr_2;
+                a2c_ll=lo1+n_a2_1*(lo2-1);
+                a2c_hl=(lo1+1)+n_a2_1*(lo2-1);
+                a2c_lh=lo1+n_a2_1*lo2;
+                a2c_hh=(lo1+1)+n_a2_1*lo2;
+                if N_a1==0
+                    ap_ll=a2c_ll;
+                    ap_hl=a2c_hl;
+                    ap_lh=a2c_lh;
+                    ap_hh=a2c_hh;
+                else
+                    a1p=a1prime_idx(:,:,jj);
+                    ap_ll=a1p+N_a1*(a2c_ll-1);
+                    ap_hl=a1p+N_a1*(a2c_hl-1);
+                    ap_lh=a1p+N_a1*(a2c_lh-1);
+                    ap_hh=a1p+N_a1*(a2c_hh-1);
+                end
+                V_ll=reshape(Vnext(ap_ll+zprimeoffset),[N_a,N_z,N_u,N_z]);
+                V_hl=reshape(Vnext(ap_hl+zprimeoffset),[N_a,N_z,N_u,N_z]);
+                V_lh=reshape(Vnext(ap_lh+zprimeoffset),[N_a,N_z,N_u,N_z]);
+                V_hh=reshape(Vnext(ap_hh+zprimeoffset),[N_a,N_z,N_u,N_z]);
+                pp_1=repmat(pq_1,[1,1,1,N_z]);
+                pp_2=repmat(pq_2,[1,1,1,N_z]);
+                p1_lo=pp_1; p1_lo(V_ll==V_hl)=0;
+                c_ll=p1_lo.*V_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*V_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=pp_1; p1_hi(V_lh==V_hh)=0;
+                c_lh=p1_hi.*V_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*V_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                p2=pp_2; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                EV4=c_lo+c_hi;
+            end
             EV4=sum(EV4 .* shiftdim(pi_u,-2), 3); % sum over u -> [N_a, N_z, 1, N_z']
             EV4=EV4 .* reshape(pi_z_J(:,:,jj),[1,N_z,1,N_z]); % weight by pi_z(z, z')
             EV4(isnan(EV4))=0;
             EVnext_atpolicy=reshape(sum(EV4,4),[N_a,N_z]); % sum over z'
             V(:,:,jj)=F_jj+beta*EVnext_atpolicy;
         else
-            % a2pi/pp flat [N_a, N_z*N_e, N_u] -> [N_a, N_z, N_e, N_u]
-            a2pIdx=reshape(a2primeIndex,[N_a, N_z, N_e, N_u]);
-            a2pPrb=reshape(a2primeProbs,[N_a, N_z, N_e, N_u]);
-            if N_a1==0
-                aprime_low=a2pIdx;     % [N_a, N_z, N_e, N_u]
-                aprime_up =a2pIdx+1;
-            else
-                a1p=reshape(a1prime_idx(:,:,jj),[N_a, N_z, N_e]);
-                aprime_low=a1p+N_a1*(a2pIdx-1); % broadcast a1p over u -> [N_a, N_z, N_e, N_u]
-                aprime_up =a1p+N_a1*(a2pIdx);
-            end
             % Pre-collapse pi_e (e iid), keep z' for per-z' skipinterp (matches standard VFI z+e branch).
+            % Hoisted above the l_a2 guard: both arms look up into EVpre with the same z' offset.
             EVpre=reshape(sum(V(:,:,:,jj+1) .* shiftdim(vfoptions.pi_e_J(:,jj+1),-2), 3),[N_a,N_z]); % [N_a, N_z']
             zprimeoffset=reshape(N_a*gpuArray(0:N_z-1),[1,1,1,1,N_z]); % [1,1,1,1,N_z']
-            Vlower=reshape(EVpre(aprime_low+zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
-            Vupper=reshape(EVpre(aprime_up +zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
-            a2pPrb5=repmat(a2pPrb,[1,1,1,1,N_z]);
-            a2pPrb5(Vlower==Vupper)=0; % skipinterp
-            EV5=a2pPrb5.*Vlower+(1-a2pPrb5).*Vupper; % [N_a, N_z, N_e, N_u, N_z']
-            EV5(a2pPrb5==0)=Vupper(a2pPrb5==0); % a zero weight against an infinite node gives 0*(-Inf)=NaN
-            EV5(a2pPrb5==1)=Vlower(a2pPrb5==1);
+            if length(n_a2)==1
+                % a2pi/pp flat [N_a, N_z*N_e, N_u] -> [N_a, N_z, N_e, N_u]
+                a2pIdx=reshape(a2primeIndex,[N_a, N_z, N_e, N_u]);
+                a2pPrb=reshape(a2primeProbs,[N_a, N_z, N_e, N_u]);
+                if N_a1==0
+                    aprime_low=a2pIdx;     % [N_a, N_z, N_e, N_u]
+                    aprime_up =a2pIdx+1;
+                else
+                    a1p=reshape(a1prime_idx(:,:,jj),[N_a, N_z, N_e]);
+                    aprime_low=a1p+N_a1*(a2pIdx-1); % broadcast a1p over u -> [N_a, N_z, N_e, N_u]
+                    aprime_up =a1p+N_a1*(a2pIdx);
+                end
+                Vlower=reshape(EVpre(aprime_low+zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
+                Vupper=reshape(EVpre(aprime_up +zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
+                a2pPrb5=repmat(a2pPrb,[1,1,1,1,N_z]);
+                a2pPrb5(Vlower==Vupper)=0; % skipinterp
+                EV5=a2pPrb5.*Vlower+(1-a2pPrb5).*Vupper; % [N_a, N_z, N_e, N_u, N_z']
+                EV5(a2pPrb5==0)=Vupper(a2pPrb5==0); % a zero weight against an infinite node gives 0*(-Inf)=NaN
+                EV5(a2pPrb5==1)=Vlower(a2pPrb5==1);
+            else
+                % l_a2==2: nested 2-corner interp over the four a2 corners, with skipinterp at each level
+                % and per-contribution NaN cleanup so a zero weight against an infinite node (0*(-Inf)=NaN)
+                % does not poison the sum. The pi_u sum below is unchanged.
+                n_a2_1=n_a2(1);
+                lo1=reshape(loIdx_1,[N_a, N_z, N_e, N_u]); lo2=reshape(loIdx_2,[N_a, N_z, N_e, N_u]);
+                pq_1=reshape(pr_1,[N_a, N_z, N_e, N_u]); pq_2=reshape(pr_2,[N_a, N_z, N_e, N_u]);
+                a2c_ll=lo1+n_a2_1*(lo2-1);
+                a2c_hl=(lo1+1)+n_a2_1*(lo2-1);
+                a2c_lh=lo1+n_a2_1*lo2;
+                a2c_hh=(lo1+1)+n_a2_1*lo2;
+                if N_a1==0
+                    ap_ll=a2c_ll;
+                    ap_hl=a2c_hl;
+                    ap_lh=a2c_lh;
+                    ap_hh=a2c_hh;
+                else
+                    a1p=reshape(a1prime_idx(:,:,jj),[N_a, N_z, N_e]);
+                    ap_ll=a1p+N_a1*(a2c_ll-1);
+                    ap_hl=a1p+N_a1*(a2c_hl-1);
+                    ap_lh=a1p+N_a1*(a2c_lh-1);
+                    ap_hh=a1p+N_a1*(a2c_hh-1);
+                end
+                V_ll=reshape(EVpre(ap_ll+zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
+                V_hl=reshape(EVpre(ap_hl+zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
+                V_lh=reshape(EVpre(ap_lh+zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
+                V_hh=reshape(EVpre(ap_hh+zprimeoffset),[N_a,N_z,N_e,N_u,N_z]);
+                pp_1=repmat(pq_1,[1,1,1,1,N_z]);
+                pp_2=repmat(pq_2,[1,1,1,1,N_z]);
+                p1_lo=pp_1; p1_lo(V_ll==V_hl)=0;
+                c_ll=p1_lo.*V_ll; c_ll(isnan(c_ll))=0;
+                c_hl=(1-p1_lo).*V_hl; c_hl(isnan(c_hl))=0;
+                EV_lo=c_ll+c_hl;
+                p1_hi=pp_1; p1_hi(V_lh==V_hh)=0;
+                c_lh=p1_hi.*V_lh; c_lh(isnan(c_lh))=0;
+                c_hh=(1-p1_hi).*V_hh; c_hh(isnan(c_hh))=0;
+                EV_hi=c_lh+c_hh;
+                p2=pp_2; p2(EV_lo==EV_hi)=0;
+                c_lo=p2.*EV_lo; c_lo(isnan(c_lo))=0;
+                c_hi=(1-p2).*EV_hi; c_hi(isnan(c_hi))=0;
+                EV5=c_lo+c_hi;
+            end
             EV5=sum(EV5 .* shiftdim(pi_u,-3), 4); % sum over u -> [N_a, N_z, N_e, 1, N_z']
             EV5=EV5 .* reshape(pi_z_J(:,:,jj),[1,N_z,1,1,N_z]); % weight by pi_z(z, z')
             EV5(isnan(EV5))=0;
