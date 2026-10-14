@@ -416,6 +416,23 @@ if nW>0
         whichcombosW(:,N_j-windowM(lw)+2:N_j,:,lw)=0; % no window of M periods starts after age N_j-M+1
         wcLogW(:,N_j-windowM(lw)+2:N_j,:,lw)=0;
     end
+    % Internal (used by LifeCycleProfiles_FHorz_Case1_PType to pool the windows across permanent types): simoptions.windowlists, zeros
+    % and ones of size [numFnsToEvaluate, N_j, 1+number of restrictions, number of M>1 in ntimeperiods], asks for the path list of
+    % (function, start age, page, window length) itself: the M-period sums and their masses (summing to one), returned in
+    % AgeConditionalStats.WindowLists{ff,lw,page,j} as a structure with fields S and m (only the entries of positive mass; empty
+    % when the page has no mass at the start age), whether or not any statistic of it is asked for.
+    if isfield(simoptions,'windowlists')
+        windowlists=double(simoptions.windowlists);
+        if ~isequal(size(windowlists,1:4),[numFnsBase,N_j,nwhichpages,nW])
+            error('LifeCycleProfiles_FHorz_Case1: simoptions.windowlists (internal) is of the wrong size')
+        end
+        for lw=1:nW
+            windowlists(:,N_j-windowM(lw)+2:N_j,:,lw)=0;
+        end
+        AgeConditionalStats.WindowLists=cell(numFnsBase,nW,nwhichpages,N_j);
+    else
+        windowlists=zeros(numFnsBase,N_j,nwhichpages,nW);
+    end
 end
 
 
@@ -925,7 +942,7 @@ if nW>0
         error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 is not yet implemented with experience, inheritance or residual assets, ask on forum if you need this')
     end
     % The wanted combinations: level (whichcombosW) and log (wcLogW), by (function, start age, page, window length)
-    wantW=(whichcombosW+wcLogW)>0;
+    wantW=(whichcombosW+wcLogW+windowlists)>0;
     Mstop=zeros(numFnsBase,N_j); % the longest window wanted at each (function, start age)
     for lw=1:nW
         Mstop=max(Mstop,windowM(lw)*reshape(any(wantW(:,:,:,lw),3),[numFnsBase,N_j]));
@@ -1102,14 +1119,20 @@ if nW>0
         end
     end
 
-    % The values of each function with a window wanted, at every age
+    % The values of each function with a window wanted, at the ages its windows run over (NaN at the others, never read)
     ValuesW=cell(numFnsBase,1);
     for ff=1:numFnsBase
         if ~any(Mstop(ff,:))
             continue
         end
-        ValuesW{ff}=nan(N_states,N_j,'gpuArray');
+        needAgeW=false(1,N_j);
         for jj=1:N_j
+            if Mstop(ff,jj)>0
+                needAgeW(jj:jj+Mstop(ff,jj)-1)=true;
+            end
+        end
+        ValuesW{ff}=nan(N_states,N_j,'gpuArray');
+        for jj=find(needAgeW)
             FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
             if N_z==0
                 ValuesW{ff}(:,jj)=reshape(EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,0,a_gridvals,[]),[N_states,1]);
@@ -1169,6 +1192,10 @@ if nW>0
             M=windowM(lw);
             for pp=1:length(Lpages{ll})
                 pg=Lpages{ll}(pp);
+                if windowlists(ff,j0,pg,lw)==1 % the path list itself (internal, for the PType pooling)
+                    pos=(Lm{ll}(:,pp)>0);
+                    AgeConditionalStats.WindowLists{ff,lw,pg,j0}=struct('S',LS{ll}(pos),'m',Lm{ll}(pos,pp));
+                end
                 for kind=1:2
                     if (kind==1 && whichcombosW(ff,j0,pg,lw)==0) || (kind==2 && wcLogW(ff,j0,pg,lw)==0)
                         continue
