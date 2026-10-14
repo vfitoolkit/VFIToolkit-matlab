@@ -114,7 +114,36 @@ for cc=1:ncohorts
     end
     if cohortmoments.usinglcp(cc)==1
         simoptions.whichstats=cohortmoments.ACStats_whichstats{cc};
-        AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,cohortmoments.FnsToEvaluate_ACStats{cc},Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
+        simoptions_lcp=simoptions;
+        if isfield(cohortmoments,'acsntimeperiods') && (any(cohortmoments.acsntimeperiods{cc}>1) || ~isempty(cohortmoments.acslog{cc}))
+            % the window and log rows the targets name: simoptions.ntimeperiods, ntimeperiodstype and logwhichcombos (rows in blocks of the
+            % window lengths, the FnsToEvaluate in the order of cohortmoments.FnsToEvaluate_ACStats; pages the unrestricted and then the
+            % restrictions in the order of simoptions.conditionalrestrictions)
+            simoptions_lcp.ntimeperiods=cohortmoments.acsntimeperiods{cc};
+            simoptions_lcp.ntimeperiodstype=cohortmoments.acsntimeperiodstype{cc};
+            acslog=cohortmoments.acslog{cc};
+            fnsACS=fieldnames(cohortmoments.FnsToEvaluate_ACStats{cc});
+            if isfield(simoptions,'conditionalrestrictions')
+                rnamesACS=fieldnames(simoptions.conditionalrestrictions);
+            else
+                rnamesACS={};
+            end
+            logwc=zeros(length(simoptions_lcp.ntimeperiods)*length(fnsACS),N_j,1+length(rnamesACS));
+            for mm=1:size(acslog,1)
+                rowACS=(find(simoptions_lcp.ntimeperiods==acslog{mm,3})-1)*length(fnsACS)+find(strcmp(fnsACS,acslog{mm,2}));
+                if isempty(acslog{mm,1})
+                    pageACS=1;
+                else
+                    pageACS=1+find(strcmp(rnamesACS,acslog{mm,1}));
+                end
+                logwc(rowACS,:,pageACS)=max(logwc(rowACS,:,pageACS),acslog{mm,4});
+            end
+            simoptions_lcp.logwhichcombos=logwc;
+            if any(simoptions_lcp.ntimeperiods>1)
+                simoptions_lcp.pi_z=pi_z_J; % the windows need the z transitions
+            end
+        end
+        AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,cohortmoments.FnsToEvaluate_ACStats{cc},Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_lcp);
         cohorttimes(cc,3)=toc(cohorttimer); cohorttimer=tic;
         acsmomentnames=cohortmoments.acsmomentnames{cc};
         acscummomentsizes=cohortmoments.acscummomentsizes{cc};

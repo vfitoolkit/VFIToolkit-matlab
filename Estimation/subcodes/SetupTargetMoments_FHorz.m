@@ -18,6 +18,12 @@ function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmoment
 % after AgeConditionalStats and before CustomModelStats, with their own using* flag, names table, cumulative sizes, reduced FnsToEvaluate
 % and selector (selectors.AutoCorr/.CrossSec/.AgeCrossSec, whichcombos only: these commands have no per-combination whichstats);
 % autocorrtimehorizons holds the horizons read off the AutoCorr target names (1 for one without a _horizonK suffix), for simoptions.timehorizons.
+% AgeConditionalStats targets may also be of the rows of simoptions.ntimeperiods and simoptions.logwhichcombos (2026-10-14): fnname_log,
+% fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log (a window target is by start age, 1 x N_j).
+% selectors.ACStats then has haswindowlog=1, ntimeperiods (the rows of whichcombos/whichstats are in blocks of these), ntimeperiodstype,
+% logwhichcombos (no type dimension) and agegroupings (1:N_j when the targets are all windows and simoptions.agegroupings is not
+% 1:N_j, else []); when single-period targets by age groups and window targets are both present, split=1 and the window targets are a
+% second LifeCycleProfiles call, selectors.ACStatsW (by start age, the same fields).
 
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
 if isfield(TargetMoments,'AllStats')
@@ -252,6 +258,15 @@ if useptype==0
             a1=acsmomentnames{cc,1}; a2=acsmomentnames{cc,2}; a3=acsmomentnames{cc,3};
             isrestr=any(strcmp(RestrNames,a1));
             isfn=any(strcmp(FnNamesAll,a1));
+            if ~isfn % a window or log row of a FnsToEvaluate (simoptions.ntimeperiods, simoptions.logwhichcombos)
+                tk=regexp(a1,'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                    isfn=true;
+                else
+                    tk=regexp(a1,'^(.+)_log$','tokens','once');
+                    isfn=(~isempty(tk) && any(strcmp(FnNamesAll,tk{1})));
+                end
+            end
             if isrestr && isfn
                 error(['TargetMoments.AgeConditionalStats.',a1,': this name is both a FnsToEvaluate and a conditional restriction, so the target is ambiguous'])
             elseif isrestr || (~isfn && ~exist('simoptions','var')) % (without simoptions a first-level name that is not a function is taken to be a restriction, as the estimation commands rely on; no page is needed as no selectors are built)
@@ -270,26 +285,102 @@ if useptype==0
                 rowfn{cc}=a1;
                 rowstat{cc}=a2;
             else
-                error(['TargetMoments.AgeConditionalStats.',a1,' is neither a FnsToEvaluate nor a conditional restriction in simoptions.conditionalrestrictions (restrictions must be in simoptions before CalibrateLifeCycleModel is called)'])
+                error(['TargetMoments.AgeConditionalStats.',a1,' is neither a FnsToEvaluate (or one of its rows fnname_log, fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log) nor a conditional restriction in simoptions.conditionalrestrictions (restrictions must be in simoptions before CalibrateLifeCycleModel is called)'])
             end
+        end
+        % The output rows of LifeCycleProfiles: a FnsToEvaluate name, or (simoptions.ntimeperiods, simoptions.logwhichcombos) fnname_log,
+        % fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log: rowbase is the FnsToEvaluate, rowM the
+        % number of periods (1 for a single period), rowtype 'average' or 'sum' (M>1), rowlog 1 for the log. A window target is by start age (1 x N_j).
+        rowbase=cell(nrows,1);
+        rowM=ones(nrows,1);
+        rowtype=cell(nrows,1);
+        rowlog=zeros(nrows,1);
+        for cc=1:nrows
+            rowbase{cc}=rowfn{cc};
             if ~any(strcmp(FnNamesAll,rowfn{cc}))
-                error(['TargetMoments.AgeConditionalStats: ',rowfn{cc},' is not one of the FnsToEvaluate'])
+                tk=regexp(rowfn{cc},'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                    rowbase{cc}=tk{1};
+                    rowM(cc)=str2double(tk{2});
+                    rowtype{cc}=lower(tk{3});
+                    rowlog(cc)=~isempty(tk{4});
+                    if rowM(cc)<2
+                        error(['TargetMoments.AgeConditionalStats: ',rowfn{cc},' names a window of ',tk{2},' periods: a single period is the FnsToEvaluate name itself (',tk{1},', or ',tk{1},'_log)'])
+                    end
+                else
+                    tk=regexp(rowfn{cc},'^(.+)_log$','tokens','once');
+                    if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                        rowbase{cc}=tk{1};
+                        rowlog(cc)=1;
+                    else
+                        error(['TargetMoments.AgeConditionalStats: ',rowfn{cc},' is not one of the FnsToEvaluate (nor fnname_log, fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log of one)'])
+                    end
+                end
             end
         end
         FnsToEvaluate_ACStats=struct();
         for ff=1:length(FnNamesAll)
-            if any(strcmp(rowfn,FnNamesAll{ff}))
+            if any(strcmp(rowbase,FnNamesAll{ff}))
                 FnsToEvaluate_ACStats.(FnNamesAll{ff})=FnsToEvaluate.(FnNamesAll{ff});
             end
         end
         FnNamesL=fieldnames(FnsToEvaluate_ACStats);
-        % whichstats: the union (7-vector), and per (fn,agegroup,page) [nFns,ngroups,1+nRestr,7] with an age on only where the target is not NaN
+        % simoptions.ntimeperiodstype (one per call, so the targets cannot mix MperiodAverage and MperiodSum)
+        wtypes=unique(rowtype(rowM>1));
+        if length(wtypes)>1
+            error('TargetMoments.AgeConditionalStats: the targets name both MperiodAverage and MperiodSum rows, but LifeCycleProfiles computes one or the other in a call (simoptions.ntimeperiodstype): use one of them for all the targets')
+        elseif isscalar(wtypes)
+            ACStats_ntimeperiodstype=wtypes{1};
+        else
+            ACStats_ntimeperiodstype='average';
+        end
+        % The calls of LifeCycleProfiles: windows (M>1) are by start age, so they need agegroupings=1:1:N_j. When single-period targets
+        % are by age groups (simoptions.agegroupings other than 1:1:N_j) and there are window targets too, the windows get a second call
+        % (callW, by start age); otherwise one call does all (with agegroupings=1:1:N_j forced when there are only window targets).
+        if buildselectors==1
+            agedefault=(~isfield(simoptions,'agegroupings') || isequal(reshape(simoptions.agegroupings,1,[]),1:1:N_j));
+        else
+            agedefault=1;
+        end
+        ACStats_split=(any(rowM>1) && any(rowM==1) && ~agedefault);
+        ACStats_haswindowlog=(any(rowM>1) || any(rowlog==1)); % some target is of a window or a log (the objective then sets simoptions.ntimeperiods, ntimeperiodstype, logwhichcombos)
+        rowcall=ones(nrows,1); % 1 the main call, 2 the window call
+        if ACStats_split
+            rowcall(rowM>1)=2;
+            ACStats_ntimeperiods=1;
+            ACStatsW_ntimeperiods=unique(rowM(rowM>1)');
+            ngroupsA=ngroups;
+        else
+            ACStats_ntimeperiods=unique(rowM(:)');
+            ACStatsW_ntimeperiods=[];
+            if any(rowM>1) && buildselectors==1 % (without the selectors, the legacy call of the cohort route, N_j is not given and no arrays are built)
+                ngroupsA=N_j;
+            elseif buildselectors==1
+                ngroupsA=ngroups;
+            else
+                ngroupsA=0;
+            end
+        end
+        nFnsL=length(FnNamesL);
+        % whichstats: the union (7-vector), and per (row,agegroup,page) [nRows,ngroups,1+nRestr,7] with an age on only where the target
+        % is not NaN; the rows are in blocks of the window lengths of the call (as simoptions.whichcombos with simoptions.ntimeperiods)
         ACStats_whichstats=zeros(7,1);
         if buildselectors==1
-            ACStats_whichstatsArr=zeros(length(FnNamesL),ngroups,1+nRestr,7);
+            ACStats_whichstatsArr=zeros(length(ACStats_ntimeperiods)*nFnsL,ngroupsA,1+nRestr,7);
+            ACStats_logwhichcombos=zeros(length(ACStats_ntimeperiods)*nFnsL,ngroupsA,1+nRestr);
+            ACStats_levelcombos=zeros(length(ACStats_ntimeperiods)*nFnsL,ngroupsA,1+nRestr);
+            ACStatsW_whichstatsArr=zeros(length(ACStatsW_ntimeperiods)*nFnsL,N_j,1+nRestr,7);
+            ACStatsW_logwhichcombos=zeros(length(ACStatsW_ntimeperiods)*nFnsL,N_j,1+nRestr);
+            ACStatsW_levelcombos=zeros(length(ACStatsW_ntimeperiods)*nFnsL,N_j,1+nRestr);
         end
         for cc=1:nrows
-            ff=find(strcmp(FnNamesL,rowfn{cc}));
+            if rowcall(cc)==1
+                ff=(find(ACStats_ntimeperiods==rowM(cc))-1)*nFnsL+find(strcmp(FnNamesL,rowbase{cc})); % the row: the block of its window length
+                nslot=ngroupsA;
+            else
+                ff=(find(ACStatsW_ntimeperiods==rowM(cc))-1)*nFnsL+find(strcmp(FnNamesL,rowbase{cc}));
+                nslot=N_j;
+            end
             pp=rowpage(cc);
             if buildselectors==1
                 if isempty(acsmomentnames{cc,3})
@@ -297,12 +388,30 @@ if useptype==0
                 else
                     temp=TargetMoments.AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2}).(acsmomentnames{cc,3});
                 end
-                if isvector(temp) && numel(temp)==ngroups
-                    ageon=reshape(~isnan(temp),[1,ngroups]);
-                elseif ismatrix(temp) && size(temp,2)==ngroups
+                if isvector(temp) && numel(temp)==nslot
+                    ageon=reshape(~isnan(temp),[1,nslot]);
+                elseif ismatrix(temp) && size(temp,2)==nslot
                     ageon=any(~isnan(temp),1); % a matrix target: the age group is on if any entry of its column is targeted
+                elseif rowM(cc)>1 || (rowcall(cc)==1 && nslot~=ngroups)
+                    error(['TargetMoments.AgeConditionalStats target for ',rowfn{cc},' ',rowstat{cc},' has ',num2str(numel(temp)),' entries, but it is by start age (1 x ',num2str(N_j),', or a matrix with N_j columns): ',num2str(nslot),' are needed'])
                 else
                     error(['TargetMoments.AgeConditionalStats target for ',rowfn{cc},' ',rowstat{cc},' has ',num2str(numel(temp)),' entries, but there are ',num2str(ngroups),' age groups (it must be a vector over the age groups, or a matrix with the age groups as columns)'])
+                end
+                if rowM(cc)>1 && any(ageon(N_j-rowM(cc)+2:N_j))
+                    error(['TargetMoments.AgeConditionalStats: ',rowfn{cc},' is targeted at a start age after N_j-',num2str(rowM(cc)-1),', where the ',num2str(rowM(cc)),'-period window runs past age N_j (these entries must be NaN)'])
+                end
+                if rowcall(cc)==1
+                    if rowlog(cc)==1
+                        ACStats_logwhichcombos(ff,ageon,pp)=1;
+                    else
+                        ACStats_levelcombos(ff,ageon,pp)=1;
+                    end
+                else
+                    if rowlog(cc)==1
+                        ACStatsW_logwhichcombos(ff,ageon,pp)=1;
+                    else
+                        ACStatsW_levelcombos(ff,ageon,pp)=1;
+                    end
                 end
             else
                 ageon=1;
@@ -333,23 +442,37 @@ if useptype==0
                     error(['TargetMoments.AgeConditionalStats: ',rowstat{cc},' is not a statistic that LifeCycleProfiles produces (Mean, Median, RatioMeanToMedian, Variance, StdDeviation, Gini, LorenzCurve, Minimum, Maximum, QuantileCutoffs, QuantileMeans, MoreInequality)'])
             end
             if buildselectors==1
+                if rowcall(cc)==1
+                    wsArr=ACStats_whichstatsArr;
+                else
+                    wsArr=ACStatsW_whichstatsArr;
+                end
                 for ss=sidx
                     if ss==4 % Gini/LorenzCurve: 3 is Gini only, 2 is the Lorenz curve (and Gini); a LorenzCurve target overrides a Gini-only 3
                         if strcmp(rowstat{cc},'LorenzCurve')
-                            ACStats_whichstatsArr(ff,ageon,pp,4)=2;
+                            wsArr(ff,ageon,pp,4)=2;
                         else
-                            current=ACStats_whichstatsArr(ff,:,pp,4);
+                            current=wsArr(ff,:,pp,4);
                             current(ageon & current==0)=3;
-                            ACStats_whichstatsArr(ff,:,pp,4)=current;
+                            wsArr(ff,:,pp,4)=current;
                         end
                     else
-                        ACStats_whichstatsArr(ff,ageon,pp,ss)=1;
+                        wsArr(ff,ageon,pp,ss)=1;
                     end
+                end
+                if rowcall(cc)==1
+                    ACStats_whichstatsArr=wsArr;
+                else
+                    ACStatsW_whichstatsArr=wsArr;
                 end
             end
         end
         if buildselectors==1
-            ACStats_whichcombos=double(any(ACStats_whichstatsArr,4)); % [nFns,ngroups,1+nRestr]
+            ACStats_whichcombos=double(any(ACStats_whichstatsArr,4)); % [nRows,ngroups,1+nRestr]
+            ACStatsW_whichcombos=double(any(ACStatsW_whichstatsArr,4));
+            if any(ACStats_logwhichcombos(:) & ACStats_levelcombos(:)) || any(ACStatsW_logwhichcombos(:) & ACStatsW_levelcombos(:))
+                error('TargetMoments.AgeConditionalStats: some targets ask for both a statistic and its log (fnname... and fnname..._log) at the same age and restriction, but LifeCycleProfiles computes one or the other for each (simoptions.logwhichcombos): target only one of them at each age')
+            end
         else
             ACStats_whichstatsArr=[];
             ACStats_whichcombos=[];
@@ -361,6 +484,10 @@ if useptype==0
         FnsToEvaluate_ACStats=struct();
         ACStats_whichstatsArr=[];
         ACStats_whichcombos=[];
+        ACStats_ntimeperiods=1;
+        ACStats_ntimeperiodstype='average';
+        ACStats_split=0;
+        ACStats_haswindowlog=0;
     end
     %% AutoCorrTransProbs (EvalFnOnAgentDist_AutoCorrTransProbs_FHorz): targets .(fn).(stat) and .(restriction).(fn).(stat); the stat is
     % Mean or StdDeviation (1 x N_j), or AutoCorrelation/AutoCovariance/PairMass/PairMean_j/PairMean_jplusk/PairStdDeviation_j/PairStdDeviation_jplusk
@@ -740,6 +867,29 @@ if useptype==0
         selectors.AllStats.whichstats=AllStats_whichstatsArr;
         selectors.ACStats.whichcombos=ACStats_whichcombos;
         selectors.ACStats.whichstats=ACStats_whichstatsArr;
+        % The window and log rows of the AgeConditionalStats targets (only when some target names one): the rows of whichcombos/whichstats
+        % are in blocks of ntimeperiods; agegroupings is what the call must use ([]: simoptions' own); with split=1 the window targets
+        % are in a second call, ACStatsW (by start age), as the single-period ones are by age groups
+        selectors.ACStats.haswindowlog=ACStats_haswindowlog;
+        if ACStats_haswindowlog==1
+            selectors.ACStats.ntimeperiods=ACStats_ntimeperiods;
+            selectors.ACStats.ntimeperiodstype=ACStats_ntimeperiodstype;
+            selectors.ACStats.logwhichcombos=ACStats_logwhichcombos;
+            if any(ACStats_ntimeperiods>1) && ~agedefault
+                selectors.ACStats.agegroupings=1:1:N_j;
+            else
+                selectors.ACStats.agegroupings=[];
+            end
+            selectors.ACStats.split=ACStats_split;
+            if ACStats_split==1
+                selectors.ACStatsW.whichcombos=ACStatsW_whichcombos;
+                selectors.ACStatsW.whichstats=ACStatsW_whichstatsArr;
+                selectors.ACStatsW.ntimeperiods=ACStatsW_ntimeperiods;
+                selectors.ACStatsW.ntimeperiodstype=ACStats_ntimeperiodstype;
+                selectors.ACStatsW.logwhichcombos=ACStatsW_logwhichcombos;
+                selectors.ACStatsW.agegroupings=1:1:N_j;
+            end
+        end
         selectors.AutoCorr.whichcombos=AutoCorr_whichcombos;
         selectors.AutoCorr.ntimeperiods=AutoCorr_ntimeperiods; % the window lengths the targets name (simoptions.ntimeperiods; the rows of whichcombos are in blocks of these)
         selectors.AutoCorr.ntimeperiodstype=AutoCorr_ntimeperiodstype; % simoptions.ntimeperiodstype
@@ -1016,12 +1166,25 @@ elseif useptype==1
         rowstat=cell(nrows,1);
         rowpage=zeros(nrows,1);
         rowslot=zeros(nrows,1);
+        rowbase=cell(nrows,1); % the FnsToEvaluate of the row (fnname, or the fnname of fnname_log, fnname_MperiodAverage, ...)
+        rowM=ones(nrows,1); % its number of periods (1 for a single period)
+        rowtype=cell(nrows,1); % average or sum (M>1)
+        rowlog=zeros(nrows,1); % 1 for the log
         for cc=1:nrows
             names=acsmomentnames(cc,:);
             names=names(~cellfun(@isempty,names));
             a1=names{1};
             isrestr=any(strcmp(RestrNames,a1));
             isfn=any(strcmp(FnNamesAll,a1));
+            if ~isfn % a window or log row of a FnsToEvaluate (simoptions.ntimeperiods, simoptions.logwhichcombos)
+                tk=regexp(a1,'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                    isfn=true;
+                else
+                    tk=regexp(a1,'^(.+)_log$','tokens','once');
+                    isfn=(~isempty(tk) && any(strcmp(FnNamesAll,tk{1})));
+                end
+            end
             if isrestr && isfn
                 error(['TargetMoments.AgeConditionalStats.',a1,': this name is both a FnsToEvaluate and a conditional restriction, so the target is ambiguous'])
             elseif isrestr || (~isfn && ~exist('simoptions','var'))
@@ -1040,10 +1203,29 @@ elseif useptype==1
                 rowfn{cc}=a1;
                 rest=names(2:end);
             else
-                error(['TargetMoments.AgeConditionalStats.',a1,' is neither a FnsToEvaluate nor a conditional restriction in simoptions.conditionalrestrictions'])
+                error(['TargetMoments.AgeConditionalStats.',a1,' is neither a FnsToEvaluate (or one of its rows fnname_log, fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log) nor a conditional restriction in simoptions.conditionalrestrictions'])
             end
+            % the FnsToEvaluate of the row, its number of periods, and whether it is the log (as without permanent types)
+            rowbase{cc}=rowfn{cc};
             if ~any(strcmp(FnNamesAll,rowfn{cc}))
-                error(['TargetMoments.AgeConditionalStats: ',rowfn{cc},' is not one of the FnsToEvaluate'])
+                tk=regexp(rowfn{cc},'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                    rowbase{cc}=tk{1};
+                    rowM(cc)=str2double(tk{2});
+                    rowtype{cc}=lower(tk{3});
+                    rowlog(cc)=~isempty(tk{4});
+                    if rowM(cc)<2
+                        error(['TargetMoments.AgeConditionalStats: ',rowfn{cc},' names a window of ',tk{2},' periods: a single period is the FnsToEvaluate name itself (',tk{1},', or ',tk{1},'_log)'])
+                    end
+                else
+                    tk=regexp(rowfn{cc},'^(.+)_log$','tokens','once');
+                    if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                        rowbase{cc}=tk{1};
+                        rowlog(cc)=1;
+                    else
+                        error(['TargetMoments.AgeConditionalStats: ',rowfn{cc},' is not one of the FnsToEvaluate (nor fnname_log, fnname_MperiodAverage, fnname_MperiodSum, fnname_MperiodAverage_log, fnname_MperiodSum_log of one)'])
+                    end
+                end
             end
             if isempty(rest)
                 error(['TargetMoments.AgeConditionalStats.',a1,': a target needs a statistic (e.g. .Mean)'])
@@ -1073,17 +1255,70 @@ elseif useptype==1
         end
         FnsToEvaluate_ACStats=struct();
         for ff=1:length(FnNamesAll)
-            if any(strcmp(rowfn,FnNamesAll{ff}))
+            if any(strcmp(rowbase,FnNamesAll{ff}))
                 FnsToEvaluate_ACStats.(FnNamesAll{ff})=FnsToEvaluate.(FnNamesAll{ff});
             end
         end
         FnNamesL=fieldnames(FnsToEvaluate_ACStats);
+        % simoptions.ntimeperiodstype (one per call, so the targets cannot mix MperiodAverage and MperiodSum)
+        wtypes=unique(rowtype(rowM>1));
+        if length(wtypes)>1
+            error('TargetMoments.AgeConditionalStats: the targets name both MperiodAverage and MperiodSum rows, but LifeCycleProfiles computes one or the other in a call (simoptions.ntimeperiodstype): use one of them for all the targets')
+        elseif isscalar(wtypes)
+            ACStats_ntimeperiodstype=wtypes{1};
+        else
+            ACStats_ntimeperiodstype='average';
+        end
+        % The calls of LifeCycleProfiles_FHorz_Case1_PType (as without permanent types): windows are by start age (agegroupings=1:1:N_j);
+        % when the single-period targets are by age groups and there are window targets too, the windows get a second call (callW)
+        if buildselectors==1
+            if any(rowM>1)
+                if isstruct(N_j) || any(ageshift~=0) || (isfield(simoptions,'agegroupings') && isstruct(simoptions.agegroupings))
+                    error('TargetMoments.AgeConditionalStats: targets of multi-period sums/averages (fnname_MperiodAverage, ...) need the same N_j for every permanent type, no agejshifter, and agegroupings that do not differ by permanent type')
+                end
+            end
+            agedefault=(~isfield(simoptions,'agegroupings') || (~isstruct(simoptions.agegroupings) && ~isstruct(N_j) && isequal(reshape(simoptions.agegroupings,1,[]),1:1:N_j)));
+        else
+            agedefault=1;
+        end
+        ACStats_split=(any(rowM>1) && any(rowM==1) && ~agedefault);
+        ACStats_haswindowlog=(any(rowM>1) || any(rowlog==1)); % some target is of a window or a log (the objective then sets simoptions.ntimeperiods, ntimeperiodstype, logwhichcombos)
+        rowcall=ones(nrows,1); % 1 the main call, 2 the window call
+        if ACStats_split
+            rowcall(rowM>1)=2;
+            ACStats_ntimeperiods=1;
+            ACStatsW_ntimeperiods=unique(rowM(rowM>1)');
+            ngroupsA=maxngroups;
+        else
+            ACStats_ntimeperiods=unique(rowM(:)');
+            ACStatsW_ntimeperiods=[];
+            if any(rowM>1) && buildselectors==1 % (without the selectors, the legacy call of the cohort route, N_j is not given and no arrays are built)
+                ngroupsA=N_j;
+            elseif buildselectors==1
+                ngroupsA=maxngroups;
+            else
+                ngroupsA=0;
+            end
+        end
+        nFnsL=length(FnNamesL);
         ACStats_whichstats=zeros(7,1);
         if buildselectors==1
-            ACStats_whichstatsArr=zeros(length(FnNamesL),maxngroups,1+nRestr,N_i+1,7);
+            % rows in blocks of the window lengths of the call; logwhichcombos has no type dimension (it applies to every ptype and the grouped stats)
+            ACStats_whichstatsArr=zeros(length(ACStats_ntimeperiods)*nFnsL,ngroupsA,1+nRestr,N_i+1,7);
+            ACStats_logwhichcombos=zeros(length(ACStats_ntimeperiods)*nFnsL,ngroupsA,1+nRestr);
+            ACStats_levelcombos=zeros(length(ACStats_ntimeperiods)*nFnsL,ngroupsA,1+nRestr);
+            ACStatsW_whichstatsArr=zeros(length(ACStatsW_ntimeperiods)*nFnsL,N_j,1+nRestr,N_i+1,7);
+            ACStatsW_logwhichcombos=zeros(length(ACStatsW_ntimeperiods)*nFnsL,N_j,1+nRestr);
+            ACStatsW_levelcombos=zeros(length(ACStatsW_ntimeperiods)*nFnsL,N_j,1+nRestr);
         end
         for cc=1:nrows
-            ff=find(strcmp(FnNamesL,rowfn{cc}));
+            if rowcall(cc)==1
+                ff=(find(ACStats_ntimeperiods==rowM(cc))-1)*nFnsL+find(strcmp(FnNamesL,rowbase{cc})); % the row: the block of its window length
+                ngc=ngroupsA;
+            else
+                ff=(find(ACStatsW_ntimeperiods==rowM(cc))-1)*nFnsL+find(strcmp(FnNamesL,rowbase{cc}));
+                ngc=N_j;
+            end
             pp=rowpage(cc);
             ss_slot=rowslot(cc);
             if buildselectors==1
@@ -1094,7 +1329,10 @@ elseif useptype==1
                 for kk=1:length(names)
                     temp=temp.(names{kk});
                 end
-                if ss_slot<=N_i
+                if rowM(cc)>1 || ngc~=maxngroups % a window (or every row with only window targets): by start age
+                    nslot=N_j;
+                    shift=0;
+                elseif ss_slot<=N_i
                     nslot=ngroups_i(ss_slot);
                     shift=ageshift(ss_slot);
                 else
@@ -1105,13 +1343,31 @@ elseif useptype==1
                     ageon=reshape(~isnan(temp),[1,nslot]);
                 elseif ismatrix(temp) && size(temp,2)==nslot
                     ageon=any(~isnan(temp),1);
+                elseif rowM(cc)>1
+                    error(['TargetMoments.AgeConditionalStats target for ',rowfn{cc},' ',rowstat{cc},' has ',num2str(numel(temp)),' entries, but it is by start age (1 x ',num2str(N_j),', or a matrix with N_j columns)'])
                 else
                     error(['TargetMoments.AgeConditionalStats target for ',rowfn{cc},' ',rowstat{cc},' has ',num2str(numel(temp)),' entries, but there are ',num2str(nslot),' age groups for it (it must be a vector over the age groups, or a matrix with the age groups as columns)'])
                 end
                 agepos=(1:nslot)+shift; % this slot's age groups on the common age axis
-                keep=(agepos<=maxngroups);
-                ageonpos=false(1,maxngroups);
+                keep=(agepos<=ngc);
+                ageonpos=false(1,ngc);
                 ageonpos(agepos(keep))=ageon(keep);
+                if rowM(cc)>1 && any(ageonpos(N_j-rowM(cc)+2:N_j))
+                    error(['TargetMoments.AgeConditionalStats: ',rowfn{cc},' is targeted at a start age after N_j-',num2str(rowM(cc)-1),', where the ',num2str(rowM(cc)),'-period window runs past age N_j (these entries must be NaN)'])
+                end
+                if rowcall(cc)==1
+                    if rowlog(cc)==1
+                        ACStats_logwhichcombos(ff,ageonpos,pp)=1;
+                    else
+                        ACStats_levelcombos(ff,ageonpos,pp)=1;
+                    end
+                else
+                    if rowlog(cc)==1
+                        ACStatsW_logwhichcombos(ff,ageonpos,pp)=1;
+                    else
+                        ACStatsW_levelcombos(ff,ageonpos,pp)=1;
+                    end
+                end
             end
             switch rowstat{cc}
                 case 'Mean'
@@ -1139,23 +1395,37 @@ elseif useptype==1
                     error(['TargetMoments.AgeConditionalStats: ',rowstat{cc},' is not a statistic that LifeCycleProfiles produces (Mean, Median, RatioMeanToMedian, Variance, StdDeviation, Gini, LorenzCurve, Minimum, Maximum, QuantileCutoffs, QuantileMeans, MoreInequality)'])
             end
             if buildselectors==1
+                if rowcall(cc)==1
+                    wsArr=ACStats_whichstatsArr;
+                else
+                    wsArr=ACStatsW_whichstatsArr;
+                end
                 for ss=sidx
                     if ss==4 % Gini/LorenzCurve: 3 is Gini only, 2 the Lorenz curve (and Gini); a LorenzCurve target overrides a Gini-only 3
                         if strcmp(rowstat{cc},'LorenzCurve')
-                            ACStats_whichstatsArr(ff,ageonpos,pp,ss_slot,4)=2;
+                            wsArr(ff,ageonpos,pp,ss_slot,4)=2;
                         else
-                            current=reshape(ACStats_whichstatsArr(ff,:,pp,ss_slot,4),[1,maxngroups]);
+                            current=reshape(wsArr(ff,:,pp,ss_slot,4),[1,ngc]);
                             current(ageonpos & current==0)=3;
-                            ACStats_whichstatsArr(ff,:,pp,ss_slot,4)=current;
+                            wsArr(ff,:,pp,ss_slot,4)=current;
                         end
                     else
-                        ACStats_whichstatsArr(ff,ageonpos,pp,ss_slot,ss)=1;
+                        wsArr(ff,ageonpos,pp,ss_slot,ss)=1;
                     end
+                end
+                if rowcall(cc)==1
+                    ACStats_whichstatsArr=wsArr;
+                else
+                    ACStatsW_whichstatsArr=wsArr;
                 end
             end
         end
         if buildselectors==1
-            ACStats_whichcombos=double(any(ACStats_whichstatsArr,5)); % [nFns,maxngroups,1+nRestr,N_i+1]
+            ACStats_whichcombos=double(any(ACStats_whichstatsArr,5)); % [nRows,maxngroups,1+nRestr,N_i+1]
+            ACStatsW_whichcombos=double(any(ACStatsW_whichstatsArr,5));
+            if any(ACStats_logwhichcombos(:) & ACStats_levelcombos(:)) || any(ACStatsW_logwhichcombos(:) & ACStatsW_levelcombos(:))
+                error('TargetMoments.AgeConditionalStats: some targets ask for both a statistic and its log (fnname... and fnname..._log) at the same age and restriction (for any permanent type or the grouped stats), but LifeCycleProfiles computes one or the other for each (simoptions.logwhichcombos has no type dimension): target only one of them at each age')
+            end
         else
             ACStats_whichstatsArr=[];
             ACStats_whichcombos=[];
@@ -1167,6 +1437,10 @@ elseif useptype==1
         FnsToEvaluate_ACStats=struct();
         ACStats_whichstatsArr=[];
         ACStats_whichcombos=[];
+        ACStats_ntimeperiods=1;
+        ACStats_ntimeperiodstype='average';
+        ACStats_split=0;
+        ACStats_haswindowlog=0;
     end
     %% AutoCorrTransProbs (EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType): targets .(fn).(stat) and .(restriction).(fn).(stat) (the grouped
     % output) and .(fn).(type).(stat) and .(restriction).(fn).(type).(stat) (a permanent type's own output), nested as the command's output.
@@ -1619,6 +1893,27 @@ elseif useptype==1
         selectors.AllStats.whichstats=AllStats_whichstatsArr;
         selectors.ACStats.whichcombos=ACStats_whichcombos;
         selectors.ACStats.whichstats=ACStats_whichstatsArr;
+        % The window and log rows of the AgeConditionalStats targets (as without permanent types; logwhichcombos has no type dimension)
+        selectors.ACStats.haswindowlog=ACStats_haswindowlog;
+        if ACStats_haswindowlog==1
+            selectors.ACStats.ntimeperiods=ACStats_ntimeperiods;
+            selectors.ACStats.ntimeperiodstype=ACStats_ntimeperiodstype;
+            selectors.ACStats.logwhichcombos=ACStats_logwhichcombos;
+            if any(ACStats_ntimeperiods>1) && ~agedefault
+                selectors.ACStats.agegroupings=1:1:N_j;
+            else
+                selectors.ACStats.agegroupings=[];
+            end
+            selectors.ACStats.split=ACStats_split;
+            if ACStats_split==1
+                selectors.ACStatsW.whichcombos=ACStatsW_whichcombos;
+                selectors.ACStatsW.whichstats=ACStatsW_whichstatsArr;
+                selectors.ACStatsW.ntimeperiods=ACStatsW_ntimeperiods;
+                selectors.ACStatsW.ntimeperiodstype=ACStats_ntimeperiodstype;
+                selectors.ACStatsW.logwhichcombos=ACStatsW_logwhichcombos;
+                selectors.ACStatsW.agegroupings=1:1:N_j;
+            end
+        end
         selectors.AutoCorr.whichcombos=AutoCorr_whichcombos;
         selectors.AutoCorr.ntimeperiods=AutoCorr_ntimeperiods; % the window lengths the targets name (simoptions.ntimeperiods; the rows of whichcombos are in blocks of these)
         selectors.AutoCorr.ntimeperiodstype=AutoCorr_ntimeperiodstype; % simoptions.ntimeperiodstype

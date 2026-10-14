@@ -6,6 +6,9 @@ function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(Ta
 % model has no mass there).
 % Each cohort is parsed by SetupTargetMoments_FHorz() (useptype=0 or 1, as for the standard parser), and the moments
 % are stacked cohort by cohort (within a cohort: AllStats, then AgeConditionalStats, then AutoCorr).
+% AgeConditionalStats targets may name the window and log rows (fnname_log, fnname_MperiodAverage, ...; 2026-10-14): cohortmoments
+% acsntimeperiods{cc}, acsntimeperiodstype{cc} and acslog{cc} (rows {restriction or '', FnsToEvaluate, M, 1 x N_j selection}) let the objective set
+% simoptions.ntimeperiods, ntimeperiodstype and logwhichcombos; the last age of an M-period window target is M-1 ages after its start.
 %
 % AutoCorr targets (added 2026-09-29) are the outputs of EvalFnOnAgentDist_AutoCorrTransProbs_FHorz (or its PType
 % wrapper): TargetMoments.AutoCorr.cohortC.fn.stat, or .cohortC.restriction.fn.stat (restriction is a name in
@@ -87,6 +90,88 @@ for cc=1:ncohorts
         else
             lastage_lcp=j0;
         end
+        % The window and log rows of this cohort's AgeConditionalStats targets (fnname_log, fnname_MperiodAverage, fnname_MperiodSum,
+        % fnname_MperiodAverage_log, fnname_MperiodSum_log; a window target is by start age): simoptions.ntimeperiods, ntimeperiodstype and
+        % the start ages of the log targets (for simoptions.logwhichcombos), and an M-period window starting at the last targeted age runs M-1 ages further
+        acsnames=cohortmoments.acsmomentnames{cc};
+        acsM=ones(size(acsnames,1),1);
+        acstype=cell(size(acsnames,1),1);
+        acslog=cell(0,4); % {restriction or '', FnsToEvaluate, M, 1 x N_j selection}
+        acslevel=cell(0,4);
+        for mm=1:size(acsnames,1)
+            names=acsnames(mm,:);
+            names=names(~cellfun(@isempty,names));
+            rowname=names{1};
+            restr='';
+            rbase=''; rM=1; rlog=0;
+            for tries=1:2
+                if any(strcmp(rowname,FnNamesAll))
+                    rbase=rowname;
+                else
+                    tk=regexp(rowname,'^(.+)_(\d+)period(Average|Sum)(_log)?$','tokens','once');
+                    if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                        rbase=tk{1}; rM=str2double(tk{2}); acstype{mm}=lower(tk{3}); rlog=~isempty(tk{4});
+                    else
+                        tk=regexp(rowname,'^(.+)_log$','tokens','once');
+                        if ~isempty(tk) && any(strcmp(FnNamesAll,tk{1}))
+                            rbase=tk{1}; rlog=1;
+                        end
+                    end
+                end
+                if ~isempty(rbase) || length(names)<2
+                    break
+                end
+                restr=names{1}; % the first name is a restriction, the row is the second
+                rowname=names{2};
+            end
+            if isempty(rbase)
+                continue % (SetupTargetMoments_FHorz has checked the names)
+            end
+            acsM(mm)=rM;
+            val=TargetMoments_cc.AgeConditionalStats;
+            for kk=1:length(names)
+                val=val.(names{kk});
+            end
+            if isvector(val) && numel(val)==N_j
+                sel=reshape(~isnan(val),[1,N_j]);
+            elseif size(val,2)==N_j
+                sel=any(~isnan(val),1);
+            else
+                sel=false(1,N_j);
+            end
+            if rM>1 && any(sel(N_j-rM+2:N_j))
+                error(['TargetMoments.AgeConditionalStats.',cohortstr,': ',rowname,' is targeted at a start age after N_j-',num2str(rM-1),', where the ',num2str(rM),'-period window runs past age N_j (these entries must be NaN)'])
+            end
+            if rM>1 && any(sel)
+                lastage_lcp=max(lastage_lcp,find(sel,1,'last')+rM-1);
+            end
+            if rlog==1
+                acslog(end+1,:)={restr,rbase,rM,double(sel)}; %#ok<AGROW>
+            else
+                acslevel(end+1,:)={restr,rbase,rM,double(sel)}; %#ok<AGROW>
+            end
+        end
+        wtypes=unique(acstype(acsM>1));
+        if length(wtypes)>1
+            error(['TargetMoments.AgeConditionalStats.',cohortstr,': the targets name both MperiodAverage and MperiodSum rows, but LifeCycleProfiles computes one or the other in a call (simoptions.ntimeperiodstype): use one of them for all the targets'])
+        elseif isscalar(wtypes)
+            cohortmoments.acsntimeperiodstype{cc}=wtypes{1};
+        else
+            cohortmoments.acsntimeperiodstype{cc}='average';
+        end
+        for l1=1:size(acslog,1)
+            for l2=1:size(acslevel,1)
+                if strcmp(acslog{l1,1},acslevel{l2,1}) && strcmp(acslog{l1,2},acslevel{l2,2}) && acslog{l1,3}==acslevel{l2,3} && any(acslog{l1,4} & acslevel{l2,4})
+                    error(['TargetMoments.AgeConditionalStats.',cohortstr,': some targets ask for both a statistic of ',acslog{l1,2},' and of its log at the same age and restriction, but LifeCycleProfiles computes one or the other for each (simoptions.logwhichcombos): target only one of them at each age'])
+                end
+            end
+        end
+        cohortmoments.acsntimeperiods{cc}=unique(acsM(:)');
+        cohortmoments.acslog{cc}=acslog;
+    else
+        cohortmoments.acsntimeperiods{cc}=1;
+        cohortmoments.acsntimeperiodstype{cc}='average';
+        cohortmoments.acslog{cc}=cell(0,4);
     end
 
     %% AutoCorr targets of this cohort

@@ -113,7 +113,53 @@ if usinglcp==1
     else % caliboptions.whichcombos=0: every statistic of every targeted function
         simoptions_ACStats.whichstats=ones(1,7);
     end
+    usingacswindowlog=(isfield(caliboptions,'selectors') && isfield(caliboptions.selectors,'ACStats') && isfield(caliboptions.selectors.ACStats,'haswindowlog') && caliboptions.selectors.ACStats.haswindowlog==1);
+    if usingacswindowlog % the window and log rows the targets name: simoptions.ntimeperiods, ntimeperiodstype and logwhichcombos (set whatever caliboptions.whichcombos, as they decide which outputs there are)
+        simoptions_ACStats.ntimeperiods=caliboptions.selectors.ACStats.ntimeperiods;
+        simoptions_ACStats.ntimeperiodstype=caliboptions.selectors.ACStats.ntimeperiodstype;
+        simoptions_ACStats.logwhichcombos=caliboptions.selectors.ACStats.logwhichcombos;
+        if ~isempty(caliboptions.selectors.ACStats.agegroupings)
+            simoptions_ACStats.agegroupings=caliboptions.selectors.ACStats.agegroupings; % only window targets: by start age
+        end
+        if any(simoptions_ACStats.ntimeperiods>1)
+            simoptions_ACStats.pi_z=pi_z_J; % the windows need the z transitions (a structure by ptype, or with a trailing type dimension, as pi_z)
+        end
+    end
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate_ACStats,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_ACStats);
+    if usingacswindowlog && caliboptions.selectors.ACStats.split==1
+        % the single-period targets are by age groups, so the window targets (by start age) are a second call, merged into the output
+        simoptions_ACStatsW=simoptions;
+        simoptions_ACStatsW.agegroupings=caliboptions.selectors.ACStatsW.agegroupings;
+        if caliboptions.whichcombos==1
+            simoptions_ACStatsW.whichcombos=caliboptions.selectors.ACStatsW.whichcombos;
+            simoptions_ACStatsW.whichstats=caliboptions.selectors.ACStatsW.whichstats;
+        else
+            simoptions_ACStatsW.whichstats=ones(1,7);
+        end
+        simoptions_ACStatsW.ntimeperiods=caliboptions.selectors.ACStatsW.ntimeperiods;
+        simoptions_ACStatsW.ntimeperiodstype=caliboptions.selectors.ACStatsW.ntimeperiodstype;
+        simoptions_ACStatsW.logwhichcombos=caliboptions.selectors.ACStatsW.logwhichcombos;
+        simoptions_ACStatsW.pi_z=pi_z_J;
+        AgeConditionalStatsW=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate_ACStats,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions_ACStatsW);
+        if isfield(simoptions,'conditionalrestrictions')
+            restrnamesW=fieldnames(simoptions.conditionalrestrictions);
+        else
+            restrnamesW={};
+        end
+        fW=fieldnames(AgeConditionalStatsW);
+        for kk=1:length(fW)
+            if any(strcmp(restrnamesW,fW{kk}))
+                fR=fieldnames(AgeConditionalStatsW.(fW{kk}));
+                for rr=1:length(fR)
+                    if ~strcmp(fR{rr},'RestrictedSampleMass')
+                        AgeConditionalStats.(fW{kk}).(fR{rr})=AgeConditionalStatsW.(fW{kk}).(fR{rr});
+                    end
+                end
+            else
+                AgeConditionalStats.(fW{kk})=AgeConditionalStatsW.(fW{kk});
+            end
+        end
+    end
 end
 if usingautocorr==1
     % The three commands below take whichcombos only (no per-combination whichstats), with the trailing type dimension (a type's slot, or
