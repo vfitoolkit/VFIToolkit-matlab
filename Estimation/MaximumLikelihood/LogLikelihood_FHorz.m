@@ -25,6 +25,13 @@ function [LogL,LogLi,LogLij,PopDist]=LogLikelihood_FHorz(Data,MeasurementError,j
 %         .misclassprob: name of a parameter in Parameters, the probability p of misreporting ('misclassified' only)
 %         .values: (optional, 'misclassified' only) the K possible values of the observed variable; default is every value the
 %                  FnToEvaluate takes on the grid at any age
+%         .rho, .sigmaAR: (optional, 'normal' and 't' only) names of parameters in Parameters; make the measurement error the
+%                  sum of an AR(1) component and the iid component (whose s.d. is .sigma): u'=rho*u+innovation, the innovation of
+%                  s.d. sigmaAR. The AR(1) component is discretized (Rouwenhorst, estimoptions.nARpoints points) and becomes an
+%                  additional latent Markov state, distributed as its stationary distribution at an individual's first age. With
+%                  type='log' it is multiplicative, like the iid component. rho and sigmaAR must be scalars, with |rho|<1.
+%                  (The iid component is needed: with the AR(1) component alone the observation would be exactly the model value
+%                  plus a grid point, so the likelihood of continuous data would be zero.)
 %         Parameters named by sigma, dof and misclassprob can be scalars or depend on age (1-by-N_j).
 %       The distributions:
 %         'normal', 't': observed = model value + error ('additive'), or log(observed) = log(model value) + error ('log'; the
@@ -48,6 +55,8 @@ function [LogL,LogLi,LogLij,PopDist]=LogLikelihood_FHorz(Data,MeasurementError,j
 %                            but the likelihood is conditional on the first-age observations (the log normaliser of the first
 %                            age is left out of LogLi)
 %         .nindividualsbatch: number of individuals filtered at once (default: all); smaller uses less GPU memory
+%         .nARpoints: number of points in the discretization of each AR(1) measurement error component (default 7, must be odd);
+%                     the latent state space is multiplied by nARpoints for each variable with AR(1) measurement error
 %
 % Outputs
 %   LogL: the log-likelihood, sum(LogLi)
@@ -112,6 +121,12 @@ if ~any(strcmp(estimoptions.initialcondition,{'model','conditional'}))
 end
 if ~isfield(estimoptions,'nindividualsbatch')
     estimoptions.nindividualsbatch=Inf;
+end
+if ~isfield(estimoptions,'nARpoints')
+    estimoptions.nARpoints=7;
+end
+if mod(estimoptions.nARpoints,2)~=1
+    error('LogLikelihood_FHorz: estimoptions.nARpoints must be an odd number')
 end
 exacttolerance=10^(-9); % 'exact' and 'misclassified': observed and model values are treated as equal when they differ by no more than this (relative to max(1,|observed|))
 
@@ -259,7 +274,66 @@ for vv=1:nObs
             error('LogLikelihood_FHorz: Data.%s has non-positive observations, which are impossible with MeasurementError.%s.type=''log''',ObsNames{vv},ObsNames{vv})
         end
     end
+    % AR(1) component of the measurement error
+    if isfield(ME,'rho') || isfield(ME,'sigmaAR')
+        if ~any(strcmp(ME.distribution,{'normal','t'}))
+            error('LogLikelihood_FHorz: MeasurementError.%s has an AR(1) component (rho), which is only possible with the normal and t distributions',ObsNames{vv})
+        end
+        if ~isfield(ME,'rho') || ~isfield(ME,'sigmaAR')
+            error('LogLikelihood_FHorz: MeasurementError.%s with an AR(1) component needs both .rho and .sigmaAR (names of parameters in Parameters)',ObsNames{vv})
+        end
+        tempparamnames={'rho','sigmaAR'};
+        for pp=1:2
+            if ~isfield(Parameters,ME.(tempparamnames{pp}))
+                error('LogLikelihood_FHorz: MeasurementError.%s.%s is ''%s'', which is not in Parameters',ObsNames{vv},tempparamnames{pp},ME.(tempparamnames{pp}))
+            end
+            tempval=gather(Parameters.(ME.(tempparamnames{pp})));
+            if ~isscalar(tempval)
+                error('LogLikelihood_FHorz: the parameter %s (MeasurementError.%s.%s) must be a scalar',ME.(tempparamnames{pp}),ObsNames{vv},tempparamnames{pp})
+            end
+            MEvals.(ObsNames{vv}).(tempparamnames{pp})=tempval;
+        end
+        if abs(MEvals.(ObsNames{vv}).rho)>=1
+            error('LogLikelihood_FHorz: the parameter %s (MeasurementError.%s.rho) must be strictly between -1 and 1',ME.rho,ObsNames{vv})
+        end
+        if MEvals.(ObsNames{vv}).sigmaAR<=0
+            error('LogLikelihood_FHorz: the parameter %s (MeasurementError.%s.sigmaAR) must be positive',ME.sigmaAR,ObsNames{vv})
+        end
+    end
     MeasurementError.(ObsNames{vv})=ME;
+end
+
+%% The AR(1) measurement error components: discretized, they are additional latent Markov states
+% The latent state is (a,z,e,u), with u the joint index of the AR(1) components (the first AR variable fastest), slowest of all.
+% N_u=1 when there are none.
+ARnames={};
+for vv=1:nObs
+    if isfield(MeasurementError.(ObsNames{vv}),'rho')
+        ARnames{end+1}=ObsNames{vv};
+    end
+end
+nAR=length(ARnames);
+N_u=estimoptions.nARpoints^nAR;
+pi_u=1; % transition matrix of the joint AR(1) components
+statdist_u=1; % their stationary distribution (the distribution at an individual's first age)
+for kk=1:nAR
+    [ugrid,pi_ugrid]=discretizeAR1_Rouwenhorst(0,MEvals.(ARnames{kk}).rho,MEvals.(ARnames{kk}).sigmaAR,estimoptions.nARpoints);
+    ugrid=gather(ugrid); pi_ugrid=gather(pi_ugrid);
+    % the stationary distribution of the Rouwenhorst chain is binomial
+    statdist_ugrid=zeros(estimoptions.nARpoints,1);
+    for ll=1:estimoptions.nARpoints
+        statdist_ugrid(ll)=nchoosek(estimoptions.nARpoints-1,ll-1)/2^(estimoptions.nARpoints-1);
+    end
+    pi_u=kron(pi_ugrid,pi_u); % earlier AR components index faster
+    statdist_u=kron(statdist_ugrid,statdist_u);
+    % the value of this component at each joint index u
+    MEvals.(ARnames{kk}).uvals=gpuArray(reshape(repmat(repelem(ugrid,estimoptions.nARpoints^(kk-1),1),estimoptions.nARpoints^(nAR-kk),1),[1,N_u]));
+end
+pi_u=gpuArray(pi_u);
+statdist_u=gpuArray(statdist_u);
+N_sD=N_s*N_u; % size of the latent state including the AR(1) components
+if nAR>1 || N_sD>10^6
+    warning('LogLikelihood_FHorz: %i variables with AR(1) measurement error multiply the latent state space by %i (to %i states per individual); this can be slow and memory hungry',nAR,N_u,N_sD)
 end
 
 %% Model values of the observed variables at every grid state and age
@@ -350,6 +424,7 @@ if abs(sum(jequaloneDist(:))-1)>10^(-9)
     error('The jequaloneDist must be of mass one')
 end
 jequaloneDist=reshape(jequaloneDist,[N_s,1]);
+jequaloneDist=reshape(jequaloneDist*statdist_u',[N_sD,1]); % with AR(1) measurement error components, they start from their stationary distribution
 
 %% Transitions: next period aprime (with the grid interpolation layer lottery), as in StationaryDist_FHorz_Case1
 Policy=reshape(Policy,[size(Policy,1),N_a,N_zint*N_eint,N_j]);
@@ -416,7 +491,7 @@ for bb=1:nbatch
     colid=zeros(0,1); % position within batchinds of the individual in each column 2:end
     for jj=1:N_j
         if bb==1
-            PopDist(:,jj)=D(:,1);
+            PopDist(:,jj)=sum(reshape(D(:,1),[N_s,N_u]),2); % (summing out the AR(1) measurement error components)
         end
         % Individuals whose first age is jj enter with the population distribution
         newi=find(j0_b==jj);
@@ -427,7 +502,7 @@ for bb=1:nbatch
         ncol=numel(colid);
         if ncol>0
             % Log emission: log p(observations at age jj | latent grid state), summed over the observed variables
-            logE=zeros(N_s,ncol,'gpuArray');
+            logE=zeros(N_sD,ncol,'gpuArray');
             for vv=1:nObs
                 y=gpuArray(reshape(ObsByAge.(ObsNames{vv})(batchinds(colid),jj),[1,ncol]));
                 obsd=~isnan(y);
@@ -436,6 +511,19 @@ for bb=1:nbatch
                 end
                 m=ModelValues.(ObsNames{vv})(:,jj); % [N_s,1]
                 ME=MeasurementError.(ObsNames{vv});
+                if N_u>1
+                    % The latent state includes the AR(1) measurement error components: for a variable with one, the effective model
+                    % value includes it (added, or multiplied as exp(u) with type='log'); for the others it is the same at every u
+                    if isfield(ME,'rho')
+                        if strcmp(ME.type,'additive')
+                            m=reshape(m+MEvals.(ObsNames{vv}).uvals,[N_sD,1]);
+                        else
+                            m=reshape(m.*exp(MEvals.(ObsNames{vv}).uvals),[N_sD,1]);
+                        end
+                    else
+                        m=repmat(m,N_u,1);
+                    end
+                end
                 if strcmp(ME.distribution,'normal') || strcmp(ME.distribution,'t')
                     sigma=MEvals.(ObsNames{vv}).sigma(jj);
                     if strcmp(ME.type,'additive')
@@ -457,20 +545,20 @@ for bb=1:nbatch
                         logEv(isnan(logEv) & ~isnan(y) & isnan(mpos))=-Inf;
                     end
                 elseif strcmp(ME.distribution,'exact')
-                    logEv=zeros(N_s,ncol,'gpuArray');
+                    logEv=zeros(N_sD,ncol,'gpuArray');
                     logEv(abs(y-m)>exacttolerance*max(1,abs(y)))=-Inf;
                 elseif strcmp(ME.distribution,'misclassified')
                     p=MEvals.(ObsNames{vv}).misclassprob(jj);
                     K=MEvals.(ObsNames{vv}).K;
-                    match=(abs(y-m)<=exacttolerance*max(1,abs(y))); % [N_s,ncol]
-                    logEv=zeros(N_s,ncol,'gpuArray');
+                    match=(abs(y-m)<=exacttolerance*max(1,abs(y))); % [N_sD,ncol]
+                    logEv=zeros(N_sD,ncol,'gpuArray');
                     logEv(match)=log(1-p); % assign rather than multiply, as log(0)*0 would be NaN when p=0 or p=1
                     logEv(~match)=log(p/(K-1));
                 elseif strcmp(ME.distribution,'gridlottery')
                     vals=unique(m); % sorted distinct model values at this age
                     K=numel(vals);
                     if K==1
-                        logEv=zeros(N_s,ncol,'gpuArray');
+                        logEv=zeros(N_sD,ncol,'gpuArray');
                         nclamped=nclamped+sum(y(obsd)~=vals);
                     else
                         idx=interp1(vals,gpuArray((1:1:K)'),y,'linear'); % fractional position of y among the values (NaN outside)
@@ -520,11 +608,17 @@ for bb=1:nbatch
             break % nobody left in this batch (the first batch keeps going, to fill in PopDist)
         end
         % Move forward to age jj+1
-        ncols=size(D,2);
+        ncolsD=size(D,2);
+        ncols=ncolsD*N_u; % the model transition does not depend on the AR(1) measurement error components, so each u is treated as another column
+        D=reshape(D,[N_s,ncols]);
         D=Gammatranspose_J{jj}*D; % [N_a*N_z,ncols]: aprime (and z stays where it is)
         D=reshape(permute(reshape(D,[N_a,N_zint,ncols]),[1,3,2]),[N_a*ncols,N_zint])*pi_z_J(:,:,jj); % z to zprime
         D=reshape(permute(reshape(D,[N_a,ncols,N_zint]),[1,3,2]),[N_a*N_zint,1,ncols]);
         D=reshape(D.*reshape(pi_e_J(:,jj+1),[1,N_eint]),[N_s,ncols]); % put e back in: pi_e_J(:,jj+1) is the distribution of the e realized in period jj+1
+        if N_u>1 % the AR(1) measurement error components to their next values
+            D=reshape(permute(reshape(D,[N_s,N_u,ncolsD]),[1,3,2]),[N_s*ncolsD,N_u])*pi_u;
+            D=reshape(permute(reshape(D,[N_s,ncolsD,N_u]),[1,3,2]),[N_sD,ncolsD]);
+        end
     end
 end
 
