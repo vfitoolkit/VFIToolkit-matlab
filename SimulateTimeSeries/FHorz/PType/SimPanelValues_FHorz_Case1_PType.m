@@ -94,9 +94,14 @@ else
 end
 simoptions.outputasstructure=0; % SimPanelValues as matrix
 
+%% Deal with jequaloneDist
+% Must come before PType_numbersims: when jequaloneDist has ptype as a dimension, its slice masses
+% become the ptype masses and jequaloneDist_PType overwrites Parameters.(PTypeDistParamNames{1})
+[jequaloneDist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames);
+
 % Need to figure out how many simulations to do for each PType.
 % Make them perfectly representative of the PType masses.
-PType_numbersims=floor(Parameters.(PTypeDistParamNames{1})*simoptions.numbersims);
+PType_numbersims=floor(gather(Parameters.(PTypeDistParamNames{1}))*simoptions.numbersims); % gather, as the implicit masses from a ptype-as-a-dimension jequaloneDist can be a gpuArray
 % This will not perfectly add up to the right number of sims (floor means it will be a slightly to few)
 ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 % I just arbitrarily add them to the first PTypes. Your simulation should
@@ -104,9 +109,6 @@ ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 % them randomly, but cant be bothered right now. But otherwise if I don't
 % make this random the sample won't satisfy properties of arandom sample)
 PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
-
-%% Deal with jequaloneDist
-[jequaloneDist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames);
 
 
 %%
