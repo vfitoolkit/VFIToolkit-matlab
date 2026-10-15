@@ -21,10 +21,14 @@ function [LogL,LogLi,LogLij,PopDist]=LogLikelihood_FHorz(Data,MeasurementError,j
 %         .type: 'additive' (default) or 'log' (multiplicative error; only for 'normal' and 't')
 %         .sigma: name of a parameter in Parameters, the standard deviation (scale for 't') of the measurement error ('normal', 't')
 %         .dof: name of a parameter in Parameters, the degrees of freedom ('t' only)
-%         .misclassification: 'uniform' ('misclassified' only; the only form currently implemented)
-%         .misclassprob: name of a parameter in Parameters, the probability p of misreporting ('misclassified' only)
+%         .misclassification: 'uniform' (default), 'matrix', 'frequency' or 'ordered' ('misclassified' only; see below)
+%         .misclassprob: name of a parameter in Parameters, the probability p of misreporting ('uniform', 'frequency')
+%         .misclassmatrix: name of a parameter in Parameters, the K-by-K (or K-by-K-by-N_j) misclassification matrix E, with
+%                  E(k,m)=P(report value k | true value m), so each column sums to one; rows and columns in the order of .values ('matrix')
+%         .misclasssigma: name of a parameter in Parameters, the s.d. of the error on the ordered categories ('ordered')
+%         .frequencyshares: 'model' (default) or 'data', where the shares of 'frequency' come from ('frequency')
 %         .values: (optional, 'misclassified' only) the K possible values of the observed variable; default is every value the
-%                  FnToEvaluate takes on the grid at any age
+%                  FnToEvaluate takes on the grid at any age, sorted. For 'ordered' they must be in ascending order.
 %         .rho, .sigmaAR: (optional, 'normal' and 't' only) names of parameters in Parameters; make the measurement error the
 %                  sum of an AR(1) component and the iid component (whose s.d. is .sigma): u'=rho*u+innovation, the innovation of
 %                  s.d. sigmaAR. The AR(1) component is discretized (Rouwenhorst, estimoptions.nARpoints points) and becomes an
@@ -32,7 +36,7 @@ function [LogL,LogLi,LogLij,PopDist]=LogLikelihood_FHorz(Data,MeasurementError,j
 %                  type='log' it is multiplicative, like the iid component. rho and sigmaAR must be scalars, with |rho|<1.
 %                  (The iid component is needed: with the AR(1) component alone the observation would be exactly the model value
 %                  plus a grid point, so the likelihood of continuous data would be zero.)
-%         Parameters named by sigma, dof and misclassprob can be scalars or depend on age (1-by-N_j).
+%         Parameters named by sigma, dof, misclassprob and misclasssigma can be scalars or depend on age (1-by-N_j).
 %       The distributions:
 %         'normal', 't': observed = model value + error ('additive'), or log(observed) = log(model value) + error ('log'; the
 %                        density is then that of the observed value, including the 1/observed Jacobian, and is zero at grid
@@ -43,8 +47,16 @@ function [LogL,LogLi,LogLij,PopDist]=LogLikelihood_FHorz(Data,MeasurementError,j
 %                        the grid at that age) with linear-interpolation weights, and the emission at a grid state is the weight
 %                        of its value. Observations outside the range of model values are put on the nearest end point (with a
 %                        warning). This is an approximation.
-%         'misclassified': for discrete-valued observables. With probability 1-p the observed value is the model value; otherwise
-%                          it is one of the K-1 other values, each with probability p/(K-1) ('uniform').
+%         'misclassified': for discrete-valued observables, with K possible values. The observed value is k with probability
+%                          E(k,m) when the model value is m, where
+%                          'uniform':   E(k,m)=1-p if k=m, p/(K-1) otherwise
+%                          'matrix':    E is given (e.g., from a validation study, or built by ParametrizeParamsFn from estimated parameters)
+%                          'frequency': E(k,m)=(1-p)*1{k=m}+p*q_k: with probability p the report is drawn from the shares q of the
+%                                       values, which do not then distort the shares in the data (as in Keane & Sauer, 2009). The
+%                                       shares are those of the model at that age ('model', recomputed at every evaluation) or of
+%                                       the data at that age ('data')
+%                          'ordered':   errors mostly to neighbouring values: E(k,m)=Phi((c_k-v_m)/sigma)-Phi((c_(k-1)-v_m)/sigma),
+%                                       with v the values in ascending order and c the midpoints between them (c_0=-Inf, c_K=Inf)
 %   jequaloneDist: the distribution of agents at age j=1 (array, or a function as for StationaryDist_FHorz_Case1)
 %   Policy: from ValueFnIter_Case1_FHorz
 %   FnsToEvaluate: structure of functions; must contain each observed variable (others are ignored)
@@ -243,12 +255,32 @@ for vv=1:nObs
             tempparamnames={'sigma','dof'};
         end
     elseif strcmp(ME.distribution,'misclassified')
-        tempparamnames={'misclassprob'};
         if ~isfield(ME,'misclassification')
             ME.misclassification='uniform';
         end
-        if ~strcmp(ME.misclassification,'uniform')
-            error('LogLikelihood_FHorz: MeasurementError.%s.misclassification=''%s'' is not implemented (only ''uniform'')',ObsNames{vv},ME.misclassification)
+        if ~any(strcmp(ME.misclassification,{'uniform','matrix','frequency','ordered'}))
+            error('LogLikelihood_FHorz: MeasurementError.%s.misclassification=''%s'' is not one of uniform, matrix, frequency, ordered',ObsNames{vv},ME.misclassification)
+        end
+        if strcmp(ME.misclassification,'uniform') || strcmp(ME.misclassification,'frequency')
+            tempparamnames={'misclassprob'};
+        elseif strcmp(ME.misclassification,'ordered')
+            tempparamnames={'misclasssigma'};
+        else % 'matrix', checked once the values are known (below)
+            tempparamnames={};
+            if ~isfield(ME,'misclassmatrix')
+                error('LogLikelihood_FHorz: MeasurementError.%s.misclassmatrix is required (the name of a parameter in Parameters)',ObsNames{vv})
+            end
+            if ~isfield(Parameters,ME.misclassmatrix)
+                error('LogLikelihood_FHorz: MeasurementError.%s.misclassmatrix is ''%s'', which is not in Parameters',ObsNames{vv},ME.misclassmatrix)
+            end
+        end
+        if strcmp(ME.misclassification,'frequency')
+            if ~isfield(ME,'frequencyshares')
+                ME.frequencyshares='model';
+            end
+            if ~any(strcmp(ME.frequencyshares,{'model','data'}))
+                error('LogLikelihood_FHorz: MeasurementError.%s.frequencyshares must be ''model'' or ''data''',ObsNames{vv})
+            end
         end
     else
         tempparamnames={};
@@ -389,7 +421,55 @@ for vv=1:nObs
         if any(min(abs(tempdata-tempvalues'),[],2)>exacttolerance*max(1,abs(tempdata)))
             error('LogLikelihood_FHorz: Data.%s contains values that are not among the possible values of the misclassified variable',ObsNames{vv})
         end
-        MEvals.(ObsNames{vv}).K=numel(tempvalues);
+        K=numel(tempvalues);
+        MEvals.(ObsNames{vv}).K=K;
+        MEvals.(ObsNames{vv}).values=tempvalues;
+        ME=MeasurementError.(ObsNames{vv});
+        % The misclassification matrix at each age, E(k,m,jj)=P(report value k | true value m) (for 'frequency' with the model's
+        % shares it depends on the agent distribution, so it is built at each age during the filtering instead)
+        E=zeros(K,K,N_j);
+        if strcmp(ME.misclassification,'uniform')
+            for jj=1:N_j
+                p=MEvals.(ObsNames{vv}).misclassprob(jj);
+                E(:,:,jj)=(1-p)*eye(K)+(p/(K-1))*(1-eye(K));
+            end
+        elseif strcmp(ME.misclassification,'matrix')
+            tempE=gather(Parameters.(ME.misclassmatrix));
+            if size(tempE,1)~=K || size(tempE,2)~=K || ~(ndims(tempE)==2 || size(tempE,3)==N_j)
+                error('LogLikelihood_FHorz: the parameter %s (MeasurementError.%s.misclassmatrix) must be K-by-K or K-by-K-by-N_j, with K=%i the number of values',ME.misclassmatrix,ObsNames{vv},K)
+            end
+            if any(tempE(:)<0) || any(abs(sum(tempE,1)-1)>10^(-9),'all')
+                error('LogLikelihood_FHorz: the parameter %s (MeasurementError.%s.misclassmatrix) must have non-negative entries, and each column must sum to one (E(k,m) is the probability of reporting k when the true value is m)',ME.misclassmatrix,ObsNames{vv})
+            end
+            if ndims(tempE)==2
+                E=repmat(tempE,1,1,N_j);
+            else
+                E=tempE;
+            end
+        elseif strcmp(ME.misclassification,'ordered')
+            v=gather(tempvalues);
+            if any(diff(v)<=0)
+                error('LogLikelihood_FHorz: MeasurementError.%s.values must be in ascending order for misclassification=''ordered''',ObsNames{vv})
+            end
+            c=[-Inf; (v(1:end-1)+v(2:end))/2; Inf]; % cut-points: the midpoints between the values
+            for jj=1:N_j
+                sg=MEvals.(ObsNames{vv}).misclasssigma(jj);
+                E(:,:,jj)=0.5*erfc(-(c(2:end)-v')/(sg*sqrt(2)))-0.5*erfc(-(c(1:end-1)-v')/(sg*sqrt(2))); % Phi((c_k-v_m)/sigma)-Phi((c_(k-1)-v_m)/sigma)
+            end
+        elseif strcmp(ME.misclassification,'frequency') && strcmp(ME.frequencyshares,'data')
+            tempdata=ObsByAge.(ObsNames{vv});
+            for jj=1:N_j
+                y=tempdata(~isnan(tempdata(:,jj)),jj);
+                if isempty(y)
+                    continue % nothing observed at this age, so E is never used
+                end
+                [~,kobs]=min(abs(y-gather(tempvalues)'),[],2);
+                q=accumarray(kobs,1,[K,1])/numel(y);
+                p=MEvals.(ObsNames{vv}).misclassprob(jj);
+                E(:,:,jj)=(1-p)*eye(K)+p*q*ones(1,K);
+            end
+        end
+        MEvals.(ObsNames{vv}).E=gpuArray(E);
     end
 end
 
@@ -568,12 +648,19 @@ for bb=1:nbatch
                     logEv=zeros(N_sD,ncol,'gpuArray');
                     logEv(abs(y-m)>exacttolerance*max(1,abs(y)))=-Inf;
                 elseif strcmp(ME.distribution,'misclassified')
-                    p=MEvals.(ObsNames{vv}).misclassprob(jj);
                     K=MEvals.(ObsNames{vv}).K;
-                    match=(abs(y-m)<=exacttolerance*max(1,abs(y))); % [N_sD,ncol]
-                    logEv=zeros(N_sD,ncol,'gpuArray');
-                    logEv(match)=log(1-p); % assign rather than multiply, as log(0)*0 would be NaN when p=0 or p=1
-                    logEv(~match)=log(p/(K-1));
+                    vals=MEvals.(ObsNames{vv}).values; % [K,1]
+                    [~,mcat]=min(abs(m-vals'),[],2); % [N_sD,1]: the value of the model at each latent state, as an index into vals
+                    [~,kobs]=min(abs(y'-vals'),[],2); % [ncol,1]: the observed value as an index into vals (unobserved get an arbitrary index, overwritten below)
+                    if strcmp(ME.misclassification,'frequency') && strcmp(ME.frequencyshares,'model')
+                        % the shares of the values in the model at this age (the population column, which has no observations)
+                        q=sum(D(:,1).*(mcat==(1:1:K)),1)'; % [K,1]
+                        p=MEvals.(ObsNames{vv}).misclassprob(jj);
+                        E=(1-p)*eye(K,'gpuArray')+p*q*ones(1,K,'gpuArray');
+                    else
+                        E=MEvals.(ObsNames{vv}).E(:,:,jj);
+                    end
+                    logEv=log(E(kobs'+K*(mcat-1))); % [N_sD,ncol]: log E(observed value, model value)
                 elseif strcmp(ME.distribution,'gridlottery')
                     vals=unique(m); % sorted distinct model values at this age
                     K=numel(vals);
