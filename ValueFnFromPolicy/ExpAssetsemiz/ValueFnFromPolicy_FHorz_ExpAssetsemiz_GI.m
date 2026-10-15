@@ -53,12 +53,18 @@ end
 if isscalar(n_a)
     error('ValueFnFromPolicy_FHorz_ExpAssetsemiz_GI: with noa1 there is no standard endogenous asset to interpolate (turn off vfoptions.gridinterplayer)')
 end
-n_a1=n_a(1:end-1);
+% The a1/a2 split below must be driven by the COUNT of experience-asset dims, not by assuming one:
+% at l_a2==2 the last TWO dims of n_a are the experience assets.
+% NOTE: the noa1 guard above is deliberately left as isscalar(n_a). At l_a2==2 it no longer catches
+% the noa1 case, but GI-on-noa1 is a path NO test covers (0 of 394 noa1 subcodes across the six
+% exp-asset banks set gridinterplayer=1), and changing untested behaviour here would paper over
+% that gap. The fix of record is a test for the GI-on-noa1 fallback, not a wider guard.
+l_a2=vfoptions.experienceassetsemiz; % the integer COUNT of experience-asset dims (1 or 2)
+n_a1=n_a(1:end-l_a2);
 N_a1=prod(n_a1);
-n_a2=n_a(end);
+n_a2=n_a(end-l_a2+1:end);
 a2_grid=a_grid(sum(n_a1)+1:end);
 l_a1=length(n_a1);
-l_a2=length(n_a2);
 
 if isfield(vfoptions,'l_dexperienceassetsemiz')
     l_d2=vfoptions.l_dexperienceassetsemiz;

@@ -55,8 +55,11 @@ else
 end
 
 % Split a into a1 (standard) and a2 (experience asset)
-if isscalar(n_a)
-    % noa1: the experience asset is the only endogenous state.
+% The a1/a2 split must be driven by the COUNT of experience-asset dims, not by assuming one:
+% at l_a2==2 the last TWO dims of n_a are the experience assets.
+l_a2=vfoptions.experienceassetsemiz; % the integer COUNT of experience-asset dims (1 or 2)
+if length(n_a)<=l_a2
+    % noa1: the experience asset(s) are the only endogenous states.
     % n_a1=0 is the convention CreateaprimePolicyExperienceAssetsemiz tests for (prod(n_a1)==0),
     % but the aprime index arithmetic further below needs an a1 stride of one, so they differ here.
     n_a1=0;
@@ -65,13 +68,12 @@ if isscalar(n_a)
     n_a2=n_a;
     a2_grid=a_grid;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-l_a2);
     N_a1=prod(n_a1);
     l_a1=length(n_a1);
-    n_a2=n_a(end);
+    n_a2=n_a(end-l_a2+1:end);
     a2_grid=a_grid(sum(n_a1)+1:end);
 end
-l_a2=length(n_a2);
 
 % Which d drives the experience asset. d ordering is [...other, d_expasset, d_semiz];
 % the last l_dsemiz are for semiz, the l_d2 immediately before them drive the expasset.

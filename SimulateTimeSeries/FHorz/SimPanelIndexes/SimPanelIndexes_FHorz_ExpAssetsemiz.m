@@ -56,12 +56,15 @@ l_d12=l_d1+l_d2;
 
 %% Setup related to experience asset
 % Split endogenous assets into the standard ones and the experience asset
-if isscalar(n_a)
+% The a1/a2 split must be driven by the COUNT of experience-asset dims, not by assuming one:
+% at l_a2==2 the last TWO dims of n_a are the experience assets.
+l_a2=simoptions.experienceassetsemiz; % the integer COUNT of experience-asset dims (1 or 2)
+if length(n_a)<=l_a2
     n_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-l_a2);
 end
-n_a2=n_a(end); % n_a2 is the experience asset
+n_a2=n_a(end-l_a2+1:end); % the last l_a2 dims are the experience asset(s)
 
 if ~isfield(simoptions,'aprimeFn')
     error('To use an experience asset you must define simoptions.aprimeFn')
@@ -79,7 +82,7 @@ end
 
 
 % aprimeFnParamNames in same fashion: (d2, a2, semiz) are the leading inputs
-l_a2=length(n_a2);
+% l_a2 already set from the options count above
 l_semiz=length(simoptions.n_semiz);
 temp=getAnonymousFnInputNames(simoptions.aprimeFn);
 if length(temp)>(l_d2+l_a2+l_semiz+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
