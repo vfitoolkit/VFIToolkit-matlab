@@ -14,8 +14,9 @@ function [C,digestweights,qlimitvec]=createDigest(values, weights,delta,presorte
 %
 % Outputs:
 %     C - the centroid means
-%     digestweights - the weights
-%     qlimitvec - essentially the cumulative weights (note: digestweights are just the first difference of qlimitvec)
+%     digestweights - the centroid masses (the share of the total weight of the points in each centroid; they sum to one)
+%     qlimitvec - the qlimit at which each centroid was closed (each centroid ends at the first point whose cumulative weight
+%                 reaches its qlimit, so the cumulative masses overshoot qlimitvec; digestweights are not its differences)
 %
 % My implementation uses the k1() scaling function.
 %
@@ -38,8 +39,9 @@ if presorted==0
 end
 
 cumweights=cumsum(weights);
+totalweight=cumweights(end);
 % Make sure the weights are normalized to one
-cumweights=cumweights./cumweights(end);
+cumweights=cumweights./totalweight;
 
 % I hard-code the k1 function (see Dunning & Ertl (2019))
 kfn=@(q,delta) (delta/(2*pi))*asin(2*q-1);
@@ -91,11 +93,14 @@ end
 nclose=length(closes);
 C=zeros(nclose,1);
 qlimitvec=zeros(nclose,1);
+digestweights=zeros(nclose,1);
 ibegin=1;
 nqbelow_prev=0;
 for count=1:nclose
     ii=closes(count);
-    C(count,1)=sum(weights(ibegin:ii).*values(ibegin:ii))/sum(weights(ibegin:ii));
+    mass=sum(weights(ibegin:ii));
+    C(count,1)=sum(weights(ibegin:ii).*values(ibegin:ii))/mass;
+    digestweights(count,1)=mass/totalweight; % the actual mass of the centroid
     qlimitvec(count,1)=qlimitseq(nqbelow_prev+1);
     ibegin=ii+1;
     nqbelow_prev=nqbelow_closes(count);
@@ -110,7 +115,9 @@ for ii=p+1:ncw-1
     %             % Nothing, keep counting up the points as have not yet reached the next quantile
     if q>=qlimit
         % Passed qlimit, so store sigma, then create a new qlimit and reset sigma
-        C(count,1)=sum(weights(ibegin:ii).*values(ibegin:ii))/sum(weights(ibegin:ii));
+        mass=sum(weights(ibegin:ii));
+        C(count,1)=sum(weights(ibegin:ii).*values(ibegin:ii))/mass;
+        digestweights(count,1)=mass/totalweight; % the actual mass of the centroid
         ibegin=ii+1;
         qlimitvec(count,1)=qlimit;
         count=count+1;
@@ -130,10 +137,11 @@ end
 ii=ncw; % Have to treat this separate as otherwise causes problems with q>qlimit never reached in the while statement
 % Seem to get nan at the very top of the digests (on large models) so implemented the following if-statement as likely source was dividing by zero
 if sum(weights(ibegin:ii))>0
-    C(count,1)=sum(weights(ibegin:ii).*values(ibegin:ii))/sum(weights(ibegin:ii));
+    mass=sum(weights(ibegin:ii));
+    C(count,1)=sum(weights(ibegin:ii).*values(ibegin:ii))/mass;
+    digestweights(count,1)=mass/totalweight; % the actual mass of the centroid
     qlimitvec(count,1)=qlimit;
 end
 
-digestweights=[qlimitvec(2:end);1]-qlimitvec;
 
 end

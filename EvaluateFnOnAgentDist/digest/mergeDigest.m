@@ -9,8 +9,9 @@ function [C,digestweights,qlimitvec]=mergeDigest(values, weights, delta)
 %
 % Outputs:
 %     C - the centroid means
-%     digestweights - the weights
-%     qlimitvec - essentially the cumulative weights (note: digestweights are just the first difference of qlimitvec)
+%     digestweights - the centroid masses (the share of the total input weight in each centroid; they sum to one)
+%     qlimitvec - the qlimit at which each centroid was closed (each centroid ends at the first input centroid whose cumulative
+%                 weight is above its qlimit, so the cumulative masses overshoot qlimitvec; digestweights are not its differences)
 %
 % My implementation uses the k1() scaling function.
 %
@@ -22,12 +23,15 @@ function [C,digestweights,qlimitvec]=mergeDigest(values, weights, delta)
 % the digestweights of each individual digest have already been multiplied
 % by their relative weight.
 
-% Has been assumed that the sum(weights)=1
+% The weights need not sum to one (e.g., ptypes with different agejshifter): the cumulative weights are normalized to one for the
+% qlimits, and digestweights are shares of the total.
 
 [sortvalues,sortindex]=sort(values);
 sortweights=weights(sortindex);
 
 cumsortweights=cumsum(sortweights);
+totalweight=cumsortweights(end);
+cumsortweights=cumsortweights./totalweight;
 
 % I hard-code the k1 function (see Dunning & Ertl (2019))
 kfn=@(q,delta) (delta/(2*pi))*asin(2*q-1);
@@ -80,11 +84,14 @@ end
 nclose=length(closes);
 C=zeros(nclose,1);
 qlimitvec=zeros(nclose,1);
+digestweights=zeros(nclose,1);
 ibegin=1;
 nqbelow_prev=0;
 for count=1:nclose
     ii=closes(count);
-    C(count,1)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii));
+    mass=sum(sortweights(ibegin:ii));
+    C(count,1)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/mass;
+    digestweights(count,1)=mass/totalweight; % the actual mass of the centroid
     qlimitvec(count,1)=qlimitseq(nqbelow_prev+1);
     ibegin=ii+1;
     nqbelow_prev=nqbelow_closes(count);
@@ -99,7 +106,9 @@ for ii=p+1:ncw-1
         % Nothing
     else
         % Passed qlimit, so store sigma, then create a new qlimit and reset sigma
-        C(count,1)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii));
+        mass=sum(sortweights(ibegin:ii));
+        C(count,1)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/mass;
+        digestweights(count,1)=mass/totalweight; % the actual mass of the centroid
         ibegin=ii+1;
         qlimitvec(count,1)=qlimit;
         count=count+1;
@@ -119,10 +128,11 @@ end
 ii=ncw; % Have to treat this separate as otherwise causes problems with q>qlimit never reached in the while statement
 % Seem to get nan at the very top of the merged digests (on very rare occasion) so implemented the following if-statement as likely source was dividing by zero
 if sum(sortweights(ibegin:ii))>0
-    C(count,1)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii));
+    mass=sum(sortweights(ibegin:ii));
+    C(count,1)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/mass;
+    digestweights(count,1)=mass/totalweight; % the actual mass of the centroid
     qlimitvec(count,1)=qlimit;
 end
 
-digestweights=[qlimitvec(2:end);1]-qlimitvec;
 
 end
