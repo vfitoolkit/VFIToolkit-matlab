@@ -81,6 +81,9 @@ end
 if ~isfield(simoptions,'jequaloneDist_usergrids')
     simoptions.jequaloneDist_usergrids=1;
 end
+if ~isfield(simoptions,'alreadygridvals')
+    simoptions.alreadygridvals=0; % =1 when called from inside an estimation command: z_grid and pi_z are then z_gridvals_J and pi_z_J, and simoptions holds e_gridvals_J and pi_e_J
+end
 if isfield(simoptions,'jequaloneDistAge')
     if simoptions.jequaloneDistAge~=1
         error('LogLikelihood_FHorz: simoptions.jequaloneDistAge other than 1 is not yet implemented')
@@ -321,6 +324,12 @@ if isa(jequaloneDist,'function_handle')
         jequaloneDist=jequaloneDistFn(simoptions.a_grid,simoptions.user_z_grid(:,:,1),n_a,n_z,jequaloneParamsCell{:});
     else
         jequaloneDist=jequaloneDistFn(simoptions.a_grid,z_gridvals_J,n_a,n_z,jequaloneParamsCell{:});
+    end
+elseif simoptions.alreadygridvals==1
+    % Called from inside an estimation command, which has already set up the shocks: pi_z is pi_z_J, and simoptions.pi_e_J is set
+    pi_z_J=pi_z;
+    if N_e>0 && ~isfield(simoptions,'pi_e_J')
+        error('LogLikelihood_FHorz: simoptions.alreadygridvals=1 needs simoptions.pi_e_J')
     end
 else
     [~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions,2,0);
