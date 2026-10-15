@@ -95,7 +95,12 @@ end
 if ~isfield(estimoptions,'ParametrizeParamsFn_OutputNames')
     estimoptions.ParametrizeParamsFn_OutputNames={};
 end
+if ~isfield(estimoptions,'warnARgrid')
+    estimoptions.warnARgrid=1; % =1 warn (once, at the estimate) when the iid s.d. of a measurement error with an AR(1) component is smaller than the spacing of its AR(1) grid
+end
+warnARgrid=estimoptions.warnARgrid;
 % Following are estimoptions used internally
+estimoptions.warnARgrid=0; % LogLikelihood_FHorz does not warn at every evaluation; the check is done once at the estimate (below)
 estimoptions.vectoroutput=0; % =0: the objective is minus the log-likelihood (for the optimizer); =1: the vector of individual log-likelihoods LogLi (for the scores)
 
 %% The grid interpolation layer
@@ -569,6 +574,18 @@ for vv=1:length(ObsNames)
                 tempdata=log(tempdata);
             end
             estsummary.measurementerror.(ObsNames{vv}).sigma=sigma;
+            if isfield(ME,'rho') && isnumeric(sigma) && isnumeric(ParamsEst.(ME.rho)) && isnumeric(ParamsEst.(ME.sigmaAR))
+                % the AR(1) component: the spacing of its grid, and the iid s.d. relative to it (should be well above one)
+                sd_u=ParamsEst.(ME.sigmaAR)/sqrt(1-ParamsEst.(ME.rho)^2);
+                ARgridspacing=2*sqrt(estimoptions.nARpoints-1)*sd_u/(estimoptions.nARpoints-1);
+                estsummary.measurementerror.(ObsNames{vv}).rho=ParamsEst.(ME.rho);
+                estsummary.measurementerror.(ObsNames{vv}).sigmaAR=ParamsEst.(ME.sigmaAR);
+                estsummary.measurementerror.(ObsNames{vv}).ARgridspacing=ARgridspacing;
+                estsummary.measurementerror.(ObsNames{vv}).sigmaovergridspacing=min(sigma(:))/ARgridspacing;
+                if warnARgrid==1 && min(sigma(:))<ARgridspacing
+                    warning('At the estimate, for %s the s.d. of the iid measurement error (%.4g) is smaller than the spacing of the AR(1) grid (%.4g): the measurement error density is a lumpy mixture of nARpoints bumps, and the estimates are likely biased. Re-estimate with a larger estimoptions.nARpoints.',ObsNames{vv},min(sigma(:)),ARgridspacing)
+                end
+            end
             estsummary.measurementerror.(ObsNames{vv}).noiseshare=sigma.^2/var(tempdata);
             if estimoptions.verbose==1
                 fprintf('Measurement error, %s: sigma=%s, share of the variance of the data=%s \n',ObsNames{vv},mat2str(sigma,4),mat2str(sigma.^2/var(tempdata),4))
@@ -578,7 +595,7 @@ for vv=1:length(ObsNames)
         end
     end
 end
-estsummary.notes.measurementerror='For normal and t measurement error: sigma at the estimate, and noiseshare=sigma^2/var(data) (of log data for type=''log''), the share of the variance of the data attributed to measurement error. A large share often signals misspecification rather than reporting error. The measurement error s.d. should also be large relative to the grid spacing of the model values.';
+estsummary.notes.measurementerror='For normal and t measurement error: sigma at the estimate, and noiseshare=sigma^2/var(data) (of log data for type=''log''), the share of the variance of the data attributed to measurement error. A large share often signals misspecification rather than reporting error. The measurement error s.d. should also be large relative to the grid spacing of the model values. With an AR(1) component: rho, sigmaAR, ARgridspacing=2*sqrt(nARpoints-1)*sd_u/(nARpoints-1), and sigmaovergridspacing (the iid s.d. over ARgridspacing), which should be well above one, else the density is lumpy and the estimates biased (increase estimoptions.nARpoints).';
 
 %% Check of the grid: the log-likelihood at the estimate with other values of ngridinterp
 if ~isempty(estimoptions.refinecheck_ngridinterp)

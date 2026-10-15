@@ -55,8 +55,14 @@ function [LogL,LogLi,LogLij,PopDist]=LogLikelihood_FHorz(Data,MeasurementError,j
 %                            but the likelihood is conditional on the first-age observations (the log normaliser of the first
 %                            age is left out of LogLi)
 %         .nindividualsbatch: number of individuals filtered at once (default: all); smaller uses less GPU memory
-%         .nARpoints: number of points in the discretization of each AR(1) measurement error component (default 7, must be odd);
-%                     the latent state space is multiplied by nARpoints for each variable with AR(1) measurement error
+%         .nARpoints: number of points in the discretization of each AR(1) measurement error component (must be odd). REQUIRED
+%                     when any variable has AR(1) measurement error (there is no default: the right number depends on the model).
+%                     The latent state space is multiplied by nARpoints for each variable with AR(1) measurement error. The s.d.
+%                     of the iid component should be large relative to the spacing of the AR(1) grid,
+%                     2*sqrt(nARpoints-1)*sd_u/(nARpoints-1) with sd_u=sigmaAR/sqrt(1-rho^2); otherwise the measurement error
+%                     density is a lumpy mixture of nARpoints bumps and the estimates are biased (a warning says so).
+%         .warnARgrid: =1 (default) warn when the iid s.d. is smaller than the AR(1) grid spacing; =0 do not (the estimation
+%                      commands set this, and check once at the estimate instead of at every evaluation)
 %
 % Outputs
 %   LogL: the log-likelihood, sum(LogLi)
@@ -122,11 +128,13 @@ end
 if ~isfield(estimoptions,'nindividualsbatch')
     estimoptions.nindividualsbatch=Inf;
 end
-if ~isfield(estimoptions,'nARpoints')
-    estimoptions.nARpoints=7;
+if isfield(estimoptions,'nARpoints')
+    if mod(estimoptions.nARpoints,2)~=1
+        error('LogLikelihood_FHorz: estimoptions.nARpoints must be an odd number')
+    end
 end
-if mod(estimoptions.nARpoints,2)~=1
-    error('LogLikelihood_FHorz: estimoptions.nARpoints must be an odd number')
+if ~isfield(estimoptions,'warnARgrid')
+    estimoptions.warnARgrid=1;
 end
 exacttolerance=10^(-9); % 'exact' and 'misclassified': observed and model values are treated as equal when they differ by no more than this (relative to max(1,|observed|))
 
@@ -313,7 +321,14 @@ for vv=1:nObs
     end
 end
 nAR=length(ARnames);
-N_u=estimoptions.nARpoints^nAR;
+if nAR>0 && ~isfield(estimoptions,'nARpoints')
+    error('LogLikelihood_FHorz: MeasurementError has an AR(1) component, so you must set estimoptions.nARpoints (the number of points in its discretization, odd; there is no default, as the iid s.d. should be large relative to the spacing of the AR(1) grid)')
+end
+if nAR==0
+    N_u=1;
+else
+    N_u=estimoptions.nARpoints^nAR;
+end
 pi_u=1; % transition matrix of the joint AR(1) components
 statdist_u=1; % their stationary distribution (the distribution at an individual's first age)
 for kk=1:nAR
@@ -328,6 +343,11 @@ for kk=1:nAR
     statdist_u=kron(statdist_ugrid,statdist_u);
     % the value of this component at each joint index u
     MEvals.(ARnames{kk}).uvals=gpuArray(reshape(repmat(repelem(ugrid,estimoptions.nARpoints^(kk-1),1),estimoptions.nARpoints^(nAR-kk),1),[1,N_u]));
+    % is the iid component wide enough relative to the AR(1) grid? (otherwise the density is a lumpy mixture of nARpoints bumps)
+    ARgridspacing=ugrid(2)-ugrid(1);
+    if estimoptions.warnARgrid==1 && min(MEvals.(ARnames{kk}).sigma)<ARgridspacing
+        warning('LogLikelihood_FHorz: for %s the s.d. of the iid measurement error (%.4g) is smaller than the spacing of the AR(1) grid (%.4g); the measurement error density is then a lumpy mixture of nARpoints bumps and estimates will be biased: increase estimoptions.nARpoints',ARnames{kk},min(MEvals.(ARnames{kk}).sigma),ARgridspacing)
+    end
 end
 pi_u=gpuArray(pi_u);
 statdist_u=gpuArray(statdist_u);
