@@ -303,7 +303,7 @@ if ~ischar(fitfun) && ~isa(fitfun,'function_handle') % RDK: Added function_handl
 end
 if isa(fitfun,'function_handle') % RDK: Added fitfunstr
     inputNameFun = @(x)(inputname(1));
-    fitfunstr=inputNameFun(fitfun)
+    fitfunstr=inputNameFun(fitfun);
 end
 
 if nargin < 2 
