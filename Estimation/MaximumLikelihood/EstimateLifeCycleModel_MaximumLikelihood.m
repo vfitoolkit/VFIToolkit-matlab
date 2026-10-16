@@ -22,9 +22,9 @@ function [EstimParams, EstimParamsConfInts, estsummary]=EstimateLifeCycleModel_M
 %   .confidenceintervals: 68, 80, 85, 90 (default), 95, 98 or 99
 %   .eedefault: 'auto' (default), 1, 2, 3 or 4: the finite-difference step is sqrt(2.2)*10^(-8)*[1,10^2,10^4,10^6](eedefault)
 %               relative to the parameter (the scores are reported for all four steps in estsummary.doublechecks). 'auto' uses 3
-%               (about 1.5e-4) for each parameter whose up and down one-sided scores agree there, and 4 (about 1.5e-2) for the rest:
-%               the likelihood is a step function of the parameters, and a step inside its jumps gives too-small standard errors
-%               (see estsummary.stepchoice)
+%               (about 1.5e-4) for each parameter whose up and down one-sided scores agree there; for the rest, a step estimated
+%               from 3 and 4 (between them, two more evaluations each) or else 4 (about 1.5e-2): the likelihood is a step function
+%               of the parameters, and a step inside its jumps gives too-small standard errors (see estsummary.stepchoice)
 %   .constrainpositive, .constrain0to1, .constrainAtoB (+.constrainAtoBlimits), .constrainpositivemethod: as for method of moments
 %   .omitestimparam: as for method of moments (estimate only some entries of a vector-valued parameter)
 %   .skipestimation: =1 takes the values in Parameters as the estimate and just computes the standard errors etc.
@@ -409,11 +409,80 @@ for ee=1:length(epsilonmodvec)-1
         end
     end
 end
+% A parameter that fails at epsilon10000 gets an estimated step, hstar, in place of epsilon1000000 where that is smaller. Over the
+% individuals, the mean squared difference of the up and down one-sided scores is about D(h)^2=a*h^2+b/h: a*h^2 from the curvature
+% (S_up-S_down is about h times the second derivative) and b/h from the jumps (a jump inside the step, divided by the step, with a
+% chance proportional to the step). a and b solve this at epsilon10000 and epsilon1000000. (Not the smaller steps: the jumps are not
+% one process across scales, e.g. the many small jumps of the grid interpolation layer and the few large ones of the coarse grid, so
+% at a much smaller step D^2 is far below the b/h seen between epsilon10000 and epsilon1000000, and drags b down.) The jumps add about b/(4h) to the mean
+% squared centered score, so they inflate the OPG by 1 percent (the 0.1 above) at hstar=25*b/V, V the mean squared centered score
+% at epsilon1000000 less its jump part. hstar is used when it lies between the two steps, the jumps at epsilon10000 are not so sparse
+% that b is noise (the share of individuals whose up and down scores are both exactly zero is at most 0.5 above that at
+% epsilon1000000), and the scores at hstar (two more evaluations of the likelihood) have D^2 at most twice the fit; otherwise
+% epsilon1000000. eechosen=5 means hstar.
+hstar=NaN(nparams,1);
+hstarfit=NaN(nparams,5); % [a, b, V, D^2 predicted at hstar, D^2 measured at hstar]
+hstarfitsteps=false(nparams,length(epsilonmodvec)); % the steps the fit used
+hstarLogLi_up=NaN(N,nparams);
+hstarLogLi_down=NaN(N,nparams);
+epsilonparamup(:,length(epsilonmodvec)+1)=NaN;
+epsilonparamdown(:,length(epsilonmodvec)+1)=NaN;
 if strcmp(estimoptions.eedefault,'auto')
     eechosen=3+(~(onesideddisagreement(:,3)<=0.1)); % NaN (every score zero at epsilon10000) also gives 4
+    for pp=1:nparams
+        if eechosen(pp)==4 && violateconstraintbottom(pp)==0 && violateconstrainttop(pp)==0 && abs(epsilonparamup(pp,4)-modelestimparamsvec(pp))>abs(epsilonparamup(pp,3)-modelestimparamsvec(pp)) % (for a parameter of size 1e-4 to 1e-2 the two steps are the same)
+            hh=zeros(length(epsilonmodvec),1);
+            D2=zeros(length(epsilonmodvec),1);
+            zeroshare=zeros(length(epsilonmodvec),1);
+            for ee=1:length(epsilonmodvec)
+                hh(ee)=abs(epsilonparamup(pp,ee)-modelestimparamsvec(pp));
+                temp_up=(LogLi_upall(:,pp,ee)-LogLi0)/(epsilonparamup(pp,ee)-modelestimparamsvec(pp));
+                temp_down=(LogLi0-LogLi_downall(:,pp,ee))/(modelestimparamsvec(pp)-epsilonparamdown(pp,ee));
+                D2(ee)=mean((temp_up-temp_down).^2);
+                zeroshare(ee)=mean(temp_up==0 & temp_down==0);
+            end
+            % the fit uses epsilon10000 and epsilon1000000 (relative to each step's own D^2)
+            hstarfitsteps(pp,3:4)=(D2(3:4)'>0);
+            if sum(hstarfitsteps(pp,:))>=2
+                ab=([hh(hstarfitsteps(pp,:)).^2, 1./hh(hstarfitsteps(pp,:))]./D2(hstarfitsteps(pp,:)))\ones(sum(hstarfitsteps(pp,:)),1);
+            else
+                ab=[0;0]; % (no fit, so no hstar)
+            end
+            h3=hh(3);
+            h4=hh(4);
+            a=max(ab(1),0);
+            b=max(ab(2),0);
+            V=mean(Scoresall(:,pp,4).^2)-b/(4*h4);
+            hstarfit(pp,1:3)=[a,b,V];
+            if V>0 && 25*b/V>h3 && 25*b/V<h4 && zeroshare(3)-zeroshare(4)<=0.5
+                hsign=sign(epsilonparamup(pp,4)-modelestimparamsvec(pp));
+                epsilonparamvec=modelestimparamsvec;
+                epsilonparamvec(pp)=modelestimparamsvec(pp)+hsign*25*b/V;
+                hstarLogLi_up(:,pp)=gather(EstimateMLObjectiveFn_Jac(epsilonparamvec,estimoptionsJacobian,vfoptions,simoptions));
+                epsilonparamup(pp,length(epsilonmodvec)+1)=epsilonparamvec(pp);
+                epsilonparamvec(pp)=modelestimparamsvec(pp)-hsign*25*b/V;
+                hstarLogLi_down(:,pp)=gather(EstimateMLObjectiveFn_Jac(epsilonparamvec,estimoptionsJacobian,vfoptions,simoptions));
+                epsilonparamdown(pp,length(epsilonmodvec)+1)=epsilonparamvec(pp);
+                temp_up=(hstarLogLi_up(:,pp)-LogLi0)/(epsilonparamup(pp,length(epsilonmodvec)+1)-modelestimparamsvec(pp));
+                temp_down=(LogLi0-hstarLogLi_down(:,pp))/(modelestimparamsvec(pp)-epsilonparamdown(pp,length(epsilonmodvec)+1));
+                hstarfit(pp,4:5)=[a*(25*b/V)^2+b/(25*b/V), mean((temp_up-temp_down).^2)];
+                if hstarfit(pp,5)<=2*hstarfit(pp,4)
+                    hstar(pp)=25*b/V;
+                    eechosen(pp)=length(epsilonmodvec)+1;
+                    Scoresall(:,pp,length(epsilonmodvec)+1)=(hstarLogLi_up(:,pp)-hstarLogLi_down(:,pp))/(epsilonparamup(pp,length(epsilonmodvec)+1)-epsilonparamdown(pp,length(epsilonmodvec)+1));
+                    LogLi_upall(:,pp,length(epsilonmodvec)+1)=hstarLogLi_up(:,pp);
+                    LogLi_downall(:,pp,length(epsilonmodvec)+1)=hstarLogLi_down(:,pp);
+                end
+            end
+        end
+    end
 else
     eechosen=estimoptions.eedefault*ones(nparams,1);
 end
+estsummary.doublechecks.hstar.LogLi_up=hstarLogLi_up; % NaN for a parameter at which hstar was not tried
+estsummary.doublechecks.hstar.LogLi_down=hstarLogLi_down;
+estsummary.doublechecks.hstar.estimparamsvecup=epsilonparamup(:,length(epsilonmodvec)+1);
+estsummary.doublechecks.hstar.estimparamsvecdown=epsilonparamdown(:,length(epsilonmodvec)+1);
 Scores=zeros(N,nparams);
 LogLi_updefault=zeros(N,nparams);
 LogLi_downdefault=zeros(N,nparams);
@@ -433,10 +502,13 @@ end
 estsummary.stepchoice.eechosen=eechosen;
 estsummary.stepchoice.onesideddisagreement=onesideddisagreement;
 estsummary.stepchoice.stderr_OPG=stderr_OPG;
-estsummary.notes.stepchoice=['eechosen is the step each parameter''s scores and Hessian use (1-4, as eedefault: epsilon1, epsilon100, epsilon10000, epsilon1000000 in doublechecks). ' ...
+estsummary.stepchoice.hstar=hstar;
+estsummary.stepchoice.hstarfit=hstarfit;
+estsummary.stepchoice.hstarfitsteps=hstarfitsteps;
+estsummary.notes.stepchoice=['eechosen is the step each parameter''s scores and Hessian use (1-4, as eedefault: epsilon1, epsilon100, epsilon10000, epsilon1000000 in doublechecks; 5, the estimated step hstar, see below). ' ...
     'onesideddisagreement (nparams-by-4) is ||S_up-S_down||/||S_up+S_down|| over the individuals at each step (for a parameter at a constraint, its scores at this step vs the next): ' ...
     'near zero means the step is wide relative to the jumps of the likelihood (a step function of the parameters, as the policy is on a grid); near one means the scores are mostly jumps and the OPG standard errors are too small. ' ...
-    'eedefault=''auto'' uses 3 where this is at most 0.1 and 4 otherwise. stderr_OPG (nparams-by-4) are the OPG standard errors at each step. Only the value at epsilon10000 is a test for jumps: the one-sided differences also differ by about the step times the second derivative, so at epsilon1000000 a large disagreement can be curvature rather than jumps (e.g. a discount factor near one, where the step is a sizeable share of 1-beta). To judge the grid, compare the standard errors across grids (e.g. ngridinterp).'];
+    'eedefault=''auto'' uses 3 where this is at most 0.1; otherwise the estimated step hstar (the absolute step at which the jumps inflate the OPG by 1 percent, from fitting D(h)^2=a*h^2+b/h, the mean squared difference of the one-sided scores, at 3 and 4, hstarfitsteps: hstarfit is [a, b, V, D^2 predicted at hstar, D^2 measured there]) when it lies between steps 3 and 4 and its D^2 is at most twice the fit, and 4 otherwise (hstar NaN). stderr_OPG (nparams-by-4) are the OPG standard errors at each step. Only the value at epsilon10000 is a test for jumps: the one-sided differences also differ by about the step times the second derivative, so at epsilon1000000 a large disagreement can be curvature rather than jumps (e.g. a discount factor near one, where the step is a sizeable share of 1-beta). To judge the grid, compare the standard errors across grids (e.g. ngridinterp).'];
 
 %% The Hessian of the log-likelihood (at each parameter's step), by finite differences
 % Diagonal: (L(+h_j)-2L+L(-h_j))/h_j^2. Off-diagonal: (L(+h_j+h_k)-L(+h_j)-L(+h_k)+2L-L(-h_j)-L(-h_k)+L(-h_j-h_k))/(2*h_j*h_k).
