@@ -20,8 +20,11 @@ function [EstimParams, EstimParamsConfInts, estsummary]=EstimateLifeCycleModel_M
 %               product of the individual scores, BHHH), 'sandwich' (H^(-1)*OPG*H^(-1), robust to misspecification), or 'Hessian'
 %               (inverse of minus the Hessian of log L). All three are always reported in estsummary.
 %   .confidenceintervals: 68, 80, 85, 90 (default), 95, 98 or 99
-%   .eedefault: 1, 2, 3 (default) or 4: the finite-difference step is sqrt(2.2)*10^(-8)*[1,10^2,10^4,10^6](eedefault) relative to
-%               the parameter (the scores are reported for all four steps in estsummary.doublechecks)
+%   .eedefault: 'auto' (default), 1, 2, 3 or 4: the finite-difference step is sqrt(2.2)*10^(-8)*[1,10^2,10^4,10^6](eedefault)
+%               relative to the parameter (the scores are reported for all four steps in estsummary.doublechecks). 'auto' uses 3
+%               (about 1.5e-4) for each parameter whose up and down one-sided scores agree there, and 4 (about 1.5e-2) for the rest:
+%               the likelihood is a step function of the parameters, and a step inside its jumps gives too-small standard errors
+%               (see estsummary.stepchoice)
 %   .constrainpositive, .constrain0to1, .constrainAtoB (+.constrainAtoBlimits), .constrainpositivemethod: as for method of moments
 %   .omitestimparam: as for method of moments (estimate only some entries of a vector-valued parameter)
 %   .skipestimation: =1 takes the values in Parameters as the estimate and just computes the standard errors etc.
@@ -63,7 +66,7 @@ if ~isfield(estimoptions,'confidenceintervals')
     estimoptions.confidenceintervals=90;
 end
 if ~isfield(estimoptions,'eedefault')
-    estimoptions.eedefault=3;
+    estimoptions.eedefault='auto';
 end
 if ~isfield(estimoptions,'toleranceparams')
     estimoptions.toleranceparams=10^(-4);
@@ -291,7 +294,6 @@ estimoptionsJacobian.verbose=0;
 
 epsilonraw=sqrt(2.2)*10^(-8); % sqrt of double precision
 epsilonmodvec=[1,10^2,10^4,10^6];
-eedefault=estimoptions.eedefault;
 epsilonalt=[10^(-2),10^(-2),10^(-1),10^(-1)]; % for parameters of size 10^(-2) to 10^(-4)
 nparams=length(estimparamsvec);
 
@@ -341,6 +343,10 @@ end
 
 LogLi0=gather(EstimateMLObjectiveFn_Jac(modelestimparamsvec,estimoptionsJacobian,vfoptions,simoptions)); % N-by-1, at the estimate
 N=length(LogLi0);
+onesideddisagreement=zeros(nparams,length(epsilonmodvec));
+Scoresall=zeros(N,nparams,length(epsilonmodvec));
+LogLi_upall=zeros(N,nparams,length(epsilonmodvec));
+LogLi_downall=zeros(N,nparams,length(epsilonmodvec));
 for ee=1:length(epsilonmodvec)
     LogLi_up=zeros(N,nparams);
     LogLi_down=zeros(N,nparams);
@@ -378,23 +384,68 @@ for ee=1:length(epsilonmodvec)
     estsummary.doublechecks.(tempname).estimparamsvecdown=epsilonparamdown(:,ee);
     estsummary.doublechecks.(tempname).violateconstraintbottom=violateconstraintbottom;
     estsummary.doublechecks.(tempname).violateconstrainttop=violateconstrainttop;
-    if ee==eedefault
-        Scores=S;
-        LogLi_updefault=LogLi_up;
-        LogLi_downdefault=LogLi_down;
-    end
+    % One-sided disagreement of each parameter's scores, ||S_up-S_down||/||S_up+S_down|| over the individuals (NaN when one-sided)
+    onesideddisagreement(:,ee)=sqrt(sum((S_up-S_down).^2,1)./sum((S_up+S_down).^2,1))';
+    onesideddisagreement(violateconstraintbottom==1 | violateconstrainttop==1,ee)=NaN;
+    Scoresall(:,:,ee)=S;
+    LogLi_upall(:,:,ee)=LogLi_up;
+    LogLi_downall(:,:,ee)=LogLi_down;
 end
 estsummary.doublechecks.LogLi=LogLi0;
 estsummary.doublechecks.note='Double-checks are the scores (by finite differences) for four sizes of the step epsilon, with the parameter vectors at which the individual log-likelihoods were evaluated.';
 
-%% The Hessian of the log-likelihood (at the default step), by finite differences
+%% Which step each parameter uses
+% The likelihood is a step function of the parameters (the policy is on a grid). A step that is small relative to the jumps gives
+% scores that are zero for most individuals and a jump divided by the step for a few, so the OPG is inflated (roughly like 1/step)
+% and the standard errors are too small (or Inf when no individual has a jump inside the step). Where the step is wide enough the up
+% and down one-sided scores agree, while inside the jumps they do not (the jumps either side are different events). So
+% eedefault='auto' uses epsilon10000 (eedefault=3) for each parameter whose one-sided disagreement there is at most 0.1, and
+% epsilon1000000 (eedefault=4) otherwise. (With independent jumps either side, a disagreement r inflates the OPG by 1/(1-r^2), so
+% 0.1 is about 1 percent.) A parameter at a constraint (one-sided differences) compares its scores at this step and the next instead.
+for ee=1:length(epsilonmodvec)-1
+    for pp=1:nparams
+        if violateconstraintbottom(pp)==1 || violateconstrainttop(pp)==1
+            onesideddisagreement(pp,ee)=sqrt(sum((Scoresall(:,pp,ee)-Scoresall(:,pp,ee+1)).^2)/sum((Scoresall(:,pp,ee)+Scoresall(:,pp,ee+1)).^2));
+        end
+    end
+end
+if strcmp(estimoptions.eedefault,'auto')
+    eechosen=3+(~(onesideddisagreement(:,3)<=0.1)); % NaN (every score zero at epsilon10000) also gives 4
+else
+    eechosen=estimoptions.eedefault*ones(nparams,1);
+end
+Scores=zeros(N,nparams);
+LogLi_updefault=zeros(N,nparams);
+LogLi_downdefault=zeros(N,nparams);
+paramup=zeros(nparams,1);
+paramdown=zeros(nparams,1);
+for pp=1:nparams
+    Scores(:,pp)=Scoresall(:,pp,eechosen(pp));
+    LogLi_updefault(:,pp)=LogLi_upall(:,pp,eechosen(pp));
+    LogLi_downdefault(:,pp)=LogLi_downall(:,pp,eechosen(pp));
+    paramup(pp)=epsilonparamup(pp,eechosen(pp));
+    paramdown(pp)=epsilonparamdown(pp,eechosen(pp));
+end
+stderr_OPG=zeros(nparams,length(epsilonmodvec));
+for ee=1:length(epsilonmodvec)
+    stderr_OPG(:,ee)=sqrt(diag(estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_OPG));
+end
+estsummary.stepchoice.eechosen=eechosen;
+estsummary.stepchoice.onesideddisagreement=onesideddisagreement;
+estsummary.stepchoice.stderr_OPG=stderr_OPG;
+estsummary.notes.stepchoice=['eechosen is the step each parameter''s scores and Hessian use (1-4, as eedefault: epsilon1, epsilon100, epsilon10000, epsilon1000000 in doublechecks). ' ...
+    'onesideddisagreement (nparams-by-4) is ||S_up-S_down||/||S_up+S_down|| over the individuals at each step (for a parameter at a constraint, its scores at this step vs the next): ' ...
+    'near zero means the step is wide relative to the jumps of the likelihood (a step function of the parameters, as the policy is on a grid); near one means the scores are mostly jumps and the OPG standard errors are too small. ' ...
+    'eedefault=''auto'' uses 3 where this is at most 0.1 and 4 otherwise. stderr_OPG (nparams-by-4) are the OPG standard errors at each step. Only the value at epsilon10000 is a test for jumps: the one-sided differences also differ by about the step times the second derivative, so at epsilon1000000 a large disagreement can be curvature rather than jumps (e.g. a discount factor near one, where the step is a sizeable share of 1-beta). To judge the grid, compare the standard errors across grids (e.g. ngridinterp).'];
+
+%% The Hessian of the log-likelihood (at each parameter's step), by finite differences
 % Diagonal: (L(+h_j)-2L+L(-h_j))/h_j^2. Off-diagonal: (L(+h_j+h_k)-L(+h_j)-L(+h_k)+2L-L(-h_j)-L(-h_k)+L(-h_j-h_k))/(2*h_j*h_k).
 % Needs both sides of every parameter, so if a step would leave a constraint the Hessian (and the sandwich) is NaN, with a warning.
 LogL0=sum(LogLi0);
 LogL_up=sum(LogLi_updefault,1)';
 LogL_down=sum(LogLi_downdefault,1)';
-hup=epsilonparamup(:,eedefault)-modelestimparamsvec;
-hdown=modelestimparamsvec-epsilonparamdown(:,eedefault);
+hup=paramup-modelestimparamsvec;
+hdown=modelestimparamsvec-paramdown;
 LogL_upup=NaN(nparams,nparams);
 LogL_downdown=NaN(nparams,nparams);
 if any(violateconstraintbottom) || any(violateconstrainttop)
@@ -406,12 +457,12 @@ else
         Hessian(jj,jj)=(LogL_up(jj)-2*LogL0+LogL_down(jj))/(hup(jj)*hdown(jj));
         for kk=jj+1:nparams
             epsilonparamvec=modelestimparamsvec;
-            epsilonparamvec(jj)=epsilonparamup(jj,eedefault);
-            epsilonparamvec(kk)=epsilonparamup(kk,eedefault);
+            epsilonparamvec(jj)=paramup(jj);
+            epsilonparamvec(kk)=paramup(kk);
             LogL_upup(jj,kk)=sum(gather(EstimateMLObjectiveFn_Jac(epsilonparamvec,estimoptionsJacobian,vfoptions,simoptions)));
             epsilonparamvec=modelestimparamsvec;
-            epsilonparamvec(jj)=epsilonparamdown(jj,eedefault);
-            epsilonparamvec(kk)=epsilonparamdown(kk,eedefault);
+            epsilonparamvec(jj)=paramdown(jj);
+            epsilonparamvec(kk)=paramdown(kk);
             LogL_downdown(jj,kk)=sum(gather(EstimateMLObjectiveFn_Jac(epsilonparamvec,estimoptionsJacobian,vfoptions,simoptions)));
             Hessian(jj,kk)=(LogL_upup(jj,kk)-LogL_up(jj)-LogL_up(kk)+2*LogL0-LogL_down(jj)-LogL_down(kk)+LogL_downdown(jj,kk))/(2*hup(jj)*hup(kk));
             Hessian(kk,jj)=Hessian(jj,kk);

@@ -53,9 +53,10 @@ if ~isfield(estimoptions,'confidenceintervals')
     estimoptions.confidenceintervals=90; % the default is to report 90-percent confidence intervals
 end
 if ~isfield(estimoptions,'eedefault')
-    estimoptions.eedefault=3; % 1,2,3 or 4: Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
+    estimoptions.eedefault='auto'; % 'auto', 1,2,3 or 4: the epsilon value is epsilonraw*epsilonmodvec(eedefault)
     % Controls how big is the epsilon used to calculate derivatives as finite difference
     % Roughly, 1 means e-08, 2 means e-06, 3 means e-04, 4 means e-02,
+    % 'auto' uses 3 for each parameter whose up and down one-sided derivatives agree there, and 4 for the rest (see estsummary.stepchoice)
 end
 if ~isfield(estimoptions,'toleranceparams')
     estimoptions.toleranceparams=10^(-4); % tolerance accuracy of the calibrated parameters
@@ -686,8 +687,6 @@ if estimoptions.bootstrapStdErrors==0
     % Decided to actually do four different values of epsilon, then report J
     % for all so user can see how they look (are the derivatives sensitive to epsilon)
     epsilonmodvec=[1,10^2,10^4,10^6];
-    % Default value of epsilon
-    eedefault=estimoptions.eedefault; % Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
 
     % For parameters of size 10^(-2) or less, use alternative epsilon values
     epsilonalt=[10^(-2),10^(-2),10^(-1),10^(-1)]; % Note: this must be same length as epsilonmodvec (default follows eedefault)
@@ -747,6 +746,8 @@ if estimoptions.bootstrapStdErrors==0
 
 
     %% Can now calculate derivatives to the epsilon change in parameters as the finite-difference
+    onesideddisagreement=zeros(length(estimparamsvec),length(epsilonmodvec));
+    Jall=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec),length(epsilonmodvec));
     for ee=1:length(epsilonmodvec)
         % ObjValue is used to compute f(x+h), f(x), and f(x-h), and then then can be used to evaluate the finite-differences
         ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
@@ -811,15 +812,54 @@ if estimoptions.bootstrapStdErrors==0
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).estimparamsvecdown=epsilonparamdown(:,ee);
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).violateconstraintbottom=violateconstraintbottom;
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).violateconstrainttop=violateconstrainttop;
-        if ee==eedefault
-            J=J_full; % This is the one used to report Sigma (parameter std deviations) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
+        % One-sided disagreement of each parameter's Jacobian column in the W norm, ||J_up-J_down||_W/||J_up+J_down||_W (NaN when one-sided)
+        for pp=1:length(estimparamsvec)
+            onesideddisagreement(pp,ee)=gather(sqrt(((J_up(:,pp)-J_down(:,pp))'*WeightingMatrix*(J_up(:,pp)-J_down(:,pp)))/((J_up(:,pp)+J_down(:,pp))'*WeightingMatrix*(J_up(:,pp)+J_down(:,pp)))));
+            if violateconstraintbottom(pp)==1 || violateconstrainttop(pp)==1
+                onesideddisagreement(pp,ee)=NaN;
+            end
         end
+        Jall(:,:,ee)=gather(J_full);
     end
 
-    % For later
-    epsilon=epsilonmodvec(eedefault)*epsilonraw; % sqrt(2.2)*10^(-6)
-    % What I have here as default uses epsilon of the order 10^(-6)
-    % Grey Gordon's numerical derivative code used 10^(-6)
+    %% Which step each parameter uses
+    % The model moments are step functions of the parameters (the policy is on a grid). A step that is small relative to the jumps gives
+    % derivatives that are mostly jumps divided by the step. Where the step is wide enough the up and down one-sided derivatives agree,
+    % while inside the jumps they do not (the jumps either side are different events). So eedefault='auto' uses epsilon10000
+    % (eedefault=3) for each parameter whose one-sided disagreement there is at most 0.1 (the noise in that Jacobian column, relative to
+    % it, is about this), and epsilon1000000 (eedefault=4) otherwise. A parameter at a constraint (one-sided differences) compares its
+    % Jacobian column at this step and the next instead. (The same rule as the maximum likelihood commands, on J in place of the scores.)
+    for ee=1:length(epsilonmodvec)-1
+        for pp=1:length(estimparamsvec)
+            if violateconstraintbottom(pp)==1 || violateconstrainttop(pp)==1
+                onesideddisagreement(pp,ee)=gather(sqrt(((Jall(:,pp,ee)-Jall(:,pp,ee+1))'*WeightingMatrix*(Jall(:,pp,ee)-Jall(:,pp,ee+1)))/((Jall(:,pp,ee)+Jall(:,pp,ee+1))'*WeightingMatrix*(Jall(:,pp,ee)+Jall(:,pp,ee+1)))));
+            end
+        end
+    end
+    if strcmp(estimoptions.eedefault,'auto')
+        eechosen=3+(~(onesideddisagreement(:,3)<=0.1)); % NaN (a zero column at epsilon10000) also gives 4
+    else
+        eechosen=estimoptions.eedefault*ones(length(estimparamsvec),1);
+    end
+    J=zeros(size(Jall,1),length(estimparamsvec));
+    for pp=1:length(estimparamsvec)
+        J(:,pp)=Jall(:,pp,eechosen(pp)); % This is the one used to report Sigma (parameter std deviations)
+    end
+    stderrbyepsilon=zeros(length(estimparamsvec),length(epsilonmodvec));
+    for ee=1:length(epsilonmodvec)
+        stderrbyepsilon(:,ee)=sqrt(diag(estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma));
+    end
+    estsummary.stepchoice.eechosen=eechosen;
+    estsummary.stepchoice.onesideddisagreement=onesideddisagreement;
+    estsummary.stepchoice.stderr=stderrbyepsilon;
+    estsummary.notes.stepchoice=['eechosen is the step each parameter''s Jacobian column uses (1-4, as eedefault: epsilon1, epsilon100, epsilon10000, epsilon1000000 in doublechecks). ' ...
+        'onesideddisagreement (nparams-by-4) is ||J_up-J_down||_W/||J_up+J_down||_W at each step (for a parameter at a constraint, its column at this step vs the next): ' ...
+        'near zero means the step is wide relative to the jumps of the model moments (step functions of the parameters, as the policy is on a grid); near one means the derivatives are mostly jumps. ' ...
+        'eedefault=''auto'' uses 3 where this is at most 0.1 and 4 otherwise. stderr (nparams-by-4) are the standard errors at each step. Only the value at epsilon10000 is a test for jumps: the one-sided differences also differ by about the step times the second derivative, so at epsilon1000000 a large disagreement can be curvature rather than jumps (e.g. a discount factor near one, where the step is a sizeable share of 1-beta). To judge the grid, compare the standard errors across grids (e.g. ngridinterp).'];
+
+    % For later: the step for the derivatives with respect to the pre-calibrated parameters (the largest step any estimated parameter uses)
+    eecalib=max(eechosen);
+    epsilon=epsilonmodvec(eecalib)*epsilonraw;
 
     if estimoptions.efficientW==0
         estimparamscovarmatrix=((J'*WeightingMatrix*J)^(-1)) * J'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*J * ((J'*WeightingMatrix*J)^(-1));
@@ -900,7 +940,7 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
             elseif floor(log(abs(cval))/log(10))<-4 % so small (or zero) that epsilon is added/subtracted outright
                 calibstepup(pp)=cval+epsilon; calibstepdown(pp)=cval-epsilon;
             else
-                calibstepup(pp)=(1+epsilonalt(eedefault))*cval; calibstepdown(pp)=(1-epsilonalt(eedefault))*cval;
+                calibstepup(pp)=(1+epsilonalt(eecalib))*cval; calibstepdown(pp)=(1-epsilonalt(eecalib))*cval;
             end
             Parameters.(estimoptions.CalibParamsNames{pp})=calibstepup(pp);
             ObjValue_upwind(:,pp)=EstimateMoMObjectiveFn_Jac(modelestimparamsvec,Parameters,estimoptionsJacobian);
