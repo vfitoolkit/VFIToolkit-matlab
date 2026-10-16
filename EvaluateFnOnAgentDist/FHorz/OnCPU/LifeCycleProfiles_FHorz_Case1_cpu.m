@@ -238,9 +238,10 @@ for kk=1:length(simoptions.agegroupings)
         % Min value
         tempindex=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
         minvalue=SortedValues(tempindex);
-        % Max value
-        tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
-        maxvalue=SortedValues(tempindex);
+        % Max value: the smallest value whose mass strictly above it is <=tolerance*(total mass), accumulating the top tail from the top
+        % (CumSumSortedWeights>=1-tolerance is the same definition, but near one the rounding in the cumsum is as large as tolerance)
+        CumSumFromTop=cumsum(SortedWeights,'reverse');
+        maxvalue=SortedValues(numel(SortedValues)-sum(CumSumFromTop<=simoptions.tolerance*CumSumFromTop(1)));
         AgeConditionalStats(ii).QuantileCutoffs(:,kk)=[minvalue, QuantileCutoffs, maxvalue]';
         AgeConditionalStats(ii).QuantileMeans(:,kk)=QuantileMeans';
 

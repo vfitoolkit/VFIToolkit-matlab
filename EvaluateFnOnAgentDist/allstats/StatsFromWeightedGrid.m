@@ -234,6 +234,16 @@ else
         cutind=cutind(uniqueindex);
         CutValues=SortedValues(cutind);
 
+        if whichstats(5)==1 || whichstats(6)>=1
+            % Max: the search above gives the first index with CumSumSortedWeights>=1-tolerance, but near one the rounding in the cumsum is as large as
+            % tolerance (|1-CumSumSortedWeights(end)| is about 1e-13 at 1e7 points, and 1e-12 at 3e7), so it can land hundreds or thousands of points away.
+            % So accumulate the top tail from the top instead: the max is the smallest value whose mass strictly above it is <=tolerance*(total mass)
+            % [the same definition, as the mass above point i is total-CumSumSortedWeights(i)]
+            CumSumFromTop=cumsum(SortedWeights,'reverse'); % CumSumFromTop(i) is the mass of points i to end, so CumSumFromTop(i+1) is the mass strictly above point i
+            ntop=sum(CumSumFromTop<=tolerance*CumSumFromTop(1)); % the top ntop points have mass above them of at most tolerance, and the max is the point just below them
+            CutValues(3)=SortedValues(numel(SortedValues)-ntop);
+        end
+
         if needlorenzatp
             % Mass wholly below the cut, plus the part of the point that straddles it
             prevind=max(cutind-1,1);
@@ -278,7 +288,7 @@ else
     end
 
     if whichstats(5)==1 || whichstats(6)>=1 % note: anyway need min/max for quantile cutoffs
-        % Min value is the first with cumulative mass >=tolerance, max value is the first with cumulative mass >=1-tolerance
+        % Min value is the first with cumulative mass >=tolerance, max value is the first with mass strictly above it <=tolerance (computed from the top, above)
         AllStats.Maximum=CutValues(3);
         AllStats.Minimum=CutValues(2);
     end
