@@ -130,6 +130,11 @@ end
 if prod(n_z)==0
     z_gridvals_J=[];
     pi_z_J=[];
+    if KeepOriginalGrid==1
+        % No z, but the callers that asked for the user's own grids still copy them (e.g., into simoptions), so they exist, empty
+        options.user_z_grid=[];
+        options.user_pi_z=[];
+    end
 else
     if KeepOriginalGrid==1 && ~isfield(options,'ExogShockFn')
         % No ExogShockFn, so the user's own grids are just the inputs, keep them as given
