@@ -1474,6 +1474,15 @@ if nW>0
         eGc_val=cell(1,N_j);
         eGc_cnt=cell(1,N_j);
         eGc_ptr=cell(1,N_j);
+        % simoptions.verbose>=1: counts and seconds of the stages (the seconds wait for the gpu, so verbose is a little slower)
+        nW_pass1=0; % the (function, start age) enumerated (pass 1)
+        nW_push=0; % the (function, start age) whose moments are pushed
+        nW_blocks=0; % the blocks read in pass 1
+        nW_pass2=0; % the later passes (tdigest2)
+        nW_pass3=0; % the later passes after a missed bracket
+        nW_single=0; % the quantiles read from a window of one block (no later pass)
+        nW_miss=0; % the brackets that missed their quantile
+        tW_enum1=0; tW_sum1=0; tW_enum2=0; tW_sum2=0; tW_res=0; tW_push=0;
         for jj=1:N_j
             if jj>1 % the windows start at jj or later from now on
                 Gcache{jj-1}=[];
@@ -1571,6 +1580,8 @@ if nW>0
                 end
 
                 if pushonly==1
+                    tPush=tic;
+                    nW_push=nW_push+1;
                     %% The moments pushed forward: for each page, the mass f of the paths at each state, and S1, S2 the sums over
                     % those paths of mass times the partial sum, and times its square. Each age's value is taken less a shift (the
                     % same for every path of a page, so the variance is unchanged), which keeps S2 from cancelling: E[s^2]-E[s]^2
@@ -1727,6 +1738,10 @@ if nW>0
                             end
                         end
                     end
+                    if simoptions.verbose>=1
+                        wait(gpuDevice);
+                    end
+                    tW_push=tW_push+toc(tPush);
                     clear f S1 S2 xk U
                     continue
                 end
@@ -1751,10 +1766,11 @@ if nW>0
                     end
                 end
                 sm_order=(sm_ws(:,2)==1 | any(sm_ws(:,4:7)>=1,2)); % needs the order of the values (tails and digest)
-                sm_A0=zeros(nsm,1); % the mass
-                sm_c=nan(nsm,1); % the shift (the mean of the first block)
-                sm_A1=zeros(nsm,1); % sum of mass*(v-c)
-                sm_A2=zeros(nsm,1); % sum of mass*(v-c)^2
+                sm_A0=zeros(nsm,1,'gpuArray'); % the mass (on the gpu during pass 1, gathered after it)
+                sm_c=zeros(nsm,1,'gpuArray'); % the shift (the mean of the first block)
+                sm_cset=false(nsm,1);
+                sm_A1=zeros(nsm,1,'gpuArray'); % sum of mass*(v-c)
+                sm_A2=zeros(nsm,1,'gpuArray'); % sum of mass*(v-c)^2
                 sm_lowV=cell(nsm,1); % the lowest values (ascending), up to mass tolerance
                 sm_lowW=cell(nsm,1);
                 sm_highV=cell(nsm,1); % the highest values (descending), up to mass tolerance
@@ -1766,10 +1782,19 @@ if nW>0
                 sm_hi=cell(nsm,1);
                 sm_widen=cell(nsm,1);
                 sm_res=cell(nsm,1); % tdigest2: resolved
-                sm_mb=cell(nsm,1); % tdigest2: mass below the bracket
-                sm_sb=cell(nsm,1); % tdigest2: sum of mass*value below the bracket
-                sm_sliceV=cell(nsm,1); % tdigest2: the values inside the bracket
-                sm_sliceW=cell(nsm,1);
+                sm_E=cell(nsm,1); % tdigest2, later passes: the bin edges (the bracket ends), and for each quantile the first bin of its bracket and the first bin after it
+                sm_klo=cell(nsm,1);
+                sm_khi=cell(nsm,1);
+                sm_inbin=cell(nsm,1); % the bins inside some bracket
+                sm_bm=cell(nsm,1); % the mass below each bin edge
+                sm_bs=cell(nsm,1); % the sum of mass*value below each bin edge
+                sm_slV=cell(nsm,1); % the values in the bins inside some bracket, their masses and bins
+                sm_slW=cell(nsm,1);
+                sm_slB=cell(nsm,1);
+                sm_nread=zeros(nsm,1); % tdigest2: the blocks read in pass 1
+                sm_keepV=cell(nsm,1); % tdigest2: the values (sorted) and masses of the first block, kept while it is the only one
+                sm_keepW=cell(nsm,1);
+                keptrows=0; % the rows kept, over the summaries (at most simoptions.windowblocksize)
                 sm_cut=cell(nsm,1); % the quantiles
                 sm_LP=cell(nsm,1); % and the Lorenz curve (not normalised) at them
                 for s=1:nsm
@@ -1790,10 +1815,6 @@ if nW>0
                     sm_hi{s}=Inf(nt,1);
                     sm_widen{s}=ones(nt,1);
                     sm_res{s}=false(nt,1);
-                    sm_mb{s}=zeros(nt,1);
-                    sm_sb{s}=zeros(nt,1);
-                    sm_sliceV{s}=cell(nt,1);
-                    sm_sliceW{s}=cell(nt,1);
                     sm_cut{s}=nan(nt,1);
                     sm_LP{s}=nan(nt,1);
                 end
@@ -1801,6 +1822,8 @@ if nW>0
                 st0=find(any(m0>0,2));
                 pass=1;
                 while pass>0
+                    tPass=tic;
+                    tReadPass=0; % the time reading the blocks into the summaries, this pass
                     %% Enumerate the paths, depth first in blocks; an item is (depth kk: the age jj+kk-1, states, partial sums, masses, already read)
                     stkK=1;
                     stkR=1; % depth one is never read (windows are M>1)
@@ -1819,6 +1842,10 @@ if nW>0
                         stkS(end)=[];
                         stkM(end)=[];
                         % (a) Read: the windows of length kk take the partial sums of this item as their values
+                        if rd==0 && any(windowM==kk)
+                            nW_blocks=nW_blocks+(pass==1); % (the blocks of pass 1)
+                        end
+                        tRd=tic;
                         if rd==0
                             for s=1:nsm
                                 M=windowM(sm_lw(s));
@@ -1842,13 +1869,14 @@ if nW>0
                                     v=log(v);
                                 end
                                 if pass==1
-                                    bw=gather(sum(w));
-                                    if isnan(sm_c(s))
-                                        sm_c(s)=gather(sum(w.*v))/bw;
+                                    bw=sum(w);
+                                    if ~sm_cset(s)
+                                        sm_c(s)=sum(w.*v)/bw;
+                                        sm_cset(s)=true;
                                     end
                                     sm_A0(s)=sm_A0(s)+bw;
-                                    sm_A1(s)=sm_A1(s)+gather(sum(w.*(v-sm_c(s))));
-                                    sm_A2(s)=sm_A2(s)+gather(sum(w.*(v-sm_c(s)).^2));
+                                    sm_A1(s)=sm_A1(s)+sum(w.*(v-sm_c(s)));
+                                    sm_A2(s)=sm_A2(s)+sum(w.*(v-sm_c(s)).^2);
                                     if sm_order(s)
                                         [v,ord]=sort(v);
                                         w=w(ord);
@@ -1896,20 +1924,52 @@ if nW>0
                                             sm_C{s}=Cm;
                                             sm_W{s}=dwm*Wtot;
                                         end
+                                        % tdigest2: keep the first block (sorted) while it is the only one, so that a window of one
+                                        % block needs no second pass (its quantiles are read from it, exactly, as for the lists)
+                                        if strcmp(simoptions.windowmethod,'tdigest2') && ~isempty(sm_p{s})
+                                            sm_nread(s)=sm_nread(s)+1;
+                                            if sm_nread(s)==1 && keptrows+numel(v)<=windowblocksize
+                                                sm_keepV{s}=v;
+                                                sm_keepW{s}=w;
+                                                keptrows=keptrows+numel(v);
+                                            elseif ~isempty(sm_keepV{s})
+                                                keptrows=keptrows-numel(sm_keepV{s});
+                                                sm_keepV{s}=[];
+                                                sm_keepW{s}=[];
+                                            end
+                                        end
                                     end
                                 else
-                                    % tdigest2, later passes: for each quantile not yet found, the mass and sum below its bracket and the values inside it
-                                    for t=find(~sm_res{s})'
-                                        below=(v<sm_lo{s}(t));
-                                        sm_mb{s}(t)=sm_mb{s}(t)+gather(sum(w(below)));
-                                        sm_sb{s}(t)=sm_sb{s}(t)+gather(sum(w(below).*v(below)));
-                                        inb=(v>=sm_lo{s}(t) & v<=sm_hi{s}(t));
-                                        sm_sliceV{s}{t}=[sm_sliceV{s}{t}; v(inb)];
-                                        sm_sliceW{s}{t}=[sm_sliceW{s}{t}; w(inb)];
+                                    % tdigest2, later passes, for the quantiles not yet found (all at once): the mass and the sum of
+                                    % mass*value below each bracket end (each a gpu sum, a tree reduction), and the values in the bins
+                                    % inside some bracket, with their bin (bin k is [E(k-1),E(k)))
+                                    if all(sm_res{s})
+                                        continue
                                     end
+                                    nE=numel(sm_E{s});
+                                    wv=w.*v;
+                                    bmk=zeros(nE,1,'like',w);
+                                    bsk=zeros(nE,1,'like',w);
+                                    for k=1:nE
+                                        lt=(v<sm_E{s}(k));
+                                        bmk(k)=sum(w.*lt);
+                                        bsk(k)=sum(wv.*lt);
+                                    end
+                                    sm_bm{s}=sm_bm{s}+bmk;
+                                    sm_bs{s}=sm_bs{s}+bsk;
+                                    b=discretize(v,[-Inf;sm_E{s};Inf]);
+                                    inb=sm_inbin{s}(b);
+                                    sm_slV{s}=[sm_slV{s}; v(inb)];
+                                    sm_slW{s}=[sm_slW{s}; w(inb)];
+                                    sm_slB{s}=[sm_slB{s}; b(inb)];
+                                    clear wv lt b inb
                                 end
                             end
                         end
+                        if simoptions.verbose>=1
+                            wait(gpuDevice);
+                        end
+                        tReadPass=tReadPass+toc(tRd);
                         % (b) Extend to the next age (split first if the extension would be too big)
                         if kk<MstopL
                             ja=jj+kk-1; % the age of this item
@@ -2003,77 +2063,155 @@ if nW>0
                         end
                     end
 
-                    %% After a pass
+                    if simoptions.verbose>=1
+                        wait(gpuDevice);
+                    end
+                    tp=toc(tPass);
                     if pass==1
+                        tW_enum1=tW_enum1+tp-tReadPass;
+                        tW_sum1=tW_sum1+tReadPass;
+                        nW_pass1=nW_pass1+1;
+                    else
+                        tW_enum2=tW_enum2+tp-tReadPass;
+                        tW_sum2=tW_sum2+tReadPass;
+                        nW_pass2=nW_pass2+1;
+                        nW_pass3=nW_pass3+(pass>=3);
+                    end
+                    %% After a pass (on the gpu: only a few numbers per summary come back, for the control flow)
+                    tRes=tic;
+                    if pass==1
+                        sm_A0=gather(sm_A0);
+                        sm_c=gather(sm_c);
+                        sm_A1=gather(sm_A1);
+                        sm_A2=gather(sm_A2);
                         for s=1:nsm
                             if sm_order(s) && sm_A0(s)>0
                                 [Cm,dwm,~]=mergeDigest(sm_C{s},sm_W{s},delta); % the digest of all the blocks (masses are shares)
-                                sm_C{s}=gather(Cm);
-                                sm_W{s}=gather(dwm);
-                                sm_lowV{s}=gather(sm_lowV{s});
-                                sm_lowW{s}=gather(sm_lowW{s});
-                                sm_highV{s}=gather(sm_highV{s});
-                                sm_highW{s}=gather(sm_highW{s});
+                                sm_C{s}=Cm;
+                                sm_W{s}=dwm;
                             else
                                 sm_res{s}(:)=true; % nothing to find
                             end
                         end
                         if strcmp(simoptions.windowmethod,'tdigest1')
+                            if simoptions.verbose>=1
+                                wait(gpuDevice);
+                            end
+                            tW_res=tW_res+toc(tRes);
                             break
                         end
-                    else
-                        % tdigest2: find each quantile in its bracket, from the mass below the bracket and the values inside it
+                        % tdigest2: a window read in one block (kept) has its quantiles from that block, exactly (as for the lists)
                         for s=1:nsm
-                            W=sm_A0(s);
-                            for t=find(~sm_res{s})'
-                                p=sm_p{s}(t);
-                                mb=sm_mb{s}(t);
-                                sb=sm_sb{s}(t);
-                                [sv,ord]=sort(gather(sm_sliceV{s}{t}));
-                                sw=gather(sm_sliceW{s}{t});
-                                sw=sw(ord);
-                                failed=0;
-                                if mb/W>=p-tiedelta
-                                    failed=1; % the quantile is below the bracket
-                                else
-                                    cs=(mb+cumsum(sw))/W;
-                                    icut=find(cs>=p-tiedelta,1);
-                                    if isempty(icut)
-                                        if sm_hi{s}(t)==Inf && ~isempty(sv)
-                                            icut=numel(sv); % (as StatsFromWeightedGrid when p is above the total mass)
-                                        else
-                                            failed=1; % the quantile is above the bracket
-                                        end
-                                    end
-                                end
-                                if failed==1
-                                    sm_widen{s}(t)=4*sm_widen{s}(t);
-                                    sm_mb{s}(t)=0;
-                                    sm_sb{s}(t)=0;
-                                    sm_sliceV{s}{t}=[];
-                                    sm_sliceW{s}{t}=[];
-                                    continue
-                                end
-                                cutv=sv(icut);
-                                if icut>1
-                                    cumWprev=cs(icut-1);
-                                    cumWVprev=(sb+sum(sw(1:icut-1).*sv(1:icut-1)))/W;
-                                elseif mb>0
-                                    cumWprev=mb/W;
-                                    cumWVprev=sb/W;
-                                else
-                                    cumWprev=0; % no point below
-                                    cumWVprev=0;
-                                end
-                                sm_cut{s}(t)=cutv;
-                                sm_LP{s}(t)=cumWVprev+(p-cumWprev)*cutv; % the mass wholly below the cut, plus the part of the point that straddles it (as StatsFromWeightedGrid)
-                                sm_res{s}(t)=true;
-                                sm_sliceV{s}{t}=[];
-                                sm_sliceW{s}{t}=[];
+                            if sm_nread(s)~=1 || isempty(sm_keepV{s}) || all(sm_res{s})
+                                continue
                             end
+                            % as StatsFromWeightedGrid, for all the quantiles at once: the cumulative mass and mass*value of the
+                            % sorted values, the first index with cumulative mass at least p-tiedelta, and the Lorenz curve there
+                            W=sm_A0(s);
+                            sv=sm_keepV{s}; % (sorted in pass 1)
+                            sw=sm_keepW{s};
+                            cs=cumsum(sw)/W;
+                            csv=cumsum(sw.*sv)/W;
+                            tu=find(~sm_res{s});
+                            pt=sm_p{s}(tu);
+                            [pu,~,iu]=unique(pt-tiedelta);
+                            cnt=histcounts(cs,[-Inf; pu; Inf]); % cnt(k): the number with pu(k-1)<=cs<pu(k)
+                            icut=gather(min(cumsum(reshape(cnt(1:end-1),[],1))+1,numel(sv))); % (min: as StatsFromWeightedGrid when p is above the total mass)
+                            icut=icut(iu);
+                            ip=max(icut-1,1);
+                            hasprev=(icut>1);
+                            cutv=gather(sv(icut));
+                            csprev=hasprev.*gather(cs(ip));
+                            csvprev=hasprev.*gather(csv(ip));
+                            sm_cut{s}(tu)=cutv;
+                            sm_LP{s}(tu)=csvprev+(pt-csprev).*cutv; % the mass wholly below the cut, plus the part of the point that straddles it
+                            sm_res{s}(tu)=true;
+                            nW_single=nW_single+numel(tu);
+                            clear sv sw cs csv
+                            sm_keepV{s}=[];
+                            sm_keepW{s}=[];
+                        end
+                        keptrows=0;
+                        sm_keepV=cell(nsm,1);
+                        sm_keepW=cell(nsm,1);
+                    else
+                        % tdigest2: find each quantile in its bracket. The values in the bins inside some bracket, sorted once; as the
+                        % bins are intervals of values, the bracket of quantile t is the run of entries a(t) to bnd(t), and the
+                        % cumulative mass at entry i of it is (mb(t)+cw(i)-cw(a(t)-1))/W, with mb(t) the mass below the bracket
+                        for s=1:nsm
+                            if all(sm_res{s})
+                                continue
+                            end
+                            W=sm_A0(s);
+                            tu=find(~sm_res{s});
+                            pt=sm_p{s}(tu);
+                            klo=sm_klo{s}(tu);
+                            khi=sm_khi{s}(tu);
+                            nb=numel(sm_E{s})+1;
+                            nT=numel(tu);
+                            [sv,ord]=sort(sm_slV{s});
+                            sw=sm_slW{s}(ord);
+                            sbin=sm_slB{s}(ord);
+                            nsl=numel(sv);
+                            cw=cumsum(sw);
+                            cwv=cumsum(sw.*sv);
+                            cb0=[0; gather(cumsum(accumarray(sbin,1,[nb,1])))]; % cb0(k): the entries in bins below k (counts, exact)
+                            a=cb0(klo)+1; % the first entry of each bracket
+                            bnd=cb0(khi); % and the last
+                            % the mass and sum below each bracket (below its lower edge E(klo-1); nothing when it starts at -Inf)
+                            mb=zeros(nT,1);
+                            sb=zeros(nT,1);
+                            hasb=(klo>1);
+                            mb(hasb)=gather(sm_bm{s}(klo(hasb)-1));
+                            sb(hasb)=gather(sm_bs{s}(klo(hasb)-1));
+                            % the cumulative mass and mass*value of the slice before each bracket's first entry
+                            cwa=zeros(nT,1);
+                            cwva=zeros(nT,1);
+                            hasa=(a>1);
+                            if nsl>0
+                                cwa(hasa)=gather(cw(a(hasa)-1));
+                                cwva(hasa)=gather(cwv(a(hasa)-1));
+                            end
+                            % the first entry with cumulative mass at least p-tiedelta: cw(i)>=thr, from the number of cw below thr
+                            thr=(pt-tiedelta)*W-mb+cwa;
+                            if nsl>0
+                                [thru,~,iu]=unique(thr);
+                                cnt=histcounts(cw,[-Inf; thru; Inf]);
+                                nlt=gather(cumsum(reshape(cnt(1:end-1),[],1)));
+                                nlt=nlt(iu);
+                            else
+                                nlt=zeros(nT,1);
+                            end
+                            icut=max(a,nlt+1);
+                            totop=(khi>nb); % the bracket runs to the top
+                            failed=(mb/W>=pt-tiedelta) | (icut>bnd & ~(totop & bnd>=a)); % the quantile is below, or above, the bracket
+                            icut(~failed & icut>bnd)=bnd(~failed & icut>bnd); % (as StatsFromWeightedGrid when p is above the total mass)
+                            ok=find(~failed);
+                            if ~isempty(ok)
+                                ic=icut(ok);
+                                cutv=gather(sv(ic));
+                                inbr=(ic>a(ok)); % a previous entry inside the bracket
+                                ip=max(ic-1,1);
+                                cwp=gather(cw(ip));
+                                cwvp=gather(cwv(ip));
+                                cumWprev=(mb(ok)+inbr.*(cwp-cwa(ok)))/W; % (with no previous entry in the bracket: the mass below it)
+                                cumWVprev=(sb(ok)+inbr.*(cwvp-cwva(ok)))/W;
+                                sm_cut{s}(tu(ok))=cutv;
+                                sm_LP{s}(tu(ok))=cumWVprev+(pt(ok)-cumWprev).*cutv; % the mass wholly below the cut, plus the part of the point that straddles it
+                                sm_res{s}(tu(ok))=true;
+                            end
+                            if any(failed)
+                                sm_widen{s}(tu(failed))=4*sm_widen{s}(tu(failed));
+                                nW_miss=nW_miss+sum(failed);
+                            end
+                            clear sv sw sbin cw cwv
+                            sm_slV{s}=[];
+                            sm_slW{s}=[];
+                            sm_slB{s}=[];
                         end
                     end
-                    % tdigest2: the brackets of the quantiles not yet found, from the digest; another pass if there are any
+                    % tdigest2: the brackets of the quantiles not yet found, from the digest (all at once), and the bins they make;
+                    % another pass if there are any
                     anyleft=0;
                     for s=1:nsm
                         if all(sm_res{s})
@@ -2084,27 +2222,70 @@ if nW>0
                         dw=sm_W{s};
                         cumdw=cumsum(dw);
                         nC=numel(C);
-                        for t=find(~sm_res{s})'
-                            p=sm_p{s}(t);
-                            it=find(cumdw>=p-tiedelta,1);
-                            if isempty(it)
-                                it=nC;
-                            end
-                            dd=2*max(dw(max(1,it-2):min(nC,it+2)))*sm_widen{s}(t); % twice the largest nearby centroid mass (the digest's rank error is below one), widened after a miss
-                            ilo=find(cumdw>=p-dd,1);
-                            if p-dd<=0 || isempty(ilo) || ilo<=1
-                                sm_lo{s}(t)=-Inf;
+                        tu=find(~sm_res{s});
+                        pt=sm_p{s}(tu);
+                        nT=numel(tu);
+                        % it: the centroid holding rank p (the first with cumdw>=p-tiedelta; the number of cumdw below, plus one)
+                        [xu,~,iu]=unique(pt-tiedelta);
+                        cnt=histcounts(cumdw,[-Inf; xu; Inf]);
+                        it=gather(cumsum(reshape(cnt(1:end-1),[],1)))+1;
+                        it=min(it(iu),nC);
+                        % twice the largest centroid mass within two of it (the digest's rank error is below one), widened after a miss
+                        near=min(max(it+(-2:1:2),1),nC); % nT x 5
+                        dd=2*gather(max(reshape(dw(near(:)),nT,5),[],2)).*sm_widen{s}(tu);
+                        % the bracket ends: the centroid before the first with cumdw>=p-dd, and the one after the first with cumdw>=p+dd
+                        [xu,~,iu]=unique(pt-dd);
+                        cnt=histcounts(cumdw,[-Inf; xu; Inf]);
+                        ilo=gather(cumsum(reshape(cnt(1:end-1),[],1)))+1;
+                        ilo=ilo(iu); % (nC+1: none)
+                        [xu,~,iu]=unique(pt+dd);
+                        cnt=histcounts(cumdw,[-Inf; xu; Inf]);
+                        ihi=gather(cumsum(reshape(cnt(1:end-1),[],1)))+1;
+                        ihi=ihi(iu);
+                        lo=-Inf(nT,1);
+                        hi=Inf(nT,1);
+                        oklo=~(pt-dd<=0 | ilo>nC | ilo<=1);
+                        okhi=~(pt+dd>=1 | ihi>=nC);
+                        lo(oklo)=gather(C(ilo(oklo)-1));
+                        hi(okhi)=gather(C(ihi(okhi)+1));
+                        sm_lo{s}(tu)=lo;
+                        sm_hi{s}(tu)=hi;
+                        % the bins: edges at the bracket ends (a bracket is lo<=v<=hi, so its upper edge is the next double above hi);
+                        % bin k is [E(k-1),E(k)), and the bracket of quantile t is the bins klo to khi-1
+                        hiedge=hi+eps(hi);
+                        E=unique([lo; hiedge]);
+                        E=E(isfinite(E));
+                        nb=numel(E)+1;
+                        sm_E{s}=E;
+                        sm_klo{s}=zeros(numel(sm_p{s}),1);
+                        sm_khi{s}=zeros(numel(sm_p{s}),1);
+                        inbin=false(nb,1);
+                        for kt=1:nT
+                            if isfinite(lo(kt))
+                                klo=find(E==lo(kt))+1;
                             else
-                                sm_lo{s}(t)=C(ilo-1);
+                                klo=1;
                             end
-                            ihi=find(cumdw>=p+dd,1);
-                            if p+dd>=1 || isempty(ihi) || ihi>=nC
-                                sm_hi{s}(t)=Inf;
+                            if isfinite(hi(kt))
+                                khi=find(E==hiedge(kt))+1;
                             else
-                                sm_hi{s}(t)=C(ihi+1);
+                                khi=nb+1;
                             end
+                            sm_klo{s}(tu(kt))=klo;
+                            sm_khi{s}(tu(kt))=khi;
+                            inbin(klo:khi-1)=true;
                         end
+                        sm_inbin{s}=gpuArray(inbin);
+                        sm_bm{s}=zeros(nb-1,1,'gpuArray');
+                        sm_bs{s}=zeros(nb-1,1,'gpuArray');
+                        sm_slV{s}=[];
+                        sm_slW{s}=[];
+                        sm_slB{s}=[];
                     end
+                    if simoptions.verbose>=1
+                        wait(gpuDevice);
+                    end
+                    tW_res=tW_res+toc(tRes);
                     if anyleft==1
                         pass=pass+1;
                     else
@@ -2313,8 +2494,12 @@ if nW>0
                         AgeConditionalStats.(CondlRestnFnNames{pg-1}).(WNames{ff,lw,kind})=SS;
                     end
                 end
-                clear sm_lowV sm_lowW sm_highV sm_highW sm_C sm_W sm_sliceV sm_sliceW m0
+                clear sm_lowV sm_lowW sm_highV sm_highW sm_C sm_W sm_slV sm_slW sm_slB sm_keepV sm_keepW m0
             end
+        end
+        if simoptions.verbose>=1
+            fprintf('LifeCycleProfiles_FHorz_Case1 windows (%s): %i (function, start age) enumerated and %i pushed; %i blocks read; %i later passes (%i of them after a missed bracket), %i quantiles from a window of one block, %i brackets missed \n',simoptions.windowmethod,nW_pass1,nW_push,nW_blocks,nW_pass2,nW_pass3,nW_single,nW_miss);
+            fprintf('LifeCycleProfiles_FHorz_Case1 windows (%s), seconds: pass 1 enumeration %.2f and summaries %.2f; later passes enumeration %.2f and bins %.2f; digests merged, quantiles resolved and brackets %.2f; pushes %.2f \n',simoptions.windowmethod,tW_enum1,tW_sum1,tW_enum2,tW_sum2,tW_res,tW_push);
         end
     end
 end
