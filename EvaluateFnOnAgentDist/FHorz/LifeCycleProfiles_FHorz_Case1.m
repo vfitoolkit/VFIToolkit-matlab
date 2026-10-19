@@ -17,16 +17,18 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy
 % transition probabilities of z as simoptions.pi_z (the same shapes as the pi_z input of StationaryDist_FHorz_Case1; not
 % needed with simoptions.ExogShockFn); the e and semi-exogenous shocks are read from simoptions as usual. W_j depends on the
 % path of the states from j to j+M-1, which is enumerated, and simoptions.windowmethod says how its statistics are computed:
-%   'tdigest2' (default): the paths are enumerated in blocks of at most simoptions.windowblocksize (default 2*10^7) rows, each
+%   'list' (default): every path is kept (paths reaching the same state with the same partial sum are merged) and the
+%       statistics are those of the full list, all exact; the list grows with the number of distinct (state, partial sum)
+%       pairs, so a large M or many shocks can run out of memory. If it does, use 'tdigest2' (or 'tdigest1').
+%   'tdigest2': the paths are enumerated in blocks of at most simoptions.windowblocksize (default 2*10^7) rows, each
 %       folded into running summaries and dropped, so memory does not grow with the number of paths. Mean, Variance,
 %       StdDeviation, Minimum and Maximum are exact; a t-digest (delta simoptions.windowtdigestdelta, default 10000) brackets
 %       each quantile and a second enumeration finds it exactly, so Median, QuantileCutoffs, QuantileMeans, the percentiles and
-%       the top/bottom shares are exact too. Gini and LorenzCurve are from the t-digest (accurate, not exact).
-%   'tdigest1': as 'tdigest2' with one enumeration: the median, quantiles, quantile means, percentiles and shares are also
-%       from the t-digest (each quantile is within about one centroid's mass of its rank).
-%   'list': every path is kept (paths reaching the same state with the same partial sum are merged) and the statistics are
-%       those of the full list, all exact; the list grows with the number of distinct (state, partial sum) pairs, so a large
-%       M or many shocks can run out of memory.
+%       the top/bottom shares are exact too. Gini and LorenzCurve are from the t-digest (accurate, not exact). Slower than
+%       'list' (about 2-3 times) where 'list' fits in memory.
+%   'tdigest1': as 'tdigest2' with one enumeration (about as fast as 'list'): the median, quantiles, quantile means,
+%       percentiles and shares are also from the t-digest, so approximate (a quantile is the mean of the centroid holding its
+%       rank; close for a function that is smooth in the state, coarser when a few paths carry much of the mass).
 %   With 'tdigest2' and 'tdigest1', a (function, start age) whose windows ask only for the Mean, Variance and StdDeviation
 %   of the level (simoptions.whichstats) is not enumerated: its moments are pushed forward state by state (exact, fast). A conditional restriction
 % must hold at every age of the window (j to j+M-1): the restricted statistics of W_j are those of the agents who satisfy it
@@ -84,7 +86,7 @@ if ~exist('simoptions','var')
     simoptions.ntimeperiods=1; % the statistics of the sum/average over M consecutive periods, for each M in ntimeperiods (1 is the single period)
     simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
     simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos, or a scalar)
-    simoptions.windowmethod='tdigest2'; % how the statistics of the M>1 windows are computed: 'tdigest2', 'tdigest1' or 'list'
+    simoptions.windowmethod='list'; % how the statistics of the M>1 windows are computed: 'list', 'tdigest2' or 'tdigest1'
     simoptions.windowblocksize=2*10^7; % 'tdigest2'/'tdigest1': the most rows of paths held at once
     simoptions.windowtdigestdelta=10000; % 'tdigest2'/'tdigest1': the t-digest delta
     % When calling as a subcommand, the following is used internally
@@ -149,7 +151,7 @@ else
         simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos, or a scalar)
     end
     if ~isfield(simoptions,'windowmethod')
-        simoptions.windowmethod='tdigest2'; % how the statistics of the M>1 windows are computed: 'tdigest2', 'tdigest1' or 'list'
+        simoptions.windowmethod='list'; % how the statistics of the M>1 windows are computed: 'list', 'tdigest2' or 'tdigest1'
     end
     if ~isfield(simoptions,'windowblocksize')
         simoptions.windowblocksize=2*10^7; % 'tdigest2'/'tdigest1': the most rows of paths held at once
@@ -197,7 +199,7 @@ if ~(ischar(simoptions.ntimeperiodstype) || isstring(simoptions.ntimeperiodstype
     error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiodstype must be ''average'' or ''sum''')
 end
 if ~(ischar(simoptions.windowmethod) || isstring(simoptions.windowmethod)) || ~any(strcmp(simoptions.windowmethod,{'tdigest2','tdigest1','list'}))
-    error('LifeCycleProfiles_FHorz_Case1: simoptions.windowmethod must be ''tdigest2'', ''tdigest1'' or ''list''')
+    error('LifeCycleProfiles_FHorz_Case1: simoptions.windowmethod must be ''list'', ''tdigest2'' or ''tdigest1''')
 end
 if ~isscalar(simoptions.windowblocksize) || ~(simoptions.windowblocksize>=1)
     error('LifeCycleProfiles_FHorz_Case1: simoptions.windowblocksize must be a positive number (the most rows of paths held at once)')
@@ -1179,7 +1181,7 @@ if nW>0
     end
 
     if strcmp(simoptions.windowmethod,'list') || any(windowlists(:))
-        % simoptions.windowmethod 'list' (and always for the internal simoptions.windowlists): every path of each window is kept
+        % simoptions.windowmethod 'list' (the default, and always for the internal simoptions.windowlists): every path of each window is kept
         % (merged on equal state and partial sum) and the statistics are those of the full list of values (StatsFromWeightedGrid)
         % The lists in flight: function, start age, pages (with positive start mass), and the entries (state, partial sum, mass per page)
         Lff=zeros(1,0);
@@ -1438,7 +1440,7 @@ if nW>0
             end
         end
     else
-        % simoptions.windowmethod 'tdigest2' (the default) or 'tdigest1': for each (function, start age) the paths are enumerated
+        % simoptions.windowmethod 'tdigest2' or 'tdigest1': for each (function, start age) the paths are enumerated
         % depth first in blocks (a block is split before it is extended whenever its extension would have more than
         % simoptions.windowblocksize rows), and each block, at the end of each window, is folded into summaries of the window values
         % and then dropped, so that memory is one block (times the window length) whatever the number of paths. The summaries are:
