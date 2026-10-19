@@ -73,7 +73,7 @@ end
 if p>0
     % the number of qlimits strictly below the cumulative weight is Kp minus the number at or above it (counted on the negatives)
     nqbelow=Kp-(discretize(-cumsortweights(1:p),[-Inf;-flipud(qlimitseq(1:Kp));Inf])-1);
-    closes=find(nqbelow>[0;nqbelow(1:p-1)]); % the points that close a centroid
+    closes=find(diff([0;nqbelow(:)])>0); % the points that close a centroid (as columns: with p=1 a scalar indexed by 1:0 is 1x0, which a gpuArray vertcat refuses)
     nqbelow_closes=gather(nqbelow(closes));
     closes=gather(closes);
 else
@@ -82,19 +82,24 @@ else
 end
 
 nclose=length(closes);
-C=zeros(nclose,1);
-qlimitvec=zeros(nclose,1);
-digestweights=zeros(nclose,1);
-ibegin=1;
-nqbelow_prev=0;
-for count=1:nclose
-    ii=closes(count);
-    mass=sum(sortweights(ibegin:ii));
-    C(count,1)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/mass;
-    digestweights(count,1)=mass/totalweight; % the actual mass of the centroid
-    qlimitvec(count,1)=qlimitseq(nqbelow_prev+1);
-    ibegin=ii+1;
-    nqbelow_prev=nqbelow_closes(count);
+if nclose>0
+    % The centroid of each input up to the last close (a new one starts after every close), and the sums over each centroid, all at once
+    lastclose=closes(nclose);
+    centroidid=zeros(lastclose,1,'like',sortweights);
+    centroidid([1;reshape(closes(1:nclose-1),[],1)+1])=1;
+    centroidid=cumsum(centroidid);
+    mass=accumarray(centroidid,sortweights(1:lastclose),[nclose,1]);
+    C=accumarray(centroidid,sortweights(1:lastclose).*sortvalues(1:lastclose),[nclose,1])./mass;
+    digestweights=mass/totalweight; % the actual mass of each centroid
+    qlimitvec=qlimitseq([0;reshape(nqbelow_closes(1:nclose-1),[],1)]+1); % the qlimit each centroid closed at: the first at or above the end of the one before
+    ibegin=lastclose+1;
+    nqbelow_prev=nqbelow_closes(nclose);
+else
+    C=zeros(0,1);
+    qlimitvec=zeros(0,1);
+    digestweights=zeros(0,1);
+    ibegin=1;
+    nqbelow_prev=0;
 end
 count=nclose+1;
 qlimit=qlimitseq(nqbelow_prev+1);
