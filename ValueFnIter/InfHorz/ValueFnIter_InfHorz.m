@@ -217,8 +217,6 @@ if N_e>0
         error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and vfoptions.howardsgreedy=2 or 3 (HowardMix)')
     elseif vfoptions.gridinterplayer==1 && ~isscalar(n_a)
         error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and more than one endogenous state')
-    elseif vfoptions.gridinterplayer==1 && isfield(vfoptions,'postGIrepeat') && vfoptions.postGIrepeat>0
-        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and vfoptions.postGIrepeat>0')
     elseif vfoptions.divideandconquer==2
         error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with divide-and-conquer (vfoptions.divideandconquer=2)')
     elseif vfoptions.separableReturnFn==1
