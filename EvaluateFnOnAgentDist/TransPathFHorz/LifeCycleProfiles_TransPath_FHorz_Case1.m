@@ -1,5 +1,6 @@
 function AgeConditionalStatsPath=LifeCycleProfiles_TransPath_FHorz_Case1(FnsToEvaluate, AgentDistPath,PolicyPath, PricePath, ParamPath, Parameters,T,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,transpathoptions,simoptions)
-% Changing z or e over the transition is not supported.
+% Changing z or e over the transition is not supported. Handles z, e and semiz (each period is the stationary
+% LifeCycleProfiles_FHorz_Case1 on that period's slice of AgentDistPath and PolicyPath).
 %
 % Works from AgentDistPath to calculate life-cycle profiles over the transition.
 % Where applicable it is faster and more accurate.
@@ -99,24 +100,10 @@ for ff=1:length(AggVarNames)
 end
 
 %% Set up a few things
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
-N_e=prod(simoptions.n_e);
-
-if N_z>0
-    if N_e>0
-        AgentDistPath=reshape(AgentDistPath, [N_a,N_z,N_e,N_j,T]);
-    else
-        AgentDistPath=reshape(AgentDistPath, [N_a,N_z,N_j,T]);
-    end
-else
-    if N_e>0
-        AgentDistPath=reshape(AgentDistPath, [N_a,N_e,N_j,T]); % treat e as z (no z)
-    else
-        AgentDistPath=reshape(AgentDistPath, [N_a,N_j,T]);
-    end
-end
+% Each period's slice (the last dimension is T) is laid out exactly as the stationary agent dist and
+% Policy of the same model, whatever the shocks are (z, e, semiz), so it is taken with cell indices
+sliceAgentDist=repmat({':'},1,ndims(AgentDistPath)-1);
+slicePolicy=repmat({':'},1,ndims(PolicyPath)-1);
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
@@ -141,37 +128,12 @@ end
 %% The loop itself
 for tt=1:T
 
-    % Get current AgentDist
-    if N_z>0
-        if N_e>0
-            AgentDist=AgentDistPath(:,:,:,:,tt);
-        else
-            AgentDist=AgentDistPath(:,:,:,tt);
-        end
-    else
-        if N_e>0
-            AgentDist=AgentDistPath(:,:,:,tt);
-        else
-            AgentDist=AgentDistPath(:,:,tt);
-        end
-    end
+    % Get current AgentDist and Policy
+    AgentDist=AgentDistPath(sliceAgentDist{:},tt);
     if simoptions.parallel==2
         AgentDist=gpuArray(AgentDist);
     end
-    % Get current Policy
-    if N_z>0
-        if N_e>0
-            Policy=PolicyPath(:,:,:,:,:,tt); % Policy for period tt
-        else
-            Policy=PolicyPath(:,:,:,:,tt); % Policy for period tt
-        end
-    else
-        if N_e>0
-            Policy=PolicyPath(:,:,:,:,tt); % Policy for period tt
-        else
-            Policy=PolicyPath(:,:,:,tt); % Policy for period tt
-        end
-    end
+    Policy=PolicyPath(slicePolicy{:},tt); % Policy for period tt
     % Get current ParamPath and PricePath
     % The _tminus1 values first, while Parameters still holds the previous period's prices and parameters
     % (setting them after period tt is written in would make every _tminus1 equal to period tt)
