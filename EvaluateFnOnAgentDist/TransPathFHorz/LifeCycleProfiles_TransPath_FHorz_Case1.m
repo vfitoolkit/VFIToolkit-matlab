@@ -122,11 +122,17 @@ end
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
-if simoptions.alreadygridvals==0
-    % gridpiboth=1: the statistics use the z grid and not its transition matrix, so pi_z is passed as []
-    % (pi_z is not an input of this command; it was passed here before, which could not run). This is
-    % only needed to learn whether z varies over the path, and if so to get transpathoptions.z_gridvals_J_T.
-    [~,~,~,~,~,~,~,transpathoptions,simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],prod(n_a),N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
+%% Whether z or e vary over the path (not yet implemented here)
+% gridpiboth=1: grid only, so pi_z is passed as []. On a copy of the options: the stationary
+% LifeCycleProfiles_FHorz_Case1 below is given the user's own simoptions, as it sets up the (z,e) grids
+% itself (handing it the options this setup returns broke the e case).
+if simoptions.alreadygridvals==0 % (=1 when called as a subcommand with the grids already set up)
+    simoptionsZ=simoptions;
+    simoptionsZ.fastOLG=0;
+    [~,~,~,~,~,~,~,transpathoptionsZ]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],prod(n_a),N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptionsZ,1);
+    if transpathoptionsZ.zpathtrivial==0 || (isfield(transpathoptionsZ,'epathtrivial') && transpathoptionsZ.epathtrivial==0)
+        error('LifeCycleProfiles_TransPath_FHorz_Case1: z or e grids that vary over the transition path are not yet implemented (email me if you want this)')
+    end
 end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
@@ -211,12 +217,6 @@ for tt=1:T
         end
     end
 
-    % Get current shocks (if applicable)
-    if transpathoptions.zpathtrivial==0
-        simoptions.z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
-    end
-    % transpathoptions.zpathtrivial==1: does not vary over the path, so it is already in simoptions
-
     tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
 
     % This period's aggregates (over all ages) of the FnsToEvaluate that are used as _tminus1, which
@@ -241,14 +241,15 @@ for tt=1:T
             % First, sort out the initial ages
             if tt<=ngroups
                 temp2=AgeConditionalStatsPath.(AggVarNames{ff}).initialages.(OutputTypes{oo}); % Note: will be triangular (rest remains nan)
-                for jj=1:ngroups-tt % Age at time of reform (age in period when the ParamPath is revealed)
-                    for ii=1:N_j
-                        if any(oo==[1,2,3,5])
-                            % Age jj in first period, are now aged jj+tt-1
-                            temp2(jj,jj+tt-1)=temp(jj+tt-1); % Mean, Median, Variance, Gini
-                        else
-                            temp2(:,jj,jj+tt-1)=temp(:,jj+tt-1); % LorenzCurve, QuantileCutoffs, QuantileMean
-                        end
+                % Age at time of reform (age in period when the ParamPath is revealed). Those aged jj in the first
+                % period are aged jj+tt-1 now, so are still alive for jj up to ngroups-tt+1 (it was ngroups-tt,
+                % which left out the oldest surviving initial cohort every period)
+                for jj=1:ngroups-tt+1
+                    if any(oo==[1,2,3,5])
+                        % Age jj in first period, are now aged jj+tt-1
+                        temp2(jj,jj+tt-1)=temp(jj+tt-1); % Mean, Median, Variance, Gini
+                    else
+                        temp2(:,jj,jj+tt-1)=temp(:,jj+tt-1); % LorenzCurve, QuantileCutoffs, QuantileMean
                     end
                 end
                 AgeConditionalStatsPath.(AggVarNames{ff}).initialages.(OutputTypes{oo})=temp2;
@@ -263,6 +264,7 @@ for tt=1:T
                     temp3(:,ii,tt-ii+1)=temp(:,tt-ii+1); % LorenzCurve, QuantileCutoffs, QuantileMean
                 end
             end
+            AgeConditionalStatsPath.(AggVarNames{ff}).bornduringtranstion.(OutputTypes{oo})=temp3; % it was filled but never stored, so this whole output was NaN
         end
     end
 
