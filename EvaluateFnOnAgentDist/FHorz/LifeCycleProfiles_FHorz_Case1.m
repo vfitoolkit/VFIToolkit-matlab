@@ -468,6 +468,54 @@ if nW>0
     else
         windowlists=zeros(numFnsBase,N_j,nwhichpages,nW);
     end
+    % Internal (used by LifeCycleProfiles_FHorz_Case1_PType to pool the windows across permanent types with windowmethod 'tdigest2'
+    % or 'tdigest1'): simoptions.windowexport, of size [numFnsToEvaluate, N_j, 1+number of restrictions, number of M>1 in
+    % ntimeperiods, 2] (the last: level, log), asks for the summaries of (function, start age, page, window length, level/log)
+    % themselves, returned in AgeConditionalStats.WindowSummaries{ff,lw,page,j,kind}: 1 the mass (A0, a share of the page's mass at
+    % the start age) and the Mean and Variance (MeanV, VarV) of the values (the M-period sum or average, or its log); 2 those and
+    % also the lowest and highest values up to mass simoptions.windowtailmass(page) (lowV, lowW, highV, highW; masses as A0) and
+    % the merged t-digest (C, W; W shares summing to one). simoptions.windowbrackets, a cell of the same first four sizes and kind
+    % (for one start age), each empty or a structure with fields E (bracket edges, increasing) and inbin (logical, numel(E)+1: the
+    % bins [E(k-1),E(k)) inside some bracket), asks instead for, below each edge, the mass and the sum of mass*value (bm, bs) and
+    % the values in the bins inside (slV, slW, slB: value, mass, bin), returned in AgeConditionalStats.WindowBins{ff,lw,page,j,kind}.
+    if isfield(simoptions,'windowexport')
+        windowexport=double(simoptions.windowexport);
+        if ~isequal(size(windowexport,1:5),[numFnsBase,N_j,nwhichpages,nW,2])
+            error('LifeCycleProfiles_FHorz_Case1: simoptions.windowexport (internal) is of the wrong size')
+        end
+        for lw=1:nW
+            windowexport(:,N_j-windowM(lw)+2:N_j,:,lw,:)=0;
+        end
+        AgeConditionalStats.WindowSummaries=cell(numFnsBase,nW,nwhichpages,N_j,2);
+    else
+        windowexport=zeros(numFnsBase,N_j,nwhichpages,nW,2);
+    end
+    if isfield(simoptions,'windowtailmass')
+        windowtailmass=simoptions.windowtailmass; % by page
+    else
+        windowtailmass=zeros(1,nwhichpages);
+    end
+    if isfield(simoptions,'windowbrackets')
+        windowbrackets=simoptions.windowbrackets;
+        windowbracketsW=zeros(numFnsBase,N_j,nwhichpages,nW,2); % where they are
+        for ff=1:numFnsBase
+            for lw=1:nW
+                for pp=1:nwhichpages
+                    for jj=1:N_j
+                        for kind=1:2
+                            if ~isempty(windowbrackets{ff,lw,pp,jj,kind})
+                                windowbracketsW(ff,jj,pp,lw,kind)=1;
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        AgeConditionalStats.WindowBins=cell(numFnsBase,nW,nwhichpages,N_j,2);
+    else
+        windowbrackets={};
+        windowbracketsW=zeros(numFnsBase,N_j,nwhichpages,nW,2);
+    end
 end
 
 
@@ -977,7 +1025,7 @@ if nW>0
         error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 is not yet implemented with experience, inheritance or residual assets, ask on forum if you need this')
     end
     % The wanted combinations: level (whichcombosW) and log (wcLogW), by (function, start age, page, window length)
-    wantW=(whichcombosW+wcLogW+windowlists)>0;
+    wantW=(whichcombosW+wcLogW+windowlists+any(windowexport,5)+any(windowbracketsW,5))>0; % (the internal windowexport and windowbrackets too)
     Mstop=zeros(numFnsBase,N_j); % the longest window wanted at each (function, start age)
     for lw=1:nW
         Mstop=max(Mstop,windowM(lw)*reshape(any(wantW(:,:,:,lw),3),[numFnsBase,N_j]));
@@ -1578,6 +1626,9 @@ if nW>0
                         end
                     end
                 end
+                if any(windowexport(ff,jj,pagesL,:,2),'all') || any(windowexport(ff,jj,pagesL,:,1)==2,'all') || any(windowbracketsW(ff,jj,pagesL,:,:),'all')
+                    pushonly=0; % (internal) the summaries of a log, or with the order of the values, or the bins of brackets
+                end
 
                 if pushonly==1
                     tPush=tic;
@@ -1596,7 +1647,7 @@ if nW>0
                             continue
                         end
                         for pp=1:npg
-                            if whichcombosW(ff,jj,pagesL(pp),lw)==1 && whichstatsW(ff,jj,pagesL(pp),3,lw)==1
+                            if (whichcombosW(ff,jj,pagesL(pp),lw)==1 && whichstatsW(ff,jj,pagesL(pp),3,lw)==1) || windowexport(ff,jj,pagesL(pp),lw,1)>0
                                 varM=[varM,windowM(lw)]; %#ok<AGROW>
                             end
                         end
@@ -1692,16 +1743,23 @@ if nW>0
                             end
                             for pp=1:npg
                                 pg=pagesL(pp);
-                                if whichcombosW(ff,jj,pg,lw)==0
+                                own=(whichcombosW(ff,jj,pg,lw)==1); % this call's own statistics
+                                ex=(windowexport(ff,jj,pg,lw,1)>0); % (internal) the summary, for the PType pooling
+                                if ~own && ~ex
                                     continue
                                 end
-                                ws=reshape(whichstatsW(ff,jj,pg,:,lw),[1,7]);
+                                ws=reshape(whichstatsW(ff,jj,pg,:,lw),[1,7]).*own;
                                 A0=gather(sum(f(:,pp)));
-                                if pg==1
-                                    SS=AgeConditionalStats.(WNames{ff,lw,1});
-                                else
-                                    SS=AgeConditionalStats.(CondlRestnFnNames{pg-1}).(WNames{ff,lw,1});
-                                    SS.RestrictedSampleMass(jj)=colmassL(pp)*A0; % the start mass that satisfies the restriction at every age of the window
+                                if ex && stage==0
+                                    AgeConditionalStats.WindowSummaries{ff,lw,pg,jj,1}=struct('A0',A0,'MeanV',NaN,'VarV',NaN);
+                                end
+                                if own
+                                    if pg==1
+                                        SS=AgeConditionalStats.(WNames{ff,lw,1});
+                                    else
+                                        SS=AgeConditionalStats.(CondlRestnFnNames{pg-1}).(WNames{ff,lw,1});
+                                        SS.RestrictedSampleMass(jj)=colmassL(pp)*A0; % the start mass that satisfies the restriction at every age of the window
+                                    end
                                 end
                                 if A0>0
                                     mu=gather(sum(S1(:,pp)))/A0;
@@ -1716,6 +1774,9 @@ if nW>0
                                         if ws(1)==1
                                             SS.Mean(jj)=MeanW;
                                         end
+                                        if ex
+                                            AgeConditionalStats.WindowSummaries{ff,lw,pg,jj,1}.MeanV=MeanW;
+                                        end
                                     else
                                         VarW=gather(sum(S2(:,pp)))/A0-mu^2;
                                         if strcmp(simoptions.ntimeperiodstype,'average')
@@ -1728,12 +1789,17 @@ if nW>0
                                             SS.Variance(jj)=VarW;
                                             SS.StdDeviation(jj)=sqrt(VarW);
                                         end
+                                        if ex
+                                            AgeConditionalStats.WindowSummaries{ff,lw,pg,jj,1}.VarV=VarW;
+                                        end
                                     end
                                 end
-                                if pg==1
-                                    AgeConditionalStats.(WNames{ff,lw,1})=SS;
-                                else
-                                    AgeConditionalStats.(CondlRestnFnNames{pg-1}).(WNames{ff,lw,1})=SS;
+                                if own
+                                    if pg==1
+                                        AgeConditionalStats.(WNames{ff,lw,1})=SS;
+                                    else
+                                        AgeConditionalStats.(CondlRestnFnNames{pg-1}).(WNames{ff,lw,1})=SS;
+                                    end
                                 end
                             end
                         end
@@ -1747,25 +1813,47 @@ if nW>0
                 end
 
                 %% The summaries: one for each (page, window length, level/log) wanted at this (function, start age)
+                % (internal, for the PType pooling: a summary may also be exported (windowexport), and a call with windowbrackets
+                % does only the bins of the brackets given, in one enumeration)
+                bracketmode=any(windowbracketsW(ff,jj,pagesL,:,:),'all');
                 nsm=0;
                 sm_pp=zeros(0,1);
                 sm_lw=zeros(0,1);
                 sm_kind=zeros(0,1);
                 sm_ws=zeros(0,7);
+                sm_own=false(0,1); % this call's own statistics
+                sm_ex=zeros(0,1); % (internal) exported: 1 the mass and moments, 2 also the tails and digest
+                sm_tailtol=zeros(0,1); % the mass of the tails kept
                 for lw=1:nW
                     for pp=1:npg
                         for kind=1:2
-                            if (kind==1 && whichcombosW(ff,jj,pagesL(pp),lw)==1) || (kind==2 && wcLogW(ff,jj,pagesL(pp),lw)==1)
+                            own=(kind==1 && whichcombosW(ff,jj,pagesL(pp),lw)==1) || (kind==2 && wcLogW(ff,jj,pagesL(pp),lw)==1);
+                            ex=windowexport(ff,jj,pagesL(pp),lw,kind);
+                            if bracketmode
+                                use=(windowbracketsW(ff,jj,pagesL(pp),lw,kind)==1);
+                                own=false;
+                                ex=0;
+                            else
+                                use=(own || ex>0);
+                            end
+                            if use
                                 nsm=nsm+1;
                                 sm_pp(nsm,1)=pp;
                                 sm_lw(nsm,1)=lw;
                                 sm_kind(nsm,1)=kind;
-                                sm_ws(nsm,:)=reshape(whichstatsW(ff,jj,pagesL(pp),:,lw),[1,7]);
+                                sm_ws(nsm,:)=reshape(whichstatsW(ff,jj,pagesL(pp),:,lw),[1,7])*own;
+                                sm_own(nsm,1)=own;
+                                sm_ex(nsm,1)=ex;
+                                if ex==2
+                                    sm_tailtol(nsm,1)=max(tolerance,windowtailmass(pagesL(pp)));
+                                else
+                                    sm_tailtol(nsm,1)=tolerance;
+                                end
                             end
                         end
                     end
                 end
-                sm_order=(sm_ws(:,2)==1 | any(sm_ws(:,4:7)>=1,2)); % needs the order of the values (tails and digest)
+                sm_order=(sm_ws(:,2)==1 | any(sm_ws(:,4:7)>=1,2) | sm_ex==2); % needs the order of the values (tails and digest)
                 sm_A0=zeros(nsm,1,'gpuArray'); % the mass (on the gpu during pass 1, gathered after it)
                 sm_c=zeros(nsm,1,'gpuArray'); % the shift (the mean of the first block)
                 sm_cset=false(nsm,1);
@@ -1818,9 +1906,23 @@ if nW>0
                     sm_cut{s}=nan(nt,1);
                     sm_LP{s}=nan(nt,1);
                 end
+                if bracketmode
+                    % (internal) the brackets given: their bins, read in a single enumeration (as a later pass)
+                    for s=1:nsm
+                        brk=windowbrackets{ff,sm_lw(s),pagesL(sm_pp(s)),jj,sm_kind(s)};
+                        sm_E{s}=brk.E;
+                        sm_inbin{s}=gpuArray(brk.inbin);
+                        sm_bm{s}=zeros(numel(brk.E),1,'gpuArray');
+                        sm_bs{s}=zeros(numel(brk.E),1,'gpuArray');
+                        sm_slV{s}=[];
+                        sm_slW{s}=[];
+                        sm_slB{s}=[];
+                        sm_res{s}=false; % (so that the blocks are read)
+                    end
+                end
 
                 st0=find(any(m0>0,2));
-                pass=1;
+                pass=1+bracketmode; % (a call with windowbrackets starts at the later-pass reading)
                 while pass>0
                     tPass=tic;
                     tReadPass=0; % the time reading the blocks into the summaries, this pass
@@ -1880,9 +1982,9 @@ if nW>0
                                     if sm_order(s)
                                         [v,ord]=sort(v);
                                         w=w(ord);
-                                        % the lowest values up to mass tolerance (the block's, merged with those so far)
+                                        % the lowest values up to mass sm_tailtol (simoptions.tolerance; more for an exported summary, as the PType pooling needs the tails of the pooled mass), the block's merged with those so far
                                         cw=cumsum(w);
-                                        kl=find(cw>tolerance,1);
+                                        kl=find(cw>sm_tailtol(s),1);
                                         if isempty(kl)
                                             kl=numel(v);
                                         end
@@ -1890,7 +1992,7 @@ if nW>0
                                         lowW=[sm_lowW{s}; w(1:kl)];
                                         [lowV,ord]=sort(lowV);
                                         lowW=lowW(ord);
-                                        kl=find(cumsum(lowW)>tolerance,1);
+                                        kl=find(cumsum(lowW)>sm_tailtol(s),1);
                                         if ~isempty(kl)
                                             lowV=lowV(1:kl);
                                             lowW=lowW(1:kl);
@@ -1899,7 +2001,7 @@ if nW>0
                                         sm_lowW{s}=lowW;
                                         % the highest values up to mass tolerance
                                         cw=cumsum(flipud(w));
-                                        kh=find(cw>tolerance,1);
+                                        kh=find(cw>sm_tailtol(s),1);
                                         if isempty(kh)
                                             kh=numel(v);
                                         end
@@ -1907,7 +2009,7 @@ if nW>0
                                         highW=[sm_highW{s}; flipud(w(end-kh+1:end))];
                                         [highV,ord]=sort(highV,'descend');
                                         highW=highW(ord);
-                                        kh=find(cumsum(highW)>tolerance,1);
+                                        kh=find(cumsum(highW)>sm_tailtol(s),1);
                                         if ~isempty(kh)
                                             highV=highV(1:kh);
                                             highW=highW(1:kh);
@@ -2076,6 +2178,13 @@ if nW>0
                         tW_sum2=tW_sum2+tReadPass;
                         nW_pass2=nW_pass2+1;
                         nW_pass3=nW_pass3+(pass>=3);
+                    end
+                    if bracketmode
+                        % (internal) return the bins of the brackets given, for the PType pooling (which finds the quantiles)
+                        for s=1:nsm
+                            AgeConditionalStats.WindowBins{ff,sm_lw(s),pagesL(sm_pp(s)),jj,sm_kind(s)}=struct('bm',sm_bm{s},'bs',sm_bs{s},'slV',sm_slV{s},'slW',sm_slW{s},'slB',sm_slB{s});
+                        end
+                        break
                     end
                     %% After a pass (on the gpu: only a few numbers per summary come back, for the control flow)
                     tRes=tic;
@@ -2300,6 +2409,32 @@ if nW>0
                     lw=sm_lw(s);
                     kind=sm_kind(s);
                     ws=sm_ws(s,:);
+                    if sm_ex(s)>0
+                        % (internal) the summary itself, for the PType pooling: the mass (a share of the page's mass at the start age),
+                        % the Mean and Variance, and (2) the tails and the digest
+                        A0x=sm_A0(s);
+                        exs=struct('A0',A0x,'MeanV',NaN,'VarV',NaN);
+                        if A0x>0
+                            exs.MeanV=sm_c(s)+sm_A1(s)/A0x;
+                            VarX=sm_A2(s)/A0x-(sm_A1(s)/A0x)^2;
+                            if VarX<0 && VarX>-10^(-6) % (as StatsFromWeightedGrid)
+                                VarX=0;
+                            end
+                            exs.VarV=VarX;
+                            if sm_ex(s)==2
+                                exs.lowV=sm_lowV{s};
+                                exs.lowW=sm_lowW{s};
+                                exs.highV=sm_highV{s};
+                                exs.highW=sm_highW{s};
+                                exs.C=sm_C{s};
+                                exs.W=sm_W{s};
+                            end
+                        end
+                        AgeConditionalStats.WindowSummaries{ff,lw,pg,jj,kind}=exs;
+                    end
+                    if ~sm_own(s)
+                        continue % (only exported, or the bins of brackets)
+                    end
                     if pg==1
                         SS=AgeConditionalStats.(WNames{ff,lw,kind});
                     else

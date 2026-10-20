@@ -83,6 +83,8 @@ if ~exist('simoptions','var')
     simoptions.ntimeperiods=1; % the statistics of the sum/average over M consecutive periods, for each M in ntimeperiods (1 is the single period)
     simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
     simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos without the type dimension, or a scalar)
+    simoptions.windowmethod='list'; % how the statistics of the M>1 windows are computed: 'list', 'tdigest2' or 'tdigest1' (see LifeCycleProfiles_FHorz_Case1)
+    simoptions.windowtdigestdelta=10000; % 'tdigest2'/'tdigest1': the t-digest delta (see LifeCycleProfiles_FHorz_Case1)
     % When calling as a subcommand, the following is used internally
     simoptions.alreadygridvals=0;
     simoptions.gridinterplayer=0;
@@ -166,6 +168,12 @@ else
     end
     if ~isfield(simoptions,'logwhichcombos')
         simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos without the type dimension, or a scalar)
+    end
+    if ~isfield(simoptions,'windowmethod')
+        simoptions.windowmethod='list'; % how the statistics of the M>1 windows are computed: 'list', 'tdigest2' or 'tdigest1' (see LifeCycleProfiles_FHorz_Case1)
+    end
+    if ~isfield(simoptions,'windowtdigestdelta')
+        simoptions.windowtdigestdelta=10000; % 'tdigest2'/'tdigest1': the t-digest delta (see LifeCycleProfiles_FHorz_Case1)
     end
     % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'alreadygridvals')
@@ -312,6 +320,9 @@ if length(unique(ntimeperiods))<length(ntimeperiods)
 end
 if ~(ischar(simoptions.ntimeperiodstype) || isstring(simoptions.ntimeperiodstype)) || ~any(strcmp(simoptions.ntimeperiodstype,{'average','sum'}))
     error('LifeCycleProfiles_FHorz_Case1_PType: simoptions.ntimeperiodstype must be ''average'' or ''sum''')
+end
+if ~(ischar(simoptions.windowmethod) || isstring(simoptions.windowmethod)) || ~any(strcmp(simoptions.windowmethod,{'list','tdigest2','tdigest1'}))
+    error('LifeCycleProfiles_FHorz_Case1_PType: simoptions.windowmethod must be ''list'', ''tdigest2'' or ''tdigest1''')
 end
 nblocks=length(ntimeperiods);
 has1=any(ntimeperiods==1);
@@ -1288,7 +1299,7 @@ for ff=1:numFnsToEvaluate
                 Cmerge=Cmerge(1:merge_nsofar);
                 digestweightsmerge=digestweightsmerge(1:merge_nsofar);
                 [C_ff,digestweights_ff,~]=mergeDigest(Cmerge, digestweightsmerge, delta);
-                % digestweights_ff will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
+                % (mergeDigest returns masses that are shares summing to one, since 143565ff even when the stacked weights do not, e.g. different agejshifter across PTypes; the renormalization below only removes rounding)
                 if sum(digestweights_ff)>0
                     digestweights_ff=digestweights_ff/sum(digestweights_ff);
                 end
@@ -1571,6 +1582,20 @@ if nW>0
         % The pooled path lists of start age jj (grouped stats)
         PoolS=cell(numFnsBase,nW,nwhichpages);
         PoolM=cell(numFnsBase,nW,nwhichpages);
+        usetd=~strcmp(simoptions.windowmethod,'list');
+        if usetd
+            % the t-digest methods: the scale of each ptype at start age jj, by page (ptweights times its mass at jj, or its
+            % restricted mass there), and the pooled summaries
+            sW=zeros(N_i,nwhichpages);
+            for ii=1:N_i
+                sW(ii,1)=gather(StationaryDist.ptweights(ii)*AgeMasses(ii,jj));
+                for pp=2:nwhichpages
+                    sW(ii,pp)=gather(StationaryDist.ptweights(ii)*restrictedsamplemass(ii,jj,pp-1));
+                end
+            end
+            PoolX=cell(numFnsBase,nW,nwhichpages,2);
+            PoolX(:)={cell(1,0)}; % each: the ptypes' summaries, with their scale
+        end
         for ii=1:N_i
             iistr=Names_i{ii};
             % the functions this ptype computes at start age jj: its own slot, and the grouped one (a ptype of zero weight adds nothing to it)
@@ -1655,7 +1680,38 @@ if nW>0
             simoptions_c.whichcombos=wcc;
             simoptions_c.logwhichcombos=lwc;
             simoptions_c.whichstats=wsc;
-            simoptions_c.windowlists=wl;
+            if usetd
+                % the summaries of the grouped windows (internal simoptions.windowexport: 2 when the grouped stats need the order of
+                % the values or are of the log, 1 when only the mass and moments), with the tails kept up to the pooled tolerance
+                wexp=zeros(nfc,N_j,nwhichpages,nW,2);
+                for lw=1:nW
+                    for kk=1:nfc
+                        ff=fnsc(kk);
+                        for pp=1:nwhichpages
+                            if wl(kk,jj,pp,lw)==0
+                                continue
+                            end
+                            wsG=reshape(wsW(ff,jj,pp,N_i+1,:,lw),[1,7]);
+                            if wcW(ff,jj,pp,N_i+1,lw)==1
+                                wexp(kk,jj,pp,lw,1)=1+(wsG(2)==1 || any(wsG(4:7)>=1));
+                            end
+                            if wcLogW(ff,jj,pp,N_i+1,lw)==1
+                                wexp(kk,jj,pp,lw,2)=2;
+                            end
+                        end
+                    end
+                end
+                simoptions_c.windowexport=wexp;
+                tailmass=zeros(1,nwhichpages);
+                for pp=1:nwhichpages
+                    if sW(ii,pp)>0
+                        tailmass(pp)=simoptions.tolerance*sum(sW(:,pp))/sW(ii,pp); % this ptype's share of the pooled tolerance, in its own mass
+                    end
+                end
+                simoptions_c.windowtailmass=tailmass;
+            else
+                simoptions_c.windowlists=wl;
+            end
             simoptions_c.warnzerorestrictedmass=0; % (warned about above)
             simoptions_c.verbose=0;
             ACS_ii=LifeCycleProfiles_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp,Fc,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_c);
@@ -1693,8 +1749,14 @@ if nW>0
                                 AgeConditionalStats.(CondlRestnFnNames{pp-1}).(WNames{ff,lw,kind}).(iistr)=dst;
                             end
                         end
-                        % this ptype's path list, for the grouped stats
-                        if wl(kk,jj,pp,lw)==1 && ~isempty(ACS_ii.WindowLists{kk,lw,pp,jj})
+                        % this ptype's path list (windowmethod 'list') or summaries (the t-digest methods), for the grouped stats
+                        if usetd
+                            for kind=1:2
+                                if wexp(kk,jj,pp,lw,kind)>0 && isfield(ACS_ii,'WindowSummaries') && ~isempty(ACS_ii.WindowSummaries{kk,lw,pp,jj,kind})
+                                    PoolX{ff,lw,pp,kind}{end+1}=struct('s',sW(ii,pp),'X',ACS_ii.WindowSummaries{kk,lw,pp,jj,kind});
+                                end
+                            end
+                        elseif wl(kk,jj,pp,lw)==1 && ~isempty(ACS_ii.WindowLists{kk,lw,pp,jj})
                             if pp==1
                                 startmass=AgeMasses(ii,jj); % the mass of this ptype at age jj (its distribution includes its age weights)
                             else
@@ -1710,6 +1772,551 @@ if nW>0
             end
             clear ACS_ii
         end % ii
+
+        if usetd
+            %% The grouped stats of start age jj from the ptypes' summaries (windowmethod 'tdigest2' or 'tdigest1'). Each ptype's summary
+            % is weighted by its scale sW (ptweights times its mass at jj, or its restricted mass there): the masses add, the Mean and
+            % Variance pool (the variance within the ptypes plus that between them), the tails merge (each kept up to this ptype's
+            % share of the pooled tolerance) and the digests merge (mergeDigest). 'tdigest2' then finds each quantile exactly in rounds:
+            % brackets from the pooled digest; each ptype's bins of them (LifeCycleProfiles_FHorz_Case1 with the internal
+            % simoptions.windowbrackets: below each bracket end the mass and sum of mass*value, and the values inside); pooled; and the
+            % quantile found in them as in LifeCycleProfiles_FHorz_Case1 (a bracket that misses is widened for another round).
+            tolerance=simoptions.tolerance;
+            npoints=simoptions.npoints;
+            nquantiles=simoptions.nquantiles;
+            delta=simoptions.windowtdigestdelta;
+            tiedelta=10^(-12); % as StatsFromWeightedGrid: a quantile is the first value with cumulative mass at least p-tiedelta
+            if nquantiles>0
+                quantilecvec=(1/nquantiles:1/nquantiles:1-1/nquantiles)';
+            else
+                quantilecvec=zeros(0,1);
+            end
+            nG=0;
+            G_ff=zeros(0,1); G_lw=zeros(0,1); G_pp=zeros(0,1); G_kind=zeros(0,1); G_ws=zeros(0,7);
+            G_W=zeros(0,1); G_mean=zeros(0,1); G_var=zeros(0,1); G_order=false(0,1);
+            G_lowV={}; G_lowW={}; G_highV={}; G_highW={}; G_C={}; G_Wd={};
+            G_p={}; G_res={}; G_widen={}; G_cut={}; G_LP={};
+            G_E={}; G_klo={}; G_khi={}; G_inbin={}; G_bm={}; G_bs={}; G_slV={}; G_slW={}; G_slB={};
+            for ff=1:numFnsBase
+                for lw=1:nW
+                    for pp=1:nwhichpages
+                        for kind=1:2
+                            if (kind==1 && wcW(ff,jj,pp,N_i+1,lw)==0) || (kind==2 && wcLogW(ff,jj,pp,N_i+1,lw)==0)
+                                continue
+                            end
+                            X=PoolX{ff,lw,pp,kind};
+                            Wp=0;
+                            for kx=1:numel(X)
+                                Wp=Wp+X{kx}.s*X{kx}.X.A0;
+                            end
+                            if pp>1 % the population mass at the start age that satisfies the restriction at every age of the window
+                                AgeConditionalStats.(CondlRestnFnNames{pp-1}).(WNames{ff,lw,kind}).RestrictedSampleMass(jj)=Wp;
+                            end
+                            if Wp==0
+                                continue % no ptype has mass there: stays NaN
+                            end
+                            nG=nG+1;
+                            G_ff(nG,1)=ff; G_lw(nG,1)=lw; G_pp(nG,1)=pp; G_kind(nG,1)=kind;
+                            ws=reshape(wsW(ff,jj,pp,N_i+1,:,lw),[1,7]);
+                            G_ws(nG,:)=ws;
+                            G_W(nG,1)=Wp;
+                            % the Mean and Variance (within plus between)
+                            m1=0;
+                            for kx=1:numel(X)
+                                if X{kx}.X.A0>0
+                                    m1=m1+X{kx}.s*X{kx}.X.A0*X{kx}.X.MeanV;
+                                end
+                            end
+                            m1=m1/Wp;
+                            v1=0;
+                            for kx=1:numel(X)
+                                if X{kx}.X.A0>0
+                                    v1=v1+X{kx}.s*X{kx}.X.A0*(X{kx}.X.VarV+(X{kx}.X.MeanV-m1)^2);
+                                end
+                            end
+                            v1=v1/Wp;
+                            if v1<0 && v1>-10^(-6) % (as StatsFromWeightedGrid)
+                                v1=0;
+                            end
+                            G_mean(nG,1)=m1;
+                            G_var(nG,1)=v1;
+                            G_order(nG,1)=(ws(2)==1 || any(ws(4:7)>=1));
+                            G_lowV{nG}=[]; G_lowW{nG}=[]; G_highV{nG}=[]; G_highW{nG}=[]; G_C{nG}=[]; G_Wd{nG}=[];
+                            if G_order(nG)
+                                % the tails (merged; in pooled mass) and the digest (merged)
+                                lowV=[]; lowW=[]; highV=[]; highW=[]; Cst=[]; Wst=[];
+                                for kx=1:numel(X)
+                                    if X{kx}.X.A0>0
+                                        lowV=[lowV; X{kx}.X.lowV]; %#ok<AGROW>
+                                        lowW=[lowW; X{kx}.s*X{kx}.X.lowW]; %#ok<AGROW>
+                                        highV=[highV; X{kx}.X.highV]; %#ok<AGROW>
+                                        highW=[highW; X{kx}.s*X{kx}.X.highW]; %#ok<AGROW>
+                                        Cst=[Cst; X{kx}.X.C]; %#ok<AGROW>
+                                        Wst=[Wst; X{kx}.X.W*(X{kx}.s*X{kx}.X.A0)]; %#ok<AGROW>
+                                    end
+                                end
+                                [lowV,ord]=sort(lowV);
+                                G_lowV{nG}=lowV;
+                                G_lowW{nG}=lowW(ord);
+                                [highV,ord]=sort(highV,'descend');
+                                G_highV{nG}=highV;
+                                G_highW{nG}=highW(ord);
+                                [Cm,dwm,~]=mergeDigest(Cst,Wst,delta);
+                                G_C{nG}=Cm;
+                                G_Wd{nG}=dwm;
+                            end
+                            % the quantile targets (median, percentiles, quantile cutoffs)
+                            ptg=zeros(0,1);
+                            if G_order(nG)
+                                if ws(2)==1 || ws(7)==1
+                                    ptg=[ptg; 0.5]; %#ok<AGROW>
+                                end
+                                if ws(7)==1
+                                    ptg=[ptg; 0.99; 0.95; 0.90]; %#ok<AGROW>
+                                end
+                                if ws(6)>=1
+                                    ptg=[ptg; quantilecvec]; %#ok<AGROW>
+                                end
+                            end
+                            G_p{nG}=unique(ptg);
+                            nt=numel(G_p{nG});
+                            G_res{nG}=false(nt,1);
+                            if strcmp(simoptions.windowmethod,'tdigest1')
+                                G_res{nG}(:)=true; % (from the digest)
+                            end
+                            G_widen{nG}=ones(nt,1);
+                            G_cut{nG}=nan(nt,1);
+                            G_LP{nG}=nan(nt,1);
+                        end
+                    end
+                end
+            end
+
+            % tdigest2: rounds of brackets until every quantile is found
+            while nG>0 && ~all(cellfun(@all,G_res))
+                % the brackets of the quantiles not yet found, from the pooled digest (all at once), and the bins they make (as in LifeCycleProfiles_FHorz_Case1)
+                for g=1:nG
+                    if all(G_res{g})
+                        continue
+                    end
+                    C=G_C{g};
+                    dw=G_Wd{g};
+                    cumdw=cumsum(dw);
+                    nC=numel(C);
+                    tu=find(~G_res{g});
+                    pt=G_p{g}(tu);
+                    nT=numel(tu);
+                    [xu,~,iu]=unique(pt-tiedelta);
+                    cnt=histcounts(cumdw,[-Inf; xu; Inf]);
+                    it=gather(cumsum(reshape(cnt(1:end-1),[],1)))+1;
+                    it=min(it(iu),nC);
+                    near=min(max(it+(-2:1:2),1),nC); % nT x 5
+                    dd=2*gather(max(reshape(dw(near(:)),nT,5),[],2)).*G_widen{g}(tu); % twice the largest nearby centroid mass, widened after a miss
+                    [xu,~,iu]=unique(pt-dd);
+                    cnt=histcounts(cumdw,[-Inf; xu; Inf]);
+                    ilo=gather(cumsum(reshape(cnt(1:end-1),[],1)))+1;
+                    ilo=ilo(iu);
+                    [xu,~,iu]=unique(pt+dd);
+                    cnt=histcounts(cumdw,[-Inf; xu; Inf]);
+                    ihi=gather(cumsum(reshape(cnt(1:end-1),[],1)))+1;
+                    ihi=ihi(iu);
+                    lo=-Inf(nT,1);
+                    hi=Inf(nT,1);
+                    oklo=~(pt-dd<=0 | ilo>nC | ilo<=1);
+                    okhi=~(pt+dd>=1 | ihi>=nC);
+                    lo(oklo)=gather(C(ilo(oklo)-1));
+                    hi(okhi)=gather(C(ihi(okhi)+1));
+                    hiedge=hi+eps(hi); % (a bracket is lo<=v<=hi, so its upper edge is the next double above hi; bin k is [E(k-1),E(k)))
+                    E=unique([lo; hiedge]);
+                    E=E(isfinite(E));
+                    nb=numel(E)+1;
+                    G_E{g}=E;
+                    G_klo{g}=zeros(numel(G_p{g}),1);
+                    G_khi{g}=zeros(numel(G_p{g}),1);
+                    inbin=false(nb,1);
+                    for kt=1:nT
+                        if isfinite(lo(kt))
+                            klo=find(E==lo(kt))+1;
+                        else
+                            klo=1;
+                        end
+                        if isfinite(hi(kt))
+                            khi=find(E==hiedge(kt))+1;
+                        else
+                            khi=nb+1;
+                        end
+                        G_klo{g}(tu(kt))=klo;
+                        G_khi{g}(tu(kt))=khi;
+                        inbin(klo:khi-1)=true;
+                    end
+                    G_inbin{g}=inbin;
+                    G_bm{g}=zeros(nb-1,1,'gpuArray');
+                    G_bs{g}=zeros(nb-1,1,'gpuArray');
+                    G_slV{g}=[];
+                    G_slW{g}=[];
+                    G_slB{g}=[];
+                end
+                % each ptype's bins of the brackets (scaled), pooled
+                for ii=1:N_i
+                    iistr=Names_i{ii};
+                    needg=false(nG,1);
+                    for g=1:nG
+                        needg(g)=~all(G_res{g}) && sW(ii,G_pp(g))>0 && gather(FnsAndPTypeIndicator(G_ff(g),ii))==1;
+                    end
+                    if ~any(needg)
+                        continue
+                    end
+                    fnsb=unique(G_ff(needg))';
+                    nfb=length(fnsb);
+                    % This ptype's setup (as above)
+                    simoptions_temp=PType_Options(simoptions,iistr);
+                    if useCondlRest==1 % PType_Options only keeps a structure-valued option with a field for this type: put the restrictions back
+                        simoptions_temp.conditionalrestrictions=struct();
+                        for rr=1:length(CondlRestnFnNames)
+                            if isstruct(simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}))
+                                simoptions_temp.conditionalrestrictions.(CondlRestnFnNames{rr})=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}).(iistr);
+                            else
+                                simoptions_temp.conditionalrestrictions.(CondlRestnFnNames{rr})=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+                            end
+                        end
+                    end
+                    if simoptions_temp.ptypestorecpu==1
+                        PolicyIndexes_temp=gpuArray(Policy.(iistr));
+                        StationaryDist_temp=gpuArray(StationaryDist.(iistr));
+                    else
+                        PolicyIndexes_temp=Policy.(iistr);
+                        StationaryDist_temp=StationaryDist.(iistr);
+                    end
+                    [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
+                    if isfield(simoptions_temp,'pi_z')
+                        pi_z_in=simoptions_temp.pi_z;
+                    else
+                        pi_z_in=[];
+                    end
+                    [n_z_temp,z_grid_temp,pi_z_temp,simoptions_temp]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,pi_z_in,simoptions_temp,3);
+                    if ~isempty(pi_z_temp)
+                        simoptions_temp.pi_z=pi_z_temp;
+                    end
+                    Parameters_temp=PType_setup_Parameters(ii,iistr,N_i,Parameters,3);
+                    if n_d_temp(1)==0
+                        l_d_temp=0;
+                    else
+                        l_d_temp=length(n_d_temp);
+                    end
+                    l_a_temp=length(n_a_temp);
+                    if prod(n_z_temp)==0
+                        l_z_temp=0;
+                    else
+                        l_z_temp=length(n_z_temp);
+                    end
+                    [FnsToEvaluate_temp,~,~,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+                    Fb=struct();
+                    for kk=1:nfb
+                        Fb.(FnsToEvalNames{fnsb(kk)})=FnsToEvaluate_temp.(FnsToEvalNames{fnsb(kk)});
+                    end
+                    wb=cell(nfb,nW,nwhichpages,N_j,2);
+                    for g=find(needg)'
+                        kk=find(fnsb==G_ff(g));
+                        wb{kk,G_lw(g),G_pp(g),jj,G_kind(g)}=struct('E',G_E{g},'inbin',G_inbin{g});
+                    end
+                    simoptions_b=simoptions_temp;
+                    simoptions_b.ntimeperiods=windowM;
+                    simoptions_b.agegroupings=1:1:N_j;
+                    simoptions_b.whichcombos=zeros(nW*nfb,N_j,nwhichpages); % none of its own statistics: only the bins
+                    simoptions_b.logwhichcombos=zeros(nW*nfb,N_j,nwhichpages);
+                    simoptions_b.whichstats=ones(1,7);
+                    simoptions_b.windowbrackets=wb;
+                    simoptions_b.warnzerorestrictedmass=0;
+                    simoptions_b.verbose=0;
+                    if isfield(simoptions_b,'windowexport')
+                        simoptions_b=rmfield(simoptions_b,'windowexport');
+                    end
+                    ACS_b=LifeCycleProfiles_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp,Fb,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_b);
+                    for g=find(needg)'
+                        kk=find(fnsb==G_ff(g));
+                        B=ACS_b.WindowBins{kk,G_lw(g),G_pp(g),jj,G_kind(g)};
+                        if isempty(B)
+                            continue
+                        end
+                        sg=sW(ii,G_pp(g));
+                        G_bm{g}=G_bm{g}+sg*B.bm;
+                        G_bs{g}=G_bs{g}+sg*B.bs;
+                        G_slV{g}=[G_slV{g}; B.slV];
+                        G_slW{g}=[G_slW{g}; sg*B.slW];
+                        G_slB{g}=[G_slB{g}; B.slB];
+                    end
+                    clear ACS_b
+                end
+                % find each quantile in its bracket (as in LifeCycleProfiles_FHorz_Case1): the pooled values in the bins inside some bracket,
+                % sorted once; the bracket of quantile t is the run of entries a(t) to bnd(t), and the cumulative mass at entry i of it is
+                % (mb(t)+cw(i)-cw(a(t)-1))/W, with mb(t) the pooled mass below the bracket
+                for g=1:nG
+                    if all(G_res{g})
+                        continue
+                    end
+                    W=G_W(g);
+                    tu=find(~G_res{g});
+                    pt=G_p{g}(tu);
+                    klo=G_klo{g}(tu);
+                    khi=G_khi{g}(tu);
+                    nb=numel(G_E{g})+1;
+                    nT=numel(tu);
+                    [sv,ord]=sort(G_slV{g});
+                    sw=G_slW{g}(ord);
+                    sbin=G_slB{g}(ord);
+                    nsl=numel(sv);
+                    cw=cumsum(sw);
+                    cwv=cumsum(sw.*sv);
+                    cb0=[0; gather(cumsum(accumarray(sbin,1,[nb,1])))]; % cb0(k): the entries in bins below k (counts, exact)
+                    a=cb0(klo)+1;
+                    bnd=cb0(khi);
+                    mb=zeros(nT,1);
+                    sb=zeros(nT,1);
+                    hasb=(klo>1);
+                    mb(hasb)=gather(G_bm{g}(klo(hasb)-1));
+                    sb(hasb)=gather(G_bs{g}(klo(hasb)-1));
+                    cwa=zeros(nT,1);
+                    cwva=zeros(nT,1);
+                    hasa=(a>1);
+                    if nsl>0
+                        cwa(hasa)=gather(cw(a(hasa)-1));
+                        cwva(hasa)=gather(cwv(a(hasa)-1));
+                    end
+                    thr=(pt-tiedelta)*W-mb+cwa;
+                    if nsl>0
+                        [thru,~,iu]=unique(thr);
+                        cnt=histcounts(cw,[-Inf; thru; Inf]);
+                        nlt=gather(cumsum(reshape(cnt(1:end-1),[],1)));
+                        nlt=nlt(iu);
+                    else
+                        nlt=zeros(nT,1);
+                    end
+                    icut=max(a,nlt+1);
+                    totop=(khi>nb); % the bracket runs to the top
+                    failed=(mb/W>=pt-tiedelta) | (icut>bnd & ~(totop & bnd>=a)); % the quantile is below, or above, the bracket
+                    icut(~failed & icut>bnd)=bnd(~failed & icut>bnd); % (as StatsFromWeightedGrid when p is above the total mass)
+                    ok=find(~failed);
+                    if ~isempty(ok)
+                        ic=icut(ok);
+                        cutv=gather(sv(ic));
+                        inbr=(ic>a(ok));
+                        ip=max(ic-1,1);
+                        cwp=gather(cw(ip));
+                        cwvp=gather(cwv(ip));
+                        cumWprev=(mb(ok)+inbr.*(cwp-cwa(ok)))/W;
+                        cumWVprev=(sb(ok)+inbr.*(cwvp-cwva(ok)))/W;
+                        G_cut{g}(tu(ok))=cutv;
+                        G_LP{g}(tu(ok))=cumWVprev+(pt(ok)-cumWprev).*cutv; % the mass wholly below the cut, plus the part of the point that straddles it
+                        G_res{g}(tu(ok))=true;
+                    end
+                    if any(failed)
+                        G_widen{g}(tu(failed))=4*G_widen{g}(tu(failed));
+                    end
+                    clear sv sw sbin cw cwv
+                    G_slV{g}=[];
+                    G_slW{g}=[];
+                    G_slB{g}=[];
+                end
+            end
+
+            % The statistics (as in LifeCycleProfiles_FHorz_Case1), stored in the grouped fields
+            for g=1:nG
+                ff=G_ff(g);
+                lw=G_lw(g);
+                pp=G_pp(g);
+                kind=G_kind(g);
+                ws=G_ws(g,:);
+                W=G_W(g);
+                MeanV=G_mean(g);
+                VarV=G_var(g);
+                if pp==1
+                    SS=AgeConditionalStats.(WNames{ff,lw,kind});
+                else
+                    SS=AgeConditionalStats.(CondlRestnFnNames{pp-1}).(WNames{ff,lw,kind});
+                end
+                tempStats=struct();
+                if ws(1)==1
+                    tempStats.Mean=MeanV;
+                end
+                if ws(3)==1
+                    tempStats.Variance=VarV;
+                    tempStats.StdDeviation=sqrt(VarV);
+                end
+                if G_order(g)
+                    gmin=G_lowV{g}(1); % the smallest and largest values with positive mass
+                    gmax=G_highV{g}(1);
+                    if gmin==gmax
+                        % all the same value (as StatsFromWeightedGrid)
+                        if ws(2)==1
+                            tempStats.Median=gmin;
+                            if ws(1)==1
+                                tempStats.RatioMeanToMedian=MeanV/gmin;
+                            end
+                        end
+                        if ws(3)==1
+                            tempStats.Variance=0;
+                            tempStats.StdDeviation=0;
+                        end
+                        if ws(4)==1 || ws(4)==2
+                            tempStats.LorenzCurve=(1/npoints:1/npoints:1)';
+                            tempStats.Gini=0;
+                        elseif ws(4)==3
+                            tempStats.Gini=0;
+                        end
+                        if ws(5)==1 || ws(6)>=1
+                            tempStats.Maximum=gmin;
+                            tempStats.Minimum=gmin;
+                        end
+                        if ws(6)>=1
+                            tempStats.QuantileCutoffs=gmin*ones(nquantiles+1,1);
+                            tempStats.QuantileMeans=gmin*ones(nquantiles,1);
+                        end
+                        if ws(7)==1
+                            tempStats.MoreInequality.Top1share=0.01;
+                            tempStats.MoreInequality.Top5share=0.05;
+                            tempStats.MoreInequality.Top10share=0.1;
+                            tempStats.MoreInequality.Bottom50share=0.5;
+                            tempStats.MoreInequality.Percentile50th=gmin;
+                            tempStats.MoreInequality.Percentile90th=gmin;
+                            tempStats.MoreInequality.Percentile95th=gmin;
+                            tempStats.MoreInequality.Percentile99th=gmin;
+                        end
+                    else
+                        anynegative=(gmin<0); % the Lorenz curve, Gini and top/bottom shares cannot be calculated
+                        % Minimum: the first value with cumulative mass at least tolerance; Maximum: the first with the mass above it at most tolerance
+                        i1=find(cumsum(G_lowW{g})/W>=tolerance,1);
+                        if isempty(i1)
+                            i1=numel(G_lowV{g});
+                        end
+                        i2=find(cumsum(G_highW{g})>tolerance*W,1);
+                        if isempty(i2)
+                            i2=numel(G_highV{g});
+                        end
+                        MinV=G_lowV{g}(i1);
+                        MaxV=G_highV{g}(i2);
+                        if strcmp(simoptions.windowmethod,'tdigest1')
+                            % the median, quantiles, percentiles and shares from the pooled digest
+                            Sd=StatsFromWeightedGrid(G_C{g},G_Wd{g},npoints,nquantiles,tolerance,1,[0,ws(2),0,0,0,ws(6),ws(7)]);
+                            if ws(2)==1
+                                tempStats.Median=Sd.Median;
+                            end
+                            if ws(6)>=1 && nquantiles>0
+                                tempStats.QuantileCutoffs=[MinV; Sd.QuantileCutoffs(2:end-1); MaxV];
+                                tempStats.QuantileMeans=Sd.QuantileMeans;
+                            end
+                            if ws(7)==1
+                                tempStats.MoreInequality=Sd.MoreInequality;
+                                if anynegative
+                                    tempStats.MoreInequality.Top1share=NaN;
+                                    tempStats.MoreInequality.Top5share=NaN;
+                                    tempStats.MoreInequality.Top10share=NaN;
+                                    tempStats.MoreInequality.Bottom50share=NaN;
+                                end
+                            end
+                        else
+                            % tdigest2: exact
+                            ptg=G_p{g};
+                            cutp=G_cut{g};
+                            LP=G_LP{g};
+                            Stot=MeanV; % the Lorenz curve (not normalised) at 1
+                            if ws(2)==1
+                                tempStats.Median=cutp(ptg==0.5);
+                            end
+                            if ws(6)>=1 && nquantiles>0
+                                [~,iq]=ismember(quantilecvec,ptg);
+                                tempStats.QuantileCutoffs=[MinV; cutp(iq); MaxV];
+                                tempStats.QuantileMeans=diff([0; LP(iq); Stot])*nquantiles; % (as StatsFromWeightedGrid)
+                            end
+                            if ws(7)==1
+                                if anynegative
+                                    tempStats.MoreInequality.Top1share=NaN;
+                                    tempStats.MoreInequality.Top5share=NaN;
+                                    tempStats.MoreInequality.Top10share=NaN;
+                                    tempStats.MoreInequality.Bottom50share=NaN;
+                                else
+                                    tempStats.MoreInequality.Top1share=1-LP(ptg==0.99)/Stot;
+                                    tempStats.MoreInequality.Top5share=1-LP(ptg==0.95)/Stot;
+                                    tempStats.MoreInequality.Top10share=1-LP(ptg==0.90)/Stot;
+                                    tempStats.MoreInequality.Bottom50share=LP(ptg==0.5)/Stot;
+                                end
+                                tempStats.MoreInequality.Percentile50th=cutp(ptg==0.5);
+                                tempStats.MoreInequality.Percentile90th=cutp(ptg==0.90);
+                                tempStats.MoreInequality.Percentile95th=cutp(ptg==0.95);
+                                tempStats.MoreInequality.Percentile99th=cutp(ptg==0.99);
+                            end
+                        end
+                        if ws(2)==1 && ws(1)==1
+                            tempStats.RatioMeanToMedian=MeanV/tempStats.Median;
+                        end
+                        if ws(5)==1 || ws(6)>=1
+                            tempStats.Minimum=MinV;
+                            tempStats.Maximum=MaxV;
+                        end
+                        if ws(4)>=1
+                            % the Gini and Lorenz curve from the pooled digest
+                            if anynegative
+                                if ws(4)<3
+                                    tempStats.LorenzCurve=nan(npoints,1);
+                                end
+                                tempStats.Gini=NaN;
+                            else
+                                Sg=StatsFromWeightedGrid(G_C{g},G_Wd{g},npoints,nquantiles,tolerance,1,[0,0,0,ws(4),0,0,0]);
+                                tempStats.Gini=Sg.Gini;
+                                if ws(4)<3
+                                    tempStats.LorenzCurve=Sg.LorenzCurve;
+                                end
+                            end
+                        end
+                    end
+                end
+
+                % Store them in AgeConditionalStats
+                if ws(1)==1
+                    SS.Mean(jj)=tempStats.Mean;
+                end
+                if ws(2)==1
+                    SS.Median(jj)=tempStats.Median;
+                    if ws(1)==1
+                        SS.RatioMeanToMedian(jj)=tempStats.RatioMeanToMedian;
+                    end
+                end
+                if ws(3)==1
+                    SS.Variance(jj)=tempStats.Variance;
+                    SS.StdDeviation(jj)=tempStats.StdDeviation;
+                end
+                if ws(4)>=1
+                    SS.Gini(jj)=tempStats.Gini;
+                    if ws(4)<3
+                        SS.LorenzCurve(:,jj)=tempStats.LorenzCurve;
+                    end
+                end
+                if ws(5)==1
+                    SS.Minimum(jj)=tempStats.Minimum;
+                    SS.Maximum(jj)=tempStats.Maximum;
+                end
+                if ws(6)>=1
+                    SS.QuantileCutoffs(:,jj)=tempStats.QuantileCutoffs;
+                    SS.QuantileMeans(:,jj)=tempStats.QuantileMeans;
+                end
+                if ws(7)==1
+                    SS.MoreInequality.Top1share(jj)=tempStats.MoreInequality.Top1share;
+                    SS.MoreInequality.Top5share(jj)=tempStats.MoreInequality.Top5share;
+                    SS.MoreInequality.Top10share(jj)=tempStats.MoreInequality.Top10share;
+                    SS.MoreInequality.Bottom50share(jj)=tempStats.MoreInequality.Bottom50share;
+                    SS.MoreInequality.Percentile50th(jj)=tempStats.MoreInequality.Percentile50th;
+                    SS.MoreInequality.Percentile90th(jj)=tempStats.MoreInequality.Percentile90th;
+                    SS.MoreInequality.Percentile95th(jj)=tempStats.MoreInequality.Percentile95th;
+                    SS.MoreInequality.Percentile99th(jj)=tempStats.MoreInequality.Percentile99th;
+                end
+                if pp==1
+                    AgeConditionalStats.(WNames{ff,lw,kind})=SS;
+                else
+                    AgeConditionalStats.(CondlRestnFnNames{pp-1}).(WNames{ff,lw,kind})=SS;
+                end
+            end
+            clear G_lowV G_lowW G_highV G_highW G_C G_Wd G_bm G_bs G_slV G_slW G_slB PoolX
+            continue % (the 'list' grouped stats below are for windowmethod 'list')
+        end
 
         % The grouped stats of start age jj, from the pooled path lists
         for ff=1:numFnsBase
