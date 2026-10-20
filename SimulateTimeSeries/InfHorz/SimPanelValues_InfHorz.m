@@ -151,15 +151,13 @@ if N_e==0
     l_semizze=l_z;
     semizze_gridvals=z_gridvals;
 else
-    % iid e is so far only implemented for the standard simulation (without grid interpolation layer)
+    % iid e is so far only implemented for the standard simulation (with or without grid interpolation layer)
     if simoptions.agententryandexit>=1
         error('simoptions.n_e (iid e) is not yet implemented for SimPanelValues_InfHorz with simoptions.agententryandexit')
     elseif isfield(simoptions,'SemiEndogShockFn')
         error('simoptions.n_e (iid e) is not yet implemented for SimPanelValues_InfHorz with simoptions.SemiEndogShockFn')
     elseif simoptions.inheritanceasset==1
         error('simoptions.n_e (iid e) is not yet implemented for SimPanelValues_InfHorz with simoptions.inheritanceasset')
-    elseif simoptions.gridinterplayer==1
-        error('simoptions.n_e (iid e) is not yet implemented for SimPanelValues_InfHorz with the grid interpolation layer (simoptions.gridinterplayer=1)')
     end
     if N_z==0
         n_semizze=simoptions.n_e;
