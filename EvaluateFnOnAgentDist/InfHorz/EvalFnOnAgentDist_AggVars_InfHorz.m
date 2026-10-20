@@ -50,6 +50,9 @@ end
 if isfield(simoptions,'whichcombos') && (simoptions.parallel<2 || isstruct(StationaryDist) || isfield(simoptions,'eval_valuefn'))
     error('simoptions.whichcombos is not implemented for EvalFnOnAgentDist_AggVars_InfHorz on the cpu, with entry/exit, or with FnsToEvaluate that use the value function')
 end
+if simoptions.parallel<2 && prod(simoptions.n_e)>0
+    error('simoptions.n_e (iid e) is not yet implemented for EvalFnOnAgentDist_AggVars_InfHorz on the cpu (simoptions.parallel<2)')
+end
 if simoptions.parallel<2
     AggVars=EvalFnOnAgentDist_AggVars_InfHorz_CPU(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
     return

@@ -1,0 +1,79 @@
+function [VKron, Policy]=ValueFnIter_InfHorz_sparse_nod_e_raw(VKron,N_a,N_z,N_e,pi_z,pi_e,DiscountFactorParamsVec,ReturnMatrix,Howards,MaxHowards,Tolerance,maxiter)
+% Value fn iteration, with Howards improvement iterations done using a sparse matrix
+% No decision variable, with z and iid e
+% VKron is a-by-z-by-e, ReturnMatrix is aprime-by-a-by-z-by-e, pi_e is a column vector of probabilities
+
+pi_z_transpose = transpose(pi_z);
+pi_z_alt       = shiftdim(pi_z_transpose,-1); % 1-by-zprime-by-z
+pi_e_alt       = shiftdim(pi_e,-2); % 1-by-1-by-e
+
+% Precompute variables for Howard improvement step
+NaVec = gpuArray.colon(1,N_a)';
+NzVec = gpuArray.colon(1,N_z)';
+NeVec = gpuArray.colon(1,N_e)';
+a_ind = repmat(NaVec,N_z*N_e,1);
+z_ind = repmat(repelem(NzVec,N_a,1),N_e,1);
+e_ind = repelem(NeVec,N_a*N_z,1);
+ind   = a_ind+(z_ind-1)*N_a+(e_ind-1)*N_a*N_z;
+
+%%
+tempcounter=1;
+currdist=Inf;
+while currdist>Tolerance && tempcounter<=maxiter
+    VKronold=VKron;
+
+    % Calc the condl expectation term (except beta), which depends on z but not on control variables
+    % First take the expectation over e', which is iid
+    EV=VKronold.*pi_e_alt;
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the probabilities)
+    EV=sum(EV,3); % sum over e', aprime-by-zprime
+    % Then the expectation over z' conditional on z
+    EV=EV.*pi_z_alt;
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+    EV=sum(EV,2); % sum over z', leaving a singular second dimension, aprime-by-1-by-z
+
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % aprime by a by z by e (EV autoexpands over a and e)
+
+    %Calc the max and it's index
+    [VKron,Policy]=max(entireRHS,[],1);
+
+    VKron=shiftdim(VKron,1); % a by z by e
+
+    VKrondist=VKron(:)-VKronold(:);
+    VKrondist(isnan(VKrondist))=0;
+    currdist=max(abs(VKrondist));
+
+    % Use Howards Policy Fn Iteration Improvement
+    % (except for first few and last few iterations, as it is not a good idea there)
+    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<MaxHowards
+
+        % Reshape Policy as column vector with size [N_a*N_z*N_e,1]
+        Policy_vec=reshape(Policy,[N_a*N_z*N_e,1]);
+        % Linear indices of the elements you want in ReturnMatrix
+        linIdx = Policy_vec + (a_ind-1)*N_a + (z_ind-1)*N_a*N_a + (e_ind-1)*N_a*N_a*N_z;
+        Ftemp = ReturnMatrix(linIdx);
+        % Build large sparse matrix, (a,z,e) to (aprime,z) (the expectation over (zprime,eprime) given z is done before multiplying by it)
+        indp  = Policy_vec+(z_ind-1)*N_a;
+        Qmat  = sparse(ind,indp,1,N_a*N_z*N_e,N_a*N_z);
+        % Howard iterations, with Ftemp and Qmat precomputed
+        for Howards_counter=1:Howards
+            EV_howard = reshape(VKron,[N_a*N_z,N_e])*pi_e; % expectation over e', (aprime,zprime)
+            EV_howard = reshape(EV_howard,[N_a,N_z])*pi_z_transpose; % expectation over z' given z, (aprime,z)
+            EV_howard = reshape(EV_howard,[N_a*N_z,1]);
+            VKron = Ftemp+DiscountFactorParamsVec*Qmat*EV_howard;
+            VKron = reshape(VKron,[N_a,N_z,N_e]);
+        end
+    end
+    tempcounter=tempcounter+1;
+end %end while loop
+
+Policy=reshape(Policy,[1,N_a,N_z,N_e]);
+
+if currdist > Tolerance
+    warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, Tolerance)
+end
+
+end

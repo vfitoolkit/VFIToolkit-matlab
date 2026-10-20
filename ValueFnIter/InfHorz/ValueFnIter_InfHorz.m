@@ -200,9 +200,44 @@ if vfoptions.divideandconquer==1 && isscalar(n_a)
 end
 
 
+N_e=prod(vfoptions.n_e);
+
 %% Report on Setup
 if vfoptions.verbose==1
     vfoptions
+end
+
+%% iid e is so far only implemented for the GPU purediscretization and purediscretization_refinement, and with the grid interpolation layer for postGI with one endogenous state
+if N_e>0
+    if vfoptions.parallel<2
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration on the CPU (vfoptions.parallel<2)')
+    elseif vfoptions.gridinterplayer==1 && vfoptions.preGI==1
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and vfoptions.preGI=1 (only postGI, which is the default)')
+    elseif vfoptions.gridinterplayer==1 && vfoptions.howardsgreedy>1
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and vfoptions.howardsgreedy=2 or 3 (HowardMix)')
+    elseif vfoptions.gridinterplayer==1 && ~isscalar(n_a)
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and more than one endogenous state')
+    elseif vfoptions.gridinterplayer==1 && isfield(vfoptions,'postGIrepeat') && vfoptions.postGIrepeat>0
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and vfoptions.postGIrepeat>0')
+    elseif vfoptions.divideandconquer==2
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with divide-and-conquer (vfoptions.divideandconquer=2)')
+    elseif vfoptions.separableReturnFn==1
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with vfoptions.separableReturnFn=1')
+    elseif vfoptions.endogenousexit>=1
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with vfoptions.endogenousexit')
+    elseif isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None'))
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with vfoptions.exoticpreferences')
+    elseif vfoptions.experienceasset>=1
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with vfoptions.experienceasset')
+    elseif vfoptions.inheritanceasset==1
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with vfoptions.inheritanceasset')
+    elseif isfield(vfoptions,'SemiEndogShockFn')
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with vfoptions.SemiEndogShockFn')
+    elseif any(vfoptions.incrementaltype==1)
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with vfoptions.incrementaltype')
+    elseif ~any(strcmp(vfoptions.solnmethod,{'purediscretization','purediscretization_refinement'}))
+        error('vfoptions.n_e (iid e) is not yet implemented for InfHorz value function iteration with vfoptions.solnmethod=%s (only purediscretization and purediscretization_refinement)',vfoptions.solnmethod)
+    end
 end
 
 %% If using CPU, then go off to dedicated function
@@ -213,12 +248,32 @@ if vfoptions.parallel<2
 end
 
 %% V0 (initial guess)
-if isfield(vfoptions,'V0')
-    V0=reshape(gpuArray(vfoptions.V0),[N_a,max(N_z,1)]); % Note: max(N_z,1) is N_z, or if N_z=0 then it is 1
-    vfoptions.actualV0=1;
+if N_e==0
+    if isfield(vfoptions,'V0')
+        V0=reshape(gpuArray(vfoptions.V0),[N_a,max(N_z,1)]); % Note: max(N_z,1) is N_z, or if N_z=0 then it is 1
+        vfoptions.actualV0=1;
+    else
+        V0=zeros([N_a,max(N_z,1)], 'gpuArray');
+        vfoptions.actualV0=0; % DC2 has different way of creating initial guess so this will be ignored
+    end
 else
-    V0=zeros([N_a,max(N_z,1)], 'gpuArray');
-    vfoptions.actualV0=0; % DC2 has different way of creating initial guess so this will be ignored
+    if N_z==0
+        if isfield(vfoptions,'V0')
+            V0=reshape(gpuArray(vfoptions.V0),[N_a,N_e]);
+            vfoptions.actualV0=1;
+        else
+            V0=zeros([N_a,N_e], 'gpuArray');
+            vfoptions.actualV0=0;
+        end
+    else
+        if isfield(vfoptions,'V0')
+            V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z,N_e]);
+            vfoptions.actualV0=1;
+        else
+            V0=zeros([N_a,N_z,N_e], 'gpuArray');
+            vfoptions.actualV0=0;
+        end
+    end
 end
 
 %% Check the sizes of some of the inputs
@@ -289,6 +344,17 @@ if vfoptions.alreadygridvals==0
     [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,vfoptions,3,0);
 elseif vfoptions.alreadygridvals==1
     z_gridvals=z_grid;
+end
+% output: z_gridvals, pi_z, vfoptions.e_gridvals, vfoptions.pi_e
+
+if N_e>0
+    if ~all(size(vfoptions.pi_e)==[N_e,1])
+        error('vfoptions.pi_e is not of size prod(n_e)-by-1 (it should be a column vector of probabilities)')
+    elseif min(vfoptions.pi_e)<0
+        error('Problem with vfoptions.pi_e in ValueFnIter_InfHorz: min(pi_e)<0')
+    elseif abs(sum(vfoptions.pi_e)-1) > 10^(-13)
+        error('Problem with vfoptions.pi_e in ValueFnIter_InfHorz: does not sum to one')
+    end
 end
 
 %% Semi-exogenous shock gridvals and pi

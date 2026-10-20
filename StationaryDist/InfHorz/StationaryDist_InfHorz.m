@@ -128,20 +128,45 @@ else
     end
 end
 
-%% Setup for Exogenous Shocks
-if simoptions.alreadygridvals==0
-    if isfield(simoptions,'ExogShockFn')
-        if ~exist('Parameters','var')
-            error('When using ExogShockFn you must pass Params structure as an input to StationaryDist_Cast1 (it goes just after simoptions)')
-        end
-        [~, pi_z, simoptions]=ExogShockSetup_InfHorz(n_z,[],pi_z,Parameters,simoptions,2,0);
-    end
-end
-
 N_e=prod(simoptions.n_e);
 N_semiz=prod(simoptions.n_semiz);
+
+%% Setup for Exogenous Shocks
+if simoptions.alreadygridvals==0
+    if isfield(simoptions,'ExogShockFn') || isfield(simoptions,'EiidShockFn')
+        if ~exist('Parameters','var')
+            error('When using ExogShockFn or EiidShockFn you must pass Params structure as an input to StationaryDist_InfHorz (it goes just after simoptions)')
+        end
+        [~, pi_z, simoptions]=ExogShockSetup_InfHorz(n_z,[],pi_z,Parameters,simoptions,2,0);
+    elseif N_e>0
+        [~, pi_z, simoptions]=ExogShockSetup_InfHorz(n_z,[],pi_z,[],simoptions,2,0); % Parameters are only used by ExogShockFn and EiidShockFn
+    end
+end
+% output: pi_z, simoptions.pi_e
+
 if N_e>0
-    error('Have not yet implemented e variables for InfHorz, ask on forum you need this')
+    n_e=simoptions.n_e;
+    pi_e=simoptions.pi_e;
+    if ~all(size(pi_e)==[N_e,1])
+        error('simoptions.pi_e is not of size prod(n_e)-by-1 (it should be a column vector of probabilities)')
+    elseif min(pi_e)<0
+        error('Problem with simoptions.pi_e in StationaryDist_InfHorz: min(pi_e)<0')
+    elseif abs(sum(pi_e)-1) > 10^(-13)
+        error('Problem with simoptions.pi_e in StationaryDist_InfHorz: does not sum to one')
+    end
+
+    % iid e is so far only implemented for the standard iteration (with or without grid interpolation layer)
+    if simoptions.agententryandexit>=1
+        error('simoptions.n_e (iid e) is not yet implemented for InfHorz agent distribution with simoptions.agententryandexit')
+    elseif isfield(simoptions,'SemiEndogShockFn')
+        error('simoptions.n_e (iid e) is not yet implemented for InfHorz agent distribution with simoptions.SemiEndogShockFn')
+    elseif simoptions.experienceasset>=1
+        error('simoptions.n_e (iid e) is not yet implemented for InfHorz agent distribution with simoptions.experienceasset')
+    elseif simoptions.inheritanceasset==1
+        error('simoptions.n_e (iid e) is not yet implemented for InfHorz agent distribution with simoptions.inheritanceasset')
+    elseif simoptions.iterate==0
+        error('simoptions.n_e (iid e) is not yet implemented for InfHorz agent distribution with simoptions.iterate=0')
+    end
 end
 
 %% Semi-exogenous shock gridvals and pi
@@ -279,7 +304,7 @@ end
 
 %% If there is an initial dist use that, otherwise set up a (basic but poor) initial guess
 if simoptions.iterate==1
-    if N_z==0
+    if N_z==0 && N_e==0
         % Iteration must start from an initial guess
         if isfield(simoptions,'initialdist')
             StationaryDist=reshape(simoptions.initialdist,[N_a,1]);
@@ -288,7 +313,31 @@ if simoptions.iterate==1
             StationaryDist=zeros(N_a,1);
             StationaryDist(ceil(N_a/2))=1; % Just put the mass into midpoint
         end
-    else % N_z>0
+    elseif N_z==0 && N_e>0
+        % Iteration must start from an initial guess
+        if isfield(simoptions,'initialdist')
+            StationaryDist=reshape(simoptions.initialdist,[N_a*N_e,1]);
+        else
+            % Just use a poor initial guesses
+            StationaryDist=zeros(N_a,N_e);
+            StationaryDist(ceil(N_a/2),:)=gather(pi_e)'; % Put the mass into midpoint, distributed over e as pi_e
+            StationaryDist=reshape(StationaryDist,[N_a*N_e,1]);
+        end
+    elseif N_z>0 && N_e>0
+        % Iteration must start from an initial guess
+        if isfield(simoptions,'initialdist')
+            StationaryDist=reshape(simoptions.initialdist,[N_a*N_z*N_e,1]);
+        else
+            % Just use a poor initial guesses
+            StationaryDist=zeros(N_a,N_z,N_e);
+            z_stat=ones(N_z,1)/N_z;
+            for jj=1:10
+                z_stat=pi_z'*z_stat;
+            end
+            StationaryDist(ceil(N_a/2),:,:)=shiftdim(gather(z_stat).*gather(pi_e)',-1); % Put the mass into midpoint, distributed over z as (roughly) the stationary dist of z, and over e as pi_e
+            StationaryDist=reshape(StationaryDist,[N_a*N_z*N_e,1]);
+        end
+    else % N_z>0 && N_e==0
         % Iteration must start from an initial guess
         if isfield(simoptions,'initialdist')
             StationaryDist=reshape(simoptions.initialdist,[N_a*N_z,1]);

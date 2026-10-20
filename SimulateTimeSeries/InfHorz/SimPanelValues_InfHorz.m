@@ -134,7 +134,43 @@ else
 end
 
 % gridpiboth=1: we only need z_gridvals here (no pi_z)
-[z_gridvals,~,simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,1,0);
+if prod(simoptions.n_e)==0
+    [z_gridvals,~,simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,1,0);
+else
+    % gridpiboth=3: with e we also need simoptions.pi_e, as SimPanelIndexes_InfHorz() uses it to simulate e (gridpiboth=1 would set it to empty)
+    [z_gridvals,~,simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,3,0);
+end
+% output: z_gridvals, simoptions.e_gridvals, simoptions.pi_e (only kept when there is e)
+
+% For evaluating the FnsToEvaluate, e is just treated as part of z (z first, then e). [The panel indexes keep z and e
+% apart until SimPanelIndexes_InfHorz() returns them, at which point it puts them together into one index, z first.]
+N_e=prod(simoptions.n_e);
+if N_e==0
+    N_semizze=N_z;
+    n_semizze=n_z;
+    l_semizze=l_z;
+    semizze_gridvals=z_gridvals;
+else
+    % iid e is so far only implemented for the standard simulation (without grid interpolation layer)
+    if simoptions.agententryandexit>=1
+        error('simoptions.n_e (iid e) is not yet implemented for SimPanelValues_InfHorz with simoptions.agententryandexit')
+    elseif isfield(simoptions,'SemiEndogShockFn')
+        error('simoptions.n_e (iid e) is not yet implemented for SimPanelValues_InfHorz with simoptions.SemiEndogShockFn')
+    elseif simoptions.inheritanceasset==1
+        error('simoptions.n_e (iid e) is not yet implemented for SimPanelValues_InfHorz with simoptions.inheritanceasset')
+    elseif simoptions.gridinterplayer==1
+        error('simoptions.n_e (iid e) is not yet implemented for SimPanelValues_InfHorz with the grid interpolation layer (simoptions.gridinterplayer=1)')
+    end
+    if N_z==0
+        n_semizze=simoptions.n_e;
+        semizze_gridvals=simoptions.e_gridvals;
+    else
+        n_semizze=[n_z,simoptions.n_e];
+        semizze_gridvals=[repmat(z_gridvals,N_e,1),repelem(simoptions.e_gridvals,N_z,1)];
+    end
+    N_semizze=prod(n_semizze);
+    l_semizze=length(n_semizze);
+end
 
 if simoptions.agententryandexit==1 && isfield(simoptions,'SemiEndogShockFn')
     error('Cannot currently use simoptions.agententryandexit==1 and SemiEndogShockFn together. \n')
@@ -154,8 +190,8 @@ if isstruct(FnsToEvaluate)
     FnsToEvalNames=fieldnames(FnsToEvaluate);
     for ff=1:length(FnsToEvalNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
-        if length(temp)>(l_daprime+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_daprime+l_a+l_semizze)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_semizze+1:end}}; % the first inputs will always be (d,aprime,a,z) (z here includes e)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -229,9 +265,7 @@ end
 
 
 %% Precompute the gridvals vectors.
-N_semizze=N_z; % Currently only z is implemented in InfHorz
-n_semizze=n_z; % Currently only z is implemented in InfHorz
-l_semizze=l_z; % Currently only z is implemented in InfHorz
+% (N_semizze, n_semizze and l_semizze are set above, just after ExogShockSetup_InfHorz)
 
 if N_semizze==0
     Policy=reshape(Policy,[size(Policy,1),N_a,1]);
@@ -309,7 +343,7 @@ if simoptions.agententryandexit==0
             % z_ind=currentPanelIndexes_jj(2,1,:); % this is semiz,z,e all together
 
             a_val=a_gridvals(SimPanelIndexes_tt(1,1,:),:);
-            z_val=z_gridvals(SimPanelIndexes_tt(2,1,:),:);
+            z_val=semizze_gridvals(SimPanelIndexes_tt(2,1,:),:);
 
             for vv=1:nFnsToEvalute
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'

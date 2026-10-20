@@ -66,6 +66,62 @@ end
 % I did test a version where I create the full GI grid from the beginning
 % and just use this the entire time. It was slower than the Pre-GI multi-grid approach.
 
+%% Deal with iid e
+% So far only postGI with one endogenous state (ValueFnIter_InfHorz refuses everything else). Without z, as for the
+% models without e and without z, only the default setting (postGI, howardssparse is not relevant) is implemented.
+N_e=prod(vfoptions.n_e);
+if N_e>0
+    N_z=prod(n_z);
+    if N_z==0
+        if N_d==0
+            [V,Policy]=ValueFnIter_InfHorz_postGI_nod_noz_e_raw(V0, n_a, vfoptions.n_e, a_grid, vfoptions.e_gridvals, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+        else
+            [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_noz_e_raw(V0, n_d, n_a, vfoptions.n_e, d_gridvals, a_grid, vfoptions.e_gridvals, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+        end
+    else
+        if N_d==0
+            if vfoptions.howardsgreedy==0
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_InfHorz_postGI_nod_e_raw(V0, n_a, n_z, vfoptions.n_e, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    [V,Policy]=ValueFnIter_InfHorz_postGI_sparse_nod_e_raw(V0, n_a, n_z, vfoptions.n_e, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                end
+            elseif vfoptions.howardsgreedy==1
+                [V,Policy]=ValueFnIter_InfHorz_postGI_HowardGreedy_nod_e_raw(V0, n_a, n_z, vfoptions.n_e, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+            end
+        else % N_d
+            if vfoptions.howardsgreedy==0
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_e_raw(V0, n_d, n_a, n_z, vfoptions.n_e, d_gridvals, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    [V,Policy]=ValueFnIter_InfHorz_postGI_sparse_e_raw(V0, n_d, n_a, n_z, vfoptions.n_e, d_gridvals, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                end
+            elseif vfoptions.howardsgreedy==1
+                [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_HowardGreedy_e_raw(V0, n_d, n_a, n_z, vfoptions.n_e, d_gridvals, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            end
+        end
+    end
+
+    %% Cleaning up the output
+    if N_z==0
+        V=reshape(V,[n_a,vfoptions.n_e]);
+        % Because no z, can treat e like z for the UnKron
+        if N_d==0
+            Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, vfoptions.n_e, vfoptions);
+        else
+            Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, vfoptions.n_e, vfoptions);
+        end
+    else
+        V=reshape(V,[n_a,n_z,vfoptions.n_e]);
+        if N_d==0
+            Policy=UnKronPolicyIndexes1_z_e(Policy, n_a, n_a, n_z, vfoptions.n_e, vfoptions);
+        else
+            Policy=UnKronPolicyIndexes2_z_e(Policy, n_d, n_a, n_a, n_z, vfoptions.n_e, vfoptions);
+        end
+    end
+    return
+end
+
 %% Deal with the 'without z' case
 if prod(n_z)==0
     [V,Policy]=ValueFnIter_InfHorz_GridInterpLayer_noz(V0, n_d, n_a, d_gridvals, a_grid, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);

@@ -23,15 +23,36 @@ a_gridvals=CreateGridvals(n_a,a_grid,1);
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
 %% Calculate FofPolicy (the return fn evaluated at the Policy)
-PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid, vfoptions);
-if N_z==0
-    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
-else
-    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
-end
-
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid, vfoptions); % (PolicyInd2Val_InfHorz treats e as part of z)
 ReturnFnParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames);
-FofPolicy=EvalFnOnAgentDist_Grid(ReturnFn, ReturnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+if ~isfield(vfoptions,'n_e')
+    vfoptions.n_e=0;
+end
+N_e=prod(vfoptions.n_e);
+if N_e==0
+    if N_z==0
+        PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
+    else
+        PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
+    end
+    FofPolicy=EvalFnOnAgentDist_Grid(ReturnFn, ReturnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+else
+    % To evaluate the return fn, just treat e as part of z
+    if N_z==0
+        n_ze=vfoptions.n_e;
+        ze_gridvals=vfoptions.e_gridvals;
+    else
+        n_ze=[n_z,vfoptions.n_e];
+        ze_gridvals=[repmat(z_gridvals,N_e,1),repelem(vfoptions.e_gridvals,N_z,1)];
+    end
+    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,prod(n_ze)]),[2,3,1]); %[N_a,N_z*N_e,l_d+l_a]
+    FofPolicy=EvalFnOnAgentDist_Grid(ReturnFn, ReturnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_ze,a_gridvals,ze_gridvals);
+    if N_z==0
+        FofPolicy=reshape(FofPolicy,[N_a,N_e]);
+    else
+        FofPolicy=reshape(FofPolicy,[N_a,N_z,N_e]);
+    end
+end
 
 %% Now that we have FofPolicy, calculate V.
 DiscountFactorParamsVec=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames));
@@ -47,7 +68,7 @@ else
     index_a1=2;
 end
 
-if N_z==0
+if N_z==0 && N_e==0
     Policy=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, 1, 0, vfoptions);
 
     alowerindex=reshape(ceil(Policy(index_a1,:,:)),[1,N_a]); % a1 lower grid point, 1 to n_a(1)-1
@@ -81,7 +102,7 @@ if N_z==0
     end
 
     V=reshape(VKron,[n_a,1]);
-else % N_z>0
+elseif N_z>0 && N_e==0
     Policy=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, n_z, 0, vfoptions);
 
     pi_z_howards=repelem(pi_z,N_a,1);
@@ -120,6 +141,82 @@ else % N_z>0
     end
 
     V=reshape(VKron,[n_a,n_z]);
+elseif N_z==0 && N_e>0
+    Policy=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, vfoptions.n_e, 0, vfoptions); % no z, so can treat e like z
+
+    pi_e_alt=shiftdim(vfoptions.pi_e,-1); % 1-by-e
+
+    alowerindex=reshape(ceil(Policy(index_a1,:,:)),[1,N_a*N_e]); % a1 lower grid point, 1 to n_a(1)-1
+    if l_a>=2
+        % GI2A: add the offset for the remaining endogenous state(s), which Kron returns separately.
+        % Interpolation is on a1 only, so the upper point (alowerindex+1) steps one point in a1.
+        alowerindex=alowerindex+n_a(1)*(reshape(ceil(Policy(index_a1+1,:,:)),[1,N_a*N_e])-1);
+    end
+    aprimeindex=[alowerindex; alowerindex+1]; % [2,N_a*N_e]
+    PolicyProbs=reshape(ceil(Policy(end,:,:)),[1,N_a*N_e]); % L2 (Kron drops L2flag)
+    PolicyProbs=(PolicyProbs-1)/(vfoptions.ngridinterp+1); % prob of upper point
+    PolicyProbs=[1-PolicyProbs; PolicyProbs]; % [2,N_a*N_e]
+
+    while currdist>vfoptions.tolerance && itercount<vfoptions.maxiter
+        VKronold=VKron;
+
+        % e is iid, so take the expectation over e' first (it does not depend on any current state)
+        EVKrontemp=VKron.*pi_e_alt;
+        EVKrontemp(isnan(EVKrontemp))=0;
+        EVKrontemp=sum(EVKrontemp,2); % aprime-by-1
+        % then interpolate it
+        EVKrontemp=reshape(EVKrontemp(aprimeindex),[2,N_a*N_e]);
+        EVKrontemp=PolicyProbs.*EVKrontemp;
+        EVKrontemp(isnan(EVKrontemp))=0; % a zero interpolation weight on a grid point where EV is -Inf gives 0*(-Inf)=NaN, it should contribute nothing
+        EVKrontemp=reshape(sum(EVKrontemp,1),[N_a,N_e]);
+
+        VKron=FofPolicy+DiscountFactorParamsVec*EVKrontemp;
+
+        currdist=max(abs(VKron(:)-VKronold(:)));
+        itercount=itercount+1;
+    end
+
+    V=reshape(VKron,[n_a,vfoptions.n_e]);
+else % N_z>0 && N_e>0
+    Policy=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, [n_z,vfoptions.n_e], 0, vfoptions); % e passed as part of z
+
+    pi_z_alt=shiftdim(pi_z',-1); % 1-by-zprime-by-z
+    pi_e_alt=shiftdim(vfoptions.pi_e,-2); % 1-by-1-by-e
+
+    alowerindex=reshape(ceil(Policy(index_a1,:,:)),[1,N_a*N_z*N_e]); % a1 lower grid point, 1 to n_a(1)-1
+    if l_a>=2
+        % GI2A: add the offset for the remaining endogenous state(s), which Kron returns separately.
+        % Interpolation is on a1 only, so the upper point (alowerindex+1) steps one point in a1.
+        alowerindex=alowerindex+n_a(1)*(reshape(ceil(Policy(index_a1+1,:,:)),[1,N_a*N_z*N_e])-1);
+    end
+    aprimeindex=[alowerindex; alowerindex+1]+reshape(repmat(N_a*(0:1:N_z-1),N_a,1,N_e),[1,N_a*N_z*N_e]); % [2,N_a*N_z*N_e], add the index for z (for indexing EV, which is aprime-by-z)
+    PolicyProbs=reshape(ceil(Policy(end,:,:)),[1,N_a*N_z*N_e]); % L2 (Kron drops L2flag)
+    PolicyProbs=(PolicyProbs-1)/(vfoptions.ngridinterp+1); % prob of upper point
+    PolicyProbs=[1-PolicyProbs; PolicyProbs]; % [2,N_a*N_z*N_e]
+
+    while currdist>vfoptions.tolerance && itercount<vfoptions.maxiter
+        VKronold=VKron;
+
+        % e is iid, so take the expectation over e' first, then over z' conditional on z
+        EVKrontemp=VKron.*pi_e_alt;
+        EVKrontemp(isnan(EVKrontemp))=0;
+        EVKrontemp=sum(EVKrontemp,3); % aprime-by-zprime
+        EVKrontemp=EVKrontemp.*pi_z_alt;
+        EVKrontemp(isnan(EVKrontemp))=0;
+        EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]); % aprime-by-z
+        % then interpolate it
+        EVKrontemp=reshape(EVKrontemp(aprimeindex),[2,N_a*N_z*N_e]);
+        EVKrontemp=PolicyProbs.*EVKrontemp;
+        EVKrontemp(isnan(EVKrontemp))=0; % a zero interpolation weight on a grid point where EV is -Inf gives 0*(-Inf)=NaN, it should contribute nothing
+        EVKrontemp=reshape(sum(EVKrontemp,1),[N_a,N_z,N_e]);
+
+        VKron=FofPolicy+DiscountFactorParamsVec*EVKrontemp;
+
+        currdist=max(abs(VKron(:)-VKronold(:)));
+        itercount=itercount+1;
+    end
+
+    V=reshape(VKron,[n_a,n_z,vfoptions.n_e]);
 end
 
 if currdist>vfoptions.tolerance
