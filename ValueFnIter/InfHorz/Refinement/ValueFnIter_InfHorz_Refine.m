@@ -20,7 +20,15 @@ if N_z==0 && N_e==0
     end
 
     %% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
-    [V,Policy_a]=ValueFnIter_InfHorz_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+    if vfoptions.howardsgreedy==1
+        [V,Policy_a]=ValueFnIter_InfHorz_HowardGreedy_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
+    elseif vfoptions.howardsgreedy==0
+        if vfoptions.howardssparse==0
+            [V,Policy_a]=ValueFnIter_InfHorz_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        elseif vfoptions.howardssparse==1
+            [V,Policy_a]=ValueFnIter_InfHorz_sparse_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        end
+    end
 
     %% For refinement, add d into Policy
     % Policy is currently
@@ -38,7 +46,7 @@ if N_z==0 && N_e==0
         V=reshape(V,[n_a,1]);
         Policy=UnKronPolicyIndexes2_noz(Policy, n_d, n_a, n_a, vfoptions); % We know there is a decision variable, as otherwise wouldn't be using Refine
     else
-        Policy=reshape(Policy,[1,N_a]);
+        Policy=reshape(Policy,[size(Policy,1),N_a]);
         return
     end
 
@@ -98,7 +106,7 @@ elseif N_z>0 && N_e==0
         V=reshape(V,[n_a,n_z]);
         Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions); % We know there is a decision variable, as otherwise wouldn't be using Refine
     else
-        Policy=reshape(Policy,[1,N_a,N_z]);
+        Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
         return
     end
 

@@ -58,7 +58,7 @@ if N_z==0 && N_e==0
             Policy=UnKronPolicyIndexes2_noz(Policy, n_d, n_a, n_a, vfoptions);
         end
     else
-        Policy=reshape(Policy,[1,N_a]); % no z, so N_z=0 and [1,N_a,N_z] would be empty
+        Policy=reshape(Policy,[size(Policy,1),N_a]); % no z, so N_z=0 and [1,N_a,N_z] would be empty
     end
 
 elseif N_z>0 && N_e==0
@@ -105,7 +105,7 @@ elseif N_z>0 && N_e==0
             Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
         end
     else
-        Policy=reshape(Policy,[1,N_a,N_z]);
+        Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
     end
 
 elseif N_z==0 && N_e>0
