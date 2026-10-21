@@ -11,7 +11,7 @@ function [VKron, Policy, ValtKron, Policyalt]=ValueFnIter_InfHorz_QuasiHyperboli
 %   ValtKron  = Vunderbar (N_a-by-N_z)
 %   Policyalt = [] (Sophisticated only has one policy)
 % NOTE (2026-09-01): this raw runs plain value function iteration -- no Howards.
-% Adding it is step 5 of InfHorz_QHSophisticated_Howards_proposal.md, and is DEFERRED on purpose
+% Adding it is DEFERRED on purpose
 % until Howards-without-GI (S_raw and S_nod_raw, done 2026-09-01) has been validated on GPU.
 % Two reasons to wait: the postGI Howards operator is a two-point interpolation with weights
 % rather than a single lookup, so it should be built on a known-good simpler case; and while these
@@ -119,6 +119,14 @@ pi_z_alt2=shiftdim(pi_z,-2);
 pi_z_howards=repelem(pi_z,N_a,1); % row a+N_a*(z-1) is pi_z(z,:), matching how Vunderbar(:) linearises
 
 %% Fine-grid joint iteration
+% Progress print for vfoptions.verbose. Both numbers are needed, not just currdist: a stalled
+% currdist with a policy that keeps moving is the Sophisticated iteration CYCLING, while a stalled
+% currdist with a settled policy is something else, and currdist alone cannot tell the two apart.
+% Only this loop is instrumented. The rough-grid loop above is a pre-solve on the coarse grid and
+% the postGIrepeat loop below does not run in any default configuration.
+distvstolstr=['ValueFnIter (QH Sophisticated, postGI): after %i iterations the dist is %4.',num2str(-round(log10(vfoptions.tolerance))),'f and the fine policy changed at %i of ',num2str(N_a*N_z),' states \n'];
+PolicyOld=zeros(1,N_a,N_z,'gpuArray');
+
 tempcounter=1;
 currdist=1;
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
@@ -142,13 +150,22 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     Vudist=Vunderbar(:)-Vunderbarold(:);
     Vudist(isnan(Vudist))=0;
     currdist=max(abs(Vudist));
+    if vfoptions.verbose==1
+        if rem(tempcounter,10)==0 % Every 10 iterations
+            fprintf(distvstolstr, tempcounter,currdist,gather(sum(Policy_a(:)~=PolicyOld(:))))
+        end
+    end
+    PolicyOld=Policy_a;
 
     % Howards: iterate Vunderbar ONLY, at the fine policy just chosen, sourced from Vunderbar.
     % Vhat is NOT iterated; it is one step off Vunderbar and the main loop recomputes it next pass.
-    % See InfHorz_QHSophisticated_Howards_proposal.md sections 3.1 and 3.4, and the identical block
-    % in ValueFnIter_InfHorz_QuasiHyperbolicS_postGI_nod_raw. d does not appear: it has already been
-    % refined out of ReturnMatrixfine, and dstar is recovered from the chosen aprime afterwards, so
-    % the policy evaluation here is over aprime alone exactly as in the nod case.
+    % At a fixed Policy this is an ordinary beta-discounted policy evaluation in which beta0 does
+    % not appear, so the usual Howards guarantee applies; sourcing Vunderbar from Vhat instead
+    % composes to a different fixed point, which was the 2026-09-01 bug in the non-GI raws. The
+    % block is identical to the one in ValueFnIter_InfHorz_QuasiHyperbolicS_postGI_nod_raw.
+    % d does not appear: it has already been refined out of ReturnMatrixfine, and dstar is recovered
+    % from the chosen aprime afterwards, so the policy evaluation here is over aprime alone exactly
+    % as in the nod case.
     % The TWO-POINT form is the whole point: recomputing EVinterp per inner step would cost what a
     % whole outer iteration costs and buy nothing.
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards

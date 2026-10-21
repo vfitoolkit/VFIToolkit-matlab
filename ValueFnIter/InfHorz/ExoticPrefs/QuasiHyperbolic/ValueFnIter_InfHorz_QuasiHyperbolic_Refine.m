@@ -1,4 +1,4 @@
-function [VKron, PolicyKron, ValtKron, PolicyaltKron]=ValueFnIter_InfHorz_QuasiHyperbolic_Refine(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, pi_z, ReturnFn, ReturnFnParamsVec, DiscountFactorParamsVec, beta0, vfoptions, isNaive)
+function [VKron, PolicyKron, ValtKron, PolicyaltKron]=ValueFnIter_InfHorz_QuasiHyperbolic_Refine(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, ReturnFnParamsVec, DiscountFactorParamsVec, beta0, vfoptions, isNaive)
 % Refinement-based purediscretization for infinite-horizon QH (Naive and Sophisticated).
 % In QH the continuation values (E[V_{j+1}] for Naive, E[Vunderbar_{j+1}] for Sophisticated)
 % are functions of (aprime, zprime) only, never of d. So argmax_d of the QH RHS reduces to
@@ -11,7 +11,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 %% Build the (d*aprime)-by-a-by-z return matrix, then refine d out
-ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, ReturnFnParamsVec, 1);
+ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec, 1);
 [ReturnMatrix, dstar]=max(ReturnMatrix, [], 1);
 ReturnMatrix=shiftdim(ReturnMatrix, 1);
 
@@ -31,7 +31,7 @@ if isNaive
     [VKron, Policy_a]=ValueFnIter_InfHorz_QuasiHyperbolicN_nod_raw(ValtKron, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix);
 else
     % Sophisticated: joint Vhat / Vunderbar iteration (Vunderbar is the 3rd output)
-    [VKron, Policy_a, ValtKron]=ValueFnIter_InfHorz_QuasiHyperbolicS_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+    [VKron, Policy_a, ValtKron]=ValueFnIter_InfHorz_QuasiHyperbolicS_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter, vfoptions.verbose);
 end
 
 %% Recover dstar at chosen aprime, packing (d_idx, aprime_idx) into (2,N_a,N_z) Policy

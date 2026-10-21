@@ -473,15 +473,15 @@ if isfield(vfoptions,'exoticpreferences')
     elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
         isNaiveQH=~isfield(vfoptions,'quasi_hyperbolic') || strcmp(vfoptions.quasi_hyperbolic,'Naive');
         if isNaiveQH
-            [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+            [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
             varargout={V,Policy,Valt,Policyalt};
         else
-            [V, Policy, Valt]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+            [V, Policy, Valt]=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
             varargout={V,Policy,Valt};
         end
         return
     elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-        [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
         varargout={V,Policy};
         return
     elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on the (next period) exogenous state.

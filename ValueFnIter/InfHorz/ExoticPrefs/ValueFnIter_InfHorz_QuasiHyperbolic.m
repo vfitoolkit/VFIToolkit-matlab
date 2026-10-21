@@ -1,4 +1,4 @@
-function varargout=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames)
+function varargout=ValueFnIter_InfHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames)
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % Let V_j be the standard (exponential discounting) solution to the value fn problem
@@ -31,13 +31,25 @@ N_d=prod(n_d);
 if ~isfield(vfoptions,'quasi_hyperbolic')
     vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
 elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
-    vfoptions.maxiter=1000;
-    % Sophisticated quasihyperbolic in infinite horizon seems to struggle to converge, so end after fixed number of grid points
-    % My impression is that accurate convergence would require insane number of grid points.
-    vfoptions.verbose=1;
-    % I set verbose so you can see if it appears to have gotten as close to
-    % convergence as it can before reaching maxiter (if currdist is cycling
-    % through numbers of the same magnitude for a while before stopping)
+    % Sophisticated quasi-hyperbolic in infinite horizon does not converge tightly, and the reason
+    % is not a grid too coarse: the policy CYCLES rather than settling. Measured in the test bank at
+    % n_a=251, 53% of states change policy on every iteration at beta0=0.90, and 26% still do at
+    % beta0=0.99, with 0 of 50 iterations settling. Howards cannot fix that (it accelerates policy
+    % EVALUATION at a fixed policy), so the iteration stops on maxiter rather than on tolerance and
+    % a smaller default saves time that buys nothing.
+    if ~isfield(vfoptions,'maxiter')
+        vfoptions.maxiter=1000;
+    end
+    % This is a DEFAULT, not an override. It used to be set unconditionally, which silently
+    % discarded a maxiter the user had chosen -- running longer than the user asked is a worse
+    % failure than running long.
+    %
+    % vfoptions.verbose is likewise no longer forced to 1 here. It was, with the stated intention
+    % that you could watch whether currdist was cycling through numbers of the same magnitude; but
+    % no quasi-hyperbolic raw read it, so that print never happened and the forcing only overrode a
+    % user's choice. The raws now take and honour it (and print the policy-change count beside
+    % currdist, which is what actually distinguishes cycling from slow convergence). Either way, a
+    % run that stops on maxiter also warns at the end, whatever verbose is set to.
 elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
     % Check that one of the possible options have been used. If not then error.
     error('vfoptions.quasi_hyperbolic must be either Naive or Sophisticated (check spelling and capital letter)')
@@ -48,6 +60,14 @@ if ~isfield(vfoptions,'QHadditionaldiscount')
 elseif ~ischar(vfoptions.QHadditionaldiscount)
     error('vfoptions.QHadditionaldiscount must be the name of the additional discount parameter, given as a character vector such as ''beta0''')
 end
+
+if ~isscalar(n_a)
+    error('InfHorz quasi-hyperbolic discounting is only implemented for a single endogenous state (scalar n_a). Two endogenous states (2A) are not supported on ANY quasi-hyperbolic path: the raws take prod(n_a) as N_a and have no a1/a2 split.')
+end
+% This guard used to sit inside the vfoptions.gridinterplayer==1 block, so the grid-interpolation
+% case was refused cleanly while the plain and refined paths fell through to fail deep inside a raw
+% with 'In repelem(A,N1,...,Nn), Nj must be a scalar or a vector of length size(A,j)'. Same outcome,
+% unrecognisable message. It is an interface restriction, so it belongs with the interface checks.
 
 isNaive=strcmp(vfoptions.quasi_hyperbolic,'Naive');
 
@@ -72,9 +92,6 @@ if vfoptions.gridinterplayer==1
     % Default GI path (postGI, howardsgreedy=0, howardssparse=0). d-refinement is
     % preference-independent, so the refined return-matrix construction is identical
     % to the standard postGI raws; only the VFI/extra step uses QH discounting.
-    if ~isscalar(n_a)
-        error('QuasiHyperbolic with vfoptions.gridinterplayer=1 is only implemented for scalar n_a (single endogenous state). Multi-dim n_a (2A) variants are not yet supported.')
-    end
     % QH GI is always postGI — mirror the postGI defaults from ValueFnIter_InfHorz_GridInterpLayer.
     % This dispatcher bypasses that helper, so the defaults must be set here.
     if ~isfield(vfoptions,'multigridswitch')
@@ -150,7 +167,6 @@ if vfoptions.gridinterplayer==1
     if N_d==0
         if isNaive
             % Step 1: the exponential solve, by the standard postGI path.
-            z_gridvals=CreateGridvals(n_z,z_grid,1); % the caller passes z_grid, not z_gridvals
             [Valt, Policyalt]=ValueFnIter_InfHorz_GridInterpLayer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, prod(DiscountFactorParamsVec), ReturnFnParamsVec, vfoptions);
 
             % Step 2: the quasi-hyperbolic step is EXACTLY a one-period finite-horizon problem,
@@ -169,17 +185,18 @@ if vfoptions.gridinterplayer==1
             vfoptions_QHstep.V_Jplus1=Valt;
             Parameters_QHstep=Parameters;
             Parameters_QHstep.QHstepdiscount=beta0*prod(DiscountFactorParamsVec);
-            [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,1,d_gridvals,a_grid,z_grid,pi_z,ReturnFn,Parameters_QHstep,{'QHstepdiscount'},ReturnFnParamNames,vfoptions_QHstep);
+            % z_gridvals is the [prod(n_z),length(n_z)] joint form, which is one of the shapes
+            % ExogShockSetup_FHorz documents and accepts, so it needs no conversion here.
+            [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,1,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,Parameters_QHstep,{'QHstepdiscount'},ReturnFnParamNames,vfoptions_QHstep);
             V=reshape(V,[n_a,n_z]); % drop the trailing N_j=1 dimension
             Policy=reshape(Policy,[size(Policy,1),n_a,n_z]);
             alreadyfinalform=1; % Valt/Policyalt and V/Policy above are all already unkronned
         else
-            [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolicS_postGI_nod_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParamsVec, vfoptions);
+            [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolicS_postGI_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParamsVec, vfoptions);
         end
     else
         if isNaive
             % Step 1: the exponential solve, by the standard postGI path.
-            z_gridvals=CreateGridvals(n_z,z_grid,1); % the caller passes z_grid, not z_gridvals
             [Valt, Policyalt]=ValueFnIter_InfHorz_GridInterpLayer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, prod(DiscountFactorParamsVec), ReturnFnParamsVec, vfoptions);
 
             % Step 2: as in the N_d==0 arm above -- the quasi-hyperbolic step is exactly a
@@ -192,27 +209,34 @@ if vfoptions.gridinterplayer==1
             vfoptions_QHstep.V_Jplus1=Valt;
             Parameters_QHstep=Parameters;
             Parameters_QHstep.QHstepdiscount=beta0*prod(DiscountFactorParamsVec);
-            [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,1,d_gridvals,a_grid,z_grid,pi_z,ReturnFn,Parameters_QHstep,{'QHstepdiscount'},ReturnFnParamNames,vfoptions_QHstep);
+            % z_gridvals is the [prod(n_z),length(n_z)] joint form, which is one of the shapes
+            % ExogShockSetup_FHorz documents and accepts, so it needs no conversion here.
+            [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,1,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,Parameters_QHstep,{'QHstepdiscount'},ReturnFnParamNames,vfoptions_QHstep);
             V=reshape(V,[n_a,n_z]); % drop the trailing N_j=1 dimension
             Policy=reshape(Policy,[size(Policy,1),n_a,n_z]);
             alreadyfinalform=1; % Valt/Policyalt and V/Policy above are all already unkronned
         else
-            [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolicS_Refine_postGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParamsVec, vfoptions);
+            [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolicS_Refine_postGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParamsVec, vfoptions);
         end
     end
 elseif N_d>0 && strcmp(vfoptions.solnmethod,'purediscretization_refinement')
     % Default GPU path for d-case: refine d out of the return function, then solve
     % the QH problem on the refined (nod-shaped) matrix. See subfn for the argument
     % that d-refinement is preference-independent.
-    [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolic_Refine(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_grid, pi_z, ReturnFn, ReturnFnParamsVec, DiscountFactorParamsVec, beta0, vfoptions, isNaive);
+    [V, Policy, Valt, Policyalt]=ValueFnIter_InfHorz_QuasiHyperbolic_Refine(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, ReturnFnParamsVec, DiscountFactorParamsVec, beta0, vfoptions, isNaive);
 else
     % Use the same ReturnMatrix for both the continuation value, and the value fn
-    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_grid,ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals,ReturnFnParamsVec,0);
 
     if isNaive % For Naive, just solve the standard value function problem, and then just one step following that.
         if N_d==0
             % First calculate the exponential discounting solution
-            [Valt,Policyalt]=ValueFnIter_InfHorz_nod_raw(V0, n_a, n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            % prod(n_a), prod(n_z): unlike ValueFnIter_InfHorz_raw (which takes n_d,n_a,n_z and
+            % reduces them itself), ValueFnIter_InfHorz_nod_raw takes N_a and N_z already reduced
+            % and uses them directly in a colon expression. Passing n_a,n_z here was harmless only
+            % because a single endogenous state and a single z make them scalars already; with a
+            % two-dimensional z it reaches '0:1:N_z-1' as a vector and errors.
+            [Valt,Policyalt]=ValueFnIter_InfHorz_nod_raw(V0, prod(n_a), prod(n_z), pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             % Then the Naive quasi-hyperbolic from this
             [V,Policy]=ValueFnIter_InfHorz_QuasiHyperbolicN_nod_raw(Valt, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix);
             Policy=shiftdim(Policy,-1);
@@ -224,10 +248,10 @@ else
         end
     else % Sophisticated
         if N_d==0
-            [V,Policy,Valt]=ValueFnIter_InfHorz_QuasiHyperbolicS_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            [V,Policy,Valt]=ValueFnIter_InfHorz_QuasiHyperbolicS_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter, vfoptions.verbose);
             Policy=shiftdim(Policy,-1);
         else
-            [V, Policy,Valt]=ValueFnIter_InfHorz_QuasiHyperbolicS_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+            [V, Policy,Valt]=ValueFnIter_InfHorz_QuasiHyperbolicS_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter, vfoptions.verbose);
         end
     end
 end

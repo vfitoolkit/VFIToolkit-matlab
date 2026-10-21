@@ -1,4 +1,4 @@
-function [Vhat, Policy, Vunderbar]=ValueFnIter_InfHorz_QuasiHyperbolicS_raw(Vunderbar, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, Howards,Howards2, Tolerance, maxiter) %Verbose,
+function [Vhat, Policy, Vunderbar]=ValueFnIter_InfHorz_QuasiHyperbolicS_raw(Vunderbar, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, Howards,Howards2, Tolerance, maxiter, Verbose)
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % The 'Sophisticated' quasi-hyperbolic solution takes into account the time-inconsistent behaviour of their future self.
@@ -25,6 +25,10 @@ pi_z_howards=repelem(pi_z,N_a,1);
 
 % Count of states whose policy changed each iteration, for the non-convergence diagnostic below.
 npolicychanged=zeros(maxiter,1,'gpuArray');
+% Progress print for Verbose. Both numbers are needed, not just currdist: a stalled currdist with a
+% policy that keeps moving is the Sophisticated iteration CYCLING, while a stalled currdist with a
+% settled policy is something else, and currdist alone cannot tell the two apart.
+distvstolstr=['ValueFnIter (QH Sophisticated): after %i iterations the dist is %4.',num2str(-round(log10(Tolerance))),'f and the policy changed at %i of ',num2str(N_a*N_z),' states \n'];
 
 beta=prod(DiscountFactorParamsVec); % Discount rate between two future periods
 beta0beta=beta0*beta; % Discount rate between present period and next period
@@ -69,6 +73,12 @@ while currdist>Tolerance && tempcounter<maxiter
     currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
 
     npolicychanged(tempcounter)=sum(Policyhat(:)~=PolicyhatOld(:));
+
+    if Verbose==1
+        if rem(tempcounter,10)==0 % Every 10 iterations
+            fprintf(distvstolstr, tempcounter,currdist,gather(npolicychanged(tempcounter)))
+        end
+    end
 
     % Howards on Vunderbar ONLY. At a fixed Policyhat, Vunderbar solves an ordinary discounted
     % policy evaluation, Vunderbar = Ftemp + beta*E[Vunderbar], in which beta0 does not appear;
