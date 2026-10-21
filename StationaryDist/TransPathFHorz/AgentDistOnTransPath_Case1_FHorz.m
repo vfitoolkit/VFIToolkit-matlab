@@ -714,7 +714,7 @@ if N_probs==1 % Not using N_probs
                 AgentDistPath(:,:,1)=AgentDist;
                 for tt=1:T-1
                     if transpathoptions.epathtrivial==0
-                        pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,:,tt);
+                        pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt); % [N_a*(N_j-1),N_e,T] (this indexed it (:,:,:,tt), out of range for tt>1)
                     end
                     if transpathoptions.trivialjequalonedist==0
                         jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist

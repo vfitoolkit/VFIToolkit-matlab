@@ -290,86 +290,90 @@ if N_z>0
         if z_grid_timevarying || pi_z_timevarying
             transpathoptions.zpathtrivial=0;
 
-            % Build transpathoptions.z_gridvals_J_T as [prod(n_z), length(n_z), N_j, T]
-            if z_grid_timevarying
-                if ndims(z_grid)==4
-                    if all(size(z_grid)==[prod(n_z),length(n_z),N_j,T])
-                        transpathoptions.z_gridvals_J_T=gpuArray(z_grid);
-                    else
-                        error('z_grid is 4D but size does not match [prod(n_z), length(n_z), N_j, T]')
-                    end
-                elseif ndims(z_grid)==3
-                    if all(size(z_grid)==[prod(n_z),length(n_z),T]) % age-indep, time-var joint
-                        transpathoptions.z_gridvals_J_T=repmat(reshape(gpuArray(z_grid),[prod(n_z),length(n_z),1,T]),1,1,N_j,1);
-                    elseif all(size(z_grid)==[sum(n_z),N_j,T]) % age-dep, time-var stacked
-                        transpathoptions.z_gridvals_J_T=zeros(prod(n_z),length(n_z),N_j,T,'gpuArray');
-                        for tt=1:T
-                            for jj=1:N_j
-                                transpathoptions.z_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_z,gpuArray(z_grid(:,jj,tt)),1);
+            if gridpiboth~=2 % the agent dist (gridpiboth=2) only wants pi_z, and passes z_grid=[]
+                % Build transpathoptions.z_gridvals_J_T as [prod(n_z), length(n_z), N_j, T]
+                if z_grid_timevarying
+                    if ndims(z_grid)==4
+                        if all(size(z_grid)==[prod(n_z),length(n_z),N_j,T])
+                            transpathoptions.z_gridvals_J_T=gpuArray(z_grid);
+                        else
+                            error('z_grid is 4D but size does not match [prod(n_z), length(n_z), N_j, T]')
+                        end
+                    elseif ndims(z_grid)==3
+                        if all(size(z_grid)==[prod(n_z),length(n_z),T]) % age-indep, time-var joint
+                            transpathoptions.z_gridvals_J_T=repmat(reshape(gpuArray(z_grid),[prod(n_z),length(n_z),1,T]),1,1,N_j,1);
+                        elseif all(size(z_grid)==[sum(n_z),N_j,T]) % age-dep, time-var stacked
+                            transpathoptions.z_gridvals_J_T=zeros(prod(n_z),length(n_z),N_j,T,'gpuArray');
+                            for tt=1:T
+                                for jj=1:N_j
+                                    transpathoptions.z_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_z,gpuArray(z_grid(:,jj,tt)),1);
+                                end
                             end
+                        else
+                            error('z_grid is 3D time-varying but size does not match any expected shape')
                         end
-                    else
-                        error('z_grid is 3D time-varying but size does not match any expected shape')
-                    end
-                else % ndims==2, time-var stacked no age
-                    if all(size(z_grid)==[sum(n_z),T])
-                        transpathoptions.z_gridvals_J_T=zeros(prod(n_z),length(n_z),N_j,T,'gpuArray');
-                        for tt=1:T
-                            z_gridvals_one=CreateGridvals(n_z,gpuArray(z_grid(:,tt)),1);
-                            transpathoptions.z_gridvals_J_T(:,:,:,tt)=repmat(z_gridvals_one,1,1,N_j);
+                    else % ndims==2, time-var stacked no age
+                        if all(size(z_grid)==[sum(n_z),T])
+                            transpathoptions.z_gridvals_J_T=zeros(prod(n_z),length(n_z),N_j,T,'gpuArray');
+                            for tt=1:T
+                                z_gridvals_one=CreateGridvals(n_z,gpuArray(z_grid(:,tt)),1);
+                                transpathoptions.z_gridvals_J_T(:,:,:,tt)=repmat(z_gridvals_one,1,1,N_j);
+                            end
+                        else
+                            error('z_grid 2D time-varying but size does not match [sum(n_z), T]')
                         end
-                    else
-                        error('z_grid 2D time-varying but size does not match [sum(n_z), T]')
                     end
-                end
-            else
-                % z_grid time-invariant: build the age-expanded gridvals, then broadcast across T
-                z_gridvals_J_static=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
-                if ndims(z_grid)==3 && all(size(z_grid)==[prod(n_z),length(n_z),N_j])
-                    z_gridvals_J_static=gpuArray(z_grid);
-                elseif ndims(z_grid)==2 && all(size(z_grid)==[sum(n_z),N_j])
-                    for jj=1:N_j
-                        z_gridvals_J_static(:,:,jj)=CreateGridvals(n_z,gpuArray(z_grid(:,jj)),1);
-                    end
-                elseif ndims(z_grid)==2 && all(size(z_grid)==[prod(n_z),length(n_z)])
-                    z_gridvals_J_static=repmat(gpuArray(z_grid),1,1,N_j);
-                elseif ndims(z_grid)==2 && all(size(z_grid)==[sum(n_z),1])
-                    z_gridvals_J_static=repmat(CreateGridvals(n_z,gpuArray(z_grid),1),1,1,N_j);
                 else
-                    error('z_grid time-invariant but size does not match any expected shape')
+                    % z_grid time-invariant: build the age-expanded gridvals, then broadcast across T
+                    z_gridvals_J_static=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
+                    if ndims(z_grid)==3 && all(size(z_grid)==[prod(n_z),length(n_z),N_j])
+                        z_gridvals_J_static=gpuArray(z_grid);
+                    elseif ndims(z_grid)==2 && all(size(z_grid)==[sum(n_z),N_j])
+                        for jj=1:N_j
+                            z_gridvals_J_static(:,:,jj)=CreateGridvals(n_z,gpuArray(z_grid(:,jj)),1);
+                        end
+                    elseif ndims(z_grid)==2 && all(size(z_grid)==[prod(n_z),length(n_z)])
+                        z_gridvals_J_static=repmat(gpuArray(z_grid),1,1,N_j);
+                    elseif ndims(z_grid)==2 && all(size(z_grid)==[sum(n_z),1])
+                        z_gridvals_J_static=repmat(CreateGridvals(n_z,gpuArray(z_grid),1),1,1,N_j);
+                    else
+                        error('z_grid time-invariant but size does not match any expected shape')
+                    end
+                    transpathoptions.z_gridvals_J_T=repmat(z_gridvals_J_static,1,1,1,T);
                 end
-                transpathoptions.z_gridvals_J_T=repmat(z_gridvals_J_static,1,1,1,T);
             end
 
-            % Build transpathoptions.pi_z_J_T as [prod(n_z), prod(n_z), N_j-1, T] (slice jj is the transition from period jj to jj+1; there is no final-period slice)
-            if pi_z_timevarying
-                if ndims(pi_z)==4
-                    if all(size(pi_z)==[N_z,N_z,N_j,T])
-                        transpathoptions.pi_z_J_T=gpuArray(pi_z(:,:,1:N_j-1,:)); % the never-read final-period slice is dropped here
-                    elseif all(size(pi_z)==[N_z,N_z,N_j-1,T])
-                        transpathoptions.pi_z_J_T=gpuArray(pi_z);
-                    else
-                        error('pi_z is 4D but size does not match [N_z, N_z, N_j, T] or [N_z, N_z, N_j-1, T]')
+            if gridpiboth~=1 % the FnsToEvaluate (gridpiboth=1) only want the grid, and pass pi_z=[]
+                % Build transpathoptions.pi_z_J_T as [prod(n_z), prod(n_z), N_j-1, T] (slice jj is the transition from period jj to jj+1; there is no final-period slice)
+                if pi_z_timevarying
+                    if ndims(pi_z)==4
+                        if all(size(pi_z)==[N_z,N_z,N_j,T])
+                            transpathoptions.pi_z_J_T=gpuArray(pi_z(:,:,1:N_j-1,:)); % the never-read final-period slice is dropped here
+                        elseif all(size(pi_z)==[N_z,N_z,N_j-1,T])
+                            transpathoptions.pi_z_J_T=gpuArray(pi_z);
+                        else
+                            error('pi_z is 4D but size does not match [N_z, N_z, N_j, T] or [N_z, N_z, N_j-1, T]')
+                        end
+                    else % ndims==3 time-var no age
+                        if all(size(pi_z)==[N_z,N_z,T])
+                            transpathoptions.pi_z_J_T=repmat(reshape(gpuArray(pi_z),[N_z,N_z,1,T]),1,1,N_j-1,1);
+                        else
+                            error('pi_z is 3D time-varying but size does not match [N_z, N_z, T]')
+                        end
                     end
-                else % ndims==3 time-var no age
-                    if all(size(pi_z)==[N_z,N_z,T])
-                        transpathoptions.pi_z_J_T=repmat(reshape(gpuArray(pi_z),[N_z,N_z,1,T]),1,1,N_j-1,1);
-                    else
-                        error('pi_z is 3D time-varying but size does not match [N_z, N_z, T]')
-                    end
-                end
-            else
-                % pi_z time-invariant
-                if ndims(pi_z)==3 && all(size(pi_z)==[N_z,N_z,N_j])
-                    pi_z_J_static=gpuArray(pi_z(:,:,1:N_j-1)); % the never-read final-period slice is dropped here
-                elseif ndims(pi_z)==3 && all(size(pi_z)==[N_z,N_z,N_j-1])
-                    pi_z_J_static=gpuArray(pi_z);
-                elseif ndims(pi_z)==2 && all(size(pi_z)==[N_z,N_z])
-                    pi_z_J_static=repmat(gpuArray(pi_z),1,1,N_j-1);
                 else
-                    error('pi_z time-invariant but size does not match any expected shape')
+                    % pi_z time-invariant
+                    if ndims(pi_z)==3 && all(size(pi_z)==[N_z,N_z,N_j])
+                        pi_z_J_static=gpuArray(pi_z(:,:,1:N_j-1)); % the never-read final-period slice is dropped here
+                    elseif ndims(pi_z)==3 && all(size(pi_z)==[N_z,N_z,N_j-1])
+                        pi_z_J_static=gpuArray(pi_z);
+                    elseif ndims(pi_z)==2 && all(size(pi_z)==[N_z,N_z])
+                        pi_z_J_static=repmat(gpuArray(pi_z),1,1,N_j-1);
+                    else
+                        error('pi_z time-invariant but size does not match any expected shape')
+                    end
+                    transpathoptions.pi_z_J_T=repmat(pi_z_J_static,1,1,1,T);
                 end
-                transpathoptions.pi_z_J_T=repmat(pi_z_J_static,1,1,1,T);
             end
 
             % Plain outputs are tt=1 placeholders; downstream code uses the _J_T fields
@@ -496,14 +500,8 @@ if N_z>0
         if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
             z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG(): N_j-by-N_z-by-l_z
             if transpathoptions.zpathtrivial==0
-                temp=transpathoptions.z_grid_J_T;
-                transpathoptions=rmfield(transpathoptions,'z_grid_J_T');
-                transpathoptions.z_gridvals_J_T=zeros(N_z,l_z,N_j,T,'gpuArray');
-                for tt=1:T
-                    for jj=1:N_j
-                        z_gridvals_J(:,:,jj,tt)=CreateGridvals(n_z,temp(:,jj,tt),1);
-                    end
-                end
+                % z_gridvals_J_T is already the joint grid [N_z,l_z,N_j,T] (it used to be rebuilt here from a
+                % z_grid_J_T that only the ExogShockFn branch creates, and written into z_gridvals_J)
                 transpathoptions.z_gridvals_J_T=permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]); % from [N_z,l_z,N_j,T] to [N_j,N_z,l_z,T]
             end
         elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -518,14 +516,8 @@ if N_z>0
             pi_z_J=permute(pi_z_J,[3,2,1]); % We want it to be (j,z',z) for value function
             transpathoptions.pi_z_J_alt=permute(pi_z_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
             if transpathoptions.zpathtrivial==0
-                temp=transpathoptions.z_grid_J_T;
-                transpathoptions=rmfield(transpathoptions,'z_grid_J_T');
-                transpathoptions.z_gridvals_J_T=zeros(N_z,l_z,N_j,T,'gpuArray');
-                for tt=1:T
-                    for jj=1:N_j
-                        z_gridvals_J(:,:,jj,tt)=CreateGridvals(n_z,temp(:,jj,tt),1);
-                    end
-                end
+                % z_gridvals_J_T is already the joint grid [N_z,l_z,N_j,T] (it used to be rebuilt here from a
+                % z_grid_J_T that only the ExogShockFn branch creates, and written into z_gridvals_J)
                 transpathoptions.z_gridvals_J_T=permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]); % from [N_z,l_z,N_j,T] to [N_j,N_z,l_z,T]
                 transpathoptions.pi_z_J_T=permute(transpathoptions.pi_z_J_T,[3,2,1,4]);  % We want it to be (j,z',z,t) for value function
                 transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % But is (j,z,z',t) for agent dist with fastOLG [note, this permute is off the previous one]
@@ -854,21 +846,15 @@ if N_e>0
                 e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLGe: (j,1,N_e,l_e)
                 % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
                 if transpathoptions.epathtrivial==0
-                    temp=transpathoptions.e_grid_J_T;
-                    transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
-                    transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
-                    for tt=1:T
-                        for jj=1:N_j
-                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
-                        end
-                    end
-                    transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
+                    % e_gridvals_J_T is already the joint grid [N_e,l_e,N_j,T] (it used to be rebuilt here from an
+                    % e_grid_J_T that only the EiidShockFn branch creates)
+                    transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from [N_e,l_e,N_j,T] to [N_j,1,N_e,l_e,T] [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
                 end
             elseif gridpiboth==2 % For agent dist, we don't use grid
-                pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,1,N_e]); % Give it the size required for fastOLG value function
+                pi_e_J=repelem(permute(gpuArray(pi_e_J),[2,3,1]),N_a,1,1); % Give it the size required for fastOLG value function: from (e,j) to (a-j,1,e), a fastest (the kron-and-transpose this replaced put j fastest, wrong whenever pi_e depends on age)
                 % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
                 if transpathoptions.epathtrivial==0
-                    transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,1,e,t)
+                    transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[2,4,1,3]),N_a,1,1,1);  % from (e,j,t) to (a-j,1,e,t), a fastest (the [3,1,2,4] this replaced gave (t,e,j))
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
@@ -877,19 +863,13 @@ if N_e>0
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
                 e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLGe: (j,1,N_e,l_e)
-                pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,1,N_e]); % Give it the size required for fastOLG value function
+                pi_e_J=repelem(permute(gpuArray(pi_e_J),[2,3,1]),N_a,1,1); % Give it the size required for fastOLG value function: from (e,j) to (a-j,1,e), a fastest (the kron-and-transpose this replaced put j fastest, wrong whenever pi_e depends on age)
                 % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
                 if transpathoptions.epathtrivial==0
-                    temp=transpathoptions.e_grid_J_T;
-                    transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
-                    transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
-                    for tt=1:T
-                        for jj=1:N_j
-                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
-                        end
-                    end
-                    transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
-                    transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,1,e,t)
+                    % e_gridvals_J_T is already the joint grid [N_e,l_e,N_j,T] (it used to be rebuilt here from an
+                    % e_grid_J_T that only the EiidShockFn branch creates)
+                    transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from [N_e,l_e,N_j,T] to [N_j,1,N_e,l_e,T] [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
+                    transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[2,4,1,3]),N_a,1,1,1);  % from (e,j,t) to (a-j,1,e,t), a fastest (the [3,1,2,4] this replaced gave (t,e,j))
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
                     for tt=1:T
                         temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
@@ -901,43 +881,31 @@ if N_e>0
             if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_e
                 e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG: (j,N_e,l_e)
                 if transpathoptions.epathtrivial==0
-                    temp=transpathoptions.e_grid_J_T;
-                    transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
-                    transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
-                    for tt=1:T
-                        for jj=1:N_j
-                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
-                        end
-                    end
-                    transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from (e,j,t) to (j,e,t)
+                    % e_gridvals_J_T is already the joint grid [N_e,l_e,N_j,T] (it used to be rebuilt here from an
+                    % e_grid_J_T that only the EiidShockFn branch creates)
+                    transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from [N_e,l_e,N_j,T] to [N_j,N_e,l_e,T]
                 end
             elseif gridpiboth==2 % For agent dist, we don't use grid
-                pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,N_e]); % Give it the size required for fastOLG value function
+                pi_e_J=repelem(permute(gpuArray(pi_e_J),[2,1]),N_a,1); % Give it the size required for fastOLG value function: from (e,j) to (a-j,e), a fastest (the kron-and-transpose this replaced put j fastest, wrong whenever pi_e depends on age)
                 if transpathoptions.epathtrivial==0
-                    transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,e,t)
+                    transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[2,1,3]),N_a,1,1);  % from (e,j,t) to (a-j,e,t), a fastest (the [3,1,2,4] this replaced gave (t,e,j))
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
                     for tt=1:T
-                        temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
+                        temp=transpathoptions.pi_e_J_T(:,:,tt); % transpathoptions.fastOLG means pi_e_J_T is [N_a*N_j,N_e,T]
                         transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:)); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
                     end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
                 e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG: (j,N_e,l_e)
-                pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,N_e]); % Give it the size required for fastOLG value function
+                pi_e_J=repelem(permute(gpuArray(pi_e_J),[2,1]),N_a,1); % Give it the size required for fastOLG value function: from (e,j) to (a-j,e), a fastest (the kron-and-transpose this replaced put j fastest, wrong whenever pi_e depends on age)
                 if transpathoptions.epathtrivial==0
-                    temp=transpathoptions.e_grid_J_T;
-                    transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
-                    transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
-                    for tt=1:T
-                        for jj=1:N_j
-                            transpathoptions.e_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
-                        end
-                    end
-                    transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from (e,j,t) to (j,e,t)
-                    transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,e,t)
+                    % e_gridvals_J_T is already the joint grid [N_e,l_e,N_j,T] (it used to be rebuilt here from an
+                    % e_grid_J_T that only the EiidShockFn branch creates)
+                    transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from [N_e,l_e,N_j,T] to [N_j,N_e,l_e,T]
+                    transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[2,1,3]),N_a,1,1);  % from (e,j,t) to (a-j,e,t), a fastest (the [3,1,2,4] this replaced gave (t,e,j))
                     transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
                     for tt=1:T
-                        temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
+                        temp=transpathoptions.pi_e_J_T(:,:,tt); % transpathoptions.fastOLG means pi_e_J_T is [N_a*N_j,N_e,T]
                         transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:)); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
                     end
                 end
@@ -1025,12 +993,26 @@ else
     if transpathoptions.zepathtrivial==0
         if l_z>0 && l_e>0
             N_ze=N_z*N_e;
+            % Only one of z and e need vary over the path, and then the other has no _T version: use its
+            % time-invariant grid in every period (this used to read the missing field and error)
+            if transpathoptions.zpathtrivial==0
+                z_gridvals_J_T=transpathoptions.z_gridvals_J_T;
+            else
+                z_gridvals_J_T=repmat(z_gridvals_J,1,1,1,T); % [N_z,l_z,N_j,T] if fastOLG=0, [N_j,N_z,l_z,T] if fastOLG=1
+            end
+            if transpathoptions.epathtrivial==0
+                e_gridvals_J_T=transpathoptions.e_gridvals_J_T;
+            elseif transpathoptions.fastOLG==0
+                e_gridvals_J_T=repmat(e_gridvals_J,1,1,1,T); % [N_e,l_e,N_j,T]
+            else
+                e_gridvals_J_T=repmat(e_gridvals_J,1,1,1,1,T); % [N_j,1,N_e,l_e,T]
+            end
             if transpathoptions.fastOLG==0
-                ze_gridvals_J_T=[repmat(transpathoptions.z_gridvals_J_T,N_e,1,1),repelem(transpathoptions.e_gridvals_J_T,N_z,1,1)];
+                ze_gridvals_J_T=[repmat(z_gridvals_J_T,N_e,1,1),repelem(e_gridvals_J_T,N_z,1,1)];
             elseif transpathoptions.fastOLG==1
                 ze_gridvals_J_T=zeros(N_j,N_ze,l_ze,T,'gpuArray');
-                ze_gridvals_J_T(:,:,1:l_z,:)=repmat(transpathoptions.z_gridvals_J_T,1,N_e,1);
-                ze_gridvals_J_T(:,:,l_z+1:end,:)=repelem(reshape(transpathoptions.e_gridvals_J_T,[N_j,N_e,l_e,T]),1,N_z,1,1); % (z,e) with z fastest, as above
+                ze_gridvals_J_T(:,:,1:l_z,:)=repmat(z_gridvals_J_T,1,N_e,1);
+                ze_gridvals_J_T(:,:,l_z+1:end,:)=repelem(reshape(e_gridvals_J_T,[N_j,N_e,l_e,T]),1,N_z,1,1); % (z,e) with z fastest, as above
             end
         end
 
@@ -1044,7 +1026,7 @@ else
             end
         else
             if N_z>0 && N_e>0
-                transpathoptions.ze_gridvals_J_T_fastOLG=shiftdim(transpathoptions.ze_gridvals_J_T,-1); % [1,N_j,N_ze,l_ze,T] need this for fastOLG agent dist (it is not used for value fn, so can overwrite)
+                transpathoptions.ze_gridvals_J_T_fastOLG=shiftdim(ze_gridvals_J_T,-1); % [1,N_j,N_ze,l_ze,T] (from the local ze_gridvals_J_T built above; transpathoptions.ze_gridvals_J_T, which this read, does not exist) need this for fastOLG agent dist (it is not used for value fn, so can overwrite)
             elseif N_z>0
                 transpathoptions.ze_gridvals_J_T_fastOLG=shiftdim(transpathoptions.z_gridvals_J_T,-1); % [1,N_j,N_z,l_z,T] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
             elseif N_e>0

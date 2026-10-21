@@ -474,8 +474,8 @@ else
                     end
 
                     if transpathoptions.epathtrivial==0
-                        pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
-                        e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
+                        pi_e_J=transpathoptions.pi_e_J_T(:,:,:,T-ttr); % fastOLG with z: pi_e_J_T is [N_a*N_j,1,N_e,T]
+                        e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,:,T-ttr); % fastOLG with z: e_gridvals_J_T is [N_j,1,N_e,l_e,T]
                     end
                     if transpathoptions.zpathtrivial==0
                         pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)

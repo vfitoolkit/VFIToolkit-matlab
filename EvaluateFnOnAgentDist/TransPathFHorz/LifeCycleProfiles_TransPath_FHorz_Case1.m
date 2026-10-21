@@ -1,5 +1,6 @@
 function AgeConditionalStatsPath=LifeCycleProfiles_TransPath_FHorz_Case1(FnsToEvaluate, AgentDistPath,PolicyPath, PricePath, ParamPath, Parameters,T,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,transpathoptions,simoptions)
-% Changing z or e over the transition is not supported. Handles z, e and semiz (each period is the stationary
+% z and e grids may vary over the transition (a time-varying z_grid or simoptions.e_grid, see
+% ExogShockSetup_FHorz_TPath). Handles z, e and semiz (each period is the stationary
 % LifeCycleProfiles_FHorz_Case1 on that period's slice of AgentDistPath and PolicyPath).
 %
 % Works from AgentDistPath to calculate life-cycle profiles over the transition.
@@ -109,18 +110,23 @@ slicePolicy=repmat({':'},1,ndims(PolicyPath)-1);
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
-%% Whether z or e vary over the path (not yet implemented here)
+%% Whether z or e vary over the path
 % gridpiboth=1: grid only, so pi_z is passed as []. On a copy of the options: the stationary
 % LifeCycleProfiles_FHorz_Case1 below is given the user's own simoptions, as it sets up the (z,e) grids
 % itself (handing it the options this setup returns broke the e case).
+% When z (or e) varies over the path, the setup gives transpathoptionsZ.z_gridvals_J_T [N_z,l_z,N_j,T]
+% (and e_gridvals_J_T [N_e,l_e,N_j,T], pi_e_J_T [N_e,N_j,T]), and each period hands the stationary
+% command that period's age-dependent joint grids. Age jj in period tt then uses the same grid as the
+% value fn and agent dist on the path did.
+transpathoptionsZ.zpathtrivial=1;
+transpathoptionsZ.epathtrivial=1;
 if simoptions.alreadygridvals==0 % (=1 when called as a subcommand with the grids already set up)
     simoptionsZ=simoptions;
     simoptionsZ.fastOLG=0;
     [~,~,~,~,~,~,~,transpathoptionsZ]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],prod(n_a),N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptionsZ,1);
-    if transpathoptionsZ.zpathtrivial==0 || (isfield(transpathoptionsZ,'epathtrivial') && transpathoptionsZ.epathtrivial==0)
-        error('LifeCycleProfiles_TransPath_FHorz_Case1: z or e grids that vary over the transition path are not yet implemented (email me if you want this)')
-    end
 end
+z_grid_tt=z_grid;
+simoptions_tt=simoptions;
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,ParamPathNames,{},transpathoptions);
@@ -179,7 +185,16 @@ for tt=1:T
         end
     end
 
-    tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    % This period's z and e grids, when they vary over the path
+    if transpathoptionsZ.zpathtrivial==0
+        z_grid_tt=transpathoptionsZ.z_gridvals_J_T(:,:,:,tt); % [N_z,l_z,N_j], an age-dependent joint grid
+    end
+    if transpathoptionsZ.epathtrivial==0
+        simoptions_tt.e_grid=transpathoptionsZ.e_gridvals_J_T(:,:,:,tt); % [N_e,l_e,N_j], an age-dependent joint grid
+        simoptions_tt.pi_e=transpathoptionsZ.pi_e_J_T(:,:,tt); % [N_e,N_j]
+    end
+
+    tempAgeConditionalStats=LifeCycleProfiles_FHorz_Case1(AgentDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid_tt,simoptions_tt);
 
     % This period's aggregates (over all ages) of the FnsToEvaluate that are used as _tminus1, which
     % become the _tminus1 values of next period. The life-cycle profiles are conditional on age, so they
@@ -189,11 +204,11 @@ for tt=1:T
         for pp=1:length(tminus1AggVarsNames)
             FnsToEvaluateLag.(tminus1AggVarsNames{pp})=FnsToEvaluate.(tminus1AggVarsNames{pp});
         end
-        simoptionsLag=simoptions;
+        simoptionsLag=simoptions_tt;
         if isfield(simoptionsLag,'outputasstructure')
             simoptionsLag=rmfield(simoptionsLag,'outputasstructure'); % FnsToEvaluateLag is a structure, so the output is too
         end
-        AggVarsLag=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist,Policy,FnsToEvaluateLag,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptionsLag);
+        AggVarsLag=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist,Policy,FnsToEvaluateLag,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid_tt,simoptionsLag);
     end
 
 

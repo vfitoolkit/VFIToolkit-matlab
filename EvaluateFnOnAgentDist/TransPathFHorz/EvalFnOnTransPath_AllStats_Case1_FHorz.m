@@ -21,7 +21,8 @@ function AllStatsPath=EvalFnOnTransPath_AllStats_Case1_FHorz(FnsToEvaluate, Agen
 % ParamPath parameter or one of the FnsToEvaluate (its mean); p_tplus1 is the price in period t+1, and
 % period T (the final stationary eqm) in period T.
 %
-% Not yet implemented: z or e grids that vary over the transition path.
+% z and e grids may vary over the transition (a time-varying z_grid or simoptions.e_grid, see
+% ExogShockSetup_FHorz_TPath); each period then uses that period's grids.
 
 %% Check which transpathoptions have been used, set all others to defaults
 if exist('transpathoptions','var')==0
@@ -48,8 +49,12 @@ end
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
-%% Whether z or e vary over the path (not yet implemented here)
+%% Whether z or e vary over the path
 % gridpiboth=1: grid only. On a copy of the options, as the stationary command is given the user's own.
+% When z (or e) varies over the path, the setup gives transpathoptionsZ.z_gridvals_J_T [N_z,l_z,N_j,T]
+% (and e_gridvals_J_T [N_e,l_e,N_j,T], pi_e_J_T [N_e,N_j,T]), and each period hands the stationary
+% command that period's age-dependent joint grids. Age jj in period tt then uses the same grid as the
+% value fn and agent dist on the path did.
 simoptionsZ=simoptions;
 simoptionsZ.fastOLG=0;
 if ~isfield(simoptionsZ,'parallel')
@@ -59,9 +64,8 @@ if ~isfield(simoptionsZ,'alreadygridvals')
     simoptionsZ.alreadygridvals=0;
 end
 [~,~,~,~,~,~,~,transpathoptionsZ]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],prod(n_a),N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptionsZ,1);
-if transpathoptionsZ.zpathtrivial==0 || (isfield(transpathoptionsZ,'epathtrivial') && transpathoptionsZ.epathtrivial==0)
-    error('EvalFnOnTransPath_AllStats_Case1_FHorz: z or e grids that vary over the transition path are not yet implemented (email me if you want this)')
-end
+z_grid_tt=z_grid;
+simoptions_tt=simoptions;
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,ParamPathNames,{},transpathoptions);
@@ -118,7 +122,16 @@ for tt=1:T
         end
     end
 
-    AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(AgentDistPath(sliceAgentDist{:},tt),PolicyPath(slicePolicy{:},tt),FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    % This period's z and e grids, when they vary over the path
+    if transpathoptionsZ.zpathtrivial==0
+        z_grid_tt=transpathoptionsZ.z_gridvals_J_T(:,:,:,tt); % [N_z,l_z,N_j], an age-dependent joint grid
+    end
+    if transpathoptionsZ.epathtrivial==0
+        simoptions_tt.e_grid=transpathoptionsZ.e_gridvals_J_T(:,:,:,tt); % [N_e,l_e,N_j], an age-dependent joint grid
+        simoptions_tt.pi_e=transpathoptionsZ.pi_e_J_T(:,:,tt); % [N_e,N_j]
+    end
+
+    AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(AgentDistPath(sliceAgentDist{:},tt),PolicyPath(slicePolicy{:},tt),FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid_tt,simoptions_tt);
 
     % Store every stat of this period as column tt. AllStats nests to varying depth (a FnsToEvaluate, or a
     % conditional restriction and then a FnsToEvaluate, each of which can hold MoreInequality), so it is

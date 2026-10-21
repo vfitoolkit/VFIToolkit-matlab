@@ -338,6 +338,7 @@ else
     if N_z==0
         AgentDistPath=reshape(AgentDistPath,[N_a,N_e,N_j,T]);
         PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_e,N_j,T]);
+        simoptions.n_e=0; % e is handed to the stationary command in place of z below (otherwise it would look for an e as well, whose grid the setup has removed)
 
         for tt=1:T
 
@@ -387,7 +388,7 @@ else
             end
 
             if transpathoptions.epathtrivial==0
-                e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,tt);
+                e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,tt); % e_gridvals_J_T is [N_e,l_e,N_j,T]
             end
 
             Policy_tt=reshape(PolicyPath(:,:,:,:,tt),[size(PolicyPath,1),n_a,n_e,N_j]);
@@ -456,7 +457,8 @@ else
                 z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
             end
             if transpathoptions.epathtrivial==0
-                simoptions.e_grid_J=transpathoptions.e_gridvals_J_T(:,:,tt);
+                simoptions.e_grid=transpathoptions.e_gridvals_J_T(:,:,:,tt); % e_gridvals_J_T is [N_e,l_e,N_j,T]; the stationary command reads e_grid (it never read the e_grid_J this used to set)
+                simoptions.pi_e=transpathoptions.pi_e_J_T(:,:,tt); % [N_e,N_j]: the setup removes pi_e from simoptions when e varies over the path, and the stationary command requires it
             end
 
             Policy_tt=reshape(PolicyPath(:,:,:,:,:,tt),[size(PolicyPath,1),n_a,n_z,n_e,N_j]);

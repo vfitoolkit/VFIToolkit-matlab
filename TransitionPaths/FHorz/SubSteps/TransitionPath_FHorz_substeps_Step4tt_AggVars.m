@@ -15,12 +15,14 @@ end
 % Maybe should just take PolicyValuesPath_tt as input instead of PolicyValuesPath
 
 if N_semiz==0
+    % ExogShockSetup_FHorz_TPath stores this period's grid as ze_gridvals_J_T_fastOLG [1,N_j,N_ze,l_ze,T]
+    % whichever of z and e there are (these used to read ze_/z_/e_gridvals_J_fastOLG, which nothing creates)
     if N_z>0 && N_e>0 && transpathoptions.zepathtrivial==0
-        semizze_gridvals_J_fastOLG=transpathoptions.ze_gridvals_J_fastOLG(:,:,:,tt);
+        semizze_gridvals_J_fastOLG=transpathoptions.ze_gridvals_J_T_fastOLG(:,:,:,:,tt);
     elseif N_z>0 && transpathoptions.zpathtrivial==0
-        semizze_gridvals_J_fastOLG=transpathoptions.z_gridvals_J_fastOLG(:,:,:,tt);
+        semizze_gridvals_J_fastOLG=transpathoptions.ze_gridvals_J_T_fastOLG(:,:,:,:,tt);
     elseif N_e>0 && transpathoptions.epathtrivial==0
-        semizze_gridvals_J_fastOLG=transpathoptions.e_gridvals_J_fastOLG(:,:,:,tt);
+        semizze_gridvals_J_fastOLG=transpathoptions.ze_gridvals_J_T_fastOLG(:,:,:,:,tt);
     end
 else
     if N_z>0 && N_e>0 && transpathoptions.zepathtrivial==0
