@@ -64,7 +64,13 @@ ReturnMatrix=reshape(ReturnMatrix,[N_d,N_a,N_a,N_z]); % (d,a',a,z)
 ReturnMatrix         = shiftdim(ReturnMatrix,1);
 
 %% Pass ReturnMatrix(a',a,z) to standard VFI function
-[VKron,Policy_a]=ValueFnIter_InfHorz_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
+% N_a, N_z (not n_a, n_z): ValueFnIter_InfHorz_nod_raw takes the sizes ALREADY REDUCED and uses
+% them directly in a colon expression, unlike ValueFnIter_InfHorz_raw which takes n_d,n_a,n_z and
+% reduces them itself. Passing n_a,n_z was harmless only while both were scalars; with a
+% two-dimensional z it reaches '0:1:N_z-1' with a vector and errors. The rest of this file already
+% uses the N_a, N_z set at the top, as do the other callers of this raw
+% (ValueFnIter_InfHorz_Refine, ValueFnIter_InfHorz_PureDiscretization).
+[VKron,Policy_a]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
 
 % Policy(2,a,z) is Policy_a
 % Policy(1,a,z) is dstar(Policy_a(a,z),a,z)
