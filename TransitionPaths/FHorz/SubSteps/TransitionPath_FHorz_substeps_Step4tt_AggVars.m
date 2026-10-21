@@ -25,12 +25,14 @@ if N_semiz==0
         semizze_gridvals_J_fastOLG=transpathoptions.ze_gridvals_J_T_fastOLG(:,:,:,:,tt);
     end
 else
+    % TransitionPath_Case1_FHorz stores this period's grid as semizze_gridvals_J_T_fastOLG [1,N_j,N_semizze,l_semizze,T]
+    % whichever of z and e there are (these used to read semizze_/semizz_/semize_gridvals_J_fastOLG, which nothing creates)
     if N_z>0 && N_e>0 && transpathoptions.zepathtrivial==0
-        semizze_gridvals_J_fastOLG=transpathoptions.semizze_gridvals_J_fastOLG(:,:,:,tt);
+        semizze_gridvals_J_fastOLG=transpathoptions.semizze_gridvals_J_T_fastOLG(:,:,:,:,tt);
     elseif N_z>0 && transpathoptions.zpathtrivial==0
-        semizze_gridvals_J_fastOLG=transpathoptions.semizz_gridvals_J_fastOLG(:,:,:,tt);
+        semizze_gridvals_J_fastOLG=transpathoptions.semizze_gridvals_J_T_fastOLG(:,:,:,:,tt);
     elseif N_e>0 && transpathoptions.epathtrivial==0
-        semizze_gridvals_J_fastOLG=transpathoptions.semize_gridvals_J_fastOLG(:,:,:,tt);
+        semizze_gridvals_J_fastOLG=transpathoptions.semizze_gridvals_J_T_fastOLG(:,:,:,:,tt);
     end
 end
 

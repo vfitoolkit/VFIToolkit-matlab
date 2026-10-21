@@ -344,7 +344,7 @@ end
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
 
 %% Set up exogenous shock processes
-[z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,4);
+[z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,transpathoptions,simoptions,4);
 % Convert z and e to age-dependent joint-grids and transition matrix
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 
@@ -390,6 +390,12 @@ if N_semiz>0
     else
         N_ze=size(ze_gridvals_J_fastOLG,3);
         semizze_gridvals_J_fastOLG=cat(4, repmat(semiz_gridvals_J_fastOLG,1,1,N_ze,1), repelem(ze_gridvals_J_fastOLG,1,1,N_semiz,1));
+        if transpathoptions.zepathtrivial==0
+            % z and/or e vary over the path: the same combination for every period, from ze_gridvals_J_T_fastOLG
+            % [1,N_j,N_ze,l_ze,T] (the semiz grid itself cannot vary over the path, only its transitions). Step4tt
+            % reads this; the fields it used to read were never created.
+            transpathoptions.semizze_gridvals_J_T_fastOLG=cat(4, repmat(semiz_gridvals_J_fastOLG,1,1,N_ze,1,T), repelem(transpathoptions.ze_gridvals_J_T_fastOLG,1,1,N_semiz,1,1)); % [1,N_j,N_semiz*N_ze,l_semiz+l_ze,T]
+        end
     end
 
     if transpathoptions.fastOLG==1 && N_z>0

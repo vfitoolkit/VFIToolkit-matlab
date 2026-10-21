@@ -141,7 +141,7 @@ AgeWeights_path1=AgeWeights_T(:,1); % period 1 of the age weights, kept for the 
 
 
 %% Set up exogenous shock processes
-[~, pi_z_J, pi_z_J_sim, ~, pi_e_J, pi_e_J_sim, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,[],pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,2);
+[~, pi_z_J, pi_z_J_sim, ~, pi_e_J, pi_e_J_sim, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,[],pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,transpathoptions,simoptions,2);
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 
@@ -740,7 +740,7 @@ if N_probs==1 % Not using N_probs
                         pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
                     end
                     if transpathoptions.epathtrivial==0
-                        simoptions.pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
+                        pi_e_J=transpathoptions.pi_e_J_T(:,:,tt); % [N_e,N_j] (this set simoptions.pi_e_J, which the raw never reads, so the path used the period-1 pi_e throughout)
                     end
                     if transpathoptions.trivialjequalonedist==0
                         jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
@@ -929,7 +929,7 @@ else
                         pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
                     end
                     if transpathoptions.epathtrivial==0
-                        simoptions.pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
+                        pi_e_J=transpathoptions.pi_e_J_T(:,:,tt); % [N_e,N_j] (this set simoptions.pi_e_J, which the raw never reads, so the path used the period-1 pi_e throughout)
                     end
                     if transpathoptions.trivialjequalonedist==0
                         jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist

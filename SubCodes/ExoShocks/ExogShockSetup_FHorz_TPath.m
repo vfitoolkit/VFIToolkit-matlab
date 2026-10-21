@@ -1,4 +1,4 @@
-function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, options]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,options,gridpiboth)
+function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, options]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,transpathoptions,options,gridpiboth)
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % Can input vfoptions OR simoptions
 % output: z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, options
@@ -71,8 +71,12 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 %
 % Variation along the transition path can also be introduced if
 % options.ExogShockFn / options.EiidShockFn depends on a name listed in
-% PricePathNames or ParamPathNames; the shock-fn is then called per (t, j)
-% to assemble the time-varying path. If neither a time-varying input nor a
+% ParamPathNames; the shock-fn is then called per (t, j), with the period-t
+% values from ParamPath (the T-by-'number of path parameters' matrix, with
+% columns ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp) for ParamPathNames{pp},
+% as from PricePathParamPath_FHorz_StructToMatrix), to assemble the time-varying
+% path. A shock-fn that depends on a PricePathNames name errors (not yet
+% implemented). If neither a time-varying input nor a
 % path-dependent shock-fn is supplied, the inputs are interpreted as
 % time-invariant.
 %
@@ -147,7 +151,7 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze
 %   .pi_z_J_sim_T                            {T} cell of sparse [(N_j-1)*N_z, (N_j-1)*N_z]   per-period pi_z_J_sim (when options.fastOLG=1, gridpiboth in {2,4}, zpathtrivial=0; cell because there is no N-D sparse)
 %   .e_gridvals_J_T                          [N_e, l_e, N_j, T]    if fastOLG=0;  [N_j, 1, N_e, l_e, T] if fastOLG=1 & z; [N_j, N_e, l_e, T] if fastOLG=1 & no z   (when epathtrivial=0)
 %   .pi_e_J_T                                [N_e, N_j, T]         if fastOLG=0;  [N_a*N_j, 1, N_e, T]  if fastOLG=1 & z; [N_a*N_j, N_e, T]  if fastOLG=1 & no z   (when epathtrivial=0)
-%   .pi_e_J_sim_T                            [N_a*(N_j-1)*N_z, N_e, T] if N_z>0; [N_a*(N_j-1), N_e, T] if N_z=0   (when epathtrivial=0, fastOLG=1, gridpiboth in {2,4}; block jj holds pi_e_J(:,jj+1))
+%   .pi_e_J_sim_T                            [N_a*(N_j-1)*N_z, N_e, T] if N_z>0; [N_a*(N_j-1), N_e, T] if N_z=0   (when epathtrivial=0, options.fastOLG=1, gridpiboth in {2,4}; block jj holds pi_e_J(:,jj+1))
 %   .ze_gridvals_J_T_fastOLG                 [1, N_j, N_ze, l_ze, T] (or only-z / only-e variants as for ze_gridvals_J_fastOLG; when zepathtrivial=0 and gridpiboth in {1,4})
 %
 % options fields populated:
@@ -206,47 +210,58 @@ if N_z>0
                     overlap2=1;
                 end
             end
+            % The grid and transition matrix for every age (and every path period, when ExogShockFn depends on a
+            % ParamPath parameter), in the same forms as the input-grid route below: z_gridvals_J [N_z,l_z,N_j] and
+            % pi_z_J [N_z,N_z,N_j-1], and when they vary over the path z_gridvals_J_T [N_z,l_z,N_j,T] and
+            % pi_z_J_T [N_z,N_z,N_j-1,T]. ExogShockFn may return a stacked [sum(n_z),1] or a joint [N_z,l_z] grid.
+            % (This used to fill a stacked z_grid_J and never set z_gridvals_J, and read an undefined ParamPathStruct.)
             if overlap2==0
+                nTz=1;
+            else
+                nTz=T;
+                transpathoptions.zpathtrivial=0; % z_gridvals_J and pi_z_J vary over the path
+                transpathoptions.z_gridvals_J_T=zeros(N_z,l_z,N_j,T,'gpuArray');
+                transpathoptions.pi_z_J_T=zeros(N_z,N_z,N_j-1,T,'gpuArray');
+            end
+            Parameters_tt=Parameters;
+            for tt=1:nTz
+                if overlap2==1
+                    % Note, we know the PricePath is irrelevant for the current purpose
+                    for pp=1:length(ParamPathNames)
+                        Parameters_tt.(ParamPathNames{pp})=ParamPath(tt,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp));
+                    end
+                end
+                z_gridvals_J=zeros(N_z,l_z,N_j,'gpuArray');
                 pi_z_J=zeros(N_z,N_z,N_j-1,'gpuArray');
-                z_grid_J=zeros(N_z,N_j,'gpuArray');
                 for jj=1:N_j
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames,jj);
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters_tt, options.ExogShockFnParamNames,jj);
                     ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                     for ii=1:length(ExogShockFnParamsVec)
                         ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                     end
-                    [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    [z_grid_jj,pi_z_jj]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    if all(size(z_grid_jj)==[sum(n_z),1])
+                        z_gridvals_J(:,:,jj)=CreateGridvals(n_z,gpuArray(z_grid_jj),1);
+                    else % already joint-grid
+                        z_gridvals_J(:,:,jj)=gpuArray(z_grid_jj);
+                    end
                     if jj<=N_j-1
-                        pi_z_J(:,:,jj)=gpuArray(pi_z);
+                        pi_z_J(:,:,jj)=gpuArray(pi_z_jj);
                     end
-                    z_grid_J(:,jj)=gpuArray(z_grid);
                 end
-            elseif overlap2==1 % ExogShockFn depends on a ParamPath parameter
-                transpathoptions.zpathtrivial=0; % z_grid_J and pi_z_J vary over the path
-                transpathoptions.pi_z_J_T=zeros(N_z,N_z,N_j-1,T,'gpuArray');
-                transpathoptions.z_grid_J_T=zeros(sum(n_z),N_j,T,'gpuArray');
-                pi_z_J=zeros(N_z,N_z,N_j-1,'gpuArray');
-                z_grid_J=zeros(sum(n_z),N_j,'gpuArray');
-                for tt=1:T
-                    for ii=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
-                    end
-                    % Note, we know the PricePath is irrelevant for the current purpose
-                    for jj=1:N_j
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                        for ii=1:length(ExogShockFnParamsVec)
-                            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                        end
-                        [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
-                        if jj<=N_j-1
-                            pi_z_J(:,:,jj)=gpuArray(pi_z);
-                        end
-                        z_grid_J(:,jj)=gpuArray(z_grid);
-                    end
+                if overlap2==1
+                    transpathoptions.z_gridvals_J_T(:,:,:,tt)=z_gridvals_J;
                     transpathoptions.pi_z_J_T(:,:,:,tt)=pi_z_J;
-                    transpathoptions.z_grid_J_T(:,:,tt)=z_grid_J;
                 end
+            end
+            if overlap2==1 % plain outputs are tt=1 placeholders; downstream code uses the _J_T fields
+                z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,1);
+                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,1);
+            end
+            if gridpiboth==1 % as in the input-grid route
+                pi_z_J=[];
+            elseif gridpiboth==2
+                z_gridvals_J=[];
             end
         end
 
@@ -501,7 +516,7 @@ if N_z>0
             z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG(): N_j-by-N_z-by-l_z
             if transpathoptions.zpathtrivial==0
                 % z_gridvals_J_T is already the joint grid [N_z,l_z,N_j,T] (it used to be rebuilt here from a
-                % z_grid_J_T that only the ExogShockFn branch creates, and written into z_gridvals_J)
+                % z_grid_J_T that nothing creates, and written into z_gridvals_J)
                 transpathoptions.z_gridvals_J_T=permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]); % from [N_z,l_z,N_j,T] to [N_j,N_z,l_z,T]
             end
         elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -517,7 +532,7 @@ if N_z>0
             transpathoptions.pi_z_J_alt=permute(pi_z_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
             if transpathoptions.zpathtrivial==0
                 % z_gridvals_J_T is already the joint grid [N_z,l_z,N_j,T] (it used to be rebuilt here from a
-                % z_grid_J_T that only the ExogShockFn branch creates, and written into z_gridvals_J)
+                % z_grid_J_T that nothing creates, and written into z_gridvals_J)
                 transpathoptions.z_gridvals_J_T=permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]); % from [N_z,l_z,N_j,T] to [N_j,N_z,l_z,T]
                 transpathoptions.pi_z_J_T=permute(transpathoptions.pi_z_J_T,[3,2,1,4]);  % We want it to be (j,z',z,t) for value function
                 transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % But is (j,z,z',t) for agent dist with fastOLG [note, this permute is off the previous one]
@@ -571,43 +586,56 @@ if N_e>0
                     overlap2=1;
                 end
             end
+            % The grid and distribution for every age (and every path period, when EiidShockFn depends on a
+            % ParamPath parameter), in the same forms as the input-grid route below: e_gridvals_J [N_e,l_e,N_j] and
+            % pi_e_J [N_e,N_j], and when they vary over the path e_gridvals_J_T [N_e,l_e,N_j,T] and pi_e_J_T
+            % [N_e,N_j,T]. EiidShockFn may return a stacked [sum(n_e),1] or a joint [N_e,l_e] grid.
+            % (This used to fill a stacked e_grid_J and never set e_gridvals_J, and read an undefined ParamPathStruct.)
             if overlap2==0
+                nTe=1;
+            else
+                nTe=T;
+                transpathoptions.epathtrivial=0; % e_gridvals_J and pi_e_J vary over the path
+                transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
+                transpathoptions.pi_e_J_T=zeros(N_e,N_j,T,'gpuArray');
+            end
+            Parameters_tt=Parameters;
+            for tt=1:nTe
+                if overlap2==1
+                    % Note, we know the PricePath is irrelevant for the current purpose
+                    for pp=1:length(ParamPathNames)
+                        Parameters_tt.(ParamPathNames{pp})=ParamPath(tt,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp));
+                    end
+                end
+                e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
                 pi_e_J=zeros(N_e,N_j,'gpuArray');
-                e_grid_J=zeros(N_e,N_j,'gpuArray');
                 for jj=1:N_j
-                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
+                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters_tt, options.EiidShockFnParamNames,jj);
                     EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
                     for ii=1:length(EiidShockFnParamsVec)
                         EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
                     end
-                    [e_grid,pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
-                    pi_e_J(:,jj)=gpuArray(pi_e);
-                    e_grid_J(:,jj)=gpuArray(e_grid);
+                    [e_grid_jj,pi_e_jj]=options.EiidShockFn(EiidShockFnParamsCell{:});
+                    if all(size(e_grid_jj)==[sum(n_e),1])
+                        e_gridvals_J(:,:,jj)=CreateGridvals(n_e,gpuArray(e_grid_jj),1);
+                    else % already joint-grid
+                        e_gridvals_J(:,:,jj)=gpuArray(e_grid_jj);
+                    end
+                    pi_e_J(:,jj)=gpuArray(pi_e_jj);
                 end
-            elseif overlap2==1 % ExogShockFn depends on a ParamPath parameter
-                transpathoptions.epathtrivial=0; % e_grid_J and pi_e_J vary over the path
-                transpathoptions.pi_e_J_T=zeros(N_e,N_j,T,'gpuArray');
-                transpathoptions.e_grid_J_T=zeros(sum(n_e),N_j,T,'gpuArray');
-                pi_e_J=zeros(N_e,N_j,'gpuArray');
-                e_grid_J=zeros(sum(n_e),N_j,'gpuArray');
-                for tt=1:T
-                    for ii=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
-                    end
-                    % Note, we know the PricePath is irrelevant for the current purpose
-                    for jj=1:N_j
-                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
-                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                        for ii=1:length(EiidShockFnParamsVec)
-                            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                        end
-                        [e_grid,pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
-                        pi_e_J(:,jj)=gpuArray(pi_e);
-                        e_grid_J(:,jj)=gpuArray(e_grid);
-                    end
+                if overlap2==1
+                    transpathoptions.e_gridvals_J_T(:,:,:,tt)=e_gridvals_J;
                     transpathoptions.pi_e_J_T(:,:,tt)=pi_e_J;
-                    transpathoptions.e_grid_J_T(:,:,tt)=e_grid_J;
                 end
+            end
+            if overlap2==1 % plain outputs are tt=1 placeholders; downstream code uses the _J_T fields
+                e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,1);
+                pi_e_J=transpathoptions.pi_e_J_T(:,:,1);
+            end
+            if gridpiboth==1 % as in the input-grid route
+                pi_e_J=[];
+            elseif gridpiboth==2
+                e_gridvals_J=[];
             end
         end
 
@@ -837,6 +865,23 @@ if N_e>0
                 % pi_e_J_sim maps (a,j,z)-to-e: block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1, used when moving jj->jj+1; is [N_a*(N_j-1)*N_z,N_e]
                 pi_e_J_sim=repmat(repelem(pi_e_J(:,2:end)',N_a,1),N_z,1); % (a,j,z)-by-e (blocks jj=1:N_j-1 hold columns 2:N_j)
             end
+            if transpathoptions.epathtrivial==0
+                % The same for every path period, from pi_e_J_T [N_e,N_j,T]. Built here, under the agent dist's
+                % fastOLG, rather than in the value fn's fastOLG reshape below: a path with
+                % transpathoptions.fastOLG=0 and simoptions.fastOLG=1 (the default in TransitionPath_Case1_FHorz)
+                % never reaches that reshape, and so never had pi_e_J_sim_T
+                if N_z==0
+                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
+                    for tt=1:T
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(repelem(transpathoptions.pi_e_J_T(:,2:end,tt)',N_a,1)); % (a,j)-by-e
+                    end
+                else
+                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
+                    for tt=1:T
+                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(repmat(repelem(transpathoptions.pi_e_J_T(:,2:end,tt)',N_a,1),N_z,1)); % (a,j,z)-by-e
+                    end
+                end
+            end
         end
     end
 
@@ -847,7 +892,7 @@ if N_e>0
                 % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
                 if transpathoptions.epathtrivial==0
                     % e_gridvals_J_T is already the joint grid [N_e,l_e,N_j,T] (it used to be rebuilt here from an
-                    % e_grid_J_T that only the EiidShockFn branch creates)
+                    % e_grid_J_T that nothing creates)
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from [N_e,l_e,N_j,T] to [N_j,1,N_e,l_e,T] [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
                 end
             elseif gridpiboth==2 % For agent dist, we don't use grid
@@ -855,11 +900,6 @@ if N_e>0
                 % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
                 if transpathoptions.epathtrivial==0
                     transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[2,4,1,3]),N_a,1,1,1);  % from (e,j,t) to (a-j,1,e,t), a fastest (the [3,1,2,4] this replaced gave (t,e,j))
-                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
-                    for tt=1:T
-                        temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:))); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
-                    end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
                 e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLGe: (j,1,N_e,l_e)
@@ -867,14 +907,9 @@ if N_e>0
                 % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
                 if transpathoptions.epathtrivial==0
                     % e_gridvals_J_T is already the joint grid [N_e,l_e,N_j,T] (it used to be rebuilt here from an
-                    % e_grid_J_T that only the EiidShockFn branch creates)
+                    % e_grid_J_T that nothing creates)
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from [N_e,l_e,N_j,T] to [N_j,1,N_e,l_e,T] [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
                     transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[2,4,1,3]),N_a,1,1,1);  % from (e,j,t) to (a-j,1,e,t), a fastest (the [3,1,2,4] this replaced gave (t,e,j))
-                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
-                    for tt=1:T
-                        temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:))); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
-                    end
                 end
             end
         else
@@ -882,32 +917,22 @@ if N_e>0
                 e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG: (j,N_e,l_e)
                 if transpathoptions.epathtrivial==0
                     % e_gridvals_J_T is already the joint grid [N_e,l_e,N_j,T] (it used to be rebuilt here from an
-                    % e_grid_J_T that only the EiidShockFn branch creates)
+                    % e_grid_J_T that nothing creates)
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from [N_e,l_e,N_j,T] to [N_j,N_e,l_e,T]
                 end
             elseif gridpiboth==2 % For agent dist, we don't use grid
                 pi_e_J=repelem(permute(gpuArray(pi_e_J),[2,1]),N_a,1); % Give it the size required for fastOLG value function: from (e,j) to (a-j,e), a fastest (the kron-and-transpose this replaced put j fastest, wrong whenever pi_e depends on age)
                 if transpathoptions.epathtrivial==0
                     transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[2,1,3]),N_a,1,1);  % from (e,j,t) to (a-j,e,t), a fastest (the [3,1,2,4] this replaced gave (t,e,j))
-                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
-                    for tt=1:T
-                        temp=transpathoptions.pi_e_J_T(:,:,tt); % transpathoptions.fastOLG means pi_e_J_T is [N_a*N_j,N_e,T]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:)); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
-                    end
                 end
             elseif gridpiboth==3 || gridpiboth==4 % For value fn, both e_gridvals_J and pi_e_J
                 e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Disc_fastOLG: (j,N_e,l_e)
                 pi_e_J=repelem(permute(gpuArray(pi_e_J),[2,1]),N_a,1); % Give it the size required for fastOLG value function: from (e,j) to (a-j,e), a fastest (the kron-and-transpose this replaced put j fastest, wrong whenever pi_e depends on age)
                 if transpathoptions.epathtrivial==0
                     % e_gridvals_J_T is already the joint grid [N_e,l_e,N_j,T] (it used to be rebuilt here from an
-                    % e_grid_J_T that only the EiidShockFn branch creates)
+                    % e_grid_J_T that nothing creates)
                     transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from [N_e,l_e,N_j,T] to [N_j,N_e,l_e,T]
                     transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[2,1,3]),N_a,1,1);  % from (e,j,t) to (a-j,e,t), a fastest (the [3,1,2,4] this replaced gave (t,e,j))
-                    transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1),N_e,T,'gpuArray');
-                    for tt=1:T
-                        temp=transpathoptions.pi_e_J_T(:,:,tt); % transpathoptions.fastOLG means pi_e_J_T is [N_a*N_j,N_e,T]
-                        transpathoptions.pi_e_J_sim_T(:,:,tt)=gpuArray(temp(N_a+1:end,:)); % block jj holds pi_e_J(:,jj+1), the distribution of the e realized in period jj+1
-                    end
                 end
             end
         end

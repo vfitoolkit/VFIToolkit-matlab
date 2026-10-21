@@ -123,7 +123,7 @@ transpathoptionsZ.epathtrivial=1;
 if simoptions.alreadygridvals==0 % (=1 when called as a subcommand with the grids already set up)
     simoptionsZ=simoptions;
     simoptionsZ.fastOLG=0;
-    [~,~,~,~,~,~,~,transpathoptionsZ]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],prod(n_a),N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptionsZ,1);
+    [~,~,~,~,~,~,~,transpathoptionsZ]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],prod(n_a),N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,transpathoptions,simoptionsZ,1);
 end
 z_grid_tt=z_grid;
 simoptions_tt=simoptions;

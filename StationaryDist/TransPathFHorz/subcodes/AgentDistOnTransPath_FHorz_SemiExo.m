@@ -15,12 +15,6 @@ N_e=prod(n_e);
 if ~isscalar(n_a)
     error('Transition paths with semi-exogenous states only allow a single endogenous state (cannot have length(n_a)>1)')
 end
-if N_z>0 && transpathoptions.zpathtrivial==0
-    error('Semi-exogenous states with z varying over the transition path are not yet implemented for AgentDistOnTransPath (email me if you want this)')
-end
-if N_e>0 && transpathoptions.epathtrivial==0
-    error('Semi-exogenous states with e varying over the transition path are not yet implemented for AgentDistOnTransPath (email me if you want this)')
-end
 
 %% bothze composite
 if N_z==0
@@ -125,6 +119,13 @@ if simoptions.fastOLG==0
         if transpathoptions.semizpathtrivial==0
             pi_semiz_J=transpathoptions.pi_semiz_J_sim_T(:,:,:,:,tt); % standard form (semiz,semiz',d2,j)
         end
+        % z and e varying over the path (as in TransitionPath_FHorz_substeps_Step3tt_IterAgentDist_SemiExo)
+        if N_z>0 && transpathoptions.zpathtrivial==0
+            pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt); % (z,z',j) standard form
+        end
+        if N_e>0 && transpathoptions.epathtrivial==0
+            pi_e_J=gather(transpathoptions.pi_e_J_T(:,:,tt)); % [N_e,N_j]
+        end
         Policy_dsemiexo_tt=Policy_dsemiexo(:,:,tt);
         Policy_aprime_tt=Policy_aprime(:,:,tt);
         if simoptions.gridinterplayer==0
@@ -181,6 +182,13 @@ else
     for tt=1:T-1
         if transpathoptions.semizpathtrivial==0
             pi_semiz_J=transpathoptions.pi_semiz_J_sim_T(:,:,:,:,tt); % standard form (semiz,semiz',d2,j)
+        end
+        % z and e varying over the path (as in TransitionPath_FHorz_substeps_Step3tt_IterAgentDist_SemiExo)
+        if N_z>0 && transpathoptions.zpathtrivial==0
+            pi_z_J_sim=transpathoptions.pi_z_J_sim_T{tt};
+        end
+        if N_e>0 && transpathoptions.epathtrivial==0
+            pi_e_J_sim=gpuArray(repelem(gather(transpathoptions.pi_e_J_sim_T(:,:,tt)),N_semiz,1)); % expanded to N_asemiz, as above
         end
         Policy_dsemiexo_tt=Policy_dsemiexo(:,:,tt);
         if simoptions.gridinterplayer==0

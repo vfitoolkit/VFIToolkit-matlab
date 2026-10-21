@@ -63,7 +63,7 @@ end
 if ~isfield(simoptionsZ,'alreadygridvals')
     simoptionsZ.alreadygridvals=0;
 end
-[~,~,~,~,~,~,~,transpathoptionsZ]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],prod(n_a),N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptionsZ,1);
+[~,~,~,~,~,~,~,transpathoptionsZ]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],prod(n_a),N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,transpathoptions,simoptionsZ,1);
 z_grid_tt=z_grid;
 simoptions_tt=simoptions;
 

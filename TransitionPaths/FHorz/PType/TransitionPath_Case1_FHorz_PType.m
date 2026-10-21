@@ -574,7 +574,7 @@ for ii=1:PTypeStructure.N_i
     ReturnFnParamNames_ii=ReturnFnParamNamesFn(ReturnFn_ii,n_d_ii,n_a_ii,n_z_ii,N_j_ii,vfoptions_ii,Parameters_ii);
 
     %% Set up exogenous shock processes
-    [z_gridvals_J_ii, pi_z_J_ii, pi_z_J_sim_ii, e_gridvals_J_ii, pi_e_J_ii, pi_e_J_sim_ii, ze_gridvals_J_fastOLG_ii, transpathoptions_ii, simoptions_ii]=ExogShockSetup_FHorz_TPath(n_z_ii,z_grid_ii,pi_z_ii,N_a_ii,N_j_ii,T,Parameters_ii,PricePathNames,ParamPathNames_ii,transpathoptions_ii,simoptions_ii,4);
+    [z_gridvals_J_ii, pi_z_J_ii, pi_z_J_sim_ii, e_gridvals_J_ii, pi_e_J_ii, pi_e_J_sim_ii, ze_gridvals_J_fastOLG_ii, transpathoptions_ii, simoptions_ii]=ExogShockSetup_FHorz_TPath(n_z_ii,z_grid_ii,pi_z_ii,N_a_ii,N_j_ii,T,Parameters_ii,PricePathNames,ParamPath_ii,ParamPathNames_ii,ParamPathSizeVec_ii,transpathoptions_ii,simoptions_ii,4);
     % Convert z and e to age-dependent joint-grids and transition matrix
     % Sets up transpathoptions_ii.zpathtrivial, .epathtrivial, .gridsinGE (and the _T paths when they vary over the path)
 

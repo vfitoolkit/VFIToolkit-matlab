@@ -49,7 +49,7 @@ N_z=prod(n_z);
 [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
 
 %% Set up shock grids over the transition path
-[z_gridvals_J, pi_z_J, ~, ~, ~, ~, ~, transpathoptions, vfoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,vfoptions,3);
+[z_gridvals_J, pi_z_J, ~, ~, ~, ~, ~, transpathoptions, vfoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,transpathoptions,vfoptions,3);
 % transpathoptions.zpathtrivial=1 if z_gridvals_J / pi_z_J don't vary over the path;
 % =0 otherwise (then transpathoptions.z_gridvals_J_T and .pi_z_J_T hold the full path)
 

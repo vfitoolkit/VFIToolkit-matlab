@@ -163,7 +163,7 @@ simoptions.AggVarNames=AggVarNames;
 %% Set up exogenous shock processes
 if simoptions.alreadygridvals==0
     % gridpiboth=1: only need z_gridvals_J (and e_gridvals_J if N_e>0)
-    [z_gridvals_J, ~, ~, e_gridvals_J, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],N_a,N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
+    [z_gridvals_J, ~, ~, e_gridvals_J, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,[],N_a,N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,transpathoptions,simoptions,1);
 elseif simoptions.alreadygridvals==1
     z_gridvals_J=z_grid;
     e_gridvals_J=simoptions.e_gridvals_J;
