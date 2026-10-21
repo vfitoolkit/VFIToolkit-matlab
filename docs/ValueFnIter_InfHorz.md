@@ -75,12 +75,13 @@ The function reads the following fields from `vfoptions`. All are optional unles
 | `tolerance` | `10^(-9)` | Convergence tolerance for `||V_n - V_{n-1}||`. |
 | `maxiter` | `10^4` | Maximum number of value-function iterations before stopping. |
 | `V0` | (none) | Optional initial guess for the value function, of shape `[n_a, n_z]` or `[N_a, N_z]`. Defaults to zeros. |
-| `solnmethod` | `'purediscretization_refinement'` | Solver algorithm. One of `'purediscretization_refinement'` (default when `n_d>0`; presolves for `dstar(aprime,a,z)`), `'purediscretization'` (used when `n_d=0`), `'purediscretization_relativeVFI'` (can be unstable). `'purediscretization_endogenousVFI'` is not yet working. |
+| `solnmethod` | `'purediscretization_refinement'` | Solver algorithm. One of `'purediscretization_refinement'` (default when `n_d>0`; presolves for `dstar(aprime,a,z)`), or `'purediscretization'` (used when `n_d=0`). |
 | `divideandconquer` | `0` | If `1`, use the divide-and-conquer algorithm to exploit monotonicity. Tends to be slow in infinite horizon; cannot be combined with refinement. Automatically disabled when `n_a` is scalar or when `gridinterplayer=1`. |
 | `gridinterplayer` | `0` | If `1`, interpolate between grid points. Requires `vfoptions.ngridinterp`. |
 | `ngridinterp` | (none) | Number of interpolation points between consecutive `a_grid` points. Required if `gridinterplayer=1`. |
 | `preGI` | `0` | Used only with `gridinterplayer=1`; post-GI is typically faster. |
 | `lowmemory` | `0` | If `>0`, use more loops and less parallelisation to reduce memory at the cost of speed. |
+| `endogenousvfi` | `0` | If `1`, use endogenous value function iteration (Bray, 2019): the same iterations, but convergence is judged on the change in `V` within each exogenous state (net of any function of the exogenous states, which does not affect the policy), and `V` is then recovered in levels. Without `z` this is relative value function iteration. GPU only; not for exotic preferences or endogenous exit. |
 | **Howards improvement** | | |
 | `howardsgreedy` | `0` | `0` for iterated Howards (modified policy-function iteration), `1` for greedy Howards (policy-function iteration). Greedy is faster for small models but cannot handle `V` taking `-Inf`, and is incompatible with `gridinterplayer=1`. |
 | `howards` | `150` | Number of Howards iterations per Bellman step (when `howardsgreedy=0`). Based on tests, 80–150 is typically fastest. |

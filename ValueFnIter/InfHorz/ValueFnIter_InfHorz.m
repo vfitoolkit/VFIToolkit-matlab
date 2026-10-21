@@ -22,6 +22,7 @@ if ~exist('vfoptions','var')
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0; % grid interpolation layer
     vfoptions.lowmemory=0;
+    vfoptions.endogenousvfi=0; % =1 stops on the change in V within each exogenous state (Bray, 2019), see the endogenous VFI note below
     % Howards improvement: when doing Howards iterations, there are various suboptions.
     % Defaults for Howards are set based on runtimes from CoreInfHorzVFIAlgoTests.m in the VFI Toolkit Test Bank: https://github.com/vfitoolkit/vfitoolkitTests/blob/main/CoreInfHorzTests/with_CoreInfHorzVFIAlgoTests/CoreInfHorzVFIAlgoTests.m
     vfoptions.howardsgreedy=0; % =0 iterated (aka modified-Policy Fn Iteration) or =1 greedy (aka Policy Fn Iteration)
@@ -103,6 +104,9 @@ else
     end
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
+    end
+    if ~isfield(vfoptions,'endogenousvfi')
+        vfoptions.endogenousvfi=0; % =1 stops on the change in V within each exogenous state (Bray, 2019), see the endogenous VFI note below
     end
     % Howards improvement: when doing Howards iterations, there are various suboptions.
     % Defaults for Howards are set based on runtimes from CoreInfHorzVFIAlgoTests.m in the VFI Toolkit Test Bank: https://github.com/vfitoolkit/vfitoolkitTests/blob/main/CoreInfHorzTests/with_CoreInfHorzVFIAlgoTests/CoreInfHorzVFIAlgoTests.m
@@ -271,6 +275,40 @@ if N_semiz>0
         error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.incrementaltype')
     elseif ~any(strcmp(vfoptions.solnmethod,{'purediscretization','purediscretization_refinement'}))
         error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.solnmethod=%s (only purediscretization and purediscretization_refinement)',vfoptions.solnmethod)
+    end
+end
+
+%% Endogenous VFI (Bray, 2019), vfoptions.endogenousvfi=1
+% Adding any function of the exogenous states to V leaves the policy unchanged, and the Bellman operator just carries it
+% forward (T(V+c(z))=TV+beta*pi_z*c). So endogenous VFI iterates exactly as VFI does, but stops once the change in V,
+% net of a function of the exogenous states, is below the tolerance (the span over the endogenous states, within each
+% exogenous state), and then recovers V in levels by solving for that function of the exogenous states. Without z it is
+% relative VFI. This only holds when T is additive in V, so not for the exotic preferences or endogenous exit.
+if vfoptions.endogenousvfi==1
+    if vfoptions.parallel<2
+        error('vfoptions.endogenousvfi=1 is only implemented on the GPU (vfoptions.parallel=2)')
+    elseif isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None'))
+        error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.exoticpreferences (the Bellman operator is not additive in V, so endogenous VFI does not apply)')
+    elseif vfoptions.endogenousexit>=1
+        error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.endogenousexit (the exit value does not shift with V, so endogenous VFI does not apply)')
+    elseif vfoptions.gridinterplayer==1
+        error('vfoptions.endogenousvfi=1 is not yet implemented with the grid interpolation layer (vfoptions.gridinterplayer=1)')
+    elseif N_semiz>0
+        error('vfoptions.endogenousvfi=1 is not yet implemented with semi-exogenous states (vfoptions.n_semiz)')
+    elseif vfoptions.divideandconquer==2
+        error('vfoptions.endogenousvfi=1 is not yet implemented with divide-and-conquer (vfoptions.divideandconquer=2)')
+    elseif vfoptions.separableReturnFn==1
+        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.separableReturnFn=1')
+    elseif vfoptions.experienceasset>=1
+        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.experienceasset')
+    elseif vfoptions.inheritanceasset==1
+        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.inheritanceasset')
+    elseif isfield(vfoptions,'SemiEndogShockFn')
+        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.SemiEndogShockFn')
+    elseif any(vfoptions.incrementaltype==1)
+        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.incrementaltype')
+    elseif ~any(strcmp(vfoptions.solnmethod,{'purediscretization','purediscretization_refinement'}))
+        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.solnmethod=%s (only purediscretization and purediscretization_refinement)',vfoptions.solnmethod)
     end
 end
 
@@ -602,35 +640,6 @@ end
 
 
 %% Rest is all just different ways of solving the standard problem
-
-
-%%
-if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI')
-    % Note: have only implemented Relative VFI on the GPU
-    warning('Relative VFI is unstable if you have substantial discretization (has difficulty converging if you dont use enough points)')
-    [VKron,Policy]=ValueFnIter_InfHorz_RelativeVFI(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
-    % Relative VFI still returns Kron form, so clean up here. The other solnmethods each do their own.
-    if vfoptions.outputkron==0
-        V=reshape(VKron,[n_a,n_z]);
-        if N_d==0
-            Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
-        else
-            Policy=UnKronPolicyIndexes2_z(Policy, n_d, n_a, n_a, n_z, vfoptions);
-        end
-        varargout={V,Policy};
-    else
-        Policy=reshape(Policy,[1,N_a,N_z]);
-        varargout={VKron,Policy};
-    end
-    return
-end
-
-%%
-if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI')
-    % Note: have only implemented Endogenous VFI on the GPU
-    error('Endogenous VFI is not yet working')
-%     [VKron,Policy]=ValueFnIter_InfHorz_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
-end
 
 %% Divide-and-conquer
 if vfoptions.divideandconquer>=1

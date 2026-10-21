@@ -34,17 +34,33 @@ if N_z==0 && N_e==0
 
     if N_d==0
         if vfoptions.howardsgreedy==1
-            [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_HowardGreedy_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         elseif vfoptions.howardsgreedy==0
             if vfoptions.howardssparse==0
-                [V,Policy]=ValueFnIter_InfHorz_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             elseif vfoptions.howardssparse==1
-                [V,Policy]=ValueFnIter_InfHorz_sparse_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_sparse_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_sparse_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             end
         end
     else
         % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
-        [V, Policy]=ValueFnIter_InfHorz_noz_raw(V0, n_d,n_a, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        if vfoptions.endogenousvfi==0
+            [V, Policy]=ValueFnIter_InfHorz_noz_raw(V0, n_d,n_a, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        else % endogenous VFI (relative VFI when there is no z)
+            [V, Policy]=ValueFnIter_InfHorz_RelativeVFI_noz_raw(V0, n_d,n_a, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        end
     end
     % Note: In model without shocks there is no such thing lowmemory=1
 
@@ -82,17 +98,33 @@ elseif N_z>0 && N_e==0
 
     if N_d==0
         if vfoptions.howardsgreedy==1
-            [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         elseif vfoptions.howardsgreedy==0
             if vfoptions.howardssparse==0
-                [V,Policy]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             elseif vfoptions.howardssparse==1
-                [V,Policy]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             end
         end
     else
         % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
-        [V, Policy]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        if vfoptions.endogenousvfi==0
+            [V, Policy]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        else % endogenous VFI (relative VFI when there is no z)
+            [V, Policy]=ValueFnIter_InfHorz_EndogenousVFI_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        end
     end
 
 
@@ -131,17 +163,33 @@ elseif N_z==0 && N_e>0
 
     if N_d==0
         if vfoptions.howardsgreedy==1
-            [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_HowardGreedy_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         elseif vfoptions.howardsgreedy==0
             if vfoptions.howardssparse==0
-                [V,Policy]=ValueFnIter_InfHorz_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             elseif vfoptions.howardssparse==1
-                [V,Policy]=ValueFnIter_InfHorz_sparse_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_sparse_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_sparse_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             end
         end
     else
         % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
-        [V, Policy]=ValueFnIter_InfHorz_noz_e_raw(V0, n_d,n_a,vfoptions.n_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        if vfoptions.endogenousvfi==0
+            [V, Policy]=ValueFnIter_InfHorz_noz_e_raw(V0, n_d,n_a,vfoptions.n_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        else % endogenous VFI (relative VFI when there is no z)
+            [V, Policy]=ValueFnIter_InfHorz_RelativeVFI_noz_e_raw(V0, n_d,n_a,vfoptions.n_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        end
     end
 
 
@@ -179,17 +227,33 @@ elseif N_z>0 && N_e>0
 
     if N_d==0
         if vfoptions.howardsgreedy==1
-            [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_HowardGreedy_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_HowardGreedy_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         elseif vfoptions.howardsgreedy==0
             if vfoptions.howardssparse==0
-                [V,Policy]=ValueFnIter_InfHorz_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             elseif vfoptions.howardssparse==1
-                [V,Policy]=ValueFnIter_InfHorz_sparse_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_sparse_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_sparse_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             end
         end
     else
         % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
-        [V, Policy]=ValueFnIter_InfHorz_e_raw(V0, n_d,n_a,n_z,vfoptions.n_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        if vfoptions.endogenousvfi==0
+            [V, Policy]=ValueFnIter_InfHorz_e_raw(V0, n_d,n_a,n_z,vfoptions.n_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        else % endogenous VFI (relative VFI when there is no z)
+            [V, Policy]=ValueFnIter_InfHorz_EndogenousVFI_e_raw(V0, n_d,n_a,n_z,vfoptions.n_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        end
     end
 
 
