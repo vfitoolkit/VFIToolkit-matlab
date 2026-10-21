@@ -170,11 +170,32 @@ if N_e>0
 end
 
 %% Semi-exogenous shock gridvals and pi
-if simoptions.alreadygridvals_semiexo==0
-    if N_semiz>0
+if N_semiz>0
+    % semi-exogenous states are so far only implemented for the standard iteration (with or without e and the grid interpolation layer)
+    if N_d==0
+        error('simoptions.n_semiz (semi-exogenous states) requires a decision variable (the last decision variable(s) determine the semiz transitions)')
+    elseif simoptions.gridinterplayer==1 && ~isscalar(n_a)
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz agent distribution with the grid interpolation layer and more than one endogenous state')
+    elseif simoptions.agententryandexit>=1
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz agent distribution with simoptions.agententryandexit')
+    elseif isfield(simoptions,'SemiEndogShockFn')
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz agent distribution with simoptions.SemiEndogShockFn')
+    elseif simoptions.experienceasset>=1
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz agent distribution with simoptions.experienceasset')
+    elseif simoptions.inheritanceasset==1
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz agent distribution with simoptions.inheritanceasset')
+    elseif simoptions.iterate==0
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz agent distribution with simoptions.iterate=0')
+    end
+    if simoptions.alreadygridvals_semiexo==0
+        if ~isfield(simoptions,'d_grid')
+            error('When using simoptions.n_semiz you must declare simoptions.d_grid (needed to create the semiz transitions, which depend on the decision variable)')
+        end
+        if ~exist('Parameters','var')
+            Parameters=struct(); % only used by SemiExoStateFn, and it errors itself if it needs a parameter that is not there
+        end
         simoptions=SemiExogShockSetup_InfHorz(n_d,simoptions.d_grid,Parameters,simoptions,2);
-        % output: simoptions.semiz_gridvals, simoptions.pi_semiz
-        error('Have not yet implemented semiz variables for InfHorz stationary distribution, ask on forum if you need this')
+        % output: simoptions.pi_semiz (and simoptions.l_dsemiz)
     end
 end
 
@@ -304,7 +325,28 @@ end
 
 %% If there is an initial dist use that, otherwise set up a (basic but poor) initial guess
 if simoptions.iterate==1
-    if N_z==0 && N_e==0
+    if N_semiz>0
+        % Iteration must start from an initial guess
+        if isfield(simoptions,'initialdist')
+            StationaryDist=reshape(simoptions.initialdist,[N_a*N_semiz*max(N_z,1)*max(N_e,1),1]);
+        else
+            % Just use a poor initial guesses
+            StationaryDist=zeros(N_a,N_semiz,max(N_z,1));
+            if N_z==0
+                StationaryDist(ceil(N_a/2),:)=1/N_semiz; % Put the mass into midpoint, distributed evenly over semiz
+            else
+                z_stat=ones(N_z,1)/N_z;
+                for jj=1:10
+                    z_stat=pi_z'*z_stat;
+                end
+                StationaryDist(ceil(N_a/2),:,:)=shiftdim(ones(N_semiz,1)/N_semiz.*gather(z_stat)',-1); % Put the mass into midpoint, distributed evenly over semiz, and over z as (roughly) the stationary dist of z
+            end
+            if N_e>0
+                StationaryDist=StationaryDist.*shiftdim(gather(pi_e),-3); % and over e as pi_e
+            end
+            StationaryDist=reshape(StationaryDist,[N_a*N_semiz*max(N_z,1)*max(N_e,1),1]);
+        end
+    elseif N_z==0 && N_e==0
         % Iteration must start from an initial guess
         if isfield(simoptions,'initialdist')
             StationaryDist=reshape(simoptions.initialdist,[N_a,1]);
@@ -361,6 +403,103 @@ if simoptions.iterate==1
     end
 end
 
+
+%% Semi-exogenous states
+% The transition probabilities of the semi-exogenous states depend on the (last) decision variable(s)
+if N_semiz>0
+    if N_d==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    l_a=length(n_a);
+    if ~isfield(simoptions,'l_dsemiz')
+        simoptions.l_dsemiz=1; % by default, only one decision variable influences the semi-exogenous state
+    end
+    l_dsemiz=simoptions.l_dsemiz;
+    n_dsemiz=n_d(end-l_dsemiz+1:end);
+    N_dsemiz=prod(n_dsemiz);
+    N_bothz=N_semiz*max(N_z,1);
+    % Policy is [d (of which the last l_dsemiz are dsemiz); aprime], over (a,semiz,z,e) [with the grid interpolation layer
+    % it also has the L2 index and L2flag rows at the end]
+    Policy=reshape(Policy,[size(Policy,1),N_a*N_bothz*max(N_e,1)]);
+    Policy_dsemiz=Policy(l_d-l_dsemiz+1,:);
+    for ii=2:l_dsemiz
+        Policy_dsemiz=Policy_dsemiz+prod(n_dsemiz(1:ii-1))*(Policy(l_d-l_dsemiz+ii,:)-1);
+    end
+    Policy_aprime=Policy(l_d+1,:);
+    for ii=2:l_a
+        Policy_aprime=Policy_aprime+prod(n_a(1:ii-1))*(Policy(l_d+ii,:)-1);
+    end
+    if simoptions.gridinterplayer==1
+        % Two aprime points: the lower grid index (Policy_aprime) and the one above it, with the L2 weights
+        L2index=Policy(end-1,:); % L2 index (end-1 because end is L2flag)
+        L2flag=Policy(end,:);
+        L2index(L2flag==1)=1;                        % force all weight to lower grid point
+        L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+        PolicyProbUpper=(L2index-1)/(simoptions.ngridinterp+1); % probability of the upper grid point
+        if N_e>0 && N_z==0
+            StationaryDist=StationaryDist_InfHorz_SemiExo_GI_noz_e_raw(StationaryDist,Policy_dsemiz',Policy_aprime',PolicyProbUpper',N_dsemiz,N_a,N_semiz,N_e,simoptions.pi_semiz,pi_e,simoptions);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,simoptions.n_semiz,n_e]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,N_semiz,N_e]);
+            end
+        elseif N_e>0
+            StationaryDist=StationaryDist_InfHorz_SemiExo_GI_e_raw(StationaryDist,Policy_dsemiz',Policy_aprime',PolicyProbUpper',N_dsemiz,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz,pi_z,pi_e,simoptions);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,simoptions.n_semiz,n_z,n_e]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,N_semiz,N_z,N_e]);
+            end
+        elseif N_z==0
+            StationaryDist=StationaryDist_InfHorz_SemiExo_GI_noz_raw(StationaryDist,Policy_dsemiz',Policy_aprime',PolicyProbUpper',N_dsemiz,N_a,N_semiz,simoptions.pi_semiz,simoptions);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,simoptions.n_semiz]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,N_semiz]);
+            end
+        else
+            StationaryDist=StationaryDist_InfHorz_SemiExo_GI_raw(StationaryDist,Policy_dsemiz',Policy_aprime',PolicyProbUpper',N_dsemiz,N_a,N_semiz,N_z,simoptions.pi_semiz,pi_z,simoptions);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,simoptions.n_semiz,n_z]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,N_semiz,N_z]);
+            end
+        end
+    elseif N_e>0
+        if N_z==0
+            StationaryDist=StationaryDist_InfHorz_SemiExo_noz_e_raw(StationaryDist,Policy_dsemiz',Policy_aprime',N_dsemiz,N_a,N_semiz,N_e,simoptions.pi_semiz,pi_e,simoptions);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,simoptions.n_semiz,n_e]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,N_semiz,N_e]);
+            end
+        else
+            StationaryDist=StationaryDist_InfHorz_SemiExo_e_raw(StationaryDist,Policy_dsemiz',Policy_aprime',N_dsemiz,N_a,N_semiz,N_z,N_e,simoptions.pi_semiz,pi_z,pi_e,simoptions);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,simoptions.n_semiz,n_z,n_e]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,N_semiz,N_z,N_e]);
+            end
+        end
+    elseif N_z==0
+        StationaryDist=StationaryDist_InfHorz_SemiExo_noz_raw(StationaryDist,Policy_dsemiz',Policy_aprime',N_dsemiz,N_a,N_semiz,simoptions.pi_semiz,simoptions);
+        if simoptions.outputkron==0
+            StationaryDist=reshape(StationaryDist,[n_a,simoptions.n_semiz]);
+        else
+            StationaryDist=reshape(StationaryDist,[N_a,N_semiz]);
+        end
+    else
+        StationaryDist=StationaryDist_InfHorz_SemiExo_raw(StationaryDist,Policy_dsemiz',Policy_aprime',N_dsemiz,N_a,N_semiz,N_z,simoptions.pi_semiz,pi_z,simoptions);
+        if simoptions.outputkron==0
+            StationaryDist=reshape(StationaryDist,[n_a,simoptions.n_semiz,n_z]);
+        else
+            StationaryDist=reshape(StationaryDist,[N_a,N_semiz,N_z]);
+        end
+    end
+    return
+end
 
 %% Experience asset
 if simoptions.experienceasset>=1

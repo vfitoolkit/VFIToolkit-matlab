@@ -170,6 +170,32 @@ else
     l_semizze=length(n_semizze);
 end
 
+% semiz: put in front of (z,e) (semiz varies first, then z, then e), both for evaluating the FnsToEvaluate and for the panel indexes
+N_semiz=prod(simoptions.n_semiz);
+if N_semiz>0
+    % semiz is so far only implemented for the standard simulation
+    if N_d==0
+        error('simoptions.n_semiz (semi-exogenous states) requires a decision variable (the last decision variable(s) determine the semiz transitions)')
+    elseif simoptions.agententryandexit>=1
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for SimPanelValues_InfHorz with simoptions.agententryandexit')
+    elseif isfield(simoptions,'SemiEndogShockFn')
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for SimPanelValues_InfHorz with simoptions.SemiEndogShockFn')
+    elseif simoptions.inheritanceasset==1
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for SimPanelValues_InfHorz with simoptions.inheritanceasset')
+    end
+    simoptions=SemiExogShockSetup_InfHorz(n_d,d_grid,Parameters,simoptions,3);
+    % output: simoptions.semiz_gridvals, simoptions.pi_semiz, simoptions.l_dsemiz
+    if N_semizze==0 % no z, no e
+        n_semizze=simoptions.n_semiz;
+        semizze_gridvals=simoptions.semiz_gridvals;
+    else % (z,e) are already in semizze_gridvals (from above)
+        semizze_gridvals=[repmat(simoptions.semiz_gridvals,N_semizze,1),repelem(semizze_gridvals,N_semiz,1)];
+        n_semizze=[simoptions.n_semiz,n_semizze];
+    end
+    N_semizze=prod(n_semizze);
+    l_semizze=length(n_semizze);
+end
+
 if simoptions.agententryandexit==1 && isfield(simoptions,'SemiEndogShockFn')
     error('Cannot currently use simoptions.agententryandexit==1 and SemiEndogShockFn together. \n')
 end

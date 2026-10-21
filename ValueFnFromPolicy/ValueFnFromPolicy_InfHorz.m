@@ -13,6 +13,7 @@ if ~exist('vfoptions','var')
     vfoptions.maxiter=10^4; % Can be used to stop the VFI after a finite number of iterations
     % divide-and-conquer is not relevant for ValueFnFromPolicy
     vfoptions.n_e=0;
+    vfoptions.n_semiz=0;
 else
     if gpuDeviceCount==0
         error('ValueFnFromPolicy_InfHorz is only available on GPU')
@@ -30,12 +31,23 @@ else
     if ~isfield(vfoptions,'n_e')
         vfoptions.n_e=0;
     end
+    if ~isfield(vfoptions,'n_semiz')
+        vfoptions.n_semiz=0;
+    end
 end
 
 N_e=prod(vfoptions.n_e);
 if N_e>0
     if isfield(vfoptions,'exoticpreferences') && strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
         error('vfoptions.n_e (iid e) is not yet implemented for ValueFnFromPolicy_InfHorz with vfoptions.exoticpreferences=QuasiHyperbolic')
+    end
+end
+N_semiz=prod(vfoptions.n_semiz);
+if N_semiz>0
+    if vfoptions.gridinterplayer==1 && ~isscalar(n_a)
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for ValueFnFromPolicy_InfHorz with the grid interpolation layer and more than one endogenous state')
+    elseif isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None'))
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for ValueFnFromPolicy_InfHorz with vfoptions.exoticpreferences')
     end
 end
 
@@ -53,8 +65,8 @@ if isfield(vfoptions,'exoticpreferences') && ~strcmp(vfoptions.exoticpreferences
     error('ValueFnFromPolicy_InfHorz() does not yet work with this exotic preference type (QuasiHyperbolic is implemented; the others are not). Please ask on forum if you want/need this feature.')
 end
 
-%% Grid interpolation layer is handled by its own command
-if vfoptions.gridinterplayer==1
+%% Grid interpolation layer is handled by its own command (except with semiz, which ValueFnFromPolicy_InfHorz_SemiExo handles, see below)
+if vfoptions.gridinterplayer==1 && N_semiz==0
     V=ValueFnFromPolicy_InfHorz_GI(Policy,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
     varargout={V};
     return
@@ -76,6 +88,13 @@ a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 %% Implement new way of handling ReturnFn inputs
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
+
+%% Semi-exogenous states are handled by their own command
+if N_semiz>0
+    V=ValueFnFromPolicy_InfHorz_SemiExo(Policy,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
+    varargout={V};
+    return
+end
 % Basic setup: the first inputs of ReturnFn will be (d,aprime,a,z,..) and everything after this is a parameter, so we get the names of all these parameters.
 % But this changes if you have e, semiz, or just multiple d, and if you use riskyasset, expasset, etc.
 % So figure out which setup we have, and get the relevant ReturnFnParamNames

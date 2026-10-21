@@ -47,6 +47,19 @@ else
     cumsumpi_e=gather(cumsum(simoptions.pi_e,1));
 end
 
+if ~isfield(simoptions,'n_semiz')
+    simoptions.n_semiz=0;
+end
+N_semiz=prod(simoptions.n_semiz);
+if N_semiz>0
+    % semiz: simoptions.pi_semiz(semiz,semizprime,dsemiz), where dsemiz are the last simoptions.l_dsemiz decision variables
+    % (SimPanelValues_InfHorz has already called SemiExogShockSetup_InfHorz)
+    l_semiz=length(simoptions.n_semiz);
+    l_dsemiz=simoptions.l_dsemiz;
+    n_dsemiz=n_d(end-l_dsemiz+1:end);
+    cumsumpi_semiz=gather(cumsum(simoptions.pi_semiz,2));
+end
+
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
 
 %%
@@ -73,6 +86,18 @@ else
         N_bothze=N_z;
     else
         N_bothze=N_z*N_e;
+    end
+end
+if N_semiz>0
+    N_bothze=N_semiz*max(N_bothze,1); % semiz comes first, then z, then e
+end
+
+if N_semiz>0
+    % the (joint) index of the dsemiz decision variables
+    Policy_dsemiz=reshape(Policy,[size(Policy,1),N_a,N_bothze]);
+    Policy_dsemiz=gather(reshape(Policy_dsemiz(l_d-l_dsemiz+1,:,:),[N_a,N_bothze]));
+    for ii=2:l_dsemiz
+        Policy_dsemiz=Policy_dsemiz+prod(n_dsemiz(1:ii-1))*(gather(reshape(Policy(l_d-l_dsemiz+ii,:,:),[N_a,N_bothze]))-1);
     end
 end
 
@@ -155,7 +180,166 @@ exitinpanel=simoptions.exitinpanel; % reduce overhead with parfor
 
 if exitinpanel==0
     %% First do the case without e variables, otherwise do with e variables
-    if N_z==0
+    if N_semiz>0
+        if N_e>0 && N_z==0 % semiz and e, no z
+            Policy_dsemiz=reshape(Policy_dsemiz,[N_a,N_semiz,N_e]);
+
+            % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
+            SimPanel=nan(3,simoptions.simperiodsfinal,simoptions.numbersims); % (a,semiz,e)
+            if simoptions.gridinterplayer==0
+                Policy_aprime=gather(reshape(Policy_aprime,[N_a,N_semiz,N_e]));
+                parfor ii=1:simoptions.numbersims
+                    [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
+                    seedpoint=ind2sub_homemade([N_a,N_semiz,N_e],seedpoint);
+                    seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+                    SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_semiz_noz_e_raw(Policy_aprime,Policy_dsemiz,cumsumpi_semiz,cumsumpi_e, simoptions, seedpoint);
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
+                end
+            elseif simoptions.gridinterplayer==1
+                Policy_aprime=gather(reshape(Policy_aprime,[N_a,N_semiz,N_e,2]));
+                CumPolicyProbs=gather(reshape(CumPolicyProbs,[N_a,N_semiz,N_e,2]));
+                parfor ii=1:simoptions.numbersims
+                    [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
+                    seedpoint=ind2sub_homemade([N_a,N_semiz,N_e],seedpoint);
+                    seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+                    SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_PolicyProbs_semiz_noz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiz,cumsumpi_semiz,cumsumpi_e, simoptions, seedpoint);
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
+                end
+            end
+
+            if simoptions.simpanelindexkron==0 % Convert results out of kron
+                SimPanelKron=reshape(SimPanel,[3,simoptions.simperiodsfinal*simoptions.numbersims]);
+                SimPanel=nan(l_a+l_semiz+l_e,simoptions.simperiodsfinal*simoptions.numbersims); % (a,semiz,e)
+
+                SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+                SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_vec_homemade(simoptions.n_semiz,SimPanelKron(2,:)')'; % semiz
+                SimPanel(l_a+l_semiz+1:l_a+l_semiz+l_e,:)=ind2sub_vec_homemade(simoptions.n_e,SimPanelKron(3,:)')'; % e
+                SimPanel=reshape(SimPanel,[l_a+l_semiz+l_e,simoptions.simperiodsfinal,simoptions.numbersims]);
+            else
+                % All exogenous states together
+                SimPanel(2,:,:)=SimPanel(2,:,:)+N_semiz*(SimPanel(3,:,:)-1); % put semiz and e together
+                SimPanel=SimPanel(1:2,:,:);
+            end
+        elseif N_e>0 % semiz, z and e
+            Policy_dsemiz=reshape(Policy_dsemiz,[N_a,N_semiz,N_z,N_e]);
+            cumsumpi_z=gather(cumsumpi_z);
+
+            % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
+            SimPanel=nan(4,simoptions.simperiodsfinal,simoptions.numbersims); % (a,semiz,z,e)
+            if simoptions.gridinterplayer==0
+                Policy_aprime=gather(reshape(Policy_aprime,[N_a,N_semiz,N_z,N_e]));
+                parfor ii=1:simoptions.numbersims
+                    [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
+                    seedpoint=ind2sub_homemade([N_a,N_semiz,N_z,N_e],seedpoint);
+                    seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+                    SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_semiz_e_raw(Policy_aprime,Policy_dsemiz,cumsumpi_z,cumsumpi_semiz,cumsumpi_e, simoptions, seedpoint);
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
+                end
+            elseif simoptions.gridinterplayer==1
+                Policy_aprime=gather(reshape(Policy_aprime,[N_a,N_semiz,N_z,N_e,2]));
+                CumPolicyProbs=gather(reshape(CumPolicyProbs,[N_a,N_semiz,N_z,N_e,2]));
+                parfor ii=1:simoptions.numbersims
+                    [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
+                    seedpoint=ind2sub_homemade([N_a,N_semiz,N_z,N_e],seedpoint);
+                    seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+                    SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_PolicyProbs_semiz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiz,cumsumpi_z,cumsumpi_semiz,cumsumpi_e, simoptions, seedpoint);
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
+                end
+            end
+
+            if simoptions.simpanelindexkron==0 % Convert results out of kron
+                SimPanelKron=reshape(SimPanel,[4,simoptions.simperiodsfinal*simoptions.numbersims]);
+                SimPanel=nan(l_a+l_semiz+l_z+l_e,simoptions.simperiodsfinal*simoptions.numbersims); % (a,semiz,z,e)
+
+                SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+                SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_vec_homemade(simoptions.n_semiz,SimPanelKron(2,:)')'; % semiz
+                SimPanel(l_a+l_semiz+1:l_a+l_semiz+l_z,:)=ind2sub_vec_homemade(n_z,SimPanelKron(3,:)')'; % z
+                SimPanel(l_a+l_semiz+l_z+1:l_a+l_semiz+l_z+l_e,:)=ind2sub_vec_homemade(simoptions.n_e,SimPanelKron(4,:)')'; % e
+                SimPanel=reshape(SimPanel,[l_a+l_semiz+l_z+l_e,simoptions.simperiodsfinal,simoptions.numbersims]);
+            else
+                % All exogenous states together
+                SimPanel(2,:,:)=SimPanel(2,:,:)+N_semiz*(SimPanel(3,:,:)-1)+N_semiz*N_z*(SimPanel(4,:,:)-1); % put semiz, z and e together
+                SimPanel=SimPanel(1:2,:,:);
+            end
+        elseif N_z==0 % semiz, no z
+            Policy_dsemiz=reshape(Policy_dsemiz,[N_a,N_semiz]);
+
+            % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
+            SimPanel=nan(2,simoptions.simperiodsfinal,simoptions.numbersims); % (a,semiz)
+            if simoptions.gridinterplayer==0
+                Policy_aprime=gather(reshape(Policy_aprime,[N_a,N_semiz]));
+                parfor ii=1:simoptions.numbersims
+                    [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
+                    seedpoint=ind2sub_homemade([N_a,N_semiz],seedpoint);
+                    seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+                    SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_semiz_noz_raw(Policy_aprime,Policy_dsemiz,cumsumpi_semiz, simoptions, seedpoint);
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
+                end
+            elseif simoptions.gridinterplayer==1
+                Policy_aprime=gather(reshape(Policy_aprime,[N_a,N_semiz,2]));
+                CumPolicyProbs=gather(reshape(CumPolicyProbs,[N_a,N_semiz,2]));
+                parfor ii=1:simoptions.numbersims
+                    [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
+                    seedpoint=ind2sub_homemade([N_a,N_semiz],seedpoint);
+                    seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+                    SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_PolicyProbs_semiz_noz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiz,cumsumpi_semiz, simoptions, seedpoint);
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
+                end
+            end
+
+            if simoptions.simpanelindexkron==0 % Convert results out of kron
+                SimPanelKron=reshape(SimPanel,[2,simoptions.simperiodsfinal*simoptions.numbersims]);
+                SimPanel=nan(l_a+l_semiz,simoptions.simperiodsfinal*simoptions.numbersims); % (a,semiz)
+
+                SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+                SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_vec_homemade(simoptions.n_semiz,SimPanelKron(2,:)')'; % semiz
+                SimPanel=reshape(SimPanel,[l_a+l_semiz,simoptions.simperiodsfinal,simoptions.numbersims]);
+            else
+                % All exogenous states together
+                % Only semiz, so already is
+            end
+        else % semiz and z
+            Policy_dsemiz=reshape(Policy_dsemiz,[N_a,N_semiz,N_z]);
+            cumsumpi_z=gather(cumsumpi_z);
+
+            % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
+            SimPanel=nan(3,simoptions.simperiodsfinal,simoptions.numbersims); % (a,semiz,z)
+            if simoptions.gridinterplayer==0
+                Policy_aprime=gather(reshape(Policy_aprime,[N_a,N_semiz,N_z]));
+                parfor ii=1:simoptions.numbersims
+                    [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
+                    seedpoint=ind2sub_homemade([N_a,N_semiz,N_z],seedpoint);
+                    seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+                    SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_semiz_raw(Policy_aprime,Policy_dsemiz,cumsumpi_z,cumsumpi_semiz, simoptions, seedpoint);
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
+                end
+            elseif simoptions.gridinterplayer==1
+                Policy_aprime=gather(reshape(Policy_aprime,[N_a,N_semiz,N_z,2]));
+                CumPolicyProbs=gather(reshape(CumPolicyProbs,[N_a,N_semiz,N_z,2]));
+                parfor ii=1:simoptions.numbersims
+                    [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1)); % Get seedpoint from InitialDist
+                    seedpoint=ind2sub_homemade([N_a,N_semiz,N_z],seedpoint);
+                    seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+                    SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_PolicyProbs_semiz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiz,cumsumpi_z,cumsumpi_semiz, simoptions, seedpoint);
+                    SimPanel(:,:,ii)=SimLifeCycleKron(:,simoptions.burnin+1:end);
+                end
+            end
+
+            if simoptions.simpanelindexkron==0 % Convert results out of kron
+                SimPanelKron=reshape(SimPanel,[3,simoptions.simperiodsfinal*simoptions.numbersims]);
+                SimPanel=nan(l_a+l_semiz+l_z,simoptions.simperiodsfinal*simoptions.numbersims); % (a,semiz,z)
+
+                SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+                SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_vec_homemade(simoptions.n_semiz,SimPanelKron(2,:)')'; % semiz
+                SimPanel(l_a+l_semiz+1:l_a+l_semiz+l_z,:)=ind2sub_vec_homemade(n_z,SimPanelKron(3,:)')'; % z
+                SimPanel=reshape(SimPanel,[l_a+l_semiz+l_z,simoptions.simperiodsfinal,simoptions.numbersims]);
+            else
+                % All exogenous states together
+                SimPanel(2,:,:)=SimPanel(2,:,:)+N_semiz*(SimPanel(3,:,:)-1); % put semiz and z together
+                SimPanel=SimPanel(1:2,:,:);
+            end
+        end
+    elseif N_z==0
         if N_e==0  % No z, No e
             if simoptions.gridinterplayer==0
                 Policy_aprime=reshape(Policy_aprime,[N_a,1]);
@@ -321,6 +505,9 @@ if exitinpanel==0
 else
 
     %% With exit and perhaps entry
+    if N_semiz>0
+        error('simoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz panel simulation with exit')
+    end
 
     % Get seedpoints from InitialDist
     [~,seedpointvec]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims));

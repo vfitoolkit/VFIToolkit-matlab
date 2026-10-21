@@ -201,6 +201,7 @@ end
 
 
 N_e=prod(vfoptions.n_e);
+N_semiz=prod(vfoptions.n_semiz);
 
 %% Report on Setup
 if vfoptions.verbose==1
@@ -238,6 +239,41 @@ if N_e>0
     end
 end
 
+%% Semi-exogenous states are so far only implemented for the GPU purediscretization and purediscretization_refinement (with the grid interpolation layer only postGI)
+if N_semiz>0
+    if N_d==0
+        error('vfoptions.n_semiz (semi-exogenous states) requires a decision variable (the last decision variable(s) determine the semiz transitions)')
+    elseif vfoptions.parallel<2
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration on the CPU (vfoptions.parallel<2)')
+    elseif vfoptions.gridinterplayer==1 && vfoptions.preGI==1
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and vfoptions.preGI=1 (only postGI, which is the default)')
+    elseif vfoptions.gridinterplayer==1 && vfoptions.howardsgreedy>1
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and vfoptions.howardsgreedy=2 or 3 (HowardMix)')
+    elseif vfoptions.gridinterplayer==1 && ~isscalar(n_a)
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and more than one endogenous state')
+    elseif vfoptions.gridinterplayer==1 && isfield(vfoptions,'postGIrepeat') && vfoptions.postGIrepeat>0
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with the grid interpolation layer and vfoptions.postGIrepeat>0')
+    elseif vfoptions.divideandconquer==2
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with divide-and-conquer (vfoptions.divideandconquer=2)')
+    elseif vfoptions.separableReturnFn==1
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.separableReturnFn=1')
+    elseif vfoptions.endogenousexit>=1
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.endogenousexit')
+    elseif isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None'))
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.exoticpreferences')
+    elseif vfoptions.experienceasset>=1
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.experienceasset')
+    elseif vfoptions.inheritanceasset==1
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.inheritanceasset')
+    elseif isfield(vfoptions,'SemiEndogShockFn')
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.SemiEndogShockFn')
+    elseif any(vfoptions.incrementaltype==1)
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.incrementaltype')
+    elseif ~any(strcmp(vfoptions.solnmethod,{'purediscretization','purediscretization_refinement'}))
+        error('vfoptions.n_semiz (semi-exogenous states) is not yet implemented for InfHorz value function iteration with vfoptions.solnmethod=%s (only purediscretization and purediscretization_refinement)',vfoptions.solnmethod)
+    end
+end
+
 %% If using CPU, then go off to dedicated function
 if vfoptions.parallel<2
     [V,Policy]=ValueFnIter_InfHorz_CPU(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -246,7 +282,15 @@ if vfoptions.parallel<2
 end
 
 %% V0 (initial guess)
-if N_e==0
+if N_semiz>0
+    if isfield(vfoptions,'V0')
+        V0=reshape(gpuArray(vfoptions.V0),[N_a,N_semiz*max(N_z,1),max(N_e,1)]); % (semiz,z,e), semiz varies first
+        vfoptions.actualV0=1;
+    else
+        V0=zeros([N_a,N_semiz*max(N_z,1),max(N_e,1)], 'gpuArray');
+        vfoptions.actualV0=0;
+    end
+elseif N_e==0
     if isfield(vfoptions,'V0')
         V0=reshape(gpuArray(vfoptions.V0),[N_a,max(N_z,1)]); % Note: max(N_z,1) is N_z, or if N_z=0 then it is 1
         vfoptions.actualV0=1;
@@ -360,7 +404,6 @@ if vfoptions.alreadygridvals_semiexo==0
     if prod(vfoptions.n_semiz)>0
         vfoptions=SemiExogShockSetup_InfHorz(n_d,d_grid,Parameters,vfoptions,3);
         % output: vfoptions.semiz_gridvals, vfoptions.pi_semiz
-        error('Have not yet implemented semiz variables for InfHorz value function iteration, ask on forum if you need this')
     end
 end
 
@@ -465,6 +508,14 @@ end
 
 
 
+
+%% Semi-exogenous states
+% The transition probabilities of the semi-exogenous states depend on the (last) decision variable(s)
+if N_semiz>0
+    [V,Policy]=ValueFnIter_InfHorz_SemiExo(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+    varargout={V,Policy};
+    return
+end
 
 %% Experience asset
 if vfoptions.experienceasset>=1

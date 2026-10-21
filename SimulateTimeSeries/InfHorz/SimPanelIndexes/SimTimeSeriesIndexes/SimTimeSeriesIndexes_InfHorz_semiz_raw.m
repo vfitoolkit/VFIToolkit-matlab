@@ -4,7 +4,7 @@ function SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_semiz_raw(PolicyKron,Pol
 currstate=seedpoint; % seedpoint is (a,semiz,z)
 
 SimTimeSeriesKron=nan(3,simoptions.simperiods);
-for tt=1:periods
+for tt=1:simoptions.simperiods
     SimTimeSeriesKron(1,tt)=currstate(1); % a_c
     SimTimeSeriesKron(2,tt)=currstate(2); % semiz_c
     SimTimeSeriesKron(3,tt)=currstate(3); % z_c
@@ -13,5 +13,7 @@ for tt=1:periods
     currstate(1)=PolicyKron(currstate(1),currstate(2),currstate(3));
 
     [~,currstate(2)]=max(cumsumpi_semiz(currstate(2),:,d2ind)>rand(1,1));
-    [~,currstate(3)]=max(cumsumpi_z(currstate(3))>rand(1,1));
+    [~,currstate(3)]=max(cumsumpi_z(currstate(3),:)>rand(1,1));
+end
+
 end

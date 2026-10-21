@@ -103,8 +103,13 @@ end
 l_a=length(n_a);
 
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-if prod(simoptions.n_semiz)>0
-    error('Have not yet implemented semiz variables for InfHorz AutoCorrTransProbs, ask on forum if you need this')
+N_semiz=prod(simoptions.n_semiz);
+if N_semiz>0
+    if N_d==0
+        error('simoptions.n_semiz (semi-exogenous states) requires a decision variable (the last decision variable(s) determine the semiz transitions)')
+    end
+    simoptions=SemiExogShockSetup_InfHorz(n_d,d_grid,Parameters,simoptions,3);
+    % output: simoptions.semiz_gridvals, simoptions.pi_semiz, simoptions.l_dsemiz
 end
 
 %% Exogenous shocks: the markov z and the iid e are kept apart throughout (as in the FHorz command)
@@ -124,6 +129,16 @@ else
     else
         n_ze=[n_z,simoptions.n_e];
         ze_gridvals=[repmat(z_gridvals,N_e,1),repelem(simoptions.e_gridvals,N_z,1)];
+    end
+end
+if N_semiz>0
+    % semiz is put in front of (z,e) (semiz varies first), the functions are evaluated on (a,semiz,z,e)
+    if prod(n_ze)==0
+        n_ze=simoptions.n_semiz;
+        ze_gridvals=simoptions.semiz_gridvals;
+    else
+        ze_gridvals=[repmat(simoptions.semiz_gridvals,prod(n_ze),1),repelem(ze_gridvals,N_semiz,1)];
+        n_ze=[simoptions.n_semiz,n_ze];
     end
 end
 N_ze=prod(n_ze);
@@ -249,6 +264,7 @@ end
 % the transition probabilities between value bins push each origin bin's mass the same way, in blocks of 64 bins.
 N_zr=max(N_z,1);
 N_er=max(N_e,1);
+N_semizr=max(N_semiz,1);
 Policy=reshape(Policy,[size(Policy,1),N_a,N_ze_reshape]);
 if l_a==1
     Policy_aprime=shiftdim(Policy(l_d+1,:,:),1);
@@ -261,6 +277,33 @@ elseif l_a==4
 else
     error('EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz cannot handle length(n_a)>4, contact me if you need this')
 end
+if N_semiz>0
+    % With semiz the policy step goes from (a,semiz,z,e) to (a',semiz',z), with probabilities pi_semiz(semiz,semizprime,dsemiz)
+    % at the policy dsemiz (the last simoptions.l_dsemiz decision variables), and the z and e steps follow as without semiz.
+    % [As StationaryDist_InfHorz_SemiExo_raw, _e_raw and _GI_raw.] 
+    l_dsemiz=simoptions.l_dsemiz;
+    n_dsemiz=n_d(end-l_dsemiz+1:end);
+    Policy_dsemiz=reshape(Policy(l_d-l_dsemiz+1,:,:),[N_states,1]);
+    for ii=2:l_dsemiz
+        Policy_dsemiz=Policy_dsemiz+prod(n_dsemiz(1:ii-1))*(reshape(Policy(l_d-l_dsemiz+ii,:,:),[N_states,1])-1);
+    end
+    semizind=gpuArray(repmat(repelem((1:1:N_semiz)',N_a,1),N_zr*N_er,1)); % semiz of each state (a,semiz,z,e)
+    zind=gpuArray(repmat(repelem((1:1:N_zr)',N_a*N_semiz,1),N_er,1)); % z of each state (a,semiz,z,e)
+    pi_semiz=gpuArray(simoptions.pi_semiz);
+    semiztransitions=pi_semiz(semizind+N_semiz*gpuArray(0:1:N_semiz-1)+N_semiz*N_semiz*(Policy_dsemiz-1)); % [N_states,N_semiz], pi_semiz(semiz,semizprime,dsemiz) at the policy dsemiz
+    Policy_aprimesemizz=reshape(Policy_aprime,[N_states,1])+N_a*gpuArray(0:1:N_semiz-1)+N_a*N_semiz*(zind-1); % [N_states,N_semiz], index of (a',semiz',z)
+    if simoptions.gridinterplayer==0
+        Gammatranspose=sparse(reshape(Policy_aprimesemizz,[],1),gpuArray(repmat((1:1:N_states)',N_semiz,1)),reshape(semiztransitions,[],1),N_a*N_semiz*N_zr,N_states); % sparse gpuArray (sparse() drops the zero probabilities)
+    elseif simoptions.gridinterplayer==1
+        % two a' points per state: the lower grid point and the one above it, with the second-layer weights, each with every semiz'
+        L2index=Policy(end-1,:,:); % L2 index (end-1 because end is L2flag)
+        L2flag=Policy(end,:,:);
+        L2index(L2flag==1)=1;                        % force all weight to lower grid point
+        L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+        probupper=reshape((L2index-1)/(simoptions.ngridinterp+1),[],1); % [N_states,1]: probability of the upper grid point
+        Gammatranspose=sparse([reshape(Policy_aprimesemizz,[],1);reshape(Policy_aprimesemizz,[],1)+1],gpuArray(repmat((1:1:N_states)',2*N_semiz,1)),[reshape((1-probupper).*semiztransitions,[],1);reshape(probupper.*semiztransitions,[],1)],N_a*N_semiz*N_zr,N_states); % sparse gpuArray
+    end
+else
 % Policy_aprime is [N_a,N_ze_reshape]; add the markov-z index of each (z,e) column (z varies first) to get the index into (a',z)
 zindex=N_a*repmat(gpuArray(0:1:N_zr-1),1,N_er);
 Policy_aprimez=Policy_aprime+zindex; % [N_a,N_ze_reshape], on the gpu
@@ -274,6 +317,7 @@ elseif simoptions.gridinterplayer==1
     L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
     probupper=reshape((L2index-1)/(simoptions.ngridinterp+1),[],1); % [N_states,1]: probability of the upper grid point
     Gammatranspose=sparse([reshape(Policy_aprimez,[],1);reshape(Policy_aprimez,[],1)+1],gpuArray(repmat((1:1:N_states)',2,1)),[1-probupper;probupper],N_a*N_zr,N_states); % sparse gpuArray
+end
 end
 if N_z>0
     pi_z_gpu=gpuArray(pi_z);
@@ -387,10 +431,10 @@ for fc=1:maxfnchunk:length(fnwanted)
             % Tan step: one period forward, all the measures as columns
             temp=Gammatranspose*propagated; % policy step: now over (a',z)
             if N_z>0
-                temp=reshape(pagemtimes(reshape(temp,[N_a,N_zr,ncols]),pi_z_gpu),[N_a*N_zr,ncols]); % z step, every column at once
+                temp=reshape(pagemtimes(reshape(temp,[N_a*N_semizr,N_zr,ncols]),pi_z_gpu),[N_a*N_semizr*N_zr,ncols]); % z step, every column at once
             end
             if N_e>0
-                temp=reshape(reshape(temp,[N_a*N_zr,1,ncols]).*pi_e_gpu,[N_states,ncols]); % e step: e is the slowest index of the states (the layout of kron(pi_e,.))
+                temp=reshape(reshape(temp,[N_a*N_semizr*N_zr,1,ncols]).*pi_e_gpu,[N_states,ncols]); % e step: e is the slowest index of the states (the layout of kron(pi_e,.))
             end
             propagated=temp;
         end
@@ -475,10 +519,10 @@ for fc=1:maxfnchunk:length(fnwanted)
                 for kk=1:maxhorizon
                     temp=Gammatranspose*temp;
                     if N_z>0
-                        temp=reshape(pagemtimes(reshape(temp,[N_a,N_zr,b2-b1+1]),pi_z_gpu),[N_a*N_zr,b2-b1+1]);
+                        temp=reshape(pagemtimes(reshape(temp,[N_a*N_semizr,N_zr,b2-b1+1]),pi_z_gpu),[N_a*N_semizr*N_zr,b2-b1+1]);
                     end
                     if N_e>0
-                        temp=reshape(reshape(temp,[N_a*N_zr,1,b2-b1+1]).*pi_e_gpu,[N_states,b2-b1+1]);
+                        temp=reshape(reshape(temp,[N_a*N_semizr*N_zr,1,b2-b1+1]).*pi_e_gpu,[N_states,b2-b1+1]);
                     end
                     if reported(kk)
                         P_v(b1:b2,:,kk)=gather((S_dest'*temp)')./massPerBin(b1:b2);

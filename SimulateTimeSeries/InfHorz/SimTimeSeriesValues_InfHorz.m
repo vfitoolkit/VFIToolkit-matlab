@@ -23,8 +23,26 @@ else
     N_e=0;
 end
 
+if isfield(simoptions,'n_semiz')
+    N_semiz=prod(simoptions.n_semiz);
+else
+    N_semiz=0;
+end
+
 % To make my life easy, this actually just uses the SimPanelValues command and creates just one simulation.
-if N_z==0 && N_e==0
+if N_semiz>0
+    % The seedpoint is for (a,z), the initial semiz is spread evenly over the semiz points, and the initial e is drawn from its iid distribution pi_e
+    if N_z==0
+        InitialDist=zeros([N_a,N_semiz]);
+        InitialDist(simoptions.seedpoint(1),:)=1/N_semiz;
+    else
+        InitialDist=zeros([N_a,N_semiz,N_z]);
+        InitialDist(simoptions.seedpoint(1),:,simoptions.seedpoint(2))=1/N_semiz;
+    end
+    if N_e>0
+        InitialDist=reshape(InitialDist,[N_a,N_semiz,max(N_z,1)]).*shiftdim(gather(simoptions.pi_e(:)),-3); % [N_a,N_semiz,N_z,N_e]
+    end
+elseif N_z==0 && N_e==0
     InitialDist=zeros([N_a,1]);
     InitialDist(simoptions.seedpoint(1))=1;
 elseif N_z>0 && N_e==0
