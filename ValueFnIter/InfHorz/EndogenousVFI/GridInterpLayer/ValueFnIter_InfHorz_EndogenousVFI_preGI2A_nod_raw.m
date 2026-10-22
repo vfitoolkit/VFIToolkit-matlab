@@ -1,0 +1,168 @@
+function [VKron, Policy]=ValueFnIter_InfHorz_EndogenousVFI_preGI2A_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParams, vfoptions)
+% Endogenous VFI (Bray, 2019): identical iterations to ValueFnIter_InfHorz_preGI2A_nod_raw, but every loop stops on the
+% span over a of V-Vold within each exogenous state (tolerances apply to that span), and V is recovered in levels after
+% each fine-grid loop.
+% preGI: create the whole ReturnMatrix based on aprime
+% Then take a multigrid approach, using just a_grid for aprime until near
+% convergence, then switch to use the fine grid for aprime.
+% 2B: two endogenous states, just use grid interpolation layer on the first
+
+N_a1=n_a(1);
+N_a2=prod(n_a(2:end));
+a1_grid=a_grid(1:N_a1);
+a2_grid=a_grid(N_a1+1:end);
+
+N_a=prod(n_a);
+N_z=prod(n_z);
+
+% Grid interpolation
+% vfoptions.ngridinterp=9;
+n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
+
+N_a1prime=N_a1+(N_a1-1)*vfoptions.ngridinterp;
+a1prime_grid=interp1(1:1:N_a1,a1_grid,linspace(1,N_a1,N_a1+(N_a1-1)*vfoptions.ngridinterp))';
+n_aprime=[N_a1prime,n_a(2:end)];
+N_aprime=prod(n_aprime);
+aprime_gridvals=CreateGridvals(n_aprime,[a1prime_grid; a2_grid],1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+ReturnMatrixfine=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_aprime, n_a, n_z, aprime_gridvals, a_gridvals, z_gridvals, ReturnFnParams);
+originalindex=gpuArray(1:vfoptions.ngridinterp+1:N_a1prime)'+N_a1prime*gpuArray(0:1:N_a2-1);
+ReturnMatrix=ReturnMatrixfine(originalindex(:),:,:);
+
+pi_z_alt=shiftdim(pi_z',-1);
+pi_z_howards=repelem(pi_z,N_a,1);
+
+addindexforaz=gpuArray(N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1));
+addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
+
+%%
+tempcounter=1;
+currdist=Inf;
+
+%% First, just consider a_grid for next period
+while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=vfoptions.maxiter
+    VKronold=VKron;
+
+    % Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=VKronold.*pi_z_alt;
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % aprime by a by z
+
+    %Calc the max and it's index
+    [VKron,Policy]=max(entireRHS,[],1);
+    VKron=shiftdim(VKron,1); % a by z
+
+    VKrondist=reshape(VKron,[N_a,numel(VKron)/N_a])-reshape(VKronold,[N_a,numel(VKronold)/N_a]); % a-by-(exogenous states)
+    currdist=max(max(VKrondist,[],1)-min(VKrondist,[],1),[],'all'); % endogenous VFI: the span over a, within each exogenous state (max and min omit the NaN from -Inf minus -Inf)
+
+    % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
+    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
+        tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
+        Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
+        Policy=Policy(:); % a by z (this shape is just convenient for Howards)
+        for Howards_counter=1:vfoptions.howards
+            EVKrontemp=VKron(Policy,:);
+            EVKrontemp=EVKrontemp.*pi_z_howards;
+            EVKrontemp(isnan(EVKrontemp))=0;
+            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+            VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp; % interpolate EV
+        end
+    end
+
+    tempcounter=tempcounter+1;
+
+end
+
+
+%% Now switch to considering the fine/interpolated aprime_grid
+currdist=1; % force going into the next while loop at least one iteration
+while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
+    VKronold=VKron;
+
+    % Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=VKronold.*pi_z_alt;
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+
+    % Interpolate EV over aprime_grid
+    EVinterp=reshape(interp1(a1_grid,reshape(EV,[N_a1,N_a2,N_z]),a1prime_grid),[N_aprime,1,N_z]);
+
+    entireRHS=ReturnMatrixfine+DiscountFactorParamsVec*EVinterp; % aprime by a by z
+
+    %Calc the max and it's index
+    [VKron,Policy]=max(entireRHS,[],1);
+    VKron=shiftdim(VKron,1); % a by z
+
+    VKrondist=reshape(VKron,[N_a,numel(VKron)/N_a])-reshape(VKronold,[N_a,numel(VKronold)/N_a]); % a-by-(exogenous states)
+    currdist=max(max(VKrondist,[],1)-min(VKrondist,[],1),[],'all'); % endogenous VFI: the span over a, within each exogenous state (max and min omit the NaN from -Inf minus -Inf)
+
+    % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
+    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
+        tempmaxindex=shiftdim(Policy,1)+addindexforazfine; % aprime index, add the index for a and z
+        Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
+        Policy=Policy(:); % a by z (this shape is just convenient for Howards)
+        for Howards_counter=1:vfoptions.howards
+            EVKrontemp=reshape(interp1(a1_grid,reshape(VKron,[N_a1,N_a2,N_z]),a1prime_grid),[N_aprime,1,N_z]); % interpolate V as Policy points to the interpolated indexes
+            EVKrontemp=EVKrontemp(Policy,:);
+            EVKrontemp=EVKrontemp.*pi_z_howards;
+            EVKrontemp(isnan(EVKrontemp))=0;
+            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+            VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
+        end
+    end
+
+    tempcounter=tempcounter+1;
+
+end
+% Endogenous VFI: recover V in levels. Once converged, VKron=T(VKronold) (the Howards step is skipped in the last
+% iteration) and VKron-VKronold is a function of the exogenous states only, up to the tolerance; call it dexo (the
+% mean over a of the finite entries). VKronold+c is the fixed point when c=dexo+beta*E[c'], and V=T(VKronold+c)=VKron+beta*E[c'].
+% (The interpolation weights sum to one, so adding a function of the exogenous states to V adds it to the interpolated V too.)
+szVKron=size(VKron);
+VKrondist=reshape(VKron,[N_a,numel(VKron)/N_a])-reshape(VKronold,[N_a,numel(VKronold)/N_a]);
+finitedist=isfinite(VKrondist);
+VKrondist(~finitedist)=0;
+dexo=sum(VKrondist,1)./max(sum(finitedist,1),1); % 1-by-(exogenous states), zero where there is no finite entry
+% c solves c=dexo+beta*pi_z*c
+cexo=(eye(N_z,'gpuArray')-DiscountFactorParamsVec*pi_z)\dexo'; % z-by-1
+VKron=reshape(reshape(VKron,[N_a,N_z])+DiscountFactorParamsVec*(pi_z*cexo)',szVKron);
+
+
+%% Switch policy to lower grid index and L2 index (is currently index on fine grid)
+fineindex=reshape(Policy,[1,N_a,N_z]);
+Policy=zeros(4,N_a,N_z,'gpuArray'); % +1 channel for PolicyL2flag
+fineindexvec1=rem(fineindex-1,N_a1prime)+1;
+fineindexvec2=ceil(fineindex/N_a1prime);
+
+L1a=ceil((fineindexvec1-1)/(n2short+1))-1;
+L1=max(L1a,0)+1; % lower grid point index
+L2=fineindexvec1-(L1-1)*(n2short+1); % L2 index
+
+Policy(1,:,:)=L1;
+Policy(2,:,:)=fineindexvec2;
+Policy(3,:,:)=L2;
+
+% L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+% Computed once, post-convergence. ReturnMatrixfine is [N_aprime,N_a,N_z] with aprime = a1prime_fine + N_a1prime*(a2prime-1).
+L1_flat = reshape(L1,[N_a*N_z,1]);
+L2_flat = reshape(L2,[N_a*N_z,1]);
+fineindexvec2_flat = reshape(fineindexvec2,[N_a*N_z,1]);
+aprime_lower = (L1_flat-1)*(n2short+1) + 1 + N_a1prime*(fineindexvec2_flat-1);
+aprime_upper = L1_flat*(n2short+1)     + 1 + N_a1prime*(fineindexvec2_flat-1);
+linidx_lower = aprime_lower + reshape(addindexforazfine,[N_a*N_z,1]);
+linidx_upper = aprime_upper + reshape(addindexforazfine,[N_a*N_z,1]);
+isInfLower = (ReturnMatrixfine(linidx_lower) == -Inf);
+isInfUpper = (ReturnMatrixfine(linidx_upper) == -Inf);
+inInterior = (L2_flat >= 2) & (L2_flat <= n2short+1);
+Policy(4,:,:) = reshape(2 + (inInterior & isInfLower) - (inInterior & isInfUpper), [1,N_a,N_z]);
+
+if currdist > vfoptions.tolerance
+    warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, vfoptions.tolerance)
+end
+
+end

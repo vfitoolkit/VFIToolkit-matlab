@@ -14,9 +14,17 @@ N_d=prod(n_d);
 if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few aprime points (on rough, with all fine interpolation points)
     if isscalar(n_a)
         if N_d==0
-            [V,Policy]=ValueFnIter_InfHorz_postGI_nod_noz_raw(V0, n_a,  a_grid, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_postGI_nod_noz_raw(V0, n_a,  a_grid, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_postGI_nod_noz_raw(V0, n_a,  a_grid, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+            end
         else % N_d
-            [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_noz_raw(V0, n_d, n_a, d_gridvals, a_grid, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_noz_raw(V0, n_d, n_a, d_gridvals, a_grid, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_Refine_postGI_noz_raw(V0, n_d, n_a, d_gridvals, a_grid, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            end
         end
     else
         error('NOT YET implemented')

@@ -291,8 +291,6 @@ if vfoptions.endogenousvfi==1
         error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.exoticpreferences (the Bellman operator is not additive in V, so endogenous VFI does not apply)')
     elseif vfoptions.endogenousexit>=1
         error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.endogenousexit (the exit value does not shift with V, so endogenous VFI does not apply)')
-    elseif vfoptions.gridinterplayer==1
-        error('vfoptions.endogenousvfi=1 is not yet implemented with the grid interpolation layer (vfoptions.gridinterplayer=1)')
     elseif N_semiz>0
         error('vfoptions.endogenousvfi=1 is not yet implemented with semi-exogenous states (vfoptions.n_semiz)')
     elseif vfoptions.divideandconquer==2
