@@ -86,7 +86,7 @@ The function reads the following fields from `vfoptions`. All are optional unles
 | `howardsgreedy` | `0` | `0` for iterated Howards (modified policy-function iteration), `1` for greedy Howards (policy-function iteration). Greedy is faster for small models but cannot handle `V` taking `-Inf`, and is incompatible with `gridinterplayer=1`. |
 | `howards` | depends on `beta` | Number of Howards iterations per Bellman step (when `howardsgreedy=0`). With endogenous VFI, `40` (indexed) or `80` (sparse); otherwise `round(2/(1-beta))`, clipped to `[20,640]`. Based on the timings in CoreInfHorzVFIAlgoTests. |
 | `maxhowards` | `500` | Turn Howards off after this many outer iterations (safety guard against bad convergence). |
-| `howardssparse` | auto | If `1`, do Howards iteration using a sparse matrix; only faster for larger models. Default is `1` when `N_a>1200` and `N_z>100`, else `0`. |
+| `howardssparse` | auto | If `1`, do Howards iteration using a sparse matrix (rather than indexing). Default is `1` with the grid interpolation layer (postGI; preGI has no sparse version, so `0`), and without it `1` when `N_z>=50` and `N_a>=500`, else `0` (what sparse buys scales with the mixing over `z`; it was a tie at `n_z` of 25 or less). |
 | **More exogenous states** | | |
 | `ExogShockFn` | (no default) | Function handle producing `z_grid`/`pi_z`. If supplied, replaces `z_grid`/`pi_z` validation. |
 | `SemiEndogShockFn` | (no default) | Function handle (or matrix) producing a state-dependent transition `pi_z(a,z,zprime)`. Triggers the semi-endogenous solver. Requires `SemiEndogShockFnParamNames`. |
