@@ -22,7 +22,7 @@ if ~exist('vfoptions','var')
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0; % grid interpolation layer
     vfoptions.lowmemory=0;
-    vfoptions.endogenousvfi=0; % =1 stops on the change in V within each exogenous state (Bray, 2019), see the endogenous VFI note below
+    % vfoptions.endogenousvfi is set below, as its default depends on the discount factor
     % Howards improvement: when doing Howards iterations, there are various suboptions.
     % Defaults for Howards are set based on runtimes from CoreInfHorzVFIAlgoTests.m in the VFI Toolkit Test Bank: https://github.com/vfitoolkit/vfitoolkitTests/blob/main/CoreInfHorzTests/with_CoreInfHorzVFIAlgoTests/CoreInfHorzVFIAlgoTests.m
     vfoptions.howardsgreedy=0; % =0 iterated (aka modified-Policy Fn Iteration) or =1 greedy (aka Policy Fn Iteration)
@@ -43,14 +43,7 @@ if ~exist('vfoptions','var')
     else
         vfoptions.howardssparse=0;
     end
-    % Then the number of Howards steps, which follows from the method rather than from the grid size.
-    % A sparse matrix multiply is cheap per step so more steps pay for themselves, while the indexed
-    % version is dearer per step and 40 beat 80 in every model and grid size tried.
-    if vfoptions.howardssparse==1
-        vfoptions.howards=80;
-    else
-        vfoptions.howards=40;
-    end
+    % vfoptions.howards is set below, as its default depends on the discount factor and on vfoptions.endogenousvfi
     vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     % Different asset types
     vfoptions.endogenousexit=0;
@@ -105,9 +98,7 @@ else
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    if ~isfield(vfoptions,'endogenousvfi')
-        vfoptions.endogenousvfi=0; % =1 stops on the change in V within each exogenous state (Bray, 2019), see the endogenous VFI note below
-    end
+    % vfoptions.endogenousvfi is set below, as its default depends on the discount factor
     % Howards improvement: when doing Howards iterations, there are various suboptions.
     % Defaults for Howards are set based on runtimes from CoreInfHorzVFIAlgoTests.m in the VFI Toolkit Test Bank: https://github.com/vfitoolkit/vfitoolkitTests/blob/main/CoreInfHorzTests/with_CoreInfHorzVFIAlgoTests/CoreInfHorzVFIAlgoTests.m
     if ~isfield(vfoptions,'howardsgreedy')
@@ -133,16 +124,7 @@ else
             vfoptions.howardssparse=0;
         end
     end
-    if ~isfield(vfoptions,'howards')
-        % Then the number of Howards steps, which follows from the method rather than from the grid size.
-        % A sparse matrix multiply is cheap per step so more steps pay for themselves, while the indexed
-        % version is dearer per step and 40 beat 80 in every model and grid size tried.
-        if vfoptions.howardssparse==1
-            vfoptions.howards=80;
-        else
-            vfoptions.howards=40;
-        end
-    end
+    % vfoptions.howards is set below, as its default depends on the discount factor and on vfoptions.endogenousvfi
     if ~isfield(vfoptions,'maxhowards')
         vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     end
@@ -187,6 +169,45 @@ else
     end
 end
 
+
+%% Defaults that depend on the discount factor: endogenous VFI, and the number of Howards steps
+% Plain VFI converges in levels at rate beta, so at high beta it is slow however many Howards steps it takes, while
+% endogenous VFI (see the note further down) does not care about the level. Timings from SCAN 3c in CoreInfHorzVFIAlgoTests
+% (beta from 0.9 to 0.995, with and without d, with and without the grid interpolation layer, n_z of 7, 21 and 75): the
+% best plain VFI over the best endogenous VFI had a median of 0.96 at beta=0.9, 1.15 at 0.95, 1.42 at 0.97, 2.32 at 0.99
+% and 4.02 at 0.995, and never fell below 1 from beta=0.97. So endogenous VFI is the default from beta=0.97, wherever it
+% is implemented (the same list as is refused below when it is asked for explicitly).
+% The best number of Howards steps for plain VFI grows like 1/(1-beta) (about 20 at beta=0.9, 40 at 0.95, 160-640 at
+% 0.99), for indexed and sparse Howards alike, and round(2/(1-beta)) was within 9% of the best on average below 0.97.
+% For endogenous VFI it barely depends on beta: 40 with indexed Howards, and 80 with sparse Howards (40 and 80 tie on
+% average, 80 has the smaller worst case).
+% beta here is the product of the discount factors (the largest value of each, if one depends on the exogenous state).
+if ~isfield(vfoptions,'endogenousvfi') || ~isfield(vfoptions,'howards')
+    betadefault=1;
+    for DFparam_c=1:length(DiscountFactorParamNames)
+        betadefault=betadefault*max(gather(Parameters.(DiscountFactorParamNames{DFparam_c})(:)));
+    end
+    if ~isfield(vfoptions,'endogenousvfi')
+        vfoptions.endogenousvfi=0;
+        if betadefault>=0.97 && vfoptions.parallel==2 && ~(isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None'))) ...
+                && vfoptions.endogenousexit==0 && vfoptions.divideandconquer~=2 && vfoptions.separableReturnFn==0 && vfoptions.experienceasset==0 ...
+                && vfoptions.inheritanceasset==0 && ~isfield(vfoptions,'SemiEndogShockFn') && ~any(vfoptions.incrementaltype==1) ...
+                && any(strcmp(vfoptions.solnmethod,{'purediscretization','purediscretization_refinement'}))
+            vfoptions.endogenousvfi=1;
+        end
+    end
+    if ~isfield(vfoptions,'howards')
+        if vfoptions.endogenousvfi==1
+            if vfoptions.howardssparse==1
+                vfoptions.howards=80;
+            else
+                vfoptions.howards=40;
+            end
+        else
+            vfoptions.howards=min(max(round(2/max(1-betadefault,eps)),20),640);
+        end
+    end
+end
 
 % If setting refinement without a d variable, then just shift to standard purediscretization (as refinement only makes sense if there is a d variable)
 if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
@@ -291,8 +312,6 @@ if vfoptions.endogenousvfi==1
         error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.exoticpreferences (the Bellman operator is not additive in V, so endogenous VFI does not apply)')
     elseif vfoptions.endogenousexit>=1
         error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.endogenousexit (the exit value does not shift with V, so endogenous VFI does not apply)')
-    elseif N_semiz>0
-        error('vfoptions.endogenousvfi=1 is not yet implemented with semi-exogenous states (vfoptions.n_semiz)')
     elseif vfoptions.divideandconquer==2
         error('vfoptions.endogenousvfi=1 is not yet implemented with divide-and-conquer (vfoptions.divideandconquer=2)')
     elseif vfoptions.separableReturnFn==1

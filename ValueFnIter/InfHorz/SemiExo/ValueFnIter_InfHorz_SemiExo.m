@@ -156,27 +156,59 @@ if N_e>0
         if N_d1==0
             if N_z==0
                 if vfoptions.howardsgreedy==1
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_HowardGreedy_nod1_noz_e_raw(V0, n_d2, n_a, n_semiz, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_HowardGreedy_nod1_noz_e_raw(V0, n_d2, n_a, n_semiz, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_postGI_HowardGreedy_nod1_noz_e_raw(V0, n_d2, n_a, n_semiz, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    end
                 elseif vfoptions.howardssparse==1
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_sparse_nod1_noz_e_raw(V0, n_d2, n_a, n_semiz, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_sparse_nod1_noz_e_raw(V0, n_d2, n_a, n_semiz, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_postGI_sparse_nod1_noz_e_raw(V0, n_d2, n_a, n_semiz, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    end
                 else
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_nod1_noz_e_raw(V0, n_d2, n_a, n_semiz, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_nod1_noz_e_raw(V0, n_d2, n_a, n_semiz, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_postGI_nod1_noz_e_raw(V0, n_d2, n_a, n_semiz, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    end
                 end
             else
                 if vfoptions.howardsgreedy==1
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_HowardGreedy_nod1_e_raw(V0, n_d2, n_a, n_semiz, n_z, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_HowardGreedy_nod1_e_raw(V0, n_d2, n_a, n_semiz, n_z, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_postGI_HowardGreedy_nod1_e_raw(V0, n_d2, n_a, n_semiz, n_z, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    end
                 elseif vfoptions.howardssparse==1
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_sparse_nod1_e_raw(V0, n_d2, n_a, n_semiz, n_z, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_sparse_nod1_e_raw(V0, n_d2, n_a, n_semiz, n_z, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_postGI_sparse_nod1_e_raw(V0, n_d2, n_a, n_semiz, n_z, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    end
                 else
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_nod1_e_raw(V0, n_d2, n_a, n_semiz, n_z, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_nod1_e_raw(V0, n_d2, n_a, n_semiz, n_z, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_postGI_nod1_e_raw(V0, n_d2, n_a, n_semiz, n_z, n_e, d2_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                    end
                 end
             end
             % Policy is [d2; aprime lower; L2; L2flag]
         else
             if N_z==0
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_Refine_postGI_noz_e_raw(V0, n_d1, n_d2, n_a, n_semiz, n_e, d_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_Refine_postGI_noz_e_raw(V0, n_d1, n_d2, n_a, n_semiz, n_e, d_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_Refine_postGI_noz_e_raw(V0, n_d1, n_d2, n_a, n_semiz, n_e, d_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                end
             else
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_Refine_postGI_e_raw(V0, n_d1, n_d2, n_a, n_semiz, n_z, n_e, d_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_Refine_postGI_e_raw(V0, n_d1, n_d2, n_a, n_semiz, n_z, n_e, d_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_Refine_postGI_e_raw(V0, n_d1, n_d2, n_a, n_semiz, n_z, n_e, d_gridvals, a_grid, bothz_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                end
             end
             % Policy is [d1; d2; aprime lower; L2; L2flag]
         end
@@ -197,22 +229,46 @@ if N_e>0
     if N_d1==0 || refine==1
         if N_z==0
             if vfoptions.howardsgreedy==1
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_HowardGreedy_nod1_noz_e_raw(V0, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_HowardGreedy_nod1_noz_e_raw(V0, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_HowardGreedy_nod1_noz_e_raw(V0, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             elseif vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_nod1_noz_e_raw(V0, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_nod1_noz_e_raw(V0, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_nod1_noz_e_raw(V0, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    end
                 elseif vfoptions.howardssparse==1
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_sparse_nod1_noz_e_raw(V0, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_sparse_nod1_noz_e_raw(V0, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_sparse_nod1_noz_e_raw(V0, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    end
                 end
             end
         else
             if vfoptions.howardsgreedy==1
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_HowardGreedy_nod1_e_raw(V0, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_HowardGreedy_nod1_e_raw(V0, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_HowardGreedy_nod1_e_raw(V0, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             elseif vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_nod1_e_raw(V0, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_nod1_e_raw(V0, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_nod1_e_raw(V0, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    end
                 elseif vfoptions.howardssparse==1
-                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_sparse_nod1_e_raw(V0, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    if vfoptions.endogenousvfi==0
+                        [V,Policy]=ValueFnIter_InfHorz_SemiExo_sparse_nod1_e_raw(V0, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    else % endogenous VFI (relative VFI when there is no z)
+                        [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_sparse_nod1_e_raw(V0, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                    end
                 end
             end
         end
@@ -224,9 +280,17 @@ if N_e>0
         end
     else
         if N_z==0
-            [V,Policy]=ValueFnIter_InfHorz_SemiExo_noz_e_raw(V0, N_d1, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_SemiExo_noz_e_raw(V0, N_d1, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_noz_e_raw(V0, N_d1, N_d2, N_a, N_semiz, N_e, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         else
-            [V,Policy]=ValueFnIter_InfHorz_SemiExo_e_raw(V0, N_d1, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_SemiExo_e_raw(V0, N_d1, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_e_raw(V0, N_d1, N_d2, N_a, N_semiz, N_z, N_e, pi_z, vfoptions.pi_semiz, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         end
         % Policy is [d1; d2; aprime]
     end
@@ -273,27 +337,59 @@ if vfoptions.gridinterplayer==1
     if N_d1==0
         if N_z==0
             if vfoptions.howardsgreedy==1
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_HowardGreedy_nod1_noz_raw(V0, n_d2, n_a, n_semiz, d2_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_HowardGreedy_nod1_noz_raw(V0, n_d2, n_a, n_semiz, d2_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_postGI_HowardGreedy_nod1_noz_raw(V0, n_d2, n_a, n_semiz, d2_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                end
             elseif vfoptions.howardssparse==1
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_sparse_nod1_noz_raw(V0, n_d2, n_a, n_semiz, d2_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_sparse_nod1_noz_raw(V0, n_d2, n_a, n_semiz, d2_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_postGI_sparse_nod1_noz_raw(V0, n_d2, n_a, n_semiz, d2_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                end
             else
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_nod1_noz_raw(V0, n_d2, n_a, n_semiz, d2_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_nod1_noz_raw(V0, n_d2, n_a, n_semiz, d2_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_postGI_nod1_noz_raw(V0, n_d2, n_a, n_semiz, d2_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                end
             end
         else
             if vfoptions.howardsgreedy==1
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_HowardGreedy_nod1_raw(V0, n_d2, n_a, n_semiz, n_z, d2_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_HowardGreedy_nod1_raw(V0, n_d2, n_a, n_semiz, n_z, d2_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_postGI_HowardGreedy_nod1_raw(V0, n_d2, n_a, n_semiz, n_z, d2_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                end
             elseif vfoptions.howardssparse==1
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_sparse_nod1_raw(V0, n_d2, n_a, n_semiz, n_z, d2_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_sparse_nod1_raw(V0, n_d2, n_a, n_semiz, n_z, d2_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_postGI_sparse_nod1_raw(V0, n_d2, n_a, n_semiz, n_z, d2_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                end
             else
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_nod1_raw(V0, n_d2, n_a, n_semiz, n_z, d2_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_postGI_nod1_raw(V0, n_d2, n_a, n_semiz, n_z, d2_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_postGI_nod1_raw(V0, n_d2, n_a, n_semiz, n_z, d2_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+                end
             end
         end
         % Policy is [d2; aprime lower; L2; L2flag]
     else
         if N_z==0
-            [V,Policy]=ValueFnIter_InfHorz_SemiExo_Refine_postGI_noz_raw(V0, n_d1, n_d2, n_a, n_semiz, d_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_SemiExo_Refine_postGI_noz_raw(V0, n_d1, n_d2, n_a, n_semiz, d_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_Refine_postGI_noz_raw(V0, n_d1, n_d2, n_a, n_semiz, d_gridvals, a_grid, bothz_gridvals, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+            end
         else
-            [V,Policy]=ValueFnIter_InfHorz_SemiExo_Refine_postGI_raw(V0, n_d1, n_d2, n_a, n_semiz, n_z, d_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_SemiExo_Refine_postGI_raw(V0, n_d1, n_d2, n_a, n_semiz, n_z, d_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_Refine_postGI_raw(V0, n_d1, n_d2, n_a, n_semiz, n_z, d_gridvals, a_grid, bothz_gridvals, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, ReturnFn, ReturnFnParamsVec, vfoptions);
+            end
         end
         % Policy is [d1; d2; aprime lower; L2; L2flag]
     end
@@ -314,22 +410,46 @@ end
 if N_d1==0 || refine==1
     if N_z==0
         if vfoptions.howardsgreedy==1
-            [V,Policy]=ValueFnIter_InfHorz_SemiExo_HowardGreedy_nod1_noz_raw(V0, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_SemiExo_HowardGreedy_nod1_noz_raw(V0, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_HowardGreedy_nod1_noz_raw(V0, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         elseif vfoptions.howardsgreedy==0
             if vfoptions.howardssparse==0
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_nod1_noz_raw(V0, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_nod1_noz_raw(V0, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_nod1_noz_raw(V0, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             elseif vfoptions.howardssparse==1
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_sparse_nod1_noz_raw(V0, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_sparse_nod1_noz_raw(V0, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_sparse_nod1_noz_raw(V0, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             end
         end
     else
         if vfoptions.howardsgreedy==1
-            [V,Policy]=ValueFnIter_InfHorz_SemiExo_HowardGreedy_nod1_raw(V0, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [V,Policy]=ValueFnIter_InfHorz_SemiExo_HowardGreedy_nod1_raw(V0, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_HowardGreedy_nod1_raw(V0, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         elseif vfoptions.howardsgreedy==0
             if vfoptions.howardssparse==0
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_nod1_raw(V0, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_nod1_raw(V0, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_nod1_raw(V0, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             elseif vfoptions.howardssparse==1
-                [V,Policy]=ValueFnIter_InfHorz_SemiExo_sparse_nod1_raw(V0, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                if vfoptions.endogenousvfi==0
+                    [V,Policy]=ValueFnIter_InfHorz_SemiExo_sparse_nod1_raw(V0, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                else % endogenous VFI (relative VFI when there is no z)
+                    [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_sparse_nod1_raw(V0, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                end
             end
         end
     end
@@ -342,9 +462,17 @@ if N_d1==0 || refine==1
 else
     % Can't be bothered implementing HowardGreedy or sparse Howards here, as for good runtimes you should anyway be doing Refine so wouldn't get here
     if N_z==0
-        [V,Policy]=ValueFnIter_InfHorz_SemiExo_noz_raw(V0, N_d1, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        if vfoptions.endogenousvfi==0
+            [V,Policy]=ValueFnIter_InfHorz_SemiExo_noz_raw(V0, N_d1, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        else % endogenous VFI (relative VFI when there is no z)
+            [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_SemiExo_noz_raw(V0, N_d1, N_d2, N_a, N_semiz, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        end
     else
-        [V,Policy]=ValueFnIter_InfHorz_SemiExo_raw(V0, N_d1, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        if vfoptions.endogenousvfi==0
+            [V,Policy]=ValueFnIter_InfHorz_SemiExo_raw(V0, N_d1, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        else % endogenous VFI (relative VFI when there is no z)
+            [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_SemiExo_raw(V0, N_d1, N_d2, N_a, N_semiz, N_z, pi_z, vfoptions.pi_semiz, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        end
     end
     % Policy is [d1; d2; aprime]
 end
