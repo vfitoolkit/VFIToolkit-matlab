@@ -150,10 +150,15 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         % as above, max(Policy_L1a,0) so the lower index and the weight agree at the window's bottom node
         Policy_lowerind=(max(Policy_L1a,0)-vfoptions.maxaprimediff+a1primeshifter(:))+N_a1*(Policy_fine2-1); % joint index over a is a1+N_a1*(a2-1), so the upper point is the next one along
         Policy_lowerprob=1- ((Policy_fine1-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
+        lowerweightzero=(Policy_lowerprob==0); % the chosen point is a coarse node, coded as all the weight on the upper node
+        upperweightzero=(Policy_lowerprob==1); % the chosen point is the window's bottom node
         for Howards_counter=1:vfoptions.howards
-            EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind,:)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1,:); % [N_a*N_z,N_z], last dimension is zprime
-            EVKrontemp=EVKrontemp.*pi_z_howards;
-            EVKrontemp(isnan(EVKrontemp))=0;
+            EVlower=Policy_lowerprob.*VKron(Policy_lowerind,:); % [N_a*N_z,N_z], last dimension is zprime
+            EVlower(lowerweightzero,:)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing
+            EVupper=(1-Policy_lowerprob).*VKron(Policy_lowerind+1,:);
+            EVupper(upperweightzero,:)=0;
+            EVKrontemp=(EVlower+EVupper).*pi_z_howards;
+            EVKrontemp(isnan(EVKrontemp))=0; % now only pi_z==0 against -Inf
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
         end
@@ -252,10 +257,15 @@ while vfoptions.postGIrepeat>0
         Policy_L1a=ceil((Policy_fine1-1)/(n2short+1))-1;
         Policy_lowerind=(max(Policy_L1a,0)-vfoptions.maxaprimediff+a1primeshifter(:))+N_a1*(Policy_fine2-1); % joint index over a is a1+N_a1*(a2-1), so the upper point is the next one along
         Policy_lowerprob=1- ((Policy_fine1-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
+        lowerweightzero=(Policy_lowerprob==0); % the chosen point is a coarse node, coded as all the weight on the upper node
+        upperweightzero=(Policy_lowerprob==1); % the chosen point is the window's bottom node
         for Howards_counter=1:vfoptions.howards
-            EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind,:)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1,:); % [N_a*N_z,N_z], last dimension is zprime
-            EVKrontemp=EVKrontemp.*pi_z_howards;
-            EVKrontemp(isnan(EVKrontemp))=0;
+            EVlower=Policy_lowerprob.*VKron(Policy_lowerind,:); % [N_a*N_z,N_z], last dimension is zprime
+            EVlower(lowerweightzero,:)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing
+            EVupper=(1-Policy_lowerprob).*VKron(Policy_lowerind+1,:);
+            EVupper(upperweightzero,:)=0;
+            EVKrontemp=(EVlower+EVupper).*pi_z_howards;
+            EVKrontemp(isnan(EVKrontemp))=0; % now only pi_z==0 against -Inf
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
         end
