@@ -88,7 +88,13 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
             EVKrontemp=EVKrontemp.*pi_z_alt;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a*N_z,1]); % sum over z', aprime-by-z (as a column)
+            % GPU sparse*vector gives NaN when the vector holds -Inf, even where the row has no entry for that column (CPU gives the finite
+            % product), so the -Inf entries are zeroed for the product and put back after: a row that puts positive weight on a -Inf entry is
+            % -Inf itself. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, class B)
+            EVKrontempisdead=(EVKrontemp==-Inf);
+            EVKrontemp(EVKrontempisdead)=0;
             VKron=reshape(Ftemp+DiscountFactorParamsVec*(Qmat*EVKrontemp),[N_a,N_z,N_e]);
+            VKron(Qmat*double(EVKrontempisdead)>0)=-Inf;
         end
     end
 
@@ -199,7 +205,13 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             EVKrontemp=EVKrontemp.*pi_z_alt;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a*N_z,1]); % sum over z', aprime-by-z (as a column)
+            % GPU sparse*vector gives NaN when the vector holds -Inf, even where the row has no entry for that column (CPU gives the finite
+            % product), so the -Inf entries are zeroed for the product and put back after: a row that puts positive weight on a -Inf entry is
+            % -Inf itself. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, class B)
+            EVKrontempisdead=(EVKrontemp==-Inf);
+            EVKrontemp(EVKrontempisdead)=0;
             VKron=reshape(Ftemp+DiscountFactorParamsVec*(Qmat*EVKrontemp),[N_a,N_z,N_e]);
+            VKron(Qmat*double(EVKrontempisdead)>0)=-Inf;
         end
     end
 
@@ -315,7 +327,13 @@ while vfoptions.postGIrepeat>0
                 EVKrontemp=EVKrontemp.*pi_z_alt;
                 EVKrontemp(isnan(EVKrontemp))=0;
                 EVKrontemp=reshape(sum(EVKrontemp,2),[N_a*N_z,1]); % sum over z', aprime-by-z (as a column)
+                % GPU sparse*vector gives NaN when the vector holds -Inf, even where the row has no entry for that column (CPU gives the finite
+                % product), so the -Inf entries are zeroed for the product and put back after: a row that puts positive weight on a -Inf entry is
+                % -Inf itself. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, class B)
+                EVKrontempisdead=(EVKrontemp==-Inf);
+                EVKrontemp(EVKrontempisdead)=0;
                 VKron=reshape(Ftemp+DiscountFactorParamsVec*(Qmat*EVKrontemp),[N_a,N_z,N_e]);
+                VKron(Qmat*double(EVKrontempisdead)>0)=-Inf;
             end
         end
 

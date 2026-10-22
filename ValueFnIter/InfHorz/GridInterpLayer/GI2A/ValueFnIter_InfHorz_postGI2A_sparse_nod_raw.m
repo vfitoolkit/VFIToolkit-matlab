@@ -70,7 +70,13 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
 
         VKron=reshape(VKron,[N_a*N_z,1]);
         for h_c=1:vfoptions.howards
+            % GPU sparse*vector gives NaN when the vector holds -Inf, even where the row has no entry for that column (CPU gives the finite
+            % product), so the -Inf entries are zeroed for the product and put back after: a row that puts positive weight on a -Inf entry is
+            % -Inf itself. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, class B)
+            VKronisdead=(VKron==-Inf);
+            VKron(VKronisdead)=0;
             VKron=Ftemp+DiscountFactorParamsVec*(T_E*VKron); % T_E already contains pi_z, so T_E*V is the expected continuation
+            VKron(T_E*double(VKronisdead)>0)=-Inf;
         end
         VKron=reshape(VKron,[N_a,N_z]);
     end
@@ -166,7 +172,13 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
         VKron=reshape(VKron,[N_a*N_z,1]);
         for h_c=1:vfoptions.howards
+            % GPU sparse*vector gives NaN when the vector holds -Inf, even where the row has no entry for that column (CPU gives the finite
+            % product), so the -Inf entries are zeroed for the product and put back after: a row that puts positive weight on a -Inf entry is
+            % -Inf itself. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, class B)
+            VKronisdead=(VKron==-Inf);
+            VKron(VKronisdead)=0;
             VKron=Ftemp+DiscountFactorParamsVec*(T_E*VKron); % T_E already contains pi_z, so T_E*V is the expected continuation
+            VKron(T_E*double(VKronisdead)>0)=-Inf;
         end
         VKron=reshape(VKron,[N_a,N_z]);
     end
@@ -272,7 +284,13 @@ while vfoptions.postGIrepeat>0
 
             VKron=reshape(VKron,[N_a*N_z,1]);
             for h_c=1:vfoptions.howards
+                % GPU sparse*vector gives NaN when the vector holds -Inf, even where the row has no entry for that column (CPU gives the finite
+                % product), so the -Inf entries are zeroed for the product and put back after: a row that puts positive weight on a -Inf entry is
+                % -Inf itself. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, class B)
+                VKronisdead=(VKron==-Inf);
+                VKron(VKronisdead)=0;
                 VKron=Ftemp+DiscountFactorParamsVec*(T_E*VKron); % T_E already contains pi_z, so T_E*V is the expected continuation
+                VKron(T_E*double(VKronisdead)>0)=-Inf;
             end
             VKron=reshape(VKron,[N_a,N_z]);
         end

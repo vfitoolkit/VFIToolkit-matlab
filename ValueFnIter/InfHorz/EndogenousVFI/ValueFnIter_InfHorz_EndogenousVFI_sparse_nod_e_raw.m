@@ -58,10 +58,26 @@ while currdist>Tolerance && tempcounter<=maxiter
         Qmat  = sparse(ind,indp,1,N_a*N_z*N_e,N_a*N_z);
         % Howard iterations, with Ftemp and Qmat precomputed
         for Howards_counter=1:Howards
-            EV_howard = reshape(VKron,[N_a*N_z,N_e])*pi_e; % expectation over e', (aprime,zprime)
-            EV_howard = reshape(EV_howard,[N_a,N_z])*pi_z_transpose; % expectation over z' given z, (aprime,z)
+            % The dense expectation has the same -Inf*0=NaN problem as the sparse product below wherever the probability is zero against a
+            % -Inf next-period state, so the -Inf entries are zeroed for the matmul and put back where they carry positive probability
+            VKronisdead=(reshape(VKron,[N_a*N_z,N_e])==-Inf);
+            VKronfinite=reshape(VKron,[N_a*N_z,N_e]);
+            VKronfinite(VKronisdead)=0;
+            EV_howard = VKronfinite*pi_e; % expectation over e', (aprime,zprime)
+            EV_howard(double(VKronisdead)*pi_e>0)=-Inf;
+            EV_howardisdeadz=(reshape(EV_howard,[N_a,N_z])==-Inf);
+            EV_howardfinite=reshape(EV_howard,[N_a,N_z]);
+            EV_howardfinite(EV_howardisdeadz)=0;
+            EV_howard = EV_howardfinite*pi_z_transpose; % expectation over z' given z, (aprime,z)
+            EV_howard(double(EV_howardisdeadz)*pi_z_transpose>0)=-Inf;
             EV_howard = reshape(EV_howard,[N_a*N_z,1]);
+            % GPU sparse*vector gives NaN when the vector holds -Inf, even where the row has no entry for that column (CPU gives the finite
+            % product), so the -Inf entries are zeroed for the product and put back after: a row that puts positive weight on a -Inf entry is
+            % -Inf itself. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, class B)
+            EV_howardisdead=(EV_howard==-Inf);
+            EV_howard(EV_howardisdead)=0;
             VKron = Ftemp+DiscountFactorParamsVec*Qmat*EV_howard;
+            VKron(Qmat*double(EV_howardisdead)>0)=-Inf;
             VKron = reshape(VKron,[N_a,N_z,N_e]);
         end
     end

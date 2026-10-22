@@ -67,7 +67,13 @@ while currdist>Tolerance && tempcounter<=maxiter
             EVz=reshape(VKron,[N_a,N_semiz,N_z]).*pi_z_alt;
             EVz(isnan(EVz))=0;
             EVz=reshape(sum(EVz,3),[N_a*N_bothz,1]); % aprime-by-semizprime-by-z (as a column)
+            % GPU sparse*vector gives NaN when the vector holds -Inf, even where the row has no entry for that column (CPU gives the finite
+            % product), so the -Inf entries are zeroed for the product and put back after: a row that puts positive weight on a -Inf entry is
+            % -Inf itself. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, class B)
+            EVzisdead=(EVz==-Inf);
+            EVz(EVzisdead)=0;
             VKron=reshape(Ftemp+DiscountFactorParamsVec*(T*EVz),[N_a,N_bothz]);
+            VKron(T*double(EVzisdead)>0)=-Inf;
         end
     end
 

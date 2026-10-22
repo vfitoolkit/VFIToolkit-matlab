@@ -55,7 +55,13 @@ while currdist>Tolerance && tempcounter<=maxiter
 
         T=sparse(repmat(stateind,1,N_semiz),EVindex,Pdz,N_a*N_semiz,N_a*N_semiz); % (a,semiz) to (aprime,semizprime); sparse() drops the zero probabilities
         for Howards_counter=1:Howards
+            % GPU sparse*vector gives NaN when the vector holds -Inf, even where the row has no entry for that column (CPU gives the finite
+            % product), so the -Inf entries are zeroed for the product and put back after: a row that puts positive weight on a -Inf entry is
+            % -Inf itself. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, class B)
+            VKronisdead=(VKron(:)==-Inf);
+            VKron(VKronisdead)=0;
             VKron=reshape(Ftemp+DiscountFactorParamsVec*(T*VKron(:)),[N_a,N_semiz]);
+            VKron(T*double(VKronisdead)>0)=-Inf;
         end
     end
 
