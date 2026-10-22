@@ -166,6 +166,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         Policy_L1a=ceil((Policy_fine-1)/(n2short+1))-1;
         Policy_lowerind=max(Policy_L1a,0)-vfoptions.maxaprimediff+aprimeshifter(:); % index on the full a_grid
         Policy_lowerprob=1- ((Policy_fine-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
+        lowerweightzero=(Policy_lowerprob==0); % the chosen point is a coarse node, coded as all the weight on the upper node
+        upperweightzero=(Policy_lowerprob==1); % the chosen point is the window's bottom node
         EVindex=Policy_lowerind+EVcolindex; % [N_a*N_semiz*N_e,N_semiz], index for (aprime lower,semizprime) in EVe
         Pdz=pi_semiz(Pindex+N_semiz*N_semiz*(Policy_d2-1)); % [N_a*N_semiz*N_e,N_semiz], pi_semiz(semiz,semizprime,d2) at the optimal d2
 
@@ -173,8 +175,12 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             EVe=reshape(VKron,[N_a,N_semiz,N_e]).*pi_e_alt;
             EVe(isnan(EVe))=0;
             EVe=sum(EVe,3); % sum over eprime, aprime-by-semizprime
-            EVKrontemp=(Policy_lowerprob.*EVe(EVindex)+(1-Policy_lowerprob).*EVe(EVindex+1)).*Pdz;
-            EVKrontemp(isnan(EVKrontemp))=0;
+            EVlower=Policy_lowerprob.*EVe(EVindex); % [states,N_semiz]
+            EVlower(lowerweightzero,:)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing
+            EVupper=(1-Policy_lowerprob).*EVe(EVindex+1);
+            EVupper(upperweightzero,:)=0;
+            EVKrontemp=(EVlower+EVupper).*Pdz;
+            EVKrontemp(isnan(EVKrontemp))=0; % now only Pdz==0 against -Inf
             EVKrontemp=sum(EVKrontemp,2); % sum over semizprime
             VKron=reshape(Ftemp+DiscountFactorParamsVec*EVKrontemp,[N_a,N_bothz,N_e]);
         end

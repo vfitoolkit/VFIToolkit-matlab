@@ -65,11 +65,12 @@ for ii=2:l_a
 end
 
 if vfoptions.gridinterplayer==1
-    % probability of the upper grid point (the L2flag override puts all weight on one of the two points)
+    % probability of the upper grid point, from the L2 index. The L2flag (the last row) is NOT applied here: it is for the agent
+    % distribution, which must not put mass on a coarse node where the return function is -Inf. The value of the policy is the
+    % one the solver computed, whose continuation uses the L2 weights as they are, so this matches ValueFnFromPolicy_InfHorz_GI
+    % (where the flag row is dropped) and the solver. Applying the flag moved the continuation to one node wherever the other
+    % coarse node was unaffordable from the chosen interior point, which on a coarsely spaced grid is most of the poor states.
     L2index=Policy(end-1,:)'; % L2 index (end-1 because end is L2flag)
-    L2flag=Policy(end,:)';
-    L2index(L2flag==1)=1;                        % force all weight to lower grid point
-    L2index(L2flag==3)=vfoptions.ngridinterp+2; % force all weight to upper grid point
     PolicyProbUpper=gpuArray((L2index-1)/(vfoptions.ngridinterp+1)); % [N_a*N_allz,1]
 end
 
@@ -95,8 +96,12 @@ if vfoptions.gridinterplayer==1 && N_e>0 && N_z==0
         EVe=reshape(VKron,[N_a,N_semiz,N_e]).*pi_e_alt;
         EVe(isnan(EVe))=0;
         EVe=sum(EVe,3); % aprime-by-semizprime
-        EVKrontemp=((1-PolicyProbUpper).*EVe(EVindex)+PolicyProbUpper.*EVe(EVindex+1)).*Pdz;
-        EVKrontemp(isnan(EVKrontemp))=0;
+        EVlower=(1-PolicyProbUpper).*EVe(EVindex);
+        EVlower(PolicyProbUpper==1,:)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing (the solver raws do the same)
+        EVupper=PolicyProbUpper.*EVe(EVindex+1);
+        EVupper(PolicyProbUpper==0,:)=0;
+        EVKrontemp=(EVlower+EVupper).*Pdz;
+        EVKrontemp(isnan(EVKrontemp))=0; % now only Pdz==0 against -Inf
         EVKrontemp=sum(EVKrontemp,2); % sum over semizprime
         VKron=FofPolicy+DiscountFactorParamsVec*EVKrontemp;
 
@@ -122,8 +127,12 @@ elseif vfoptions.gridinterplayer==1 && N_e>0
         EVz=EVe.*pi_z_alt;
         EVz(isnan(EVz))=0;
         EVz=reshape(sum(EVz,3),[N_a,N_semiz,N_z]); % aprime-by-semizprime-by-z
-        EVKrontemp=((1-PolicyProbUpper).*EVz(EVindex)+PolicyProbUpper.*EVz(EVindex+1)).*Pdz;
-        EVKrontemp(isnan(EVKrontemp))=0;
+        EVlower=(1-PolicyProbUpper).*EVz(EVindex);
+        EVlower(PolicyProbUpper==1,:)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing (the solver raws do the same)
+        EVupper=PolicyProbUpper.*EVz(EVindex+1);
+        EVupper(PolicyProbUpper==0,:)=0;
+        EVKrontemp=(EVlower+EVupper).*Pdz;
+        EVKrontemp(isnan(EVKrontemp))=0; % now only Pdz==0 against -Inf
         EVKrontemp=sum(EVKrontemp,2); % sum over semizprime
         VKron=FofPolicy+DiscountFactorParamsVec*EVKrontemp;
 
@@ -186,8 +195,12 @@ elseif vfoptions.gridinterplayer==1 && N_z==0
         VKronold=VKron;
 
         % The two aprime points with the L2 weights, then the expectation over semizprime conditional on semiz and the policy d2
-        EVKrontemp=((1-PolicyProbUpper).*VKron(EVindex)+PolicyProbUpper.*VKron(EVindex+1)).*Pdz;
-        EVKrontemp(isnan(EVKrontemp))=0;
+        EVlower=(1-PolicyProbUpper).*VKron(EVindex);
+        EVlower(PolicyProbUpper==1,:)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing (the solver raws do the same)
+        EVupper=PolicyProbUpper.*VKron(EVindex+1);
+        EVupper(PolicyProbUpper==0,:)=0;
+        EVKrontemp=(EVlower+EVupper).*Pdz;
+        EVKrontemp(isnan(EVKrontemp))=0; % now only Pdz==0 against -Inf
         EVKrontemp=sum(EVKrontemp,2); % sum over semizprime
         VKron=FofPolicy+DiscountFactorParamsVec*EVKrontemp;
 
@@ -209,8 +222,12 @@ elseif vfoptions.gridinterplayer==1
         EVz=reshape(VKron,[N_a,N_semiz,N_z]).*pi_z_alt;
         EVz(isnan(EVz))=0;
         EVz=reshape(sum(EVz,3),[N_a,N_semiz,N_z]); % aprime-by-semizprime-by-z
-        EVKrontemp=((1-PolicyProbUpper).*EVz(EVindex)+PolicyProbUpper.*EVz(EVindex+1)).*Pdz;
-        EVKrontemp(isnan(EVKrontemp))=0;
+        EVlower=(1-PolicyProbUpper).*EVz(EVindex);
+        EVlower(PolicyProbUpper==1,:)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing (the solver raws do the same)
+        EVupper=PolicyProbUpper.*EVz(EVindex+1);
+        EVupper(PolicyProbUpper==0,:)=0;
+        EVKrontemp=(EVlower+EVupper).*Pdz;
+        EVKrontemp(isnan(EVKrontemp))=0; % now only Pdz==0 against -Inf
         EVKrontemp=sum(EVKrontemp,2); % sum over semizprime
         VKron=FofPolicy+DiscountFactorParamsVec*EVKrontemp;
 

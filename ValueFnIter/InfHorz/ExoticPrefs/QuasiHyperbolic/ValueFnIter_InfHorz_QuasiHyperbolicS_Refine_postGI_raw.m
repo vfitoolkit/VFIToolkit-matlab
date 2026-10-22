@@ -183,7 +183,11 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             EVupperH=Vunderbar(upperH,:).*pi_z_howards;
             EVupperH(isnan(EVupperH))=0;
             EVupperH=reshape(sum(EVupperH,2),[N_a,N_z]);
-            Vunderbar=FtempH+beta*((1-wupperH).*EVlowerH+wupperH.*EVupperH);
+            EVlowerH=(1-wupperH).*EVlowerH;
+            EVlowerH(wupperH==1)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing
+            EVupperH=wupperH.*EVupperH;
+            EVupperH(wupperH==0)=0;
+            Vunderbar=FtempH+beta*(EVlowerH+EVupperH);
         end
     end
 
