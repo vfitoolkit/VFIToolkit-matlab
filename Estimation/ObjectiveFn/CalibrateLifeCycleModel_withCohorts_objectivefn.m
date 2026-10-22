@@ -97,9 +97,20 @@ for cc=1:ncohorts
     StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist{cc},AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
     cohorttimes(cc,1)=toc(cohorttimer); cohorttimer=tic;
     sofar=cohortmoments.offset(cc);
+    % caliboptions.whichcombos=1 (the default): the stats commands compute only the targeted (function, statistic, restriction[, age]) combinations,
+    % through simoptions.whichcombos and a per-combination simoptions.whichstats built for this cohort by SetupTargetMoments_FHorz
+    % (cohortmoments.selectors{cc}, as caliboptions.selectors without cohorts), and the AutoCorr call only the targeted start ages. =0: every
+    % statistic any target of the cohort names, of every targeted function, at every age and on every restriction page (the 7-vector
+    % cohortmoments.*_whichstats{cc}). [Until 2026-10-23 the cohort route never set whichcombos, so it always did the latter: with window
+    % targets, every window at every start age on every page.]
     if cohortmoments.usingallstats(cc)==1
         simoptions.whichstats=cohortmoments.AllStats_whichstats{cc};
-        AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, cohortmoments.FnsToEvaluate_AllStats{cc},Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
+        simoptions_as=simoptions;
+        if caliboptions.whichcombos==1
+            simoptions_as.whichcombos=cohortmoments.selectors{cc}.AllStats.whichcombos;
+            simoptions_as.whichstats=cohortmoments.selectors{cc}.AllStats.whichstats;
+        end
+        AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, cohortmoments.FnsToEvaluate_AllStats{cc},Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_as);
         cohorttimes(cc,2)=toc(cohorttimer); cohorttimer=tic;
         allstatmomentnames=cohortmoments.allstatmomentnames{cc};
         allstatcummomentsizes=cohortmoments.allstatcummomentsizes{cc};
@@ -120,6 +131,10 @@ for cc=1:ncohorts
     if cohortmoments.usinglcp(cc)==1
         simoptions.whichstats=cohortmoments.ACStats_whichstats{cc};
         simoptions_lcp=simoptions;
+        if caliboptions.whichcombos==1 % only the targeted (row, age, restriction) combinations and their statistics (the rows in blocks of the window lengths, as ntimeperiods below)
+            simoptions_lcp.whichcombos=cohortmoments.selectors{cc}.ACStats.whichcombos;
+            simoptions_lcp.whichstats=cohortmoments.selectors{cc}.ACStats.whichstats;
+        end
         if isfield(cohortmoments,'acsntimeperiods') && (any(cohortmoments.acsntimeperiods{cc}>1) || ~isempty(cohortmoments.acslog{cc}))
             % the window and log rows the targets name: simoptions.ntimeperiods, ntimeperiodstype and logwhichcombos (rows in blocks of the
             % window lengths, the FnsToEvaluate in the order of cohortmoments.FnsToEvaluate_ACStats; pages the unrestricted and then the
@@ -203,6 +218,28 @@ for cc=1:ncohorts
                 logwc(rowAC,:,pageAC)=max(logwc(rowAC,:,pageAC),acrlog{mm,4});
             end
             simoptions_acr.logwhichcombos=logwc;
+        end
+        if caliboptions.whichcombos==1
+            % only the targeted (row, start age, restriction) combinations: simoptions.whichcombos (the same layout as logwhichcombos above) from the
+            % start ages every target selects, at the level and at the log (cohortmoments.acrsel; the command reports the byproducts it computes anyway)
+            acrsel=cohortmoments.acrsel{cc};
+            fnsAC=fieldnames(cohortmoments.FnsToEvaluate_AutoCorr{cc});
+            if isfield(simoptions,'conditionalrestrictions')
+                rnamesAC=fieldnames(simoptions.conditionalrestrictions);
+            else
+                rnamesAC={};
+            end
+            wcAC=zeros(length(simoptions_acr.ntimeperiods)*length(fnsAC),N_j,1+length(rnamesAC));
+            for mm=1:size(acrsel,1)
+                rowAC=(find(simoptions_acr.ntimeperiods==acrsel{mm,3})-1)*length(fnsAC)+find(strcmp(fnsAC,acrsel{mm,2}));
+                if isempty(acrsel{mm,1})
+                    pageAC=1;
+                else
+                    pageAC=1+find(strcmp(rnamesAC,acrsel{mm,1}));
+                end
+                wcAC(rowAC,:,pageAC)=max(wcAC(rowAC,:,pageAC),acrsel{mm,4});
+            end
+            simoptions_acr.whichcombos=wcAC;
         end
         CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist,Policy,cohortmoments.FnsToEvaluate_AutoCorr{cc},Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions_acr);
         cohorttimes(cc,4)=toc(cohorttimer); cohorttimer=tic;

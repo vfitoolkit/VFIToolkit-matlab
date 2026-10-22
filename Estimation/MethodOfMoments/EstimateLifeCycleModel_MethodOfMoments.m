@@ -275,7 +275,7 @@ if estimoptions.cohortagejshifter==0
     [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats,FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats,FnsToEvaluate_ACStats, cmsmomentnames,cmscummomentsizes,selectors, usingautocorr,autocorrmomentnames,autocorrcummomentsizes,FnsToEvaluate_AutoCorr,autocorrtimehorizons, usingcrosssec,crosssecmomentnames,crossseccummomentsizes,FnsToEvaluate_CrossSec, usingagecrosssec,agecrosssecmomentnames,agecrossseccummomentsizes,FnsToEvaluate_AgeCrossSec]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,0,N_j,simoptions);
     estimoptions.selectors=selectors; % the per-combination whichcombos/whichstats of the stats commands (used as estimoptions.whichcombos=1)
 else
-    [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(TargetMoments,FnsToEvaluate,N_j,estimoptions.cohortagejshifter,0);
+    [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(TargetMoments,FnsToEvaluate,N_j,estimoptions.cohortagejshifter,0,simoptions,{}); % simoptions: the parser builds each cohort's selectors (simoptions.whichcombos/whichstats of the stats commands, used as estimoptions.whichcombos=1)
     if isfield(TargetMoments,'AutoCorrTransProbs') || isfield(TargetMoments,'CrossSectionCovarCorr') || isfield(TargetMoments,'AgeConditionalCrossSectionCovarCorr')
         error('TargetMoments.AutoCorrTransProbs, .CrossSectionCovarCorr and .AgeConditionalCrossSectionCovarCorr are not implemented together with estimoptions.cohortagejshifter')
     end

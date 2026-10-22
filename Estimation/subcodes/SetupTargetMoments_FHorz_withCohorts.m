@@ -1,4 +1,4 @@
-function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(TargetMoments,FnsToEvaluate,N_j,cohortagejshifter,useptype)
+function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(TargetMoments,FnsToEvaluate,N_j,cohortagejshifter,useptype,simoptions,Names_i)
 % Targets by cohort: TargetMoments.AgeConditionalStats.cohortC.(...), TargetMoments.AllStats.cohortC.(...) and
 % TargetMoments.AutoCorr.cohortC.(...), where C=1,...,ncohorts indexes the entry ages in cohortagejshifter (an ordinal,
 % not the age itself). Below the cohortC level the structure is exactly as without cohorts (fn.stat, or
@@ -30,8 +30,20 @@ function [targetmomentvec,cohortmoments]=SetupTargetMoments_FHorz_withCohorts(Ta
 % FnsToEvaluate_AutoCorr{cc}, offset(cc) (start of the cohort's segment of targetmomentvec), and lastage(cc) (the last age any of
 % the cohort's targets needs: the objective fn sets simoptions.lastDistAge to it so the cohort's agent distribution stops there;
 % N_j when the cohort has AllStats targets, which pool every age).
+% selectors{cc} (2026-10-23): the per-combination selectors SetupTargetMoments_FHorz builds for this cohort's AllStats and
+% AgeConditionalStats targets (simoptions.whichcombos and a per-combination whichstats; see that function), which the objective fns
+% hand to the stats commands when estimoptions.whichcombos=1, so that only the targeted (function, statistic, restriction[, age]) combinations
+% are computed (as without cohorts). For that the parser is given simoptions (the page order of the restrictions, simoptions.conditionalrestrictions)
+% and, with permanent types, Names_i. Until 2026-10-23 the cohort route discarded the selectors and the stats commands computed every
+% combination of every targeted function at every age (with window targets, every window at every start age on every restriction page).
+% acrsel{cc}: the start ages every AutoCorr target selects, rows {restriction or '', FnsToEvaluate, M, 1 x N_j selection, ptype or ''} (the
+% level and the log targets together; acrlog{cc} is the log ones, with the same five columns), from which the objective fn builds
+% simoptions.whichcombos of the cohort's AutoCorr call.
 
 ncohorts=length(cohortagejshifter);
+if isfield(simoptions,'agegroupings') && ~(isnumeric(simoptions.agegroupings) && isequal(reshape(simoptions.agegroupings,1,[]),1:1:N_j))
+    error('simoptions.agegroupings is not implemented together with estimoptions.cohortagejshifter (age-conditional targets by cohort are by age, 1 x N_j)')
+end
 
 % Only cohortC names are allowed at the top level
 for ss={'AllStats','AgeConditionalStats','AutoCorr','CustomModelStats'}
@@ -79,7 +91,7 @@ for cc=1:ncohorts
     if isempty(fieldnames(TargetMoments_cc)) && cohortmoments.usingautocorr(cc)==0 && cohortmoments.usingcustomstats(cc)==0
         error(['estimoptions.cohortagejshifter is being used, so targets must be by cohort, but there are no targets for ',cohortstr])
     end
-    [targetmomentvec_cc,cohortmoments.usingallstats(cc),cohortmoments.usinglcp(cc),~, cohortmoments.allstatmomentnames{cc},cohortmoments.allstatcummomentsizes{cc},cohortmoments.AllStats_whichstats{cc},cohortmoments.FnsToEvaluate_AllStats{cc}, cohortmoments.acsmomentnames{cc}, cohortmoments.acscummomentsizes{cc}, cohortmoments.ACStats_whichstats{cc},cohortmoments.FnsToEvaluate_ACStats{cc}, ~,~]=SetupTargetMoments_FHorz(TargetMoments_cc,FnsToEvaluate,useptype);
+    [targetmomentvec_cc,cohortmoments.usingallstats(cc),cohortmoments.usinglcp(cc),~, cohortmoments.allstatmomentnames{cc},cohortmoments.allstatcummomentsizes{cc},cohortmoments.AllStats_whichstats{cc},cohortmoments.FnsToEvaluate_AllStats{cc}, cohortmoments.acsmomentnames{cc}, cohortmoments.acscummomentsizes{cc}, cohortmoments.ACStats_whichstats{cc},cohortmoments.FnsToEvaluate_ACStats{cc}, ~,~,cohortmoments.selectors{cc}]=SetupTargetMoments_FHorz(TargetMoments_cc,FnsToEvaluate,useptype,N_j,simoptions,Names_i); % N_j, simoptions (and Names_i) make it build the selectors (simoptions.whichcombos/whichstats of the stats commands)
     % Age-conditional targets before the cohort's entry age must be NaN
     j0=cohortagejshifter(cc);
     if cohortmoments.usinglcp(cc)==1
@@ -241,8 +253,8 @@ for cc=1:ncohorts
             cohortmoments.acrntimeperiodstype{cc}='average';
         end
         cohortmoments.acrntimeperiods{cc}=unique(acrM(:)');
-        acrlog=cell(0,4); % {restriction or '', FnsToEvaluate, M, 1 x N_j selection}: the start ages of the targets of the log (simoptions.logwhichcombos)
-        acrlevel=cell(0,4); % the same for the targets at the level (to refuse a target of both at one start age)
+        acrlog=cell(0,5); % {restriction or '', FnsToEvaluate, M, 1 x N_j selection, ptype or ''}: the start ages of the targets of the log (simoptions.logwhichcombos)
+        acrlevel=cell(0,5); % the same for the targets at the level (to refuse a target of both at one start age; together with acrlog they give simoptions.whichcombos)
         % Then the stats (or ptype then stats) below each node
         acrmomentnames=cell(0,4);
         acrmomentsizes=[];
@@ -311,9 +323,9 @@ for cc=1:ncohorts
                 sel=zeros(1,N_j);
                 sel(1:length(val))=~isnan(val'); % entry j selects start age j
                 if nodes{nn,7}==1
-                    acrlog(end+1,:)={nodes{nn,1},nodes{nn,4},nodes{nn,5},sel}; %#ok<AGROW>
+                    acrlog(end+1,:)={nodes{nn,1},nodes{nn,4},nodes{nn,5},sel,entries{ee,1}}; %#ok<AGROW>
                 else
-                    acrlevel(end+1,:)={nodes{nn,1},nodes{nn,4},nodes{nn,5},sel}; %#ok<AGROW>
+                    acrlevel(end+1,:)={nodes{nn,1},nodes{nn,4},nodes{nn,5},sel,entries{ee,1}}; %#ok<AGROW>
                 end
             end
         end
@@ -326,6 +338,7 @@ for cc=1:ncohorts
             end
         end
         cohortmoments.acrlog{cc}=acrlog;
+        cohortmoments.acrsel{cc}=[acrlevel;acrlog]; % the start ages every target selects (simoptions.whichcombos of the cohort's AutoCorr call)
         cohortmoments.acrmomentnames{cc}=acrmomentnames;
         cohortmoments.acrcummomentsizes{cc}=cumsum(acrmomentsizes);
         cohortmoments.acrhorizons{cc}=unique(acrhorizons);
@@ -344,7 +357,8 @@ for cc=1:ncohorts
         cohortmoments.FnsToEvaluate_AutoCorr{cc}=struct();
         cohortmoments.acrntimeperiods{cc}=1;
         cohortmoments.acrntimeperiodstype{cc}='average';
-        cohortmoments.acrlog{cc}=cell(0,4);
+        cohortmoments.acrlog{cc}=cell(0,5);
+        cohortmoments.acrsel{cc}=cell(0,5);
     end
 
     %% CustomModelStats targets of this cohort: the same function as without cohorts, called on this cohort's agent distribution
