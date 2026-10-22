@@ -127,8 +127,14 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         % as above, max(Policy_L1a,0) so the lower index and the weight agree at the window's bottom node
         Policy_lowerind=max(Policy_L1a,0)-vfoptions.maxaprimediff+aprimeshifter(:); % index on the full a_grid
         Policy_lowerprob=1- ((Policy_a(:)-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
+        lowerweightzero=(Policy_lowerprob==0); % the chosen point is a coarse node, coded as all the weight on the upper node
+        upperweightzero=(Policy_lowerprob==1); % the chosen point is the window's bottom node
         for Howards_counter=1:vfoptions.howards
-            EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1); % [N_a,1]
+            EVlower=Policy_lowerprob.*VKron(Policy_lowerind); % [N_a,1]
+            EVlower(lowerweightzero)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing
+            EVupper=(1-Policy_lowerprob).*VKron(Policy_lowerind+1);
+            EVupper(upperweightzero)=0;
+            EVKrontemp=EVlower+EVupper;
             VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
         end
     end
@@ -216,8 +222,14 @@ while vfoptions.postGIrepeat>0
             Policy_L1a=ceil((Policy_a(:)-1)/(n2short+1))-1;
             Policy_lowerind=max(Policy_L1a,0)-vfoptions.maxaprimediff+aprimeshifter(:); % index on the full a_grid
             Policy_lowerprob=1- ((Policy_a(:)-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
+            lowerweightzero=(Policy_lowerprob==0); % the chosen point is a coarse node, coded as all the weight on the upper node
+            upperweightzero=(Policy_lowerprob==1); % the chosen point is the window's bottom node
             for Howards_counter=1:vfoptions.howards
-                EVKrontemp=Policy_lowerprob.*VKron(Policy_lowerind)+(1-Policy_lowerprob).*VKron(Policy_lowerind+1); % [N_a,1]
+                EVlower=Policy_lowerprob.*VKron(Policy_lowerind); % [N_a,1]
+                EVlower(lowerweightzero)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing
+                EVupper=(1-Policy_lowerprob).*VKron(Policy_lowerind+1);
+                EVupper(upperweightzero)=0;
+                EVKrontemp=EVlower+EVupper;
                 VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
             end
         end
