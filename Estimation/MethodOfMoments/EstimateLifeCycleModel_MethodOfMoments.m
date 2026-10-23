@@ -94,6 +94,12 @@ end
 if ~isfield(estimoptions,'skipestimation')
     estimoptions.skipestimation=0; % =1, skips the estimation, is here so you can do estimation, and then rerun later to bootstrap the standard errors without reestimating the whole model
 end
+if ~isfield(estimoptions,'skipjacobian')
+    estimoptions.skipjacobian=0; % =1 (only together with skipestimation=1): one evaluation of the objective at the input parameters (the model moments and the objective in estsummary), no Jacobian, so no standard errors, confidence intervals, local identification or sensitivity matrices
+end
+if estimoptions.skipestimation==0
+    estimoptions.skipjacobian=0; % skipjacobian is only used together with skipestimation=1, otherwise ignored
+end
 if ~isfield(estimoptions,'cohortagejshifter')
     estimoptions.cohortagejshifter=0; % =0 standard, jequaloneDist is the age j=1 distribution
 end
@@ -667,7 +673,7 @@ end
 % Later I did some searching, and it seems there are no precise answers online, but some people (Python 'optimagic' on github) made same decision I did, of taking
 % derivatives based on 'external' parameters rather than 'internal' (transformed) parameters.
 % Other open issue, what do you do when the resulting standard deviations mean confidence intervals reach outside your constraints?
-if estimoptions.bootstrapStdErrors==0
+if estimoptions.bootstrapStdErrors==0 && estimoptions.skipjacobian==0
     % First, need the Jacobian matrix, which involves computing all the
     % derivatives of the individual moments with respect to the estimated parameters
     estimoptionsJacobian=estimoptions;
@@ -878,13 +884,27 @@ if estimoptions.bootstrapStdErrors==0
     estsummary.currentmomentvec=gather(ObjValue(:));
     estsummary.targetmomentvec=targetmomentvec(~isnan(targetmomentvec));
     fval=(estsummary.currentmomentvec-estsummary.targetmomentvec)'*WeightingMatrix*(estsummary.currentmomentvec-estsummary.targetmomentvec);
+elseif estimoptions.bootstrapStdErrors==0 && estimoptions.skipjacobian==1
+    % estimoptions.skipestimation=1 with skipjacobian=1: one evaluation at the input parameters (the Jacobian block's centre-point evaluation
+    % without the finite differences), for the model moments and the objective; no Jacobian, so no standard errors, confidence intervals
+    % (NaN below), local identification or sensitivity matrices. The constraints are off as for the Jacobian (estimparamsvec is the
+    % original parameters here), and verbose is left as set (one evaluation, so the per-cohort timings are useful rather than weird).
+    estimoptionsJacobian=estimoptions;
+    estimoptionsJacobian.constrainpositive=zeros(length(EstimParamNames),1);
+    estimoptionsJacobian.constrain0to1=zeros(length(EstimParamNames),1);
+    estimoptionsJacobian.constrainAtoB=zeros(length(EstimParamNames),1);
+    estimoptionsJacobian.vectoroutput=1;
+    ObjValue=EstimateMoMObjectiveFn_Jac(estimparamsvec,Parameters,estimoptionsJacobian);
+    estsummary.currentmomentvec=gather(ObjValue(:));
+    estsummary.targetmomentvec=targetmomentvec(~isnan(targetmomentvec));
+    fval=(estsummary.currentmomentvec-estsummary.targetmomentvec)'*WeightingMatrix*(estsummary.currentmomentvec-estsummary.targetmomentvec);
 end
 
 
 
 
 %% Local identification
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
+if estimoptions.bootstrapStdErrors==0 && estimoptions.skipjacobian==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors (nor with skipjacobian)
     % The estimate is locally identified if the matrix J is full rank
     % The estimate is locally identified if J has full column rank. J is finite differences, so a column that is zero in truth carries
     % noise of the order of eps/(relative step): rank() with its default tolerance read a 1e-12 column as rank (2026-10-07), so the
@@ -906,7 +926,7 @@ end
 
 %% Some additional outputs
 % Mainly, the Sensitivity matrix
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
+if estimoptions.bootstrapStdErrors==0 && estimoptions.skipjacobian==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors (nor with skipjacobian)
     % Sensitivity of estimated parameters to the target moments
     % Sensitivity matrix, Lambda, of Andrews, Gentzkow & Shapiro (2017) - Measuring the Sensitivity of Parameter Estimates to Estimation Moments
     SensitivityMatrix=(-(J'*WeightingMatrix*J)^(-1))*(J'*WeightingMatrix);
@@ -972,7 +992,7 @@ end
 % asymptotic standard deviations, in the shape of the parameter (NaN at the fixed entries of an omitted parameter). EstimParamsConfInts:
 % [lower, upper], one row per entry of the parameter (so 1-by-2 for a scalar), estimate -/+ z times the standard deviation. (Before
 % 2026-10-07 the confidence interval of a vector-valued parameter errored.)
-if estimoptions.bootstrapStdErrors==0
+if estimoptions.bootstrapStdErrors==0 && estimoptions.skipjacobian==0
     estimparamscovarmatrix_diag=diag(estimparamscovarmatrix); % Just the diagonal of the covar matrix of the parameter vector (J and Sigma are on the model parameters)
 end
 for pp=1:length(EstimParamNames)
@@ -989,13 +1009,17 @@ for pp=1:length(EstimParamNames)
         EstimParams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % When skipping estimation, just returns the same parameters as you input
     end
     if estimoptions.bootstrapStdErrors==0
-        sdblock=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-        if estimomitparams_counter(pp)>0
-            mask=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
-            sdfull=nan(size(mask));
-            sdfull(isnan(mask))=sdblock;
-        else
-            sdfull=sdblock;
+        if estimoptions.skipjacobian==0
+            sdblock=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            if estimomitparams_counter(pp)>0
+                mask=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
+                sdfull=nan(size(mask));
+                sdfull(isnan(mask))=sdblock;
+            else
+                sdfull=sdblock;
+            end
+        else % skipjacobian: no standard deviations, NaN in the shape of the parameter (so the confidence intervals below are NaN too)
+            sdfull=nan(size(EstimParams.(EstimParamNames{pp})));
         end
         estsummary.EstimParamsStdDev.(EstimParamNames{pp})=reshape(sdfull,size(EstimParams.(EstimParamNames{pp})));
     elseif estimoptions.bootstrapStdErrors==1
@@ -1050,8 +1074,11 @@ estsummary.notes.objectivefnval='The objective function value is the value of (M
 if estimoptions.skipestimation==1
     estsummary.warningskipestimation='Warning: this estimation used estimoptions.skipestimation=1 (all good, just reminding you as you need to be careful when using skipestimation=1 :)';
 end
+if estimoptions.skipjacobian==1
+    estsummary.warningskipjacobian='Warning: this used estimoptions.skipjacobian=1 (with skipestimation=1): one evaluation at the input parameters, so currentmomentvec, targetmomentvec and objectivefnval are reported but there is no Jacobian, and the standard deviations and confidence intervals are NaN';
+end
 
-if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors
+if estimoptions.bootstrapStdErrors==0 && estimoptions.skipjacobian==0 % Depends on derivatives, so cannot do when bootstrapping the standard errors (nor with skipjacobian)
     estsummary.variousmatrices.J=J;
     if estimoptions.efficientW==0
         estsummary.variousmatrices.Omega=CoVarMatrixDataMoments; % Covariance matrix of the data moments
