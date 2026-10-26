@@ -74,13 +74,13 @@ if N_e>0
     N_z=prod(n_z);
     if N_z==0
         if N_d==0
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy]=ValueFnIter_InfHorz_postGI_nod_noz_e_raw(V0, n_a, vfoptions.n_e, a_grid, vfoptions.e_gridvals, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_postGI_nod_noz_e_raw(V0, n_a, vfoptions.n_e, a_grid, vfoptions.e_gridvals, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
             end
         else
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_noz_e_raw(V0, n_d, n_a, vfoptions.n_e, d_gridvals, a_grid, vfoptions.e_gridvals, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy]=ValueFnIter_InfHorz_RelativeVFI_Refine_postGI_noz_e_raw(V0, n_d, n_a, vfoptions.n_e, d_gridvals, a_grid, vfoptions.e_gridvals, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
@@ -90,20 +90,20 @@ if N_e>0
         if N_d==0
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_postGI_nod_e_raw(V0, n_a, n_z, vfoptions.n_e, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI_nod_e_raw(V0, n_a, n_z, vfoptions.n_e, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     end
                 elseif vfoptions.howardssparse==1
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_postGI_sparse_nod_e_raw(V0, n_a, n_z, vfoptions.n_e, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI_sparse_nod_e_raw(V0, n_a, n_z, vfoptions.n_e, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     end
                 end
             elseif vfoptions.howardsgreedy==1
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_postGI_HowardGreedy_nod_e_raw(V0, n_a, n_z, vfoptions.n_e, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI_HowardGreedy_nod_e_raw(V0, n_a, n_z, vfoptions.n_e, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
@@ -112,20 +112,20 @@ if N_e>0
         else % N_d
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_e_raw(V0, n_d, n_a, n_z, vfoptions.n_e, d_gridvals, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_postGI_e_raw(V0, n_d, n_a, n_z, vfoptions.n_e, d_gridvals, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     end
                 elseif vfoptions.howardssparse==1
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_postGI_sparse_e_raw(V0, n_d, n_a, n_z, vfoptions.n_e, d_gridvals, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI_sparse_e_raw(V0, n_d, n_a, n_z, vfoptions.n_e, d_gridvals, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     end
                 end
             elseif vfoptions.howardsgreedy==1
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_HowardGreedy_e_raw(V0, n_d, n_a, n_z, vfoptions.n_e, d_gridvals, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_postGI_HowardGreedy_e_raw(V0, n_d, n_a, n_z, vfoptions.n_e, d_gridvals, a_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
@@ -170,7 +170,7 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
         if N_d==0
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_preGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_preGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
@@ -179,13 +179,13 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
                     error('Not yet implemented')
                 end
             elseif vfoptions.howardsgreedy==1
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_preGI_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_preGI_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid (greedy is better at smaller grids)
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_preGI_HowardMix_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_preGI_HowardMix_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
@@ -195,7 +195,7 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_Refine_preGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_preGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
@@ -204,13 +204,13 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
                     error('Not yet implemented')
                 end
             elseif vfoptions.howardsgreedy==1
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_Refine_preGI_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_preGI_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid (greedy is better at smaller grids)
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_Refine_preGI_HowardMix_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_preGI_HowardMix_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
@@ -221,7 +221,7 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
         if N_d==0
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_preGI2A_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_preGI2A_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
@@ -236,7 +236,7 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_Refine_preGI2A_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_preGI2A_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
@@ -259,32 +259,32 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
         if N_d==0
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_postGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     end
                 elseif vfoptions.howardssparse==1
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_postGI_sparse_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI_sparse_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     end
                 end
             elseif vfoptions.howardsgreedy==1
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_postGI_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_postGI_HowardMix_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI_HowardMix_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==3 % howards iter for a_grid, then howards greedy for aprime_grid
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_postGI_HowardMix2_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI_HowardMix2_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
@@ -294,32 +294,32 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_postGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     end
                 elseif vfoptions.howardssparse==1
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy] = ValueFnIter_InfHorz_postGI_sparse_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy] = ValueFnIter_InfHorz_EndogenousVFI_postGI_sparse_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     end
                 end
             elseif vfoptions.howardsgreedy==1
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_postGI_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_HowardMix_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_postGI_HowardMix_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==3 % howards iter for a_grid, then howards greedy for aprime_grid
-                if vfoptions.endogenousvfi==0
+                if vfoptions.relativevfi==0
                     [V,Policy]=ValueFnIter_InfHorz_Refine_postGI_HowardMix2_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 else % endogenous VFI (relative VFI when there is no z)
                     [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_postGI_HowardMix2_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
@@ -330,13 +330,13 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
         if N_d==0
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_postGI2A_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI2A_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     end
                 elseif vfoptions.howardssparse==1
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_postGI2A_sparse_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_postGI2A_sparse_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
@@ -349,13 +349,13 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
                 if vfoptions.howardssparse==0
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_Refine_postGI2A_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_postGI2A_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     end
                 elseif vfoptions.howardssparse==1
-                    if vfoptions.endogenousvfi==0
+                    if vfoptions.relativevfi==0
                         [V,Policy]=ValueFnIter_InfHorz_Refine_postGI2A_sparse_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                     else % endogenous VFI (relative VFI when there is no z)
                         [V,Policy]=ValueFnIter_InfHorz_EndogenousVFI_Refine_postGI2A_sparse_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);

@@ -22,7 +22,7 @@ if ~exist('vfoptions','var')
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0; % grid interpolation layer
     vfoptions.lowmemory=0;
-    % vfoptions.endogenousvfi is set below, as its default depends on the discount factor
+    % vfoptions.relativevfi is set below, as its default depends on the discount factor
     % Howards improvement: when doing Howards iterations, there are various suboptions.
     % Defaults for Howards are set based on runtimes from CoreInfHorzVFIAlgoTests.m in the VFI Toolkit Test Bank: https://github.com/vfitoolkit/vfitoolkitTests/blob/main/CoreInfHorzTests/with_CoreInfHorzVFIAlgoTests/CoreInfHorzVFIAlgoTests.m
     vfoptions.howardsgreedy=0; % =0 iterated (aka modified-Policy Fn Iteration) or =1 greedy (aka Policy Fn Iteration)
@@ -43,7 +43,7 @@ if ~exist('vfoptions','var')
     else
         vfoptions.howardssparse=0;
     end
-    % vfoptions.howards is set below, as its default depends on the discount factor and on vfoptions.endogenousvfi
+    % vfoptions.howards is set below, as its default depends on the discount factor and on vfoptions.relativevfi
     vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     % Different asset types
     vfoptions.endogenousexit=0;
@@ -98,7 +98,7 @@ else
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    % vfoptions.endogenousvfi is set below, as its default depends on the discount factor
+    % vfoptions.relativevfi is set below, as its default depends on the discount factor
     % Howards improvement: when doing Howards iterations, there are various suboptions.
     % Defaults for Howards are set based on runtimes from CoreInfHorzVFIAlgoTests.m in the VFI Toolkit Test Bank: https://github.com/vfitoolkit/vfitoolkitTests/blob/main/CoreInfHorzTests/with_CoreInfHorzVFIAlgoTests/CoreInfHorzVFIAlgoTests.m
     if ~isfield(vfoptions,'howardsgreedy')
@@ -124,7 +124,7 @@ else
             vfoptions.howardssparse=0;
         end
     end
-    % vfoptions.howards is set below, as its default depends on the discount factor and on vfoptions.endogenousvfi
+    % vfoptions.howards is set below, as its default depends on the discount factor and on vfoptions.relativevfi
     if ~isfield(vfoptions,'maxhowards')
         vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     end
@@ -183,24 +183,24 @@ end
 % For endogenous VFI it barely depends on beta: 40 with indexed Howards, and 80 with sparse Howards (40 and 80 tie on
 % average, 80 has the smaller worst case).
 % beta here is the product of the discount factors (the largest value of each, if one depends on the exogenous state).
-if ~isfield(vfoptions,'endogenousvfi') || ~isfield(vfoptions,'howards')
+if ~isfield(vfoptions,'relativevfi') || ~isfield(vfoptions,'howards')
     betadefault=1;
     for DFparam_c=1:length(DiscountFactorParamNames)
         betadefault=betadefault*max(gather(Parameters.(DiscountFactorParamNames{DFparam_c})(:)));
     end
-    if ~isfield(vfoptions,'endogenousvfi')
-        vfoptions.endogenousvfi=0;
+    if ~isfield(vfoptions,'relativevfi')
+        vfoptions.relativevfi=0;
         if betadefault>=0.97 && vfoptions.parallel==2 ...
                 && (~isfield(vfoptions,'exoticpreferences') || isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None') ...
                     || (strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic') && (~isfield(vfoptions,'quasi_hyperbolic') || strcmp(vfoptions.quasi_hyperbolic,'Naive')))) ...
                 && vfoptions.endogenousexit==0 && vfoptions.divideandconquer~=2 && vfoptions.separableReturnFn==0 && vfoptions.experienceasset==0 ...
                 && vfoptions.inheritanceasset==0 && ~isfield(vfoptions,'SemiEndogShockFn') && ~any(vfoptions.incrementaltype==1) ...
                 && any(strcmp(vfoptions.solnmethod,{'purediscretization','purediscretization_refinement'}))
-            vfoptions.endogenousvfi=1;
+            vfoptions.relativevfi=1;
         end
     end
     if ~isfield(vfoptions,'howards')
-        if vfoptions.endogenousvfi==1
+        if vfoptions.relativevfi==1
             if vfoptions.howardssparse==1
                 vfoptions.howards=80;
             else
@@ -302,35 +302,35 @@ if N_semiz>0
     end
 end
 
-%% Endogenous VFI (Bray, 2019), vfoptions.endogenousvfi=1
+%% Endogenous VFI (Bray, 2019), vfoptions.relativevfi=1
 % Adding any function of the exogenous states to V leaves the policy unchanged, and the Bellman operator just carries it
 % forward (T(V+c(z))=TV+beta*pi_z*c). So endogenous VFI iterates exactly as VFI does, but stops once the change in V,
 % net of a function of the exogenous states, is below the tolerance (the span over the endogenous states, within each
 % exogenous state), and then recovers V in levels by solving for that function of the exogenous states. Without z it is
 % relative VFI. This only holds when T is additive in V, so not for the exotic preferences or endogenous exit.
-if vfoptions.endogenousvfi==1
+if vfoptions.relativevfi==1
     if vfoptions.parallel<2
-        error('vfoptions.endogenousvfi=1 is only implemented on the GPU (vfoptions.parallel=2)')
+        error('vfoptions.relativevfi=1 is only implemented on the GPU (vfoptions.parallel=2)')
     elseif isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None')) ...
             && ~(strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic') && (~isfield(vfoptions,'quasi_hyperbolic') || strcmp(vfoptions.quasi_hyperbolic,'Naive')))
         % Naive quasi-hyperbolic is fine: its continuation value is a standard exponential-discounting VFI, and endogenous VFI is used for that
-        error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.exoticpreferences, other than Naive quasi-hyperbolic (the Bellman operator is not additive in V, so endogenous VFI does not apply)')
+        error('vfoptions.relativevfi=1 cannot be used with vfoptions.exoticpreferences, other than Naive quasi-hyperbolic (the Bellman operator is not additive in V, so endogenous VFI does not apply)')
     elseif vfoptions.endogenousexit>=1
-        error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.endogenousexit (the exit value does not shift with V, so endogenous VFI does not apply)')
+        error('vfoptions.relativevfi=1 cannot be used with vfoptions.endogenousexit (the exit value does not shift with V, so endogenous VFI does not apply)')
     elseif vfoptions.divideandconquer==2
-        error('vfoptions.endogenousvfi=1 is not yet implemented with divide-and-conquer (vfoptions.divideandconquer=2)')
+        error('vfoptions.relativevfi=1 is not yet implemented with divide-and-conquer (vfoptions.divideandconquer=2)')
     elseif vfoptions.separableReturnFn==1
-        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.separableReturnFn=1')
+        error('vfoptions.relativevfi=1 is not yet implemented with vfoptions.separableReturnFn=1')
     elseif vfoptions.experienceasset>=1
-        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.experienceasset')
+        error('vfoptions.relativevfi=1 is not yet implemented with vfoptions.experienceasset')
     elseif vfoptions.inheritanceasset==1
-        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.inheritanceasset')
+        error('vfoptions.relativevfi=1 is not yet implemented with vfoptions.inheritanceasset')
     elseif isfield(vfoptions,'SemiEndogShockFn')
-        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.SemiEndogShockFn')
+        error('vfoptions.relativevfi=1 is not yet implemented with vfoptions.SemiEndogShockFn')
     elseif any(vfoptions.incrementaltype==1)
-        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.incrementaltype')
+        error('vfoptions.relativevfi=1 is not yet implemented with vfoptions.incrementaltype')
     elseif ~any(strcmp(vfoptions.solnmethod,{'purediscretization','purediscretization_refinement'}))
-        error('vfoptions.endogenousvfi=1 is not yet implemented with vfoptions.solnmethod=%s (only purediscretization and purediscretization_refinement)',vfoptions.solnmethod)
+        error('vfoptions.relativevfi=1 is not yet implemented with vfoptions.solnmethod=%s (only purediscretization and purediscretization_refinement)',vfoptions.solnmethod)
     end
 end
 

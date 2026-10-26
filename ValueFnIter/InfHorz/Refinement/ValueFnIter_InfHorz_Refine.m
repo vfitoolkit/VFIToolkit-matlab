@@ -21,20 +21,20 @@ if N_z==0 && N_e==0
 
     %% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
     if vfoptions.howardsgreedy==1
-        if vfoptions.endogenousvfi==0
+        if vfoptions.relativevfi==0
             [V,Policy_a]=ValueFnIter_InfHorz_HowardGreedy_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
         else % endogenous VFI (relative VFI when there is no z)
             [V,Policy_a]=ValueFnIter_InfHorz_RelativeVFI_HowardGreedy_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
         end
     elseif vfoptions.howardsgreedy==0
         if vfoptions.howardssparse==0
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy_a]=ValueFnIter_InfHorz_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy_a]=ValueFnIter_InfHorz_RelativeVFI_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             end
         elseif vfoptions.howardssparse==1
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy_a]=ValueFnIter_InfHorz_sparse_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy_a]=ValueFnIter_InfHorz_RelativeVFI_sparse_nod_noz_raw(V0, N_a, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
@@ -93,20 +93,20 @@ elseif N_z>0 && N_e==0
 
     %% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
     if vfoptions.howardsgreedy==1
-        if vfoptions.endogenousvfi==0
+        if vfoptions.relativevfi==0
             [V,Policy_a]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
         else % endogenous VFI (relative VFI when there is no z)
             [V,Policy_a]=ValueFnIter_InfHorz_EndogenousVFI_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
         end
     elseif vfoptions.howardsgreedy==0
         if vfoptions.howardssparse==0
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy_a]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy_a]=ValueFnIter_InfHorz_EndogenousVFI_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             end
         elseif vfoptions.howardssparse==1
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy_a]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy_a]=ValueFnIter_InfHorz_EndogenousVFI_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
@@ -166,20 +166,20 @@ elseif N_z==0 && N_e>0
 
     %% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
     if vfoptions.howardsgreedy==1
-        if vfoptions.endogenousvfi==0
+        if vfoptions.relativevfi==0
             [V,Policy_a]=ValueFnIter_InfHorz_HowardGreedy_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
         else % endogenous VFI (relative VFI when there is no z)
             [V,Policy_a]=ValueFnIter_InfHorz_RelativeVFI_HowardGreedy_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
         end
     elseif vfoptions.howardsgreedy==0
         if vfoptions.howardssparse==0
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy_a]=ValueFnIter_InfHorz_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy_a]=ValueFnIter_InfHorz_RelativeVFI_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             end
         elseif vfoptions.howardssparse==1
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy_a]=ValueFnIter_InfHorz_sparse_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy_a]=ValueFnIter_InfHorz_RelativeVFI_sparse_nod_noz_e_raw(V0, N_a, N_e, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
@@ -256,20 +256,20 @@ elseif N_z>0 && N_e>0
 
     %% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
     if vfoptions.howardsgreedy==1
-        if vfoptions.endogenousvfi==0
+        if vfoptions.relativevfi==0
             [V,Policy_a]=ValueFnIter_InfHorz_HowardGreedy_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
         else % endogenous VFI (relative VFI when there is no z)
             [V,Policy_a]=ValueFnIter_InfHorz_EndogenousVFI_HowardGreedy_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
         end
     elseif vfoptions.howardsgreedy==0
         if vfoptions.howardssparse==0
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy_a]=ValueFnIter_InfHorz_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy_a]=ValueFnIter_InfHorz_EndogenousVFI_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             end
         elseif vfoptions.howardssparse==1
-            if vfoptions.endogenousvfi==0
+            if vfoptions.relativevfi==0
                 [V,Policy_a]=ValueFnIter_InfHorz_sparse_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             else % endogenous VFI (relative VFI when there is no z)
                 [V,Policy_a]=ValueFnIter_InfHorz_EndogenousVFI_sparse_nod_e_raw(V0, N_a, N_z, N_e, pi_z, vfoptions.pi_e, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
