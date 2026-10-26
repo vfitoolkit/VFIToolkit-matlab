@@ -99,7 +99,30 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
 
         T_E=sparse(azind1,Policy_a(:)+N_a_times_zind,pi_z_big1,N_a*N_z,N_a*N_z);
 
-        VKron=(spI-DiscountFactorParamsVec*T_E)\Ftemp;
+        % Greedy Howards with -Inf in V: a direct solve is global, so one -Inf in Ftemp gives NaN everywhere, and a finite Ftemp at a
+        % state whose policy puts positive weight on a dead state gives a finite V where the truth is -Inf. So solve on the live states
+        % only: a state is dead if V is -Inf there or if its policy puts positive weight on a dead state (the closure under T_E);
+        % (I-beta*T_E) is block triangular in live-then-dead order, so the live block solves exactly on its own and V is -Inf on the
+        % dead set. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, section 8)
+        dead=(VKron(:)==-Inf);
+        if any(dead)
+            newdead=dead;
+            while any(newdead)
+                newdead=(T_E*double(dead)>0) & ~dead;
+                dead=dead | newdead;
+            end
+            live=~dead;
+            N_live=gather(sum(live));
+            livemap=cumsum(live);
+            [T_Erow,T_Ecol,T_Eval]=find(T_E);
+            keep=live(T_Erow) & live(T_Ecol); % a live row has no positive weight on a dead column, so this is just the live rows
+            T_E=sparse(livemap(T_Erow(keep)),livemap(T_Ecol(keep)),T_Eval(keep),N_live,N_live);
+            VKrontemp=-Inf(numel(Ftemp),1,'gpuArray');
+            VKrontemp(live)=(gpuArray.speye(N_live)-DiscountFactorParamsVec*T_E)\Ftemp(live);
+            VKron=VKrontemp;
+        else
+            VKron=(spI-DiscountFactorParamsVec*T_E)\Ftemp;
+        end
         VKron=reshape(VKron,[N_a,N_z]);
     end
 
@@ -141,7 +164,30 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
         T_E=sparse(azind2,[indp;indp+1],[Policy_lowerprob;1-Policy_lowerprob].*pi_z_big2,N_a*N_z,N_a*N_z);
 
-        VKron=(spI-DiscountFactorParamsVec*T_E)\Ftemp;
+        % Greedy Howards with -Inf in V: a direct solve is global, so one -Inf in Ftemp gives NaN everywhere, and a finite Ftemp at a
+        % state whose policy puts positive weight on a dead state gives a finite V where the truth is -Inf. So solve on the live states
+        % only: a state is dead if V is -Inf there or if its policy puts positive weight on a dead state (the closure under T_E);
+        % (I-beta*T_E) is block triangular in live-then-dead order, so the live block solves exactly on its own and V is -Inf on the
+        % dead set. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, section 8)
+        dead=(VKron(:)==-Inf);
+        if any(dead)
+            newdead=dead;
+            while any(newdead)
+                newdead=(T_E*double(dead)>0) & ~dead;
+                dead=dead | newdead;
+            end
+            live=~dead;
+            N_live=gather(sum(live));
+            livemap=cumsum(live);
+            [T_Erow,T_Ecol,T_Eval]=find(T_E);
+            keep=live(T_Erow) & live(T_Ecol); % a live row has no positive weight on a dead column, so this is just the live rows
+            T_E=sparse(livemap(T_Erow(keep)),livemap(T_Ecol(keep)),T_Eval(keep),N_live,N_live);
+            VKrontemp=-Inf(numel(Ftemp),1,'gpuArray');
+            VKrontemp(live)=(gpuArray.speye(N_live)-DiscountFactorParamsVec*T_E)\Ftemp(live);
+            VKron=VKrontemp;
+        else
+            VKron=(spI-DiscountFactorParamsVec*T_E)\Ftemp;
+        end
         VKron=reshape(VKron,[N_a,N_z]);
     end
 
@@ -186,10 +232,6 @@ isInfUpper = (ReturnMatrixfine(linidx_upper(:)) == -Inf);
 inInterior = (L2 >= 2) & (L2 <= n2short+1);
 Policy(4,:,:) = reshape(2 + (inInterior & isInfLower) - (inInterior & isInfUpper), [1,N_a,N_z]);
 
-%% Howards greedy cannot solve models where V contains values of -Inf. Can kind of test for this by looking for -Inf in Ftemp
-if any(~isfinite(Ftemp))
-    warning('Howards-greedy cannot be used for models where V contains values of -Inf. This model looks like it may be one where V takes a value of -Inf at some points in the state-space. Consider checking solution against that with vfoptions.howardsgreedy=0')
-end
 if currdist > vfoptions.tolerance
     warning(['Value fn iteration has stopped due to reaching the maximum number of iterations ', ...
              '(not due to convergence); can be set by vfoptions.maxiter. ', ...
