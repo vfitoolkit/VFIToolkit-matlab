@@ -1,5 +1,8 @@
-function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_nod_raw(VKron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_nod_raw(VKron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance, maxiter, Verbose, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
 % Does pretty much exactly the same as ValueFnIter_InfHorz_EpsteinZin_raw, only without any decision variable (n_d=0)
+
+% Progress print for Verbose (same form as the standard raws)
+distvstolstr=['ValueFnIter (Epstein-Zin): after %i iterations the dist is %4.',num2str(-round(log10(Tolerance))),'f \n'];
 
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -23,7 +26,7 @@ temp2(ReturnMatrix==0)=-Inf; % matlab otherwise puts 0 to negative power to infi
 %%
 tempcounter=1;
 currdist=Inf;
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<=maxiter
     VKronold=VKron;
 
     for z_c=1:N_z
@@ -88,9 +91,20 @@ while currdist>Tolerance
         end
     end
 
+    if Verbose==1
+        if rem(tempcounter,10)==0 % Every 10 iterations
+            fprintf(distvstolstr, tempcounter,currdist)
+        end
+    end
+
     tempcounter=tempcounter+1;
 end
 
-
+if currdist>Tolerance
+    warning(['Value fn iteration (Epstein-Zin) has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, Tolerance)
+end
 
 end

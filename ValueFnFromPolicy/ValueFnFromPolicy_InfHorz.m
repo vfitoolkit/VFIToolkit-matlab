@@ -61,8 +61,16 @@ if isfield(vfoptions,'exoticpreferences') && strcmp(vfoptions.exoticpreferences,
     varargout={V,Valt};
     return
 end
-if isfield(vfoptions,'exoticpreferences') && ~strcmp(vfoptions.exoticpreferences,'None')
-    error('ValueFnFromPolicy_InfHorz() does not yet work with this exotic preference type (QuasiHyperbolic is implemented; the others are not). Please ask on forum if you want/need this feature.')
+%% Dispatch to EpsteinZin subfn if exoticpreferences=='EpsteinZin'
+% Same place and same reason as the quasi-hyperbolic dispatch above: ahead of the
+% grid-interpolation hand-off (which the subfn refuses itself, as the solver does).
+if isfield(vfoptions,'exoticpreferences') && strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+    V=ValueFnFromPolicy_InfHorz_EpsteinZin(Policy,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    varargout={V};
+    return
+end
+if isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None'))
+    error('ValueFnFromPolicy_InfHorz() does not yet work with this exotic preference type (QuasiHyperbolic and EpsteinZin are implemented; the others are not). Please ask on forum if you want/need this feature.')
 end
 
 %% Grid interpolation layer is handled by its own command (except with semiz, which ValueFnFromPolicy_InfHorz_SemiExo handles, see below)

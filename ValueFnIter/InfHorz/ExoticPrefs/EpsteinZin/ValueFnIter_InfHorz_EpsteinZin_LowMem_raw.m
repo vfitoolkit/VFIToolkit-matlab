@@ -1,4 +1,8 @@
-function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_raw(VKron, n_d,n_a,n_z, d_gridvals,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_raw(VKron, n_d,n_a,n_z, d_gridvals,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, maxiter, Verbose, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+% Does pretty much exactly the same as ValueFnIter_InfHorz_EpsteinZin_raw, but builds the return matrix one z at a time inside the loop
+
+% Progress print for Verbose (same form as the standard raws)
+distvstolstr=['ValueFnIter (Epstein-Zin): after %i iterations the dist is %4.',num2str(-round(log10(Tolerance))),'f \n'];
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -25,7 +29,7 @@ end
 %%
 tempcounter=1;
 currdist=Inf;
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<=maxiter
     VKronold=VKron;
 
     for z_c=1:N_z
@@ -97,16 +101,21 @@ while currdist>Tolerance
         end
     end
 
-%     if vfoptions.verbose==1
-%         if rem(tempcounter,10)==0
-%             tempcounter
-%             currdist
-%             fprintf('times: %2.8f, %2.8f, %2.8f \n',time1,time2,time3)
-%         end
-%     end
+    if Verbose==1
+        if rem(tempcounter,10)==0 % Every 10 iterations
+            fprintf(distvstolstr, tempcounter,currdist)
+        end
+    end
 
     tempcounter=tempcounter+1;
 
+end
+
+if currdist>Tolerance
+    warning(['Value fn iteration (Epstein-Zin) has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, Tolerance)
 end
 
 Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
