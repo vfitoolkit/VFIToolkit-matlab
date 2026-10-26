@@ -103,7 +103,7 @@ else
     % Defaults for Howards are set based on runtimes from CoreInfHorzVFIAlgoTests.m in the VFI Toolkit Test Bank: https://github.com/vfitoolkit/vfitoolkitTests/blob/main/CoreInfHorzTests/with_CoreInfHorzVFIAlgoTests/CoreInfHorzVFIAlgoTests.m
     if ~isfield(vfoptions,'howardsgreedy')
         vfoptions.howardsgreedy=0; % =0 iterated (aka modified-Policy Fn Iteration) or =1 greedy (aka Policy Fn Iteration)
-        % Note: Howards greedy =1 can only be used without grid interpolation layer (gridinterplayer=0)
+        % With the grid interpolation layer there are also =2 and =3, the two HowardMix variants (one endogenous state, no e, no semiz)
     end
     if ~isfield(vfoptions,'howardssparse')
         % First the Howards method. With the grid interpolation layer the sparse matrix version won every
