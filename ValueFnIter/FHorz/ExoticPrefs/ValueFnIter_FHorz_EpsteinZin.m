@@ -46,6 +46,13 @@ if ~isfield(vfoptions,'EZoneminusbeta')
     %=1 Put a (1-beta)* term on the this period return
     %=2 Put a (1-sj*beta)* term on the this period return
 end
+% Feasibility conventions (2026-10-27, EZ_feasibility_conventions_proposal.md at the toolkit root):
+% a return of EXACTLY zero is a value, not an infeasible choice (0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then
+% the floor 0: zero consumption in consumption units with EIS<1); a continuation of exactly zero is a genuine
+% value too (with risk aversion above one the certainty equivalent of a lottery that can give zero IS zero), so
+% a vfoptions.V_Jplus1 of zeros means a catastrophe after N_j, not 'nothing after N_j' (omit V_Jplus1 for the
+% latter); -Inf (no feasible choice) is kept out of every power and stays -Inf through both sign conventions.
+% Only the warm-glow keeps the old rule: a warm-glow of exactly zero contributes nothing.
 % Set up sj
 if isfield(vfoptions,'survivalprobability')
     if any(strcmp(DiscountFactorParamNames,vfoptions.survivalprobability))

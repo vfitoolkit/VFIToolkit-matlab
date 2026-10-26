@@ -134,10 +134,9 @@ FofPolicy=EvalFnOnAgentDist_Grid(ReturnFn, ReturnFnParamsCell,PolicyValuesPermut
 FofPolicy=reshape(FofPolicy,[N_a,N_z]);
 
 % Modify the Return Function appropriately for Epstein-Zin Preferences (as the raws do)
-becareful=logical(isfinite(FofPolicy).*(FofPolicy~=0)); % finite but not zero
+becareful=isfinite(FofPolicy); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
 temp2=FofPolicy;
 temp2(becareful)=FofPolicy(becareful).^ezc2; % Otherwise can get things like 0 to negative power equals infinity
-temp2(FofPolicy==0)=-Inf; % Otherwise these ReturnMatrix=zero points get a finite amount added to them (from expectations) and were mishandled later
 
 %% The aprime index of the policy, in the form the expectation step needs
 Policy=KronPolicyIndexes_forValueFnFromPolicy(Policy, n_d, n_a, n_z, 0, vfoptions);
@@ -150,9 +149,12 @@ end
 pi_z_howards=repelem(pi_z,N_a,1);
 
 %% Iterate the policy-evaluation fixed point
-% Start from V=0, as the solver does (ValueFnIter_InfHorz starts its V0 at zeros, and the raws'
-% temp(V==0)=0 convention makes the first pass V=(ezc1*F^ezc2)^ezc7 whatever the powers are).
-VKron=zeros(N_a,N_z,'gpuArray');
+% Start from the myopic value at the policy, (ezc1*F(Policy)^ezc2)^ezc7, as the solver starts from the
+% myopic value over all choices: a zero continuation is a genuine value under Epstein-Zin (a catastrophe
+% when risk aversion is above one, and in consumption units with EIS<1 a fixed point of the aggregator),
+% so a zeros start could never leave it. See EZ_feasibility_conventions_proposal.md at the toolkit root.
+VKron=ezc1*temp2;
+VKron(~(VKron==-Inf))=VKron(~(VKron==-Inf)).^ezc7;
 currdist=Inf;
 itercount=1;
 while currdist>vfoptions.tolerance && itercount<=vfoptions.maxiter
@@ -161,7 +163,7 @@ while currdist>vfoptions.tolerance && itercount<=vfoptions.maxiter
     % Part of Epstein-Zin is before taking expectation
     temp=VKronold;
     temp(isfinite(VKronold))=(ezc4*VKronold(isfinite(VKronold))).^ezc5;
-    temp(VKronold==0)=0;
+    temp(VKronold==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
     % The expectation term (except beta), at the policy
     EVKrontemp=temp(Policy_a,:);
@@ -170,14 +172,14 @@ while currdist>vfoptions.tolerance && itercount<=vfoptions.maxiter
     EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
 
     temp4=EVKrontemp;
-    temp4(isfinite(temp4))=temp4(isfinite(temp4)).^ezc6;
+    temp4(~(temp4==-Inf))=temp4(~(temp4==-Inf)).^ezc6;
     temp4(EVKrontemp==0)=0;
 
     VKron=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-    temp5=logical(isfinite(VKron).*(VKron~=0));
+    VKron(isnan(VKron))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+    temp5=~(VKron==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
     VKron(temp5)=VKron(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
-    VKron(VKron==0)=-Inf;
 
     VKrondist=VKron(:)-VKronold(:); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));

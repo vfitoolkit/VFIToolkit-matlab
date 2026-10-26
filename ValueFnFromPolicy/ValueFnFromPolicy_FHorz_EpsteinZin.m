@@ -224,16 +224,16 @@ if vfoptions.gridinterplayer==1
                 WGmatrixfine=WGmatrixfineraw;
                 WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(jj);
                 WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+                WGmatrixfine(WGmatrixfineraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
                 finex=(alower(:,jj)-1)*(n2short+1)+L2(:,jj); % the policy's fine-grid index
                 WGofPolicy=reshape(WGmatrixfine(finex),[N_a,1]);
             end
 
             if jj==N_j
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
-                becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+                becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2=FofPolicy_jj;
                 temp2(becareful)=FofPolicy_jj(becareful).^ezc2(N_j);
-                temp2(FofPolicy_jj==0)=-Inf;
                 if warmglow==1
                     % Compose the warm-glow INSIDE the ^ezc7 root (the interior-age composition with the EV term absent)
                     becareful2=(WGofPolicy==0);
@@ -243,16 +243,16 @@ if vfoptions.gridinterplayer==1
                 else
                     Vjj=ezc1*temp2;
                 end
-                temp5=logical(isfinite(Vjj).*(Vjj~=0));
+                Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 Vjj(temp5)=Vjj(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-                Vjj(Vjj==0)=-Inf;
                 V(:,jj)=Vjj;
             else
                 % Part of Epstein-Zin is before taking expectation
                 EVnextpre=V(:,jj+1);
                 temp=EVnextpre;
                 temp(isfinite(EVnextpre))=(ezc4*EVnextpre(isfinite(EVnextpre))).^ezc5(jj);
-                temp(EVnextpre==0)=0;
+                temp(EVnextpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
                 % No shocks, so no expectation to take (the certainty-equivalent is just the identity)
                 EVnext=temp;
@@ -261,24 +261,23 @@ if vfoptions.gridinterplayer==1
 
                 temp4=EVnextOfPolicy;
                 if warmglow==1
-                    becareful=logical(isfinite(temp4).*isfinite(WGofPolicy)); % both are finite
+                    becareful=logical((~(temp4==-Inf)).*isfinite(WGofPolicy)); % both are finite
                     temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGofPolicy(becareful).^ezc8(jj)).^ezc6(jj);
                     temp4((EVnextOfPolicy==0)&(WGofPolicy==0))=0; % Is actually zero
                 else % not using warmglow
-                    temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+                    temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
                     temp4(EVnextOfPolicy==0)=0;
                 end
 
-                becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+                becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2=FofPolicy_jj;
                 temp2(becareful)=FofPolicy_jj(becareful).^ezc2(jj);
-                temp2(FofPolicy_jj==0)=-Inf;
 
                 Vjj=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-                temp5=logical(isfinite(Vjj).*(Vjj~=0));
+                Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 Vjj(temp5)=Vjj(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-                Vjj(Vjj==0)=-Inf;
 
                 V(:,jj)=Vjj;
             end
@@ -322,16 +321,16 @@ if vfoptions.gridinterplayer==1
                 WGmatrixfine=WGmatrixfineraw;
                 WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(jj);
                 WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+                WGmatrixfine(WGmatrixfineraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
                 finex=(alower(:,:,jj)-1)*(n2short+1)+L2(:,:,jj); % the policy's fine-grid index
                 WGofPolicy=reshape(WGmatrixfine(finex),[N_a,N_e]);
             end
 
             if jj==N_j
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
-                becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+                becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2=FofPolicy_jj;
                 temp2(becareful)=FofPolicy_jj(becareful).^ezc2(N_j);
-                temp2(FofPolicy_jj==0)=-Inf;
                 if warmglow==1
                     % Compose the warm-glow INSIDE the ^ezc7 root (the interior-age composition with the EV term absent)
                     becareful2=(WGofPolicy==0);
@@ -341,16 +340,16 @@ if vfoptions.gridinterplayer==1
                 else
                     Vjj=ezc1*temp2;
                 end
-                temp5=logical(isfinite(Vjj).*(Vjj~=0));
+                Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 Vjj(temp5)=Vjj(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-                Vjj(Vjj==0)=-Inf;
                 V(:,:,jj)=Vjj;
             else
                 % Part of Epstein-Zin is before taking expectation
                 EVnextpre=V(:,:,jj+1);
                 temp=EVnextpre;
                 temp(isfinite(EVnextpre))=(ezc4*EVnextpre(isfinite(EVnextpre))).^ezc5(jj);
-                temp(EVnextpre==0)=0;
+                temp(EVnextpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
                 % Expectation over the iid e
                 EVw=temp.*shiftdim(vfoptions.pi_e_J(:,jj+1),-1); EVw(isnan(EVw))=0; % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero the terms BEFORE summing
@@ -362,24 +361,23 @@ if vfoptions.gridinterplayer==1
 
                 temp4=EVnextOfPolicy;
                 if warmglow==1
-                    becareful=logical(isfinite(temp4).*isfinite(WGofPolicy)); % both are finite
+                    becareful=logical((~(temp4==-Inf)).*isfinite(WGofPolicy)); % both are finite
                     temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGofPolicy(becareful).^ezc8(jj)).^ezc6(jj);
                     temp4((EVnextOfPolicy==0)&(WGofPolicy==0))=0; % Is actually zero
                 else % not using warmglow
-                    temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+                    temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
                     temp4(EVnextOfPolicy==0)=0;
                 end
 
-                becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+                becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2=FofPolicy_jj;
                 temp2(becareful)=FofPolicy_jj(becareful).^ezc2(jj);
-                temp2(FofPolicy_jj==0)=-Inf;
 
                 Vjj=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-                temp5=logical(isfinite(Vjj).*(Vjj~=0));
+                Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 Vjj(temp5)=Vjj(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-                Vjj(Vjj==0)=-Inf;
 
                 V(:,:,jj)=Vjj;
             end
@@ -423,16 +421,16 @@ if vfoptions.gridinterplayer==1
                 WGmatrixfine=WGmatrixfineraw;
                 WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(jj);
                 WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+                WGmatrixfine(WGmatrixfineraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
                 finex=(alower(:,:,jj)-1)*(n2short+1)+L2(:,:,jj); % the policy's fine-grid index
                 WGofPolicy=reshape(WGmatrixfine(finex),[N_a,N_z]);
             end
 
             if jj==N_j
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
-                becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+                becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2=FofPolicy_jj;
                 temp2(becareful)=FofPolicy_jj(becareful).^ezc2(N_j);
-                temp2(FofPolicy_jj==0)=-Inf;
                 if warmglow==1
                     % Compose the warm-glow INSIDE the ^ezc7 root (the interior-age composition with the EV term absent)
                     becareful2=(WGofPolicy==0);
@@ -442,16 +440,16 @@ if vfoptions.gridinterplayer==1
                 else
                     Vjj=ezc1*temp2;
                 end
-                temp5=logical(isfinite(Vjj).*(Vjj~=0));
+                Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 Vjj(temp5)=Vjj(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-                Vjj(Vjj==0)=-Inf;
                 V(:,:,jj)=Vjj;
             else
                 % Part of Epstein-Zin is before taking expectation
                 EVnextpre=V(:,:,jj+1);
                 temp=EVnextpre;
                 temp(isfinite(EVnextpre))=(ezc4*EVnextpre(isfinite(EVnextpre))).^ezc5(jj);
-                temp(EVnextpre==0)=0;
+                temp(EVnextpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
                 % EVnext(aprime, z_from) = sum_{z_to} pi(z_from, z_to) * temp(aprime, z_to)
                 EVnext=temp*pi_z_J(:,:,jj)'; % [N_a, N_z_from]
@@ -463,24 +461,23 @@ if vfoptions.gridinterplayer==1
 
                 temp4=EVnextOfPolicy;
                 if warmglow==1
-                    becareful=logical(isfinite(temp4).*isfinite(WGofPolicy)); % both are finite
+                    becareful=logical((~(temp4==-Inf)).*isfinite(WGofPolicy)); % both are finite
                     temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGofPolicy(becareful).^ezc8(jj)).^ezc6(jj);
                     temp4((EVnextOfPolicy==0)&(WGofPolicy==0))=0; % Is actually zero
                 else % not using warmglow
-                    temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+                    temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
                     temp4(EVnextOfPolicy==0)=0;
                 end
 
-                becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+                becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2=FofPolicy_jj;
                 temp2(becareful)=FofPolicy_jj(becareful).^ezc2(jj);
-                temp2(FofPolicy_jj==0)=-Inf;
 
                 Vjj=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-                temp5=logical(isfinite(Vjj).*(Vjj~=0));
+                Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 Vjj(temp5)=Vjj(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-                Vjj(Vjj==0)=-Inf;
 
                 V(:,:,jj)=Vjj;
             end
@@ -523,16 +520,16 @@ if vfoptions.gridinterplayer==1
                 WGmatrixfine=WGmatrixfineraw;
                 WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(jj);
                 WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+                WGmatrixfine(WGmatrixfineraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
                 finex=(alower(:,:,:,jj)-1)*(n2short+1)+L2(:,:,:,jj); % the policy's fine-grid index
                 WGofPolicy=reshape(WGmatrixfine(finex),[N_a,N_z,N_e]);
             end
 
             if jj==N_j
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
-                becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+                becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2=FofPolicy_jj;
                 temp2(becareful)=FofPolicy_jj(becareful).^ezc2(N_j);
-                temp2(FofPolicy_jj==0)=-Inf;
                 if warmglow==1
                     % Compose the warm-glow INSIDE the ^ezc7 root (the interior-age composition with the EV term absent)
                     becareful2=(WGofPolicy==0);
@@ -542,16 +539,16 @@ if vfoptions.gridinterplayer==1
                 else
                     Vjj=ezc1*temp2;
                 end
-                temp5=logical(isfinite(Vjj).*(Vjj~=0));
+                Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 Vjj(temp5)=Vjj(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-                Vjj(Vjj==0)=-Inf;
                 V(:,:,:,jj)=Vjj;
             else
                 % Part of Epstein-Zin is before taking expectation
                 EVnextpre=V(:,:,:,jj+1);
                 temp=EVnextpre;
                 temp(isfinite(EVnextpre))=(ezc4*EVnextpre(isfinite(EVnextpre))).^ezc5(jj);
-                temp(EVnextpre==0)=0;
+                temp(EVnextpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
                 % One certainty-equivalent over the joint distribution of (zprime,eprime):
                 % expectation over the iid e first, then over zprime (mirrors the EZ VFI raws)
@@ -565,24 +562,23 @@ if vfoptions.gridinterplayer==1
 
                 temp4=EVnextOfPolicy;
                 if warmglow==1
-                    becareful=logical(isfinite(temp4).*isfinite(WGofPolicy)); % both are finite
+                    becareful=logical((~(temp4==-Inf)).*isfinite(WGofPolicy)); % both are finite
                     temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGofPolicy(becareful).^ezc8(jj)).^ezc6(jj);
                     temp4((EVnextOfPolicy==0)&(WGofPolicy==0))=0; % Is actually zero
                 else % not using warmglow
-                    temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+                    temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
                     temp4(EVnextOfPolicy==0)=0;
                 end
 
-                becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+                becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2=FofPolicy_jj;
                 temp2(becareful)=FofPolicy_jj(becareful).^ezc2(jj);
-                temp2(FofPolicy_jj==0)=-Inf;
 
                 Vjj=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-                temp5=logical(isfinite(Vjj).*(Vjj~=0));
+                Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 Vjj(temp5)=Vjj(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-                Vjj(Vjj==0)=-Inf;
 
                 V(:,:,:,jj)=Vjj;
             end
@@ -634,15 +630,15 @@ if N_z==0 && N_e==0
             WGmatrix=WGmatrixraw;
             WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(jj);
             WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
+            WGmatrix(WGmatrixraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
             WGofPolicy=reshape(WGmatrix(optaprime),[N_a,1]);
         end
 
         if jj==N_j
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+            becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=FofPolicy_jj;
             temp2(becareful)=FofPolicy_jj(becareful).^ezc2(N_j);
-            temp2(FofPolicy_jj==0)=-Inf;
             if warmglow==1
                 % Compose the warm-glow INSIDE the ^ezc7 root (the interior-age composition with the EV term absent)
                 becareful2=(WGofPolicy==0);
@@ -652,16 +648,16 @@ if N_z==0 && N_e==0
             else
                 Vjj=ezc1*temp2;
             end
-            temp5=logical(isfinite(Vjj).*(Vjj~=0));
+            Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             Vjj(temp5)=Vjj(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-            Vjj(Vjj==0)=-Inf;
             V(:,jj)=Vjj;
         else
             % Part of Epstein-Zin is before taking expectation
             EVnextpre=V(:,jj+1);
             temp=EVnextpre;
             temp(isfinite(EVnextpre))=(ezc4*EVnextpre(isfinite(EVnextpre))).^ezc5(jj);
-            temp(EVnextpre==0)=0;
+            temp(EVnextpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
             % No shocks, so no expectation to take (the certainty-equivalent is just the identity)
             EVnext=temp;
@@ -670,25 +666,24 @@ if N_z==0 && N_e==0
 
             temp4=EVnextOfPolicy;
             if warmglow==1
-                becareful=logical(isfinite(temp4).*isfinite(WGofPolicy)); % both are finite
+                becareful=logical((~(temp4==-Inf)).*isfinite(WGofPolicy)); % both are finite
                 temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGofPolicy(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EVnextOfPolicy==0)&(WGofPolicy==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+                temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
                 temp4(EVnextOfPolicy==0)=0;
             end
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+            becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=FofPolicy_jj;
             temp2(becareful)=FofPolicy_jj(becareful).^ezc2(jj);
-            temp2(FofPolicy_jj==0)=-Inf;
 
             Vjj=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-            temp5=logical(isfinite(Vjj).*(Vjj~=0));
+            Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             Vjj(temp5)=Vjj(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-            Vjj(Vjj==0)=-Inf;
 
             V(:,jj)=Vjj;
         end
@@ -736,15 +731,15 @@ elseif N_z==0 && N_e>0
             WGmatrix=WGmatrixraw;
             WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(jj);
             WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
+            WGmatrix(WGmatrixraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
             WGofPolicy=reshape(WGmatrix(optaprime),[N_a,N_e]);
         end
 
         if jj==N_j
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+            becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=FofPolicy_jj;
             temp2(becareful)=FofPolicy_jj(becareful).^ezc2(N_j);
-            temp2(FofPolicy_jj==0)=-Inf;
             if warmglow==1
                 % Compose the warm-glow INSIDE the ^ezc7 root (the interior-age composition with the EV term absent)
                 becareful2=(WGofPolicy==0);
@@ -754,16 +749,16 @@ elseif N_z==0 && N_e>0
             else
                 Vjj=ezc1*temp2;
             end
-            temp5=logical(isfinite(Vjj).*(Vjj~=0));
+            Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             Vjj(temp5)=Vjj(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-            Vjj(Vjj==0)=-Inf;
             V(:,:,jj)=Vjj;
         else
             % Part of Epstein-Zin is before taking expectation
             EVnextpre=V(:,:,jj+1);
             temp=EVnextpre;
             temp(isfinite(EVnextpre))=(ezc4*EVnextpre(isfinite(EVnextpre))).^ezc5(jj);
-            temp(EVnextpre==0)=0;
+            temp(EVnextpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
             % Expectation over the iid e
             EVw=temp.*shiftdim(vfoptions.pi_e_J(:,jj+1),-1); EVw(isnan(EVw))=0; % a zero weight against an infinite node gives 0*(-Inf)=NaN, so zero the terms BEFORE summing
@@ -774,25 +769,24 @@ elseif N_z==0 && N_e>0
 
             temp4=EVnextOfPolicy;
             if warmglow==1
-                becareful=logical(isfinite(temp4).*isfinite(WGofPolicy)); % both are finite
+                becareful=logical((~(temp4==-Inf)).*isfinite(WGofPolicy)); % both are finite
                 temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGofPolicy(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EVnextOfPolicy==0)&(WGofPolicy==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+                temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
                 temp4(EVnextOfPolicy==0)=0;
             end
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+            becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=FofPolicy_jj;
             temp2(becareful)=FofPolicy_jj(becareful).^ezc2(jj);
-            temp2(FofPolicy_jj==0)=-Inf;
 
             Vjj=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-            temp5=logical(isfinite(Vjj).*(Vjj~=0));
+            Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             Vjj(temp5)=Vjj(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-            Vjj(Vjj==0)=-Inf;
 
             V(:,:,jj)=Vjj;
         end
@@ -840,15 +834,15 @@ elseif N_z>0 && N_e==0
             WGmatrix=WGmatrixraw;
             WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(jj);
             WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
+            WGmatrix(WGmatrixraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
             WGofPolicy=reshape(WGmatrix(optaprime),[N_a,N_z]);
         end
 
         if jj==N_j
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+            becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=FofPolicy_jj;
             temp2(becareful)=FofPolicy_jj(becareful).^ezc2(N_j);
-            temp2(FofPolicy_jj==0)=-Inf;
             if warmglow==1
                 % Compose the warm-glow INSIDE the ^ezc7 root (the interior-age composition with the EV term absent)
                 becareful2=(WGofPolicy==0);
@@ -858,16 +852,16 @@ elseif N_z>0 && N_e==0
             else
                 Vjj=ezc1*temp2;
             end
-            temp5=logical(isfinite(Vjj).*(Vjj~=0));
+            Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             Vjj(temp5)=Vjj(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-            Vjj(Vjj==0)=-Inf;
             V(:,:,jj)=Vjj;
         else
             % Part of Epstein-Zin is before taking expectation
             EVnextpre=V(:,:,jj+1);
             temp=EVnextpre;
             temp(isfinite(EVnextpre))=(ezc4*EVnextpre(isfinite(EVnextpre))).^ezc5(jj);
-            temp(EVnextpre==0)=0;
+            temp(EVnextpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
             % EVnext(aprime, z_from) = sum_{z_to} pi(z_from, z_to) * temp(aprime, z_to)
             EVnext=temp*pi_z_J(:,:,jj)'; % [N_a, N_z_from]
@@ -879,25 +873,24 @@ elseif N_z>0 && N_e==0
 
             temp4=EVnextOfPolicy;
             if warmglow==1
-                becareful=logical(isfinite(temp4).*isfinite(WGofPolicy)); % both are finite
+                becareful=logical((~(temp4==-Inf)).*isfinite(WGofPolicy)); % both are finite
                 temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGofPolicy(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EVnextOfPolicy==0)&(WGofPolicy==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+                temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
                 temp4(EVnextOfPolicy==0)=0;
             end
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+            becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=FofPolicy_jj;
             temp2(becareful)=FofPolicy_jj(becareful).^ezc2(jj);
-            temp2(FofPolicy_jj==0)=-Inf;
 
             Vjj=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-            temp5=logical(isfinite(Vjj).*(Vjj~=0));
+            Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             Vjj(temp5)=Vjj(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-            Vjj(Vjj==0)=-Inf;
 
             V(:,:,jj)=Vjj;
         end
@@ -944,15 +937,15 @@ elseif N_z>0 && N_e>0
             WGmatrix=WGmatrixraw;
             WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(jj);
             WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
+            WGmatrix(WGmatrixraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
             WGofPolicy=reshape(WGmatrix(optaprime),[N_a,N_z,N_e]);
         end
 
         if jj==N_j
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+            becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=FofPolicy_jj;
             temp2(becareful)=FofPolicy_jj(becareful).^ezc2(N_j);
-            temp2(FofPolicy_jj==0)=-Inf;
             if warmglow==1
                 % Compose the warm-glow INSIDE the ^ezc7 root (the interior-age composition with the EV term absent)
                 becareful2=(WGofPolicy==0);
@@ -962,16 +955,16 @@ elseif N_z>0 && N_e>0
             else
                 Vjj=ezc1*temp2;
             end
-            temp5=logical(isfinite(Vjj).*(Vjj~=0));
+            Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             Vjj(temp5)=Vjj(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-            Vjj(Vjj==0)=-Inf;
             V(:,:,:,jj)=Vjj;
         else
             % Part of Epstein-Zin is before taking expectation
             EVnextpre=V(:,:,:,jj+1);
             temp=EVnextpre;
             temp(isfinite(EVnextpre))=(ezc4*EVnextpre(isfinite(EVnextpre))).^ezc5(jj);
-            temp(EVnextpre==0)=0;
+            temp(EVnextpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
             % One certainty-equivalent over the joint distribution of (zprime,eprime):
             % expectation over the iid e first, then over zprime (mirrors the EZ VFI raws)
@@ -987,25 +980,24 @@ elseif N_z>0 && N_e>0
 
             temp4=EVnextOfPolicy;
             if warmglow==1
-                becareful=logical(isfinite(temp4).*isfinite(WGofPolicy)); % both are finite
+                becareful=logical((~(temp4==-Inf)).*isfinite(WGofPolicy)); % both are finite
                 temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGofPolicy(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EVnextOfPolicy==0)&(WGofPolicy==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+                temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
                 temp4(EVnextOfPolicy==0)=0;
             end
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(FofPolicy_jj).*(FofPolicy_jj~=0)); % finite but not zero
+            becareful=isfinite(FofPolicy_jj); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=FofPolicy_jj;
             temp2(becareful)=FofPolicy_jj(becareful).^ezc2(jj);
-            temp2(FofPolicy_jj==0)=-Inf;
 
             Vjj=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-            temp5=logical(isfinite(Vjj).*(Vjj~=0));
+            Vjj(isnan(Vjj))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(Vjj==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             Vjj(temp5)=Vjj(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-            Vjj(Vjj==0)=-Inf;
 
             V(:,:,:,jj)=Vjj;
         end

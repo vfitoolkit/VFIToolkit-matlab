@@ -63,6 +63,7 @@ if warmglow==1
     WGmatrix=WGmatrixraw;
     WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(N_j);
     WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
+    WGmatrix(WGmatrixraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
     %  Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -120,10 +121,9 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         if warmglow==1
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
+            becareful=isfinite(ReturnMatrix); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=ReturnMatrix;
             temp2(becareful)=ReturnMatrix(becareful).^ezc2(N_j);
-            temp2(ReturnMatrix==0)=-Inf;
 
             % Time to refine (warm-glow composes inside the ^ezc7 root: mirror the main loop with WGmatrix in place of temp4)
             % First: ReturnMatrix, we can refine out d1
@@ -133,7 +133,8 @@ if ~isfield(vfoptions,'V_Jplus1')
             % Now put together entireRHS, which just depends on d3
             entireRHS=shiftdim(ezc1*ezc9*temp2_onlyd3+DiscountFactorParamsVec*ezc9*temp4_onlyd3,1);
 
-            temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
+            entireRHS(isnan(entireRHS))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(entireRHS==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             entireRHS(temp5)=entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
 
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -145,9 +146,8 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(2,:,:,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in WGmatrix
         elseif warmglow==0
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
+            becareful=isfinite(ReturnMatrix); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             ReturnMatrix(becareful)=(ezc1*ReturnMatrix(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
-            ReturnMatrix(ReturnMatrix==0)=-Inf;
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -168,10 +168,9 @@ if ~isfield(vfoptions,'V_Jplus1')
 
             if warmglow==1
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
-                becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
+                becareful=isfinite(ReturnMatrix_z); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2=ReturnMatrix_z;
                 temp2(becareful)=ReturnMatrix_z(becareful).^ezc2(N_j);
-                temp2(ReturnMatrix_z==0)=-Inf;
 
                 % Time to refine (warm-glow composes inside the ^ezc7 root: mirror the main loop with WGmatrix in place of temp4)
                 % First: ReturnMatrix, we can refine out d1
@@ -181,7 +180,8 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % Now put together entireRHS, which just depends on d3
                 entireRHS=shiftdim(ezc1*ezc9*temp2_onlyd3+DiscountFactorParamsVec*ezc9*temp4_onlyd3,1);
 
-                temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
+                entireRHS(isnan(entireRHS))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(entireRHS==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 entireRHS(temp5)=entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
 
                 [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -193,9 +193,8 @@ if ~isfield(vfoptions,'V_Jplus1')
                 Policy(2,:,z_c,N_j)=shiftdim(d2index(maxindex),1); % note: no a nor z in WGmatrix
             elseif warmglow==0
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
-                becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
+                becareful=isfinite(ReturnMatrix_z); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 ReturnMatrix_z(becareful)=(ezc1*ReturnMatrix_z(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
-                ReturnMatrix_z(ReturnMatrix_z==0)=-Inf;
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
@@ -227,7 +226,7 @@ else
     % Part of Epstein-Zin is before taking expectation
     temp=V_Jplus1;
     temp(isfinite(V_Jplus1))=(ezc4*V_Jplus1(isfinite(V_Jplus1))).^ezc5(N_j);
-    temp(V_Jplus1==0)=0; % otherwise zero to negative power is set to infinity
+    temp(V_Jplus1==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
     if vfoptions.lowmemory==0
 
@@ -235,10 +234,9 @@ else
         % (d,aprime,a,z)
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
-        becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
+        becareful=isfinite(ReturnMatrix); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         temp2=ReturnMatrix;
         temp2(becareful)=ReturnMatrix(becareful).^ezc2(N_j);
-        temp2(ReturnMatrix==0)=-Inf;
 
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
@@ -268,11 +266,11 @@ else
         % Part of Epstein-Zin is after taking expectation
         temp4=EV;
         if warmglow==1
-            becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
+            becareful=logical((~(temp4==-Inf)).*isfinite(WGmatrix)); % both are finite
             temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrix(becareful).^ezc8(N_j)).^ezc6(N_j);
             temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
         else % not using warmglow
-            temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
+            temp4(~(temp4==-Inf))=(sj(N_j)*temp4(~(temp4==-Inf)).^ezc8(N_j)).^ezc6(N_j);
             temp4(EV==0)=0;
         end
 
@@ -285,7 +283,8 @@ else
         entireRHS=shiftdim(ezc1*ezc9*temp2_onlyd3+DiscountFactorParamsVec*ezc9*temp4_onlyd3,1);
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-        temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
+        entireRHS(isnan(entireRHS))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+        temp5=~(entireRHS==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
         entireRHS(temp5)=entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
 
         %Calc the max and it's index
@@ -303,10 +302,9 @@ else
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d13,n_a1], [n_a1,n_a2], special_n_z, d13a1_gridvals, a12_gridvals, z_val, ReturnFnParamsVec);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
+            becareful=isfinite(ReturnMatrix_z); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=ReturnMatrix_z;
             temp2(becareful)=ReturnMatrix_z(becareful).^ezc2(N_j);
-            temp2(ReturnMatrix_z==0)=-Inf;
 
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
@@ -334,11 +332,11 @@ else
             % Part of Epstein-Zin is after taking expectation
             temp4=EV_z;
             if warmglow==1
-                becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
+                becareful=logical((~(temp4==-Inf)).*isfinite(WGmatrix)); % both are finite
                 temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrix(becareful).^ezc8(N_j)).^ezc6(N_j);
                 temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
+                temp4(~(temp4==-Inf))=(sj(N_j)*temp4(~(temp4==-Inf)).^ezc8(N_j)).^ezc6(N_j);
                 temp4(EV_z==0)=0;
             end
 
@@ -351,7 +349,8 @@ else
             entireRHS_z=shiftdim(ezc1*ezc9*temp2_onlyd3+DiscountFactorParamsVec*ezc9*temp4_onlyd3,1);
             % entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-            temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
+            entireRHS_z(isnan(entireRHS_z))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(entireRHS_z==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             entireRHS_z(temp5)=entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
 
             %Calc the max and it's index
@@ -401,6 +400,7 @@ for reverse_j=1:N_j-1
         WGmatrix=WGmatrixraw;
         WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(jj);
         WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
+        WGmatrix(WGmatrixraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
         %  Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
 
         % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
@@ -432,7 +432,7 @@ for reverse_j=1:N_j-1
     % Part of Epstein-Zin is before taking expectation
     temp=EVpre;
     temp(isfinite(EVpre))=(ezc4*EVpre(isfinite(EVpre))).^ezc5(jj);
-    temp(EVpre==0)=0;
+    temp(EVpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
     if vfoptions.lowmemory==0
 
@@ -440,10 +440,9 @@ for reverse_j=1:N_j-1
         % (d,aprime,a,z)
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
-        becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
+        becareful=isfinite(ReturnMatrix); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         temp2=ReturnMatrix;
         temp2(becareful)=ReturnMatrix(becareful).^ezc2(jj);
-        temp2(ReturnMatrix==0)=-Inf;
 
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
@@ -473,11 +472,11 @@ for reverse_j=1:N_j-1
         % Part of Epstein-Zin is after taking expectation
         temp4=EV;
         if warmglow==1
-            becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
+            becareful=logical((~(temp4==-Inf)).*isfinite(WGmatrix)); % both are finite
             temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
             temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
         else % not using warmglow
-            temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+            temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
             temp4(EV==0)=0;
         end
 
@@ -490,7 +489,8 @@ for reverse_j=1:N_j-1
         entireRHS=shiftdim(ezc1*ezc9*temp2_onlyd3+DiscountFactorParamsVec*ezc9*temp4_onlyd3,1);
         % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-        temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
+        entireRHS(isnan(entireRHS))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+        temp5=~(entireRHS==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
         entireRHS(temp5)=entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
 
         %Calc the max and it's index
@@ -507,10 +507,9 @@ for reverse_j=1:N_j-1
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn, [n_d13,n_a1], [n_a1,n_a2], special_n_z, d13a1_gridvals, a12_gridvals, z_val, ReturnFnParamsVec);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
+            becareful=isfinite(ReturnMatrix_z); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2=ReturnMatrix_z;
             temp2(becareful)=ReturnMatrix_z(becareful).^ezc2(jj);
-            temp2(ReturnMatrix_z==0)=-Inf;
 
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
@@ -538,11 +537,11 @@ for reverse_j=1:N_j-1
             % Part of Epstein-Zin is after taking expectation
             temp4=EV_z;
             if warmglow==1
-                becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
+                becareful=logical((~(temp4==-Inf)).*isfinite(WGmatrix)); % both are finite
                 temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+                temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
                 temp4(EV_z==0)=0;
             end
 
@@ -555,7 +554,8 @@ for reverse_j=1:N_j-1
             entireRHS_z=shiftdim(ezc1*ezc9*temp2_onlyd3+DiscountFactorParamsVec*ezc9*temp4_onlyd3,1);
             % entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
-            temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
+            entireRHS_z(isnan(entireRHS_z))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(entireRHS_z==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             entireRHS_z(temp5)=entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
 
             %Calc the max and it's index

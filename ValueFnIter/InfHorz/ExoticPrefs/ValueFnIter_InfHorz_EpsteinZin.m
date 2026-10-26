@@ -120,6 +120,23 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 
 N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+
+%% Starting value for the iteration
+% A zero continuation is a genuine value under Epstein-Zin: with risk aversion above one the certainty
+% equivalent of a lottery that can give zero is zero (a catastrophe), and in consumption units with
+% EIS<1 a V of zero everywhere is a FIXED POINT of the aggregator. So the iteration cannot start from
+% the zeros that ValueFnIter_InfHorz supplies by default: it would never leave them. It starts instead
+% from the myopic value, the best return today with no continuation, (ezc1*max_{d,aprime} F^ezc2)^ezc7,
+% which is finite and nonzero at every state with a feasible choice. (Until 2026-10-27 the raws treated
+% V==0 as 'contributes nothing to the expectation', which made the zeros start work but mis-valued a
+% genuine zero, and treated a return of exactly zero as infeasible; see
+% EZ_feasibility_conventions_proposal.md at the toolkit root.)
+% A user-supplied vfoptions.V0 is used as given; zeros in it are catastrophes when ezc5<0, hence the warning.
+if vfoptions.actualV0==1 && ezc5<0 && any(V0(:)==0)
+    warning('vfoptions.V0 contains exact zeros. Under Epstein-Zin preferences (consumption units, or utility units with a positive-valued utility fn) a zero continuation value is a catastrophe (certainty equivalent zero), not an uninitialised entry; the iteration may not recover from it. Omit vfoptions.V0 to start from the myopic value instead.')
+end
 
 %%
 if vfoptions.lowmemory==0
@@ -129,6 +146,14 @@ if vfoptions.lowmemory==0
     % for speed, but it does use a lot of memory.
     ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals,ReturnFnParamsVec,0);
 
+    if vfoptions.actualV0==0
+        % The myopic start (see above): ezc1*F^ezc2 on the finite entries, then ^ezc7 on everything but -Inf, then the max over (d,aprime)
+        temp2=ReturnMatrix;
+        temp2(isfinite(ReturnMatrix))=ezc1*ReturnMatrix(isfinite(ReturnMatrix)).^ezc2;
+        temp2(~(temp2==-Inf))=temp2(~(temp2==-Inf)).^ezc7;
+        V0=reshape(max(temp2,[],1),[N_a,N_z]);
+    end
+
     if N_d==0
         [VKron,Policy]=ValueFnIter_InfHorz_EpsteinZin_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter, vfoptions.verbose, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
         Policy=shiftdim(Policy,-1);
@@ -137,6 +162,23 @@ if vfoptions.lowmemory==0
     end
 
 elseif vfoptions.lowmemory==1
+
+    if vfoptions.actualV0==0
+        % The myopic start (see above), one z at a time as the lowmemory raws build their return matrices
+        l_z=length(n_z);
+        V0=zeros(N_a,N_z,'gpuArray');
+        for z_c=1:N_z
+            if N_d==0
+                ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,0, n_a, ones(l_z,1),0, a_grid, z_gridvals(z_c,:),ReturnFnParamsVec,0);
+            else
+                ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,n_d, n_a, ones(l_z,1),d_gridvals, a_grid, z_gridvals(z_c,:),ReturnFnParamsVec,0);
+            end
+            temp2_z=ReturnMatrix_z;
+            temp2_z(isfinite(ReturnMatrix_z))=ezc1*ReturnMatrix_z(isfinite(ReturnMatrix_z)).^ezc2;
+            temp2_z(~(temp2_z==-Inf))=temp2_z(~(temp2_z==-Inf)).^ezc7;
+            V0(:,z_c)=reshape(max(temp2_z,[],1),[N_a,1]);
+        end
+    end
 
     if N_d==0
         [VKron,Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter, vfoptions.verbose, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);

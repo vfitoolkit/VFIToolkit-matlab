@@ -65,6 +65,7 @@ if warmglow==1
     WGmatrixfine=WGmatrixfineraw;
     WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(N_j);
     WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+    WGmatrixfine(WGmatrixfineraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
     if ~isfield(vfoptions,'V_Jplus1')
         becareful=(WGmatrixfine==0);
         % The warm-glow enters INSIDE the ^ezc7 root at the terminal age: build the
@@ -85,14 +86,12 @@ if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
-        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
-        waszero=(ReturnMatrix_ii==0);
+        becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
-        ReturnMatrix_ii(waszero)=-Inf;
         ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*WGmatrix; % warm-glow (zero if not using) % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
-        temp5=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0));
+        ReturnMatrix_ii(isnan(ReturnMatrix_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+        temp5=~(ReturnMatrix_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
         ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
-        ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
 
         % Calc the max and it's index
         [~,maxindex1]=max(ReturnMatrix_ii,[],1);
@@ -110,14 +109,12 @@ if ~isfield(vfoptions,'V_Jplus1')
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are maxgap(ii)+1-by-1-by-n_e
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
-                becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
-                waszero=(ReturnMatrix_ii==0);
+                becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
-                ReturnMatrix_ii(waszero)=-Inf;
                 ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*reshape(WGmatrix(aprimeindexes),[maxgap(ii)+1,1,N_e]); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
-                temp5=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0));
+                ReturnMatrix_ii(isnan(ReturnMatrix_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(ReturnMatrix_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
-                ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
                 [~,maxindex]=max(ReturnMatrix_ii,[],1);
                 midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
             else
@@ -132,15 +129,13 @@ if ~isfield(vfoptions,'V_Jplus1')
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         % aprime possibilities are n2long-by-n_a-by-n_e
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
-        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
-        waszero=(ReturnMatrix_ii==0);
+        becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         wasnegInf=(ReturnMatrix_ii==-Inf); % save raw -Inf pattern for the L2 flag (the in-place transform below overwrites ReturnMatrix_ii)
         ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
-        ReturnMatrix_ii(waszero)=-Inf;
         ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*reshape(WGmatrixfine(aprimeindexes),[n2long,N_a,N_e]); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
-        temp5=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0));
+        ReturnMatrix_ii(isnan(ReturnMatrix_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+        temp5=~(ReturnMatrix_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
         ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
-        ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
         [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
         V(:,:,N_j)=shiftdim(Vtempii,1);
         Policy(1,:,:,N_j)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
@@ -160,14 +155,12 @@ if ~isfield(vfoptions,'V_Jplus1')
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec,1);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
-            waszero=(ReturnMatrix_ii==0);
+            becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
-            ReturnMatrix_ii(waszero)=-Inf;
             ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*WGmatrix; % warm-glow (zero if not using) % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
-            temp5=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0));
+            ReturnMatrix_ii(isnan(ReturnMatrix_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(ReturnMatrix_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
-            ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
 
             % Calc the max and it's index
             [~,maxindex1]=max(ReturnMatrix_ii,[],1);
@@ -185,14 +178,12 @@ if ~isfield(vfoptions,'V_Jplus1')
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
                     % aprime possibilities are maxgap(ii)+1-by-1
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_val, ReturnFnParamsVec,2);
-                    becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
-                    waszero=(ReturnMatrix_ii==0);
+                    becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                     ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
-                    ReturnMatrix_ii(waszero)=-Inf;
                     ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*WGmatrix(aprimeindexes); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
-                    temp5=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0));
+                    ReturnMatrix_ii(isnan(ReturnMatrix_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                    temp5=~(ReturnMatrix_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                     ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
-                    ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
                     [~,maxindex]=max(ReturnMatrix_ii,[],1);
                     midpoints_jj(1,curraindex)=maxindex+(loweredge-1);
                 else
@@ -207,15 +198,13 @@ if ~isfield(vfoptions,'V_Jplus1')
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
             % aprime possibilities are n2long-by-n_a
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
-            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
-            waszero=(ReturnMatrix_ii==0);
+            becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             wasnegInf=(ReturnMatrix_ii==-Inf); % save raw -Inf pattern for the L2 flag (the in-place transform below overwrites ReturnMatrix_ii)
             ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
-            ReturnMatrix_ii(waszero)=-Inf;
             ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*reshape(WGmatrixfine(aprimeindexes),[n2long,N_a]); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
-            temp5=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0));
+            ReturnMatrix_ii(isnan(ReturnMatrix_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(ReturnMatrix_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
-            ReturnMatrix_ii(ReturnMatrix_ii==0)=-Inf;
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
             V(:,e_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,e_c,N_j)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
@@ -237,7 +226,7 @@ else
     % Part of Epstein-Zin is before taking expectation
     temp=V_Jplus1;
     temp(isfinite(V_Jplus1))=(ezc4*V_Jplus1(isfinite(V_Jplus1))).^ezc5(N_j);
-    temp(V_Jplus1==0)=0;
+    temp(V_Jplus1==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
     % Take expectation over e (e is iid, so this is the whole expectation)
     EV=sum(temp.*pi_e_J(1,:,N_j+1),2);
@@ -250,16 +239,16 @@ else
     temp4=EV;
     temp4interp=EVinterp;
     if warmglow==1
-        becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
+        becareful=logical((~(temp4==-Inf)).*isfinite(WGmatrix)); % both are finite
         temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrix(becareful).^ezc8(N_j)).^ezc6(N_j);
         temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
-        becareful=logical(isfinite(temp4interp).*isfinite(WGmatrixfine)); % both are finite
+        becareful=logical((~(temp4interp==-Inf)).*isfinite(WGmatrixfine)); % both are finite
         temp4interp(becareful)=(sj(N_j)*temp4interp(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrixfine(becareful).^ezc8(N_j)).^ezc6(N_j);
         temp4interp((EVinterp==0)&(WGmatrixfine==0))=0; % Is actually zero
     else % not using warmglow
-        temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
+        temp4(~(temp4==-Inf))=(sj(N_j)*temp4(~(temp4==-Inf)).^ezc8(N_j)).^ezc6(N_j);
         temp4(EV==0)=0;
-        temp4interp(isfinite(temp4interp))=(sj(N_j)*temp4interp(isfinite(temp4interp)).^ezc8(N_j)).^ezc6(N_j);
+        temp4interp(~(temp4interp==-Inf))=(sj(N_j)*temp4interp(~(temp4interp==-Inf)).^ezc8(N_j)).^ezc6(N_j);
         temp4interp(EVinterp==0)=0;
     end
 
@@ -268,14 +257,13 @@ else
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
-        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         temp2_ii=ReturnMatrix_ii;
         temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
-        temp2_ii(ReturnMatrix_ii==0)=-Inf;
         entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4;
-        temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+        entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+        temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
         entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-        entireRHS_ii(entireRHS_ii==0)=-Inf;
 
         %Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
@@ -293,14 +281,13 @@ else
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are maxgap(ii)+1-by-1-by-n_e
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
-                becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2_ii=ReturnMatrix_ii;
                 temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
-                temp2_ii(ReturnMatrix_ii==0)=-Inf;
                 entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4(reshape(aprimeindexes(:),[maxgap(ii)+1,1,N_e])); % autofill level1iidiff(ii) in the 2nd-dim
-                temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+                entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);
-                entireRHS_ii(entireRHS_ii==0)=-Inf;
                 [~,maxindex]=max(entireRHS_ii,[],1);
                 midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
             else
@@ -315,14 +302,13 @@ else
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         % aprime possibilities are n2long-by-n_a-by-n_e
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
-        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         temp2_ii=ReturnMatrix_ii;
         temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
-        temp2_ii(ReturnMatrix_ii==0)=-Inf;
         entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4interp(aprimeindexes(:)),[n2long,N_a,N_e]);
-        temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+        entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+        temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
         entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);
-        entireRHS_ii(entireRHS_ii==0)=-Inf;
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,:,N_j)=shiftdim(Vtempii,1);
         Policy(1,:,:,N_j)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
@@ -342,14 +328,13 @@ else
             % n-Monotonicity
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec,1);
 
-            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+            becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2_ii=ReturnMatrix_ii;
             temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
-            temp2_ii(ReturnMatrix_ii==0)=-Inf;
             entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4;
-            temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+            entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);
-            entireRHS_ii(entireRHS_ii==0)=-Inf;
 
             %Calc the max and it's index
             [~,maxindex1]=max(entireRHS_ii,[],1);
@@ -367,14 +352,13 @@ else
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
                     % aprime possibilities are maxgap(ii)+1-by-1
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_val, ReturnFnParamsVec,2);
-                    becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                    becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                     temp2_ii=ReturnMatrix_ii;
                     temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j);
-                    temp2_ii(ReturnMatrix_ii==0)=-Inf;
                     entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4(aprimeindexes(:)); % autofill level1iidiff(ii) in the 2nd-dim
-                    temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+                    entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                    temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                     entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(N_j);
-                    entireRHS_ii(entireRHS_ii==0)=-Inf;
                     [~,maxindex]=max(entireRHS_ii,[],1);
                     midpoints_jj(1,curraindex)=maxindex+(loweredge-1);
                 else
@@ -389,14 +373,13 @@ else
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
             % aprime possibilities are n2long-by-n_a
             ReturnMatrix_ii_e=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
-            becareful=logical(isfinite(ReturnMatrix_ii_e).*(ReturnMatrix_ii_e~=0)); % finite but not zero
+            becareful=isfinite(ReturnMatrix_ii_e); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2_ii=ReturnMatrix_ii_e;
             temp2_ii(becareful)=ReturnMatrix_ii_e(becareful).^ezc2(N_j);
-            temp2_ii(ReturnMatrix_ii_e==0)=-Inf;
             entireRHS_ii_e=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4interp(aprimeindexes(:)),[n2long,N_a]);
-            temp5=logical(isfinite(entireRHS_ii_e).*(entireRHS_ii_e~=0));
+            entireRHS_ii_e(isnan(entireRHS_ii_e))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(entireRHS_ii_e==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             entireRHS_ii_e(temp5)=entireRHS_ii_e(temp5).^ezc7(N_j);
-            entireRHS_ii_e(entireRHS_ii_e==0)=-Inf;
             [Vtempii,maxindexL2]=max(entireRHS_ii_e,[],1);
             V(:,e_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,e_c,N_j)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
@@ -440,6 +423,7 @@ for reverse_j=1:N_j-1
         WGmatrixfine=WGmatrixfineraw;
         WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(jj);
         WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+        WGmatrixfine(WGmatrixfineraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
         WGmatrix=WGmatrixfine(1:(n2short+1):end); % coarse-grid subset
         WGmatrix=WGmatrix(:); % column over the coarse aprime grid
     end
@@ -448,7 +432,7 @@ for reverse_j=1:N_j-1
     % Part of Epstein-Zin is before taking expectation
     temp=EVpre;
     temp(isfinite(EVpre))=(ezc4*EVpre(isfinite(EVpre))).^ezc5(jj);
-    temp(EVpre==0)=0;
+    temp(EVpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
 
     % Take expectation over e (e is iid, so this is the whole expectation)
     EV=sum(temp.*pi_e_J(1,:,jj+1),2);
@@ -461,16 +445,16 @@ for reverse_j=1:N_j-1
     temp4=EV;
     temp4interp=EVinterp;
     if warmglow==1
-        becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
+        becareful=logical((~(temp4==-Inf)).*isfinite(WGmatrix)); % both are finite
         temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
         temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
-        becareful=logical(isfinite(temp4interp).*isfinite(WGmatrixfine)); % both are finite
+        becareful=logical((~(temp4interp==-Inf)).*isfinite(WGmatrixfine)); % both are finite
         temp4interp(becareful)=(sj(jj)*temp4interp(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrixfine(becareful).^ezc8(jj)).^ezc6(jj);
         temp4interp((EVinterp==0)&(WGmatrixfine==0))=0; % Is actually zero
     else % not using warmglow
-        temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
+        temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
         temp4(EV==0)=0;
-        temp4interp(isfinite(temp4interp))=(sj(jj)*temp4interp(isfinite(temp4interp)).^ezc8(jj)).^ezc6(jj);
+        temp4interp(~(temp4interp==-Inf))=(sj(jj)*temp4interp(~(temp4interp==-Inf)).^ezc8(jj)).^ezc6(jj);
         temp4interp(EVinterp==0)=0;
     end
 
@@ -478,14 +462,13 @@ for reverse_j=1:N_j-1
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
-        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         temp2_ii=ReturnMatrix_ii;
         temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
-        temp2_ii(ReturnMatrix_ii==0)=-Inf;
         entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4;
-        temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+        entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+        temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
         entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-        entireRHS_ii(entireRHS_ii==0)=-Inf;
 
         % Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
@@ -503,14 +486,13 @@ for reverse_j=1:N_j-1
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are maxgap(ii)+1-by-1-by-n_e
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
-                becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2_ii=ReturnMatrix_ii;
                 temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
-                temp2_ii(ReturnMatrix_ii==0)=-Inf;
                 entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4(reshape(aprimeindexes(:),[maxgap(ii)+1,1,N_e])); % autofill level1iidiff(ii) in the 2nd-dim
-                temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+                entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                 entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
-                entireRHS_ii(entireRHS_ii==0)=-Inf;
                 [~,maxindex]=max(entireRHS_ii,[],1);
                 midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
             else % maxgap(ii)==0
@@ -525,14 +507,13 @@ for reverse_j=1:N_j-1
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         % aprime possibilities are n2long-by-n_a-by-n_e
         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,n_e,aprime_grid(aprimeindexes),a_grid,e_gridvals_J(:,:,jj),ReturnFnParamsVec,2);
-        becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+        becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         temp2_ii=ReturnMatrix_ii;
         temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
-        temp2_ii(ReturnMatrix_ii==0)=-Inf;
         entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4interp(aprimeindexes(:)),[n2long,N_a,N_e]);
-        temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+        entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+        temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
         entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
-        entireRHS_ii(entireRHS_ii==0)=-Inf;
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,:,jj)=shiftdim(Vtempii,1);
         Policy(1,:,:,jj)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
@@ -551,14 +532,13 @@ for reverse_j=1:N_j-1
             % n-Monotonicity
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec,1);
 
-            becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+            becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2_ii=ReturnMatrix_ii;
             temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
-            temp2_ii(ReturnMatrix_ii==0)=-Inf;
             entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4;
-            temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+            entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
-            entireRHS_ii(entireRHS_ii==0)=-Inf;
 
             % Calc the max and it's index
             [~,maxindex1]=max(entireRHS_ii,[],1);
@@ -576,14 +556,13 @@ for reverse_j=1:N_j-1
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
                     % aprime possibilities are maxgap(ii)+1-by-1
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn, special_n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_val, ReturnFnParamsVec,2);
-                    becareful=logical(isfinite(ReturnMatrix_ii).*(ReturnMatrix_ii~=0)); % finite but not zero
+                    becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                     temp2_ii=ReturnMatrix_ii;
                     temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
-                    temp2_ii(ReturnMatrix_ii==0)=-Inf;
                     entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4(aprimeindexes(:));  % autofill level1iidiff(ii) in the 2nd-dim
-                    temp5=logical(isfinite(entireRHS_ii).*(entireRHS_ii~=0));
+                    entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+                    temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
                     entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
-                    entireRHS_ii(entireRHS_ii==0)=-Inf;
                     [~,maxindex]=max(entireRHS_ii,[],1);
                     midpoints_jj(1,curraindex)=maxindex+(loweredge-1);
                 else % maxgap(ii)==0
@@ -598,14 +577,13 @@ for reverse_j=1:N_j-1
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
             % aprime possibilities are n2long-by-n_a
             ReturnMatrix_ii_e=CreateReturnFnMatrix_Disc_DC1_nod(ReturnFn,special_n_e,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);
-            becareful=logical(isfinite(ReturnMatrix_ii_e).*(ReturnMatrix_ii_e~=0)); % finite but not zero
+            becareful=isfinite(ReturnMatrix_ii_e); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2_ii=ReturnMatrix_ii_e;
             temp2_ii(becareful)=ReturnMatrix_ii_e(becareful).^ezc2(jj);
-            temp2_ii(ReturnMatrix_ii_e==0)=-Inf;
             entireRHS_ii_e=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4interp(aprimeindexes(:)),[n2long,N_a]);
-            temp5=logical(isfinite(entireRHS_ii_e).*(entireRHS_ii_e~=0));
+            entireRHS_ii_e(isnan(entireRHS_ii_e))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(entireRHS_ii_e==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             entireRHS_ii_e(temp5)=entireRHS_ii_e(temp5).^ezc7(jj);
-            entireRHS_ii_e(entireRHS_ii_e==0)=-Inf;
             [Vtempii,maxindexL2]=max(entireRHS_ii_e,[],1);
             V(:,e_c,jj)=shiftdim(Vtempii,1);
             Policy(1,:,e_c,jj)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
