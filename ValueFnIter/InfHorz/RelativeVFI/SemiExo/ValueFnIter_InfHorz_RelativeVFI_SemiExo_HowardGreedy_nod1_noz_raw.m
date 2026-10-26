@@ -57,12 +57,32 @@ while currdist>Tolerance && tempcounter<=maxiter
         EVindex=Policy_aprime+EVcolindex; % [N_a*N_semiz,N_semiz], index for (aprime,semizprime) in V
         Pdz=pi_semiz(Pindex+N_semiz*N_semiz*(Policy_d2-1)); % [N_a*N_semiz,N_semiz], pi_semiz(semiz,semizprime,d2) at the optimal d2
 
-        if any(~isfinite(Ftemp))
-            error("Howards-greedy doesn't work for non-finite return values; rerun with `vfoptions.howardsgreedy=0;`")
-        end
         T_E=sparse(repmat(stateind,1,N_semiz),EVindex,Pdz,N_a*N_semiz,N_a*N_semiz); % row (a,semiz) to column (aprime,semizprime)
 
-        VKron=(spI-DiscountFactorParamsVec*T_E)\Ftemp;
+        % Greedy Howards with -Inf in V: a direct solve is global, so one -Inf in Ftemp gives NaN everywhere, and a finite Ftemp at a
+        % state whose policy puts positive weight on a dead state gives a finite V where the truth is -Inf. So solve on the live states
+        % only: a state is dead if V is -Inf there or if its policy puts positive weight on a dead state (the closure under T_E);
+        % (I-beta*T_E) is block triangular in live-then-dead order, so the live block solves exactly on its own and V is -Inf on the
+        % dead set. (CoreInfHorzVFIAlgoTests doPart(11); InfHorzGI_InfNaN_proposal.md, section 8)
+        dead=(VKron(:)==-Inf);
+        if any(dead)
+            newdead=dead;
+            while any(newdead)
+                newdead=(T_E*double(dead)>0) & ~dead;
+                dead=dead | newdead;
+            end
+            live=~dead;
+            N_live=gather(sum(live));
+            livemap=cumsum(live);
+            [T_Erow,T_Ecol,T_Eval]=find(T_E);
+            keep=live(T_Erow) & live(T_Ecol); % a live row has no positive weight on a dead column, so this is just the live rows
+            T_E=sparse(livemap(T_Erow(keep)),livemap(T_Ecol(keep)),T_Eval(keep),N_live,N_live);
+            VKrontemp=-Inf(numel(Ftemp),1,'gpuArray');
+            VKrontemp(live)=(gpuArray.speye(N_live)-DiscountFactorParamsVec*T_E)\Ftemp(live);
+            VKron=VKrontemp;
+        else
+            VKron=(spI-DiscountFactorParamsVec*T_E)\Ftemp;
+        end
         VKron=reshape(VKron,[N_a,N_semiz]);
     end
 
