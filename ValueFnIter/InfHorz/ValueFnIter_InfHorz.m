@@ -176,7 +176,8 @@ end
 % (beta from 0.9 to 0.995, with and without d, with and without the grid interpolation layer, n_z of 7, 21 and 75): the
 % best plain VFI over the best endogenous VFI had a median of 0.96 at beta=0.9, 1.15 at 0.95, 1.42 at 0.97, 2.32 at 0.99
 % and 4.02 at 0.995, and never fell below 1 from beta=0.97. So endogenous VFI is the default from beta=0.97, wherever it
-% is implemented (the same list as is refused below when it is asked for explicitly).
+% is implemented (the same list as is refused below when it is asked for explicitly). That includes Naive quasi-hyperbolic,
+% whose continuation value is a standard exponential-discounting VFI (beta, without beta0), solved before its one QH step.
 % The best number of Howards steps for plain VFI grows like 1/(1-beta) (about 20 at beta=0.9, 40 at 0.95, 160-640 at
 % 0.99), for indexed and sparse Howards alike, and round(2/(1-beta)) was within 9% of the best on average below 0.97.
 % For endogenous VFI it barely depends on beta: 40 with indexed Howards, and 80 with sparse Howards (40 and 80 tie on
@@ -189,7 +190,9 @@ if ~isfield(vfoptions,'endogenousvfi') || ~isfield(vfoptions,'howards')
     end
     if ~isfield(vfoptions,'endogenousvfi')
         vfoptions.endogenousvfi=0;
-        if betadefault>=0.97 && vfoptions.parallel==2 && ~(isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None'))) ...
+        if betadefault>=0.97 && vfoptions.parallel==2 ...
+                && (~isfield(vfoptions,'exoticpreferences') || isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None') ...
+                    || (strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic') && (~isfield(vfoptions,'quasi_hyperbolic') || strcmp(vfoptions.quasi_hyperbolic,'Naive')))) ...
                 && vfoptions.endogenousexit==0 && vfoptions.divideandconquer~=2 && vfoptions.separableReturnFn==0 && vfoptions.experienceasset==0 ...
                 && vfoptions.inheritanceasset==0 && ~isfield(vfoptions,'SemiEndogShockFn') && ~any(vfoptions.incrementaltype==1) ...
                 && any(strcmp(vfoptions.solnmethod,{'purediscretization','purediscretization_refinement'}))
@@ -308,8 +311,10 @@ end
 if vfoptions.endogenousvfi==1
     if vfoptions.parallel<2
         error('vfoptions.endogenousvfi=1 is only implemented on the GPU (vfoptions.parallel=2)')
-    elseif isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None'))
-        error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.exoticpreferences (the Bellman operator is not additive in V, so endogenous VFI does not apply)')
+    elseif isfield(vfoptions,'exoticpreferences') && ~(isequal(vfoptions.exoticpreferences,0) || strcmp(vfoptions.exoticpreferences,'None')) ...
+            && ~(strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic') && (~isfield(vfoptions,'quasi_hyperbolic') || strcmp(vfoptions.quasi_hyperbolic,'Naive')))
+        % Naive quasi-hyperbolic is fine: its continuation value is a standard exponential-discounting VFI, and endogenous VFI is used for that
+        error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.exoticpreferences, other than Naive quasi-hyperbolic (the Bellman operator is not additive in V, so endogenous VFI does not apply)')
     elseif vfoptions.endogenousexit>=1
         error('vfoptions.endogenousvfi=1 cannot be used with vfoptions.endogenousexit (the exit value does not shift with V, so endogenous VFI does not apply)')
     elseif vfoptions.divideandconquer==2

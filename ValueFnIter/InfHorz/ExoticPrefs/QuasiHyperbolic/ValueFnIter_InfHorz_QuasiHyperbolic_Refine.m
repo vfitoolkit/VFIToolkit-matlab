@@ -19,12 +19,24 @@ ReturnMatrix=shiftdim(ReturnMatrix, 1);
 if isNaive
     % First: standard exponential-discounting VFI to get V_std and Policyalt_a
     if vfoptions.howardsgreedy==1
-        [ValtKron, Policyalt_a]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        if vfoptions.endogenousvfi==0
+            [ValtKron, Policyalt_a]=ValueFnIter_InfHorz_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        else % endogenous VFI (relative VFI when there is no z)
+            [ValtKron, Policyalt_a]=ValueFnIter_InfHorz_EndogenousVFI_HowardGreedy_nod_raw(V0, N_a, N_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+        end
     else
         if vfoptions.howardssparse==0
-            [ValtKron, Policyalt_a]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [ValtKron, Policyalt_a]=ValueFnIter_InfHorz_nod_raw(V0, N_a, N_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [ValtKron, Policyalt_a]=ValueFnIter_InfHorz_EndogenousVFI_nod_raw(V0, N_a, N_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         elseif vfoptions.howardssparse==1
-            [ValtKron, Policyalt_a]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [ValtKron, Policyalt_a]=ValueFnIter_InfHorz_sparse_nod_raw(V0, N_a, N_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [ValtKron, Policyalt_a]=ValueFnIter_InfHorz_EndogenousVFI_sparse_nod_raw(V0, N_a, N_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
         end
     end
     % Then: one QH-Naive step

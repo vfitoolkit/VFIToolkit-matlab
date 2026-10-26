@@ -236,13 +236,21 @@ else
             % and uses them directly in a colon expression. Passing n_a,n_z here was harmless only
             % because a single endogenous state and a single z make them scalars already; with a
             % two-dimensional z it reaches '0:1:N_z-1' as a vector and errors.
-            [Valt,Policyalt]=ValueFnIter_InfHorz_nod_raw(V0, prod(n_a), prod(n_z), pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [Valt,Policyalt]=ValueFnIter_InfHorz_nod_raw(V0, prod(n_a), prod(n_z), pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [Valt,Policyalt]=ValueFnIter_InfHorz_EndogenousVFI_nod_raw(V0, prod(n_a), prod(n_z), pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            end
             % Then the Naive quasi-hyperbolic from this
             [V,Policy]=ValueFnIter_InfHorz_QuasiHyperbolicN_nod_raw(Valt, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix);
             Policy=shiftdim(Policy,-1);
         else
             % First calculate the exponential discounting solution
-            [Valt, Policyalt]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+            if vfoptions.endogenousvfi==0
+                [Valt, Policyalt]=ValueFnIter_InfHorz_raw(V0, n_d,n_a,n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+            else % endogenous VFI (relative VFI when there is no z)
+                [Valt, Policyalt]=ValueFnIter_InfHorz_EndogenousVFI_raw(V0, n_d,n_a,n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+            end
             % Then the Naive quasi-hyperbolic from this
             [V, Policy]=ValueFnIter_InfHorz_QuasiHyperbolicN_raw(Valt, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix);
         end
