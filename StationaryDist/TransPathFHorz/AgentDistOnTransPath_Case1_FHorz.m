@@ -281,17 +281,21 @@ if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
         if N_z==0
             error('experienceassetz requires a markov shock z (the aprimeFn depends on z); cannot use experienceassetz without z')
         end
-        if transpathoptions.zpathtrivial==0
-            error('experienceassetz with z varying over the transition path is not yet implemented for AgentDistOnTransPath (email me if you want this)')
-        end
         if ~isfield(simoptions,'z_grid')
             error('To use experienceassetz you must provide simoptions.z_grid (needed to evaluate the aprimeFn)')
         end
+        % The z grid in every period, as the aprimeFn is evaluated on it. simoptions.z_grid may vary over the path (a T
+        % dimension, or an ExogShockFn that depends on a ParamPath parameter), so use the transition-path shock setup,
+        % for the grid only and in the fastOLG=0 form. (The setup above was given z_grid=[], as the agent dist only
+        % needs pi_z, so its zpathtrivial says nothing about the grid.)
         tempoptions=struct(); % minimal options: we only want z_gridvals_J (gridpiboth=1 skips pi_z, and no n_e field means e is skipped)
+        tempoptions.fastOLG=0;
         if isfield(simoptions,'ExogShockFn')
             tempoptions.ExogShockFn=simoptions.ExogShockFn;
         end
-        [z_gridvals_J_expassetz,~,~]=ExogShockSetup_FHorz(n_z,simoptions.z_grid,pi_z,N_j,Parameters,tempoptions,1,0); % [N_z,l_z,N_j]
+        temptranspathoptions=transpathoptions;
+        temptranspathoptions.fastOLG=0;
+        [z_gridvals_J_expassetz,~,~,~,~,~,~,transpathoptions_expassetz]=ExogShockSetup_FHorz_TPath(n_z,simoptions.z_grid,[],N_a,N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,temptranspathoptions,tempoptions,1); % [N_z,l_z,N_j], the period-1 grid when it varies
     else
         if length(temp)>(l_d2+l_a2)
             aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
@@ -306,6 +310,13 @@ if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
         a2primeIndexesPath=zeros(N_a,N_j-1,T,'gpuArray');
         a2primeProbsPath=zeros(N_a,N_j-1,T,'gpuArray');
         for tt=1:T
+            % the aprimeFn parameters in this period (they can be on the price or parameter path)
+            for kk=1:length(PricePathNames)
+                Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            end
+            for kk=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            end
             aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
             % [N_j,number of params]
 
@@ -319,10 +330,20 @@ if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
         a2primeIndexesPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
         a2primeProbsPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
         for tt=1:T
+            % the aprimeFn parameters in this period (they can be on the price or parameter path)
+            for kk=1:length(PricePathNames)
+                Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            end
+            for kk=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            end
             aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
             % [N_j,number of params]
 
             if simoptions.experienceassetz>=1
+                if transpathoptions_expassetz.zpathtrivial==0
+                    z_gridvals_J_expassetz=transpathoptions_expassetz.z_gridvals_J_T(:,:,:,tt); % this period's z grid [N_z,l_z,N_j]
+                end
                 [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetz_J(PolicyPath(:,:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, n_z, 0,N_z,N_e, N_j, simoptions.d_grid, a2_grid, z_gridvals_J_expassetz, aprimeFnParamsVec,0);
             else
                 [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);

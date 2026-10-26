@@ -45,7 +45,7 @@ end
 
 %% Modify PolicyIndexesPath into forms needed for forward iteration
 if N_semiz==0
-    [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath,T,Parameters,n_d,n_a,n_z,n_e,N_j,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+    [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath,T,Parameters,PricePathOld,PricePathNames,PricePathSizeVec,ParamPath,ParamPathNames,ParamPathSizeVec,n_d,n_a,n_z,n_e,N_j,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
 else
     [Policy_dsemiexoPath,Policy_aprimePath,PolicyProbsPath,PolicyValuesPath]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy_SemiExo(PolicyIndexesPath,T,n_d,n_a,n_z,n_e,N_j,N_a,N_z,N_e,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
 end

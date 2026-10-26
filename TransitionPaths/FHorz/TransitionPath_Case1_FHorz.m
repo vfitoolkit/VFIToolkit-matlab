@@ -413,9 +413,21 @@ end
 
 
 %% If using any non-standard endogenous states, setup for those
-[vfoptions,simoptions]=SetupNonStandardEndoStates_FHorz_TPath(n_d,n_a,d_grid,a_grid,vfoptions,simoptions,n_z,z_grid,N_j,Parameters);
+% experienceassetz evaluates the aprimeFn on z. When z varies over the path, the setup is given the period-1 grid in
+% the standard joint form [N_z,l_z,N_j] (it builds the grid with the stationary shock setup, which cannot read a
+% grid with a T dimension), and Step2 then uses each period's grid from setup_experienceasset.z_gridvals_J_T
+z_grid_expassetz=z_grid;
 if vfoptions.experienceassetz>=1 && transpathoptions.zpathtrivial==0
-    error('experienceassetz with z varying over the transition path is not yet implemented (email me if you want this)')
+    if transpathoptions.fastOLG==1
+        z_gridvals_J_T_expassetz=permute(transpathoptions.z_gridvals_J_T,[2,3,1,4]); % [N_j,N_z,l_z,T] -> [N_z,l_z,N_j,T]
+    else
+        z_gridvals_J_T_expassetz=transpathoptions.z_gridvals_J_T; % [N_z,l_z,N_j,T]
+    end
+    z_grid_expassetz=z_gridvals_J_T_expassetz(:,:,:,1);
+end
+[vfoptions,simoptions]=SetupNonStandardEndoStates_FHorz_TPath(n_d,n_a,d_grid,a_grid,vfoptions,simoptions,n_z,z_grid_expassetz,N_j,Parameters);
+if vfoptions.experienceassetz>=1 && transpathoptions.zpathtrivial==0
+    simoptions.setup_experienceasset.z_gridvals_J_T=z_gridvals_J_T_expassetz; % [N_z,l_z,N_j,T], read period by period in Step2
 end
 
 

@@ -93,7 +93,7 @@ else
     [~,Policy_ss]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V_final,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Psteady, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 end
 PolicyIndexesPath1(:,:,:,:,1)=Policy_ss;
-[PolicyForDist_ss,PolicyProbs_ss,PolicyValues_ss]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath1,2,Psteady,n_d,n_a,n_z,0,N_j,l_d,l_aprime,N_a,N_z,0,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+[PolicyForDist_ss,PolicyProbs_ss,PolicyValues_ss]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath1,2,Psteady,[],{},[],[],{},[],n_d,n_a,n_z,0,N_j,l_d,l_aprime,N_a,N_z,0,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
 
 % Steady-state agent distribution. With a finite horizon the whole population is replaced within N_j
 % periods, so N_j steps of the steady-state policy from any starting distribution give the stationary one
@@ -193,9 +193,9 @@ for ip=1:nP
         end
 
         PolicyIndexesPath1(:,:,:,:,1)=Policyb;
-        [PolicyForDistb,PolicyProbsb,PolicyValuesb]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath1,2,Psteady,n_d,n_a,n_z,0,N_j,l_d,l_aprime,N_a,N_z,0,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+        [PolicyForDistb,PolicyProbsb,PolicyValuesb]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath1,2,Psteady,[],{},[],[],{},[],n_d,n_a,n_z,0,N_j,l_d,l_aprime,N_a,N_z,0,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
         PolicyIndexesPath1(:,:,:,:,1)=Policyp;
-        [PolicyForDistp,PolicyProbsp,PolicyValuesp]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath1,2,Pp,n_d,n_a,n_z,0,N_j,l_d,l_aprime,N_a,N_z,0,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+        [PolicyForDistp,PolicyProbsp,PolicyValuesp]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath1,2,Pp,[],{},[],[],{},[],n_d,n_a,n_z,0,N_j,l_d,l_aprime,N_a,N_z,0,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
 
         % curlyY: the aggregates at date 0, with the distribution held at the steady state
         AggVarsb=TransitionPath_FHorz_substeps_Step4tt_AggVars(D_ss,AgeWeightsSS,PolicyValuesb(:,:,:,:,1),1,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Psteady,N_j,l_d,l_aprime,l_a,0,l_z,0,N_d,N_a,0,N_z,0,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions);

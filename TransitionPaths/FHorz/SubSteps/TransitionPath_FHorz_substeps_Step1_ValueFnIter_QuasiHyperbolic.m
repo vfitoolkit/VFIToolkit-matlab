@@ -157,7 +157,7 @@ elseif transpathoptions.fastOLG==1
 
             if transpathoptions.zpathtrivial==0
                 pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
-                z_gridvals_J=transpathoptions.z_gridvals_J(:,:,T-ttr);
+                z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr); % [N_j,N_z,l_z,T] (this read transpathoptions.z_gridvals_J(:,:,T-ttr), which does not exist)
             end
             if transpathoptions.epathtrivial==0
                 pi_e_J=transpathoptions.pi_e_J_T(:,1,:,T-ttr);
