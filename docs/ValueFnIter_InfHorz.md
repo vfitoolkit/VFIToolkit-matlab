@@ -83,7 +83,7 @@ The function reads the following fields from `vfoptions`. All are optional unles
 | `lowmemory` | `0` | If `>0`, use more loops and less parallelisation to reduce memory at the cost of speed. |
 | `endogenousvfi` | `1` if `beta>=0.97` (where implemented), else `0` | If `1`, use endogenous value function iteration (Bray, 2019): the same iterations, but convergence is judged on the change in `V` within each exogenous state (net of any function of the exogenous states, which does not affect the policy), and `V` is then recovered in levels. Without `z` this is relative value function iteration. Works with and without the grid interpolation layer and with semi-exogenous states. GPU only; not for exotic preferences or endogenous exit. Default on from `beta>=0.97` (product of the discount factors), where it was 1.4x to 5x faster than plain VFI with the best number of Howards steps. |
 | **Howards improvement** | | |
-| `howardsgreedy` | `0` | `0` for iterated Howards (modified policy-function iteration), `1` for greedy Howards (policy-function iteration). Greedy is faster for small models but cannot handle `V` taking `-Inf`, and is incompatible with `gridinterplayer=1`. |
+| `howardsgreedy` | `0` | `0` for iterated Howards (modified policy-function iteration), `1` for greedy Howards (policy-function iteration). Greedy is faster for small models. With `gridinterplayer=1`, `2` and `3` are the two HowardMix variants (one endogenous state, no `e`, no semi-exogenous state). Where `V` is `-Inf`, greedy solves the policy-evaluation system on the states that can avoid `-Inf` and sets `V=-Inf` on the rest. |
 | `howards` | depends on `beta` | Number of Howards iterations per Bellman step (when `howardsgreedy=0`). With endogenous VFI, `40` (indexed) or `80` (sparse); otherwise `round(2/(1-beta))`, clipped to `[20,640]`. Based on the timings in CoreInfHorzVFIAlgoTests. |
 | `maxhowards` | `500` | Turn Howards off after this many outer iterations (safety guard against bad convergence). |
 | `howardssparse` | auto | If `1`, do Howards iteration using a sparse matrix (rather than indexing). Default is `1` with the grid interpolation layer (postGI; preGI has no sparse version, so `0`), and without it `1` when `N_z>=50` and `N_a>=500`, else `0` (what sparse buys scales with the mixing over `z`; it was a tie at `n_z` of 25 or less). |
@@ -132,7 +132,7 @@ See [Heterogeneous Firm Entry and Exit Models](https://www.vfitoolkit.com/update
 - CPU mode (`vfoptions.parallel<2`) supports only the basic case via a dedicated `ValueFnIter_InfHorz_CPU` routine: no refinement, no exotic preferences, only the standard endogenous state.
 - The default solver path is refinement (`purediscretization_refinement`) when `n_d>0`. With `n_d=0`, the solver automatically falls back to `purediscretization`.
 - Internally, exogenous grids are reshaped into joint-grid form (`z_gridvals`, and `e_gridvals`/`pi_e` when used). This is done by `ExogShockSetup_InfHorz` (and `SemiExogShockSetup_InfHorz` for semi-exogenous setups).
-- For Howards improvement, choose between iterated (`howardsgreedy=0`, more robust to `-Inf` values) and greedy (`howardsgreedy=1`, faster on small models). The `howardssparse` toggle becomes worthwhile only on larger state spaces.
+- For Howards improvement, choose between iterated (`howardsgreedy=0`) and greedy (`howardsgreedy=1`, faster on small models); both handle `V` taking `-Inf`. The `howardssparse` toggle becomes worthwhile only on larger state spaces.
 
 ## Source
 
