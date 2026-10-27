@@ -1,0 +1,262 @@
+function [VKron,Policy]=ValueFnIter_InfHorz_EpsteinZin_Refine_postGI_raw(VKron,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,DiscountFactorParamsVec,ReturnFnParams,vfoptions, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+% Epstein-Zin preferences, infinite horizon, grid interpolation layer (postGI), with a decision variable.
+% The structure is ValueFnIter_InfHorz_Refine_postGI_raw: d is refined out of the RAW return
+% function first (d*(aprime,a,z) maximises F; the Epstein-Zin right-hand side
+% (ezc1*F^ezc2+C)^ezc7 is increasing in F for every sign case, with C independent of d, so the d
+% that maximises F maximises the Epstein-Zin objective too, and -Inf loses to any finite F), after
+% which everything is ValueFnIter_InfHorz_EpsteinZin_postGI_nod_raw on the refined matrices. Read
+% that file's header for the Epstein-Zin and -Inf conventions; they are identical here.
+% When using refinement, lowmemory is implemented in the first stage (return fn) but not the second (the actual iteration).
+
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+
+n_da=[n_d,n_a];
+da_gridvals=[repmat(d_gridvals,N_a,1),repelem(a_grid,N_d,1)]; % only one aprime
+
+%% Refinement: calculate ReturnMatrix and 'remove' the d dimension
+if vfoptions.lowmemory==0
+    ReturnMatrixraw=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_da, n_a, n_z, da_gridvals, a_grid, z_gridvals, ReturnFnParams);
+    ReturnMatrixraw=reshape(ReturnMatrixraw,[N_d,N_a,N_a,N_z]);
+    % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
+    [ReturnMatrix,~]=max(ReturnMatrixraw,[],1);
+    ReturnMatrix=shiftdim(ReturnMatrix,1); % 'refined' return matrix
+elseif vfoptions.lowmemory==1 % loop over z
+    ReturnMatrix=zeros(N_a,N_a,N_z,'gpuArray'); % 'refined' return matrix
+    l_z=length(n_z);
+    special_n_z=ones(1,l_z);
+    for z_c=1:N_z
+        zvals=z_gridvals(z_c,:);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc(ReturnFn,n_da, n_a, special_n_z, da_gridvals, a_grid, zvals, ReturnFnParams);
+        ReturnMatrix_z=reshape(ReturnMatrix_z,[N_d,N_a,N_a]);
+        [ReturnMatrix_z,~]=max(ReturnMatrix_z,[],1);  % solve for dstar
+        ReturnMatrix(:,:,z_c)=shiftdim(ReturnMatrix_z,1);
+    end
+end
+% Modify the (refined) Return Function appropriately for Epstein-Zin Preferences (aprime-by-a-by-z)
+becareful=isfinite(ReturnMatrix); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
+temp2=ReturnMatrix;
+temp2(becareful)=ReturnMatrix(becareful).^ezc2;
+
+pi_z_alt=shiftdim(pi_z',-1);
+pi_z_howards=repelem(pi_z,N_a,1);
+addindexforaz=gpuArray(N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1));
+
+DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
+% Progress print for vfoptions.verbose (the fine-grid loop only; the coarse loop is a pre-solve)
+distvstolstr=['ValueFnIter (Epstein-Zin, postGI): after %i iterations the dist is %4.',num2str(-round(log10(vfoptions.tolerance))),'f \n'];
+
+%% First, just consider a_grid for next period
+tempcounter=1;
+currdist=1;
+while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=vfoptions.maxiter
+    VKronold=VKron;
+
+    % Part of Epstein-Zin is before taking expectation
+    temp=VKronold;
+    temp(isfinite(VKronold))=(ezc4*VKronold(isfinite(VKronold))).^ezc5;
+    temp(VKronold==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
+
+    % Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=temp.*pi_z_alt;
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
+    EV=sum(EV,2); % sum over z', leaving a singular second dimension: aprime-by-1-by-z
+
+    temp4=EV;
+    temp4(~(temp4==-Inf))=temp4(~(temp4==-Inf)).^ezc6;
+    temp4(EV==0)=0;
+
+    entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; % aprime by a by z
+    entireRHS(isnan(entireRHS))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+    temp5=~(entireRHS==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
+    entireRHS(temp5)=entireRHS(temp5).^ezc7;
+
+    % Calc the max and it's index
+    [VKron,Policy_a]=max(entireRHS,[],1);
+    VKron=shiftdim(VKron,1); % a by z
+
+    VKrondist=VKron(:)-VKronold(:);
+    VKrondist(isnan(VKrondist))=0;
+    currdist=max(abs(VKrondist));
+
+    % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
+    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
+        tempmaxindex=shiftdim(Policy_a,1)+addindexforaz; % aprime index, add the index for a and z
+        Ftemp=reshape(temp2(tempmaxindex),[N_a,N_z]); % the EZ-transformed return of the optimal policy, for Howards
+        Policy_a=Policy_a(:); % a by z (this shape is just convenient for Howards)
+        for Howards_counter=1:vfoptions.howards
+            temp=VKron;
+            temp(isfinite(VKron))=(ezc4*VKron(isfinite(VKron))).^ezc5;
+            temp(VKron==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
+            EVKrontemp=temp(Policy_a,:);
+            EVKrontemp=EVKrontemp.*pi_z_howards;
+            EVKrontemp(isnan(EVKrontemp))=0;
+            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+            temp4=EVKrontemp;
+            temp4(~(temp4==-Inf))=temp4(~(temp4==-Inf)).^ezc6;
+            temp4(EVKrontemp==0)=0;
+            VKron=ezc1*Ftemp+ezc3*DiscountFactorParamsVec*temp4;
+            VKron(isnan(VKron))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(VKron==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
+            VKron(temp5)=VKron(temp5).^ezc7;
+        end
+    end
+
+    tempcounter=tempcounter+1;
+end
+Policy_a=reshape(Policy_a,[1,N_a,N_z]); % Howards can mess with the size
+
+%% Now that we have solved on the rough grid, we re-solve on the fine grid
+n_aprimediff=1+2*vfoptions.maxaprimediff;
+N_aprimediff=prod(n_aprimediff);
+aprimeshifter=min(max(Policy_a,1+vfoptions.maxaprimediff),N_a-vfoptions.maxaprimediff);
+aprimeindex=(-vfoptions.maxaprimediff:1:vfoptions.maxaprimediff)' +aprimeshifter; % size n_aprime-by-n_a
+aprime_grid=a_grid(aprimeindex);
+% Second, interpolate this
+n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
+n_aprime=n_aprimediff+(n_aprimediff-1)*vfoptions.ngridinterp;
+N_aprime=prod(n_aprime);
+aprime_grid=interp1((1:1:N_aprimediff)',aprime_grid,linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)');
+% Note: aprime_grid is N_aprime-by-N_a-by-N_z
+if vfoptions.lowmemory==0
+    ReturnMatrixfine=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, aprime_grid, a_grid, z_gridvals, ReturnFnParams,1);
+    % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
+    [ReturnMatrixfine,dstar]=max(ReturnMatrixfine,[],1);
+    ReturnMatrixfine=shiftdim(ReturnMatrixfine,1);
+elseif vfoptions.lowmemory==1 % loop over z
+    ReturnMatrixfine=zeros(N_aprime,N_a,N_z,'gpuArray'); % 'refined' return matrix
+    dstar=zeros(N_aprime,N_a,N_z,'gpuArray');
+    l_z=length(n_z);
+    special_n_z=ones(1,l_z);
+    for z_c=1:N_z
+        zvals=z_gridvals(z_c,:);
+        ReturnMatrixfine_z=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, special_n_z, d_gridvals, aprime_grid(:,:,z_c), a_grid, zvals, ReturnFnParams,1);
+        ReturnMatrixfine_z=reshape(ReturnMatrixfine_z,[N_d,N_aprime,N_a]);
+        [ReturnMatrixfine_z,dstar_z]=max(ReturnMatrixfine_z,[],1); % solve for dstar
+        ReturnMatrixfine(:,:,z_c)=shiftdim(ReturnMatrixfine_z,1);
+        dstar(:,:,z_c)=shiftdim(dstar_z,1);
+    end
+end
+becareful=isfinite(ReturnMatrixfine); % a zero return is a value, not infeasible
+temp2fine=ReturnMatrixfine;
+temp2fine(becareful)=ReturnMatrixfine(becareful).^ezc2;
+
+%% Now switch to considering the fine/interpolated aprime_grid
+EVinterpindex1=gpuArray(1:1:N_aprimediff)';
+EVinterpindex2=gpuArray(linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp))';
+% For Howards we need
+addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
+pi_z_alt2=shiftdim(pi_z,-2);
+
+currdist=1; % force going into the next while loop at least one iteration
+tempcounter=1; % reset tempcounter
+while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
+    VKronold=VKron;
+
+    % Part of Epstein-Zin is before taking expectation
+    temp=VKronold;
+    temp(isfinite(VKronold))=(ezc4*VKronold(isfinite(VKronold))).^ezc5;
+    temp(VKronold==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
+
+    % Switch the transformed V into being over vfoptions.maxaprimediff
+    EVpre=reshape(temp(aprimeindex,:),[N_aprimediff,N_a,N_z,N_z]); % last dimension is zprime
+    % Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=EVpre.*pi_z_alt2;
+    EV(isnan(EV))=0;
+    EV=squeeze(sum(EV,4));
+    % EV is now [N_aprimediff,N_a,N_z]
+    % Interpolate the TRANSFORMED expectation over aprime_grid (BEFORE the certainty-equivalent power ^ezc6)
+    EVinterp=interp1(EVinterpindex1,EV,EVinterpindex2);
+    temp4interp=EVinterp;
+    temp4interp(~(temp4interp==-Inf))=temp4interp(~(temp4interp==-Inf)).^ezc6;
+    temp4interp(EVinterp==0)=0;
+
+    entireRHS=ezc1*temp2fine+ezc3*DiscountFactorParamsVec*temp4interp; % aprime by a by z
+    entireRHS(isnan(entireRHS))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+    temp5=~(entireRHS==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
+    entireRHS(temp5)=entireRHS(temp5).^ezc7;
+
+    [VKron,Policy_a]=max(entireRHS,[],1);
+    VKron=shiftdim(VKron,1); % a by z
+
+    VKrondist=VKron(:)-VKronold(:);
+    VKrondist(isnan(VKrondist))=0;
+    currdist=max(abs(VKrondist));
+
+    if vfoptions.verbose==1
+        if rem(tempcounter,10)==0 % Every 10 iterations
+            fprintf(distvstolstr, tempcounter,currdist)
+        end
+    end
+
+    % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
+    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
+        tempmaxindex=shiftdim(Policy_a,1)+addindexforazfine; % aprime index, add the index for a and z, size is [N_a,N_z]
+        Ftemp=reshape(temp2fine(tempmaxindex),[N_a,N_z]); % the EZ-transformed return of the optimal policy, for Howards
+        % Resolve the interpolation to a (lower grid index, weight) pair once, here (see the nod raw)
+        Policy_L1a=ceil((Policy_a(:)-1)/(n2short+1))-1;
+        % as above, max(Policy_L1a,0) so the lower index and the weight agree at the window's bottom node
+        Policy_lowerind=max(Policy_L1a,0)-vfoptions.maxaprimediff+aprimeshifter(:); % index on the full a_grid
+        Policy_lowerprob=1- ((Policy_a(:)-max(Policy_L1a,0)*(n2short+1))-1)/(n2short+1);
+        lowerweightzero=(Policy_lowerprob==0); % the chosen point is a coarse node, coded as all the weight on the upper node
+        upperweightzero=(Policy_lowerprob==1); % the chosen point is the window's bottom node
+        for Howards_counter=1:vfoptions.howards
+            temp=VKron;
+            temp(isfinite(VKron))=(ezc4*VKron(isfinite(VKron))).^ezc5;
+            temp(VKron==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
+            EVlower=Policy_lowerprob.*temp(Policy_lowerind,:); % [N_a*N_z,N_z], last dimension is zprime
+            EVlower(lowerweightzero,:)=0; % zero weight times -Inf gives NaN, a zero weight contributes nothing
+            EVupper=(1-Policy_lowerprob).*temp(Policy_lowerind+1,:);
+            EVupper(upperweightzero,:)=0;
+            EVKrontemp=(EVlower+EVupper).*pi_z_howards;
+            EVKrontemp(isnan(EVKrontemp))=0; % now only pi_z==0 against -Inf
+            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+            temp4=EVKrontemp;
+            temp4(~(temp4==-Inf))=temp4(~(temp4==-Inf)).^ezc6;
+            temp4(EVKrontemp==0)=0;
+            VKron=ezc1*Ftemp+ezc3*DiscountFactorParamsVec*temp4;
+            VKron(isnan(VKron))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+            temp5=~(VKron==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
+            VKron(temp5)=VKron(temp5).^ezc7;
+        end
+    end
+
+    tempcounter=tempcounter+1;
+end
+
+%% For refinement, add d back into Policy
+Policy=zeros(4,N_a,N_z,'gpuArray'); % +1 channel for PolicyL2flag
+temppolicyindex=reshape(Policy_a,[1,N_a*N_z])+N_aprime*(0:1:N_a*N_z-1);
+Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]); % note: dstar is defined on the fine grid
+
+%% Switch policy to lower grid index and L2 index (is currently index on fine grid)
+% Separate Policy into L1 and L2
+fineindex=reshape(Policy_a,[N_a*N_z,1]);
+L1a=ceil((fineindex-1)/(n2short+1))-1; % this ranges -1:0:2*vfoptions.maxaprimediff-1
+% the max(L1a,0) matters only at the window's bottom node, where L1a is -1; L2 below is built off the same thing, so L1 has to be too
+L1=max(L1a,0)-vfoptions.maxaprimediff+aprimeshifter(:); % lower grid point index on the full grid; the window bounds put this in 1:N_a-1, so no clamp is needed
+L1intermediate=max(L1a,0)+1; % lower grid point index (on the small grid, in form so we can get L2)
+L2=fineindex-(L1intermediate-1)*(n2short+1); % L2 index
+Policy(2,:,:)=reshape(L1,[1,N_a,N_z]);
+Policy(3,:,:)=reshape(L2,[1,N_a,N_z]);
+% L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+% Computed once, post-convergence, using final (d-argmaxed) ReturnMatrixfine and final aprimeshifter
+fineindex_lower = (L1intermediate-1)*(n2short+1) + 1;
+fineindex_upper = L1intermediate*(n2short+1) + 1;
+linidx_lower = reshape(fineindex_lower,[N_a,N_z]) + addindexforazfine;
+linidx_upper = reshape(fineindex_upper,[N_a,N_z]) + addindexforazfine;
+isInfLower = (ReturnMatrixfine(linidx_lower(:)) == -Inf);
+isInfUpper = (ReturnMatrixfine(linidx_upper(:)) == -Inf);
+inInterior = (L2 >= 2) & (L2 <= n2short+1);
+Policy(4,:,:) = reshape(2 + (inInterior & isInfLower) - (inInterior & isInfUpper), [1,N_a,N_z]);
+
+if currdist > vfoptions.tolerance
+    warning(['Value fn iteration (Epstein-Zin, postGI) has stopped due to reaching the maximum number of iterations ', ...
+             '(not due to convergence); can be set by vfoptions.maxiter. ', ...
+             'Last currdist = %.16g; tolerance = %.16g.'], ...
+             currdist, vfoptions.tolerance)
+end
+
+end

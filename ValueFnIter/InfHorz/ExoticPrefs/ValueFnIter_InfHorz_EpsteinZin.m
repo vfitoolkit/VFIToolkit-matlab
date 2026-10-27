@@ -4,14 +4,16 @@ function [V, Policy]=ValueFnIter_InfHorz_EpsteinZin(V0, n_d,n_a,n_z,d_gridvals,a
 % See appendix to the 'Intro to Life-Cycle models' for an explanation (the InfHorz recursion is
 % the FHorz one of ValueFnIter_FHorz_EpsteinZin with no ages, no survival probabilities and no
 % warm-glow: V = [ezc1*F^ezc2 + ezc3*beta*(E[(ezc4*V')^ezc5])^ezc6]^ezc7, iterated to a fixed point)
+%
+% Paths: plain (lowmemory 0/1, with/without d) and, with vfoptions.gridinterplayer=1, the postGI
+% grid interpolation layer (with/without d; d is refined out of the return function first, which
+% is preference-independent). Feasibility conventions: EZ_feasibility_conventions_proposal.md at
+% the toolkit root (a zero return is a value; -Inf stays -Inf under both sign conventions).
 
 %% Interface checks: the shapes and options this dispatcher does not handle
 % Everything it does handle is dispatched below. Anything else must be refused HERE, with a
 % message that says so, because a flag that no raw reads is otherwise silently ignored: the
 % solve runs, and returns an answer to a different problem than the one asked for.
-if vfoptions.gridinterplayer==1
-    error('Epstein-Zin preferences in infinite-horizon are not yet implemented with the grid interpolation layer (vfoptions.gridinterplayer=1). The flag was previously ignored, so the solve ran on the coarse grid and returned a Policy without the L2 rows that simoptions.gridinterplayer=1 expects downstream.')
-end
 if prod(n_z)==0
     error('Epstein-Zin preferences in infinite-horizon require an exogenous state z (n_z=0 is not implemented: every Epstein-Zin InfHorz raw loops over z, and with no z that loop never runs, so the solve would return V=0 and Policy=0 without an error). A single-point z with z_grid=1 and pi_z=1 reproduces a no-shock model (and the warning that Epstein-Zin preferences do not make much sense without any shocks applies to it).')
 end
@@ -20,6 +22,43 @@ if ~(vfoptions.lowmemory==0 || vfoptions.lowmemory==1)
 end
 if isfield(vfoptions,'EZmortalityriskaversion')
     error('vfoptions.EZmortalityriskaversion (a separate risk aversion over mortality risk) has no meaning in infinite-horizon, where there are no survival probabilities; remove it (it was previously ignored without an error)')
+end
+if vfoptions.gridinterplayer==1
+    % The Epstein-Zin grid interpolation layer is postGI only, with dense two-point Howards.
+    if vfoptions.preGI==1
+        error('Epstein-Zin preferences in infinite-horizon implement the grid interpolation layer as postGI only (vfoptions.preGI=1 is not implemented)')
+    end
+    if ~isscalar(n_a)
+        error('Epstein-Zin preferences in infinite-horizon implement the grid interpolation layer for a single endogenous state only (vfoptions.gridinterplayer=1 with two endogenous states is not implemented; without the grid interpolation layer two endogenous states work)')
+    end
+    if vfoptions.howardsgreedy>0
+        error('Epstein-Zin preferences in infinite-horizon do not implement greedy Howards (vfoptions.howardsgreedy>0): the Epstein-Zin Howards step is not linear in V, so the direct solve the greedy raws use does not apply. Use vfoptions.howardsgreedy=0.')
+    end
+    if isfield(vfoptions,'postGIrepeat') && vfoptions.postGIrepeat>0
+        error('Epstein-Zin preferences in infinite-horizon do not implement vfoptions.postGIrepeat>0 with the grid interpolation layer')
+    end
+    % vfoptions.howardssparse is NOT read by the Epstein-Zin grid-interpolation raws: their Howards
+    % step is the dense two-point form (the sparse form is a matrix product with V, and the
+    % Epstein-Zin step is not linear in V). ValueFnIter_InfHorz sets howardssparse=1 by default
+    % under the grid interpolation layer, so this is the one option the raws do not honour; it is
+    % the same on the quasi-hyperbolic path.
+    if ~isfield(vfoptions,'multigridswitch')
+        vfoptions.multigridswitch=10; % postGI default (ValueFnIter_InfHorz_GridInterpLayer sets this itself; this dispatcher bypasses it)
+    end
+    if ~isfield(vfoptions,'maxaprimediff')
+        % Mirrored from ValueFnIter_InfHorz_GridInterpLayer: the small default is only safe when
+        % aprime is the sole choice; with a decision variable the coarse argmax can sit a long way
+        % from the fine one, which is what the window is centred on.
+        if prod(n_d)==0
+            vfoptions.maxaprimediff=5;
+        else
+            if n_a(1)<300
+                vfoptions.maxaprimediff=ceil(n_a(1)/5);
+            else
+                vfoptions.maxaprimediff=ceil(n_a(1)/10);
+            end
+        end
+    end
 end
 
 %% Some Epstein-Zin specific options need to be set if they are not already declared
@@ -137,22 +176,39 @@ N_z=prod(n_z);
 if vfoptions.actualV0==1 && ezc5<0 && any(V0(:)==0)
     warning('vfoptions.V0 contains exact zeros. Under Epstein-Zin preferences (consumption units, or utility units with a positive-valued utility fn) a zero continuation value is a catastrophe (certainty equivalent zero), not an uninitialised entry; the iteration may not recover from it. Omit vfoptions.V0 to start from the myopic value instead.')
 end
+if vfoptions.actualV0==0
+    % The myopic start, one z at a time (cheap, and the same code for every path below): ezc1*F^ezc2 on
+    % the finite entries, then ^ezc7 on everything but -Inf, then the max over (d,aprime)
+    l_z=length(n_z);
+    V0=zeros(N_a,N_z,'gpuArray');
+    for z_c=1:N_z
+        if N_d==0
+            ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,0, n_a, ones(l_z,1),0, a_grid, z_gridvals(z_c,:),ReturnFnParamsVec,0);
+        else
+            ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,n_d, n_a, ones(l_z,1),d_gridvals, a_grid, z_gridvals(z_c,:),ReturnFnParamsVec,0);
+        end
+        temp2_z=ReturnMatrix_z;
+        temp2_z(isfinite(ReturnMatrix_z))=ezc1*ReturnMatrix_z(isfinite(ReturnMatrix_z)).^ezc2;
+        temp2_z(~(temp2_z==-Inf))=temp2_z(~(temp2_z==-Inf)).^ezc7;
+        V0(:,z_c)=reshape(max(temp2_z,[],1),[N_a,1]);
+    end
+end
 
 %%
-if vfoptions.lowmemory==0
+if vfoptions.gridinterplayer==1
+
+    if N_d==0
+        [VKron,Policy]=ValueFnIter_InfHorz_EpsteinZin_postGI_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+    else
+        [VKron,Policy]=ValueFnIter_InfHorz_EpsteinZin_Refine_postGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+    end
+
+elseif vfoptions.lowmemory==0
 
     %% CreateReturnFnMatrix_Disc_CPU creates a matrix of dimension (d and aprime)-by-a-by-z.
     % Since the return function is independent of time creating it once and then using it every iteration is good
     % for speed, but it does use a lot of memory.
     ReturnMatrix=CreateReturnFnMatrix_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals,ReturnFnParamsVec,0);
-
-    if vfoptions.actualV0==0
-        % The myopic start (see above): ezc1*F^ezc2 on the finite entries, then ^ezc7 on everything but -Inf, then the max over (d,aprime)
-        temp2=ReturnMatrix;
-        temp2(isfinite(ReturnMatrix))=ezc1*ReturnMatrix(isfinite(ReturnMatrix)).^ezc2;
-        temp2(~(temp2==-Inf))=temp2(~(temp2==-Inf)).^ezc7;
-        V0=reshape(max(temp2,[],1),[N_a,N_z]);
-    end
 
     if N_d==0
         [VKron,Policy]=ValueFnIter_InfHorz_EpsteinZin_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter, vfoptions.verbose, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
@@ -162,23 +218,6 @@ if vfoptions.lowmemory==0
     end
 
 elseif vfoptions.lowmemory==1
-
-    if vfoptions.actualV0==0
-        % The myopic start (see above), one z at a time as the lowmemory raws build their return matrices
-        l_z=length(n_z);
-        V0=zeros(N_a,N_z,'gpuArray');
-        for z_c=1:N_z
-            if N_d==0
-                ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,0, n_a, ones(l_z,1),0, a_grid, z_gridvals(z_c,:),ReturnFnParamsVec,0);
-            else
-                ReturnMatrix_z=CreateReturnFnMatrix_Disc(ReturnFn,n_d, n_a, ones(l_z,1),d_gridvals, a_grid, z_gridvals(z_c,:),ReturnFnParamsVec,0);
-            end
-            temp2_z=ReturnMatrix_z;
-            temp2_z(isfinite(ReturnMatrix_z))=ezc1*ReturnMatrix_z(isfinite(ReturnMatrix_z)).^ezc2;
-            temp2_z(~(temp2_z==-Inf))=temp2_z(~(temp2_z==-Inf)).^ezc7;
-            V0(:,z_c)=reshape(max(temp2_z,[],1),[N_a,1]);
-        end
-    end
 
     if N_d==0
         [VKron,Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter, vfoptions.verbose, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
@@ -191,6 +230,7 @@ end
 
 %%
 V=reshape(VKron,[n_a,n_z]);
+% (UnKron handles the grid-interpolation Policy layout, rows L1/L2/L2flag after any d, itself)
 if N_d==0
     Policy=UnKronPolicyIndexes1_z(Policy, n_a, n_a, n_z, vfoptions);
 else
