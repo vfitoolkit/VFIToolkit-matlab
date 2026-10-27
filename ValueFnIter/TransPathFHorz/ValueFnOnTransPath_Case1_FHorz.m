@@ -103,6 +103,22 @@ end
 vfoptions.parallel=2; % transition path requires GPU
 vfoptions.EVpre=0; % =1 is used by 'Matched Expecations Path', for TPath we want =0 (this relates to details of fastOLG=1 value fn code)
 
+%% Local search is IGNORED here at vfoptions.localsearch=1, the value the TPath solver uses
+% As in ValueFnOnTransPath_InfHorz. This command's output IS the welfare numbers and the agent
+% distribution, and a single backward pass has no verification sweep to certify a restricted answer
+% against, nor any reference to centre it on (the dispatcher's fallback is a window around staying put,
+% which would silently restrict every period). Users pass the same vfoptions to the TPath command and to
+% this one, so localsearch=1 is ignored with a warning rather than refused.
+% The InfHorz command also takes localsearch=2 as "force it"; that is not done for finite horizon yet.
+if isfield(vfoptions,'localsearch')
+    if vfoptions.localsearch==1
+        warning('ValueFnOnTransPath_Case1_FHorz: vfoptions.localsearch=1 is IGNORED here and the value function is solved without it, as this single backward pass has nothing to certify a restricted search against')
+        vfoptions.localsearch=0;
+    elseif vfoptions.localsearch~=0
+        error('vfoptions.localsearch must be 0 or 1 (ignored here, with a warning); forcing a restricted search with localsearch=2 is not yet implemented for finite horizon')
+    end
+end
+
 
 %% Dispatch to QuasiHyperbolic subfn (returns via varargout)
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
@@ -303,7 +319,7 @@ else
                         z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                     end
 
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
                     % The VKron input is next period value fn, the VKron output is this period.
                     % Policy is kept in the form where it is just a single-value in (d,a')
 

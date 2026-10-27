@@ -498,6 +498,13 @@ for ii=1:PTypeStructure.N_i
             error('vfoptions.residualasset is not yet implemented on a transition path (email me if you want this)')
         end
     end
+    % Local search needs a reference carried across GE iterations and a verification sweep, which only
+    % TransitionPath_FHorz_shooting has; the PType solvers would reach Step1 restricted with no reference
+    if isfield(vfoptions_ii,'localsearch')
+        if vfoptions_ii.localsearch~=0
+            error('vfoptions.localsearch is not yet implemented on a transition path with permanent types (email me if you want this)')
+        end
+    end
     if prod(vfoptions_ii.n_semiz)>0 && (vfoptions_ii.experienceasset>=1 || vfoptions_ii.experienceassetz>=1)
         error('experienceasset (or experienceassetz) together with a semi-exogenous state is not yet implemented on a transition path (email me if you want this)')
     end

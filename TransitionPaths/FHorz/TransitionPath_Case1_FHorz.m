@@ -278,6 +278,82 @@ if transpathoptions.fastOLG==0 && vfoptions.lowmemory>0
     error('On transtion paths you can only use vfoptions.lowmemory>0 when using transpathoptions.fastOLG=1, because otherwise the runtimes will anyway be so slow as to be essentially unusable')
 end
 
+%% Local search, vfoptions.localsearch
+% Restricts the aprime choice in the value fn step to a window of 2*nlocalsearch+1 grid points around
+% the previous GE iteration's answer at the same (age,period). See TransitionPath_FHorz_shooting.
+% Implemented, as in InfHorz, for one endogenous state with z (no e, no semiz), with or without d and
+% with or without the grid interpolation layer; here so far only for the slowOLG layout
+% (transpathoptions.fastOLG=0) and the shooting algorithm. Everything else is REFUSED rather than
+% ignored, because the substeps that would be reached do not know about local search and would run
+% every iteration unrestricted -- or, worse, restricted against a reference that is never refreshed and
+% never certified.
+if ~isfield(vfoptions,'localsearch')
+    vfoptions.localsearch=0;
+end
+% ONLY 0 AND 1 ARE MEANINGFUL HERE. A 2 is ValueFnOnTransPath's "force it" value, and would otherwise
+% fall through every ==1 test below, running unrestricted AND skipping all of this validation.
+if vfoptions.localsearch~=0 && vfoptions.localsearch~=1
+    error('vfoptions.localsearch must be 0 or 1 here; the value 2 is only meaningful to ValueFnOnTransPath_Case1_FHorz, which uses it to force a restricted search it would otherwise ignore')
+elseif vfoptions.localsearch==1
+    if ~isfield(vfoptions,'nlocalsearch')
+        error('When using vfoptions.localsearch=1 you must set vfoptions.nlocalsearch')
+    end
+    if vfoptions.nlocalsearch<1
+        error('vfoptions.nlocalsearch must be at least 1')
+    end
+    % nlocalsearch is the STARTING window; TransitionPath_FHorz_shooting ratchets it
+    if ~isfield(vfoptions,'nlocalsearchup')
+        vfoptions.nlocalsearchup=2;
+    end
+    if ~isfield(vfoptions,'nlocalsearchdown')
+        vfoptions.nlocalsearchdown=1;
+    end
+    if vfoptions.nlocalsearchup<1 || vfoptions.nlocalsearchdown<1
+        error('vfoptions.nlocalsearchup and vfoptions.nlocalsearchdown must both be at least 1')
+    end
+    % QUASI-NEWTON (GEnewprice=1) is refused for the InfHorz reason: a perturbed path's reference has to
+    % be the BASELINE path's. Anderson (GEnewprice=2) is not yet wired up for FHorz.
+    if transpathoptions.GEnewprice~=3
+        error('vfoptions.localsearch=1 currently requires transpathoptions.GEnewprice=3 (shooting) for finite horizon')
+    end
+    if transpathoptions.fastOLG==1
+        error('vfoptions.localsearch=1 is not yet implemented with transpathoptions.fastOLG=1')
+    end
+    % prod(...)>0 as well, because the fields exist on every model (defaulted to 0 above)
+    if prod(vfoptions.n_e)>0
+        error('vfoptions.localsearch=1 is not implemented with an e variable')
+    end
+    if prod(vfoptions.n_semiz)>0
+        error('vfoptions.localsearch=1 is not implemented with a semi-exogenous state')
+    end
+    % The experience asset and quasi-hyperbolic branches of Step1 call their own single steps directly,
+    % bypassing the dispatcher, so without these the option would be silently ignored
+    if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
+        error('vfoptions.localsearch=1 is not implemented with an experience asset')
+    end
+    if ~strcmp(vfoptions.exoticpreferences,'None')
+        error('vfoptions.localsearch=1 is not implemented with exoticpreferences')
+    end
+    if ~isscalar(n_a)
+        error('vfoptions.localsearch=1 is currently only implemented for one endogenous state')
+    end
+    if prod(n_z)==0
+        error('vfoptions.localsearch=1 is currently only implemented with a z variable')
+    end
+    % InfHorz honours divideandconquer on the seed sweeps (it is a memory option there); not yet here
+    if vfoptions.divideandconquer==1
+        error('vfoptions.localsearch=1 is not yet implemented together with vfoptions.divideandconquer=1 for finite horizon')
+    end
+    % The window slides at the grid ends to stay 2*nlocalsearch+1 points wide
+    if n_a(1)<2*vfoptions.nlocalsearch+1
+        error('vfoptions.nlocalsearch is too large for the grid: need n_a>=2*nlocalsearch+1')
+    end
+    % The reference path is stored as uint16, see TransitionPath_FHorz_substeps_Step1_ValueFnIter
+    if n_a(1)>65535
+        error('vfoptions.localsearch=1 stores the reference policy as uint16, so needs n_a<=65535')
+    end
+end
+
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.

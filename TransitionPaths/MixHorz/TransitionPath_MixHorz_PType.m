@@ -134,6 +134,13 @@ end
 
 
 %% Some internal commands require a few vfoptions and simoptions to be set
+% Local search needs a reference carried across GE iterations and a verification sweep, which this
+% solver does not have; its Step1 calls would reach a restricted search with no reference
+if isfield(vfoptions,'localsearch')
+    if isstruct(vfoptions.localsearch) || vfoptions.localsearch~=0
+        error('vfoptions.localsearch is not yet implemented on a mixed-horizon transition path (email me if you want this)')
+    end
+end
 vfoptions.EVpre=0; % Not actually an option that can be used here
 if ~isfield(vfoptions,'verbose')
     vfoptions.verbose=0;

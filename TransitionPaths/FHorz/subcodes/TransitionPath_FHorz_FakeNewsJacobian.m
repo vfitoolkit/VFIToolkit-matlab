@@ -88,7 +88,7 @@ AgeWeightsSS=AgeWeights_T(:,T); % [N_a*N_j*N_z,1], the fastOLG form
 
 % Steady-state policy: one value fn step from V_final at the steady-state prices
 if transpathoptions.fastOLG==0
-    [~,Policy_ss]=ValueFnIter_FHorz_TPath_SingleStep(V_final,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Psteady, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [~,Policy_ss]=ValueFnIter_FHorz_TPath_SingleStep(V_final,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Psteady, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
 else
     [~,Policy_ss]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V_final,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Psteady, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 end
@@ -185,8 +185,8 @@ for ip=1:nP
         % The baseline is iterated alongside rather than taken as the steady state, so that the two
         % differ only by the perturbation and not by any rounding in how V_final was originally solved
         if transpathoptions.fastOLG==0
-            [Vb,Policyb]=ValueFnIter_FHorz_TPath_SingleStep(Vb,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Psteady, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            [Vp,Policyp]=ValueFnIter_FHorz_TPath_SingleStep(Vp,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Pp, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [Vb,Policyb]=ValueFnIter_FHorz_TPath_SingleStep(Vb,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Psteady, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+            [Vp,Policyp]=ValueFnIter_FHorz_TPath_SingleStep(Vp,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Pp, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
         else
             [Vb,Policyb]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(Vb,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Psteady, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             [Vp,Policyp]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(Vp,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Pp, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
