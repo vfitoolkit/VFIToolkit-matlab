@@ -57,6 +57,11 @@ if exist('transpathoptions','var')==0
     transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     transpathoptions.historyofpricepath=0;
+    % Constraints on the prices (see the setup below where PricePath becomes a matrix)
+    transpathoptions.constrainpositive={};
+    transpathoptions.constrain0to1={};
+    transpathoptions.constrainAtoB={};
+    transpathoptions.constraintstepfraction=0.5;
     transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
     transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
     transpathoptions.tanimprovement=1;
@@ -168,6 +173,19 @@ else
     end
     if ~isfield(transpathoptions,'historyofpricepath')
         transpathoptions.historyofpricepath=0;
+    end
+    % Constraints on the prices (see the setup below where PricePath becomes a matrix)
+    if ~isfield(transpathoptions,'constrainpositive')
+        transpathoptions.constrainpositive={}; % names of prices constrained to be positive
+    end
+    if ~isfield(transpathoptions,'constrain0to1')
+        transpathoptions.constrain0to1={}; % names of prices constrained to be between 0 and 1
+    end
+    if ~isfield(transpathoptions,'constrainAtoB')
+        transpathoptions.constrainAtoB={}; % names of prices constrained to be between A and B, with transpathoptions.constrainAtoBlimits.(name)=[A,B]
+    end
+    if ~isfield(transpathoptions,'constraintstepfraction')
+        transpathoptions.constraintstepfraction=0.5; % when an update would take a constrained price past its bound, it moves this fraction of the way to the bound instead
     end
     if ~isfield(transpathoptions,'stockvars')
         transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
@@ -454,6 +472,89 @@ end
 [PricePath0,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePath0,ParamPath,T);
 
 PricePathStruct=struct();
+
+%% Constraints on the prices
+% transpathoptions.constrainpositive, constrain0to1 and constrainAtoB (with constrainAtoBlimits.(name)=[A,B]) take
+% the names of PricePath prices, with the same meanings as the heteroagentoptions of the same names, and apply to
+% every period (and every column of a price that has more than one). The bounds are open: the prices must stay
+% strictly inside them.
+% They are NOT handled by a change of variables, as the stationary general eqm does. The transition path
+% algorithms are not optimizers: their updates are defined in price units (howtoupdate moves a price by a factor
+% times its general eqm residual), and a change of variables would change what every update means, even where no
+% constraint is anywhere near binding. Instead the algorithm proposes its update as usual, and any (period,price)
+% that the update would take past a bound moves only transpathoptions.constraintstepfraction of the way from its
+% current value to the bound (a fraction-to-the-boundary rule, as interior-point methods use). Elements that stay
+% inside are untouched, so a path whose constraints never bind is computed exactly as without them, and the bound
+% is approached geometrically when the solution is near it.
+% So there is nothing to choose between a log and a softplus transform here, and constrainpositivemethod (which
+% heteroagentoptions has) is ignored.
+% The bounds are put in transpathoptions.pricepathlowerbound and pricepathupperbound, one entry per column of
+% PricePath (-Inf and Inf where unconstrained), which is all the solvers need.
+nPricePathCols=size(PricePath0,2);
+transpathoptions.pricepathlowerbound=-Inf(1,nPricePathCols);
+transpathoptions.pricepathupperbound=Inf(1,nPricePathCols);
+transpathoptions.useconstraints=0;
+constrainednames={};
+for cc=1:3
+    if cc==1
+        connames=transpathoptions.constrainpositive;
+        conname='constrainpositive';
+    elseif cc==2
+        connames=transpathoptions.constrain0to1;
+        conname='constrain0to1';
+    else
+        connames=transpathoptions.constrainAtoB;
+        conname='constrainAtoB';
+    end
+    if ischar(connames)
+        connames={connames};
+    end
+    for nn=1:length(connames)
+        pp=find(strcmp(connames{nn},PricePathNames));
+        if isempty(pp)
+            error('transpathoptions.%s contains ''%s'', which is not a price in PricePath (only prices can be constrained on a transition path)',conname,connames{nn})
+        end
+        if any(strcmp(connames{nn},constrainednames))
+            error('The price ''%s'' appears in more than one of transpathoptions.constrainpositive, constrain0to1 and constrainAtoB',connames{nn})
+        end
+        constrainednames=[constrainednames,connames(nn)];
+        if cc==1
+            lb=0; ub=Inf;
+        elseif cc==2
+            lb=0; ub=1;
+        else
+            if ~isfield(transpathoptions,'constrainAtoBlimits') || ~isfield(transpathoptions.constrainAtoBlimits,connames{nn})
+                error('transpathoptions.constrainAtoB contains ''%s'', so you must set transpathoptions.constrainAtoBlimits.%s=[A,B]',connames{nn},connames{nn})
+            end
+            temp=transpathoptions.constrainAtoBlimits.(connames{nn});
+            if numel(temp)~=2 || temp(2)<=temp(1)
+                error('transpathoptions.constrainAtoBlimits.%s must be [A,B] with A<B',connames{nn})
+            end
+            lb=temp(1); ub=temp(2);
+        end
+        transpathoptions.pricepathlowerbound(PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=lb;
+        transpathoptions.pricepathupperbound(PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=ub;
+        transpathoptions.useconstraints=1;
+    end
+end
+if transpathoptions.useconstraints==1
+    if ~(transpathoptions.constraintstepfraction>0 && transpathoptions.constraintstepfraction<1)
+        error('transpathoptions.constraintstepfraction must be strictly between 0 and 1')
+    end
+    % The initial guess has to be strictly inside the bounds, in every period including the final one (which the
+    % solvers never update), else the rule has no interior point to step from
+    for pp=1:length(PricePathNames)
+        cols=PricePathSizeVec(1,pp):PricePathSizeVec(2,pp);
+        temp=gather(PricePath0(:,cols));
+        if any(temp(:)<=min(transpathoptions.pricepathlowerbound(cols))) || any(temp(:)>=max(transpathoptions.pricepathupperbound(cols)))
+            error('The initial PricePath for ''%s'' is not strictly inside its constraint (bounds [%g,%g]) in every period',PricePathNames{pp},transpathoptions.pricepathlowerbound(cols(1)),transpathoptions.pricepathupperbound(cols(1)))
+        end
+    end
+    % C1: only the shooting algorithm applies the constraints so far
+    if transpathoptions.GEnewprice~=3
+        error('Constraints on the prices (transpathoptions.constrainpositive/constrain0to1/constrainAtoB) are so far only implemented for transpathoptions.GEnewprice=3 (shooting)')
+    end
+end
 
 %%
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)

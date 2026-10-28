@@ -19,6 +19,14 @@ PricePathDist=Inf;
 GEcondnPathDist=Inf;
 itercounter=1;
 
+% Constraints on the prices: TransitionPath_InfHorz sets useconstraints and the bounds, but default them here too,
+% above their read, as this command reads them itself
+if ~isfield(transpathoptions,'useconstraints')
+    transpathoptions.useconstraints=0;
+end
+nconstraintcuts=0; % how many (period,price) elements the constraints cut back on the most recent update
+nconstraintiters=0; % how many updates the constraints cut back at all
+
 %% Local search, vfoptions.localsearch=1
 % The scheme: iteration 1 is a STANDARD sweep, whatever divideandconquer and gridinterplayer are set
 % to, and its Policy becomes the reference. Later iterations restrict the aprime search to a window
@@ -235,11 +243,48 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
         vfoptions.nlocalsearch=nlocalsearchstart; % the input value is the window used immediately after every standard sweep
     end
 
-    PricePathOld=updatePricePath(PricePathOld,PricePathNew,transpathoptions,T);
+    PricePathProposed=updatePricePath(PricePathOld,PricePathNew,transpathoptions,T);
+    if transpathoptions.useconstraints==1
+        % Fraction-to-the-boundary: any (period,price) that the update would take to or past its bound moves only
+        % constraintstepfraction of the way from its current value to that bound instead. Everything else is the
+        % update exactly as proposed. PricePathOld is strictly inside the bounds (the initial guess is checked, and
+        % this rule keeps it there), so the result is too. Row T is never updated.
+        % Done by logical indexing, never by multiplying by an indicator: an unconstrained column has bounds -Inf and
+        % Inf, and 0*Inf is NaN.
+        theta=transpathoptions.constraintstepfraction;
+        LB=repmat(transpathoptions.pricepathlowerbound,T-1,1);
+        UB=repmat(transpathoptions.pricepathupperbound,T-1,1);
+        Pprop=PricePathProposed(1:T-1,:);
+        Pold=PricePathOld(1:T-1,:);
+        belowlb=(Pprop<=LB);
+        aboveub=(Pprop>=UB);
+        Pprop(belowlb)=Pold(belowlb)+theta*(LB(belowlb)-Pold(belowlb));
+        Pprop(aboveub)=Pold(aboveub)+theta*(UB(aboveub)-Pold(aboveub));
+        PricePathProposed(1:T-1,:)=Pprop;
+        nconstraintcuts=gather(sum(belowlb(:))+sum(aboveub(:)));
+        if nconstraintcuts>0
+            nconstraintiters=nconstraintiters+1;
+        end
+        if transpathoptions.verbose==1
+            fprintf('Constraints on the prices cut back %i (period,price) elements of this update \n',nconstraintcuts)
+        end
+    end
+    PricePathOld=PricePathProposed;
 
     itercounter=itercounter+1;
 
 
+end
+
+%% Constraints on the prices report
+% One line whenever constraints were set, as for local search: they are opt-in, and whether they ever bound is what
+% the user needs to know. If they cut back the last update, the path was still pressing against a bound, and a
+% solution right at a bound cannot be reached exactly (the bounds are open), so that gets a warning.
+if transpathoptions.useconstraints==1
+    fprintf('Constraints on the prices: cut back %i of the %i updates \n',nconstraintiters,itercounter-1)
+    if nconstraintcuts>0
+        warning('TransitionPath_InfHorz: the constraints on the prices cut back the last update (%i elements), so the price path may be pressing against a bound',nconstraintcuts)
+    end
 end
 
 %% Local search report
