@@ -12,6 +12,16 @@ function SimPanelValues=SimPanelValues_TransPath_InfHorz(PolicyPath, PricePath, 
 % InitialDist can be inputted as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-T, or n_a-by-n_z)
+%
+% No z is n_z=0 (z_grid=[], pi_z=[]). iid e shocks are given in simoptions (n_e, e_grid, pi_e), as for
+% SimPanelValues_InfHorz. z_grid, pi_z, e_grid and pi_e may vary over the path: pi_z(:,:,t) is the transition from
+% t to t+1, pi_e(:,t) the distribution of the e realized IN period t. AgentDist_initial is the period 1 agent
+% distribution, [n_a,(n_z),(n_e)], and PolicyPath is [rows,n_a,(n_z),(n_e),T].
+% Semi-exogenous states are given in simoptions (n_semiz, semiz_grid, SemiExoStateFn or pi_semiz, l_dsemiz), as for
+% SimPanelValues_InfHorz; then AgentDist_initial is [n_a,n_semiz,(n_z),(n_e)], PolicyPath [rows,n_a,n_semiz,(n_z),(n_e),T],
+% and FnsToEvaluate inputs are (d,aprime,a,semiz,z,e,...). Each period semiz' is drawn from pi_semiz(semiz,:,d2), at the
+% d2 chosen that period (the last simoptions.l_dsemiz decision variables); pi_semiz may vary over the path
+% (SemiExoStateFn depending on a ParamPath parameter, or a 4-D pi_semiz), slice t being the transition from t to t+1.
 
 %% Check which simoptions have been declared, set all others to defaults
 if ~exist('simoptions','var')
@@ -118,52 +128,87 @@ N_semiz=prod(simoptions.n_semiz);
 N_z=prod(n_z);
 N_e=prod(simoptions.n_e);
 
+% Refused rather than simulated: the simulation below moves the a index with the policy alone, so it has no
+% experience asset (aprimeFn) in it, and would give a wrong panel
+if simoptions.experienceasset>=1
+    error('SimPanelValues_TransPath_InfHorz: experienceasset is not yet implemented')
+end
+if N_semiz>0
+    if N_d==0
+        error('SimPanelValues_TransPath_InfHorz: semi-exogenous states (simoptions.n_semiz) require a decision variable: the last simoptions.l_dsemiz decision variables determine the semiz transitions')
+    end
+end
+
 if N_z==0
     if N_e==0
-        if N_semiz==0
-            n_semizze=0;
-        else
-            n_semizze=simoptions.n_semiz;
-        end
+        n_semizze=0;
     else
-        if N_semiz==0
-            n_semizze=simoptions.n_e;
-        else
-            n_semizze=[simoptions.n_semiz,simoptions.n_e];
-        end
+        n_semizze=simoptions.n_e;
     end
 else
     if N_e==0
-        if N_semiz==0
-            n_semizze=n_z;
-        else
-            n_semizze=[simoptions.n_semiz,n_z];
-        end
+        n_semizze=n_z;
     else
-        if N_semiz==0
-            n_semizze=[n_z,simoptions.n_e];
-        else
-            n_semizze=[simoptions.n_semiz,n_z,simoptions.n_e];
-        end
+        n_semizze=[n_z,simoptions.n_e];
+    end
+end
+N_zeonly=max(N_z,1)*max(N_e,1); % (z,e) alone, without semiz
+% semiz goes in front of (z,e), semiz fastest
+if N_semiz>0
+    if N_z==0 && N_e==0
+        n_semizze=simoptions.n_semiz;
+    else
+        n_semizze=[simoptions.n_semiz,n_semizze];
     end
 end
 N_semizze=prod(n_semizze);
 
+%% Exogenous shocks
+% gridpiboth=4: both the grids (for the FnsToEvaluate) and the transition probabilities (for the simulation). The setup
+% removes n_e, e_grid and pi_e from the options it is given, so it is given a copy and simoptions keeps them for the
+% simulation. When z or e varies over the path the paths are in transpathoptions.pi_z_T, pi_e_T and ze_gridvals_T
+% (ze_gridvals is the (z,e) grid, z varies first, which is the order of the kron (z,e) index of the simulation).
+[~, pi_z, ~, ~, pi_e, ~, ze_gridvals, transpathoptions, ~]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,simoptions,4);
+
+% The simulation is done as if a finite horizon of T periods: pi_z_T(:,:,t) is the transition from t to t+1, and
+% simoptions.pi_e_J(:,t) the distribution of the e realized in period t (as pi_e_J in FHorz)
 if N_z>0
-    if ndims(pi_z)==3
-        pi_z_T=pi_z;
+    if transpathoptions.zpathtrivial==0
+        pi_z_T=gather(transpathoptions.pi_z_T);
     else
-        pi_z_T=repelem(pi_z,1,1,T);
+        pi_z_T=repmat(gather(pi_z),1,1,T);
     end
 else
     pi_z_T=[];
 end
-
 if N_e>0
-    if size(simoptions.pi_e,2)==T
-        simoptions.pi_e_T=simoptions.pi_e;
+    if transpathoptions.epathtrivial==0
+        simoptions.pi_e_J=gather(transpathoptions.pi_e_T);
     else
-        simoptions.pi_e_T=repelem(simoptions.pi_e,1,T);
+        simoptions.pi_e_J=repmat(gather(reshape(pi_e,[N_e,1])),1,T);
+    end
+end
+
+%% Semi-exogenous states
+if N_semiz>0
+    % semiz_gridvals [N_semiz,l_semiz] (the semiz grid is fixed over the path) and pi_semiz [N_semiz,N_semiz,N_dsemiz];
+    % when transpathoptions.semizpathtrivial=0 the path is in transpathoptions.pi_semiz_T [N_semiz,N_semiz,N_dsemiz,T],
+    % slice t being the transition from t to t+1
+    [semiz_gridvals, pi_semiz, transpathoptions, simoptions]=SemiExogShockSetup_InfHorz_TPath(n_d,d_grid,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,simoptions,4);
+    if transpathoptions.semizpathtrivial==0
+        pi_semiz_T=gather(transpathoptions.pi_semiz_T);
+    else
+        pi_semiz_T=repmat(gather(pi_semiz),1,1,1,T);
+    end
+    % The (semiz,z,e) grid for the FnsToEvaluate, semiz fastest (the order of the kron exogenous index of the simulation)
+    if N_z==0 && N_e==0
+        ze_gridvals=semiz_gridvals;
+    else
+        ze_gridvals=[repmat(semiz_gridvals,N_zeonly,1),repelem(ze_gridvals,N_semiz,1)];
+        if transpathoptions.zepathtrivial==0
+            % z and/or e grids vary over the path (the semiz grid cannot): [N_semiz*N_z*N_e,l_semiz+l_z+l_e,T]
+            transpathoptions.ze_gridvals_T=[repmat(semiz_gridvals,N_zeonly,1,T),repelem(transpathoptions.ze_gridvals_T,N_semiz,1,1)];
+        end
     end
 end
 
@@ -173,7 +218,23 @@ simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this
 % (without this, SimPanelIndexes_FHorz returns the a index split across l_a rows and the z index
 % split across l_z rows, but everything below reads row 1 as the kron a index and row 2 as the
 % kron z index. Those coincide only when l_a==1 and l_z==1.)
-SimPanelIndexes=SimPanelIndexes_FHorz(gather(AgentDist_initial),gather(PolicyPath),n_d,n_a,n_z,T,pi_z_T, simoptions);
+if N_semiz==0
+    % The initial draws are from AgentDist_initial over (a,z,e), and the kron output puts (z,e) together in row 2
+    SimPanelIndexes=SimPanelIndexes_FHorz(gather(AgentDist_initial),gather(PolicyPath),n_d,n_a,n_z,T,pi_z_T, simoptions);
+else
+    % The FHorz semiz simulator, with the period-t semiz transitions as its age-t ones: each period semiz' is drawn from
+    % pi_semiz(semiz,:,d2) at the d2 chosen that period. It sets up pi_semiz_J itself, from pi_semiz, so it is given a copy
+    % of simoptions with the path pi_semiz [N_semiz,N_semiz,N_dsemiz,T] in place of SemiExoStateFn (whose parameters are
+    % read from ParamPath above, which the FHorz setup knows nothing about), and with the d_grid input.
+    % The initial draws are from AgentDist_initial over (a,semiz,z,e), and the kron output puts (semiz,z,e) together in row 2
+    simoptions_semiz=simoptions;
+    if isfield(simoptions_semiz,'SemiExoStateFn')
+        simoptions_semiz=rmfield(simoptions_semiz,'SemiExoStateFn');
+    end
+    simoptions_semiz.pi_semiz=pi_semiz_T;
+    simoptions_semiz.d_grid=d_grid;
+    SimPanelIndexes=SimPanelIndexes_FHorz_semiz(gather(AgentDist_initial),gather(PolicyPath),n_d,n_a,n_z,T,pi_z_T, Parameters, simoptions_semiz);
+end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames,ParamPathNames,{},transpathoptions);
@@ -191,17 +252,12 @@ if use_tminus1AggVars==1
     error('SimPanelValues_TransPath_InfHorz: FnsToEvaluate cannot use the _tminus1 of an aggregate (%s_tminus1), as a simulated panel does not give the population aggregate. Compute the aggregate path with EvalFnOnTransPath_AggVars_InfHorz and pass its lag in on the ParamPath instead',tminus1AggVarsNames{1})
 end
 
-%% Exogenous shock grids (must come after the SimPanelIndexes as it then strips n_semiz and n_e out of simoptions)
-% Pretend to be FHorz of length T
-% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
-[~,semizze_gridvals_T,~,~,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,T,simoptions,Parameters);
-% N_semizze=prod(n_semizze);
+%% Exogenous shock grids: (z,e) are rolled together for the FnsToEvaluate (set up above)
 if N_semizze==0
     l_semizze=0;
 else
     l_semizze=length(n_semizze);
 end
-% Note: semiz, z and e are from here on all just rolled together in n_z, z_gridvals_J, N_z and l_z
 
 
 %% Implement new way of handling FnsToEvaluate
@@ -333,7 +389,11 @@ if N_semizze>0
             % j_ind=currentPanelIndexes_tt(3,1,:);
 
             a_val=a_gridvals(currentPanelIndexes_tt(1,1,:),:); % a_grid does depend on age
-            z_val=semizze_gridvals_T(currentPanelIndexes_tt(2,1,:),:,tt);
+            if transpathoptions.zepathtrivial==0
+                z_val=transpathoptions.ze_gridvals_T(currentPanelIndexes_tt(2,1,:),:,tt);
+            else
+                z_val=ze_gridvals(currentPanelIndexes_tt(2,1,:),:);
+            end
 
             for vv=1:nFnsToEvalute
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'

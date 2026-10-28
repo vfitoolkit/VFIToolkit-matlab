@@ -27,6 +27,33 @@ end
 % N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+if N_z==0 % no z (and no e): the exogenous dimension is a singleton, n_z=0 would make every reshape below empty
+    N_z=1;
+end
+% Users pass n_z (the markov z only), while semiz and e are in vfoptions, so the exogenous dimension of
+% PolicyPath can be bigger than prod(n_z). Internal callers instead pass all of (semiz,z,e) as n_z. Either way
+% everything after a is one exogenous dimension here, so take its size from PolicyPath itself.
+N_ze=numel(PolicyPath)/(size(PolicyPath,1)*N_a*T);
+n_zeout=n_z; % shape of the exogenous dimensions in the (non-kron) output
+if prod(n_zeout)==0
+    n_zeout=1; % no exogenous states at all
+end
+if N_ze~=N_z
+    n_zeout=[];
+    if isfield(vfoptions,'n_semiz') && prod(vfoptions.n_semiz)>0
+        n_zeout=[n_zeout,vfoptions.n_semiz];
+    end
+    if prod(n_z)>0
+        n_zeout=[n_zeout,n_z];
+    end
+    if isfield(vfoptions,'n_e') && prod(vfoptions.n_e)>0
+        n_zeout=[n_zeout,vfoptions.n_e];
+    end
+    if prod(n_zeout)~=N_ze
+        n_zeout=N_ze; % not recognised, so leave the exogenous states as one dimension
+    end
+    N_z=N_ze;
+end
 
 l_aprime=length(n_a);
 if vfoptions.experienceasset>=1
@@ -128,7 +155,7 @@ else
 end
 
 if outputkron==0
-    PolicyValuesPath=reshape(PolicyValuesPath,[size(PolicyValuesPath,1),n_a,n_z,T]);
+    PolicyValuesPath=reshape(PolicyValuesPath,[size(PolicyValuesPath,1),n_a,n_zeout,T]);
 end
 
 

@@ -70,8 +70,9 @@ simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simopti
 
 
 % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
-N_semiz=prod(simoptions.n_semiz);
-l_semiz=length(simoptions.n_semiz);
+n_semiz=simoptions.n_semiz; % used to convert the results out of kron
+N_semiz=prod(n_semiz);
+l_semiz=length(n_semiz);
 cumsumpi_semiz_J=gather(cumsum(simoptions.pi_semiz_J,2));
 
 

@@ -185,7 +185,7 @@ elseif N_z>0 && N_e==0
 elseif N_z==0 && N_e>0
     % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
     PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyIndexesPath,n_d,n_a,n_e,T-1,d_gridvals,aprime_gridvals,vfoptions,1);
-    PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_ze,T-1]),[2,3,1,4]); %[N_a,N_e,l_d+l_a,T-1]
+    PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_e,T-1]),[2,3,1,4]); %[N_a,N_e,l_d+l_a,T-1]
     % Modify PolicyIndexesPath into forms needed for forward iteration
     % Create version of PolicyIndexesPath called PolicyaprimePath, which only tracks aprime
     % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath

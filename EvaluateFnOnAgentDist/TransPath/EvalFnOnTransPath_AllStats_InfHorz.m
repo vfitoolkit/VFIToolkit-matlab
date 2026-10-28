@@ -1,5 +1,10 @@
 function AllStatsPath=EvalFnOnTransPath_AllStats_InfHorz(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,transpathoptions,simoptions)
 % AllStatsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
+% No z is n_z=0 (z_grid=[]). iid e shocks are given in simoptions (n_e, e_grid, pi_e), as for EvalFnOnAgentDist_AllStats_InfHorz;
+% e_grid may vary over the path. AgentDistPath is [n_a,(n_z),(n_e),T] and PolicyPath [rows,n_a,(n_z),(n_e),T].
+% Semi-exogenous states are given in simoptions (n_semiz, semiz_grid, SemiExoStateFn or pi_semiz, l_dsemiz), as for
+% EvalFnOnAgentDist_AllStats_InfHorz; then AgentDistPath is [n_a,n_semiz,(n_z),(n_e),T], PolicyPath [rows,n_a,n_semiz,(n_z),(n_e),T]
+% and FnsToEvaluate inputs are (d,aprime,a,semiz,z,e,...).
 
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
@@ -67,11 +72,59 @@ if n_d(1)==0
     l_d=0;
 end
 l_a=length(n_a);
-l_z=length(n_z);
 
 % N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+if N_z==0
+    l_z=0;
+else
+    l_z=length(n_z);
+end
+% Read here, because ExogShockSetup_InfHorz_TPath below removes n_e from simoptions
+n_e=simoptions.n_e;
+N_e=prod(n_e);
+if N_e==0
+    l_e=0;
+else
+    l_e=length(n_e);
+end
+if N_e>0 && simoptions.experienceasset>=1
+    error('EvalFnOnTransPath_AllStats_InfHorz: experienceasset together with an e variable is not yet implemented')
+end
+% (z,e) are kept as one exogenous dimension, z first, which is a singleton when there is neither
+N_ze=max(N_z,1)*max(N_e,1);
+if N_z==0 && N_e==0
+    n_ze=0;
+elseif N_z>0 && N_e==0
+    n_ze=n_z;
+elseif N_z==0 && N_e>0
+    n_ze=n_e;
+elseif N_z>0 && N_e>0
+    n_ze=[n_z,n_e];
+end
+% Semi-exogenous states (simoptions.n_semiz, with semiz_grid, and SemiExoStateFn or pi_semiz, l_dsemiz) go in front of
+% (z,e), semiz fastest: from here on the exogenous dimension (n_ze, N_ze) is (semiz,z,e). FnsToEvaluate inputs are
+% (d,aprime,a,semiz,z,e,...).
+N_semiz=prod(simoptions.n_semiz);
+N_zeonly=N_ze; % (z,e) alone, without semiz
+if N_semiz==0
+    l_semiz=0;
+else
+    l_semiz=length(simoptions.n_semiz);
+    if n_d(1)==0
+        error('EvalFnOnTransPath_AllStats_InfHorz: semi-exogenous states (simoptions.n_semiz) require a decision variable: the last simoptions.l_dsemiz decision variables determine the semiz transitions')
+    end
+    if simoptions.experienceasset>=1
+        error('EvalFnOnTransPath_AllStats_InfHorz: semi-exogenous states (simoptions.n_semiz) are not yet implemented together with an experience asset')
+    end
+    N_ze=N_semiz*N_ze;
+    if N_z==0 && N_e==0
+        n_ze=simoptions.n_semiz;
+    else
+        n_ze=[simoptions.n_semiz,n_ze];
+    end
+end
 
 %%
 % Note: Internally PricePath is matrix of size T-by-'number of prices'.
@@ -82,8 +135,8 @@ N_z=prod(n_z);
 FnsToEvaluateNames=fieldnames(FnsToEvaluate);
 for ff=1:length(FnsToEvaluateNames)
     temp=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvaluateNames{ff}));
-    if length(temp)>(l_d+l_a+l_a+l_z)
-        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_d+l_a+l_a+l_semiz+l_z+l_e)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_semiz+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,semiz,z,e)
     else
         FnsToEvaluateParamNames(ff).Names={};
     end
@@ -149,7 +202,18 @@ elseif simoptions.experienceasset>=1
 end
 % The TPath variant of the setup, so that a z_grid which varies along the path is picked up
 % (the setup writes zpathtrivial and z_gridvals_T back into transpathoptions)
-[z_gridvals, ~, ~, ~, ~, ~, ~, transpathoptions, simoptions]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,[],Parameters,PricePathNames,ParamPathNames,T,transpathoptions,simoptions,1);
+% ze_gridvals is the (z,e) grid (z varies first), and transpathoptions.zepathtrivial=0 puts its path in
+% transpathoptions.ze_gridvals_T (when either z or e varies over the path).
+[~, ~, ~, ~, ~, ~, ze_gridvals, transpathoptions, simoptions]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,[],Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,simoptions,1);
+if N_semiz>0
+    % The semiz grid (fixed over the path), put in front of the (z,e) grid, semiz fastest
+    [semiz_gridvals, ~, transpathoptions, simoptions]=SemiExogShockSetup_InfHorz_TPath(n_d,d_grid,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,simoptions,1);
+    if N_z==0 && N_e==0
+        ze_gridvals=semiz_gridvals;
+    else
+        ze_gridvals=[repmat(semiz_gridvals,N_zeonly,1),repelem(ze_gridvals,N_semiz,1)];
+    end
+end
 
 
 %% If there are any conditional restrictions, set up for these
@@ -168,8 +232,9 @@ end
 
 
 %%
-PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_grid,aprime_gridvals,simoptions,1);
-AgentDistPath=reshape(AgentDistPath,[N_a,N_z,T]);
+% (PolicyInd2Val_InfHorz_TPath takes the exogenous sizes, (semiz,z,e) together, as its n_z input)
+PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_ze,T,d_grid,aprime_gridvals,simoptions,1); % [l_d+l_aprime,N_a,N_ze,T]
+AgentDistPath=reshape(AgentDistPath,[N_a*N_ze,T]);
 
 % preallocate
 for ff=1:length(FnsToEvaluateNames)
@@ -224,8 +289,12 @@ for tt=1:T
         Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
     end
 
-    if transpathoptions.zpathtrivial==0
-        z_gridvals=transpathoptions.z_gridvals_T(:,:,tt);
+    if transpathoptions.zepathtrivial==0
+        if N_semiz==0
+            ze_gridvals=transpathoptions.ze_gridvals_T(:,:,tt);
+        else
+            ze_gridvals=[repmat(semiz_gridvals,N_zeonly,1),repelem(transpathoptions.ze_gridvals_T(:,:,tt),N_semiz,1)]; % (semiz,z,e), semiz fastest
+        end
     end
     if use_tplus1price==1
         for pp=1:length(tplus1priceNames)
@@ -236,9 +305,13 @@ for tt=1:T
     end
 
     PolicyValues=PolicyValuesPath(:,:,:,tt);
-    AgentDist=AgentDistPath(:,:,tt);
+    AgentDist=AgentDistPath(:,tt);
 
-    AllStats=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AllStats(AgentDist(:), PolicyValues, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames,FnsToEvaluateNames, n_a, n_z, a_gridvals, z_gridvals,simoptions);
+    if N_z==0 && N_e==0 && N_semiz==0
+        AllStats=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AllStats_noz(AgentDist, PolicyValues, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames,FnsToEvaluateNames, n_a, a_gridvals,simoptions);
+    else
+        AllStats=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AllStats(AgentDist, PolicyValues, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames,FnsToEvaluateNames, n_a, n_ze, a_gridvals, ze_gridvals,simoptions);
+    end
 
     if useCondlRest==1
         for rr=1:length(CondlRestnFnNames)

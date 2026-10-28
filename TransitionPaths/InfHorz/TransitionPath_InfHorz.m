@@ -10,7 +10,7 @@ function varargout=TransitionPath_InfHorz(PricePath0, ParamPath, T, V_final, Age
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
 
-if all(size(d_grid)==[prod(n_z),prod(n_z)])
+if prod(n_z)>1 && all(size(d_grid)==[prod(n_z),prod(n_z)]) % prod(n_z)>1: without z (n_z=0) and without d, d_grid=[] is [0,0] and would trip this
     error('Check input order: pi_z comes after z_grid') % Keep this error message until end of 2007, can remove after that
 end
 
@@ -313,6 +313,9 @@ else
         if isfield(vfoptions,'n_semiz') && prod(vfoptions.n_semiz)>0
             error('vfoptions.localsearch=1 is not implemented with a semi-exogenous state')
         end
+        if prod(n_z)==0
+            error('vfoptions.localsearch=1 is not implemented without a z variable')
+        end
         % The experience asset branch of Step1 calls its own single step directly, bypassing the
         % dispatcher, so without this the option would be silently ignored rather than refused
         if vfoptions.experienceasset>=1
@@ -356,6 +359,40 @@ if vfoptions.divideandconquer==1
     end
 end
 vfoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
+
+%% Semi-exogenous states, vfoptions.n_semiz
+% The last vfoptions.l_dsemiz decision variables (d2) drive the semiz transitions pi_semiz(semiz,semiz',d2); any others
+% are d1. Exogenous states are (semiz,z,e), semiz fastest. Supported on the path for one endogenous state, with/without
+% d1, z and e, with plain, divideandconquer, gridinterplayer, and both. Everything else is REFUSED, because the
+% substeps that would otherwise be reached know nothing about semiz and would solve a different model.
+if prod(vfoptions.n_semiz)>0
+    if prod(n_d)==0
+        error('Transition paths with semi-exogenous states (vfoptions.n_semiz) require a decision variable: the last vfoptions.l_dsemiz decision variables determine the semiz transitions')
+    end
+    if length(n_a)>1
+        error('Transition paths with semi-exogenous states (vfoptions.n_semiz) only allow a single endogenous state (cannot have length(n_a)>1)')
+    end
+    if vfoptions.experienceasset>=1
+        error('Transition paths with semi-exogenous states (vfoptions.n_semiz) are not yet implemented together with an experience asset')
+    end
+    if ~strcmp(vfoptions.exoticpreferences,'None')
+        error('Transition paths with semi-exogenous states (vfoptions.n_semiz) are not yet implemented with vfoptions.exoticpreferences')
+    end
+    if vfoptions.localsearch~=0
+        error('vfoptions.localsearch=1 is not implemented with a semi-exogenous state')
+    end
+    if transpathoptions.GEnewprice==1
+        % The two methods that build the Jacobian at the stationary eqm call stationary/SSJ machinery that is not
+        % given the semiz setup, and the triangular FullJacobian reuses a baseline value fn path built with the
+        % non-semiz single step. The other two only call the path solver itself, and so are fine.
+        if strcmp(transpathoptions.GEnewprice1.Jacobianmethod,'LudwigSSJ') || strcmp(transpathoptions.GEnewprice1.Jacobianmethod,'LudwigStationary')
+            error('transpathoptions.GEnewprice1.Jacobianmethod=''%s'' is not implemented with semi-exogenous states; use ''LudwigPath'' or ''FullJacobian''',transpathoptions.GEnewprice1.Jacobianmethod)
+        end
+        if strcmp(transpathoptions.GEnewprice1.Jacobianmethod,'FullJacobian') && transpathoptions.GEnewprice1.FullJacobianReuseVpath==1
+            error('transpathoptions.GEnewprice1.FullJacobianReuseVpath=1 is not implemented with semi-exogenous states. Set it to 0 to use the plain Jacobian loop')
+        end
+    end
+end
 
 %% Check which simoptions have been used, set all others to defaults
 if exist('simoptions','var')==0
@@ -437,7 +474,20 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(vfoptions.n_e);
 if N_e>0
-    error('Have not yet implemented i.i.d., e, shocks')
+    % The e shocks are set up from simoptions below (ExogShockSetup_InfHorz_TPath), so if they were only
+    % given in vfoptions, copy them across
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=vfoptions.n_e;
+        if isfield(vfoptions,'EiidShockFn')
+            simoptions.EiidShockFn=vfoptions.EiidShockFn;
+        else
+            simoptions.e_grid=vfoptions.e_grid;
+            simoptions.pi_e=vfoptions.pi_e;
+        end
+    end
+    if vfoptions.experienceasset>=1
+        error('Transition paths with an experience asset are not yet implemented with an e variable')
+    end
 end
 
 if N_d==0
@@ -460,12 +510,18 @@ if N_e==0
 else
     l_e=length(vfoptions.n_e);
 end
+N_semiz=prod(vfoptions.n_semiz);
+if N_semiz==0
+    l_semiz=0;
+else
+    l_semiz=length(vfoptions.n_semiz);
+end
 
 %% Implement new way of handling ReturnFn inputs
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
 %% Set up exogenous shock processes
-[z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, simoptions]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPathNames,T,transpathoptions,simoptions,4);
+[z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, simoptions]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,simoptions,4);
 % Convert z and e to joint-grids and transition matrix
 % output: z_gridvals, pi_z, e_gridvals, pi_e, transpathoptions,vfoptions,simoptions
 
@@ -480,12 +536,51 @@ ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Paramet
 %
 % transpathoptions.zepathtrivial=0 when either of zpathtrival and epathtrivial both are zero
 
+%% Set up semi-exogenous states
+% The semiz transition depends on the decision d2, so semiz is carried as part of the composite exogenous state
+% bothz=(semiz,z) [semiz fastest, e kept separate] in the value function, and (semiz,z,e) in the agent distribution.
+% What the substeps need is stashed in vfoptions.setup_semiexo and simoptions.setup_semiexo, so that the solver
+% signatures do not change. The substeps route to their SemiExo variants when prod(n_semiz)>0.
+if N_semiz>0
+    [semiz_gridvals, pi_semiz, transpathoptions, vfoptions]=SemiExogShockSetup_InfHorz_TPath(n_d,d_grid,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,vfoptions,4);
+    % semiz_gridvals [N_semiz,l_semiz] and pi_semiz [N_semiz,N_semiz,N_dsemiz] (gpu); transpathoptions.semizpathtrivial,
+    % and transpathoptions.pi_semiz_T [N_semiz,N_semiz,N_dsemiz,T] (gpu) when semizpathtrivial=0
+    vfoptions.setup_semiexo.semiz_gridvals=semiz_gridvals;
+    vfoptions.setup_semiexo.pi_semiz=pi_semiz;
+    simoptions.n_semiz=vfoptions.n_semiz;
+    simoptions.l_dsemiz=vfoptions.l_dsemiz;
+    simoptions.setup_semiexo=vfoptions.setup_semiexo;
+    simoptions.setup_semiexo.pi_semiz=gather(pi_semiz); % agent distribution iteration is performed on cpu
+    % Joint grid on (semiz,z,e), semiz fastest, used for AggVars (semiz disguised as part of z)
+    if N_z==0 && N_e==0
+        simoptions.setup_semiexo.semizze_gridvals=semiz_gridvals;
+    else
+        N_ze=max(N_z,1)*max(N_e,1);
+        simoptions.setup_semiexo.semizze_gridvals=[repmat(semiz_gridvals,N_ze,1),repelem(ze_gridvals,N_semiz,1)];
+        if transpathoptions.zepathtrivial==0
+            % z and/or e grids vary over the path (the semiz grid cannot): [N_semiz*N_ze,l_semiz+l_z+l_e,T]
+            transpathoptions.semizze_gridvals_T=[repmat(semiz_gridvals,N_ze,1,T),repelem(transpathoptions.ze_gridvals_T,N_semiz,1,1)];
+        end
+    end
+else
+    if isfield(simoptions,'n_semiz') && prod(simoptions.n_semiz)>0
+        error('Transition paths: simoptions.n_semiz is set but vfoptions.n_semiz is not. The semi-exogenous state setup (n_semiz, semiz_grid, SemiExoStateFn or pi_semiz, l_dsemiz) is read from vfoptions')
+    end
+    simoptions.n_semiz=0;
+end
+
 %% If using any non-standard endogenous states, setup for those
 [vfoptions,simoptions]=SetupNonStandardEndoStates_InfHorz_TPath(n_d,n_a,d_grid,a_grid,vfoptions,simoptions);
 
 %% Setup for V_final
 % Note: I keep Policy as having a first dimension (even if it is just 1)
-if N_e==0
+if N_semiz>0 % V keeps the composite bothz=(semiz,z) dimension, e separate
+    if N_e==0
+        V_final=reshape(V_final,[N_a,N_semiz*max(N_z,1)]);
+    else
+        V_final=reshape(V_final,[N_a,N_semiz*max(N_z,1),N_e]);
+    end
+elseif N_e==0
     if N_z==0
         V_final=reshape(V_final,[N_a,1]);
     else
@@ -500,7 +595,9 @@ else
 end
 
 %% Setup for AgentDist_initial
-if N_e==0  % no z, no e
+if N_semiz>0 % (a,semiz,z,e), semiz fastest
+    AgentDist_initial=reshape(AgentDist_initial,[N_a*N_semiz*max(N_z,1)*max(N_e,1),1]);
+elseif N_e==0  % no z, no e
     if N_z==0
         AgentDist_initial=reshape(AgentDist_initial,[N_a,1]);
     else % z, no e
@@ -525,8 +622,8 @@ AggVarNames=fieldnames(FnsToEvaluate);
 FnsToEvaluateCell=cell(1,length(AggVarNames));
 for ff=1:length(AggVarNames)
     temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-    if length(temp)>(l_daprime+l_a+l_z+l_e)
-        FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_daprime+l_a+l_semiz+l_z+l_e)
+        FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_semiz+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,semiz,z,e)
     else
         FnsToEvaluateParamNames(ff).Names={};
     end

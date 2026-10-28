@@ -35,6 +35,16 @@ if vfoptions.localsearch==1 && isempty(aprimeReferencePath)
     error('vfoptions.localsearch=1 reached Step1 with no aprimeReferencePath: the first sweep of a solve has to be a standard one, which is what builds it')
 end
 
+% Semi-exogenous states have their own backward pass (V and Policy carry the composite bothz=(semiz,z) dimension).
+% n_semiz is defaulted here, above its read, because Step1 is reached from callers that never set it.
+if ~isfield(vfoptions,'n_semiz')
+    vfoptions.n_semiz=0;
+end
+if prod(vfoptions.n_semiz)>0
+    [VPath,PolicyIndexesPath]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter_SemiExo(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_z,N_e,d_gridvals,a_grid,z_gridvals,e_gridvals,pi_z,pi_e,ReturnFn,DiscountFactorParamNames,ReturnFnParamNames,transpathoptions,vfoptions);
+    return
+end
+
 if vfoptions.experienceasset>=1
     [VPath,PolicyIndexesPath]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter_ExpAsset(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,vfoptions.setup_experienceasset.n_d1,vfoptions.setup_experienceasset.n_d2,vfoptions.setup_experienceasset.n_a1,vfoptions.setup_experienceasset.n_a2,n_z,n_e,N_z,N_e,d_gridvals, vfoptions.setup_experienceasset.d2_gridvals,vfoptions.setup_experienceasset.a1_gridvals,vfoptions.setup_experienceasset.a2_grid, z_gridvals,e_gridvals,pi_z,pi_e,ReturnFn,vfoptions.setup_experienceasset.aprimeFn,DiscountFactorParamNames,ReturnFnParamNames,vfoptions.setup_experienceasset.aprimeFnParamNames,transpathoptions,vfoptions);
     return
@@ -52,7 +62,6 @@ if N_z==0 && N_e==0
             Parameters.(ParamPathNames{kk})=ParamPath(T-tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
 
-        error('Not yet implemented')
         [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz(V,n_d,n_a,d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The V input is next period value fn, the V output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
@@ -182,12 +191,14 @@ elseif N_z==0 && N_e>0
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
 
-        if transpathoptions.zpathtrivial==0
+        % The grid is this period's, the distribution is NEXT period's: pi_e_T(:,t) is the distribution of the
+        % e realized IN period t (the same convention as pi_e_J in FHorz), and the expectation in V_t is over
+        % e_{t+1}. pi_e_T has T columns, so at t=T-1 this reads column T, which exists.
+        if transpathoptions.epathtrivial==0
             e_gridvals=transpathoptions.e_gridvals_T(:,:,T-ttr);
-            pi_e=transpathoptions.pi_e_T(:,T-ttr);
+            pi_e=transpathoptions.pi_e_T(:,T-ttr+1);
         end
 
-        error('Not yet implemented')
         [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The V input is next period value fn, the V output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
@@ -211,12 +222,12 @@ elseif N_z>0 && N_e>0
             z_gridvals=transpathoptions.z_gridvals_T(:,:,T-ttr);
             pi_z=transpathoptions.pi_z_T(:,:,T-ttr);
         end
+        % e: this period's grid, NEXT period's distribution (see the noz branch above)
         if transpathoptions.epathtrivial==0
             e_gridvals=transpathoptions.e_gridvals_T(:,:,T-ttr);
-            pi_e=transpathoptions.pi_e_T(:,T-ttr);
+            pi_e=transpathoptions.pi_e_T(:,T-ttr+1);
         end
 
-        error('Not yet implemented')
         [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The V input is next period value fn, the V output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')

@@ -1,4 +1,6 @@
-function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, options]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPathNames,T,transpathoptions,options,gridpiboth)
+function [z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, options]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,options,gridpiboth)
+% ParamPath is the T-by-(number of path parameters) matrix and ParamPathSizeVec its column ranges, as made by
+% PricePathParamPath_StructToMatrix; only read when ExogShockFn or EiidShockFn depends on a ParamPath parameter.
 % Convert z and e to joint-grids and transition matrix
 % output: z_gridvals, pi_z, pi_z_sparse, e_gridvals, pi_e, pi_e_sparse, ze_gridvals, transpathoptions, options
 
@@ -131,6 +133,7 @@ transpathoptions.epathtrivial=1;  % will be overwritten if appropriate
 % Check if using 'exogenous shock fn' (exogenous state has a grid and transition matrix that depends on age)
 
 z_gridvals=[];
+pi_z_sparse=[]; % stays empty without z, but is an output so must exist
 if N_z>0
     if isfield(options,'ExogShockFn') % Just calculate grid and transition probabilities anyway
         options.ExogShockFnParamNames=getAnonymousFnInputNames(options.ExogShockFn);
@@ -154,8 +157,6 @@ if N_z>0
                 end
             end
             if overlap2==0
-                pi_z=zeros(N_z,N_z,'gpuArray');
-                z_grid=zeros(N_z,1,'gpuArray');
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                 for ii=1:length(ExogShockFnParamsVec)
@@ -163,28 +164,42 @@ if N_z>0
                 end
                 [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
                 pi_z=gpuArray(pi_z);
-                z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
+                if all(size(z_grid)==[sum(n_z),1]) % stacked-column grid
+                    z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
+                else % already joint-grid
+                    z_gridvals=gpuArray(z_grid);
+                end
             elseif overlap2==1 % ExogShockFn depends on a ParamPath parameter
-                transpathoptions.zpathtrivial=0; % z_grid_J and pi_z_J vary over the path
+                transpathoptions.zpathtrivial=0; % z_grid and pi_z vary over the path
                 transpathoptions.pi_z_T=zeros(N_z,N_z,T,'gpuArray');
                 transpathoptions.z_gridvals_T=zeros(prod(n_z),length(n_z),T,'gpuArray');
+                Parameters_tt=Parameters;
                 for tt=1:T
-                    for ii=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
-                    end
                     % Note, we know the PricePath is irrelevant for the current purpose
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames);
+                    for pp=1:length(ParamPathNames)
+                        Parameters_tt.(ParamPathNames{pp})=ParamPath(tt,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp));
+                    end
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters_tt, options.ExogShockFnParamNames);
                     ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                     for ii=1:length(ExogShockFnParamsVec)
                         ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                     end
-                    [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
-                    pi_z=gpuArray(pi_z);
-                    z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
-
-                    transpathoptions.pi_z_T(:,:,tt)=pi_z;
-                    transpathoptions.z_gridvals_T(:,:,tt)=z_gridvals;
+                    [z_grid_tt,pi_z_tt]=options.ExogShockFn(ExogShockFnParamsCell{:});
+                    if all(size(z_grid_tt)==[sum(n_z),1]) % stacked-column grid
+                        transpathoptions.z_gridvals_T(:,:,tt)=CreateGridvals(n_z,gpuArray(z_grid_tt),1);
+                    else % already joint-grid
+                        transpathoptions.z_gridvals_T(:,:,tt)=gpuArray(z_grid_tt);
+                    end
+                    transpathoptions.pi_z_T(:,:,tt)=gpuArray(pi_z_tt);
                 end
+                % Plain outputs are placeholders for tt=1; downstream code uses the _T fields
+                z_gridvals=transpathoptions.z_gridvals_T(:,:,1);
+                pi_z=transpathoptions.pi_z_T(:,:,1);
+            end
+            if gridpiboth==1 % as in the input-grid route
+                pi_z=[];
+            elseif gridpiboth==2
+                z_gridvals=[];
             end
         end
 
@@ -347,28 +362,42 @@ if N_e>0
                 end
                 [e_grid,pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
                 pi_e=gpuArray(pi_e);
-                e_grid=gpuArray(e_grid);
-            elseif overlap2==1 % ExogShockFn depends on a ParamPath parameter
+                if all(size(e_grid)==[sum(n_e),1]) % stacked-column grid
+                    e_gridvals=CreateGridvals(n_e,gpuArray(e_grid),1);
+                else % already joint-grid
+                    e_gridvals=gpuArray(e_grid);
+                end
+            elseif overlap2==1 % EiidShockFn depends on a ParamPath parameter
                 transpathoptions.epathtrivial=0; % e_grid and pi_e vary over the path
                 transpathoptions.pi_e_T=zeros(N_e,T,'gpuArray');
                 transpathoptions.e_gridvals_T=zeros(prod(n_e),length(n_e),T,'gpuArray');
+                Parameters_tt=Parameters;
                 for tt=1:T
-                    for ii=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
-                    end
                     % Note, we know the PricePath is irrelevant for the current purpose
-                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames);
+                    for pp=1:length(ParamPathNames)
+                        Parameters_tt.(ParamPathNames{pp})=ParamPath(tt,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp));
+                    end
+                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters_tt, options.EiidShockFnParamNames);
                     EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
                     for ii=1:length(EiidShockFnParamsVec)
                         EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
                     end
-                    [e_grid,pi_e]=options.EiidShockFn(EiidShockFnParamsCell{:});
-                    pi_e=gpuArray(pi_e);
-                    e_gridvals=CreateGridvals(n_e,gpuArray(e_grid),1);
-
-                    transpathoptions.pi_e_T(:,tt)=pi_e;
-                    transpathoptions.e_gridvals_T(:,:,tt)=e_gridvals;
+                    [e_grid_tt,pi_e_tt]=options.EiidShockFn(EiidShockFnParamsCell{:});
+                    if all(size(e_grid_tt)==[sum(n_e),1]) % stacked-column grid
+                        transpathoptions.e_gridvals_T(:,:,tt)=CreateGridvals(n_e,gpuArray(e_grid_tt),1);
+                    else % already joint-grid
+                        transpathoptions.e_gridvals_T(:,:,tt)=gpuArray(e_grid_tt);
+                    end
+                    transpathoptions.pi_e_T(:,tt)=gpuArray(pi_e_tt);
                 end
+                % Plain outputs are placeholders for tt=1; downstream code uses the _T fields
+                e_gridvals=transpathoptions.e_gridvals_T(:,:,1);
+                pi_e=transpathoptions.pi_e_T(:,1);
+            end
+            if gridpiboth==1 % as in the input-grid route
+                pi_e=[];
+            elseif gridpiboth==2
+                e_gridvals=[];
             end
         end
 
@@ -542,7 +571,19 @@ else
         elseif N_z==0 && N_e>0
             transpathoptions.ze_gridvals_T=transpathoptions.e_gridvals_T;
         elseif N_z>0 && N_e>0
-            transpathoptions.ze_gridvals_T=[repmat(transpathoptions.z_gridvals_T,N_e,1),repelem(transpathoptions.e_gridvals_T,N_z,1)];
+            % Only one of the two may vary over the path, in which case the other has no _T field and its
+            % time-invariant grid is repeated over t
+            if transpathoptions.zpathtrivial==0
+                z_gridvals_T=transpathoptions.z_gridvals_T;
+            else
+                z_gridvals_T=repmat(z_gridvals,1,1,T);
+            end
+            if transpathoptions.epathtrivial==0
+                e_gridvals_T=transpathoptions.e_gridvals_T;
+            else
+                e_gridvals_T=repmat(e_gridvals,1,1,T);
+            end
+            transpathoptions.ze_gridvals_T=[repmat(z_gridvals_T,N_e,1),repelem(e_gridvals_T,N_z,1)];
         end
     end
 end

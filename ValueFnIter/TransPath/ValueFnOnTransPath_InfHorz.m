@@ -171,6 +171,43 @@ end
 % them anyway to make it easier to 'copy-paste' input lists from other
 % similar functions the user is likely to be using.
 
+%% iid e shocks
+% Read here, because ExogShockSetup_InfHorz_TPath below removes n_e, e_grid and pi_e from vfoptions
+if ~isfield(vfoptions,'n_e')
+    vfoptions.n_e=0;
+end
+n_e=vfoptions.n_e;
+N_e=prod(n_e);
+if N_e>0 && vfoptions.experienceasset>=1
+    error('ValueFnOnTransPath_InfHorz: an experience asset together with an e variable is not yet implemented')
+end
+
+%% Semi-exogenous states
+% The last vfoptions.l_dsemiz decision variables (d2) drive the semiz transitions pi_semiz(semiz,semiz',d2). Exogenous
+% states are (semiz,z,e), semiz fastest; V and Policy carry the composite bothz=(semiz,z) with e separate.
+if ~isfield(vfoptions,'n_semiz')
+    vfoptions.n_semiz=0;
+end
+n_semiz=vfoptions.n_semiz;
+N_semiz=prod(n_semiz);
+if N_semiz>0
+    if prod(n_d)==0
+        error('ValueFnOnTransPath_InfHorz: semi-exogenous states (vfoptions.n_semiz) require a decision variable: the last vfoptions.l_dsemiz decision variables determine the semiz transitions')
+    end
+    if length(n_a)>1
+        error('ValueFnOnTransPath_InfHorz: semi-exogenous states (vfoptions.n_semiz) only allow a single endogenous state (cannot have length(n_a)>1)')
+    end
+    if vfoptions.experienceasset>=1
+        error('ValueFnOnTransPath_InfHorz: semi-exogenous states (vfoptions.n_semiz) are not yet implemented together with an experience asset')
+    end
+    if ~strcmp(vfoptions.exoticpreferences,'None')
+        error('ValueFnOnTransPath_InfHorz: semi-exogenous states (vfoptions.n_semiz) are not yet implemented with vfoptions.exoticpreferences')
+    end
+    if vfoptions.localsearch~=0
+        error('ValueFnOnTransPath_InfHorz: vfoptions.localsearch is not implemented with a semi-exogenous state')
+    end
+end
+
 %% Implement new way of handling ReturnFn inputs
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
@@ -210,7 +247,13 @@ N_a=prod(n_a);
 % within one backward pass because prices move smoothly. It is still uncertified, so it is not done.
 aprimeReferencePolicy=[];
 
-V_final=reshape(V_final,[N_a,N_z]);
+% Internally the paths keep one exogenous dimension, (z,e) together, which is a singleton when there is
+% neither. V is reshaped to what each single step expects inside the loop.
+N_ze=max(N_z,1)*max(N_e,1);
+if N_semiz>0
+    N_ze=N_semiz*N_ze; % with semiz the one exogenous dimension is (semiz,z,e), semiz fastest
+end
+V_final=reshape(V_final,[N_a,N_ze]);
 
 if transpathoptions.verbose==2
     DiscountFactorParamNames
@@ -219,7 +262,7 @@ if transpathoptions.verbose==2
     PricePathNames
 end
 
-VKronPath=zeros(N_a,N_z,T);
+VKronPath=zeros(N_a,N_ze,T);
 VKronPath(:,:,T)=V_final;
 
 
@@ -228,7 +271,14 @@ VKronPath(:,:,T)=V_final;
 % transpathoptions.zpathtrivial (=0 when z_gridvals/pi_z vary along the path, in which case the
 % full paths are put in transpathoptions.z_gridvals_T and transpathoptions.pi_z_T and the plain
 % z_gridvals/pi_z returned here are only the tt=1 placeholders).
-[z_gridvals, pi_z, ~, ~, ~, ~, ~, transpathoptions, vfoptions]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPathNames,T,transpathoptions,vfoptions,3);
+% Same for e: transpathoptions.epathtrivial=0 puts the paths in transpathoptions.e_gridvals_T and
+% transpathoptions.pi_e_T.
+[z_gridvals, pi_z, ~, e_gridvals, pi_e, ~, ~, transpathoptions, vfoptions]=ExogShockSetup_InfHorz_TPath(n_z,z_grid,pi_z,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,vfoptions,3);
+% Semi-exogenous states: semiz_gridvals [N_semiz,l_semiz], pi_semiz [N_semiz,N_semiz,N_dsemiz] (gpu); when
+% transpathoptions.semizpathtrivial=0 the path is in transpathoptions.pi_semiz_T [N_semiz,N_semiz,N_dsemiz,T]
+if N_semiz>0
+    [semiz_gridvals, pi_semiz, transpathoptions, vfoptions]=SemiExogShockSetup_InfHorz_TPath(n_d,d_grid,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,T,transpathoptions,vfoptions,3);
+end
 
 %%
 if N_d==0
@@ -240,8 +290,8 @@ if vfoptions.experienceasset>=1
     l_daprime=l_daprime-1;
 end
 
-PolicyIndexesPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
-PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_z]);
+PolicyIndexesPath=zeros(l_daprime+2*(vfoptions.gridinterplayer>0),N_a,N_ze,T,'gpuArray'); % Periods 1 to T-1
+PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_ze]);
 
 % NO aprimeReferencePath OUTPUT. It was returned for five days, read by nothing, and under the
 % normal path -- localsearch=1, which this command ignores -- it would have been an array of zeros
@@ -251,7 +301,51 @@ PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_z])
 
 
 %%
-if vfoptions.experienceasset==0
+if N_semiz>0
+    % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
+    N_bothz=N_semiz*max(N_z,1);
+    Vnext=V_final;
+    for ttr=1:T-1 %so t=T-i
+
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePath(T-ttr,kk);
+        end
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,kk);
+        end
+
+        if N_z>0 && transpathoptions.zpathtrivial==0
+            z_gridvals=transpathoptions.z_gridvals_T(:,:,T-ttr);
+            pi_z=transpathoptions.pi_z_T(:,:,T-ttr);
+        end
+        % e: this period's grid, NEXT period's distribution
+        if N_e>0 && transpathoptions.epathtrivial==0
+            e_gridvals=transpathoptions.e_gridvals_T(:,:,T-ttr);
+            pi_e=transpathoptions.pi_e_T(:,T-ttr+1);
+        end
+        % semiz: pi_semiz_T(:,:,:,t) is the transition from t to t+1 (the semiz grid is fixed over the path)
+        if transpathoptions.semizpathtrivial==0
+            pi_semiz=transpathoptions.pi_semiz_T(:,:,:,T-ttr);
+        end
+
+        if N_z>0 && N_e==0
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_SemiExo(reshape(Vnext,[N_a,N_bothz]),n_d,n_a,n_z,n_semiz,d_gridvals, a_grid, z_gridvals, semiz_gridvals, pi_z, pi_semiz, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        elseif N_z==0 && N_e==0
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_SemiExo_noz(reshape(Vnext,[N_a,N_bothz]),n_d,n_a,n_semiz,d_gridvals, a_grid, semiz_gridvals, pi_semiz, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        elseif N_z==0 && N_e>0
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_SemiExo_noz_e(reshape(Vnext,[N_a,N_bothz,N_e]),n_d,n_a,n_semiz,n_e,d_gridvals, a_grid, semiz_gridvals, e_gridvals, pi_semiz, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        elseif N_z>0 && N_e>0
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_SemiExo_e(reshape(Vnext,[N_a,N_bothz,N_e]),n_d,n_a,n_z,n_semiz,n_e,d_gridvals, a_grid, z_gridvals, semiz_gridvals, e_gridvals, pi_z, pi_semiz, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
+        % The VKron input is next period value fn, the VKron output is this period. Policy is [l_d+l_a(+2),N_a,N_bothz(,N_e)]
+
+        PolicyIndexesPath(:,:,:,T-ttr)=reshape(Policy,[size(Policy,1),N_a,N_ze]);
+
+        V=reshape(V,[N_a,N_ze]);
+        VKronPath(:,:,T-ttr)=V;
+        Vnext=V;
+    end
+elseif vfoptions.experienceasset==0
     % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     Vnext=V_final;
     for ttr=1:T-1 %so t=T-i
@@ -263,16 +357,31 @@ if vfoptions.experienceasset==0
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,kk);
         end
 
-        if transpathoptions.zpathtrivial==0
+        if N_z>0 && transpathoptions.zpathtrivial==0
             z_gridvals=transpathoptions.z_gridvals_T(:,:,T-ttr);
             pi_z=transpathoptions.pi_z_T(:,:,T-ttr);
         end
+        % e: this period's grid, NEXT period's distribution. pi_e_T(:,t) is the distribution of the e
+        % realized IN period t (same convention as pi_e_J in FHorz), and V_t takes its expectation over e_{t+1}.
+        if N_e>0 && transpathoptions.epathtrivial==0
+            e_gridvals=transpathoptions.e_gridvals_T(:,:,T-ttr);
+            pi_e=transpathoptions.pi_e_T(:,T-ttr+1);
+        end
 
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+        if N_z>0 && N_e==0
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+        elseif N_z==0 && N_e==0
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz(Vnext,n_d,n_a,d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        elseif N_z==0 && N_e>0
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz_e(reshape(Vnext,[N_a,N_e]),n_d,n_a,n_e,d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        elseif N_z>0 && N_e>0
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_e(reshape(Vnext,[N_a,N_z,N_e]),n_d,n_a,n_z,n_e,d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 
-        PolicyIndexesPath(:,:,:,T-ttr)=Policy;
+        PolicyIndexesPath(:,:,:,T-ttr)=reshape(Policy,[size(Policy,1),N_a,N_ze]);
 
+        V=reshape(V,[N_a,N_ze]);
         VKronPath(:,:,T-ttr)=V;
         Vnext=V;
     end
@@ -341,8 +450,33 @@ end
 
 
 %% Unkron to get into the shape for output
-VPath=reshape(VKronPath,[n_a,n_z,T]);
-PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_z,T]);
+if N_semiz>0
+    if N_z==0 && N_e==0
+        VPath=reshape(VKronPath,[n_a,n_semiz,T]);
+        PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_semiz,T]);
+    elseif N_z>0 && N_e==0
+        VPath=reshape(VKronPath,[n_a,n_semiz,n_z,T]);
+        PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_semiz,n_z,T]);
+    elseif N_z==0 && N_e>0
+        VPath=reshape(VKronPath,[n_a,n_semiz,n_e,T]);
+        PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_semiz,n_e,T]);
+    elseif N_z>0 && N_e>0
+        VPath=reshape(VKronPath,[n_a,n_semiz,n_z,n_e,T]);
+        PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_semiz,n_z,n_e,T]);
+    end
+elseif N_z==0 && N_e==0
+    VPath=reshape(VKronPath,[n_a,T]);
+    PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,T]);
+elseif N_z>0 && N_e==0
+    VPath=reshape(VKronPath,[n_a,n_z,T]);
+    PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_z,T]);
+elseif N_z==0 && N_e>0
+    VPath=reshape(VKronPath,[n_a,n_e,T]);
+    PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_e,T]);
+elseif N_z>0 && N_e>0
+    VPath=reshape(VKronPath,[n_a,n_z,n_e,T]);
+    PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_z,n_e,T]);
+end
 
 
 end

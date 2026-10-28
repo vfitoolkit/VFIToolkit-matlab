@@ -12,6 +12,27 @@ if simoptions.experienceasset>=1
 end
 
 
+%% Semi-exogenous states: PolicyIndexesPath carries the composite bothz=(semiz,z) dimension in place of z (e separate).
+% II1/II2 are not used; the SemiExo dist raws build their own index sets internally.
+if ~isfield(vfoptions,'n_semiz')
+    vfoptions.n_semiz=0;
+end
+if prod(vfoptions.n_semiz)>0
+    N_bothz=prod(vfoptions.n_semiz)*max(N_z,1);
+    % Shapes:
+    % V is [N_a,N_bothz] or [N_a,N_bothz,N_e]
+    % AgentDist is [N_a*N_bothz*max(N_e,1),1]
+    if N_e==0
+        PolicyIndexesPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer==1),N_a,N_bothz,T-1,'gpuArray'); %Periods 1 to T-1 (+2 = L2index + L2flag)
+    else
+        PolicyIndexesPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer==1),N_a,N_bothz,N_e,T-1,'gpuArray'); %Periods 1 to T-1 (+2 = L2index + L2flag)
+    end
+    II1=[];
+    II2=[];
+    return
+end
+
+
 %%
 if N_z==0 && N_e==0
     % Shapes:
@@ -78,8 +99,8 @@ elseif N_z>0 && N_e>0
         II1=1:1:N_a*N_z*N_e;
         II2=ones(N_a*N_z*N_e,1);
     else
-        II2=repelem((1:1:N_a*N_z*N_e)',1,N_probs);
-        II1=[];
+        II1=repelem((1:1:N_a*N_z*N_e)',1,N_probs);
+        II2=[];
     end
 end
 

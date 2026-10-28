@@ -25,12 +25,31 @@ if ~isfield(transpathoptions,'skipStep1ValueFnIter')
     transpathoptions.skipStep1ValueFnIter=0;
 end
 lsdiag=[]; % Step1 sets it; this covers the skip path below, where no sweep happens
+% Semi-exogenous states: Step1 routes itself (on vfoptions.n_semiz); Step2, Step3tt and the AggVars have SemiExo
+% variants below, as they need the d2 index as well as aprime. n_semiz is defaulted above its read.
+if ~isfield(simoptions,'n_semiz')
+    simoptions.n_semiz=0;
+end
+N_semiz=prod(simoptions.n_semiz);
 if transpathoptions.skipStep1ValueFnIter==0
     [~,PolicyIndexesPath,aprimeReferencePath,lsdiag]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter(T,PolicyIndexesPath,aprimeReferencePath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_z,N_e,d_gridvals, a_grid, z_gridvals,e_gridvals,pi_z,pi_e,ReturnFn,DiscountFactorParamNames, ReturnFnParamNames, transpathoptions,vfoptions);
 end
 
 %% Modify PolicyIndexesPath into forms needed for forward iteration
-[PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=TransitionPath_InfHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath,T,Parameters,n_d,n_a,n_z,n_e,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+if N_semiz==0
+    [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=TransitionPath_InfHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath,T,Parameters,n_d,n_a,n_z,n_e,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+else
+    [Policy_dsemizPath,Policy_aprimePath,PolicyProbsPath,PolicyValuesPath]=TransitionPath_InfHorz_substeps_Step2_AdjustPolicy_SemiExo(PolicyIndexesPath,T,n_d,n_a,N_a,N_z,N_e,d_gridvals,aprime_gridvals,vfoptions,simoptions);
+    % AggVars treat (semiz,z,e) as a single exogenous state, semiz fastest
+    n_semizze=simoptions.n_semiz;
+    if N_z>0
+        n_semizze=[n_semizze,n_z];
+    end
+    if N_e>0
+        n_semizze=[n_semizze,n_e];
+    end
+    semizze_gridvals=simoptions.setup_semiexo.semizze_gridvals;
+end
 
    %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
 % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
@@ -103,10 +122,21 @@ for tt=1:T-1
     end
 
     %% Get the current optimal policy, and iterate the agent dist
-    AgentDistnext=TransitionPath_InfHorz_substeps_Step3tt_IterAgentDist(AgentDist,PolicyPath_ForAgentDistIter,PolicyProbsPath,tt,N_a,N_z,N_e,N_probs,pi_z_sparse,pi_e,II1,II2,transpathoptions,simoptions);
+    if N_semiz==0
+        AgentDistnext=TransitionPath_InfHorz_substeps_Step3tt_IterAgentDist(AgentDist,PolicyPath_ForAgentDistIter,PolicyProbsPath,tt,N_a,N_z,N_e,N_probs,pi_z_sparse,pi_e,II1,II2,transpathoptions,simoptions);
+    else
+        AgentDistnext=TransitionPath_InfHorz_substeps_Step3tt_IterAgentDist_SemiExo(AgentDist,Policy_dsemizPath,Policy_aprimePath,PolicyProbsPath,tt,N_a,N_z,N_e,pi_z_sparse,pi_e,transpathoptions,simoptions);
+    end
 
     %% AggVars
-    if N_z==0 && N_e==0
+    if N_semiz>0
+        % The single-step AggVars with the composite (semiz,z,e) in place of z; the semiz grid is fixed over the path,
+        % but z and/or e grids may vary, in which case transpathoptions.semizze_gridvals_T holds the path
+        if transpathoptions.zepathtrivial==0
+            semizze_gridvals=transpathoptions.semizze_gridvals_T(:,:,tt);
+        end
+        AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(AgentDist, PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, n_a, n_semizze, a_gridvals, semizze_gridvals, 1);
+    elseif N_z==0 && N_e==0
         AggVars=TransitionPath_InfHorz_substeps_Step4tt_AggVars(AgentDist,PolicyValuesPath(:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,n_a,n_z,n_e,N_z,N_e,a_gridvals,ze_gridvals,transpathoptions);
     else
         AggVars=TransitionPath_InfHorz_substeps_Step4tt_AggVars(AgentDist,PolicyValuesPath(:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,n_a,n_z,n_e,N_z,N_e,a_gridvals,ze_gridvals,transpathoptions);
