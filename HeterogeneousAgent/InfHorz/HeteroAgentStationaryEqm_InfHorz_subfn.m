@@ -46,13 +46,13 @@ end
 %% Custom Model Stats
 if heteroagentoptions.useCustomModelStats==1
     if heteroagentoptions.CustomModelStats_usergrids==0
-        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
+        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions); % the user's own vfoptions and simoptions, as FHorz does (was the internal ones, alreadygridvals=1)
     elseif heteroagentoptions.CustomModelStats_usergrids==1
         if heteroagentoptions.gridsinGE==1 % grids depend on GE prices, so give the user's own grids as rebuilt from the current prices
             heteroagentoptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
             heteroagentoptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
         end
-        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,vfoptions,simoptions);
+        CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
     end
     % Note: anything else you want, just 'hide' it in heteroagentoptions
     customstatnames=fieldnames(CustomStats);

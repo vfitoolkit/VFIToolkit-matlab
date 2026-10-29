@@ -1,8 +1,16 @@
 function [CalibParams,calibsummary]=CalibrateBIHAModel(CalibParamNames,TargetMoments,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ParametrizeParamsFn, GEPriceParamNames, FnsToEvaluate, GeneralEqmEqns, heteroagentoptions, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats,
-% AutoCorrTransProbs, and CrossSectionCovarCorr. Lastly there is caliboptions.
-
+% AutoCorrTransProbs, and CrossSectionCovarCorr, plus the general eqm (GEPriceParamNames, GeneralEqmEqns, heteroagentoptions).
+% Lastly there is caliboptions.
+%
+% Two ways to handle the general eqm:
+%   caliboptions.jointoptimization=1 (default): the GE prices are calibrated alongside CalibParamNames, and the GE conditions are
+%       added to the objective (weighted by caliboptions.relativeGEweight and heteroagentoptions.multiGEweights).
+%   caliboptions.jointoptimization=0: nested, every evaluation of the objective solves the general eqm (HeteroAgentStationaryEqm_InfHorz,
+%       started from the GE prices in Parameters, using heteroagentoptions exactly as the user gave it) and then evaluates the targets there.
+% Either way CalibParams contains the GE prices as well as the calibrated parameters, and calibsummary.GeneralEqmConditions holds the
+% GE conditions at the solution.
 
 
 %% Setup caliboptions
@@ -36,7 +44,7 @@ if ~isfield(caliboptions,'logmoments')
     % =1 means log() the model moments [target moments and CoVarMatrixDataMoments should already be based on log(moments) if you are using this+
     % =1 means applies log() to all moments, unless you specify them seperately as on next line
     % You can name moments in the same way you would for the targets, e.g.
-    % caliboptions.logmoments.AgeConditionalStats.earnings.Mean=1
+    % caliboptions.logmoments.AllStats.earnings.Mean=1
     % Will log that moment, but not any other moments.
     % Note: the input target moment should log(moment). Same for the covariance matrix
     % of the data moments, CoVarMatrixDataMoments, should be of the log moments.
@@ -59,8 +67,26 @@ if ~isfield(caliboptions,'fminalgo')
     % Currently, all the caliboptions.metric choices can be done as setup as least-squares residuals problems
     % caliboptions.fminalgo=4; % CMA-ES, I tried fminsearch() by default but it regularly fails to converge to a decent solution
 end
+if ~isfield(caliboptions,'whichcombos')
+    caliboptions.whichcombos=1; % =1: the three stats commands compute only the targeted (function, statistic, restriction) combinations
+    % (simoptions.whichcombos and, for AllStats, a per-combination whichstats, built from TargetMoments by SetupTargetMoments_InfHorz);
+    % =0: every statistic of every targeted function. Every moment is identical either way; =1 is faster when few are targeted.
+end
+if ~(isscalar(caliboptions.whichcombos) && (caliboptions.whichcombos==1 || caliboptions.whichcombos==0))
+    error('caliboptions.whichcombos must be 1 or 0')
+end
 caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with other estimation commands)
 
+if isfield(caliboptions,'simulatemoments')
+    error('simulatemoments=1 option is not supported for BIHA models')
+end
+
+if ~isfield(caliboptions,'ParametrizeParamsFn_InputNames')
+    caliboptions.ParametrizeParamsFn_InputNames={}; % the Parameters fields ParametrizeParamsFn reads; left empty it is filled automatically by ParseParametrizeParamsFn (only relevant when using ParametrizeParamsFn)
+end
+if ~isfield(caliboptions,'ParametrizeParamsFn_OutputNames')
+    caliboptions.ParametrizeParamsFn_OutputNames={}; % the Parameters fields ParametrizeParamsFn writes; left empty it is filled automatically by ParseParametrizeParamsFn. Used to detect whether the shock processes depend on the calibrated parameters (via the derived parameters); set it yourself if the automatic probe cannot see a write (see ParseParametrizeParamsFn)
+end
 caliboptions.useCustomModelStats=0;
 if isfield(caliboptions,'CustomModelStats')
     caliboptions.useCustomModelStats=1;
@@ -78,26 +104,29 @@ if isfield(caliboptions,'CustomModelStats')
     caliboptions.CustomModelStatsInputs.simoptions=simoptions;
 end
 
-if isfield(caliboptions,'simulatemoments')
-    error('simulatemoments=1 option is not supported for OLG models')
-end
-
 
 %% For the General Eqm we add
-heteroagentoptions.outputGEstruct=2; % GE conditions as a vector
 if ~isfield(caliboptions,'relativeGEweight')
     caliboptions.relativeGEweight=10;
 end
 if ~isfield(caliboptions,'jointoptimization')
     caliboptions.jointoptimization=1; % default is joint-optimization, =0 does nested optimization (GE as inner-loop, Calib targets as outer-loop)
 end
+% Nested: the inner general eqm is solved by HeteroAgentStationaryEqm_InfHorz with the heteroagentoptions, grids and options exactly
+% as the user gave them (it does its own setup of the shock grids, constraints on the GE prices, CustomModelStats and intermediateEqns
+% from the current parameters). Keep those before anything below reworks them.
+GEinner.heteroagentoptions=heteroagentoptions;
+GEinner.heteroagentoptions.outputGEstruct=2; % GE conditions as a vector
+GEinner.z_grid=z_grid;
+GEinner.pi_z=pi_z;
+GEinner.vfoptions=vfoptions;
+GEinner.simoptions=simoptions;
+
+heteroagentoptions.outputGEstruct=2; % GE conditions as a vector
 if ~isfield(heteroagentoptions,'multiGEweights')
     heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns))); % GE conditions as a vector
 else
-    % make sure it is a row-vector
-    if size(heteroagentoptions.multiGEweights,1)>1
-        heteroagentoptions.multiGEweights=heteroagentoptions.multiGEweights';
-    end
+    heteroagentoptions.multiGEweights=reshape(heteroagentoptions.multiGEweights,1,[]); % make sure it is a row-vector (it multiplies the row of GE conditions)
 end
 if ~isfield(heteroagentoptions,'constrainpositive')
     heteroagentoptions.constrainpositive={}; % names of parameters to be constrained to be positive (gets converted to a binary-valued vector below)
@@ -151,18 +180,17 @@ end
 % joint optimization uses cell and names
 % nested optimization uses structure
 
-% And for joint optimization we put the GeneralEqmParamNames into CalibParamNames
-% This is done below while setting up calibration parameters
-
 nGEParams=length(GEPriceParamNames);
-GEparamsvec0=zeros(length(GEPriceParamNames),1); % column vector
-for pp=1:nGEParams
-    GEparamsvec0(pp)=Parameters.(GEPriceParamNames{pp});
+if caliboptions.jointoptimization==1
+    % The GE prices are added to the calibration parameters (below), so they need transforming
+    GEparamsvec0=zeros(nGEParams,1); % column vector
+    for pp=1:nGEParams
+        GEparamsvec0(pp)=Parameters.(GEPriceParamNames{pp});
+    end
+    % If the parameter is constrained in some way then we need to transform it
+    [GEparamsvec0,heteroagentoptions]=ParameterConstraints_TransformParamsToUnconstrained(GEparamsvec0,0:1:nGEParams,GEPriceParamNames,heteroagentoptions,1);
+    % Also converts the constraints info in heteroagentoptions to be a vector rather than by name.
 end
-% If the parameter is constrained in some way then we need to transform it
-[GEparamsvec0,heteroagentoptions]=ParameterConstraints_TransformParamsToUnconstrained(GEparamsvec0,0:1:nGEParams,GEPriceParamNames,heteroagentoptions,1);
-% Also converts the constraints info in estimoptions to be a vector rather than by name.
-
 
 if isfield(heteroagentoptions,'intermediateEqns')
     heteroagentoptions.useintermediateEqns=1;
@@ -179,8 +207,10 @@ else
     heteroagentoptions.useintermediateEqns=0;
 end
 
+
 %% Setup for which parameters are being calibrated
 nCalibParams=length(CalibParamNames);
+caliboptions.nCalibParamsNonGE=nCalibParams; % the scalar objective divides the targets part by this (not by the number including the GE prices), so joint and nested scale alike
 
 % Sometimes we want to omit parameters
 if isfield(caliboptions,'omitcalibparam')
@@ -191,12 +221,15 @@ end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
 calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omitting the parameter for certain ages
-calibomitparamsmatrix=zeros(1,1); % Each row is of size 1-by-1 and holds the omitted values of a parameter
+calibomitparamsmatrix={}; % one cell per parameter under an omit-mask, holding its values with NaN where calibrated (a parameter of any length; this was a 1-by-1 matrix, so any vector parameter errored)
 for pp=1:nCalibParams
     if any(strcmp(OmitCalibParamsNames,CalibParamNames{pp}))
         % This parameter is under an omit-mask, so need to only use part of it
         tempparam=Parameters.(CalibParamNames{pp});
         tempomitparam=caliboptions.omitcalibparam.(CalibParamNames{pp});
+        % Make them both column vectors
+        tempparam=tempparam(:);
+        tempomitparam=tempomitparam(:);
         % If the omit and initial guess do not fit together, throw an error
         if ~all(tempomitparam(~isnan(tempomitparam))==tempparam(~isnan(tempomitparam)))
             fprintf('Following are the name, omit value, and initial value that related to following error (they should be the same in the non-NaN entries to be calibated) \n')
@@ -211,7 +244,7 @@ for pp=1:nCalibParams
         calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(tempparam);
         % Store the whole thing
         calibomitparams_counter(pp)=1;
-        calibomitparamsmatrix(1,sum(calibomitparams_counter))=tempomitparam;
+        calibomitparamsmatrix{sum(calibomitparams_counter)}=tempomitparam;
     else
         % Get all the parameters
         if size(Parameters.(CalibParamNames{pp}),2)==1
@@ -231,12 +264,13 @@ end
 if caliboptions.jointoptimization==1
     % Add the General Eqm price params into the list of parameters to be calibrated
     calibparamsvec0=[calibparamsvec0; GEparamsvec0];
-    for pp=1:length(GEPriceParamNames)
+    for pp=1:nGEParams
         CalibParamNames{nCalibParams+pp}=GEPriceParamNames{pp};
     end
     caliboptions.constrainpositive=[caliboptions.constrainpositive; heteroagentoptions.constrainpositive];
     caliboptions.constrainAtoB=[caliboptions.constrainAtoB; heteroagentoptions.constrainAtoB];
     caliboptions.constrain0to1=[caliboptions.constrain0to1; heteroagentoptions.constrain0to1];
+    caliboptions.constrainpositivesoftplus=[caliboptions.constrainpositivesoftplus; heteroagentoptions.constrainpositivesoftplus]; % per parameter, so each GE price keeps heteroagentoptions.constrainpositivemethod (was not concatenated, so a constrainpositive GE price indexed past its end)
     % Also concatenate constrainAtoBlimits (the per-parameter A/B bounds matrix),
     % otherwise GE price params using constrainAtoB lose their bounds in joint mode.
     if ~isfield(caliboptions,'constrainAtoBlimits')
@@ -246,15 +280,17 @@ if caliboptions.jointoptimization==1
         heteroagentoptions.constrainAtoBlimits=zeros(nGEParams,2);
     end
     caliboptions.constrainAtoBlimits=[caliboptions.constrainAtoBlimits; heteroagentoptions.constrainAtoBlimits];
-    calibparamsvecindex=[calibparamsvecindex; calibparamsvecindex(end)+(1:1:length(GEPriceParamNames))'];
-    calibomitparams_counter=[calibomitparams_counter; zeros(length(GEPriceParamNames),1)];
-    nCalibParams=nCalibParams+length(GEPriceParamNames);
+    calibparamsvecindex=[calibparamsvecindex; calibparamsvecindex(end)+(1:1:nGEParams)'];
+    calibomitparams_counter=[calibomitparams_counter; zeros(nGEParams,1)];
+    nCalibParams=nCalibParams+nGEParams;
 end
 
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats, AutoCorrTransProbs and CrossSectionCovarCorr when being used (so as faster when not using all)
-[targetmomentvec,usingallstats,usingautocorr,usingcrosssec,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, autocorrmomentnames, autocorrcummomentsizes, AutoCorrStats_whichstats, FnsToEvaluate_AutoCorrStats, crosssecmomentnames, crossseccummomentsizes, CrossSecStats_whichstats, FnsToEvaluate_CrossSecStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_InfHorz(TargetMoments,FnsToEvaluate,0);
+[targetmomentvec,usingallstats,usingautocorr,usingcrosssec,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, autocorrmomentnames, autocorrcummomentsizes, AutoCorrStats_whichstats, FnsToEvaluate_AutoCorrStats, crosssecmomentnames, crossseccummomentsizes, CrossSecStats_whichstats, FnsToEvaluate_CrossSecStats,cmsmomentnames, cmscummomentsizes, selectors, autocorrtimehorizons]=SetupTargetMoments_InfHorz(TargetMoments,FnsToEvaluate,0,simoptions);
+caliboptions.selectors=selectors; % the per-combination whichcombos/whichstats of the three stats commands (used when caliboptions.whichcombos=1)
+caliboptions.autocorrtimehorizons=autocorrtimehorizons; % the horizons (K>=2) the AutoCorr targets name through their _kK suffixes
 
 %% Set-up/check caliboptions.weights
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
@@ -270,46 +306,82 @@ if length(caliboptions.weights)~=length(targetmomentvec(actualtarget))
     error('caliboptions.weights is not the length same as number of target moments (ignoring any NaN)')
 end
 
-%% Now, a bunch of things to avoid redoing them every parameter vector we want to try
-% Note: I avoid doing this for ReturnFnParamNames because they are so
-% dependent on the setup. Same for FnsToEvaluateParamNames
-ReturnFnParamNames=[];
-FnsToEvaluateParamNames=[];
 
 %% Set up exogenous shock grids now (so they can then just be reused every time)
 % Check if using ExogShockFn or EiidShockFn, and if so, do these use a
 % parameter that is being calibrated
-caliboptions.calibrateshocks=0; % set to one if need to redo shocks for each new calib parameter vector
+% With ParametrizeParamsFn the shocks can depend on the calibrated parameters INDIRECTLY, through the derived parameters it writes,
+% so dependence is detected by name-matching the shock-fn inputs against CalibParamNames PLUS the fields ParametrizeParamsFn writes
+% (caliboptions.ParametrizeParamsFn_InputNames/_OutputNames; left at the {} default they are filled by ParseParametrizeParamsFn,
+% which probes the function -- see there for its one known blind spot). If the probe fails, the shocks are conservatively treated
+% as dependent. A user-set caliboptions.calibrateshocks always wins (see below).
+effectiveCalibParamNames=CalibParamNames;
+parametrizefailed=0;
+if ~isempty(ParametrizeParamsFn)
+    if isempty(caliboptions.ParametrizeParamsFn_InputNames) || isempty(caliboptions.ParametrizeParamsFn_OutputNames)
+        [parsedInputNames,parsedOutputNames,parametrizefailed]=ParseParametrizeParamsFn(ParametrizeParamsFn,Parameters);
+        if parametrizefailed==0
+            if isempty(caliboptions.ParametrizeParamsFn_InputNames)
+                caliboptions.ParametrizeParamsFn_InputNames=parsedInputNames;
+            end
+            if isempty(caliboptions.ParametrizeParamsFn_OutputNames) % user-given names are never overwritten
+                caliboptions.ParametrizeParamsFn_OutputNames=parsedOutputNames;
+            end
+        end
+    end
+    effectiveCalibParamNames=union(CalibParamNames,caliboptions.ParametrizeParamsFn_OutputNames);
+end
+
+usersetcalibrateshocks=isfield(caliboptions,'calibrateshocks'); % the user can force 0/1 (their setting always wins); otherwise set automatically here
+autocalibrateshocks=0; % set to one if need to redo shocks for each new calib parameter vector
 if isfield(vfoptions,'ExogShockFn')
     temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-    % can just leave action space in here as we only use it to see if CalibParamNames is part of it
-    if ~isempty(intersect(temp,CalibParamNames))
-        caliboptions.calibrateshocks=1;
+    % can just leave action space in here as we only use it to see if effectiveCalibParamNames is part of it
+    if ~isempty(intersect(temp,effectiveCalibParamNames)) || parametrizefailed==1
+        autocalibrateshocks=1;
     end
-elseif isfield(vfoptions,'EiidShockFn')
+end
+if isfield(vfoptions,'EiidShockFn') % note: not elseif, can have both and either alone should trigger redoing the shocks
     temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-    % can just leave action space in here as we only use it to see if CalibParamNames is part of it
-    if ~isempty(intersect(temp,CalibParamNames))
-        caliboptions.calibrateshocks=1;
+    % can just leave action space in here as we only use it to see if effectiveCalibParamNames is part of it
+    if ~isempty(intersect(temp,effectiveCalibParamNames)) || parametrizefailed==1
+        autocalibrateshocks=1;
+    end
+end
+if usersetcalibrateshocks==1
+    if caliboptions.calibrateshocks==0 && autocalibrateshocks==1
+        warning('You set caliboptions.calibrateshocks=0, but the shock processes appear to depend on the calibrated parameters (directly, or via ParametrizeParamsFn): trusting your setting, the shocks will NOT be rebuilt during the calibration')
+    end
+else
+    caliboptions.calibrateshocks=autocalibrateshocks;
+    if parametrizefailed==1 && autocalibrateshocks==1
+        fprintf('Note: could not parse ParametrizeParamsFn to discover which parameters it writes, so the shock processes will be rebuilt at every evaluation (give caliboptions.ParametrizeParamsFn_OutputNames, or set caliboptions.calibrateshocks=0, to override) \n')
     end
 end
 if caliboptions.calibrateshocks==0
-    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    % The user's own grids are needed if CustomModelStats is given them
+    % Internally, only ever use joint-grids (makes all the code much easier to write)
+    % The user's own grids are needed if either CustomModelStats is given them
     KeepOriginalGrid=((caliboptions.useCustomModelStats==1 && caliboptions.CustomModelStats_usergrids==1) || (heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1));
     [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,vfoptions,3,KeepOriginalGrid);
     if KeepOriginalGrid==1 && isfield(vfoptions,'user_z_grid')
         % ExogShockFn builds the user's own grid internally, so take it from there rather than from the z_grid input (which is then just a placeholder)
-        caliboptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
-        caliboptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
-        heteroagentoptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
-        heteroagentoptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
+        if caliboptions.useCustomModelStats==1
+            caliboptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
+            caliboptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
+        end
+        if heteroagentoptions.useCustomModelStats==1
+            heteroagentoptions.CustomModelStatsInputs.z_grid=vfoptions.user_z_grid;
+            heteroagentoptions.CustomModelStatsInputs.pi_z=vfoptions.user_pi_z;
+        end
     end
     % output: z_gridvals, pi_z, vfoptions.e_gridvals, vfoptions.pi_e
     simoptions.e_gridvals=vfoptions.e_gridvals;
     simoptions.pi_e=vfoptions.pi_e;
 else
-    z_gridvals=[];
+    % The shock grids depend on a parameter being calibrated, so they are rebuilt inside the objective function every evaluation. The
+    % z_grid and pi_z inputs are passed through: with an ExogShockFn they are only placeholders, but with only an EiidShockFn (the iid
+    % shock calibrated, z as the user gave it) they are the z grids themselves.
+    z_gridvals=z_grid;
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
 % precomputed by the time we get to the value fn, stationary dist, etc. So
@@ -319,89 +391,144 @@ if ~isfield(simoptions,'warnzerorestrictedmass')
     simoptions.warnzerorestrictedmass=0; % the EvalFnOnAgentDist commands default to 2 (warn whenever a conditional restriction has zero mass); inside an estimation/calibration loop that would print on every evaluation, so default to silent
 end
 
+
 %%
-% caliboptions.logmoments can be specified by names
+% caliboptions.logmoments: which moments to take logs of (the targets must then already be log(moments); same for any covariance matrix of the data moments).
+% Four forms: a scalar 0 (none) or 1 (all); a vector with one entry per target (same length as targetmomentvec); a vector with one entry
+% per TARGET NAME (one per row of allstatmomentnames, then autocorrmomentnames, crosssecmomentnames, cmsmomentnames, in that order),
+% expanded over the entries of each; or by name, e.g. caliboptions.logmoments.AllStats.earnings.Mean=1 (names not mentioned are 0).
+% Internally it becomes a vector with one entry per target.
+momentrowsizes=[]; % the number of entries of each target name, in the order the names enter targetmomentvec
+allstatsizes=diff([0,allstatcummomentsizes]); autocorrsizes=diff([0,autocorrcummomentsizes]); crosssecsizes=diff([0,crossseccummomentsizes]); cmssizes=diff([0,cmscummomentsizes]);
+if usingallstats==1
+    momentrowsizes=[momentrowsizes, allstatsizes];
+end
+if usingautocorr==1
+    momentrowsizes=[momentrowsizes, autocorrsizes];
+end
+if usingcrosssec==1
+    momentrowsizes=[momentrowsizes, crosssecsizes];
+end
+if usingcustomstats==1
+    momentrowsizes=[momentrowsizes, cmssizes];
+end
 if isstruct(caliboptions.logmoments)
     logmomentnames=caliboptions.logmoments;
-    % replace caliboptions.logmoments with a vector as this is what gets used internally
     caliboptions.logmoments=zeros(length(targetmomentvec),1);
-    if isfield(logmomentnames,'AllStats')
-        caliboptions.logmoments(1:allstatcummomentsizes(1))=logmomentnames.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
-        for ii=2:size(allstatmomentnames,1)
-            caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=logmomentnames.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
-        end
-    end
-    if isfield(logmomentnames,'AutoCorrTransProbs')
-        sofar=allstatcummomentsizes(end);
-        caliboptions.logmoments(sofar+1:sofar+autocorrcummomentsizes(1))=logmomentnames.AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2})*ones(autocorrcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
-        for ii=2:size(autocorrmomentnames,1)
-            caliboptions.logmoments(sofar+autocorrcummomentsizes(ii-1)+1:sofar+autocorrcummomentsizes(ii))=logmomentnames.AutoCorrTransProbs.(autocorrmomentnames{ii,1}).(autocorrmomentnames{ii,2})*ones(autocorrcummomentsizes(ii)-autocorrcummomentsizes(ii-1),1);
-        end
-    end
-    if isfield(logmomentnames,'CrossSecCovarCorr')
-        sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end);
-        caliboptions.logmoments(sofar+1:sofar+crossseccummomentsizes(1))=logmomentnames.CrossSecCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3})*ones(crossseccummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
-        for ii=2:size(crosssecmomentnames,1)
-            caliboptions.logmoments(sofar+crossseccummomentsizes(ii-1)+1:sofar+crossseccummomentsizes(ii))=logmomentnames.CrossSecCovarCorr.(crosssecmomentnames{ii,1}).(crosssecmomentnames{ii,2}).(crosssecmomentnames{ii,3})*ones(crossseccummomentsizes(ii)-crossseccummomentsizes(ii-1),1);
-        end
-    end
-
-% If caliboptions.logmoments is not a structure, then...
-% caliboptions.logmoments will either be scalar, or a vector of zeros and ones
-%    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
-elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(CalibParamNames),1)
-   % If set this up, and then set up
-   if isscalar(caliboptions.logmoments)
-       caliboptions.logmoments=ones(length(targetmomentvec),1); % log all of them
-   else
-        if length(caliboptions.logmoments)==(length(acsmomentnames)+length(allstatmomentnames))
-            % Covert caliboptions.logmoments from being about CalibParamNames
-            temp=caliboptions.logmoments;
-            caliboptions.logmoments=zeros(length(targetmomentvec),1);
-            cumsofar=1;
-            for mm=1:length(temp)
-                if mm<=allstatmomentsizes
-                    caliboptions.logmoments(cumsofar:cumsofar+allstatmomentsizes(mm))=temp(mm);
-                    cumsofar=cumsofar+allstatmomentsizes(mm);
-                else
-                    caliboptions.logmoments(cumsofar:cumsofar+acsmomentsizes(mm))=temp(mm);
-                    cumsofar=cumsofar+acsmomentsizes(mm);
+    sofar=0;
+    if usingallstats==1
+        for ii=1:size(allstatmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'AllStats')
+                temp=logmomentnames.AllStats;
+                found=1;
+                for kk=1:size(allstatmomentnames,2)
+                    if ~isempty(allstatmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,allstatmomentnames{ii,kk})
+                            temp=temp.(allstatmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
                 end
             end
-        elseif length(caliboptions.logmoments)==length(targetmomentvec)
-            % This is fine (already in the appropriate form)
-        else
-            fprintf('Relevant to following error: length(caliboptions.logmoments)=%i \n', length(caliboptions.logmoments))
-            fprintf('Relevant to following error: length(acsmomentnames)=%i, length(allstatmomentnames)=%i \n', length(acsmomentnames), length(allstatmomentnames))
-            error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) does not match number of moments to calibrate [they should be equal]')
+            caliboptions.logmoments(sofar+1:sofar+allstatsizes(ii))=flag; % (a scalar flag applies to every entry of the target)
+            sofar=sofar+allstatsizes(ii);
         end
-   end
-   % log of targetmoments [no need to do this as inputs should already be log()]
-   % targetmomentvec=(1-caliboptions.logmoments).*targetmomentvec + caliboptions.logmoments.*log(targetmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+    end
+    if usingautocorr==1
+        for ii=1:size(autocorrmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'AutoCorrTransProbs')
+                temp=logmomentnames.AutoCorrTransProbs;
+                found=1;
+                for kk=1:size(autocorrmomentnames,2)
+                    if ~isempty(autocorrmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,autocorrmomentnames{ii,kk})
+                            temp=temp.(autocorrmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            caliboptions.logmoments(sofar+1:sofar+autocorrsizes(ii))=flag;
+            sofar=sofar+autocorrsizes(ii);
+        end
+    end
+    if usingcrosssec==1
+        for ii=1:size(crosssecmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'CrossSectionCovarCorr')
+                temp=logmomentnames.CrossSectionCovarCorr;
+                found=1;
+                for kk=1:size(crosssecmomentnames,2)
+                    if ~isempty(crosssecmomentnames{ii,kk})
+                        if isstruct(temp) && isfield(temp,crosssecmomentnames{ii,kk})
+                            temp=temp.(crosssecmomentnames{ii,kk});
+                        else
+                            found=0;
+                        end
+                    end
+                end
+                if found==1 && isnumeric(temp) && isscalar(temp)
+                    flag=temp;
+                end
+            end
+            caliboptions.logmoments(sofar+1:sofar+crosssecsizes(ii))=flag;
+            sofar=sofar+crosssecsizes(ii);
+        end
+    end
+    if usingcustomstats==1
+        for ii=1:size(cmsmomentnames,1)
+            flag=0;
+            if isfield(logmomentnames,'CustomModelStats') && isfield(logmomentnames.CustomModelStats,cmsmomentnames{ii,1})
+                flag=logmomentnames.CustomModelStats.(cmsmomentnames{ii,1});
+            end
+            caliboptions.logmoments(sofar+1:sofar+cmssizes(ii))=flag;
+            sofar=sofar+cmssizes(ii);
+        end
+    end
+elseif any(caliboptions.logmoments>0)
+    if isscalar(caliboptions.logmoments)
+        caliboptions.logmoments=ones(length(targetmomentvec),1); % log all of them
+    elseif length(caliboptions.logmoments)==length(targetmomentvec)
+        caliboptions.logmoments=reshape(caliboptions.logmoments,[length(targetmomentvec),1]); % already one entry per target
+    elseif length(caliboptions.logmoments)==length(momentrowsizes)
+        caliboptions.logmoments=repelem(reshape(caliboptions.logmoments,[],1),reshape(momentrowsizes,[],1)); % one entry per target name, expanded over the entries of each
+    else
+        fprintf('Relevant to following error: length(caliboptions.logmoments)=%i \n', length(caliboptions.logmoments))
+        fprintf('Relevant to following error: number of target names=%i, number of target entries=%i \n', length(momentrowsizes), length(targetmomentvec))
+        error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) matches neither the number of target names nor the number of target entries')
+    end
+else
+    caliboptions.logmoments=zeros(length(targetmomentvec),1);
 end
 
 
 %% Set up the objective function and the initial calibration parameter vector
+if caliboptions.fminalgo==8
+    caliboptions.vectoroutput=2;
+    weightsbackup=caliboptions.weights;
+    if strcmp(caliboptions.metric,'MethodOfMoments')
+        caliboptions.weights=chol(caliboptions.weights,'upper'); % a weighting matrix W: lsqnonlin minimises the sum of squares of R*(m-t), which is (m-t)'*W*(m-t) when R'*R=W (as the estimation commands do) [was sqrt(), elementwise, which is right only for a diagonal W]
+    else
+        caliboptions.weights=sqrt(caliboptions.weights); % a vector of weights: to use them in lsqnonlin(), we work with their square-roots
+    end
+end
 if caliboptions.jointoptimization==0
-    if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions);
-    elseif caliboptions.fminalgo==8
-        caliboptions.vectoroutput=2;
-        weightsbackup=caliboptions.weights;
-        caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions);
-        caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
-    end
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, GEinner, vfoptions,simoptions);
 elseif caliboptions.jointoptimization==1
-    if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions);
-    elseif caliboptions.fminalgo==8
-        caliboptions.vectoroutput=2;
-        weightsbackup=caliboptions.weights;
-        caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions);
-        caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
-    end
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions);
+end
+if caliboptions.fminalgo==8
+    caliboptions.weights=weightsbackup; % change it back now that we have set up the objective function
 end
 % calibparamsvec0 is our initial guess for calibparamsvec
 calibparamsvec0=gather(calibparamsvec0);
@@ -458,10 +585,29 @@ elseif caliboptions.fminalgo==6
 elseif caliboptions.fminalgo==7 % fsolve()
     error('cannot use fminalgo=7 for estimation (as fsolve() is a multi-objective method)')
 elseif caliboptions.fminalgo==8 % lsqnonlin()
-    minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',caliboptions.toleranceparams,'TolFun',caliboptions.toleranceobjective);
+    if ~isfield(caliboptions,'finitedifferencestepsize')
+        caliboptions.finitedifferencestepsize=1e-2; % lsqnonlin's FiniteDifferenceStepSize (relative, times max(|x|,1), so an absolute step for parameters below one; in joint GE calibration it also steps the GE prices); a vector gives one step per unknown, in the order of the calibration vector (one entry per element of a vector parameter; in joint GE calibration the GE prices come last); MATLAB's own default is sqrt(eps)
+    end
+    minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',caliboptions.finitedifferencestepsize,'TolX',caliboptions.toleranceparams,'TolFun',caliboptions.toleranceobjective);
     [calibparamsvec,calibobjvalue]=lsqnonlin(CalibrationObjectiveFn,calibparamsvec0,[],[],[],[],[],[],[],minoptions);
 end
 
+
+%% Model moments and general eqm at the solution, for calibsummary (one more evaluation of the objective, as a vector)
+caliboptions_summary=caliboptions;
+caliboptions_summary.vectoroutput=1;
+caliboptions_summary.verbose=0;
+if caliboptions.jointoptimization==0
+    [summaryvec,GEsummary]=CalibrateBIHAModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions_summary, GEinner, vfoptions,simoptions);
+elseif caliboptions.jointoptimization==1
+    [summaryvec,GEsummary]=CalibrateBIHAModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions_summary, heteroagentoptions, vfoptions,simoptions);
+end
+actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
+summaryvec=gather(summaryvec);
+calibsummary.currentmomentvec=summaryvec(1:sum(actualtarget)); % the model moments (joint optimization appends the GE conditions to the vector output; they are in GeneralEqmConditions below)
+calibsummary.targetmomentvec=targetmomentvec(actualtarget); % the targets, in the order of the names (AllStats, AutoCorrTransProbs, CrossSectionCovarCorr, then CustomModelStats), NaN entries dropped
+calibsummary.logmoments=caliboptions.logmoments; % one entry per target: the current moments above are log() where this is 1 (the targets were given as logs there)
+calibsummary.GeneralEqmConditions=GEsummary.conditions; % the GE conditions at the solution, in the order of fieldnames(GeneralEqmEqns)
 
 %% Clean up output
 % If the parameter is constrained in some way then we need to un-transform it
@@ -472,22 +618,22 @@ end
 for pp=1:nCalibParams
     % Now store the unconstrained values
     if calibomitparams_counter(pp)>0
-        currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
+        currparamraw=calibomitparamsmatrix{sum(calibomitparams_counter(1:pp))}; % (a cell: one omitted-values vector per masked parameter, of any length)
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         CalibParams.(CalibParamNames{pp})=currparamraw;
     else
         CalibParams.(CalibParamNames{pp})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
     end
 end
+if caliboptions.jointoptimization==0
+    % Nested: the GE prices are not calibration parameters, they are the general eqm at the calibrated parameters (from the evaluation above)
+    for pp=1:nGEParams
+        CalibParams.(GEPriceParamNames{pp})=GEsummary.prices(pp);
+    end
+end
 clear calibparamsvec % I modified it, so want to make sure I don't accidently use it again later
 
 calibsummary.objvalue=calibobjvalue; % Output the objective value
-
-
-
-
-
-
 
 
 end

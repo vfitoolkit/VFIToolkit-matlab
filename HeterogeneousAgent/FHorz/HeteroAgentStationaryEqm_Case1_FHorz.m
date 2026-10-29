@@ -490,7 +490,10 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         heteroagentoptions.multiGEcriterion=0;
         [p_eqm_vec,GeneralEqmConditions]=fsolve(GeneralEqmConditionsFnOpt,GEparamsvec0,minoptions);
     elseif heteroagentoptions.fminalgo==8 % Matlab lsqnonlin()
-        minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
+        if ~isfield(heteroagentoptions,'finitedifferencestepsize')
+            heteroagentoptions.finitedifferencestepsize=1e-2; % lsqnonlin's FiniteDifferenceStepSize (relative, times max(|x|,1), so an absolute step for prices below one); MATLAB's own default is sqrt(eps)
+        end
+        minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',heteroagentoptions.finitedifferencestepsize,'TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
         [p_eqm_vec,GeneralEqmConditions]=lsqnonlin(GeneralEqmConditionsFnOpt,GEparamsvec0,[],[],[],[],[],[],[],minoptions);
     elseif heteroagentoptions.fminalgo==9 % Anderson Acceleration of the shooting fixed-point map
         [p_eqm_vec,GeneralEqmConditions]=StationaryGeneralEqm_subcode_fminalgo9_AndersonAcceleration(GeneralEqmConditionsFnOpt,GEparamsvec0,GeneralEqmEqns,GEPriceParamNames,nGEParams,heteroagentoptions);
