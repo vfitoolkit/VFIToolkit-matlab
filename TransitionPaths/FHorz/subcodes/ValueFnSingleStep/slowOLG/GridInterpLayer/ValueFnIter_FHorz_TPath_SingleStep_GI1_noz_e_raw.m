@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_GI1_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_GI1_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The V input is next period value fn (across all ages), the V output is this period.
 
 N_d=prod(n_d);
@@ -8,6 +8,14 @@ N_e=prod(n_e);
 Policy=zeros(3,N_a,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
 PolicyL2flag=2*ones(1,N_a,N_e,N_j,'gpuArray'); % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 % When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
+% THE THIRD OUTPUT is for vfoptions.localsearch, on a SEED sweep (vfoptions.localsearchseed, set by
+% Step1): the COARSE aprime argmax per (d,a,e,j), which is this raw's own midpoint. It is the
+% unrestricted version of exactly what the restricted GI raw's first layer produces, so the reference
+% means one thing whichever sweep built it. midpoint is clamped to [2,N_a-1], which is harmless for a
+% window centre: loweredge slides. Only built when asked for, as with a d it is N_d times Policy.
+if nargout>2
+    aprimeReferencePolicyNew=zeros(N_d,N_a,N_e,N_j,'gpuArray');
+end
 
 %%
 if vfoptions.lowmemory==1
@@ -48,6 +56,9 @@ if vfoptions.lowmemory==0
 
     % Turn this into the 'midpoint'
     midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+    if nargout>2
+        aprimeReferencePolicyNew(:,:,:,N_j)=reshape(midpoint,[N_d,N_a,N_e]); % seed reference, see top
+    end
     % midpoint is n_d-1-by-n_a-by-n_e
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-n_e
@@ -81,6 +92,9 @@ elseif vfoptions.lowmemory==1
 
         % Turn this into the 'midpoint'
         midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        if nargout>2
+            aprimeReferencePolicyNew(:,:,e_c,N_j)=reshape(midpoint,[N_d,N_a]); % seed reference, see top
+        end
         % midpoint is n_d-1-by-n_a
         aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a
@@ -124,7 +138,7 @@ for reverse_j=1:N_j-1
     VKronNext_j=Vtemp_j; % Has been presaved before it was replaced
     Vtemp_j=V(:,:,jj); % Grab this before it is replaced/updated
 
-    EV=sum(VKronNext_j.*pi_e_J(1,:,jj),2);
+    EV=sum(VKronNext_j.*pi_e_J(1,:,jj+1),2); % pi_e Reading A: V at age jj+1 is weighted by pi_e_J(:,jj+1), as in the e raws with z
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
@@ -139,6 +153,9 @@ for reverse_j=1:N_j-1
 
         % Turn this into the 'midpoint'
         midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        if nargout>2
+            aprimeReferencePolicyNew(:,:,:,jj)=reshape(midpoint,[N_d,N_a,N_e]); % seed reference, see top
+        end
         % midpoint is n_d-1-by-n_a-by-n_e
         aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_e
@@ -176,6 +193,9 @@ for reverse_j=1:N_j-1
 
             % Turn this into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+            if nargout>2
+                aprimeReferencePolicyNew(:,:,e_c,jj)=reshape(midpoint,[N_d,N_a]); % seed reference, see top
+            end
             % midpoint is n_d-1-by-n_a
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a

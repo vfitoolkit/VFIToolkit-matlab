@@ -281,12 +281,13 @@ end
 %% Local search, vfoptions.localsearch
 % Restricts the aprime choice in the value fn step to a window of 2*nlocalsearch+1 grid points around
 % the previous GE iteration's answer at the same (age,period). See TransitionPath_FHorz_shooting.
-% Implemented, as in InfHorz, for one endogenous state with z (no e, no semiz), with or without d and
-% with or without the grid interpolation layer; here so far only for the slowOLG layout
-% (transpathoptions.fastOLG=0) and the shooting algorithm. Everything else is REFUSED rather than
-% ignored, because the substeps that would be reached do not know about local search and would run
-% every iteration unrestricted -- or, worse, restricted against a reference that is never refreshed and
-% never certified.
+% Implemented for one endogenous state, with or without d, z, e and the grid interpolation layer, on
+% both layouts (transpathoptions.fastOLG=0 and 1), by shooting (GEnewprice=3, which ratchets
+% nlocalsearch) and by Anderson (GEnewprice=2, through AndersonAccelerationTPath). divideandconquer and
+% lowmemory are honoured on the full (seed) sweeps and ignored on the restricted ones. Everything else is
+% REFUSED rather than ignored, because the substeps that would be reached do not know about local search
+% and would run every iteration unrestricted -- or, worse, restricted against a reference that is never
+% refreshed and never certified.
 if ~isfield(vfoptions,'localsearch')
     vfoptions.localsearch=0;
 end
@@ -311,18 +312,13 @@ elseif vfoptions.localsearch==1
     if vfoptions.nlocalsearchup<1 || vfoptions.nlocalsearchdown<1
         error('vfoptions.nlocalsearchup and vfoptions.nlocalsearchdown must both be at least 1')
     end
-    % QUASI-NEWTON (GEnewprice=1) is refused for the InfHorz reason: a perturbed path's reference has to
-    % be the BASELINE path's. Anderson (GEnewprice=2) is not yet wired up for FHorz.
-    if transpathoptions.GEnewprice~=3
-        error('vfoptions.localsearch=1 currently requires transpathoptions.GEnewprice=3 (shooting) for finite horizon')
-    end
-    if transpathoptions.fastOLG==1
-        error('vfoptions.localsearch=1 is not yet implemented with transpathoptions.fastOLG=1')
+    % QUASI-NEWTON (GEnewprice=1) is refused for the InfHorz reason: it perturbs prices to build a
+    % Jacobian, and a perturbed path's reference has to be the BASELINE path's, not the previous
+    % perturbation's.
+    if transpathoptions.GEnewprice~=3 && transpathoptions.GEnewprice~=2
+        error('vfoptions.localsearch=1 currently requires transpathoptions.GEnewprice=3 (shooting) or 2 (Anderson)')
     end
     % prod(...)>0 as well, because the fields exist on every model (defaulted to 0 above)
-    if prod(vfoptions.n_e)>0
-        error('vfoptions.localsearch=1 is not implemented with an e variable')
-    end
     if prod(vfoptions.n_semiz)>0
         error('vfoptions.localsearch=1 is not implemented with a semi-exogenous state')
     end
@@ -336,13 +332,6 @@ elseif vfoptions.localsearch==1
     end
     if ~isscalar(n_a)
         error('vfoptions.localsearch=1 is currently only implemented for one endogenous state')
-    end
-    if prod(n_z)==0
-        error('vfoptions.localsearch=1 is currently only implemented with a z variable')
-    end
-    % InfHorz honours divideandconquer on the seed sweeps (it is a memory option there); not yet here
-    if vfoptions.divideandconquer==1
-        error('vfoptions.localsearch=1 is not yet implemented together with vfoptions.divideandconquer=1 for finite horizon')
     end
     % The window slides at the grid ends to stay 2*nlocalsearch+1 points wide
     if n_a(1)<2*vfoptions.nlocalsearch+1

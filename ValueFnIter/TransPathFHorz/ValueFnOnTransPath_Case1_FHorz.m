@@ -109,13 +109,37 @@ vfoptions.EVpre=0; % =1 is used by 'Matched Expecations Path', for TPath we want
 % against, nor any reference to centre it on (the dispatcher's fallback is a window around staying put,
 % which would silently restrict every period). Users pass the same vfoptions to the TPath command and to
 % this one, so localsearch=1 is ignored with a warning rather than refused.
-% The InfHorz command also takes localsearch=2 as "force it"; that is not done for finite horizon yet.
+% localsearch=2 FORCES IT, as in InfHorz, for a caller who has seen the warning and accepts that this pass
+% is uncertified (and for the test bank). The reference is left empty, so the dispatchers centre every
+% window on staying put: nothing in this command carries a reference from one period to the next.
 if isfield(vfoptions,'localsearch')
     if vfoptions.localsearch==1
-        warning('ValueFnOnTransPath_Case1_FHorz: vfoptions.localsearch=1 is IGNORED here and the value function is solved without it, as this single backward pass has nothing to certify a restricted search against')
+        warning('ValueFnOnTransPath_Case1_FHorz: vfoptions.localsearch=1 is IGNORED here and the value function is solved without it, as this single backward pass has nothing to certify a restricted search against. Set vfoptions.localsearch=2 to force the restricted search anyway.')
         vfoptions.localsearch=0;
+    elseif vfoptions.localsearch==2
+        vfoptions.localsearch=1; % forced, deliberately, by a caller who asked twice
+        if ~isfield(vfoptions,'nlocalsearch')
+            error('When using vfoptions.localsearch=2 you must set vfoptions.nlocalsearch')
+        end
+        if vfoptions.nlocalsearch<1
+            error('vfoptions.nlocalsearch must be at least 1')
+        end
+        if n_a(1)<2*vfoptions.nlocalsearch+1
+            error('vfoptions.nlocalsearch is too large for the grid: need n_a>=2*nlocalsearch+1')
+        end
+        % The experience asset, semi-exogenous and quasi-hyperbolic branches below call their own single
+        % steps, bypassing the dispatchers, so without these the option would be silently ignored
+        if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
+            error('vfoptions.localsearch is not implemented with an experience asset')
+        end
+        if prod(vfoptions.n_semiz)>0
+            error('vfoptions.localsearch is not implemented with a semi-exogenous state')
+        end
+        if ~strcmp(vfoptions.exoticpreferences,'None')
+            error('vfoptions.localsearch is not implemented with exoticpreferences')
+        end
     elseif vfoptions.localsearch~=0
-        error('vfoptions.localsearch must be 0 or 1 (ignored here, with a warning); forcing a restricted search with localsearch=2 is not yet implemented for finite horizon')
+        error('vfoptions.localsearch must be 0, 1 (ignored here, with a warning) or 2 (forced)')
     end
 end
 
@@ -260,7 +284,7 @@ else
                         Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                     end
 
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
                     % The VKron input is next period value fn, the VKron output is this period.
                     % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -286,7 +310,7 @@ else
                         Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                     end
 
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
                     % The VKron input is next period value fn, the VKron output is this period.
                     % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -354,7 +378,7 @@ else
                         z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                     end
 
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
                     % The VKron input is next period value fn, the VKron output is this period.
                     % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
@@ -389,7 +413,7 @@ else
                         e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                     end
 
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
                     % The VKron input is next period value fn, the VKron output is this period.
                     % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -424,7 +448,7 @@ else
                         e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                     end
 
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
                     % The VKron input is next period value fn, the VKron output is this period.
                     % Policy in fastOLG is [1,N_a*N_j*N_e] and contains the joint-index for (d,aprime)
 
@@ -460,7 +484,7 @@ else
                         z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                     end
 
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
                     % The VKron input is next period value fn, the VKron output is this period.
                     % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -498,7 +522,7 @@ else
                         z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                     end
 
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_e(V,n_d,n_a,n_z,n_e, N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_e(V,n_d,n_a,n_z,n_e, N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
                     % The VKron input is next period value fn, the VKron output is this period.
                     % Policy in fastOLG is [1,N_a*N_j*N_z*N_e] and contains the joint-index for (d,aprime)
 

@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_gridvals, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_gridvals, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z,e), rather than standard (a,z,e,j)
 % V is (a,j)-by-z-by-e
@@ -13,6 +13,16 @@ z_gridvals_J=shiftdim(z_gridvals_J,-3);
 e_gridvals_J=reshape(e_gridvals_J,[1,1,1,N_j,1,N_e,length(n_e)]);
 
 Policy=zeros(N_a,N_j,N_z,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime
+% THE THIRD OUTPUT is for vfoptions.localsearch, on a SEED sweep (vfoptions.localsearchseed, set by
+% Step1): the aprime argmax FOR EACH d, [N_d,N_a,N_j,N_z,N_e] (the order of Policy), as
+% fastOLG/LocalSearch/..._fastOLG_LSseed_e_raw returns it. At the level-1 points that is maxindex1.
+% Between them it is an EXTRA per-d max over the level-2 RHS (fold is d fastest, so reshape to
+% [N_d,maxgap+1,...]); when maxgap==0 it is loweredge. Under DC's own monotonicity this is the
+% unrestricted per-d argmax, as the interval is built over all d. The max that sets V/Policy is NOT
+% changed (its tie-breaking is seen by every bank). Only built when asked for.
+if nargout>2
+    aprimeReferencePolicyNew=zeros(N_d,N_a,N_j,N_z,N_e,'gpuArray');
+end
 
 %%
 
@@ -75,6 +85,9 @@ if vfoptions.lowmemory==0
     % Store
     V(level1ii,:,:,:)=shiftdim(Vtempii,2);
     Policy(level1ii,:,:,:)=maxindex2+N_d*(maxindex1d-1); % d,aprime
+    if nargout>2
+        aprimeReferencePolicyNew(:,level1ii,:,:,:)=reshape(maxindex1,[N_d,vfoptions.level1n,N_j,N_z,N_e]); % seed reference, see top
+    end
 
     % Attempt for improved version
     maxgap=squeeze(max(max(max(max(maxindex1(:,1,2:end,:,:,:)-maxindex1(:,1,1:end-1,:,:,:),[],6),[],5),[],4),[],1));
@@ -84,7 +97,7 @@ if vfoptions.lowmemory==0
             % loweredge is n_d-by-1
             aprimeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-N_j-by-N_z-by-N_e
-            ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
             daprimejz=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1,1)+N_d*N_a*jind+N_d*N_a*N_j*zind; % all the d, with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(daprimejz(:)),[N_d*(maxgap(ii)+1),level1iidiff(ii),N_j,N_z,N_e]); % autofill e for the expectations
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -92,10 +105,14 @@ if vfoptions.lowmemory==0
             d_ind=rem(maxindex-1,N_d)+1;
             allind=d_ind+N_d*jBind+N_d*N_j*zBind+N_d*N_j*N_z*eBind;
             Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+            if nargout>2
+                [~,aprimeoffset]=max(reshape(entireRHS_ii,[N_d,maxgap(ii)+1,level1iidiff(ii),N_j,N_z,N_e]),[],2); % per-d max, see top
+                aprimeReferencePolicyNew(:,level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=reshape(loweredge+aprimeoffset-1,[N_d,level1iidiff(ii),N_j,N_z,N_e]);
+            end
         else
             loweredge=maxindex1(:,1,ii,:,:,:);
             % Just use aprime(ii) for everything
-            ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
             daprimejz=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d*N_a*jind+N_d*N_a*N_j*zind; % all the d, with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(daprimejz(:)),[N_d,level1iidiff(ii),N_j,N_z,N_e]); % autofill e for the expectations
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -103,6 +120,9 @@ if vfoptions.lowmemory==0
             d_ind=rem(maxindex-1,N_d)+1;
             allind=d_ind+N_d*jBind+N_d*N_j*zBind+N_d*N_j*N_z*eBind;
             Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+            if nargout>2
+                aprimeReferencePolicyNew(:,level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=repmat(reshape(loweredge,[N_d,1,N_j,N_z,N_e]),1,level1iidiff(ii),1,1,1); % one aprime per d, see top
+            end
         end
     end
 
@@ -130,6 +150,9 @@ elseif vfoptions.lowmemory==1
         % Store
         V(level1ii,:,:,e_c)=shiftdim(Vtempii,2);
         Policy(level1ii,:,:,e_c)=maxindex2+N_d*(maxindex1d-1); % d,aprime
+        if nargout>2
+            aprimeReferencePolicyNew(:,level1ii,:,:,e_c)=reshape(maxindex1,[N_d,vfoptions.level1n,N_j,N_z]); % seed reference, see top
+        end
 
         % Attempt for improved version
         maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
@@ -139,7 +162,7 @@ elseif vfoptions.lowmemory==1
                 % loweredge is n_d-by-1
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-N_j-by-N_z
-                ReturnMatrix_ii_e=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
+                ReturnMatrix_ii_e=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
                 daprimejz=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1,1)+N_d*N_a*jind+N_d*N_a*N_j*zind; % all the d, with the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii_e+reshape(DiscountedEV(daprimejz(:)),[N_d*(maxgap(ii)+1),level1iidiff(ii),N_j,N_z]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -147,10 +170,14 @@ elseif vfoptions.lowmemory==1
                 d_ind=rem(maxindex-1,N_d)+1;
                 allind=d_ind+N_d*jBind+N_d*N_j*zBind;
                 Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+                if nargout>2
+                    [~,aprimeoffset]=max(reshape(entireRHS_ii,[N_d,maxgap(ii)+1,level1iidiff(ii),N_j,N_z]),[],2); % per-d max, see top
+                    aprimeReferencePolicyNew(:,level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=reshape(loweredge+aprimeoffset-1,[N_d,level1iidiff(ii),N_j,N_z]);
+                end
             else
                 loweredge=maxindex1(:,1,ii,:,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii_e=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
+                ReturnMatrix_ii_e=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
                 daprimejz=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d*N_a*jind+N_d*N_a*N_j*zind; % all the d, with the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii_e+reshape(DiscountedEV(daprimejz(:)),[N_d,level1iidiff(ii),N_j,N_z]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -158,6 +185,9 @@ elseif vfoptions.lowmemory==1
                 d_ind=rem(maxindex-1,N_d)+1;
                 allind=d_ind+N_d*jBind+N_d*N_j*zBind;
                 Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+                if nargout>2
+                    aprimeReferencePolicyNew(:,level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=repmat(reshape(loweredge,[N_d,1,N_j,N_z]),1,level1iidiff(ii),1,1); % one aprime per d, see top
+                end
             end
         end
     end
@@ -189,6 +219,9 @@ elseif vfoptions.lowmemory==2
             % Store
             V(level1ii,:,z_c,e_c)=shiftdim(Vtempii,2);
             Policy(level1ii,:,z_c,e_c)=maxindex2+N_d*(maxindex1d-1); % d,aprime
+            if nargout>2
+                aprimeReferencePolicyNew(:,level1ii,:,z_c,e_c)=reshape(maxindex1,[N_d,vfoptions.level1n,N_j]); % seed reference, see top
+            end
 
             % Attempt for improved version
             maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
@@ -198,7 +231,7 @@ elseif vfoptions.lowmemory==2
                     % loweredge is n_d-by-1
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-N_j
-                    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
                     daprimej=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a*jind; % all the d, with the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV_z(daprimej(:)),[N_d*(maxgap(ii)+1),level1iidiff(ii),N_j]);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -206,10 +239,14 @@ elseif vfoptions.lowmemory==2
                     d_ind=rem(maxindex-1,N_d)+1;
                     allind=d_ind+N_d*jBind;
                     Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,z_c,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+                    if nargout>2
+                        [~,aprimeoffset]=max(reshape(entireRHS_ii,[N_d,maxgap(ii)+1,level1iidiff(ii),N_j]),[],2); % per-d max, see top
+                        aprimeReferencePolicyNew(:,level1ii(ii)+1:level1ii(ii+1)-1,:,z_c,e_c)=reshape(loweredge+aprimeoffset-1,[N_d,level1iidiff(ii),N_j]);
+                    end
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
                     daprimej=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d*N_a*jind; % all the d, with the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV_z(daprimej(:)),[N_d,level1iidiff(ii),N_j]);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -217,6 +254,9 @@ elseif vfoptions.lowmemory==2
                     d_ind=rem(maxindex-1,N_d)+1;
                     allind=d_ind+N_d*jBind;
                     Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,z_c,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+                    if nargout>2
+                        aprimeReferencePolicyNew(:,level1ii(ii)+1:level1ii(ii+1)-1,:,z_c,e_c)=repmat(reshape(loweredge,[N_d,1,N_j]),1,level1iidiff(ii),1); % one aprime per d, see top
+                    end
                 end
             end
         end

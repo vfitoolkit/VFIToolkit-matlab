@@ -1,4 +1,7 @@
-function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_GI1_nod_noz_raw(V,n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions)
+function [V, Policy, aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_GI1_nod_noz_raw(V,n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions)
+% THE THIRD OUTPUT is for vfoptions.localsearch, on a SEED sweep (vfoptions.localsearchseed, set by
+% Step1): the COARSE aprime argmax per (a,j), [1,N_a,N_j], which is this raw's own midpoint. See
+% slowOLG/GridInterpLayer/ValueFnIter_FHorz_TPath_SingleStep_GI1_nod_raw. Only built when asked for.
 
 N_a=prod(n_a);
 
@@ -39,6 +42,9 @@ entireRHS=ReturnMatrix+reshape(DiscountFactor_J,[1,1,N_j]).*EV; % [N_aprime,N_a,
 
 % Turn this into the 'midpoint'
 midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+if nargout>2
+    aprimeReferencePolicyNew=reshape(midpoint,[1,N_a,N_j]); % seed reference, see top
+end
 % midpoint is 1-by-n_a-by-N_j
 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
 % aprime possibilities are n2long-by-n_a-by-N_j

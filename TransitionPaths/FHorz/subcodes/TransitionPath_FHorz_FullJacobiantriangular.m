@@ -64,7 +64,7 @@ for ttr=1:T-1 % so tt=T-ttr
         V=ValueFnIter_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J_tt, pi_z_J_tt, ReturnFn, Parametersbase, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
         VPath(:,:,:,T-ttr)=reshape(V,[N_a,N_z,N_j]);
     else
-        V=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J_tt, pi_z_J_tt, ReturnFn, Parametersbase, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        V=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J_tt, pi_z_J_tt, ReturnFn, Parametersbase, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
         VPath(:,:,T-ttr)=reshape(V,[N_a*N_j,N_z]); % the raws do not all return V in the same one of the two (a,j,z) shapes, so store it in V_final's
     end
 end

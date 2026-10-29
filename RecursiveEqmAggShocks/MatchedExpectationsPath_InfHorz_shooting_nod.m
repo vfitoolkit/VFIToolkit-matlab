@@ -160,7 +160,7 @@ while TransPathConvergence>1 && itercounter<=recursiveeqmoptions.maxiter
     %% Since we have all the 'next period value fns', we can compute all the value fns in parallel, there is no iterating in the time dimension
     tic;
     if recursiveeqmoptions.divideT==1
-        [VPath, PolicyIndexesPath]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(MatchedEV,n_d,n_a,n_z,T,d_grid, a_grid, z_gridvals_T, pi_z_T, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VPath, PolicyIndexesPath]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(MatchedEV,n_d,n_a,n_z,T,d_grid, a_grid, z_gridvals_T, pi_z_T, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
         % VPath in fastOLG is [N_a*T,N_z]
         % PolicyIndexesPath in fastOLG is [:,N_a,T,N_z] and contains the joint-index for (d,aprime)
         % Note: using vfoptions.EVpre
@@ -185,7 +185,7 @@ while TransPathConvergence>1 && itercounter<=recursiveeqmoptions.maxiter
                 end
             end
             % Do the value fn problem for periods t1-to-t2
-            [VPath_t1t2, PolicyIndexesPath_t1t2]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(MatchedEV(:,t1:t2,:),n_d,n_a,n_z,T_t1t2,d_grid, a_grid, z_gridvals_T(t1:t2,:,:), pi_z_T(t1:t2,:,:), ReturnFn, Parameters_rr, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VPath_t1t2, PolicyIndexesPath_t1t2]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(MatchedEV(:,t1:t2,:),n_d,n_a,n_z,T_t1t2,d_grid, a_grid, z_gridvals_T(t1:t2,:,:), pi_z_T(t1:t2,:,:), ReturnFn, Parameters_rr, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
             VPath(:,t1:t2,:)=reshape(VPath_t1t2,[N_a,T_t1t2,N_z]);
             PolicyIndexesPath(:,:,t1:t2,:)=PolicyIndexesPath_t1t2;
         end

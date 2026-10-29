@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_GI1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid,e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy, aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_GI1_nod_noz_e_raw(V,n_a,n_e,N_j, a_grid,e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,e), rather than standard (a,e,j)
 % V is (a,j)-by-e
@@ -9,6 +9,15 @@ N_e=prod(n_e);
 e_gridvals_J=shiftdim(e_gridvals_J,-2);
 
 Policy=zeros(3,N_a,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime (midpoint, aprimeL2ind, L2flag)
+% THE THIRD OUTPUT is for vfoptions.localsearch, on a SEED sweep (vfoptions.localsearchseed, set by
+% Step1): the COARSE aprime argmax per (a,j,e), [1,N_a,N_j,N_e], which is this raw's own midpoint. The
+% order is that of the FINAL Policy, which both lowmemory branches reallocate as (3,N_a,N_j,N_e). It is
+% the unrestricted version of exactly what the restricted GI raw's first layer produces, so the
+% reference means one thing whichever sweep built it. midpoint is clamped to [2,N_a-1], which is
+% harmless for a window centre: loweredge slides. Only built when asked for.
+if nargout>2
+    aprimeReferencePolicyNew=zeros(1,N_a,N_j,N_e,'gpuArray');
+end
 
 
 %%
@@ -54,6 +63,9 @@ if vfoptions.lowmemory==0
 
     % Turn this into the 'midpoint'
     midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+    if nargout>2
+        aprimeReferencePolicyNew=reshape(midpoint,[1,N_a,N_j,N_e]); % seed reference, see top
+    end
     % midpoint is 1-by-n_a-by-N_j-by-n_e
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n2long-by-n_a-by-N_j-by-n_e
@@ -90,6 +102,9 @@ elseif vfoptions.lowmemory==1
 
         % Turn this into the 'midpoint'
         midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        if nargout>2
+            aprimeReferencePolicyNew(1,:,:,e_c)=reshape(midpoint,[1,N_a,N_j]); % seed reference, see top
+        end
         % midpoint is 1-by-n_a-by-N_j
         aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         % aprime possibilities are n2long-by-n_a-by-N_j

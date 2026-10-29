@@ -48,25 +48,44 @@ if vfoptions.localsearchseed==1 && vfoptions.localsearch==0
     %   GI, with or without d: the GI raw's own midpoint, returned as its third output.
     %   with d, no GI: a per-d argmax, which no single max over a folded (d,aprime) dimension can
     %     give, so LSseed_raw unfolds it.
-    % divideandconquer on the seed sweeps is not yet done here (InfHorz honours it); it is refused
-    % where the option is validated, in TransitionPath_Case1_FHorz.
-    if isscalar(n_a) && vfoptions.divideandconquer==0
-        if vfoptions.gridinterplayer==0
-            if N_d==0
-                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                aprimeReferencePolicyNew=reshape(PolicyKron,[1,N_a,N_z,N_j]);
+    % SEED SWEEPS HONOUR divideandconquer, as in InfHorz: DC is a MEMORY option, and the seed sweep is
+    % the full one, so a model that needs DC to be solvable at all can still use local search. The DC
+    % raws return the same object: DC1_nod's Policy is the argmax, DC1 computes a per-d argmax, and the
+    % DC+GI raws return their per-d midpoint.
+    if isscalar(n_a)
+        if vfoptions.divideandconquer==0
+            if vfoptions.gridinterplayer==0
+                if N_d==0
+                    [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    aprimeReferencePolicyNew=reshape(PolicyKron,[1,N_a,N_z,N_j]);
+                else
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_LSseed_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
             else
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_LSseed_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                if N_d==0
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
             end
         else
-            if N_d==0
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            if vfoptions.gridinterplayer==0
+                if N_d==0
+                    [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_DC1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    aprimeReferencePolicyNew=reshape(PolicyKron,[1,N_a,N_z,N_j]);
+                else
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_DC1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
             else
-                [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                if N_d==0
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_DC1_GI1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_DC1_GI1_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
             end
         end
     else
-        error('vfoptions.localsearch=1 is currently only implemented for one endogenous state, with z (no e, no semiz), without divideandconquer')
+        error('vfoptions.localsearch=1 is currently only implemented for one endogenous state')
     end
 elseif vfoptions.localsearch==1
     %% Local search: aprime restricted to a window around aprimeReferencePolicy
@@ -82,9 +101,9 @@ elseif vfoptions.localsearch==1
             % ValueFnOnTransPath_Case1_FHorz at localsearch=2 gets here; the TPath solvers always hand
             % in the previous sweep's answer, and Step1 refuses to start a restricted sweep without one.
             aprimeReferencePolicy=repmat((1:1:N_a),[N_dref,1,N_z,N_j]);
-        elseif ~(size(aprimeReferencePolicy,1)==N_dref && size(aprimeReferencePolicy,2)==N_a && numel(aprimeReferencePolicy)==N_dref*N_a*N_z*N_j)
+        elseif ~(size(aprimeReferencePolicy,1)==N_dref && numel(aprimeReferencePolicy)==N_dref*N_a*N_z*N_j)
             % numel rather than size(...,3) because MATLAB drops trailing singletons
-            error('aprimeReferencePolicy must hold one aprime index per state the search conditions on: [1,N_a,N_z,N_j] with no d, [N_d,N_a,N_z,N_j] with d')
+            error('aprimeReferencePolicy must hold one aprime index per state the search conditions on: N_dref-by-(N_a*N_z*N_j) in any trailing shape, N_dref=1 with no d and N_d with d')
         end
         if N_d==0
             if vfoptions.gridinterplayer==0

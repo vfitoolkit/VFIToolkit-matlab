@@ -55,7 +55,25 @@ if ~isfield(andersonoptions,'maxiter')
 end
 
 %% Solve
-[p,GEcondns,output]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,DistanceFn,reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+% WITH LOCAL SEARCH the residual carries state -- the reference policy the restricted value fn search
+% centres its window on -- so it goes to the forked accelerator, exactly as in
+% TransitionPath_InfHorz_Anderson. The two closures are the same shim called two ways: the restricted
+% residual Anderson iterates on, and an unrestricted VerifyFn that certifies convergence before it is
+% believed. The reference starts empty and the shim makes the first sweep unrestricted, which builds it.
+% nlocalsearch is NOT ratcheted here (it is in TransitionPath_FHorz_shooting): Anderson's history needs
+% the same map at every iteration, and the certification sweep is what guards the answer.
+% localsearch is defaulted here, above its read, as the PType solvers do not reach this file but a
+% direct caller might pass a vfoptions without it.
+if ~isfield(vfoptions,'localsearch')
+    vfoptions.localsearch=0;
+end
+if vfoptions.localsearch==1
+    GEcondnsFnLS=@(p,ref) TransitionPath_FHorz_Anderson_resid(p,ref,1,nPrices, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_z,n_e,N_j, N_d,N_a,N_semiz,N_z,N_e, l_d,l_aprime,l_a,l_semiz,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,semiz_gridvals_J,z_gridvals_J,e_gridvals_J,semizze_gridvals_J_fastOLG, pi_semiz_J, pi_z_J,pi_e_J,pi_e_J_vf,pi_semiz_J_sim,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptions, simoptions, transpathoptions, itercounter, PolicyIndexesPath, N_probs, II1, II2, exceptlastj, exceptfirstj, justfirstj);
+    VerifyFnLS=@(p) TransitionPath_FHorz_Anderson_resid(p,[],0,nPrices, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_z,n_e,N_j, N_d,N_a,N_semiz,N_z,N_e, l_d,l_aprime,l_a,l_semiz,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,semiz_gridvals_J,z_gridvals_J,e_gridvals_J,semizze_gridvals_J_fastOLG, pi_semiz_J, pi_z_J,pi_e_J,pi_e_J_vf,pi_semiz_J_sim,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptions, simoptions, transpathoptions, itercounter, PolicyIndexesPath, N_probs, II1, II2, exceptlastj, exceptfirstj, justfirstj);
+    [p,GEcondns,output]=AndersonAccelerationTPath(GEcondnsFnLS,ShootingMapFn,DistanceFn,VerifyFnLS,[],reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+else
+    [p,GEcondns,output]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,DistanceFn,reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+end
 
 PricePathOld=reshape(p,T,nPrices);
 GEcondnPath=reshape(GEcondns,T-1,nGEcondns);
@@ -65,6 +83,10 @@ if transpathoptions.verbose==1
     fprintf('Current distance of the general eqm conditions from zero: %8.6f \n', DistanceFn(GEcondns))
     fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1) \n',DistanceFn(GEcondns)/transpathoptions.toleranceGEcondns)
     fprintf('Number of Anderson steps rejected by the safeguard along the way: %i \n',output.nrejectedsteps)
+end
+% Printed whenever local search was used, not only when verbose is on, as in the shooting report
+if isfield(output,'nverify')
+    fprintf('Local search (Anderson): %i iterations, %i unrestricted certification sweep(s), of which %i put the solve back outside tolerance and restarted the history \n',output.iterations,output.nverify,output.nverifyfailed)
 end
 
 %% Create plots of the transition path

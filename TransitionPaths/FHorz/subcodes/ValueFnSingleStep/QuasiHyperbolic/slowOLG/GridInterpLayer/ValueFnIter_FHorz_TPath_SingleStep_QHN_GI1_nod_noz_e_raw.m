@@ -97,7 +97,7 @@ for reverse_j=1:N_j-1
     VKronNext_j=Vtemp_j; % Has been presaved before it was replaced
     Vtemp_j=V(:,:,jj); % Grab this before it is replaced/updated
 
-    EV=sum(VKronNext_j.*pi_e_J(:,:,jj),2);
+    EV=sum(VKronNext_j.*pi_e_J(:,:,jj+1),2); % pi_e Reading A: V at age jj+1 is weighted by pi_e_J(:,jj+1), as in the e raws with z
 
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
