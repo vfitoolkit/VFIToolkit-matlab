@@ -58,6 +58,19 @@ J0=[]; % the initial Jacobian, kept so that an invariant method can reinitialise
 dx=zeros(nF,1,'gpuArray');
 df=zeros(nF,1,'gpuArray');
 
+% Constraints on the prices (see TransitionPath_InfHorz). Defaulted above their read, as this command reads them itself.
+% The bounds and step fractions per element of p, which is PricePathOld(1:T-1,:) stacked by column.
+if ~isfield(transpathoptions,'useconstraints')
+    transpathoptions.useconstraints=0;
+end
+if transpathoptions.useconstraints==1
+    lbp=reshape(repmat(gpuArray(transpathoptions.pricepathlowerbound),T-1,1),[],1);
+    ubp=reshape(repmat(gpuArray(transpathoptions.pricepathupperbound),T-1,1),[],1);
+    taup=reshape(repmat(gpuArray(transpathoptions.constraintstepfractionvec),T-1,1),[],1);
+end
+nconstraintsteps=0; % Newton steps shortened by the constraints
+constraintalphamin=1; % the shortest such step, as a fraction of the Newton step
+
 %% Iterate
 while GEcondnPathDist>transpathoptions.toleranceGEcondns && itercounter<=transpathoptions.maxiter
 
@@ -84,11 +97,17 @@ while GEcondnPathDist>transpathoptions.toleranceGEcondns && itercounter<=transpa
                 J=zeros(nF,nF,'gpuArray');
                 for k=1:nF
                     pk=p;
-                    pk(k)=pk(k)+transpathoptions.epsprice;
+                    % One-sided inward near an upper bound, so the perturbed price is never outside it (a
+                    % forward difference is still a forward difference with a negative step)
+                    epsk=transpathoptions.epsprice;
+                    if transpathoptions.useconstraints==1 && pk(k)+epsk>=ubp(k)
+                        epsk=-epsk;
+                    end
+                    pk(k)=pk(k)+epsk;
                     PricePathk=PricePathOld;
                     PricePathk(1:T-1,:)=reshape(pk,T-1,nPrices);
                     GEcondnPathk=TransitionPath_InfHorz_singlepathiter(PricePathk, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, n_e, N_a, N_z, N_e, l_d, l_aprime, d_gridvals, aprime_gridvals, a_gridvals, a_grid, z_gridvals, e_gridvals, ze_gridvals, pi_z, pi_z_sparse, pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptions, simoptions, transpathoptions, itercounter, PolicyIndexesPath, [], N_probs, II1, II2);
-                    J(:,k)=(reshape(GEcondnPathk,[],1)-f)/transpathoptions.epsprice;
+                    J(:,k)=(reshape(GEcondnPathk,[],1)-f)/epsk;
                 end
             else
                 % The same matrix, built by restarting the backward pass at the perturbed period
@@ -112,9 +131,14 @@ while GEcondnPathDist>transpathoptions.toleranceGEcondns && itercounter<=transpa
             Omega=zeros(length(GeneralEqmEqnsCell),nPrices);
             for jj=1:nPrices
                 PricePathk=PricePathOld;
-                PricePathk(1:T-1,jj)=PricePathk(1:T-1,jj)+transpathoptions.epsprice;
+                % One-sided inward if the column is within epsprice of an upper bound anywhere on the path
+                epsjj=transpathoptions.epsprice;
+                if transpathoptions.useconstraints==1 && any(PricePathOld(1:T-1,jj)+epsjj>=transpathoptions.pricepathupperbound(jj))
+                    epsjj=-epsjj;
+                end
+                PricePathk(1:T-1,jj)=PricePathk(1:T-1,jj)+epsjj;
                 GEcondnPathk=TransitionPath_InfHorz_singlepathiter(PricePathk, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, n_e, N_a, N_z, N_e, l_d, l_aprime, d_gridvals, aprime_gridvals, a_gridvals, a_grid, z_gridvals, e_gridvals, ze_gridvals, pi_z, pi_z_sparse, pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptions, simoptions, transpathoptions, itercounter, PolicyIndexesPath, [], N_probs, II1, II2);
-                Omega(:,jj)=mean((GEcondnPathk-GEcondnPath),1)'/transpathoptions.epsprice;
+                Omega(:,jj)=mean((GEcondnPathk-GEcondnPath),1)'/epsjj;
             end
             J=gpuArray(kron(gather(Omega),eye(T-1)));
             if transpathoptions.verbose==1
@@ -265,6 +289,31 @@ while GEcondnPathDist>transpathoptions.toleranceGEcondns && itercounter<=transpa
         break
     end
     dx=backtrackfactor*dx;
+    if transpathoptions.useconstraints==1
+        % Fraction-to-the-boundary on the WHOLE step, by one scalar, so the Newton direction is kept (as interior-point
+        % methods do). Only elements whose full step would reach or pass their bound set it: for each, the step that
+        % takes it constraintstepfraction of the way to the bound, and the shortest of these is applied to every element.
+        % So a step that stays inside is untouched, and the element that binds hardest moves exactly as the shooting
+        % rule would move it. The default fraction is 0.99 here, not 0.5, as a Newton step is the right direction and
+        % only its length is in doubt. By logical indexing, as -Inf/Inf bounds would give 0*Inf=NaN.
+        hitlb=(p+dx<=lbp);
+        hitub=(p+dx>=ubp);
+        alphac=1;
+        if any(hitlb)
+            alphac=min(alphac,gather(min(taup(hitlb).*(p(hitlb)-lbp(hitlb))./(-dx(hitlb)))));
+        end
+        if any(hitub)
+            alphac=min(alphac,gather(min(taup(hitub).*(ubp(hitub)-p(hitub))./dx(hitub))));
+        end
+        if alphac<1
+            dx=alphac*dx;
+            nconstraintsteps=nconstraintsteps+1;
+            constraintalphamin=min(constraintalphamin,alphac);
+            if transpathoptions.verbose==1
+                fprintf('Constraints on the prices shortened the Newton step to %g of its length \n',alphac)
+            end
+        end
+    end
     p=p+dx;
     PricePathOld(1:T-1,:)=reshape(p,T-1,nPrices);
 
@@ -358,6 +407,11 @@ while GEcondnPathDist>transpathoptions.toleranceGEcondns && itercounter<=transpa
     end
 
     itercounter=itercounter+1;
+end
+
+% One line whenever constraints were set (as for shooting and Anderson)
+if transpathoptions.useconstraints==1
+    fprintf('Constraints on the prices: shortened %i Newton step(s), the shortest to %g of its length \n',nconstraintsteps,constraintalphamin)
 end
 
 if GEcondnPathDist>transpathoptions.toleranceGEcondns

@@ -88,12 +88,17 @@ function [p,GEcondns,output,lsstate]=AndersonAccelerationTPath(GEcondnsFn,Shooti
 %                          Its options (powell_theta, restart_tau, alpha, safeguard_D, safeguard_eps,
 %                          maxbacktrack) are therefore not read here either.
 %      .verbose     [0]
+%      .lowerbound, .upperbound, .stepfraction  bounds on p, exactly as in AndersonAcceleration: the shooting step is
+%                          cut back by the fraction-to-the-boundary rule, and an Anderson step that leaves the bounds is
+%                          not taken (the plain step is, and the history restarts, as for a rejected step; the local
+%                          search reference is not touched, as a rejected step never commits it)
 %
 % Outputs:
 %   p:        the parameter vector at the (approximate) fixed point
 %   GEcondns: the general eqm conditions evaluated at p
 %   output:   struct with fields .iterations, .converged,
 %             .residualpath, .nrejectedsteps, and .nverify / .nverifyfailed
+%             and with bounds also .nconstraintcuts, .nconstraintiters and .ninfeasiblesteps (as AndersonAcceleration)
 %   lsstate:  the final state, so the caller can see the reference the solve ended on
 
 %% Defaults
@@ -104,9 +109,26 @@ if ~isfield(andersonoptions,'regularization'); andersonoptions.regularization=1e
 if ~isfield(andersonoptions,'safeguard'); andersonoptions.safeguard=1; end
 if ~isfield(andersonoptions,'type'); andersonoptions.type='II'; end
 if ~isfield(andersonoptions,'verbose'); andersonoptions.verbose=0; end
+if ~isfield(andersonoptions,'stepfraction'); andersonoptions.stepfraction=0.5; end % only used with .lowerbound/.upperbound
+useconstraints=isfield(andersonoptions,'lowerbound') || isfield(andersonoptions,'upperbound');
 
 p=p0(:);
 nP=length(p);
+
+if useconstraints
+    if ~isfield(andersonoptions,'lowerbound'); andersonoptions.lowerbound=-Inf(nP,1); end
+    if ~isfield(andersonoptions,'upperbound'); andersonoptions.upperbound=Inf(nP,1); end
+    lb=andersonoptions.lowerbound(:);
+    ub=andersonoptions.upperbound(:);
+    sf=andersonoptions.stepfraction(:);
+    if isscalar(sf)
+        sf=sf*ones(nP,1);
+    end
+    if any(p<=lb) || any(p>=ub)
+        error('AndersonAccelerationTPath: the initial point is not strictly inside .lowerbound/.upperbound')
+    end
+end
+nconstraintcuts=0; nconstraintiters=0; ninfeasiblesteps=0;
 
 % Type-I is not forked. Its step is unbounded and backtracks toward the previous iterate, so a
 % rejected trial and an accepted one are not cleanly separable and the commit-on-accept rule for the
@@ -202,6 +224,19 @@ for iter=1:andersonoptions.maxiter
 
     % Plain shooting step g=G(p)
     g=ShootingMapFn(p,GEcondns);
+    if useconstraints
+        % Fraction-to-the-boundary on the shooting step (see AndersonAcceleration), by logical indexing as an
+        % unconstrained element has bounds -Inf/Inf and 0*Inf is NaN
+        belowlb=(g<=lb);
+        aboveub=(g>=ub);
+        g(belowlb)=p(belowlb)+sf(belowlb).*(lb(belowlb)-p(belowlb));
+        g(aboveub)=p(aboveub)+sf(aboveub).*(ub(aboveub)-p(aboveub));
+        ncut=gather(sum(belowlb)+sum(aboveub));
+        nconstraintcuts=nconstraintcuts+ncut;
+        if ncut>0
+            nconstraintiters=nconstraintiters+1;
+        end
+    end
     f=g-p;                 % f = G(p)-p, the fixed-point residual
 
     % Update the history of differences
@@ -243,6 +278,23 @@ for iter=1:andersonoptions.maxiter
         tookandersonstep=1;
     else
         p_new=g; % warmup: plain shooting step
+    end
+
+    if useconstraints && tookandersonstep==1 && (any(p_new<=lb) || any(p_new>=ub))
+        % An Anderson step that leaves the bounds is not taken: the plain step (inside, by the rule above) is, and the
+        % history restarts, as for a step the safeguard rejects. Checked before the safeguard so no solve is spent on a
+        % point that is not going to be used, and so the reference (committed only when a trial is accepted) is not
+        % touched.
+        p_new=g;
+        DeltaX=zeros(nP,0);
+        DeltaF=zeros(nP,0);
+        p_prev=[];
+        f_prev=[];
+        ninfeasiblesteps=ninfeasiblesteps+1;
+        tookandersonstep=0;
+        if andersonoptions.verbose==1
+            fprintf('   Anderson step not taken (it left the bounds); restarting from plain shooting step \n')
+        end
     end
 
     %% Safeguard the Anderson step
@@ -316,6 +368,11 @@ output.residualpath=residualpath(1:iter);
 output.nrejectedsteps=nrejectedsteps;
 output.nverify=nverify;             % unrestricted certification sweeps taken
 output.nverifyfailed=nverifyfailed; % of those, how many moved us back out of tolerance
+if useconstraints
+    output.nconstraintcuts=nconstraintcuts;
+    output.nconstraintiters=nconstraintiters;
+    output.ninfeasiblesteps=ninfeasiblesteps;
+end
 
 if andersonoptions.verbose==1 && converged==1
     fprintf('Anderson Acceleration: converged in %i iterations (%i Anderson steps rejected along the way) \n',iter,nrejectedsteps)

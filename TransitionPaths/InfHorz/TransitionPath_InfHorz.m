@@ -185,7 +185,14 @@ else
         transpathoptions.constrainAtoB={}; % names of prices constrained to be between A and B, with transpathoptions.constrainAtoBlimits.(name)=[A,B]
     end
     if ~isfield(transpathoptions,'constraintstepfraction')
-        transpathoptions.constraintstepfraction=0.5; % when an update would take a constrained price past its bound, it moves this fraction of the way to the bound instead
+        % when an update would take a constrained price past its bound, it moves this fraction of the way to the bound
+        % instead. A scalar, or a struct by price name (.r=0.25). Default 0.5, but 0.99 for quasi-Newton (GEnewprice=1),
+        % whose step is a Newton direction and only its length is in doubt (the value interior-point methods use)
+        if transpathoptions.GEnewprice==1
+            transpathoptions.constraintstepfraction=0.99;
+        else
+            transpathoptions.constraintstepfraction=0.5;
+        end
     end
     if ~isfield(transpathoptions,'stockvars')
         transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
@@ -488,8 +495,11 @@ PricePathStruct=struct();
 % is approached geometrically when the solution is near it.
 % So there is nothing to choose between a log and a softplus transform here, and constrainpositivemethod (which
 % heteroagentoptions has) is ignored.
-% The bounds are put in transpathoptions.pricepathlowerbound and pricepathupperbound, one entry per column of
-% PricePath (-Inf and Inf where unconstrained), which is all the solvers need.
+% transpathoptions.constraintstepfraction is a scalar (the same for every constrained price), or a struct by price name,
+% e.g. constraintstepfraction.r=0.25, like constrainAtoBlimits; a constrained price that is not named gets 0.5.
+% The bounds are put in transpathoptions.pricepathlowerbound and pricepathupperbound, and the step fractions in
+% transpathoptions.constraintstepfractionvec, one entry per column of PricePath (-Inf and Inf, and 0.5, where
+% unconstrained), which is all the solvers need.
 nPricePathCols=size(PricePath0,2);
 transpathoptions.pricepathlowerbound=-Inf(1,nPricePathCols);
 transpathoptions.pricepathupperbound=Inf(1,nPricePathCols);
@@ -538,8 +548,29 @@ for cc=1:3
     end
 end
 if transpathoptions.useconstraints==1
-    if ~(transpathoptions.constraintstepfraction>0 && transpathoptions.constraintstepfraction<1)
-        error('transpathoptions.constraintstepfraction must be strictly between 0 and 1')
+    % The step fraction, per column of PricePath
+    % A constrained price not named in a struct gets the default, which is 0.99 for quasi-Newton and 0.5 otherwise
+    if transpathoptions.GEnewprice==1
+        transpathoptions.constraintstepfractionvec=0.99*ones(1,nPricePathCols);
+    else
+        transpathoptions.constraintstepfractionvec=0.5*ones(1,nPricePathCols);
+    end
+    if isstruct(transpathoptions.constraintstepfraction)
+        temp=fieldnames(transpathoptions.constraintstepfraction);
+        for nn=1:length(temp)
+            if ~any(strcmp(temp{nn},constrainednames))
+                error('transpathoptions.constraintstepfraction.%s is set, but ''%s'' is not a constrained price (it is not in constrainpositive, constrain0to1 or constrainAtoB)',temp{nn},temp{nn})
+            end
+            pp=find(strcmp(temp{nn},PricePathNames));
+            transpathoptions.constraintstepfractionvec(PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=transpathoptions.constraintstepfraction.(temp{nn});
+        end
+    elseif isscalar(transpathoptions.constraintstepfraction)
+        transpathoptions.constraintstepfractionvec(:)=transpathoptions.constraintstepfraction;
+    else
+        error('transpathoptions.constraintstepfraction must be a scalar, or a struct with one field per constrained price (e.g. transpathoptions.constraintstepfraction.r=0.25)')
+    end
+    if ~all(transpathoptions.constraintstepfractionvec>0 & transpathoptions.constraintstepfractionvec<1)
+        error('transpathoptions.constraintstepfraction must be strictly between 0 and 1 (for every price it is set for)')
     end
     % The initial guess has to be strictly inside the bounds, in every period including the final one (which the
     % solvers never update), else the rule has no interior point to step from
@@ -550,10 +581,9 @@ if transpathoptions.useconstraints==1
             error('The initial PricePath for ''%s'' is not strictly inside its constraint (bounds [%g,%g]) in every period',PricePathNames{pp},transpathoptions.pricepathlowerbound(cols(1)),transpathoptions.pricepathupperbound(cols(1)))
         end
     end
-    % C1: only the shooting algorithm applies the constraints so far
-    if transpathoptions.GEnewprice~=3
-        error('Constraints on the prices (transpathoptions.constrainpositive/constrain0to1/constrainAtoB) are so far only implemented for transpathoptions.GEnewprice=3 (shooting)')
-    end
+    % All three algorithms apply the constraints: shooting (GEnewprice=3) and Anderson (=2, both types, with and without
+    % local search) cut back each element of the update by constraintstepfraction; quasi-Newton (=1) shortens the
+    % whole Newton step by one scalar, so as to keep its direction (see TransitionPath_InfHorz_quasiNewton).
 end
 
 %%

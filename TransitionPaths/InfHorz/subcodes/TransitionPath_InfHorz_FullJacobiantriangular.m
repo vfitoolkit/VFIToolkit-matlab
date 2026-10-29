@@ -61,13 +61,18 @@ for ip=1:nPrices
     for tt=1:T-1
         k=(ip-1)*(T-1)+tt;
         pk=p;
-        pk(k)=pk(k)+transpathoptions.epsprice;
+        % One-sided inward near an upper bound on the price (constraints on the prices, see TransitionPath_InfHorz)
+        epsk=transpathoptions.epsprice;
+        if isfield(transpathoptions,'useconstraints') && transpathoptions.useconstraints==1 && pk(k)+epsk>=transpathoptions.pricepathupperbound(ip)
+            epsk=-epsk;
+        end
+        pk(k)=pk(k)+epsk;
         PricePathk=PricePathOld;
         PricePathk(1:T-1,:)=reshape(pk,T-1,nPrices);
         PolicyIndexesPathk=PolicyIndexesPath; % the baseline, kept at every period after tt
         [~,PolicyIndexesPathk]=TransitionPath_InfHorz_substeps_Step1_ValueFnIter(tt+1,PolicyIndexesPathk,[],VPath(:,:,tt+1),Parameters,PricePathk,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_z,N_e,d_gridvals,a_grid,z_gridvals,e_gridvals,pi_z,pi_e,ReturnFn,DiscountFactorParamNames,ReturnFnParamNames,transpathoptions,vfoptions);
         GEcondnPathk=TransitionPath_InfHorz_singlepathiter(PricePathk, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, n_e, N_a, N_z, N_e, l_d, l_aprime, d_gridvals, aprime_gridvals, a_gridvals, a_grid, z_gridvals, e_gridvals, ze_gridvals, pi_z, pi_z_sparse, pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptions, simoptions, transpathoptionsskip, itercounter, PolicyIndexesPathk, [], N_probs, II1, II2);
-        J(:,k)=(reshape(GEcondnPathk,[],1)-f)/transpathoptions.epsprice;
+        J(:,k)=(reshape(GEcondnPathk,[],1)-f)/epsk;
     end
 end
 

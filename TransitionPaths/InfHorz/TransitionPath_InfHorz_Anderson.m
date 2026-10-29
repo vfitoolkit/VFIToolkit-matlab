@@ -45,6 +45,17 @@ andersonoptions.verbose=transpathoptions.verbose;
 if ~isfield(andersonoptions,'maxiter')
     andersonoptions.maxiter=transpathoptions.maxiter; % so that transpathoptions.maxiter means what it does for every other transition path algorithm
 end
+% Constraints on the prices: AndersonAcceleration applies them, given the bounds on each element of p (which is the
+% price path stacked by column, so each price's bounds repeat over the T periods). See TransitionPath_InfHorz for
+% the rule. Defaulted above its read, as this command reads it itself.
+if ~isfield(transpathoptions,'useconstraints')
+    transpathoptions.useconstraints=0;
+end
+if transpathoptions.useconstraints==1
+    andersonoptions.lowerbound=reshape(repmat(gpuArray(transpathoptions.pricepathlowerbound),T,1),[],1);
+    andersonoptions.upperbound=reshape(repmat(gpuArray(transpathoptions.pricepathupperbound),T,1),[],1);
+    andersonoptions.stepfraction=reshape(repmat(gpuArray(transpathoptions.constraintstepfractionvec),T,1),[],1); % can differ by price
+end
 
 %% Solve
 % WITH LOCAL SEARCH the residual carries state -- the reference policy the restricted value fn search
@@ -63,6 +74,13 @@ end
 
 PricePathOld=reshape(p,T,nPrices);
 GEcondnPath=reshape(GEcondns,T-1,nGEcondns);
+
+% One line whenever constraints were set (as for shooting): whether they bound is what the user needs to know
+if transpathoptions.useconstraints==1
+    % Counted per evaluation of the shooting map, not per iteration: the Type-I Anderson evaluates it up to twice an
+    % iteration (at the trial point and at the current iterate), so the count can exceed the number of iterations
+    fprintf('Constraints on the prices: over %i iterations, cut back the shooting step %i time(s) (%i elements in all), and %i Anderson step(s) left the bounds and were not taken \n',output.iterations,output.nconstraintiters,output.nconstraintcuts,output.ninfeasiblesteps)
+end
 
 if transpathoptions.verbose==1
     fprintf('Number of iterations on transition path (Anderson): %i \n',output.iterations)

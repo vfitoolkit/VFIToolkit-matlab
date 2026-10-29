@@ -51,12 +51,26 @@ function [p,GEcondns,output]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,Dista
 %                          model cannot be solved. This is how many times it may be halved back
 %                          toward the previous iterate before giving up.
 %      .verbose     [0]
+%      .lowerbound, .upperbound  [absent]  nP-by-1 bounds on p (-Inf/Inf where there are none), for a caller whose
+%                          parameters are constrained (e.g. the prices of a transition path). Open bounds: p0 must be
+%                          strictly inside. Two things then happen. The shooting map's output g is cut back by the
+%                          fraction-to-the-boundary rule: any element that reaches or passes its bound moves only
+%                          .stepfraction of the way there from its current value (everything else is untouched). And
+%                          an Anderson step that lands on or outside a bound is not taken: that iteration takes the
+%                          (feasible) plain shooting step instead, and the history restarts, as for a step the
+%                          safeguard rejects. So every iterate is strictly inside the bounds, and bounds that never
+%                          bind change nothing. For 'I' the same rule is applied to the shooting map, and a step
+%                          x-H*g that leaves the bounds is replaced by the (feasible) safe KM step, with H reset.
+%      .stepfraction [0.5] see .lowerbound; a scalar, or nP-by-1 (one per element of p)
 %
 % Outputs:
 %   p:        the parameter vector at the (approximate) fixed point
 %   GEcondns: the general eqm conditions evaluated at p
 %   output:   struct with fields .iterations, .converged,
 %             .residualpath, .nrejectedsteps
+%             and with .lowerbound/.upperbound also .nconstraintcuts (elements of the shooting step cut back, over
+%             all iterations), .nconstraintiters (iterations where any was) and .ninfeasiblesteps (Anderson steps
+%             not taken because they left the bounds)
 
 %% Defaults
 if ~isfield(andersonoptions,'memory'); andersonoptions.memory=5; end
@@ -72,9 +86,26 @@ if ~isfield(andersonoptions,'alpha'); andersonoptions.alpha=1; end              
 if ~isfield(andersonoptions,'safeguard_D'); andersonoptions.safeguard_D=1e6; end        % safeguard constant D>0
 if ~isfield(andersonoptions,'safeguard_eps'); andersonoptions.safeguard_eps=1e-6; end   % safeguard exponent eps>0
 if ~isfield(andersonoptions,'maxbacktrack'); andersonoptions.maxbacktrack=10; end     % Type-I only: how many times a step may be halved back toward the previous iterate when the GE conditions come back non-finite
+if ~isfield(andersonoptions,'stepfraction'); andersonoptions.stepfraction=0.5; end % only used with .lowerbound/.upperbound
+useconstraints=isfield(andersonoptions,'lowerbound') || isfield(andersonoptions,'upperbound');
 
 p=p0(:);
 nP=length(p);
+
+if useconstraints
+    if ~isfield(andersonoptions,'lowerbound'); andersonoptions.lowerbound=-Inf(nP,1); end
+    if ~isfield(andersonoptions,'upperbound'); andersonoptions.upperbound=Inf(nP,1); end
+    lb=andersonoptions.lowerbound(:);
+    ub=andersonoptions.upperbound(:);
+    sf=andersonoptions.stepfraction(:);
+    if isscalar(sf)
+        sf=sf*ones(nP,1);
+    end
+    if any(p<=lb) || any(p>=ub)
+        error('AndersonAcceleration: the initial point is not strictly inside .lowerbound/.upperbound')
+    end
+end
+nconstraintcuts=0; nconstraintiters=0; ninfeasiblesteps=0;
 
 %% Type-I: stabilized AA-I-S-m (Zhang, O'Donoghue & Boyd 2020, Algorithm 3.1)
 if strcmp(andersonoptions.type,'I')
@@ -89,7 +120,18 @@ if strcmp(andersonoptions.type,'I')
     % Initialization (line 2): residual g0=x0-Phi(x0); x^1=f_alpha(x^0)
     GEcondns=GEcondnsFn(p); GEcondns=GEcondns(:);
     if any(~isfinite(GEcondns)); error('AndersonAcceleration (Type-I): GE conditions NaN/Inf at the initial point.'); end
-    g0=p-ShootingMapFn(p,GEcondns);
+    GEc_rule=GEcondns;
+    Gx=ShootingMapFn(p,GEc_rule);
+    if useconstraints
+        % Fraction-to-the-boundary on the shooting map (as in the Type-II code below), so the KM step, a convex
+        % combination of p and this, is strictly inside
+        belowlb=(Gx<=lb); aboveub=(Gx>=ub);
+        Gx(belowlb)=p(belowlb)+sf(belowlb).*(lb(belowlb)-p(belowlb));
+        Gx(aboveub)=p(aboveub)+sf(aboveub).*(ub(aboveub)-p(aboveub));
+        ncut=gather(sum(belowlb)+sum(aboveub)); nconstraintcuts=nconstraintcuts+ncut;
+        if ncut>0; nconstraintiters=nconstraintiters+1; end
+    end
+    g0=p-Gx;
     Ubar=norm(g0);
     x_prev=p; g_prev=g0; x_tilde=p-alpha*g0; x_cur=x_tilde;
     H=eye(nP); Shat=zeros(nP,0); mc=0; nAA=0;
@@ -134,14 +176,36 @@ if strcmp(andersonoptions.type,'I')
             end
         end
         if any(~isfinite(GEc_t)); error('AndersonAcceleration (Type-I): at iteration %i the general eqm conditions are still NaN/Inf (or the model still cannot be solved) after halving the step back toward the previous iterate %i times. Raise anderson.maxbacktrack, or start from a point further inside the region where the model can be solved.',iter,andersonoptions.maxbacktrack); end
-        g_tilde=x_tilde-ShootingMapFn(x_tilde,GEc_t);
+        GEc_rule=GEc_t;
+        Gx=ShootingMapFn(x_tilde,GEc_rule);
+        if useconstraints
+            % Fraction-to-the-boundary on the shooting map (as in the Type-II code below), so the KM step, a convex
+            % combination of x_tilde and this, is strictly inside
+            belowlb=(Gx<=lb); aboveub=(Gx>=ub);
+            Gx(belowlb)=x_tilde(belowlb)+sf(belowlb).*(lb(belowlb)-x_tilde(belowlb));
+            Gx(aboveub)=x_tilde(aboveub)+sf(aboveub).*(ub(aboveub)-x_tilde(aboveub));
+            ncut=gather(sum(belowlb)+sum(aboveub)); nconstraintcuts=nconstraintcuts+ncut;
+            if ncut>0; nconstraintiters=nconstraintiters+1; end
+        end
+        g_tilde=x_tilde-Gx;
         % residual at x_cur (reuse if x_cur==x_tilde, i.e. previous step was accepted)
         if isequal(x_cur,x_tilde)
             GEc_k=GEc_t; g_k=g_tilde;
         else
             GEc_k=GEcondnsFn(x_cur); GEc_k=GEc_k(:);
             if any(~isfinite(GEc_k)); error('AndersonAcceleration (Type-I): the general eqm conditions are NaN/Inf at the current iterate at iteration %i (the safeguard accepted a step that cannot be evaluated).',iter); end
-            g_k=x_cur-ShootingMapFn(x_cur,GEc_k);
+            GEc_rule=GEc_k;
+            Gx=ShootingMapFn(x_cur,GEc_rule);
+            if useconstraints
+                % Fraction-to-the-boundary on the shooting map (as in the Type-II code below), so the KM step, a convex
+                % combination of x_cur and this, is strictly inside
+                belowlb=(Gx<=lb); aboveub=(Gx>=ub);
+                Gx(belowlb)=x_cur(belowlb)+sf(belowlb).*(lb(belowlb)-x_cur(belowlb));
+                Gx(aboveub)=x_cur(aboveub)+sf(aboveub).*(ub(aboveub)-x_cur(aboveub));
+                ncut=gather(sum(belowlb)+sum(aboveub)); nconstraintcuts=nconstraintcuts+ncut;
+                if ncut>0; nconstraintiters=nconstraintiters+1; end
+            end
+            g_k=x_cur-Gx;
         end
         currentresid=DistanceFn(GEc_k); residualpath(iter)=currentresid;
         if andersonoptions.verbose==1
@@ -182,6 +246,14 @@ if strcmp(andersonoptions.type,'I')
             end
         end
         x_tilde_next=x_cur-H*g_k;
+        if useconstraints && (any(x_tilde_next<=lb) || any(x_tilde_next>=ub))
+            % The step x-H*g extrapolates and can leave the bounds. x_tilde is evaluated at the next iteration whichever
+            % step the safeguard takes, so it must not be outside: use the safe KM step instead (strictly inside, as a
+            % convex combination of x_cur and the cut-back shooting map) and reset H, as for the non-finite-H fallback.
+            x_tilde_next=x_cur-alpha*g_k;
+            H=eye(nP); Shat=zeros(nP,0); mc=0;
+            ninfeasiblesteps=ninfeasiblesteps+1;
+        end
         if norm(g_k)<=Dsafe*Ubar*(nAA+1)^(-(1+epssafe))          % safeguard (lines 12-14)
             x_next=x_tilde_next; nAA=nAA+1;
         else
@@ -201,6 +273,11 @@ if strcmp(andersonoptions.type,'I')
     output.residualpath=residualpath(1:iter); output.nrejectedsteps=nKMsteps;
     output.nbacktracks=nbacktracks; output.nHfallbacks=nHfallbacks;
     output.nzerosecants=nzerosecants; output.ndenomguards=ndenomguards;
+    if useconstraints
+        output.nconstraintcuts=nconstraintcuts;
+        output.nconstraintiters=nconstraintiters;
+        output.ninfeasiblesteps=ninfeasiblesteps;
+    end
     if nbacktracks>0 || nHfallbacks>0 || nzerosecants>0 || ndenomguards>0
         % Reported at any verbosity: each of these means the plain algorithm would have failed here.
         fprintf(['Anderson Acceleration (Type-I): robustness guards fired during this solve: ' ...
@@ -263,6 +340,20 @@ for iter=1:andersonoptions.maxiter
 
     % Plain shooting step g=G(p)
     g=ShootingMapFn(p,GEcondns);
+    if useconstraints
+        % Fraction-to-the-boundary on the shooting step, so the plain step (which is also the fallback whenever an
+        % Anderson step is not taken) is always strictly inside. By logical indexing, as an unconstrained element has
+        % bounds -Inf/Inf and 0*Inf is NaN.
+        belowlb=(g<=lb);
+        aboveub=(g>=ub);
+        g(belowlb)=p(belowlb)+sf(belowlb).*(lb(belowlb)-p(belowlb));
+        g(aboveub)=p(aboveub)+sf(aboveub).*(ub(aboveub)-p(aboveub));
+        ncut=gather(sum(belowlb)+sum(aboveub));
+        nconstraintcuts=nconstraintcuts+ncut;
+        if ncut>0
+            nconstraintiters=nconstraintiters+1;
+        end
+    end
     f=g-p;                 % f = G(p)-p, the fixed-point residual
 
     % Update the history of differences
@@ -304,6 +395,23 @@ for iter=1:andersonoptions.maxiter
         tookandersonstep=1;
     else
         p_new=g; % warmup: plain shooting step
+    end
+
+    if useconstraints && tookandersonstep==1 && (any(p_new<=lb) || any(p_new>=ub))
+        % The Anderson step extrapolates, so it can leave the bounds even though every iterate it combines is
+        % inside them. Do not take it: take the plain shooting step (inside, by the rule above) and restart the
+        % history, as for a step the safeguard rejects. Checked before the safeguard, which would otherwise spend a
+        % solve of the GE conditions at a point that is not going to be used.
+        p_new=g;
+        DeltaX=zeros(nP,0);
+        DeltaF=zeros(nP,0);
+        p_prev=[];
+        f_prev=[];
+        ninfeasiblesteps=ninfeasiblesteps+1;
+        tookandersonstep=0;
+        if andersonoptions.verbose==1
+            fprintf('   Anderson step not taken (it left the bounds); restarting from plain shooting step \n')
+        end
     end
 
     %% Safeguard the Anderson step
@@ -367,6 +475,11 @@ output.iterations=iter;
 output.converged=converged;
 output.residualpath=residualpath(1:iter);
 output.nrejectedsteps=nrejectedsteps;
+if useconstraints
+    output.nconstraintcuts=nconstraintcuts;
+    output.nconstraintiters=nconstraintiters;
+    output.ninfeasiblesteps=ninfeasiblesteps;
+end
 
 if andersonoptions.verbose==1 && converged==1
     fprintf('Anderson Acceleration: converged in %i iterations (%i Anderson steps rejected along the way) \n',iter,nrejectedsteps)

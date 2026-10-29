@@ -251,15 +251,15 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
         % this rule keeps it there), so the result is too. Row T is never updated.
         % Done by logical indexing, never by multiplying by an indicator: an unconstrained column has bounds -Inf and
         % Inf, and 0*Inf is NaN.
-        theta=transpathoptions.constraintstepfraction;
+        Theta=repmat(transpathoptions.constraintstepfractionvec,T-1,1); % the step fraction can differ by price
         LB=repmat(transpathoptions.pricepathlowerbound,T-1,1);
         UB=repmat(transpathoptions.pricepathupperbound,T-1,1);
         Pprop=PricePathProposed(1:T-1,:);
         Pold=PricePathOld(1:T-1,:);
         belowlb=(Pprop<=LB);
         aboveub=(Pprop>=UB);
-        Pprop(belowlb)=Pold(belowlb)+theta*(LB(belowlb)-Pold(belowlb));
-        Pprop(aboveub)=Pold(aboveub)+theta*(UB(aboveub)-Pold(aboveub));
+        Pprop(belowlb)=Pold(belowlb)+Theta(belowlb).*(LB(belowlb)-Pold(belowlb));
+        Pprop(aboveub)=Pold(aboveub)+Theta(aboveub).*(UB(aboveub)-Pold(aboveub));
         PricePathProposed(1:T-1,:)=Pprop;
         nconstraintcuts=gather(sum(belowlb(:))+sum(aboveub(:)));
         if nconstraintcuts>0
