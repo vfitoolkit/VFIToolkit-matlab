@@ -447,7 +447,10 @@ elseif caliboptions.fminalgo==6
 elseif caliboptions.fminalgo==7 % fsolve()
     error('cannot use fminalgo=7 for estimation (as fsolve() is a multi-objective method)')
 elseif caliboptions.fminalgo==8 % lsqnonlin()
-    minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',caliboptions.toleranceparams,'TolFun',caliboptions.toleranceobjective);
+    if ~isfield(caliboptions,'finitedifferencestepsize')
+        caliboptions.finitedifferencestepsize=1e-2; % lsqnonlin's FiniteDifferenceStepSize (relative, times max(|x|,1), so an absolute step for parameters below one; in joint GE calibration it also steps the GE prices); a vector gives one step per unknown, in the order of the calibration vector (one entry per element of a vector parameter; in joint GE calibration the GE prices come last); MATLAB's own default is sqrt(eps)
+    end
+    minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',caliboptions.finitedifferencestepsize,'TolX',caliboptions.toleranceparams,'TolFun',caliboptions.toleranceobjective);
     [calibparamsvec,calibobjvalue]=lsqnonlin(CalibrationObjectiveFn,calibparamsvec0,[],[],[],[],[],[],[],minoptions);
 end
 
