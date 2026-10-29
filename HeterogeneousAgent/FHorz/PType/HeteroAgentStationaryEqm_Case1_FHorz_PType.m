@@ -30,7 +30,7 @@ function varargout=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j
 %% Check 'double fminalgo'
 if exist('heteroagentoptions','var')
     if isfield(heteroagentoptions,'fminalgo')
-        if length(heteroagentoptions.fminalgo)>1
+        if length(heteroagentoptions.fminalgo)>1 && (~isfield(heteroagentoptions,'maxiter') || heteroagentoptions.maxiter>0) % maxiter=0 just evaluates the GE condns, so skip the two-stage solve (fminalgo stays a vector, which is harmless as maxiter=0 never reaches the optimizers)
             if isfield(heteroagentoptions,'toleranceGEcondns')
                 heteroagentoptions.toleranceGEcondns=heteroagentoptions.toleranceGEcondns.*ones(1,length(heteroagentoptions.fminalgo));
             else
