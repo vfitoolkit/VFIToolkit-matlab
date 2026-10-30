@@ -550,6 +550,10 @@ for ii=1:PTypeStructure.N_i
     N_a_ii=prod(n_a_ii);
     N_z_ii=prod(n_z_ii);
     N_e_ii=prod(vfoptions_ii.n_e);
+    % vfoptions.lowmemory=2 loops over both z and e, so it is only possible in models with both z and e
+    if vfoptions_ii.lowmemory==2 && (N_z_ii==0 || N_e_ii==0)
+        error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+    end
 
     if N_d_ii==0
         l_d_ii=0;

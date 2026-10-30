@@ -331,6 +331,10 @@ for ii=1:PTypeStructure.N_i
     [PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).vfoptions]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,pi_z,PTypeStructure.(iistr).vfoptions,3);
     PTypeStructure.(iistr).z_grid=gpuArray(PTypeStructure.(iistr).z_grid);
     PTypeStructure.(iistr).N_z=prod(PTypeStructure.(iistr).n_z);
+    % vfoptions.lowmemory=2 loops over both z and e, so it is only possible in models with both z and e
+    if PTypeStructure.(iistr).vfoptions.lowmemory==2 && (PTypeStructure.(iistr).N_z==0 || prod(PTypeStructure.(iistr).n_e)==0)
+        error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+    end
     if PTypeStructure.(iistr).N_z==0
         PTypeStructure.(iistr).l_z=0;
     else
