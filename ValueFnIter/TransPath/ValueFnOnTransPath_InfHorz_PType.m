@@ -25,6 +25,20 @@ for ii=1:N_i
     iistr=Names_i{ii};
 
     transpathoptions_temp=PType_Options(transpathoptions,iistr);
+    % Initial values for _tminus1 can differ by ptype: as a structure (by ptype name), or a vector of length N_i
+    if exist('transpathoptions','var') && isfield(transpathoptions,'initialvalues')
+        transpathoptions_temp.initialvalues=transpathoptions.initialvalues;
+        ivnames=fieldnames(transpathoptions.initialvalues);
+        for nn=1:length(ivnames)
+            temp=transpathoptions.initialvalues.(ivnames{nn});
+            if isstruct(temp)
+                transpathoptions_temp.initialvalues.(ivnames{nn})=temp.(iistr);
+            elseif numel(temp)==N_i && N_i>1
+                transpathoptions_temp.initialvalues.(ivnames{nn})=temp(ii);
+            end
+        end
+    end
+
     vfoptions_temp=PType_Options(vfoptions,iistr);
     vfoptions_temp.parallel=2; % hardcode
     if ~isfield(vfoptions_temp,'verbose')
@@ -123,17 +137,42 @@ for ii=1:N_i
         end
     end
 
-    % ParamPath can include parameters that differ by ptype
+    % PricePath can include prices that differ by ptype: as a structure (by ptype name), or with N_i rows
+    PricePath_temp=PricePath;
+    PricePathNames=fieldnames(PricePath);
+    for nn=1:length(PricePathNames)
+        if isstruct(PricePath_temp.(PricePathNames{nn}))
+            PricePath_temp.(PricePathNames{nn})=PricePath.(PricePathNames{nn}).(iistr);
+        elseif N_i>1 && size(PricePath_temp.(PricePathNames{nn}),1)==N_i && size(PricePath_temp.(PricePathNames{nn}),2)==T
+            temp=PricePath_temp.(PricePathNames{nn});
+            PricePath_temp.(PricePathNames{nn})=temp(ii,:);
+        elseif N_i>1 && size(PricePath_temp.(PricePathNames{nn}),2)==N_i && size(PricePath_temp.(PricePathNames{nn}),1)==T
+            temp=PricePath_temp.(PricePathNames{nn});
+            PricePath_temp.(PricePathNames{nn})=temp(:,ii);
+        end
+    end
+    % ParamPath can include parameters that differ by ptype: as a structure (by ptype name; a ptype it has no
+    % field for is not on the path for that parameter), or with N_i rows
     ParamPath_temp=ParamPath;
     ParamPathNames=fieldnames(ParamPath);
     for nn=1:length(ParamPathNames)
         if isstruct(ParamPath_temp.(ParamPathNames{nn}))
-            ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(iistr);
+            if isfield(ParamPath.(ParamPathNames{nn}),iistr)
+                ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(iistr);
+            else
+                ParamPath_temp=rmfield(ParamPath_temp,ParamPathNames{nn});
+            end
+        elseif N_i>1 && size(ParamPath_temp.(ParamPathNames{nn}),1)==N_i && size(ParamPath_temp.(ParamPathNames{nn}),2)==T
+            temp=ParamPath_temp.(ParamPathNames{nn});
+            ParamPath_temp.(ParamPathNames{nn})=temp(ii,:);
+        elseif N_i>1 && size(ParamPath_temp.(ParamPathNames{nn}),2)==N_i && size(ParamPath_temp.(ParamPathNames{nn}),1)==T
+            temp=ParamPath_temp.(ParamPathNames{nn});
+            ParamPath_temp.(ParamPathNames{nn})=temp(:,ii);
         end
     end
 
-    [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, pi_z_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
-    % Note: T cannot depend on ptype, nor can PricePath depend on ptype
+    [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_InfHorz(PricePath_temp, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, pi_z_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
+    % Note: T cannot depend on ptype
 
     if vfoptions_temp.ptypestorecpu==1
         VPath.(iistr)=gather(VPath_ii);

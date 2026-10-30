@@ -1,0 +1,114 @@
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_Anderson(PricePathOld, PricePathNames, PricePathSizeVec, PricePathSizeVec_ii, ParamPath, ParamPathNames, ParamPathSizeVec, T, FnNames, GEeqnNames, nGeneralEqmEqns_acrossptypes, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, transpathoptions, PTypeStructure)
+% Anderson Acceleration of the shooting map on the whole price path, for the transition path with
+% permanent types. Selected by transpathoptions.GEnewprice=2. The same as TransitionPath_InfHorz_Anderson,
+% with TransitionPath_InfHorz_PType_singlepathiter as the single path iteration.
+%
+% The shooting algorithm (GEnewprice=3) is the fixed-point iteration p <-- G(p), where G() applies
+% the howtoupdate rule period by period. Anderson mixing combines the last m iterates of that same
+% map to take a quasi-Newton-like step, without ever building a Jacobian. So it costs the same one
+% path solve per iteration as shooting (plus one more per Anderson step when the safeguard is on).
+%
+% The iterate is the whole price path flattened to a column, T*nPrices long, where a price that
+% depends on ptype has N_i columns. Period T is included even though it never moves:
+% updatePricePathNew_TPath_T copies the terminal row through unchanged, so those coordinates are a
+% fixed point of G() and contribute nothing to the Anderson history.
+% A general eqm condition that depends on ptype (transpathoptions.GEptype) is N_i conditions, so
+% there are nGeneralEqmEqns_acrossptypes of them, and setupGEnewprice3_shooting has already expanded
+% howtoupdate to match.
+%
+% Everything Anderson-specific lives in AndersonAcceleration(), which is shared with the stationary
+% general eqm solver (heteroagentoptions.fminalgo=9) and with the other transition path Anderson commands.
+
+nPrices=size(PricePathOld,2);
+nGEcondns=nGeneralEqmEqns_acrossptypes;
+
+% Anderson builds its step out of the history of iterates, which only means anything if G() is the
+% same map at every iteration. That rules out the additional-factor ramp (setupGEnewprice3_shooting
+% errors if it is set for GEnewprice=2), and it is why itercounter is held at 1.
+itercounter=1;
+
+%% The three things Anderson Acceleration needs: the residual, the map, and the distance
+% GEcondnsFn is the expensive one, a full solve of the path (value fn, agent dist, aggregates, for
+% every ptype, then the general eqm conditions). ShootingMapFn is the ordinary shooting update, which
+% is cheap because it is handed the general eqm conditions rather than recomputing them. DistanceFn is
+% the convergence criterion, and is also what the safeguard judges trial points on.
+GEcondnsFn=@(p) reshape(TransitionPath_InfHorz_PType_singlepathiter(reshape(p,T,nPrices), PricePathNames, PricePathSizeVec, PricePathSizeVec_ii, ParamPath, ParamPathNames, ParamPathSizeVec, T, FnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, transpathoptions, PTypeStructure),[],1);
+ShootingMapFn=@(p,GEc) reshape(updatePricePathNew_TPath_T(reshape(GEc,T-1,nGEcondns),reshape(p,T,nPrices),T,itercounter,transpathoptions),[],1);
+if transpathoptions.multiGEcriterion==0
+    DistanceFn=@(GEc) max(sum(abs(transpathoptions.multiGEweights.*reshape(GEc,T-1,nGEcondns)),2));
+elseif transpathoptions.multiGEcriterion==1
+    DistanceFn=@(GEc) max(sqrt(sum(transpathoptions.multiGEweights.*(reshape(GEc,T-1,nGEcondns).^2),2)));
+end
+
+andersonoptions=transpathoptions.anderson;
+andersonoptions.verbose=transpathoptions.verbose;
+if ~isfield(andersonoptions,'maxiter')
+    andersonoptions.maxiter=transpathoptions.maxiter; % so that transpathoptions.maxiter means what it does for every other transition path algorithm
+end
+% Constraints on the prices: AndersonAcceleration applies them, given the bounds on each element of p (which is the
+% price path stacked by column, so each column's bounds repeat over the T periods; a price that depends on ptype has
+% N_i columns, all with the same bounds). See TransitionPath_InfHorz_PType for the rule. Defaulted above its read, as
+% this command reads it itself.
+if ~isfield(transpathoptions,'useconstraints')
+    transpathoptions.useconstraints=0;
+end
+if transpathoptions.useconstraints==1
+    andersonoptions.lowerbound=reshape(repmat(gpuArray(transpathoptions.pricepathlowerbound),T,1),[],1);
+    andersonoptions.upperbound=reshape(repmat(gpuArray(transpathoptions.pricepathupperbound),T,1),[],1);
+    andersonoptions.stepfraction=reshape(repmat(gpuArray(transpathoptions.constraintstepfractionvec),T,1),[],1); % can differ by price
+end
+
+%% Titles for the graph of the price path: a price that depends on ptype has N_i (blocks of) columns, drawn as
+% lines in its subplot in Names_i order, so the title lists them
+PricePathNames_plot=PricePathNames;
+for pp=1:length(PricePathNames)
+    if PTypeStructure.PricePath_Idependsonptype(pp)==1
+        PricePathNames_plot{pp}=[PricePathNames{pp},' (',strjoin(PTypeStructure.Names_i,', '),')'];
+    end
+end
+%% Names for the graph of the general eqm conditions: a condition that depends on ptype (transpathoptions.GEptype)
+% has N_i columns in GEcondnPath, one per ptype, titled <eqn>_<ptype name> (as the per-ptype aggregates are named in Parameters)
+GEeqnNames_plot={};
+for gg=1:length(GEeqnNames)
+    if transpathoptions.GEptype(gg)==0
+        GEeqnNames_plot{end+1}=GEeqnNames{gg};
+    else
+        for ii=1:PTypeStructure.N_i
+            GEeqnNames_plot{end+1}=[GEeqnNames{gg},'_',PTypeStructure.Names_i{ii}];
+        end
+    end
+end
+
+%% Solve
+[p,GEcondns,output]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,DistanceFn,reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+
+PricePathOld=reshape(p,T,nPrices);
+GEcondnPath=reshape(GEcondns,T-1,nGEcondns);
+
+% One line whenever constraints were set (as for shooting): whether they bound is what the user needs to know
+if transpathoptions.useconstraints==1
+    % Counted per evaluation of the shooting map, not per iteration: the Type-I Anderson evaluates it up to twice an
+    % iteration (at the trial point and at the current iterate), so the count can exceed the number of iterations
+    fprintf('Constraints on the prices: over %i iterations, cut back the shooting step %i time(s) (%i elements in all), and %i Anderson step(s) left the bounds and were not taken \n',output.iterations,output.nconstraintiters,output.nconstraintcuts,output.ninfeasiblesteps)
+end
+
+if transpathoptions.verbose==1
+    fprintf('Number of iterations on transition path (Anderson): %i \n',output.iterations)
+    fprintf('Current distance of the general eqm conditions from zero: %8.6f \n', DistanceFn(GEcondns))
+    fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1) \n',DistanceFn(GEcondns)/transpathoptions.toleranceGEcondns)
+    fprintf('Number of Anderson steps rejected by the safeguard along the way: %i \n',output.nrejectedsteps)
+end
+
+%% Create plots of the transition path
+% Unlike the other algorithms these are only drawn once, at the end. The Anderson iteration lives
+% inside AndersonAcceleration(), which has no way to return the aggregate variables of the path it
+% is currently on, so drawing them each iteration would mean solving the path a second time.
+if transpathoptions.graphpricepath==1 || transpathoptions.graphaggvarspath==1 || transpathoptions.graphGEcondns==1
+    AggVarsPooledPath=zeros(T-1,length(FnNames),'gpuArray'); % only the aggregate variables graph needs these, and getting them means solving the path once more
+    if transpathoptions.graphaggvarspath==1
+        [~,AggVarsPooledPath]=TransitionPath_InfHorz_PType_singlepathiter(PricePathOld, PricePathNames, PricePathSizeVec, PricePathSizeVec_ii, ParamPath, ParamPathNames, ParamPathSizeVec, T, FnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+    end
+    createTPathFeedbackPlots(PricePathNames_plot,FnNames,GEeqnNames_plot,PricePathOld,AggVarsPooledPath,GEcondnPath,transpathoptions,PricePathSizeVec);
+end
+
+end

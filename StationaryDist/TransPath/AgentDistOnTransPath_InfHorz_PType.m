@@ -39,6 +39,20 @@ for ii=1:N_i
         transpathoptions_temp.verboseparams=0;
     end
 
+    % Initial values for _tminus1 can differ by ptype: as a structure (by ptype name), or a vector of length N_i
+    if exist('transpathoptions','var') && isfield(transpathoptions,'initialvalues')
+        transpathoptions_temp.initialvalues=transpathoptions.initialvalues;
+        ivnames=fieldnames(transpathoptions.initialvalues);
+        for nn=1:length(ivnames)
+            temp=transpathoptions.initialvalues.(ivnames{nn});
+            if isstruct(temp)
+                transpathoptions_temp.initialvalues.(ivnames{nn})=temp.(iistr);
+            elseif numel(temp)==N_i && N_i>1
+                transpathoptions_temp.initialvalues.(ivnames{nn})=temp(ii);
+            end
+        end
+    end
+
     % Then set up simoptions
     simoptions_temp=PType_Options(simoptions,iistr);
     if ~isfield(simoptions_temp,'verbose')
@@ -82,20 +96,37 @@ for ii=1:N_i
         Parameters_temp
     end
 
-    % PricePath can include parameters that differ by ptype
+    % PricePath can include prices that differ by ptype: as a structure (by ptype name), or with N_i rows
     PricePath_temp=PricePath;
     PricePathNames=fieldnames(PricePath);
     for nn=1:length(PricePathNames)
         if isstruct(PricePath_temp.(PricePathNames{nn}))
             PricePath_temp.(PricePathNames{nn})=PricePath.(PricePathNames{nn}).(iistr);
+        elseif N_i>1 && size(PricePath_temp.(PricePathNames{nn}),1)==N_i && size(PricePath_temp.(PricePathNames{nn}),2)==T
+            temp=PricePath_temp.(PricePathNames{nn});
+            PricePath_temp.(PricePathNames{nn})=temp(ii,:);
+        elseif N_i>1 && size(PricePath_temp.(PricePathNames{nn}),2)==N_i && size(PricePath_temp.(PricePathNames{nn}),1)==T
+            temp=PricePath_temp.(PricePathNames{nn});
+            PricePath_temp.(PricePathNames{nn})=temp(:,ii);
         end
     end
-    % ParamPath can include parameters that differ by ptype
+    % ParamPath can include parameters that differ by ptype: as a structure (by ptype name; a ptype it has no
+    % field for is not on the path for that parameter), or with N_i rows
     ParamPath_temp=ParamPath;
     ParamPathNames=fieldnames(ParamPath);
     for nn=1:length(ParamPathNames)
         if isstruct(ParamPath_temp.(ParamPathNames{nn}))
-            ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(iistr);
+            if isfield(ParamPath.(ParamPathNames{nn}),iistr)
+                ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(iistr);
+            else
+                ParamPath_temp=rmfield(ParamPath_temp,ParamPathNames{nn});
+            end
+        elseif N_i>1 && size(ParamPath_temp.(ParamPathNames{nn}),1)==N_i && size(ParamPath_temp.(ParamPathNames{nn}),2)==T
+            temp=ParamPath_temp.(ParamPathNames{nn});
+            ParamPath_temp.(ParamPathNames{nn})=temp(ii,:);
+        elseif N_i>1 && size(ParamPath_temp.(ParamPathNames{nn}),2)==N_i && size(ParamPath_temp.(ParamPathNames{nn}),1)==T
+            temp=ParamPath_temp.(ParamPathNames{nn});
+            ParamPath_temp.(ParamPathNames{nn})=temp(:,ii);
         end
     end
 

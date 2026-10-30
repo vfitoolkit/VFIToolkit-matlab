@@ -43,6 +43,9 @@ if transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new 
     % keepold is 0 exactly on the rows where the user gave factor=Inf, which means replace the price
     % outright rather than take a step from it (the setup turns that Inf into factor=1, keepold=0).
     PricePathNew_tt=(PricePathOld_tt.*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*factor_iter.*p_i-(1-transpathoptions.GEnewprice3.add).*factor_iter.*p_i;
+else
+    % The PType solvers only accept GEnewprice=3 here (GEnewprice=2 accelerates the same update from outside it)
+    error('updatePricePathNew_TPath_PTypeDependent_tt: only transpathoptions.GEnewprice=3 is implemented (got %g)',transpathoptions.GEnewprice)
 end
 
 % We want output shapes to be
