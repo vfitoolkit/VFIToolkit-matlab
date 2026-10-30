@@ -1,7 +1,7 @@
 function [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_nod_noz_e_raw(Vnext,n_a,n_e, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Single Bellman step, no d, no z, with iid e.
 % Vnext is [N_a,N_e]; pi_e is [N_e,1], the distribution of next period e.
-% lowmemory: 0 is everything at once; 1 and 2 both loop over e.
+% lowmemory: 0 is everything at once; 1 loops over e. (2 loops over z and e, so there is no lowmemory=2 without z; the callers refuse it.)
 
 N_a=prod(n_a);
 N_e=prod(n_e);
@@ -10,7 +10,7 @@ V=zeros(N_a,N_e,'gpuArray');
 Policy=zeros(N_a,N_e,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,e
 
 %%
-if vfoptions.lowmemory>0
+if vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e));
 end
 
@@ -38,7 +38,7 @@ if vfoptions.lowmemory==0
     V=reshape(V,[N_a,N_e]); % otherwise it was outputting as [1,N_a,N_e]
     Policy=reshape(Policy,[N_a,N_e]); % otherwise it was outputting as [1,N_a,N_e]
 
-elseif vfoptions.lowmemory>=1
+elseif vfoptions.lowmemory==1
     for e_c=1:N_e
         e_val=e_gridvals(e_c,:);
         ReturnMatrix_e=CreateReturnFnMatrix_Disc(ReturnFn, 0, n_a, special_n_e, [], a_grid, e_val, ReturnFnParamsVec,0); % [N_a,N_a], aprime-by-a

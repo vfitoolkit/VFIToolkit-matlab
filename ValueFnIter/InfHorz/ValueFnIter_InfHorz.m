@@ -230,6 +230,10 @@ end
 
 N_e=prod(vfoptions.n_e);
 N_semiz=prod(vfoptions.n_semiz);
+% vfoptions.lowmemory=2 loops over both z and e, so it is only possible in models with both z and e
+if vfoptions.lowmemory==2 && (N_z==0 || N_e==0)
+    error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+end
 
 %% Report on Setup
 if vfoptions.verbose==1

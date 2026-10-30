@@ -1,7 +1,7 @@
 function [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_nod_noz_e_raw(Vnext,n_a,n_e, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Single Bellman step with divide-and-conquer and grid interpolation layer, no d, no z, with iid e.
 % Vnext is [N_a,N_e]; pi_e is [N_e,1], the distribution of next period e.
-% lowmemory: 0 is everything at once; 1 (and 2) loop over e.
+% lowmemory: 0 is everything at once; 1 loops over e. (2 loops over z and e, so there is no lowmemory=2 without z; the callers refuse it.)
 
 N_a=prod(n_a);
 N_e=prod(n_e);
@@ -9,7 +9,7 @@ N_e=prod(n_e);
 % Preallocate
 if vfoptions.lowmemory==0
     midpoints=zeros(1,N_a,N_e,'gpuArray');
-elseif vfoptions.lowmemory>=1 % loops over e
+elseif vfoptions.lowmemory==1 % loops over e
     midpoints=zeros(1,N_a,'gpuArray');
     special_n_e=ones(1,length(n_e));
 end
@@ -106,7 +106,7 @@ if vfoptions.lowmemory==0
     inUpperStrict = (maxindexL2 >= n2short+3) & (maxindexL2 <= n2long-1);
     Policy(3,:,:) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
 
-elseif vfoptions.lowmemory>=1 % loop over e
+elseif vfoptions.lowmemory==1 % loop over e
 
     for e_c=1:N_e
         e_val=e_gridvals(e_c,:);

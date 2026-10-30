@@ -604,6 +604,10 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(vfoptions.n_e);
+% vfoptions.lowmemory=2 loops over both z and e, so it is only possible in models with both z and e
+if vfoptions.lowmemory==2 && (N_z==0 || N_e==0)
+    error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+end
 if N_e>0
     % The e shocks are set up from simoptions below (ExogShockSetup_InfHorz_TPath), so if they were only
     % given in vfoptions, copy them across

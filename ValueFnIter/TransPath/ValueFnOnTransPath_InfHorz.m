@@ -232,6 +232,10 @@ end
 N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
+% vfoptions.lowmemory=2 loops over both z and e, so it is only possible in models with both z and e
+if vfoptions.lowmemory==2 && (N_z==0 || N_e==0)
+    error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+end
 
 %% Local search: the reference policy the window is centred on
 % THE REFERENCE IS LEFT EMPTY AND THE DISPATCHER'S OWN DEFAULT IS USED. It used to be built here,
