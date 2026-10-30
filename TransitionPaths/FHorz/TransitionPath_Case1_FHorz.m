@@ -278,6 +278,35 @@ if transpathoptions.fastOLG==0 && vfoptions.lowmemory>0
     error('On transtion paths you can only use vfoptions.lowmemory>0 when using transpathoptions.fastOLG=1, because otherwise the runtimes will anyway be so slow as to be essentially unusable')
 end
 
+%% Combinations that are not implemented on a transition path
+% The substeps key off experienceasset/experienceassetz and n_semiz only, so anything
+% else silently reaches the standard-endogenous-state code and returns the wrong model.
+if isfield(vfoptions,'riskyasset')
+    if vfoptions.riskyasset>=1
+        error('vfoptions.riskyasset is not yet implemented on a transition path (email me if you want this)')
+    end
+end
+if isfield(vfoptions,'residualasset')
+    if vfoptions.residualasset>=1
+        error('vfoptions.residualasset is not yet implemented on a transition path (email me if you want this)')
+    end
+end
+if prod(vfoptions.n_semiz)>0 && (vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1)
+    error('experienceasset (or experienceassetz) together with a semi-exogenous state is not yet implemented on a transition path (email me if you want this)')
+end
+% The GE path does not reuse ValueFnOnTransPath_FHorz_QuasiHyperbolic; it has its own
+% implementation in TransitionPath_FHorz_substeps_Step1_ValueFnIter_QuasiHyperbolic, which
+% is reached only after the experienceasset branches have already returned, and which never
+% reads n_semiz. So both of these need guarding here as well as there.
+if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
+        error('Quasi-hyperbolic discounting together with an experience asset is not yet implemented on a transition path (email me if you want this)')
+    end
+    if prod(vfoptions.n_semiz)>0
+        error('Quasi-hyperbolic discounting together with a semi-exogenous state is not yet implemented on a transition path (email me if you want this)')
+    end
+end
+
 %% Local search, vfoptions.localsearch
 % Restricts the aprime choice in the value fn step to a window of 2*nlocalsearch+1 grid points around
 % the previous GE iteration's answer at the same (age,period). See TransitionPath_FHorz_shooting.

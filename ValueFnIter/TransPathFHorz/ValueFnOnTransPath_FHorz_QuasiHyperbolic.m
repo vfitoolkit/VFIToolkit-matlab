@@ -1,4 +1,4 @@
-function varargout=ValueFnOnTransPath_FHorz_QuasiHyperbolic(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+function varargout=ValueFnOnTransPath_FHorz_QuasiHyperbolic(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions)
 % Quasi-Hyperbolic discounting on FHorz transition path (compute-only, no GE).
 %
 % Output convention (mirrors ValueFnIter_FHorz_QuasiHyperbolic):
@@ -20,24 +20,17 @@ isNaive=strcmp(vfoptions.quasi_hyperbolic,'Naive');
 if vfoptions.experienceasset>=1
     error('ValueFnOnTransPath_FHorz_QuasiHyperbolic: experienceasset not yet supported')
 end
+if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
+        % Note: ValueFnOnTransPath_Case1_FHorz dispatches to here before it reaches its
+        % semiz branch, and nothing below reads n_semiz, so without this the semi-exogenous
+        % state would just be ignored and a no-semiz answer returned.
+        error('ValueFnOnTransPath_FHorz_QuasiHyperbolic: semi-exogenous states (vfoptions.n_semiz) not yet supported')
+    end
+end
 
-%% Internally PricePath is matrix of size T-by-'number of prices'.
-[PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
-
-%% Make sure all the relevant inputs are GPU arrays (not standard arrays)
-pi_z=gpuArray(pi_z);
-d_grid=gpuArray(d_grid);
-a_grid=gpuArray(a_grid);
-z_grid=gpuArray(z_grid);
-V_final=gpuArray(V_final);
-
-%% Sizes
+%% Sizes that are not passed in
 N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
-n_e=vfoptions.n_e;
-N_e=prod(n_e);
-
 if N_d==0
     l_d=0;
 else
@@ -46,45 +39,9 @@ end
 l_a=length(n_a);
 l_aprime=l_a;
 
-%% Implement new way of handling ReturnFn inputs
-ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
-
-%% Set up exogenous shock processes
-[z_gridvals_J, pi_z_J, ~, e_gridvals_J, pi_e_J, ~, ~, transpathoptions, vfoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPathNames,transpathoptions,vfoptions,3);
-
-%% Setup for V_final and Policy_final reshaping
-if N_e==0
-    if N_z==0
-        Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_j]);
-        V_final=reshape(V_final,[N_a,N_j]);
-    else
-        Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_z,N_j]);
-        if transpathoptions.fastOLG==0
-            V_final=reshape(V_final,[N_a,N_z,N_j]);
-        else
-            V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j,N_z]);
-            Policy_final=reshape(permute(Policy_final,[1,2,4,3]),[size(Policy_final,1),N_a,N_j,N_z]);
-        end
-    end
-else
-    if N_z==0
-        Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_e,N_j]);
-        if transpathoptions.fastOLG==0
-            V_final=reshape(V_final,[N_a,N_e,N_j]);
-        else
-            V_final=reshape(permute(reshape(V_final,[N_a,N_e,N_j]),[1,3,2]),[N_a*N_j,N_e]);
-            Policy_final=reshape(permute(Policy_final,[1,2,4,3]),[size(Policy_final,1),N_a,N_j,N_e]);
-        end
-    else
-        Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_z,N_e,N_j]);
-        if transpathoptions.fastOLG==0
-            V_final=reshape(V_final,[N_a,N_z,N_e,N_j]);
-        else
-            V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j,N_z,N_e]);
-            Policy_final=reshape(permute(Policy_final,[1,2,5,3,4]),[size(Policy_final,1),N_a,N_j,N_z,N_e]);
-        end
-    end
-end
+% Note: PricePath/ParamPath arrive already converted to matrix form, the shocks already as
+% gridvals/pi_J, and V_final/Policy_final already reshaped. All of that is done once, in
+% ValueFnOnTransPath_Case1_FHorz; this file used to carry its own duplicate of every step.
 
 % Policy channel count (matches Case1's convention)
 PolicyChannels=l_d+l_aprime+2*(vfoptions.gridinterplayer>0);

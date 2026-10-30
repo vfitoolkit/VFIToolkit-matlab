@@ -50,25 +50,9 @@ if transpathoptions.fastOLG==1 && N_e>0 && N_z==0
     pi_e_J=reshape(pi_e_J,[N_a*N_j,1,N_e]); % was (N_a*N_j,N_e) from ExogShockSetup_FHorz_TPath with N_z=0
 end
 
-%% Reshape V_final and Policy_final (the semiz analogue of the standard reshapes in ValueFnOnTransPath_Case1_FHorz)
-% Note: I keep Policy as having a first dimension (even if it is just 1)
-if N_e==0
-    Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_bothz,N_j]);
-    if transpathoptions.fastOLG==0
-        V_final=reshape(V_final,[N_a,N_bothz,N_j]);
-    else % transpathoptions.fastOLG==1
-        V_final=reshape(permute(reshape(V_final,[N_a,N_bothz,N_j]),[1,3,2]),[N_a*N_j,N_bothz]);
-        Policy_final=reshape(permute(Policy_final,[1,2,4,3]),[size(Policy_final,1),N_a,N_j,N_bothz]);
-    end
-else
-    Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_bothz,N_e,N_j]);
-    if transpathoptions.fastOLG==0
-        V_final=reshape(V_final,[N_a,N_bothz,N_e,N_j]);
-    else % transpathoptions.fastOLG==1
-        V_final=reshape(permute(reshape(V_final,[N_a,N_bothz,N_e,N_j]),[1,4,2,3]),[N_a*N_j,N_bothz,N_e]);
-        Policy_final=reshape(permute(Policy_final,[1,2,5,3,4]),[size(Policy_final,1),N_a,N_j,N_bothz,N_e]);
-    end
-end
+% Note: V_final/Policy_final arrive already reshaped. ValueFnOnTransPath_Case1_FHorz does
+% it once for every branch, with N_bothz in the z slot, which is exactly what this file
+% used to build for itself here.
 
 %%
 if N_e==0

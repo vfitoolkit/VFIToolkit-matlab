@@ -144,14 +144,22 @@ if isfield(vfoptions,'localsearch')
 end
 
 
-%% Dispatch to QuasiHyperbolic subfn (returns via varargout)
-if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-    [varargout{1:nargout}]=ValueFnOnTransPath_FHorz_QuasiHyperbolic(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
-    return
+%% Combinations that are not implemented on a transition path
+% These must error rather than fall through: the dispatches below key off
+% vfoptions.experienceasset/experienceassetz and vfoptions.n_semiz only, so anything
+% else silently reaches the standard-endogenous-state code and returns the wrong model.
+if ~isfield(vfoptions,'riskyasset')
+    vfoptions.riskyasset=0;
+elseif vfoptions.riskyasset>=1
+    error('vfoptions.riskyasset is not yet implemented on a transition path (email me if you want this)')
 end
-
-% Note: vfoptions.lowmemory is now supported with transpathoptions.fastOLG=0 too
-% (raws error individually if an unsupported lowmemory value is passed).
+if ~isfield(vfoptions,'residualasset')
+    vfoptions.residualasset=0;
+elseif vfoptions.residualasset>=1
+    error('vfoptions.residualasset is not yet implemented on a transition path (email me if you want this)')
+end
+% The semiz-with-experienceasset and semiz-with-QuasiHyperbolic guards live in their own
+% dispatch blocks further down, beside the call they are protecting.
 
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
@@ -171,6 +179,10 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 n_e=vfoptions.n_e;
 N_e=prod(n_e);
+% vfoptions.lowmemory=2 loops over both z and e, so it is only possible in models with both z and e
+if vfoptions.lowmemory==2 && (N_z==0 || N_e==0)
+    error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+end
 
 if N_d==0
     l_d=0;
@@ -213,32 +225,35 @@ if transpathoptions.verbose==2
     PricePathNames
 end
 
-%% Semi-exogenous states get their own subfunction
-% Note: called before the reshaping of V_final/Policy_final (those reshapes do not know about the semiz dimension; the subfunction does them internally)
-if prod(vfoptions.n_semiz)>0
-    [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_SemiExo(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
-    varargout={VPath,PolicyPath};
-    return
+%% Reshape V_final and Policy_final
+% One copy, used by every branch below. ValueFnOnTransPath_FHorz_QuasiHyperbolic and
+% ValueFnOnTransPath_FHorz_SemiExo each used to carry their own duplicate of this block.
+% N_bothz collapses the semi-exogenous state into the z slot, in the (a,semiz,z,e,j)
+% ordering that n_bothz=[n_semiz,n_z] gives. With no semiz N_bothz==N_z, so this is
+% bit-identical to what the standard and experienceasset branches were handed before.
+N_semiz=prod(vfoptions.n_semiz);
+if N_semiz==0
+    N_bothz=N_z;
+else
+    N_bothz=N_semiz*max(N_z,1);
 end
-
-%% Setup for various objects
 % Note: I keep Policy as having a first dimension (even if it is just 1)
 if N_e==0
-    if N_z==0
+    if N_bothz==0
         Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_j]);
         V_final=reshape(V_final,[N_a,N_j]);
         % Note: Unusually, here fastOLG is a-by-j, rather than (a,j)-by-1. Saves a reshape.
     else
-        Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_z,N_j]);
+        Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_bothz,N_j]);
         if transpathoptions.fastOLG==0
-            V_final=reshape(V_final,[N_a,N_z,N_j]);
+            V_final=reshape(V_final,[N_a,N_bothz,N_j]);
         else % vfoptions.fastOLG==1
-            V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j,N_z]);
-            Policy_final=reshape(permute(Policy_final,[1,2,4,3]),[size(Policy_final,1),N_a,N_j,N_z]);
+            V_final=reshape(permute(reshape(V_final,[N_a,N_bothz,N_j]),[1,3,2]),[N_a*N_j,N_bothz]);
+            Policy_final=reshape(permute(Policy_final,[1,2,4,3]),[size(Policy_final,1),N_a,N_j,N_bothz]);
         end
     end
 else
-    if N_z==0
+    if N_bothz==0
         Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_e,N_j]);
         if transpathoptions.fastOLG==0
             V_final=reshape(V_final,[N_a,N_e,N_j]);
@@ -247,294 +262,324 @@ else
             Policy_final=reshape(permute(Policy_final,[1,2,4,3]),[size(Policy_final,1),N_a,N_j,N_e]);
         end
     else
-        Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_z,N_e,N_j]);
+        Policy_final=reshape(Policy_final,[size(Policy_final,1),N_a,N_bothz,N_e,N_j]);
         if transpathoptions.fastOLG==0
-            V_final=reshape(V_final,[N_a,N_z,N_e,N_j]);
+            V_final=reshape(V_final,[N_a,N_bothz,N_e,N_j]);
         else % vfoptions.fastOLG==1
-            V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j,N_z,N_e]);
-            Policy_final=reshape(permute(Policy_final,[1,2,5,3,4]),[size(Policy_final,1),N_a,N_j,N_z,N_e]);
+            V_final=reshape(permute(reshape(V_final,[N_a,N_bothz,N_e,N_j]),[1,4,2,3]),[N_a*N_j,N_bothz,N_e]);
+            Policy_final=reshape(permute(Policy_final,[1,2,5,3,4]),[size(Policy_final,1),N_a,N_j,N_bothz,N_e]);
         end
     end
 end
 
 
+%% Top-level dispatch: on the preferences (returns via varargout)
+if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    if prod(vfoptions.n_semiz)>0
+        error('Quasi-hyperbolic discounting together with a semi-exogenous state is not yet implemented on a transition path (email me if you want this)')
+    end
+    [varargout{1:nargout}]=ValueFnOnTransPath_FHorz_QuasiHyperbolic(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
+    return
+end
+
+%% Asset type (exoticpreferences=None; the exotic preferences handle their own asset types)
+if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
+    if prod(vfoptions.n_semiz)>0
+        error('experienceasset (or experienceassetz) together with a semi-exogenous state is not yet implemented on a transition path (email me if you want this)')
+    end
+    if vfoptions.experienceasset>=1
+        [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_ExpAsset(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
+    else
+        [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_ExpAssetz(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
+    end
+    varargout={VPath,PolicyPath};
+    return
+end
+
+%% Semi-exogenous state
+% Comes after the asset types, matching ValueFnIter_Case1_FHorz. It used to come before
+% them (and before the reshape) because the reshape had no semiz dimension; the reshape
+% above is now semiz-aware, so the subfunction is handed V_final/Policy_final ready to use.
+if prod(vfoptions.n_semiz)>0
+    [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_SemiExo(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
+    varargout={VPath,PolicyPath};
+    return
+end
+
+%% Just do the standard case
 %%
-if vfoptions.experienceasset>=1
-    [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_ExpAsset(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
-elseif vfoptions.experienceassetz>=1
-    [VPath,PolicyPath]=ValueFnOnTransPath_FHorz_ExpAssetz(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d,n_a,n_z,n_e, N_a,N_z,N_e, N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions, vfoptions);
-else
-    %%
-    if N_e==0
-        if N_z==0
-            if transpathoptions.fastOLG==0
-                %% fastOLG=0, no z, no e
-                VPath=zeros(N_a,N_j,T,'gpuArray');
-                VPath(:,:,T)=V_final;
-                PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,T,'gpuArray'); %Periods 1 to T-1
-                PolicyPath(:,:,:,T)=Policy_final;
+if N_e==0
+    if N_z==0
+        if transpathoptions.fastOLG==0
+            %% fastOLG=0, no z, no e
+            VPath=zeros(N_a,N_j,T,'gpuArray');
+            VPath(:,:,T)=V_final;
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath(:,:,:,T)=Policy_final;
 
-                % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
-                V=V_final;
-                for ttr=1:T-1 %so t=T-i
-                    for kk=1:length(PricePathNames)
-                        Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-                    end
-                    for kk=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-                    end
-
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
-                    % The VKron input is next period value fn, the VKron output is this period.
-                    % Policy is kept in the form where it is just a single-value in (d,a')
-
-                    PolicyPath(:,:,:,T-ttr)=Policy;
-                    VPath(:,:,T-ttr)=V;
+            % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
+            V=V_final;
+            for ttr=1:T-1 %so t=T-i
+                for kk=1:length(PricePathNames)
+                    Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
                 end
-            else
-                %% fastOLG=1, no z, no e
-                % Unusual for fastOLG as leave it as a-by-j rather than (a,j)-by-1. Saves a reshape.
-
-                VPath=zeros(N_a,N_j,T,'gpuArray');
-                VPath(:,:,T)=V_final;
-                PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,T,'gpuArray'); %Periods 1 to T
-                PolicyPath(:,:,:,T)=Policy_final;
-
-                % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
-                V=V_final;
-                for ttr=1:T-1 %so t=T-i
-                    for kk=1:length(PricePathNames)
-                        Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-                    end
-                    for kk=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-                    end
-
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
-                    % The VKron input is next period value fn, the VKron output is this period.
-                    % Policy is kept in the form where it is just a single-value in (d,a')
-
-                    PolicyPath(:,:,:,T-ttr)=Policy;
-                    VPath(:,:,T-ttr)=V;
+                for kk=1:length(ParamPathNames)
+                    Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                 end
+
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                % The VKron input is next period value fn, the VKron output is this period.
+                % Policy is kept in the form where it is just a single-value in (d,a')
+
+                PolicyPath(:,:,:,T-ttr)=Policy;
+                VPath(:,:,T-ttr)=V;
             end
+        else
+            %% fastOLG=1, no z, no e
+            % Unusual for fastOLG as leave it as a-by-j rather than (a,j)-by-1. Saves a reshape.
 
-        else % N_z>0
-            if transpathoptions.fastOLG==0
-                %% fastOLG=0, z, no e
-                VPath=zeros(N_a,N_z,N_j,T,'gpuArray');
-                VPath(:,:,:,T)=V_final;
-                PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
-                PolicyPath(:,:,:,:,T)=Policy_final;
+            VPath=zeros(N_a,N_j,T,'gpuArray');
+            VPath(:,:,T)=V_final;
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,T,'gpuArray'); %Periods 1 to T
+            PolicyPath(:,:,:,T)=Policy_final;
 
-                % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
-                V=V_final;
-                for ttr=1:T-1 %so t=T-i
-
-                    for kk=1:length(PricePathNames)
-                        Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-                    end
-                    for kk=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-                    end
-
-                    if transpathoptions.zpathtrivial==0
-                        pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
-                        z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
-                    end
-
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
-                    % The VKron input is next period value fn, the VKron output is this period.
-                    % Policy is kept in the form where it is just a single-value in (d,a')
-
-                    PolicyPath(:,:,:,:,T-ttr)=Policy;
-                    VPath(:,:,:,T-ttr)=V;
+            % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
+            V=V_final;
+            for ttr=1:T-1 %so t=T-i
+                for kk=1:length(PricePathNames)
+                    Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+                end
+                for kk=1:length(ParamPathNames)
+                    Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                 end
 
-            else
-                %% fastOLG=1, z, no e
-                % Note: fastOLG with z: use V as (a,j)-by-z and Policy as a-by-j-by-z
-                VPath=zeros(N_a*N_j,N_z,T,'gpuArray');
-                VPath(:,:,T)=V_final;
-                PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_z,T,'gpuArray');
-                PolicyPath(:,:,:,:,T)=Policy_final;
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                % The VKron input is next period value fn, the VKron output is this period.
+                % Policy is kept in the form where it is just a single-value in (d,a')
 
-                %First, go from T-1 to 1 calculating the Value function and Optimal
-                %policy function at each step. Since we won't need to keep the value
-                %functions for anything later we just store the next period one in
-                %Vnext, and the current period one to be calculated in V
-                V=V_final;
-                for ttr=1:T-1 %so tt=T-ttr
-
-                    for kk=1:length(PricePathNames)
-                        Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-                    end
-                    for kk=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-                    end
-
-                    if transpathoptions.zpathtrivial==0
-                        pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
-                        z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
-                    end
-
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
-                    % The VKron input is next period value fn, the VKron output is this period.
-                    % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
-
-                    PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
-                    VPath(:,:,T-ttr)=V; % fastOLG: so (a,j)-by-z
-                end
+                PolicyPath(:,:,:,T-ttr)=Policy;
+                VPath(:,:,T-ttr)=V;
             end
         end
 
-    else % N_e
-        if N_z==0
-            if transpathoptions.fastOLG==0
-                %% fastOLG=0, no z, e
-                VPath=zeros(N_a,N_e,N_j,T,'gpuArray');
-                VPath(:,:,:,T)=V_final;
-                PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
-                PolicyPath(:,:,:,:,T)=Policy_final;
+    else % N_z>0
+        if transpathoptions.fastOLG==0
+            %% fastOLG=0, z, no e
+            VPath=zeros(N_a,N_z,N_j,T,'gpuArray');
+            VPath(:,:,:,T)=V_final;
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath(:,:,:,:,T)=Policy_final;
 
-                % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
-                V=V_final;
-                for ttr=1:T-1 %so t=T-i
+            % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
+            V=V_final;
+            for ttr=1:T-1 %so t=T-i
 
-                    for kk=1:length(PricePathNames)
-                        Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-                    end
-                    for kk=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-                    end
-
-                    if transpathoptions.epathtrivial==0
-                        pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
-                        e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
-                    end
-
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
-                    % The VKron input is next period value fn, the VKron output is this period.
-                    % Policy is kept in the form where it is just a single-value in (d,a')
-
-                    PolicyPath(:,:,:,:,T-ttr)=Policy;
-                    VPath(:,:,:,T-ttr)=V;
+                for kk=1:length(PricePathNames)
+                    Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+                end
+                for kk=1:length(ParamPathNames)
+                    Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                 end
 
-            else
-                %% fastOLG=1, no z, e
-                % Note: fastOLG with e: use V as (a,j)-by-e and Policy as a-by-j-by-e
-                VPath=zeros(N_a*N_j,N_e,T,'gpuArray');
-                VPath(:,:,T)=V_final;
-                PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_e,T,'gpuArray');
-                PolicyPath(:,:,:,:,T)=Policy_final;
-
-                %First, go from T-1 to 1 calculating the Value function and Optimal
-                %policy function at each step. Since we won't need to keep the value
-                %functions for anything later we just store the next period one in
-                %Vnext, and the current period one to be calculated in V
-                V=V_final;
-                for ttr=1:T-1 %so tt=T-ttr
-
-                    for kk=1:length(PricePathNames)
-                        Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-                    end
-                    for kk=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-                    end
-
-                    if transpathoptions.epathtrivial==0
-                        pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr); % fastOLG value function uses (j,e)
-                        e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
-                    end
-
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
-                    % The VKron input is next period value fn, the VKron output is this period.
-                    % Policy in fastOLG is [1,N_a*N_j*N_e] and contains the joint-index for (d,aprime)
-
-                    PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-e
-                    VPath(:,:,T-ttr)=V;
+                if transpathoptions.zpathtrivial==0
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
+                    z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
+
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                % The VKron input is next period value fn, the VKron output is this period.
+                % Policy is kept in the form where it is just a single-value in (d,a')
+
+                PolicyPath(:,:,:,:,T-ttr)=Policy;
+                VPath(:,:,:,T-ttr)=V;
             end
-        else % N_z>0
-            if transpathoptions.fastOLG==0
-                %% fastOLG=0, z, e
-                VPath=zeros(N_a,N_z,N_e,N_j,T,'gpuArray');
-                VPath(:,:,:,:,T)=V_final;
-                PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
-                PolicyPath(:,:,:,:,:,T)=Policy_final;
 
-                % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
-                V=V_final;
-                for ttr=1:T-1 %so t=T-i
+        else
+            %% fastOLG=1, z, no e
+            % Note: fastOLG with z: use V as (a,j)-by-z and Policy as a-by-j-by-z
+            VPath=zeros(N_a*N_j,N_z,T,'gpuArray');
+            VPath(:,:,T)=V_final;
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_z,T,'gpuArray');
+            PolicyPath(:,:,:,:,T)=Policy_final;
 
-                    for kk=1:length(PricePathNames)
-                        Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-                    end
-                    for kk=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-                    end
+            %First, go from T-1 to 1 calculating the Value function and Optimal
+            %policy function at each step. Since we won't need to keep the value
+            %functions for anything later we just store the next period one in
+            %Vnext, and the current period one to be calculated in V
+            V=V_final;
+            for ttr=1:T-1 %so tt=T-ttr
 
-                    if transpathoptions.epathtrivial==0
-                        pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
-                        e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
-                    end
-                    if transpathoptions.zpathtrivial==0
-                        pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
-                        z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
-                    end
-
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
-                    % The VKron input is next period value fn, the VKron output is this period.
-                    % Policy is kept in the form where it is just a single-value in (d,a')
-
-                    PolicyPath(:,:,:,:,:,T-ttr)=Policy;
-                    VPath(:,:,:,:,T-ttr)=V;
+                for kk=1:length(PricePathNames)
+                    Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+                end
+                for kk=1:length(ParamPathNames)
+                    Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                 end
 
-            else % transpathoptions.fastOLG==1
-                %% fastOLG=1, z, e
-                VPath=zeros(N_a*N_j,N_z,N_e,T,'gpuArray');
-                VPath(:,:,:,T)=V_final;
-                PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_z,N_e,T,'gpuArray');
-                PolicyPath(:,:,:,:,:,T)=Policy_final;
-
-                %First, go from T-1 to 1 calculating the Value function and Optimal
-                %policy function at each step. Since we won't need to keep the value
-                %functions for anything later we just store the next period one in
-                %Vnext, and the current period one to be calculated in V
-                V=V_final;
-                for ttr=1:T-1 %so tt=T-ttr
-
-                    for kk=1:length(PricePathNames)
-                        Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-                    end
-                    for kk=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-                    end
-
-                    if transpathoptions.epathtrivial==0
-                        pi_e_J=transpathoptions.pi_e_J_T(:,:,:,T-ttr); % fastOLG with z: pi_e_J_T is [N_a*N_j,1,N_e,T]
-                        e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,:,T-ttr); % fastOLG with z: e_gridvals_J_T is [N_j,1,N_e,l_e,T]
-                    end
-                    if transpathoptions.zpathtrivial==0
-                        pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
-                        z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
-                    end
-
-                    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_e(V,n_d,n_a,n_z,n_e, N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
-                    % The VKron input is next period value fn, the VKron output is this period.
-                    % Policy in fastOLG is [1,N_a*N_j*N_z*N_e] and contains the joint-index for (d,aprime)
-
-                    PolicyPath(:,:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z-by-e
-                    VPath(:,:,:,T-ttr)=V;
+                if transpathoptions.zpathtrivial==0
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
+                    z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
+
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                % The VKron input is next period value fn, the VKron output is this period.
+                % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
+
+                PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
+                VPath(:,:,T-ttr)=V; % fastOLG: so (a,j)-by-z
+            end
+        end
+    end
+
+else % N_e
+    if N_z==0
+        if transpathoptions.fastOLG==0
+            %% fastOLG=0, no z, e
+            VPath=zeros(N_a,N_e,N_j,T,'gpuArray');
+            VPath(:,:,:,T)=V_final;
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath(:,:,:,:,T)=Policy_final;
+
+            % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
+            V=V_final;
+            for ttr=1:T-1 %so t=T-i
+
+                for kk=1:length(PricePathNames)
+                    Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+                end
+                for kk=1:length(ParamPathNames)
+                    Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+                end
+
+                if transpathoptions.epathtrivial==0
+                    pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
+                    e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
+                end
+
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                % The VKron input is next period value fn, the VKron output is this period.
+                % Policy is kept in the form where it is just a single-value in (d,a')
+
+                PolicyPath(:,:,:,:,T-ttr)=Policy;
+                VPath(:,:,:,T-ttr)=V;
+            end
+
+        else
+            %% fastOLG=1, no z, e
+            % Note: fastOLG with e: use V as (a,j)-by-e and Policy as a-by-j-by-e
+            VPath=zeros(N_a*N_j,N_e,T,'gpuArray');
+            VPath(:,:,T)=V_final;
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_e,T,'gpuArray');
+            PolicyPath(:,:,:,:,T)=Policy_final;
+
+            %First, go from T-1 to 1 calculating the Value function and Optimal
+            %policy function at each step. Since we won't need to keep the value
+            %functions for anything later we just store the next period one in
+            %Vnext, and the current period one to be calculated in V
+            V=V_final;
+            for ttr=1:T-1 %so tt=T-ttr
+
+                for kk=1:length(PricePathNames)
+                    Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+                end
+                for kk=1:length(ParamPathNames)
+                    Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+                end
+
+                if transpathoptions.epathtrivial==0
+                    pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr); % fastOLG value function uses (j,e)
+                    e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
+                end
+
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                % The VKron input is next period value fn, the VKron output is this period.
+                % Policy in fastOLG is [1,N_a*N_j*N_e] and contains the joint-index for (d,aprime)
+
+                PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-e
+                VPath(:,:,T-ttr)=V;
+            end
+        end
+    else % N_z>0
+        if transpathoptions.fastOLG==0
+            %% fastOLG=0, z, e
+            VPath=zeros(N_a,N_z,N_e,N_j,T,'gpuArray');
+            VPath(:,:,:,:,T)=V_final;
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath(:,:,:,:,:,T)=Policy_final;
+
+            % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
+            V=V_final;
+            for ttr=1:T-1 %so t=T-i
+
+                for kk=1:length(PricePathNames)
+                    Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+                end
+                for kk=1:length(ParamPathNames)
+                    Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+                end
+
+                if transpathoptions.epathtrivial==0
+                    pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
+                    e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
+                end
+                if transpathoptions.zpathtrivial==0
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
+                    z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
+                end
+
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                % The VKron input is next period value fn, the VKron output is this period.
+                % Policy is kept in the form where it is just a single-value in (d,a')
+
+                PolicyPath(:,:,:,:,:,T-ttr)=Policy;
+                VPath(:,:,:,:,T-ttr)=V;
+            end
+
+        else % transpathoptions.fastOLG==1
+            %% fastOLG=1, z, e
+            VPath=zeros(N_a*N_j,N_z,N_e,T,'gpuArray');
+            VPath(:,:,:,T)=V_final;
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_z,N_e,T,'gpuArray');
+            PolicyPath(:,:,:,:,:,T)=Policy_final;
+
+            %First, go from T-1 to 1 calculating the Value function and Optimal
+            %policy function at each step. Since we won't need to keep the value
+            %functions for anything later we just store the next period one in
+            %Vnext, and the current period one to be calculated in V
+            V=V_final;
+            for ttr=1:T-1 %so tt=T-ttr
+
+                for kk=1:length(PricePathNames)
+                    Parameters.(PricePathNames{kk})=PricePath(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+                end
+                for kk=1:length(ParamPathNames)
+                    Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+                end
+
+                if transpathoptions.epathtrivial==0
+                    pi_e_J=transpathoptions.pi_e_J_T(:,:,:,T-ttr); % fastOLG with z: pi_e_J_T is [N_a*N_j,1,N_e,T]
+                    e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,:,T-ttr); % fastOLG with z: e_gridvals_J_T is [N_j,1,N_e,l_e,T]
+                end
+                if transpathoptions.zpathtrivial==0
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
+                    z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
+                end
+
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_e(V,n_d,n_a,n_z,n_e, N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                % The VKron input is next period value fn, the VKron output is this period.
+                % Policy in fastOLG is [1,N_a*N_j*N_z*N_e] and contains the joint-index for (d,aprime)
+
+                PolicyPath(:,:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z-by-e
+                VPath(:,:,:,T-ttr)=V;
             end
         end
     end
 end
 
-%% Unkron to get into the shape for output
+%% Unkron to get into the shape for output (the standard case only)
+% Each of the four dispatchers above returns V/Policy already unkronned, matching
+% ValueFnIter_Case1_FHorz where every early-returning branch does the same. This block
+% therefore only serves the standard case that falls through to it.
 if transpathoptions.fastOLG==1
     % fastOLG, so need to permute back to standard ordering
     if N_e==0

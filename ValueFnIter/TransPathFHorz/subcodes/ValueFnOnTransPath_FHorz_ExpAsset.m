@@ -21,9 +21,9 @@ end
 if isscalar(n_a)
     n_a1=0;
 else
-    n_a1=n_a(1:end-1);
+    n_a1=n_a(1:end-vfoptions.experienceasset);
 end
-n_a2=n_a(end); % n_a2 is the experienceasset
+n_a2=n_a(end-vfoptions.experienceasset+1:end); % last vfoptions.experienceasset dims are the experience asset
 a1_grid=a_grid(1:sum(n_a1));
 a2_grid=a_grid(sum(n_a1)+1:end);
 
@@ -39,8 +39,8 @@ end
 l_d2=length(n_d2);
 l_a2=length(n_a2);
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2)
-    aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+if length(temp)>(l_d2+l_a2+(l_a2>=2))  % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+    aprimeFnParamNames={temp{l_d2+l_a2+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2), plus the 'whicha' selector when l_a2>=2
 else
     aprimeFnParamNames={};
 end
@@ -323,6 +323,62 @@ else % N_e
     end
 end
 
+
+
+
+%% Unkron to get into the shape for output
+% Each dispatcher owns its own output shape (as in ValueFnIter_Case1_FHorz, where every
+% early-returning branch hands back V/Policy already unkronned). This block used to sit in
+% ValueFnOnTransPath_Case1_FHorz and be reached by falling through from the experienceasset
+% branch, which was the odd one out among the four subfunctions.
+if transpathoptions.fastOLG==1
+    % fastOLG, so need to permute back to standard ordering
+    if N_e==0
+        if N_z==0
+            % no need to do anything
+        else
+            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,z,t), now (daprime,a,z,j,t)
+        end
+    else
+        if N_z==0
+            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,e,t), now (daprime,a,e,j,t)
+        else
+            PolicyPath=permute(PolicyPath,[1,2,4,5,3,6]); % was (daprime,a,j,z,e,t), now (daprime,a,z,e,j,t)
+        end
+    end
+end
+
+
+% Then the unkron itself
+if N_e==0
+    if N_z==0
+        VPath=reshape(VPath,[n_a,N_j,T]);
+        PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,N_j,T]);
+    else
+        if transpathoptions.fastOLG==0
+            VPath=reshape(VPath,[n_a,n_z,N_j,T]);
+        else
+            VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_z,T]),[1,3,2,4]),[n_a,n_z,N_j,T]);
+        end
+        PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,n_z,N_j,T]);
+    end
+else
+    if N_z==0
+        if transpathoptions.fastOLG==0
+            VPath=reshape(VPath,[n_a,n_e,N_j,T]);
+        else
+            VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_e,T]),[1,3,2,4]),[n_a,n_e,N_j,T]);
+        end
+        PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,n_e,N_j,T]);
+    else
+        if transpathoptions.fastOLG==0
+            VPath=reshape(VPath,[n_a,n_z,n_e,N_j,T]);
+        else
+            VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_z,N_e,T]),[1,3,4,2,5]),[n_a,n_z,n_e,N_j,T]);
+        end
+        PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,n_z,n_e,N_j,T]);
+    end
+end
 
 
 end
