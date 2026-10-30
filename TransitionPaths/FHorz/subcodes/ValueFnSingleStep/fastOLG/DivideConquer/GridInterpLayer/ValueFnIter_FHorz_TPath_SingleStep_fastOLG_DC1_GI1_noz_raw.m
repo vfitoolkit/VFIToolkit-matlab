@@ -73,7 +73,7 @@ for ii=1:(vfoptions.level1n-1)
         % loweredge is n_d-by-1-by-1-by-N_j
         aprimeindexes=loweredge+(0:1:maxgap(ii));
         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-N_j
-        ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_noz(ReturnFn, n_d, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsAgeMatrix,3);
+        ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_noz(ReturnFn, n_d, N_j, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsAgeMatrix,3);
         daprimej=(1:1:N_d)'+N_d*(aprimeindexes-1)+N_d*N_a*jind;
         entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(daprimej(:)),[N_d,(maxgap(ii)+1),1,N_j]); % note: 3rd dim autofills to level1iidiff(ii)
         [~,maxindex]=max(entireRHS_ii,[],2);
@@ -92,7 +92,7 @@ end
 % midpoint is n_d-by-1-by-n_a-by-N_j
 aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
 % aprime possibilities are n_d-by-n2long-by-n_a-by-N_j
-ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_noz(ReturnFn,n_d,N_j,d_gridvals,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsAgeMatrix,2);
+ReturnMatrix_ii=CreateReturnFnMatrix_fastOLG_Disc_DC1_noz(ReturnFn,n_d,N_j,d_gridvals,reshape(aprime_grid(aprimeindexes),size(aprimeindexes)),a_grid,ReturnFnParamsAgeMatrix,2);
 aprimej=aprimeindexes+n2aprime*jind;
 entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprimej(:)),[N_d*n2long,N_a,N_j]);
 [V,maxindexL2]=max(entireRHS_ii,[],1);

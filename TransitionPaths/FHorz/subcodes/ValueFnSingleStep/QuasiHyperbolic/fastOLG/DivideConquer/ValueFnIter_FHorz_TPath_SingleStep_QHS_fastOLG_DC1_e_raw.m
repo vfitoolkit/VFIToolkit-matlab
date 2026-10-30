@@ -86,7 +86,7 @@ if vfoptions.lowmemory==0
         if maxgap(ii)>0
             loweredge=min(maxindex1(:,1,ii,:,:,:),n_a-maxgap(ii));
             aprimeindexes=loweredge+(0:1:maxgap(ii));
-            ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
+            ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
             daprimejz=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1,1)+N_d*N_a*jind+N_d*N_a*N_j*zind;
             entireRHS_ii=ReturnMatrix_ii_dc+reshape(Beta0DiscountedEV(daprimejz(:)),[N_d*(maxgap(ii)+1),level1iidiff(ii),N_j,N_z,N_e]);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -96,7 +96,7 @@ if vfoptions.lowmemory==0
             Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
         else
             loweredge=maxindex1(:,1,ii,:,:,:);
-            ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
+            ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
             daprimejz=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d*N_a*jind+N_d*N_a*N_j*zind;
             entireRHS_ii=ReturnMatrix_ii_dc+reshape(Beta0DiscountedEV(daprimejz(:)),[N_d,level1iidiff(ii),N_j,N_z,N_e]);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -140,7 +140,7 @@ elseif vfoptions.lowmemory==1
             if maxgap(ii)>0
                 loweredge=min(maxindex1(:,1,ii,:,:),n_a-maxgap(ii));
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
-                ReturnMatrix_ii_e_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
+                ReturnMatrix_ii_e_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
                 daprimejz=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1,1)+N_d*N_a*jind+N_d*N_a*N_j*zind;
                 entireRHS_ii=ReturnMatrix_ii_e_dc+reshape(Beta0DiscountedEV(daprimejz(:)),[N_d*(maxgap(ii)+1),level1iidiff(ii),N_j,N_z]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -150,7 +150,7 @@ elseif vfoptions.lowmemory==1
                 Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
             else
                 loweredge=maxindex1(:,1,ii,:,:);
-                ReturnMatrix_ii_e_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
+                ReturnMatrix_ii_e_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,2);
                 daprimejz=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d*N_a*jind+N_d*N_a*N_j*zind;
                 entireRHS_ii=ReturnMatrix_ii_e_dc+reshape(Beta0DiscountedEV(daprimejz(:)),[N_d,level1iidiff(ii),N_j,N_z]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -199,7 +199,7 @@ elseif vfoptions.lowmemory==2
                 if maxgap(ii)>0
                     loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii));
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
-                    ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
+                    ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
                     daprimej=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a*jind;
                     entireRHS_ii=ReturnMatrix_ii_dc+reshape(Beta0DiscountedEV_z(daprimej(:)),[N_d*(maxgap(ii)+1),level1iidiff(ii),N_j]);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -209,7 +209,7 @@ elseif vfoptions.lowmemory==2
                     Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,z_c,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
                 else
                     loweredge=maxindex1(:,1,ii,:);
-                    ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
+                    ReturnMatrix_ii_dc=CreateReturnFnMatrix_fastOLG_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
                     daprimej=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d*N_a*jind;
                     entireRHS_ii=ReturnMatrix_ii_dc+reshape(Beta0DiscountedEV_z(daprimej(:)),[N_d,level1iidiff(ii),N_j]);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
