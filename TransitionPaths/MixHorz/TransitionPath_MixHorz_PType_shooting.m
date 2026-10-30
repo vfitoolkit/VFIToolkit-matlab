@@ -110,6 +110,27 @@ for ii=1:N_i
     end
 end
 
+%% Titles for the graph of the price path: a price that depends on ptype has N_i (blocks of) columns, drawn as
+% lines in its subplot in Names_i order, so the title lists them
+PricePathNames_plot=PricePathNames;
+for pp=1:length(PricePathNames)
+    if PTypeStructure.PricePath_Idependsonptype(pp)==1
+        PricePathNames_plot{pp}=[PricePathNames{pp},' (',strjoin(PTypeStructure.Names_i,', '),')'];
+    end
+end
+%% Names for the graph of the general eqm conditions: a condition that depends on ptype (transpathoptions.GEptype)
+% has N_i columns in GEcondnPath, one per ptype, titled <eqn>_<ptype name> (as the per-ptype aggregates are named in Parameters)
+GEeqnNames_plot={};
+for gg=1:length(GEeqnNames)
+    if transpathoptions.GEptype(gg)==0
+        GEeqnNames_plot{end+1}=GEeqnNames{gg};
+    else
+        for ii=1:PTypeStructure.N_i
+            GEeqnNames_plot{end+1}=[GEeqnNames{gg},'_',PTypeStructure.Names_i{ii}];
+        end
+    end
+end
+
 %%
 PricePathDist=Inf;
 GEcondnPathDist=Inf;
@@ -686,7 +707,7 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
     end
 
     % Create plots of the transition path (before we update pricepath)
-    createTPathFeedbackPlots(PricePathNames,FullAggVarNames,GEeqnNames,PricePathOld,AggVarsPooledPath,GEcondnPath,transpathoptions);
+    createTPathFeedbackPlots(PricePathNames_plot,FullAggVarNames,GEeqnNames_plot,PricePathOld,AggVarsPooledPath,GEcondnPath,transpathoptions,PricePathSizeVec);
 
     % Update PricePathOld
 

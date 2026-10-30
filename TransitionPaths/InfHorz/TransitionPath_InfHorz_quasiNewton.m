@@ -396,7 +396,7 @@ while GEcondnPathDist>transpathoptions.toleranceGEcondns && itercounter<=transpa
     end
 
     % Create plots of the transition path
-    createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,transpathoptions);
+    createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,transpathoptions,PricePathSizeVec);
 
     if transpathoptions.verbose==1
         fprintf('Number of iterations on transition path (Newton): %i \n',itercounter)

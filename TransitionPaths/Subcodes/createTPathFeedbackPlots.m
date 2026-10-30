@@ -1,5 +1,14 @@
-function createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,transpathoptions)
+function createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,transpathoptions,PricePathSizeVec)
 % Creates plots of the current transition path iteration. Control what is plotted with transpathoptions
+%
+% PricePathSizeVec (optional) is 2-by-nPrices, the first and last column of each price in PricePathOld. A
+% price can have several columns (one per ptype, or one per age for an age-dependent price), and all of
+% them are drawn in that price's subplot. Without it every price is taken to be one column.
+% GEeqnNames has one name per column of GEcondnPath (callers with general eqm conditions by ptype pass
+% the expanded names).
+if ~exist('PricePathSizeVec','var')
+    PricePathSizeVec=[1:length(PricePathNames); 1:length(PricePathNames)];
+end
 
 if transpathoptions.graphpricepath==1 || transpathoptions.graphaggvarspath==1 || transpathoptions.graphGEcondns==1
     disp(' ') % For some reason without this Matlab just sometimes doesn't bother updating the graphs
@@ -20,7 +29,7 @@ if transpathoptions.graphpricepath==1
     nrows=ceil(length(PricePathNames)/ncolumns);
     figure(1)
     for pp=1:length(PricePathNames)
-        subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
+        subplot(nrows,ncolumns,pp); plot(PricePathOld(:,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp)))
         title(PricePathNames{pp})
     end
     sgtitle('Current Price Path');

@@ -107,7 +107,7 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
     end
 
     % Create plots of the transition path (before we update pricepath)
-    createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,transpathoptions);
+    createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,transpathoptions,PricePathSizeVec);
 
     % Update PricePathOld
 

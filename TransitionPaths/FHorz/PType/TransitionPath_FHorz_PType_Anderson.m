@@ -46,6 +46,27 @@ if ~isfield(andersonoptions,'maxiter')
     andersonoptions.maxiter=transpathoptions.maxiter; % so that transpathoptions.maxiter means what it does for every other transition path algorithm
 end
 
+%% Titles for the graph of the price path: a price that depends on ptype has N_i (blocks of) columns, drawn as
+% lines in its subplot in Names_i order, so the title lists them
+PricePathNames_plot=PricePathNames;
+for pp=1:length(PricePathNames)
+    if PTypeStructure.PricePath_Idependsonptype(pp)==1
+        PricePathNames_plot{pp}=[PricePathNames{pp},' (',strjoin(PTypeStructure.Names_i,', '),')'];
+    end
+end
+%% Names for the graph of the general eqm conditions: a condition that depends on ptype (transpathoptions.GEptype)
+% has N_i columns in GEcondnPath, one per ptype, titled <eqn>_<ptype name> (as the per-ptype aggregates are named in Parameters)
+GEeqnNames_plot={};
+for gg=1:length(GEeqnNames)
+    if transpathoptions.GEptype(gg)==0
+        GEeqnNames_plot{end+1}=GEeqnNames{gg};
+    else
+        for ii=1:PTypeStructure.N_i
+            GEeqnNames_plot{end+1}=[GEeqnNames{gg},'_',PTypeStructure.Names_i{ii}];
+        end
+    end
+end
+
 %% Solve
 [p,GEcondns,output]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,DistanceFn,reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
 
@@ -68,7 +89,7 @@ if transpathoptions.graphpricepath==1 || transpathoptions.graphaggvarspath==1 ||
     if transpathoptions.graphaggvarspath==1
         [~,AggVarsPooledPath]=TransitionPath_FHorz_PType_singlepathiter(PricePathOld, PricePathNames, PricePathSizeVec, PricePathSizeVec_ii, ParamPath, ParamPathNames, ParamPathSizeVec, T, FnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, transpathoptions, PTypeStructure);
     end
-    createTPathFeedbackPlots(PricePathNames,FnNames,GEeqnNames,PricePathOld,AggVarsPooledPath,GEcondnPath,transpathoptions);
+    createTPathFeedbackPlots(PricePathNames_plot,FnNames,GEeqnNames_plot,PricePathOld,AggVarsPooledPath,GEcondnPath,transpathoptions,PricePathSizeVec);
 end
 
 end
