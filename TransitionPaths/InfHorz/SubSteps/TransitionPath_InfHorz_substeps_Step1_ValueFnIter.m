@@ -31,6 +31,11 @@ lsdiag=[];
 if ~isfield(vfoptions,'localsearchseed')
     vfoptions.localsearchseed=0;
 end
+% localsearch itself is read here too, and Step1 is also reached from outside the TPath commands (the SSJ initial guess
+% of RecursiveGeneralEqmWithAggShocks_InfHorz), whose vfoptions has never heard of it
+if ~isfield(vfoptions,'localsearch')
+    vfoptions.localsearch=0;
+end
 if vfoptions.localsearch==1 && isempty(aprimeReferencePath)
     error('vfoptions.localsearch=1 reached Step1 with no aprimeReferencePath: the first sweep of a solve has to be a standard one, which is what builds it')
 end
@@ -206,6 +211,17 @@ elseif N_z==0 && N_e>0
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
     end
 elseif N_z>0 && N_e>0
+    N_a=prod(n_a);
+    % The local search reference, as in the z branch, with one more dimension: it is per current e as well,
+    % [N_dref,N_a,N_z,N_e], because the return (and so the optimal aprime) moves with e even though EV does not.
+    N_dref=max(prod(n_d),1);
+    % Allocated ONLY when a sweep is going to fill it (see the z branch)
+    if isempty(aprimeReferencePath) && (vfoptions.localsearch==1 || vfoptions.localsearchseed==1)
+        aprimeReferencePath=zeros(N_dref,N_a,N_z,N_e,T-1,'gpuArray');
+    end
+    if vfoptions.localsearch==1
+        lsdiag.movemax=0; lsdiag.nedge=0; lsdiag.ntotal=0; lsdiag.nedgedstar=0; lsdiag.ntotaldstar=0;
+    end
     % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     % Since we won't need to keep the value functions for anything later we just store the current one in V
     V=V_final;
@@ -228,11 +244,45 @@ elseif N_z>0 && N_e>0
             pi_e=transpathoptions.pi_e_T(:,T-ttr+1);
         end
 
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if vfoptions.localsearch==1
+            refslot=aprimeReferencePath(:,:,:,:,T-ttr);
+        else
+            refslot=[];
+        end
+        [V, Policy, aprimeRefNew]=ValueFnIter_InfHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
         % The V input is next period value fn, the V output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
 
         PolicyIndexesPath(:,:,:,:,T-ttr)=Policy;
+
+        if vfoptions.localsearch==1
+            % THE EDGE TEST, the same lines as the z branch (see there for why it is on aprimeRefNew, the corner
+            % exclusions, why the count is over every d, and why movemax is censored)
+            nls=vfoptions.nlocalsearch;
+            loweredge=min(max(refslot-nls,1),N_a-2*nls);
+            hitbottom=(aprimeRefNew==loweredge);
+            hittop=(aprimeRefNew==loweredge+2*nls);
+            hitbottom=hitbottom & (loweredge>1);
+            hittop=hittop & (loweredge+2*nls<N_a);
+            hitedge=(hitbottom | hittop);
+            lsdiag.nedge=lsdiag.nedge+gather(sum(hitedge,'all'));
+            lsdiag.ntotal=lsdiag.ntotal+numel(refslot);
+            if N_dref>1
+                % The chosen d as a joint index (Policy holds one row per d variable)
+                dstar=Policy(1,:,:,:);
+                for ii=2:length(n_d)
+                    dstar=dstar+prod(n_d(1:ii-1))*(Policy(ii,:,:,:)-1);
+                end
+                linstar=dstar+N_dref*(0:1:N_a-1)+N_dref*N_a*shiftdim((0:1:N_z-1),-1)+N_dref*N_a*N_z*shiftdim((0:1:N_e-1),-2);
+                lsdiag.nedgedstar=lsdiag.nedgedstar+gather(sum(hitedge(linstar),'all'));
+                lsdiag.ntotaldstar=lsdiag.ntotaldstar+numel(dstar);
+            end
+            lsdiag.movemax=max(lsdiag.movemax,gather(max(abs(aprimeRefNew-refslot),[],'all')));
+            aprimeReferencePath(:,:,:,:,T-ttr)=aprimeRefNew;
+        elseif vfoptions.localsearchseed==1
+            % A SEED SWEEP: unrestricted, but the dispatcher returned a reference for the next restricted sweep
+            aprimeReferencePath(:,:,:,:,T-ttr)=aprimeRefNew;
+        end
     end
 end
 

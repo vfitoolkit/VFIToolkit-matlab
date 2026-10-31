@@ -379,7 +379,7 @@ elseif vfoptions.experienceasset==0
         elseif N_z==0 && N_e>0
             [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz_e(reshape(Vnext,[N_a,N_e]),n_d,n_a,n_e,d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         elseif N_z>0 && N_e>0
-            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_e(reshape(Vnext,[N_a,N_z,N_e]),n_d,n_a,n_z,n_e,d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_e(reshape(Vnext,[N_a,N_z,N_e]),n_d,n_a,n_z,n_e,d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         end
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 

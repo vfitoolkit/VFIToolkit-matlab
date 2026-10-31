@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_e_raw(Vnext,n_d,n_a,n_z,n_e, d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_e_raw(Vnext,n_d,n_a,n_z,n_e, d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Single Bellman step with divide-and-conquer and grid interpolation layer, with d, with z and iid e.
 % Vnext is [N_a,N_z,N_e]; pi_z is [N_z,N_zprime]; pi_e is [N_e,1], the distribution of next period e.
 % lowmemory: 0 is everything at once; 1 loops over e; 2 loops over z and e.
@@ -7,6 +7,11 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(n_e);
+% THE THIRD OUTPUT, for vfoptions.localsearch (seed sweeps): the COARSE argmax over aprime FOR EACH d per (a,z,e),
+% which is the midpoints this raw already computes for its interpolation layer, clamped to [2,N_a-1] as in the z raws
+% (harmless for a window centre: loweredge slides). One per current e, as the window is. Callers taking two outputs
+% are unaffected.
+aprimeReferencePolicyNew=zeros(N_d,N_a,N_z,N_e,'gpuArray');
 
 % Preallocate
 if vfoptions.lowmemory==0
@@ -103,6 +108,7 @@ if vfoptions.lowmemory==0
 
     % Turn this into the 'midpoint'
     midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+    aprimeReferencePolicyNew=reshape(midpoints,[N_d,N_a,N_z,N_e]); % the third output, see above
     % midpoint is n_d-by-1-by-n_a-by-n_z-by-n_e
     aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z-by-n_e
@@ -167,6 +173,7 @@ elseif vfoptions.lowmemory==1 % loop over e
 
         % Turn this into the 'midpoint'
         midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        aprimeReferencePolicyNew(:,:,:,e_c)=reshape(midpoints,[N_d,N_a,N_z]); % the third output, filled per e
         % midpoint is n_d-by-1-by-n_a-by-n_z
         aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
@@ -236,6 +243,7 @@ elseif vfoptions.lowmemory==2 % loop over z and e
 
             % Turn this into the 'midpoint'
             midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+            aprimeReferencePolicyNew(:,:,z_c,e_c)=reshape(midpoints,[N_d,N_a]); % the third output, filled per (z,e)
             % midpoint is n_d-by-1-by-n_a
             aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a
