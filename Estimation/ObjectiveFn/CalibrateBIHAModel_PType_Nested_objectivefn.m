@@ -1,9 +1,16 @@
-function Obj=CalibrateBIHAModel_PType_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
+function [Obj,GEout]=CalibrateBIHAModel_PType_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, GEinner, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
-% needed to be able to run ValueFnIter, StationaryDist, AllStats and
-% AutoCorrTransProbs and CrossSecCovarCorr. Lastly there is caliboptions.
-
+% needed to be able to run ValueFnIter, StationaryDist, AllStats,
+% AutoCorrTransProbs and CrossSectionCovarCorr (the PType versions). Lastly there is caliboptions, which also carries
+% caliboptions.whichcombos (1 or 0), caliboptions.selectors and caliboptions.autocorrtimehorizons from SetupTargetMoments_InfHorz.
+%
 % Nested: General Eqm is the inner loop, calibration is the outer-loop.
+% The inner general eqm is solved by HeteroAgentStationaryEqm_InfHorz_PType, started from the GE prices in Parameters, with the user's
+% own heteroagentoptions, grids, vfoptions and simoptions (GEinner, kept by CalibrateBIHAModel_PType before anything reworked them); it
+% does its own setup of the shock grids, the constraints on the GE prices, CustomModelStats and intermediateEqns.
+% [Before 2026-10-29 the inner solve was called with variables that do not exist here (Params, z_grid), so the nested form always errored.]
+% Second output GEout: .prices (the GE prices, in the order of GEPriceParamNames) and .conditions (the GE conditions, in the order of
+% fieldnames(GeneralEqmEqns)), both column vectors.
 
 % Untransform the parameters (when dealing with constraints the inputs are the transformed parameters, so want to switch them back to original model parameters)
 [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
@@ -33,7 +40,7 @@ end
 
 for pp=1:nCalibParams
     if calibomitparams_counter(pp)>0
-        currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
+        currparamraw=calibomitparamsmatrix{sum(calibomitparams_counter(1:pp))}; % (a cell: one omitted-values vector per masked parameter, of any length)
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         if nCalibParamsFinder(pp,2)==0 % parameter does not depend on ptype
             Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)})=reshape(currparamraw,calibparamssizes(pp,:));
@@ -49,11 +56,20 @@ for pp=1:nCalibParams
     end
 end
 
-
 %% ParametrizeParamsFn can be used to parametrize the parameters (including the distribution of permanent types)
 if ~isempty(ParametrizeParamsFn)
     Parameters=ParametrizeParamsFn(Parameters);
 end
+
+%% Solve the general eqm (inner loop)
+[p_eqm,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_InfHorz_PType(n_d, n_a, n_z, Names_i, 0, GEinner.pi_z, d_grid, a_grid, GEinner.z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, PTypeDistParamNames, GEPriceParamNames, GEinner.heteroagentoptions, GEinner.simoptions, GEinner.vfoptions);
+
+GEout.prices=zeros(length(GEPriceParamNames),1);
+for pp=1:length(GEPriceParamNames)
+    Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
+    GEout.prices(pp)=gather(p_eqm.(GEPriceParamNames{pp}));
+end
+GEout.conditions=reshape(gather(GeneralEqmConditionsVec),[],1);
 
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
@@ -66,19 +82,8 @@ if caliboptions.calibrateshocks==1
     simoptions.pi_e=vfoptions.pi_e;
 end
 
-%% Solve the model and calculate the stats
-[p_eqm,~,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_InfHorz_PType(n_d, n_a, n_z, Names_i, [], pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
-
-for pp=1:length(GEPriceParamNames)
-    Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
-end
-
-if usingcustomstats==1
-    % Keep V
-    [V, Policy]=ValueFnIter_InfHorz_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
-else
-    [~, Policy]=ValueFnIter_InfHorz_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
-end
+%% Solve the model at the general eqm, and calculate the stats
+[V, Policy]=ValueFnIter_InfHorz_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
 
 StationaryDist=StationaryDist_InfHorz_PType(PTypeDistParamNames,Policy,n_d,n_a,n_z,Names_i,pi_z,Parameters,simoptions);
 
@@ -95,84 +100,94 @@ if usingcustomstats==1
     end
 end
 
-%% Model Moments
+%% Calculate model stats
+% caliboptions.whichcombos=1 (CalibrateBIHAModel_PType's default): the stats commands compute only the targeted (function, statistic,
+% restriction, ptype or grouped) combinations, through simoptions.whichcombos (and, for AllStats, a per-combination simoptions.whichstats)
+% with a trailing type dimension, built by SetupTargetMoments_InfHorz (caliboptions.selectors). =0: every statistic of every targeted
+% function. The three commands take differently shaped selectors, so each gets its own copy of simoptions; the conditional restrictions
+% stay in simoptions for all three.
 if usingallstats==1
-    simoptions.whichstats=AllStats_whichstats;
-    AllStats=EvalFnOnAgentDist_AllStats_InfHorz_PType(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions);
+    simoptions_AllStats=simoptions;
+    if caliboptions.whichcombos==1
+        simoptions_AllStats.whichcombos=caliboptions.selectors.AllStats.whichcombos;
+        simoptions_AllStats.whichstats=caliboptions.selectors.AllStats.whichstats;
+    else % caliboptions.whichcombos=0: every statistic of every targeted function
+        simoptions_AllStats.whichstats=ones(1,7);
+    end
+    AllStats=EvalFnOnAgentDist_AllStats_InfHorz_PType(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions_AllStats);
 end
 if usingautocorr==1
-    error('Have not yet implemented EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz_PType; ask on forum if you want/need this')
-    % simoptions.whichstats=AutoCorrStats_whichstats;
-    % AutoCorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz_PType(StationaryDist,Policy,FnsToEvaluate_AutoCorrStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,pi_z,simoptions);
+    simoptions_AutoCorr=simoptions;
+    if isfield(simoptions,'timehorizons')
+        simoptions_AutoCorr.timehorizons=union(simoptions.timehorizons,caliboptions.autocorrtimehorizons); % the horizons the targets name (their _kK suffixes), plus any the user asked for
+    else
+        simoptions_AutoCorr.timehorizons=caliboptions.autocorrtimehorizons;
+    end
+    if caliboptions.whichcombos==1
+        simoptions_AutoCorr.whichcombos=caliboptions.selectors.AutoCorr.whichcombos; % [nFns,1+nRestr,N_i+1] (no per-combination whichstats; the command reports its byproducts)
+    end
+    AutoCorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz_PType(StationaryDist,Policy,FnsToEvaluate_AutoCorrStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,pi_z,simoptions_AutoCorr);
 end
 if usingcrosssec==1
-    error('Have not yet implemented EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz_PType; ask on forum if you want/need this')
-    % simoptions.whichstats=CrossSecStats_whichstats;
-    % CrossSectionCovarCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz_PType(StationaryDist,Policy,FnsToEvaluate_CrossSecStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions);
+    simoptions_CrossSec=simoptions;
+    if caliboptions.whichcombos==1
+        simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped, [nFns,nFns,1+nRestr,N_i+1]
+    end
+    CrossSectionCovarCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz_PType(StationaryDist,Policy,FnsToEvaluate_CrossSecStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions_CrossSec);
 end
-
 
 
 %% Get current values of the target moments as a vector
+% Each kind: walk the names of the target (two to five levels, the empty cells skipped) into the command's output, which has the same
+% nesting (restrictions, permanent types, MoreInequality, CovarianceWith/CorrelationWith and the matrices alike). An AutoCorr statistic
+% with a _kK horizon suffix is read from the command's .tperiodsK.(statistic), grouped or inside the type's struct. A target that is
+% NaN in full (SetupTargetMoments_InfHorz warned about it and selected nothing for it) is skipped and filled with NaN.
 currentmomentvec=zeros(size(targetmomentvec));
-if usingallstats==1
-    if isempty(allstatmomentnames{1,3})
-        currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2});
+sofar=0;
+for kindc=1:3
+    if kindc==1
+        kindusing=usingallstats;
+    elseif kindc==2
+        kindusing=usingautocorr;
     else
-        if isempty(allstatmomentnames{1,4})
-            currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3});
-        else
-            currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3}).(allstatmomentnames{1,4});
-        end
+        kindusing=usingcrosssec;
     end
-    for cc=2:size(allstatmomentnames,1)
-        if isempty(allstatmomentnames{cc,3})
-            currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2});
+    if kindusing==1
+        if kindc==1
+            kindnames=allstatmomentnames; kindcum=allstatcummomentsizes; kindout=AllStats;
+        elseif kindc==2
+            kindnames=autocorrmomentnames; kindcum=autocorrcummomentsizes; kindout=AutoCorrTransProbs;
         else
-            if isempty(allstatmomentnames{cc,4})
-                currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2}).(allstatmomentnames{cc,3});
+            kindnames=crosssecmomentnames; kindcum=crossseccummomentsizes; kindout=CrossSectionCovarCorr;
+        end
+        for cc=1:size(kindnames,1)
+            if cc==1
+                idx=sofar+1:sofar+kindcum(1);
             else
-                currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2}).(allstatmomentnames{cc,3}).(allstatmomentnames{cc,4});
+                idx=sofar+kindcum(cc-1)+1:sofar+kindcum(cc);
             end
+            if all(isnan(targetmomentvec(idx)))
+                currentmomentvec(idx)=NaN;
+                continue
+            end
+            names=kindnames(cc,:);
+            names=names(~cellfun(@isempty,names));
+            if kindc==2
+                tk=regexp(names{end},'_k(\d+)$','tokens','once'); % a horizon suffix: stat_kK is the command's .tperiodsK.(stat)
+                if ~isempty(tk)
+                    names=[names(1:end-1),{['tperiods',tk{1}]},{names{end}(1:end-length(tk{1})-2)}];
+                end
+            end
+            temp=kindout;
+            for kk=1:numel(names)
+                temp=temp.(names{kk});
+            end
+            currentmomentvec(idx)=temp(:);
         end
-    end
-end
-if usingautocorr==1
-    sofar=allstatcummomentsizes(end);
-    if isempty(autocorrmomentnames{1,3})
-        currentmomentvec(sofar+1:sofar+autocorrcummomentsizes(1))=AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2});
-    else
-        currentmomentvec(sofar+1:sofar+autocorrcummomentsizes(1))=AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2}).(autocorrmomentnames{1,3});
-    end
-    for cc=2:size(autocorrmomentnames,1)
-        if isempty(autocorrmomentnames{cc,3})
-            currentmomentvec(sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc))=AutoCorrTransProbs.(autocorrmomentnames{cc,1}).(autocorrmomentnames{cc,2});
-        else
-            currentmomentvec(sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc))=AutoCorrTransProbs.(autocorrmomentnames{cc,1}).(autocorrmomentnames{cc,2}).(autocorrmomentnames{cc,3});
-        end
-    end
-end
-if usingcrosssec==1
-    sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end);
-    if isempty(crosssecmomentnames{1,3})
-        currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=CrossSectionCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3});
-    elseif isempty(crosssecmomentnames{1,4})
-        currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=CrossSectionCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3});
-    else
-        currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=CrossSectionCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3}).(crosssecmomentnames{1,4});
-    end
-    for cc=2:size(crosssecmomentnames,1)
-        if isempty(crosssecmomentnames{cc,3})
-            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=CrossSectionCovarCorr.(crosssecmomentnames{cc,1}).(crosssecmomentnames{cc,2});
-        elseif isempty(crosssecmomentnames{cc,4})
-            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=CrossSectionCovarCorr.(crosssecmomentnames{cc,1}).(crosssecmomentnames{cc,2}).(crosssecmomentnames{cc,3});
-        else
-            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=CrossSectionCovarCorr.(crosssecmomentnames{cc,1}).(crosssecmomentnames{cc,2}).(crosssecmomentnames{cc,3}).(crosssecmomentnames{cc,4});
-        end
+        sofar=sofar+kindcum(end);
     end
 end
 if usingcustomstats==1
-    sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end);
     currentmomentvec(sofar+1:sofar+cmscummomentsizes(1))=CustomStats.(cmsmomentnames{1,1});
     for cc=2:size(cmsmomentnames,1)
         currentmomentvec(sofar+cmscummomentsizes(cc-1)+1:sofar+cmscummomentsizes(cc))=CustomStats.(cmsmomentnames{cc,1});
@@ -187,8 +202,7 @@ end
 
 
 %% Evaluate the objective function (which is being minimized)
-% Create Obj1 for calib targets, then Obj2 for general eqm conditions.
-% These are then combined for Obj
+% (the general eqm is solved in the inner loop, so the objective is just the calibration targets)
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if caliboptions.vectoroutput==1
     % Output the vector of currentmomentvec
@@ -212,7 +226,7 @@ elseif caliboptions.vectoroutput==0 % scalar output
         Obj=sum(caliboptions.weights.*(log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget)).^2),'omitnan');
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
-    Obj=Obj/length(CalibParamNames); % This is done so that the tolerances for convergence are sensible
+    Obj=Obj/caliboptions.nCalibParamsNonGE; % This is done so that the tolerances for convergence are sensible
 
     if penalty>0
         if Obj>0
@@ -221,9 +235,6 @@ elseif caliboptions.vectoroutput==0 % scalar output
             Obj=0.8*(1/penalty)*Obj; % 20% penalty for being too far in violation of restrictions
         end
     end
-
-    Obj=Obj;
-
 elseif caliboptions.vectoroutput==2
     % Weighted vector (for use with least-squares residuals algorithms)
     % Note: the outer-layers of code already took 'square root' of the weights
@@ -236,7 +247,6 @@ elseif caliboptions.vectoroutput==2
         Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
-
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
     if penalty>0
         Obj=[Obj; sqrt(penalty)]; % append penalty residual: contributes 'penalty' to lsqnonlin's sum(Obj.^2)
@@ -249,7 +259,7 @@ end
 %% Verbose
 if caliboptions.verbose==1
     if usingcustomstats==1
-        fprintf('Current CustomModelStats variables (from caliboptions): \n')
+        fprintf('Current CustomModelStats variables: \n')
         for ii=1:length(cmsmomentnames)
             fprintf('	%s: %8.4f \n',cmsmomentnames{ii},CustomStats.(cmsmomentnames{ii}))
         end
@@ -258,24 +268,29 @@ if caliboptions.verbose==1
     [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
     if caliboptions.vectoroutput==0
         fprintf('Current objective fn value is %8.12f \n', Obj)
+        if penalty>0
+            if Obj>0
+                fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
+            else  % Obj is negative, so penalty is to reduce magnitude
+                fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+            end
+        end
     elseif caliboptions.vectoroutput==2
-        fprintf('Current and target moments (first row is current, second row is target) \n')
-    end
-    if penalty>0
-        if Obj>0
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
-        else  % Obj is negative, so penalty is to reduce magnitude
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+        fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
+        if penalty>0
+            fprintf('Current penalty residual is %8.6f (it adds %8.6f to the sum-of-squares) \n', sqrt(penalty), penalty)
         end
     end
+    fprintf('Current GE prices (from the inner general eqm solve): \n')
+    for ii=1:length(GEPriceParamNames)
+        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},Parameters.(GEPriceParamNames{ii}))
+    end
+    fprintf('Current GeneralEqmEqns (at those prices): \n')
+    GEeqnNames=fieldnames(GeneralEqmEqns);
+    for ii=1:length(GEeqnNames)
+        fprintf('	%s: %8.4f \n',GEeqnNames{ii},GEout.conditions(ii))
+    end
 end
-
-
-
-
-
-
-
 
 
 end
