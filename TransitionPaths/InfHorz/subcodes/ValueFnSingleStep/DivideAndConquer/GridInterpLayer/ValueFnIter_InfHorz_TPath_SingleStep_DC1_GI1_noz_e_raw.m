@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_noz_e_raw(Vnext,n_d,n_a,n_e, d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_noz_e_raw(Vnext,n_d,n_a,n_e, d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Single Bellman step with divide-and-conquer and grid interpolation layer, with d, no z, with iid e.
 % Vnext is [N_a,N_e]; pi_e is [N_e,1], the distribution of next period e.
 % lowmemory: 0 is everything at once; 1 loops over e. (2 loops over z and e, so there is no lowmemory=2 without z; the callers refuse it.)
@@ -34,6 +34,7 @@ aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
 % aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
 
 V=zeros(N_a,N_e,'gpuArray');
+aprimeReferencePolicyNew=zeros(N_d,N_a,N_e,'gpuArray'); % the third output, filled below
 Policy=zeros(4,N_a,N_e,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,e (extra channel for PolicyL2flag pilot)
 
 %%
@@ -89,6 +90,9 @@ if vfoptions.lowmemory==0
     % Turn this into the 'midpoint'
     midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
     % midpoint is n_d-by-1-by-n_a-by-n_e
+    % THE THIRD OUTPUT, aprimeReferencePolicyNew, is for vfoptions.localsearch: the clamped COARSE argmax per (d,a,e), this raw's
+    % own midpoint, [N_dref,N_a,N_e]: per current e, as the return (and so the optimal aprime) moves with e
+    aprimeReferencePolicyNew=reshape(midpoints,[N_d,N_a,N_e]);
     aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-n_e
     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,n_e,d_gridvals,aprime_grid(aprimeindexes),a_grid,e_gridvals,ReturnFnParamsVec,2);
@@ -151,6 +155,7 @@ elseif vfoptions.lowmemory==1 % loop over e
         % Turn this into the 'midpoint'
         midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is n_d-by-1-by-n_a
+        aprimeReferencePolicyNew(:,:,e_c)=reshape(midpoints,[N_d,N_a]); % the third output, see the lowmemory==0 branch
         aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a
         ReturnMatrix_ii_e=CreateReturnFnMatrix_Disc_DC1(ReturnFn,n_d,special_n_e,d_gridvals,aprime_grid(aprimeindexes),a_grid,e_val,ReturnFnParamsVec,2);

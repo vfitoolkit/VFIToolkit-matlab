@@ -329,15 +329,13 @@ else
         if transpathoptions.GEnewprice~=3 && transpathoptions.GEnewprice~=2
             error('vfoptions.localsearch=1 currently requires transpathoptions.GEnewprice=3 (shooting) or 2 (Anderson)')
         end
-        % With z and e it works (the reference is per (d,a,z,e)); with e and no z it is refused by the no-z test below.
+        % It works with and without z, and with and without e: the reference is indexed by everything the search conditions
+        % on, [N_dref,N_a(,N_z)(,N_e)].
         % prod(...)>0 as well as isfield, because this command sets vfoptions.n_e=0 and
         % vfoptions.n_semiz=0 above, so the fields exist on every model and isfield alone would
         % refuse everything. Same idiom as ReturnFnParamNamesFn.
         if isfield(vfoptions,'n_semiz') && prod(vfoptions.n_semiz)>0
             error('vfoptions.localsearch=1 is not implemented with a semi-exogenous state')
-        end
-        if prod(n_z)==0
-            error('vfoptions.localsearch=1 is not implemented without a z variable')
         end
         % The experience asset branch of Step1 calls its own single step directly, bypassing the
         % dispatcher, so without this the option would be silently ignored rather than refused

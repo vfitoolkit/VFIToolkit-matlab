@@ -375,9 +375,9 @@ elseif vfoptions.experienceasset==0
         if N_z>0 && N_e==0
             [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         elseif N_z==0 && N_e==0
-            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz(Vnext,n_d,n_a,d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz(Vnext,n_d,n_a,d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         elseif N_z==0 && N_e>0
-            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz_e(reshape(Vnext,[N_a,N_e]),n_d,n_a,n_e,d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz_e(reshape(Vnext,[N_a,N_e]),n_d,n_a,n_e,d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         elseif N_z>0 && N_e>0
             [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_e(reshape(Vnext,[N_a,N_z,N_e]),n_d,n_a,n_z,n_e,d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         end

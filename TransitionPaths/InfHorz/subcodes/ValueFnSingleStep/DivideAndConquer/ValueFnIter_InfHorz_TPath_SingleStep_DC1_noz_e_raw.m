@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_noz_e_raw(Vnext,n_d,n_a,n_e, d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_noz_e_raw(Vnext,n_d,n_a,n_e, d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Single Bellman step, divide-and-conquer (one endogenous state), with d, no z, with iid e.
 % Vnext is [N_a,N_e]; pi_e is [N_e,1], the distribution of next period e.
 % lowmemory: 0 is everything at once; 1 loops over e. (2 loops over z and e, so there is no lowmemory=2 without z; the callers refuse it.)
@@ -15,6 +15,13 @@ end
 
 V=zeros(N_a,N_e,'gpuArray');
 Policy=zeros(N_a,N_e,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,e
+% The THIRD OUTPUT, for vfoptions.localsearch, built only when asked for (a seed sweep): one aprime index per (d,a,e), the
+% aprime argmax PER d, which the folded max over (d,aprime) below does not give. It is an extra max per d alongside the
+% folded one, in every lowmemory branch, so the standard sweep (two outputs) is unchanged.
+getref=(nargout>2);
+if getref
+    aprimeReferencePolicyNew=zeros(N_d,N_a,N_e,'gpuArray');
+end
 
 %%
 % n-Monotonicity
@@ -50,6 +57,9 @@ if vfoptions.lowmemory==0
     % Store
     V(level1ii,:)=shiftdim(Vtempii,1);
     Policy(level1ii,:)=shiftdim(maxindex2,1); % d,aprime
+    if getref
+        aprimeReferencePolicyNew(:,level1ii,:)=reshape(maxindex1,[N_d,vfoptions.level1n,N_e]); % already the aprime argmax per d
+    end
 
     % Attempt for improved version
     maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1)); % max over d,e
@@ -67,6 +77,10 @@ if vfoptions.lowmemory==0
             dind=(rem(maxindex-1,N_d)+1);
             allind=dind+N_d*eind; % loweredge is n_d-by-1-by-1-by-n_e, so linear index is d+N_d*(e-1)
             Policy(curraindex,:)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(allind))-1),1); % loweredge(given the d and e)
+            if getref
+                [~,maxindex_d]=max(reshape(entireRHS_ii,[N_d,maxgap(ii)+1,length(curraindex),N_e]),[],2); % over aprime, per d
+                aprimeReferencePolicyNew(:,curraindex,:)=reshape(loweredge,[N_d,1,N_e])+reshape(maxindex_d,[N_d,length(curraindex),N_e])-1;
+            end
         else
             loweredge=maxindex1(:,1,ii,:);
             % loweredge is n_d-by-1-by-1-by-n_e
@@ -78,6 +92,10 @@ if vfoptions.lowmemory==0
             dind=(rem(maxindex-1,N_d)+1);
             allind=dind+N_d*eind; % loweredge is n_d-by-1-by-1-by-n_e, so linear index is d+N_d*(e-1)
             Policy(curraindex,:)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(allind))-1),1); % loweredge(given the d and e)
+            if getref
+                % maxgap(ii)==0: a single aprime per (d,e), so the reference is loweredge itself for every a in this interval
+                aprimeReferencePolicyNew(:,curraindex,:)=repmat(reshape(loweredge,[N_d,1,N_e]),[1,length(curraindex),1]);
+            end
         end
     end
 
@@ -99,6 +117,9 @@ elseif vfoptions.lowmemory==1
         % Store
         V(level1ii,e_c)=Vtempii';
         Policy(level1ii,e_c)=maxindex2'; % d,aprime
+        if getref
+            aprimeReferencePolicyNew(:,level1ii,e_c)=reshape(maxindex1,[N_d,vfoptions.level1n]);
+        end
 
         % Attempt for improved version
         maxgap=squeeze(max(maxindex1(:,1,2:end)-maxindex1(:,1,1:end-1),[],1)); % max over d
@@ -115,6 +136,10 @@ elseif vfoptions.lowmemory==1
                 V(curraindex,e_c)=Vtempii';
                 dind=rem(maxindex(:)-1,N_d)+1; % column
                 Policy(curraindex,e_c)=maxindex(:)+N_d*(loweredge(dind)-1); % loweredge(given the d)
+                if getref
+                    [~,maxindex_d]=max(reshape(entireRHS_ii,[N_d,maxgap(ii)+1,length(curraindex)]),[],2); % over aprime, per d
+                    aprimeReferencePolicyNew(:,curraindex,e_c)=loweredge+reshape(maxindex_d,[N_d,length(curraindex)])-1;
+                end
             else
                 loweredge=maxindex1(:,1,ii);
                 % Just use aprime(ii) for everything
@@ -124,6 +149,9 @@ elseif vfoptions.lowmemory==1
                 V(curraindex,e_c)=Vtempii';
                 dind=rem(maxindex(:)-1,N_d)+1; % column
                 Policy(curraindex,e_c)=maxindex(:)+N_d*(loweredge(dind)-1); % loweredge(given the d)
+                if getref
+                    aprimeReferencePolicyNew(:,curraindex,e_c)=repmat(loweredge,[1,length(curraindex)]);
+                end
             end
         end
     end

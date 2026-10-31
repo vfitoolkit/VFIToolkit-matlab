@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_noz_raw(Vnext,n_d,n_a, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_noz_raw(Vnext,n_d,n_a, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Single Bellman step, divide-and-conquer (one endogenous state), with d, no z, no e.
 % Vnext is [N_a,1]. No exogenous state to loop over, so vfoptions.lowmemory is ignored (everything at once).
 
@@ -7,6 +7,13 @@ N_a=prod(n_a);
 
 V=zeros(N_a,1,'gpuArray');
 Policy=zeros(N_a,1,'gpuArray'); %first dim indexes the optimal choice for d and aprime
+% The THIRD OUTPUT, for vfoptions.localsearch, built only when asked for (a seed sweep): one aprime index per (d,a), the
+% aprime argmax PER d, which the folded max over (d,aprime) below does not give. It is an extra max per d alongside the
+% folded one, so the standard sweep (two outputs) is unchanged. See ValueFnIter_InfHorz_TPath_SingleStep_DC1_raw.
+getref=(nargout>2);
+if getref
+    aprimeReferencePolicyNew=zeros(N_d,N_a,'gpuArray');
+end
 
 %%
 % n-Monotonicity
@@ -37,6 +44,9 @@ entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 % Store
 V(level1ii)=Vtempii';
 Policy(level1ii)=maxindex2'; % d,aprime
+if getref
+    aprimeReferencePolicyNew(:,level1ii)=reshape(maxindex1,[N_d,vfoptions.level1n]); % maxindex1 is already the aprime argmax per d
+end
 
 % Attempt for improved version
 maxgap=squeeze(max(maxindex1(:,1,2:end)-maxindex1(:,1,1:end-1),[],1)); % max over d
@@ -53,6 +63,10 @@ for ii=1:(vfoptions.level1n-1)
         V(curraindex)=Vtempii';
         dind=rem(maxindex(:)-1,N_d)+1; % column
         Policy(curraindex)=maxindex(:)+N_d*(loweredge(dind)-1); % loweredge(given the d)
+        if getref
+            [~,maxindex_d]=max(reshape(entireRHS_ii,[N_d,maxgap(ii)+1,length(curraindex)]),[],2); % over aprime, per d
+            aprimeReferencePolicyNew(:,curraindex)=loweredge+reshape(maxindex_d,[N_d,length(curraindex)])-1;
+        end
     else
         loweredge=maxindex1(:,1,ii);
         % Just use aprime(ii) for everything
@@ -62,6 +76,10 @@ for ii=1:(vfoptions.level1n-1)
         V(curraindex)=Vtempii';
         dind=rem(maxindex(:)-1,N_d)+1; % column
         Policy(curraindex)=maxindex(:)+N_d*(loweredge(dind)-1); % loweredge(given the d)
+        if getref
+            % maxgap(ii)==0: a single aprime per d, so the reference is loweredge itself for every a in this interval
+            aprimeReferencePolicyNew(:,curraindex)=repmat(loweredge,[1,length(curraindex)]);
+        end
     end
 end
 

@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_noz_raw(Vnext,n_d,n_a, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2,aprimeReferencePolicyNew]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI1_noz_raw(Vnext,n_d,n_a, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Single Bellman step with divide-and-conquer and grid interpolation layer, with d, no z.
 % Vnext is [N_a,1].
 % There are no exogenous states to loop over, so vfoptions.lowmemory is irrelevant (every value is treated as 0).
@@ -77,6 +77,8 @@ end
 % Turn this into the 'midpoint'
 midpoints=max(min(midpoints,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
 % midpoint is n_d-by-1-by-n_a
+% THE THIRD OUTPUT, aprimeReferencePolicyNew, is for vfoptions.localsearch: the clamped per-d midpoints, [N_d,N_a]
+aprimeReferencePolicyNew=reshape(midpoints,[N_d,N_a]);
 aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
 % aprime possibilities are n_d-by-n2long-by-n_a
 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn,n_d,d_gridvals,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec,2);
