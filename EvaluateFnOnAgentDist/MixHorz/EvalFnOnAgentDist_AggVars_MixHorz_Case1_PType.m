@@ -216,6 +216,9 @@ for ii=1:N_i
     l_a_temp=length(n_a_temp);
     l_z_temp=length(n_z_temp);
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, ~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    if sum(FnsAndPTypeIndicator_ii)==0
+        continue % none of the FnsToEvaluate are relevant to this type (its column of AggVarsFull stays zero)
+    end
 
     simoptions_temp.outputasstructure=0;
     if isfinite(N_j_temp)

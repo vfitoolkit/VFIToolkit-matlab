@@ -275,7 +275,9 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
                 else
                     PVP_ii_t=PolicyValuesPath_ii(:,:,:,:,tt);
                 end
-                AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,0,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,0,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+                if ~isempty(AggVarNames_ii) % a ptype that none of the FnsToEvaluate apply to has no AggVars
+                    AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,0,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,0,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+                end
             else
                 warning("TransitionPath_MixHorz_PType_shooting not hanlding pi_e yet")
                 AgentDist_ii_InfHorz=reshape(AgentDist_ii,[PTypeStructure.(iistr).N_a*PTypeStructure.(iistr).N_z,1]);
@@ -285,7 +287,9 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
                 else
                     PVP_ii_t=PolicyValuesPath_ii(:,:,:,tt);
                 end
-                AggVars_ii=TransitionPath_InfHorz_substeps_Step4tt_AggVars(AgentDist_ii,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).z_gridvals,transpathoptions);
+                if ~isempty(AggVarNames_ii) % a ptype that none of the FnsToEvaluate apply to has no AggVars
+                    AggVars_ii=TransitionPath_InfHorz_substeps_Step4tt_AggVars(AgentDist_ii,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).z_gridvals,transpathoptions);
+                end
             end
 
             for ff=1:length(AggVarNames_ii)
@@ -641,30 +645,11 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
                 end
             end
 
-            if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
-                % Loop over the general eqm conditions, so we can deal seperately with those that depend on ptype and those that do not
-                gg_c=0;
-                for gg=1:nGeneralEqmEqns
-                    if transpathoptions.GEptype(gg)==0
-                        gg_c=gg_c+1;
-                        PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names, Parameters));
-                    elseif transpathoptions.GEptype(gg)==1
-                        for ii=1:N_i
-                            iistr=PTypeStructure.Names_i{ii};
-                            gg_c=gg_c+1;
-                            PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr)));
-                        end
-                    end
-                end
-                % No general eqm condition to report, so report the fixed-point residual (see updatePricePathNew_TPath_tt).
-                % Left unset, GEcondnPath stayed at zero and the loop reported convergence after one iteration.
-                GEcondnPath(tt,:)=PricePathNew(tt,:)-PricePathOld(tt,:);
-            % Note there is no GEnewprice==2, it uses a completely different code
-            elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
-                [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_PTypeDependent_tt(Parameters,Parameters_ii,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PTypeStructure.Names_i,N_i,PricePathOld(tt,:),itercounter,transpathoptions);
-                PricePathNew(tt,:)=PricePathNew_tt;
-                GEcondnPath(tt,:)=GEcondnPath_tt;
-            end
+            % The shooting update (GEnewprice=3, the only one TransitionPath_MixHorz_PType accepts), with the general eqm
+            % conditions that depend on ptype evaluated once per ptype
+            [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_PTypeDependent_tt(Parameters,Parameters_ii,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PTypeStructure.Names_i,N_i,PricePathOld(tt,:),itercounter,transpathoptions);
+            PricePathNew(tt,:)=PricePathNew_tt;
+            GEcondnPath(tt,:)=GEcondnPath_tt;
 
         end % Done loop over tt, evaluating the GE conditions
 

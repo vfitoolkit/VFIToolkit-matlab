@@ -18,29 +18,12 @@ end
 
 %% Check which transpathoptions have been used, set all others to defaults
 if exist('transpathoptions','var')==0
-    disp('No transpathoptions given, using defaults')
-    %If transpathoptions is not given, just use all the defaults
-    transpathoptions.toleranceGEprices=Inf; % convergence criterion for GE prices, set =Inf to turn this off (it is off by default)
-    transpathoptions.toleranceGEcondns=1e-4; % convergence criterion for GE condns
-    transpathoptions.multiGEcriterion=1; % How to combine multiple GE condns (default is sum-of-squares)
-    transpathoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns))); % One weight per general eqm eqn (the ptype-dependent ones get duplicated later)
-    transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
-                                   % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
-    transpathoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
-    transpathoptions.PricePathptype_vectoroutput=0; % PricePath that depends on ptype defaults to being output as a structure
-    transpathoptions.oldpathweight=0.9; % default =0.9
-    transpathoptions.weightscheme=1; % default =1
-    transpathoptions.Ttheta=1;
-    transpathoptions.maxiter=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
-    transpathoptions.verbose=0;
-    transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
-    transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
-    transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
-    transpathoptions.historyofpricepath=0;
-    transpathoptions.stockvars={}; % 'stockvars' are prices where you write '_tminus1' and it should cumulate (to there will be a general eqm eqn that relates the _tminus1 to the t for a price in PricePath)
-    transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
-    % transpathoptions.updateageweights % Don't declare if not being used
+    % transpathoptions.GEnewprice must be set explicitly, and means the same as in TransitionPath_InfHorz and
+    % TransitionPath_Case1_FHorz_PType: =3 is the shooting algorithm (=2, Anderson acceleration, and =1,
+    % quasi-Newton, are not implemented for a mixed-horizon transition path). There is deliberately no default.
+    % GEnewprice=1 used to be the default here and meant that the GeneralEqmEqns were price-updating
+    % formulae; that mode is gone.
+    error('transpathoptions.GEnewprice must be set: =3 for the shooting algorithm')
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if isfield(transpathoptions,'tolerance')
@@ -62,10 +45,8 @@ else
         transpathoptions.parallel=1+(gpuDeviceCount>0);
     end
     if ~isfield(transpathoptions,'GEnewprice')
-        transpathoptions.GEnewprice=1; % 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
-                                       % 1 is shooting algorithm,
-                                       % 2 is to do optimization routine with 'distance between old and new path'
-                                       % 3 is just same as 0, but easier to set
+        % No default, see the comment in the branch above where transpathoptions is not given at all
+        error('transpathoptions.GEnewprice must be set: =3 for the shooting algorithm')
     end
     if ~isfield(transpathoptions,'GEptype')
         transpathoptions.GEptype={}; %zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
@@ -109,11 +90,22 @@ else
     if ~isfield(transpathoptions,'fastOLG')
         transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
     end
+    % fastOLG=2 (fastOLG for the local search sweeps, slowOLG for the full sweeps) needs vfoptions.localsearch
+    if transpathoptions.fastOLG==2
+        error('transpathoptions.fastOLG=2 (fastOLG for the local search sweeps, slowOLG for the full sweeps) requires vfoptions.localsearch, which is not yet implemented on a transition path with permanent types; use transpathoptions.fastOLG=0 or 1')
+    end
     % transpathoptions.updateageweights %Don't declare if not being used
 end
 
 if transpathoptions.parallel~=2
     error('Sorry but transition paths are not implemented for cpu, you will need a gpu to use them')
+end
+if transpathoptions.GEnewprice==1
+    error('transpathoptions.GEnewprice=1 (quasi-Newton) is not implemented for a mixed-horizon transition path, use =3 (the shooting algorithm)')
+elseif transpathoptions.GEnewprice==2
+    error('transpathoptions.GEnewprice=2 (Anderson acceleration) is not yet implemented for a mixed-horizon transition path, use =3 (the shooting algorithm)')
+elseif transpathoptions.GEnewprice~=3
+    error('transpathoptions.GEnewprice must be 3 (the shooting algorithm) for a mixed-horizon transition path')
 end
 
 %% Reformat transpathoptions.GEptype from cell of names into vector of 1s and 0s
@@ -273,6 +265,9 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).n_e=PTypeStructure.(iistr).vfoptions.n_e;
     end
+    if ~isfield(PTypeStructure.(iistr).vfoptions,'n_semiz')
+        PTypeStructure.(iistr).vfoptions.n_semiz=0;
+    end
     if ~isfield(PTypeStructure.(iistr).vfoptions,'divideandconquer')
         PTypeStructure.(iistr).vfoptions.divideandconquer=0; %default
     else
@@ -331,9 +326,21 @@ for ii=1:PTypeStructure.N_i
     [PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).vfoptions]=PType_setup_ExogShocks(ii,iistr,N_i,n_z,z_grid,pi_z,PTypeStructure.(iistr).vfoptions,3);
     PTypeStructure.(iistr).z_grid=gpuArray(PTypeStructure.(iistr).z_grid);
     PTypeStructure.(iistr).N_z=prod(PTypeStructure.(iistr).n_z);
-    % vfoptions.lowmemory=2 loops over both z and e, so it is only possible in models with both z and e
-    if PTypeStructure.(iistr).vfoptions.lowmemory==2 && (PTypeStructure.(iistr).N_z==0 || prod(PTypeStructure.(iistr).n_e)==0)
-        error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+    % Without semi-exogenous states, vfoptions.lowmemory=2 loops over both z and e, so it needs both z and e (and there is no lowmemory=3)
+    % With semi-exogenous states, lowmemory=2 also loops over semiz (jointly with z, or outside e), so it needs z or e
+    % and lowmemory=3 is a joint loop over semiz and z with an inner loop over e, so it needs both z and e
+    if prod(PTypeStructure.(iistr).vfoptions.n_semiz)==0
+        if PTypeStructure.(iistr).vfoptions.lowmemory==2 && (PTypeStructure.(iistr).N_z==0 || prod(PTypeStructure.(iistr).n_e)==0)
+            error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+        elseif PTypeStructure.(iistr).vfoptions.lowmemory==3
+            error('vfoptions.lowmemory=3 is only possible in models with semi-exogenous states, z and e (joint loop over semiz and z, inner loop over e), use vfoptions.lowmemory=1')
+        end
+    else
+        if PTypeStructure.(iistr).vfoptions.lowmemory==2 && PTypeStructure.(iistr).N_z==0 && prod(PTypeStructure.(iistr).n_e)==0
+            error('vfoptions.lowmemory=2 with semi-exogenous states is only possible in models with z or e (it loops over semiz together with them), use vfoptions.lowmemory=1 (which already loops over semiz)')
+        elseif PTypeStructure.(iistr).vfoptions.lowmemory==3 && (PTypeStructure.(iistr).N_z==0 || prod(PTypeStructure.(iistr).n_e)==0)
+            error('vfoptions.lowmemory=3 with semi-exogenous states is only possible in models with both z and e (joint loop over semiz and z, inner loop over e), use vfoptions.lowmemory=2')
+        end
     end
     if PTypeStructure.(iistr).N_z==0
         PTypeStructure.(iistr).l_z=0;
@@ -499,8 +506,10 @@ for ii=1:PTypeStructure.N_i
     %% Figure out which functions are actually relevant to the present PType. And then change to FnsToEvaluate as cell so that it is not being recomputed all the time
     % Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
-    PTypeStructure.(iistr).FnsToEvaluate={};
-    PTypeStructure.(iistr).FnsToEvaluateParamNames={};
+    % Initialised as an empty structure, not {}: a ptype that none of the FnsToEvaluate apply to keeps it empty, and the
+    % fieldnames below must then give {} rather than error
+    PTypeStructure.(iistr).FnsToEvaluate=struct();
+    PTypeStructure.(iistr).FnsToEvaluateParamNames=struct('Names',{});
 
     FnNames=fieldnames(FnsToEvaluate);
     PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
@@ -898,8 +907,8 @@ if transpathoptions.verbose>=1
     transpathoptions
 end
 
-%% Shooting algorithm
-if transpathoptions.GEnewprice~=2
+%% Shooting algorithm (GEnewprice=3, the only one implemented here; checked above)
+if transpathoptions.GEnewprice==3
     % For permanent types, there is just one shooting command,
     % because things like z,e, and fastOLG, as well as ExpAsset are handled on a per-PType basis (to permit that they differ across ptype)
     [PricePath,GEcondnPathmatrix]=TransitionPath_MixHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, transpathoptions, PTypeStructure);
@@ -931,8 +940,19 @@ if transpathoptions.GEnewprice~=2
             end
         end
     end
+    % GEcondnPath: a general eqm condition that depends on ptype (transpathoptions.GEptype) has N_i columns,
+    % one per ptype, in eqn order, and is output as a structure with one path per ptype
+    gg_c=0;
     for gg=1:length(GEeqnNames)
-        GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg)';
+        if transpathoptions.GEptype(gg)==0
+            gg_c=gg_c+1;
+            GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg_c)';
+        else
+            for ii=1:N_i
+                gg_c=gg_c+1;
+                GEcondnPath.(GEeqnNames{gg}).(PTypeStructure.Names_i{ii})=GEcondnPathmatrix(:,gg_c)';
+            end
+        end
     end
 
 
@@ -943,21 +963,6 @@ if transpathoptions.GEnewprice~=2
     end
 
     return
-end
-
-
-%%
-if transpathoptions.GEnewprice==2 % Function minimization
-    % Have not attempted implementing this for PType yet, no point until I
-    % get it to be useful without PType
-    error('Have not yet implemented transpathoptions.GEnewprice=2')
-
-    if nargout==1
-        varargout={PricePathStruct};
-    elseif nargout==2
-        varargout={PricePathStruct,GEcondnPath};
-    end
-
 end
 
 

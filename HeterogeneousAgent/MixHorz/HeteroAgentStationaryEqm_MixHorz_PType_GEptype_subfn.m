@@ -119,20 +119,26 @@ for ii=1:PTypeStructure.N_i
         [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
         StationaryDist_ii=StationaryDist_FHorz_Case1(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions);
         % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
-        AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).N_j, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).simoptions);
+        if any(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii) % a type none of the FnsToEvaluate are relevant to has no AggVars
+            AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).N_j, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).simoptions);
+        end
     else  % PType actually allows for infinite horizon as well
         [V_ii, Policy_ii]=ValueFnIter_InfHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
         StationaryDist_ii=StationaryDist_InfHorz(Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).Parameters);
         % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
-        AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).simoptions);
+        if any(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii) % a type none of the FnsToEvaluate are relevant to has no AggVars
+            AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).simoptions);
+        end
     end
-    AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
-    % Put updated AggVars into subsequent PTypeStructure Parameters, so they can be used for subsequent PType evaluations
-    FnsToEvaluate_aa=fieldnames(PTypeStructure.(iistr).FnsToEvaluate);
-    for jj=ii+1:PTypeStructure.N_i
-        jjstr=PTypeStructure.iistr{jj};
-        for aa=1:length(AggVars_ii)
-            PTypeStructure.(jjstr).Parameters.(FnsToEvaluate_aa{aa})=AggVars_ii(aa);
+    if any(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii) % a type none of the FnsToEvaluate are relevant to adds nothing to the aggregates (its column stays zero) and passes no AggVars on
+        AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
+        % Put updated AggVars into subsequent PTypeStructure Parameters, so they can be used for subsequent PType evaluations
+        FnsToEvaluate_aa=fieldnames(PTypeStructure.(iistr).FnsToEvaluate);
+        for jj=ii+1:PTypeStructure.N_i
+            jjstr=PTypeStructure.iistr{jj};
+            for aa=1:length(AggVars_ii)
+                PTypeStructure.(jjstr).Parameters.(FnsToEvaluate_aa{aa})=AggVars_ii(aa);
+            end
         end
     end
 
