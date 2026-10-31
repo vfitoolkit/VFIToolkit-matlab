@@ -2,7 +2,7 @@ function AgentDistPathTree=AgentDistOnUncertainTransPath_InfHorz(AgentDist_initi
 % The agent distribution on every node of the tree of an uncertain transition path, given the policy on the tree
 % (from ValueFnOnUncertainTransPath_InfHorz). See UncertainTransPathTree for the aggregate shock S and the tree.
 %
-% AgentDist_initial is the distribution in period 1, before any S is drawn after T1 (or before S_1 is drawn, if T1=1).
+% AgentDist_initial is the distribution in period 1 (where S is always S_initial).
 % Each history carries the whole distribution of agents: a node's distribution is that of the economy on that history,
 % not a probability-weighted share of it. The policy chosen at a node is chosen before next period's S is known, so
 % every child of a node starts from the same distribution, the node's distribution moved on one period by its policy.

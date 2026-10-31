@@ -1,13 +1,13 @@
 function [VPathTree,PolicyPathTree]=ValueFnOnUncertainTransPath_InfHorz(PricePath, ParamPath, T, T1, T2, pi_S, S_initial, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 % The value fn and policy on every node of the tree of an uncertain transition path, given the prices.
 % See UncertainTransPathTree for the aggregate shock S (pi_S, T1, T2, S_initial), the tree, and the forms PricePath and
-% ParamPath can take (a parameter that depends on S is n_S-by-T).
+% ParamPath can take (a parameter that depends on S is N_S-by-T).
 %
 % V_final and Policy_final are structures with one field per S, V_final.S1, V_final.S2, ...: the value fn and policy
 % of the final stationary eqm of each S. Every node in period T is at the final stationary eqm of its S. Only the S
 % that some history can be in at period T are needed.
 %
-% Households know pi_S: at a node whose children differ (a branching node, which is a period t with T1<=t+1<=T2), the
+% Households know pi_S: at a node whose children differ (a branching node, which is a period t with T1<=t<=T2), the
 % next period value fn is the expectation over the children, sum_{S'} pi_S(S_t,S') V_{t+1,S'}. Everywhere else the
 % next period is a single node, and the tree is solved one segment (a chain of single-child nodes) at a time, each an
 % ordinary deterministic transition solved by ValueFnOnTransPath_InfHorz.
