@@ -140,7 +140,10 @@ for ii=1:N_i
     if prod(n_z_temp)==0
         l_z_temp=0;
     end
-    [FnsToEvaluate_temp,~, ~,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,~, ~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    if sum(FnsAndPTypeIndicator_ii)==0
+        continue % none of the FnsToEvaluate are relevant to this type (it adds nothing to the aggregates)
+    end
 
     AggVarsPath_ii=EvalFnOnTransPath_AggVars_InfHorz(FnsToEvaluate_temp, AgentDistPath_temp, PolicyPath_temp, PricePath_temp, ParamPath_temp, Parameters_temp, T, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, transpathoptions_temp, simoptions_temp);
 
