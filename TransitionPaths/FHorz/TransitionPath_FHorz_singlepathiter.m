@@ -45,11 +45,19 @@ if transpathoptions.skipStep1ValueFnIter==0
 end
 
 %% Modify PolicyIndexesPath into forms needed for forward iteration
-if N_semiz==0
-    [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath,T,Parameters,PricePathOld,PricePathNames,PricePathSizeVec,ParamPath,ParamPathNames,ParamPathSizeVec,n_d,n_a,n_z,n_e,N_j,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
-else
-    [Policy_dsemiexoPath,Policy_aprimePath,PolicyProbsPath,PolicyValuesPath]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy_SemiExo(PolicyIndexesPath,T,n_d,n_a,n_z,n_e,N_j,N_a,N_z,N_e,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
-end
+% Done period by period, inside the loop over t below: Step2 is called on one period's slice of PolicyIndexesPath
+% (with T=2, so its T-1 periods are just that one), and the whole-path versions of the arrays it makes are never
+% built. A single operation on a whole-path array that size was seen to return zeros on the GPU (a 12 GB PolicyPath).
+% PolicyIndexesPath is (rows,a,j,[z],[e],t) for fastOLG and (rows,a,[z],[e],j,t) for slowOLG, semiz counting as z.
+nPolicyDims=4+(N_z>0 || N_semiz>0)+(N_e>0);
+slicePolicy=repmat({':'},1,nPolicyDims-1);
+% Step2 is handed the Parameters as they are here, before the loop over t changes them (as when it was called once on
+% the whole path). With an experience asset it sets each period's prices and parameters itself, from the PricePath
+% and ParamPath rows of that period, and reads that period's z grid.
+Parameters_Step2=Parameters;
+simoptions_Step2=simoptions;
+PricePath_Step2=PricePathOld;
+ParamPath_Step2=ParamPath;
 
 %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
 % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
@@ -132,20 +140,27 @@ for tt=1:T-1
         AgeWeights=AgeWeights_T(:,tt);
     end
 
+    % This period's policy, in the forms the agent dist iteration and the AggVars need (see above the loop)
+    PolicyIndexes_tt=PolicyIndexesPath(slicePolicy{:},tt);
     if N_semiz==0
-        AgentDistnext=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(AgentDist,PolicyPath_ForAgentDistIter,PolicyProbsPath,tt,N_a,N_z,N_e,N_j,N_probs,pi_z_J,pi_z_J_sim,pi_e_J,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist,transpathoptions,simoptions);
+        if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
+            PricePath_Step2=PricePathOld(tt,:);
+            ParamPath_Step2=ParamPath(tt,:);
+            if simoptions.experienceassetz>=1 && transpathoptions.zpathtrivial==0
+                simoptions_Step2.setup_experienceasset.z_gridvals_J_T=simoptions.setup_experienceasset.z_gridvals_J_T(:,:,:,tt);
+            end
+        end
+        [PolicyForAgentDistIter_tt,PolicyProbs_tt,PolicyValues_tt]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexes_tt,2,Parameters_Step2,PricePath_Step2,PricePathNames,PricePathSizeVec,ParamPath_Step2,ParamPathNames,ParamPathSizeVec,n_d,n_a,n_z,n_e,N_j,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions_Step2);
+        AgentDistnext=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(AgentDist,PolicyForAgentDistIter_tt,PolicyProbs_tt,tt,N_a,N_z,N_e,N_j,N_probs,pi_z_J,pi_z_J_sim,pi_e_J,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist,transpathoptions,simoptions);
     else
-        AgentDistnext=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist_SemiExo(AgentDist,Policy_dsemiexoPath,Policy_aprimePath,PolicyProbsPath,tt,N_a,N_z,N_e,N_j,N_probs,pi_z_J,pi_z_J_sim,pi_e_J,pi_e_J_sim,pi_semiz_J_sim,jequalOneDist,transpathoptions,simoptions);
+        [Policy_dsemiexo_tt,Policy_aprime_tt,PolicyProbs_tt,PolicyValues_tt]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy_SemiExo(PolicyIndexes_tt,2,n_d,n_a,n_z,n_e,N_j,N_a,N_z,N_e,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+        AgentDistnext=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist_SemiExo(AgentDist,Policy_dsemiexo_tt,Policy_aprime_tt,PolicyProbs_tt,tt,N_a,N_z,N_e,N_j,N_probs,pi_z_J,pi_z_J_sim,pi_e_J,pi_e_J_sim,pi_semiz_J_sim,jequalOneDist,transpathoptions,simoptions);
     end
 
     %% AggVars
     % simoptions.fastOLG tells Step4tt how the dist is laid out ((a,j,z) when =1, (a,z,j) when =0), with
     % semiz as part of z either way
-    if N_z==0 && N_e==0 && N_semiz==0
-        AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions,simoptions.fastOLG);
-    else
-        AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions,simoptions.fastOLG);
-    end
+    AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValues_tt,tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_semiz,l_z,l_e,N_d,N_a,N_semiz,N_z,N_e,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions,simoptions.fastOLG);
 
     for ff=1:length(AggVarNames) % Note: needed for _tminus1 as well as GeneralEqmEqns
         Parameters.(AggVarNames{ff})=AggVars.(AggVarNames{ff}).Mean;

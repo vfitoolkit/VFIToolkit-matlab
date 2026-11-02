@@ -492,10 +492,13 @@ if N_e==0
         else
             %% fastOLG=1, z, no e
             % Note: fastOLG with z: use V as (a,j)-by-z and Policy as a-by-j-by-z
-            VPath=zeros(N_a*N_j,N_z,T,'gpuArray');
-            VPath(:,:,T)=V_final;
-            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_z,T,'gpuArray');
-            PolicyPath(:,:,:,:,T)=Policy_final;
+            % VPath and PolicyPath are stored in the standard layout, (a,z,j), one period at a time as each is solved
+            % (rather than in the fastOLG layout and permuted as a whole path at the end: a single permute of a
+            % whole-path gpuArray this size was seen to return zeros)
+            VPath=zeros(N_a,N_z,N_j,T,'gpuArray');
+            VPath(:,:,:,T)=permute(reshape(V_final,[N_a,N_j,N_z]),[1,3,2]);
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,N_j,T,'gpuArray');
+            PolicyPath(:,:,:,:,T)=permute(Policy_final,[1,2,4,3]);
 
             %First, go from T-1 to 1 calculating the Value function and Optimal
             %policy function at each step. Since we won't need to keep the value
@@ -520,8 +523,8 @@ if N_e==0
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
-                PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
-                VPath(:,:,T-ttr)=V; % fastOLG: so (a,j)-by-z
+                PolicyPath(:,:,:,:,T-ttr)=permute(reshape(Policy,[size(PolicyPath,1),N_a,N_j,N_z]),[1,2,4,3]); % fastOLG (a,j,z) to standard (a,z,j)
+                VPath(:,:,:,T-ttr)=permute(reshape(V,[N_a,N_j,N_z]),[1,3,2]); % fastOLG (a,j)-by-z to standard (a,z,j)
             end
         end
     end
@@ -562,10 +565,13 @@ else % N_e
         else
             %% fastOLG=1, no z, e
             % Note: fastOLG with e: use V as (a,j)-by-e and Policy as a-by-j-by-e
-            VPath=zeros(N_a*N_j,N_e,T,'gpuArray');
-            VPath(:,:,T)=V_final;
-            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_e,T,'gpuArray');
-            PolicyPath(:,:,:,:,T)=Policy_final;
+            % VPath and PolicyPath are stored in the standard layout, (a,e,j), one period at a time as each is solved
+            % (rather than in the fastOLG layout and permuted as a whole path at the end: a single permute of a
+            % whole-path gpuArray this size was seen to return zeros)
+            VPath=zeros(N_a,N_e,N_j,T,'gpuArray');
+            VPath(:,:,:,T)=permute(reshape(V_final,[N_a,N_j,N_e]),[1,3,2]);
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_e,N_j,T,'gpuArray');
+            PolicyPath(:,:,:,:,T)=permute(Policy_final,[1,2,4,3]);
 
             %First, go from T-1 to 1 calculating the Value function and Optimal
             %policy function at each step. Since we won't need to keep the value
@@ -590,8 +596,8 @@ else % N_e
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_e] and contains the joint-index for (d,aprime)
 
-                PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-e
-                VPath(:,:,T-ttr)=V;
+                PolicyPath(:,:,:,:,T-ttr)=permute(reshape(Policy,[size(PolicyPath,1),N_a,N_j,N_e]),[1,2,4,3]); % fastOLG (a,j,e) to standard (a,e,j)
+                VPath(:,:,:,T-ttr)=permute(reshape(V,[N_a,N_j,N_e]),[1,3,2]); % fastOLG (a,j)-by-e to standard (a,e,j)
             end
         end
     else % N_z>0
@@ -632,10 +638,13 @@ else % N_e
 
         else % transpathoptions.fastOLG==1
             %% fastOLG=1, z, e
-            VPath=zeros(N_a*N_j,N_z,N_e,T,'gpuArray');
-            VPath(:,:,:,T)=V_final;
-            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_z,N_e,T,'gpuArray');
-            PolicyPath(:,:,:,:,:,T)=Policy_final;
+            % VPath and PolicyPath are stored in the standard layout, (a,z,e,j), one period at a time as each is solved
+            % (rather than in the fastOLG layout and permuted as a whole path at the end: a single permute of a
+            % whole-path gpuArray this size was seen to return zeros)
+            VPath=zeros(N_a,N_z,N_e,N_j,T,'gpuArray');
+            VPath(:,:,:,:,T)=permute(reshape(V_final,[N_a,N_j,N_z,N_e]),[1,3,4,2]);
+            PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_z,N_e,N_j,T,'gpuArray');
+            PolicyPath(:,:,:,:,:,T)=permute(Policy_final,[1,2,4,5,3]);
 
             %First, go from T-1 to 1 calculating the Value function and Optimal
             %policy function at each step. Since we won't need to keep the value
@@ -664,8 +673,8 @@ else % N_e
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z*N_e] and contains the joint-index for (d,aprime)
 
-                PolicyPath(:,:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z-by-e
-                VPath(:,:,:,T-ttr)=V;
+                PolicyPath(:,:,:,:,:,T-ttr)=permute(reshape(Policy,[size(PolicyPath,1),N_a,N_j,N_z,N_e]),[1,2,4,5,3]); % fastOLG (a,j,z,e) to standard (a,z,e,j)
+                VPath(:,:,:,:,T-ttr)=permute(reshape(V,[N_a,N_j,N_z,N_e]),[1,3,4,2]); % fastOLG (a,j)-by-z-by-e to standard (a,z,e,j)
             end
         end
     end
@@ -675,51 +684,22 @@ end
 % Each of the four dispatchers above returns V/Policy already unkronned, matching
 % ValueFnIter_Case1_FHorz where every early-returning branch does the same. This block
 % therefore only serves the standard case that falls through to it.
-if transpathoptions.fastOLG==1
-    % fastOLG, so need to permute back to standard ordering
-    if N_e==0
-        if N_z==0
-            % no need to do anything
-        else
-            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,z,t), now (daprime,a,z,j,t)
-        end
-    else
-        if N_z==0
-            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,e,t), now (daprime,a,e,j,t)
-        else
-            PolicyPath=permute(PolicyPath,[1,2,4,5,3,6]); % was (daprime,a,j,z,e,t), now (daprime,a,z,e,j,t)
-        end
-    end
-end
-
-
-% Then the unkron itself
+% Both layouts store VPath and PolicyPath in the standard ordering (fastOLG puts each period into it as it is
+% solved, see above), so all that is left is to unkron the endogenous state
 if N_e==0
     if N_z==0
         VPath=reshape(VPath,[n_a,N_j,T]);
         PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,N_j,T]);
     else
-        if transpathoptions.fastOLG==0
-            VPath=reshape(VPath,[n_a,n_z,N_j,T]);
-        else
-            VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_z,T]),[1,3,2,4]),[n_a,n_z,N_j,T]);
-        end
+        VPath=reshape(VPath,[n_a,n_z,N_j,T]);
         PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,n_z,N_j,T]);
     end
 else
     if N_z==0
-        if transpathoptions.fastOLG==0
-            VPath=reshape(VPath,[n_a,n_e,N_j,T]);
-        else
-            VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_e,T]),[1,3,2,4]),[n_a,n_e,N_j,T]);
-        end
+        VPath=reshape(VPath,[n_a,n_e,N_j,T]);
         PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,n_e,N_j,T]);
     else
-        if transpathoptions.fastOLG==0
-            VPath=reshape(VPath,[n_a,n_z,n_e,N_j,T]);
-        else
-            VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_z,N_e,T]),[1,3,4,2,5]),[n_a,n_z,n_e,N_j,T]);
-        end
+        VPath=reshape(VPath,[n_a,n_z,n_e,N_j,T]);
         PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,n_z,n_e,N_j,T]);
     end
 end

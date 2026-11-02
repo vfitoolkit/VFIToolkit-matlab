@@ -267,7 +267,18 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
                     AgeWeights_ii=PTypeStructure.(iistr).AgeWeights_T(:,tt);
                 end
 
-                AgentDistnext_ii=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(AgentDist_ii,PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,tt,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).pi_z_J_sim,PTypeStructure.(iistr).pi_e_J,PTypeStructure.(iistr).pi_e_J_sim,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj,PTypeStructure.(iistr).jequalOneDist,transpathoptions,PTypeStructure.(iistr).simoptions);
+                % Step3tt takes this period's policy: [X,T-1] for fastOLG without probabilities, [X,(N_j-1 or 2),T-1] otherwise
+                if PTypeStructure.(iistr).simoptions.fastOLG==1 && PTypeStructure.(iistr).N_probs==1
+                    PolicyForAgentDistIter_ii_tt=PolicyPath_ForAgentDistIter_ii(:,tt);
+                else
+                    PolicyForAgentDistIter_ii_tt=PolicyPath_ForAgentDistIter_ii(:,:,tt);
+                end
+                if PTypeStructure.(iistr).N_probs==1
+                    PolicyProbs_ii_tt=[];
+                else
+                    PolicyProbs_ii_tt=PolicyProbsPath_ii(:,:,tt);
+                end
+                AgentDistnext_ii=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(AgentDist_ii,PolicyForAgentDistIter_ii_tt,PolicyProbs_ii_tt,tt,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).pi_z_J_sim,PTypeStructure.(iistr).pi_e_J,PTypeStructure.(iistr).pi_e_J_sim,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj,PTypeStructure.(iistr).jequalOneDist,transpathoptions,PTypeStructure.(iistr).simoptions);
 
                 %% AggVars
                 if PTypeStructure.(iistr).N_z==0 && PTypeStructure.(iistr).N_e==0

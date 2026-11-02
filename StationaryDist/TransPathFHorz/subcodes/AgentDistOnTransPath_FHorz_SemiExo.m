@@ -62,34 +62,13 @@ if simoptions.gridinterplayer==1
     N_probs=2;
 end
 
-%% Reshape PolicyPath to [npol,N_a,N_bothze,N_j,T] and extract Policy_aprime and Policy_dsemiexo (and PolicyProbs for GI)
+%% Reshape PolicyPath to [npol,N_a,N_bothze,N_j,T]
+% Policy_aprime and Policy_dsemiexo (and PolicyProbs for GI) are built inside the loops over t below, from one period
+% of PolicyPath at a time, so no operation is ever done on a whole-path array (a single permute of a whole-path gpuArray
+% of 12 GB was seen to return zeros)
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_bothze,N_j,T]);
-
-% Policy_aprime (single endogenous state, so just the aprime index in 1..N_a)
-Policy_aprime=reshape(PolicyPath(l_d+1,:,:,:,:),[N_a*N_bothze,N_j,T]);
-% Policy_dsemiexo: the d2 index (l_dsemiz decision variables, immediately after the l_d1 standard ones)
-if simoptions.l_dsemiz==1
-    Policy_dsemiexo=reshape(PolicyPath(l_d1+1,:,:,:,:),[N_a*N_bothze,N_j,T]);
-elseif simoptions.l_dsemiz==2
-    Policy_dsemiexo=reshape(PolicyPath(l_d1+1,:,:,:,:)+n_d(l_d1+1)*(PolicyPath(l_d1+2,:,:,:,:)-1),[N_a*N_bothze,N_j,T]);
-else
+if simoptions.l_dsemiz>2
     error('simoptions.l_dsemiz>2 not yet implemented for AgentDistOnTransPath with semiz')
-end
-
-if simoptions.gridinterplayer==1
-    % Build lower/upper aprime points and the corresponding probabilities (from the L2 index)
-    % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
-    L2index=PolicyPath(end-1,:,:,:,:); % L2 index (end-1 because end is L2flag)
-    L2flag=PolicyPath(end,:,:,:,:);
-    L2index(L2flag==1)=1;                        % force all weight to lower grid point
-    L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
-    aprimeProbs_upper=reshape((L2index-1)/(simoptions.ngridinterp+1),[N_a*N_bothze,1,N_j,T]); % prob of upper grid point
-    Policy_aprime=reshape(Policy_aprime,[N_a*N_bothze,1,N_j,T]);
-    Policy_aprime=repmat(Policy_aprime,1,2,1,1);
-    Policy_aprime(:,2,:,:)=Policy_aprime(:,2,:,:)+1; % upper grid point
-    PolicyProbs=ones([N_a*N_bothze,2,N_j,T],'gpuArray');
-    PolicyProbs(:,1,:,:)=1-aprimeProbs_upper; % lower
-    PolicyProbs(:,2,:,:)=aprimeProbs_upper; % upper
 end
 
 %% Reshape AgentDist_initial to [N_a*N_bothze,N_j], get age weights, check
@@ -126,8 +105,30 @@ if simoptions.fastOLG==0
         if N_e>0 && transpathoptions.epathtrivial==0
             pi_e_J=gather(transpathoptions.pi_e_J_T(:,:,tt)); % [N_e,N_j]
         end
-        Policy_dsemiexo_tt=Policy_dsemiexo(:,:,tt);
-        Policy_aprime_tt=Policy_aprime(:,:,tt);
+        % This period's Policy_aprime (single endogenous state, so just the aprime index in 1..N_a) and
+        % Policy_dsemiexo (the d2 index: l_dsemiz decision variables, immediately after the l_d1 standard ones)
+        PolicyPath_tt=PolicyPath(:,:,:,:,tt);
+        Policy_aprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,:),[N_a*N_bothze,N_j]);
+        if simoptions.l_dsemiz==1
+            Policy_dsemiexo_tt=reshape(PolicyPath_tt(l_d1+1,:,:,:),[N_a*N_bothze,N_j]);
+        elseif simoptions.l_dsemiz==2
+            Policy_dsemiexo_tt=reshape(PolicyPath_tt(l_d1+1,:,:,:)+n_d(l_d1+1)*(PolicyPath_tt(l_d1+2,:,:,:)-1),[N_a*N_bothze,N_j]);
+        end
+        if simoptions.gridinterplayer==1
+            % Build lower/upper aprime points and the corresponding probabilities (from the L2 index)
+            % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+            L2index=PolicyPath_tt(end-1,:,:,:); % L2 index (end-1 because end is L2flag)
+            L2flag=PolicyPath_tt(end,:,:,:);
+            L2index(L2flag==1)=1;                        % force all weight to lower grid point
+            L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+            aprimeProbs_upper=reshape((L2index-1)/(simoptions.ngridinterp+1),[N_a*N_bothze,1,N_j]); % prob of upper grid point
+            Policy_aprime_tt=reshape(Policy_aprime_tt,[N_a*N_bothze,1,N_j]);
+            Policy_aprime_tt=repmat(Policy_aprime_tt,1,2,1);
+            Policy_aprime_tt(:,2,:)=Policy_aprime_tt(:,2,:)+1; % upper grid point
+            PolicyProbs_tt=ones([N_a*N_bothze,2,N_j],'gpuArray');
+            PolicyProbs_tt(:,1,:)=1-aprimeProbs_upper; % lower
+            PolicyProbs_tt(:,2,:)=aprimeProbs_upper; % upper
+        end
         if simoptions.gridinterplayer==0
             if N_z==0 && N_e==0
                 AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_SemiExo_noz_raw(AgentDist,Policy_dsemiexo_tt,Policy_aprime_tt,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,jequaloneDist);
@@ -139,8 +140,6 @@ if simoptions.fastOLG==0
                 AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_SemiExo_e_raw(AgentDist,Policy_dsemiexo_tt,Policy_aprime_tt,N_dsemiz,N_a,N_semiz,N_z,N_e,N_j,pi_semiz_J,pi_z_J,pi_e_J,jequaloneDist);
             end
         else % gridinterplayer==1
-            PolicyProbs_tt=PolicyProbs(:,:,:,tt);
-            Policy_aprime_tt=reshape(Policy_aprime(:,:,:,tt),[N_a*N_bothze,N_probs,N_j]);
             if N_z==0 && N_e==0
                 AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_nProbs_SemiExo_noz_raw(AgentDist,Policy_dsemiexo_tt,Policy_aprime_tt,PolicyProbs_tt,N_probs,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,jequaloneDist);
             elseif N_e==0
@@ -190,9 +189,31 @@ else
         if N_e>0 && transpathoptions.epathtrivial==0
             pi_e_J_sim=gpuArray(repelem(gather(transpathoptions.pi_e_J_sim_T(:,:,tt)),N_semiz,1)); % expanded to N_asemiz, as above
         end
-        Policy_dsemiexo_tt=Policy_dsemiexo(:,:,tt);
+        % This period's Policy_aprime (single endogenous state, so just the aprime index in 1..N_a) and
+        % Policy_dsemiexo (the d2 index: l_dsemiz decision variables, immediately after the l_d1 standard ones)
+        PolicyPath_tt=PolicyPath(:,:,:,:,tt);
+        Policy_aprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,:),[N_a*N_bothze,N_j]);
+        if simoptions.l_dsemiz==1
+            Policy_dsemiexo_tt=reshape(PolicyPath_tt(l_d1+1,:,:,:),[N_a*N_bothze,N_j]);
+        elseif simoptions.l_dsemiz==2
+            Policy_dsemiexo_tt=reshape(PolicyPath_tt(l_d1+1,:,:,:)+n_d(l_d1+1)*(PolicyPath_tt(l_d1+2,:,:,:)-1),[N_a*N_bothze,N_j]);
+        end
+        if simoptions.gridinterplayer==1
+            % Build lower/upper aprime points and the corresponding probabilities (from the L2 index)
+            % L2flag override (1=force all weight to lower, 2=usual, 3=force all weight to upper)
+            L2index=PolicyPath_tt(end-1,:,:,:); % L2 index (end-1 because end is L2flag)
+            L2flag=PolicyPath_tt(end,:,:,:);
+            L2index(L2flag==1)=1;                        % force all weight to lower grid point
+            L2index(L2flag==3)=simoptions.ngridinterp+2; % force all weight to upper grid point
+            aprimeProbs_upper=reshape((L2index-1)/(simoptions.ngridinterp+1),[N_a*N_bothze,1,N_j]); % prob of upper grid point
+            Policy_aprime_tt=reshape(Policy_aprime_tt,[N_a*N_bothze,1,N_j]);
+            Policy_aprime_tt=repmat(Policy_aprime_tt,1,2,1);
+            Policy_aprime_tt(:,2,:)=Policy_aprime_tt(:,2,:)+1; % upper grid point
+            PolicyProbs_tt=ones([N_a*N_bothze,2,N_j],'gpuArray');
+            PolicyProbs_tt(:,1,:)=1-aprimeProbs_upper; % lower
+            PolicyProbs_tt(:,2,:)=aprimeProbs_upper; % upper
+        end
         if simoptions.gridinterplayer==0
-            Policy_aprime_tt=Policy_aprime(:,:,tt);
             if N_z==0 && N_e==0
                 AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_SemiExo_noz_raw(AgentDist,Policy_dsemiexo_tt,Policy_aprime_tt,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,jequalOneDist);
                 AgentDistPath(:,tt+1)=AgentDist;
@@ -207,8 +228,6 @@ else
                 AgentDistPath(:,:,tt+1)=AgentDist;
             end
         else % gridinterplayer==1
-            PolicyProbs_tt=reshape(PolicyProbs(:,:,:,tt),[N_a*N_bothze,N_probs,N_j]);
-            Policy_aprime_tt=reshape(Policy_aprime(:,:,:,tt),[N_a*N_bothze,N_probs,N_j]);
             if N_z==0 && N_e==0
                 AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_SemiExo_noz_raw(AgentDist,Policy_dsemiexo_tt,Policy_aprime_tt,PolicyProbs_tt,N_probs,N_dsemiz,N_a,N_semiz,N_j,pi_semiz_J,jequalOneDist);
                 AgentDistPath(:,tt+1)=AgentDist;
@@ -228,11 +247,23 @@ else
     % Put the age weights back in, and reshape to output [n_a,n_bothze,N_j,T]
     if N_e==0
         AgentDistPath=AgentDistPath.*repmat(repelem(AgeWeights_T,N_a,1),N_bothzfast,1); % [N_a*N_j*N_bothz,T]
-        AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_bothzfast,T]),[1,3,2,4]); % (a,bothz,j,T)
+        AgentDistPath=reshape(AgentDistPath,[N_a,N_j,N_bothzfast,T]);
+        AgentDistPathStd=zeros(N_a,N_bothzfast,N_j,T,'gpuArray');
+        for tt=1:T % (a,j,bothz) to (a,bothz,j), one period at a time (a single permute of a whole-path gpuArray of 12 GB was seen to return zeros)
+            AgentDistPathStd(:,:,:,tt)=permute(AgentDistPath(:,:,:,tt),[1,3,2]);
+        end
+        AgentDistPath=AgentDistPathStd;
+        clear AgentDistPathStd
         AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
     else
         AgentDistPath=AgentDistPath.*repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1),N_bothzfast,1); % [N_a*N_j*N_bothz,N_e,T]
-        AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_bothzfast,N_e,T]),[1,3,4,2,5]); % (a,bothz,e,j,T)
+        AgentDistPath=reshape(AgentDistPath,[N_a,N_j,N_bothzfast,N_e,T]);
+        AgentDistPathStd=zeros(N_a,N_bothzfast,N_e,N_j,T,'gpuArray');
+        for tt=1:T % (a,j,bothz,e) to (a,bothz,e,j), one period at a time (a single permute of a whole-path gpuArray of 12 GB was seen to return zeros)
+            AgentDistPathStd(:,:,:,:,tt)=permute(AgentDistPath(:,:,:,:,tt),[1,3,4,2]);
+        end
+        AgentDistPath=AgentDistPathStd;
+        clear AgentDistPathStd
         AgentDistPath=reshape(AgentDistPath,[n_a,n_bothze,N_j,T]);
     end
 end

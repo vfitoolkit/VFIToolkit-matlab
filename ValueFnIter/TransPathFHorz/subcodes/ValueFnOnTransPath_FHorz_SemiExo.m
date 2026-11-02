@@ -99,10 +99,13 @@ if N_e==0
     else
         %% fastOLG=1, no e
         % Note: fastOLG: use V as (a,j)-by-bothz and Policy as a-by-j-by-bothz
-        VPath=zeros(N_a*N_j,N_bothz,T,'gpuArray');
-        VPath(:,:,T)=V_final;
-        PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_bothz,T,'gpuArray');
-        PolicyPath(:,:,:,:,T)=Policy_final;
+        % VPath and PolicyPath are stored in the standard layout, (a,bothz,j), one period at a time as each is solved
+        % (rather than in the fastOLG layout and permuted as a whole path at the end: a single permute of a
+        % whole-path gpuArray this size was seen to return zeros)
+        VPath=zeros(N_a,N_bothz,N_j,T,'gpuArray');
+        VPath(:,:,:,T)=permute(reshape(V_final,[N_a,N_j,N_bothz]),[1,3,2]);
+        PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_bothz,N_j,T,'gpuArray');
+        PolicyPath(:,:,:,:,T)=permute(Policy_final,[1,2,4,3]);
 
         % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
         V=V_final;
@@ -133,8 +136,8 @@ if N_e==0
             end
             % The V input is next period value fn, the V output is this period.
 
-            PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so a-by-j-by-bothz
-            VPath(:,:,T-ttr)=V;
+            PolicyPath(:,:,:,:,T-ttr)=permute(reshape(Policy,[size(PolicyPath,1),N_a,N_j,N_bothz]),[1,2,4,3]); % fastOLG (a,j,bothz) to standard (a,bothz,j)
+            VPath(:,:,:,T-ttr)=permute(reshape(V,[N_a,N_j,N_bothz]),[1,3,2]); % fastOLG (a,j)-by-bothz to standard (a,bothz,j)
         end
     end
 
@@ -185,10 +188,13 @@ else % N_e>0
 
     else % transpathoptions.fastOLG==1
         %% fastOLG=1, e
-        VPath=zeros(N_a*N_j,N_bothz,N_e,T,'gpuArray');
-        VPath(:,:,:,T)=V_final;
-        PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_j,N_bothz,N_e,T,'gpuArray');
-        PolicyPath(:,:,:,:,:,T)=Policy_final;
+        % VPath and PolicyPath are stored in the standard layout, (a,bothz,e,j), one period at a time as each is solved
+        % (rather than in the fastOLG layout and permuted as a whole path at the end: a single permute of a
+        % whole-path gpuArray this size was seen to return zeros)
+        VPath=zeros(N_a,N_bothz,N_e,N_j,T,'gpuArray');
+        VPath(:,:,:,:,T)=permute(reshape(V_final,[N_a,N_j,N_bothz,N_e]),[1,3,4,2]);
+        PolicyPath=zeros(l_d+l_aprime+2*(vfoptions.gridinterplayer>0),N_a,N_bothz,N_e,N_j,T,'gpuArray');
+        PolicyPath(:,:,:,:,:,T)=permute(Policy_final,[1,2,4,5,3]);
 
         % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
         V=V_final;
@@ -228,37 +234,21 @@ else % N_e>0
             end
             % The V input is next period value fn, the V output is this period.
 
-            PolicyPath(:,:,:,:,:,T-ttr)=Policy; % fastOLG: so a-by-j-by-bothz-by-e
-            VPath(:,:,:,T-ttr)=V;
+            PolicyPath(:,:,:,:,:,T-ttr)=permute(reshape(Policy,[size(PolicyPath,1),N_a,N_j,N_bothz,N_e]),[1,2,4,5,3]); % fastOLG (a,j,bothz,e) to standard (a,bothz,e,j)
+            VPath(:,:,:,:,T-ttr)=permute(reshape(V,[N_a,N_j,N_bothz,N_e]),[1,3,4,2]); % fastOLG (a,j)-by-bothz-by-e to standard (a,bothz,e,j)
         end
     end
 end
 
 
 %% Unkron to get into the shape for output
-if transpathoptions.fastOLG==1
-    % fastOLG, so need to permute back to standard ordering
-    if N_e==0
-        PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,bothz,t), now (daprime,a,bothz,j,t)
-    else
-        PolicyPath=permute(PolicyPath,[1,2,4,5,3,6]); % was (daprime,a,j,bothz,e,t), now (daprime,a,bothz,e,j,t)
-    end
-end
-
-% Then the unkron itself
+% Both layouts store VPath and PolicyPath in the standard ordering (fastOLG puts each period into it as it is
+% solved, see above), so all that is left is to unkron the endogenous state
 if N_e==0
-    if transpathoptions.fastOLG==0
-        VPath=reshape(VPath,[n_a,n_bothz,N_j,T]);
-    else
-        VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_bothz,T]),[1,3,2,4]),[n_a,n_bothz,N_j,T]);
-    end
+    VPath=reshape(VPath,[n_a,n_bothz,N_j,T]);
     PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,n_bothz,N_j,T]);
 else
-    if transpathoptions.fastOLG==0
-        VPath=reshape(VPath,[n_a,n_bothz,n_e,N_j,T]);
-    else
-        VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_bothz,N_e,T]),[1,3,4,2,5]),[n_a,n_bothz,n_e,N_j,T]);
-    end
+    VPath=reshape(VPath,[n_a,n_bothz,n_e,N_j,T]);
     PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),n_a,n_bothz,n_e,N_j,T]);
 end
 

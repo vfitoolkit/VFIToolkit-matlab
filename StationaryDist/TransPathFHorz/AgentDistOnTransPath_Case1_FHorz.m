@@ -308,358 +308,425 @@ if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
 
 
     whichisdforexpasset=length(n_d)-simoptions.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
-    if N_e==0 && N_z==0
-        a2primeIndexesPath=zeros(N_a,N_j-1,T,'gpuArray');
-        a2primeProbsPath=zeros(N_a,N_j-1,T,'gpuArray');
-        for tt=1:T
-            % the aprimeFn parameters in this period (they can be on the price or parameter path)
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-            end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-            end
-            aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
-            % [N_j,number of params]
+end
 
-            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
+%% PolicyPath in the forms the agent dist iteration needs, built one period at a time
+% Create versions of PolicyPath which only track aprime and have j=1:N_j-1 as we don't use N_j to iterate agent dist
+% (there is no N_j+1): PolicyaprimePath for slowOLG, PolicyaprimezPath with z, and for fastOLG PolicyaprimejPath,
+% PolicyaprimejzPath with z; when using grid interpolation layer (or an experience asset) also PolicyProbsPath.
+% Each period's slice is built from that period of PolicyPath and stored, so no operation is ever done on a whole-path
+% array (a single permute of a whole-path gpuArray of 12 GB was seen to return zeros). Sizes: slowOLG [N_a*N_ze,N_j-1,T],
+% or [N_a*N_ze,N_j-1,N_probs,T]; fastOLG [N_a*(N_j-1)*N_ze,T], or [N_a*(N_j-1)*N_ze,N_probs,T]; as the iterations
+% below read them.
+N_zecomb=max(N_z,1)*max(N_e,1);
+if simoptions.fastOLG==0
+    if N_probs==1
+        Policyaprime_size=[N_a*N_zecomb,N_j-1,T];
+    else
+        Policyaprime_size=[N_a*N_zecomb,N_j-1,N_probs,T];
+    end
+else
+    if N_probs==1
+        Policyaprime_size=[N_a*(N_j-1)*N_zecomb,T];
+    else
+        Policyaprime_size=[N_a*(N_j-1)*N_zecomb,N_probs,T];
+    end
+end
+if N_z==0
+    if simoptions.fastOLG==0
+        PolicyaprimePath=zeros(Policyaprime_size,'gpuArray');
+    else
+        PolicyaprimejPath=zeros(Policyaprime_size,'gpuArray');
+    end
+else
+    if simoptions.fastOLG==0
+        PolicyaprimezPath=zeros(Policyaprime_size,'gpuArray');
+    else
+        PolicyaprimejzPath=zeros(Policyaprime_size,'gpuArray');
+    end
+end
+if N_probs>1
+    PolicyProbsPath=zeros(Policyaprime_size,'gpuArray');
+end
+slicePolicy=repmat({':'},1,3+(N_z>0 || N_e>0)); % PolicyPath is [l_daprime,N_a,(N_ze,)N_j,T]
+
+for tt=1:T
+    PolicyPath_tt=PolicyPath(slicePolicy{:},tt);
+    clear PolicyProbs_tt % below it is (re)created from nothing, as the whole-path PolicyProbsPath was
+
+    if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
+        % the aprimeFn parameters in this period (they can be on the price or parameter path)
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+        end
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+        end
+        aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
+        % [N_j,number of params]
+        if N_e==0 && N_z==0
+            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath_tt,simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
             % Note: a2primeIndexes and a2primeProbs are both [N_a,N_j]
             % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
-            a2primeIndexesPath(:,:,tt)=a2primeIndexes(:,1:end-1);
-            a2primeProbsPath(:,:,tt)=a2primeProbs(:,1:end-1);
-        end
-    else
-        a2primeIndexesPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
-        a2primeProbsPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
-        for tt=1:T
-            % the aprimeFn parameters in this period (they can be on the price or parameter path)
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            a2primeIndexes_tt=zeros(N_a,N_j-1,'gpuArray');
+            a2primeProbs_tt=zeros(N_a,N_j-1,'gpuArray');
+            a2primeIndexes_tt(:,:)=a2primeIndexes(:,1:end-1);
+            a2primeProbs_tt(:,:)=a2primeProbs(:,1:end-1);
+            a2primeIndexes_tt=reshape(a2primeIndexes_tt,[N_a,N_j-1,1,1]);
+            a2primeIndexes_tt=repmat(a2primeIndexes_tt,1,1,2,1);
+            a2primeIndexes_tt(:,:,2,:)=a2primeIndexes_tt(:,:,2,:)+1; % upper index
+            a2primeProbs_tt=reshape(a2primeProbs_tt,[N_a,N_j-1,1,1]);
+            a2primeProbs_tt=repmat(a2primeProbs_tt,1,1,2,1);
+            a2primeProbs_tt(:,:,2,:)=1-a2primeProbs_tt(:,:,2,:); % upper prob
+            if simoptions.fastOLG==1
+                a2primeIndexes_tt=reshape(a2primeIndexes_tt,[N_a*(N_j-1),2,1]);
+                a2primeProbs_tt=reshape(a2primeProbs_tt,[N_a*(N_j-1),2,1]);
             end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-            end
-            aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
-            % [N_j,number of params]
-
+        else
             if simoptions.experienceassetz>=1
                 if transpathoptions_expassetz.zpathtrivial==0
                     z_gridvals_J_expassetz=transpathoptions_expassetz.z_gridvals_J_T(:,:,:,tt); % this period's z grid [N_z,l_z,N_j]
                 end
-                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetz_J(PolicyPath(:,:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, n_z, 0,N_z,N_e, N_j, simoptions.d_grid, a2_grid, z_gridvals_J_expassetz, aprimeFnParamsVec,0);
+                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetz_J(PolicyPath_tt,simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, n_z, 0,N_z,N_e, N_j, simoptions.d_grid, a2_grid, z_gridvals_J_expassetz, aprimeFnParamsVec,0);
             else
-                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
+                [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath_tt,simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
             end
             % Note: a2primeIndexes and a2primeProbs are both [N_a,N_z,N_j]
             % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
-            a2primeIndexesPath(:,:,:,tt)=a2primeIndexes(:,:,1:end-1);
-            a2primeProbsPath(:,:,:,tt)=a2primeProbs(:,:,1:end-1);
+            a2primeIndexes_tt=zeros(N_a,N_ze,N_j-1,'gpuArray');
+            a2primeProbs_tt=zeros(N_a,N_ze,N_j-1,'gpuArray');
+            a2primeIndexes_tt(:,:,:)=a2primeIndexes(:,:,1:end-1);
+            a2primeProbs_tt(:,:,:)=a2primeProbs(:,:,1:end-1);
+            a2primeIndexes_tt=reshape(a2primeIndexes_tt,[N_a,N_ze,N_j-1,1,1]);
+            a2primeIndexes_tt=repmat(a2primeIndexes_tt,1,1,1,2,1);
+            a2primeIndexes_tt(:,:,:,2,:)=a2primeIndexes_tt(:,:,:,2,:)+1; % upper index
+            a2primeProbs_tt=reshape(a2primeProbs_tt,[N_a,N_ze,N_j-1,1,1]);
+            a2primeProbs_tt=repmat(a2primeProbs_tt,1,1,1,2,1);
+            a2primeProbs_tt(:,:,:,2,:)=1-a2primeProbs_tt(:,:,:,2,:); % upper prob
+            if simoptions.fastOLG==0
+                a2primeIndexes_tt=reshape(a2primeIndexes_tt,[N_a*N_ze,N_j-1,2,1]);
+                a2primeProbs_tt=reshape(a2primeProbs_tt,[N_a*N_ze,N_j-1,2,1]);
+            elseif simoptions.fastOLG==1
+                a2primeIndexes_tt=reshape(permute(a2primeIndexes_tt,[1,3,2,4,5]),[N_a*(N_j-1)*N_ze,2,1]);
+                a2primeProbs_tt=reshape(permute(a2primeProbs_tt,[1,3,2,4,5]),[N_a*(N_j-1)*N_ze,2,1]);
+            end
         end
     end
 
-    if N_e==0 && N_z==0
-        a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a,N_j-1,1,T]);
-        a2primeIndexesPath=repmat(a2primeIndexesPath,1,1,2,1);
-        a2primeIndexesPath(:,:,2,:)=a2primeIndexesPath(:,:,2,:)+1; % upper index
-        a2primeProbsPath=reshape(a2primeProbsPath,[N_a,N_j-1,1,T]);
-        a2primeProbsPath=repmat(a2primeProbsPath,1,1,2,1);
-        a2primeProbsPath(:,:,2,:)=1-a2primeProbsPath(:,:,2,:); % upper prob
-        if simoptions.fastOLG==1
-            a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a*(N_j-1),2,T]);
-            a2primeProbsPath=reshape(a2primeProbsPath,[N_a*(N_j-1),2,T]);
+    if N_e==0
+        if N_z==0 % no z, no e
+            % Create version of PolicyPath called Policyaprime_tt, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
+            % For fastOLG we use Policyaprimej_tt, if there is z then Policyaprimejz_tt
+            % When using grid interpolation layer also PolicyProbs_tt
+            if isscalar(n_aprime)
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,1:N_j-1,:),[N_a,N_j-1,1]); % aprime index
+            elseif length(n_aprime)==2
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,1:N_j-1,:)-1),[N_a,N_j-1,1]);
+            elseif length(n_aprime)==3
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath_tt(l_d+3,:,1:N_j-1,:)-1),[N_a,N_j-1,1]);
+            elseif length(n_aprime)==4
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath_tt(l_d+3,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath_tt(l_d+4,:,1:N_j-1,:)-1),[N_a,N_j-1,1]);
+            end
+            if simoptions.fastOLG==0
+                % Policyaprime_tt=Policyaprime_tt;
+                if simoptions.gridinterplayer==1
+                    % Grid interpolation layer: Policyaprime_tt becomes [N_a,N_j-1,2], the lower and upper grid index, with
+                    % PolicyProbs_tt [N_a,N_j-1,2] their probabilities (as for fastOLG=1, but along the third dimension)
+                    L2index=reshape(PolicyPath_tt(l_d+l_aprime+1,:,1:N_j-1,:),[N_a,N_j-1,1,1]);
+                    % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                    L2flag=reshape(PolicyPath_tt(l_d+l_aprime+2,:,1:N_j-1,:),[N_a,N_j-1,1,1]);
+                    L2index(L2flag==1)=1;
+                    L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+                    Policyaprime_tt=repmat(reshape(Policyaprime_tt,[N_a,N_j-1,1,1]),1,1,2,1); % lower grid index, and a copy that will be the upper grid index
+                    Policyaprime_tt(:,:,2,:)=Policyaprime_tt(:,:,2,:)+1; % upper grid index
+                    PolicyProbs_tt=zeros(N_a,N_j-1,2,1,'gpuArray');
+                    PolicyProbs_tt(:,:,2,:)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+                    PolicyProbs_tt(:,:,1,:)=1-PolicyProbs_tt(:,:,2,:); % probability of lower grid point
+                end
+            elseif simoptions.fastOLG==1
+                Policyaprime_tt=reshape(permute(reshape(Policyaprime_tt,[N_a,N_j-1,1]),[1,2,3]),[N_a*(N_j-1),1]);
+                Policyaprimej_tt=Policyaprime_tt+repelem(N_a*gpuArray(0:1:(N_j-1)-1)',N_a,1);
+                if simoptions.gridinterplayer==1
+                    L2index=reshape(PolicyPath_tt(l_d+l_aprime+1,:,1:N_j-1,:),[1,N_a,N_j-1,1]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_j,T]
+                    L2index=reshape(permute(L2index,[2,3,1,4]),[N_a*(N_j-1),1,1]);
+                    % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                    L2flag=reshape(PolicyPath_tt(l_d+l_aprime+2,:,1:N_j-1,:),[1,N_a,N_j-1,1]);
+                    L2flag=reshape(permute(L2flag,[2,3,1,4]),[N_a*(N_j-1),1,1]);
+                    L2index(L2flag==1)=1;
+                    L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+                    Policyaprimej_tt=reshape(Policyaprimej_tt,[N_a*(N_j-1),1,1]); % reinterpret this as lower grid index
+                    Policyaprimej_tt=repelem(Policyaprimej_tt,1,2,1); % create copy that will be the upper grid index
+                    Policyaprimej_tt(:,2,:)=Policyaprimej_tt(:,2,:)+1; % upper grid index
+                    PolicyProbs_tt(:,2,:)=L2index; % L2 index
+                    PolicyProbs_tt(:,2,:)=(PolicyProbs_tt(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+                    PolicyProbs_tt(:,1,:)=1-PolicyProbs_tt(:,2,:); % probability of lower grid point
+                end
+            end
+            if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
+                if simoptions.fastOLG==0
+                    if simoptions.gridinterplayer==1
+                        Policyaprime_tt=repmat(Policyaprime_tt,1,1,2,1)+repelem(N_a1*(a2primeIndexes_tt-1),1,1,2,1);
+                        PolicyProbs_tt=repmat(PolicyProbs_tt,1,1,2,1).*repelem(a2primeProbs_tt,1,1,2,1);
+                    else
+                        Policyaprime_tt=reshape(Policyaprime_tt,[N_a,(N_j-1),1,1])+N_a1*(a2primeIndexes_tt-1);
+                        PolicyProbs_tt=a2primeProbs_tt;
+                    end
+                elseif simoptions.fastOLG==1
+                    if simoptions.gridinterplayer==1
+                        Policyaprimej_tt=repmat(Policyaprimej_tt,1,2,1)+repelem(N_a1*(a2primeIndexes_tt-1),1,2,1);
+                        PolicyProbs_tt=repmat(PolicyProbs_tt,1,2,1).*repelem(a2primeProbs_tt,1,2,1);
+                    else
+                        Policyaprimej_tt=reshape(Policyaprimej_tt,[N_a*(N_j-1),1,1])+N_a1*(a2primeIndexes_tt-1);
+                        PolicyProbs_tt=a2primeProbs_tt;
+                    end
+                end
+            end
+        else % z, no e
+            % Create version of PolicyPath called Policyaprime_tt, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
+            % For fastOLG we use Policyaprimej_tt, if there is z then Policyaprimejz_tt
+            % When using grid interpolation layer also PolicyProbs_tt
+            if isscalar(n_aprime)
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:),[N_a*N_z,N_j-1,1]); % aprime index
+            elseif length(n_aprime)==2
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,1]);
+            elseif length(n_aprime)==3
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath_tt(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,1]);
+            elseif length(n_aprime)==4
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath_tt(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath_tt(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,1]);
+            end
+            if simoptions.fastOLG==0
+                Policyaprimez_tt=Policyaprime_tt+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
+                if simoptions.gridinterplayer==1
+                    % Grid interpolation layer: Policyaprimez_tt becomes [N_a*N_z,N_j-1,2], the lower and upper grid index, with
+                    % PolicyProbs_tt [N_a*N_z,N_j-1,2] their probabilities (as for fastOLG=1, but along the third dimension)
+                    L2index=reshape(PolicyPath_tt(l_d+l_aprime+1,:,:,1:N_j-1,:),[N_a*N_z,N_j-1,1,1]);
+                    % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                    L2flag=reshape(PolicyPath_tt(l_d+l_aprime+2,:,:,1:N_j-1,:),[N_a*N_z,N_j-1,1,1]);
+                    L2index(L2flag==1)=1;
+                    L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+                    Policyaprimez_tt=repmat(reshape(Policyaprimez_tt,[N_a*N_z,N_j-1,1,1]),1,1,2,1); % lower grid index, and a copy that will be the upper grid index
+                    Policyaprimez_tt(:,:,2,:)=Policyaprimez_tt(:,:,2,:)+1; % upper grid index
+                    PolicyProbs_tt=zeros(N_a*N_z,N_j-1,2,1,'gpuArray');
+                    PolicyProbs_tt(:,:,2,:)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+                    PolicyProbs_tt(:,:,1,:)=1-PolicyProbs_tt(:,:,2,:); % probability of lower grid point
+                end
+            elseif simoptions.fastOLG==1
+                Policyaprime_tt=reshape(permute(reshape(Policyaprime_tt,[N_a,N_z,N_j-1,1]),[1,3,2,4]),[N_a*(N_j-1)*N_z,1]);
+                Policyaprimejz_tt=Policyaprime_tt+repelem(N_a*gpuArray(0:1:(N_j-1)*N_z-1)',N_a,1);
+                if simoptions.gridinterplayer==1
+                    L2index=reshape(PolicyPath_tt(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_z,N_j-1,1]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_z,N_j,T]
+                    L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_z,1,1]);
+                    % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                    L2flag=reshape(PolicyPath_tt(l_d+l_aprime+2,:,:,1:N_j-1,:),[1,N_a,N_z,N_j-1,1]);
+                    L2flag=reshape(permute(L2flag,[2,4,3,1,5]),[N_a*(N_j-1)*N_z,1,1]);
+                    L2index(L2flag==1)=1;
+                    L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+                    Policyaprimejz_tt=reshape(Policyaprimejz_tt,[N_a*(N_j-1)*N_z,1,1]); % reinterpret this as lower grid index
+                    Policyaprimejz_tt=repelem(Policyaprimejz_tt,1,2,1); % create copy that will be the upper grid index
+                    Policyaprimejz_tt(:,2,:)=Policyaprimejz_tt(:,2,:)+1; % upper grid index
+                    PolicyProbs_tt(:,2,:)=L2index; % L2 index
+                    PolicyProbs_tt(:,2,:)=(PolicyProbs_tt(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+                    PolicyProbs_tt(:,1,:)=1-PolicyProbs_tt(:,2,:); % probability of lower grid point
+                end
+            end
+            if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
+                if simoptions.fastOLG==0
+                    if simoptions.gridinterplayer==1
+                        Policyaprimez_tt=repmat(Policyaprimez_tt,1,1,2,1)+repelem(N_a1*(a2primeIndexes_tt-1),1,1,2,1);
+                        PolicyProbs_tt=repmat(PolicyProbs_tt,1,1,2,1).*repelem(a2primeProbs_tt,1,1,2,1);
+                    else
+                        Policyaprimez_tt=reshape(Policyaprimez_tt,[N_a*N_z,(N_j-1),1,1])+N_a1*(a2primeIndexes_tt-1);
+                        PolicyProbs_tt=a2primeProbs_tt;
+                    end
+                elseif simoptions.fastOLG==1
+                    if simoptions.gridinterplayer==1
+                        Policyaprimejz_tt=repmat(Policyaprimejz_tt,1,2,1)+repelem(N_a1*(a2primeIndexes_tt-1),1,2,1);
+                        PolicyProbs_tt=repmat(PolicyProbs_tt,1,2,1).*repelem(a2primeProbs_tt,1,2,1);
+                    else
+                        Policyaprimejz_tt=reshape(Policyaprimejz_tt,[N_a*(N_j-1)*N_z,1,1])+N_a1*(a2primeIndexes_tt-1);
+                        PolicyProbs_tt=a2primeProbs_tt;
+                    end
+                end
+            end
         end
     else
-        a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a,N_ze,N_j-1,1,T]);
-        a2primeIndexesPath=repmat(a2primeIndexesPath,1,1,1,2,1);
-        a2primeIndexesPath(:,:,:,2,:)=a2primeIndexesPath(:,:,:,2,:)+1; % upper index
-        a2primeProbsPath=reshape(a2primeProbsPath,[N_a,N_ze,N_j-1,1,T]);
-        a2primeProbsPath=repmat(a2primeProbsPath,1,1,1,2,1);
-        a2primeProbsPath(:,:,:,2,:)=1-a2primeProbsPath(:,:,:,2,:); % upper prob
+        if N_z==0 % no z, e
+            % Create version of PolicyPath called Policyaprime_tt, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
+            % For fastOLG we use Policyaprimej_tt, if there is z then Policyaprimejz_tt
+            % When using grid interpolation layer also PolicyProbs_tt
+            if isscalar(n_aprime)
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:),[N_a*N_e,N_j-1,1]); % aprime index
+            elseif length(n_aprime)==2
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,1]);
+            elseif length(n_aprime)==3
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath_tt(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,1]);
+            elseif length(n_aprime)==4
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath_tt(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath_tt(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,1]);
+            end
+            if simoptions.fastOLG==0
+                % Policyaprime_tt=Policyaprime_tt;
+                if simoptions.gridinterplayer==1
+                    % Grid interpolation layer: Policyaprime_tt becomes [N_a*N_e,N_j-1,2], the lower and upper grid index, with
+                    % PolicyProbs_tt [N_a*N_e,N_j-1,2] their probabilities (as for fastOLG=1, but along the third dimension)
+                    L2index=reshape(PolicyPath_tt(l_d+l_aprime+1,:,:,1:N_j-1,:),[N_a*N_e,N_j-1,1,1]);
+                    % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                    L2flag=reshape(PolicyPath_tt(l_d+l_aprime+2,:,:,1:N_j-1,:),[N_a*N_e,N_j-1,1,1]);
+                    L2index(L2flag==1)=1;
+                    L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+                    Policyaprime_tt=repmat(reshape(Policyaprime_tt,[N_a*N_e,N_j-1,1,1]),1,1,2,1); % lower grid index, and a copy that will be the upper grid index
+                    Policyaprime_tt(:,:,2,:)=Policyaprime_tt(:,:,2,:)+1; % upper grid index
+                    PolicyProbs_tt=zeros(N_a*N_e,N_j-1,2,1,'gpuArray');
+                    PolicyProbs_tt(:,:,2,:)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+                    PolicyProbs_tt(:,:,1,:)=1-PolicyProbs_tt(:,:,2,:); % probability of lower grid point
+                end
+            elseif simoptions.fastOLG==1
+                Policyaprime_tt=reshape(permute(reshape(Policyaprime_tt,[N_a,N_e,N_j-1,1]),[1,3,2,4]),[N_a*(N_j-1)*N_e,1]);
+                Policyaprimej_tt=Policyaprime_tt+repmat(repelem(N_a*gpuArray(0:1:(N_j-1)-1)',N_a,1),N_e,1);
+                if simoptions.gridinterplayer==1
+                    L2index=reshape(PolicyPath_tt(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_e,N_j-1,1]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_e,N_j,T]
+                    L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_e,1,1]);
+                    % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                    L2flag=reshape(PolicyPath_tt(l_d+l_aprime+2,:,:,1:N_j-1,:),[1,N_a,N_e,N_j-1,1]);
+                    L2flag=reshape(permute(L2flag,[2,4,3,1,5]),[N_a*(N_j-1)*N_e,1,1]);
+                    L2index(L2flag==1)=1;
+                    L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+                    Policyaprimej_tt=reshape(Policyaprimej_tt,[N_a*(N_j-1)*N_e,1,1]); % reinterpret this as lower grid index
+                    Policyaprimej_tt=repelem(Policyaprimej_tt,1,2,1); % create copy that will be the upper grid index
+                    Policyaprimej_tt(:,2,:)=Policyaprimej_tt(:,2,:)+1; % upper grid index
+                    PolicyProbs_tt(:,2,:)=L2index; % L2 index
+                    PolicyProbs_tt(:,2,:)=(PolicyProbs_tt(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+                    PolicyProbs_tt(:,1,:)=1-PolicyProbs_tt(:,2,:); % probability of lower grid point
+                end
+            end
+            if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
+                if simoptions.fastOLG==0
+                    if simoptions.gridinterplayer==1
+                        Policyaprime_tt=repmat(Policyaprime_tt,1,1,2,1)+repelem(N_a1*(a2primeIndexes_tt-1),1,1,2,1);
+                        PolicyProbs_tt=repmat(PolicyProbs_tt,1,1,2,1).*repelem(a2primeProbs_tt,1,1,2,1);
+                    else
+                        Policyaprime_tt=reshape(Policyaprime_tt,[N_a*N_e,(N_j-1),1,1])+N_a1*(a2primeIndexes_tt-1);
+                        PolicyProbs_tt=a2primeProbs_tt;
+                    end
+                elseif simoptions.fastOLG==1
+                    if simoptions.gridinterplayer==1
+                        Policyaprimej_tt=repmat(Policyaprimej_tt,1,2,1)+repelem(N_a1*(a2primeIndexes_tt-1),1,2,1);
+                        PolicyProbs_tt=repmat(PolicyProbs_tt,1,2,1).*repelem(a2primeProbs_tt,1,2,1);
+                    else
+                        Policyaprimej_tt=reshape(Policyaprimej_tt,[N_a*(N_j-1)*N_e,1,1])+N_a1*(a2primeIndexes_tt-1);
+                        PolicyProbs_tt=a2primeProbs_tt;
+                    end
+                end
+            end
+        else % z, e
+            % Create version of PolicyPath called Policyaprime_tt, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
+            % For fastOLG we use Policyaprimej_tt, if there is z then Policyaprimejz_tt
+            % When using grid interpolation layer also PolicyProbs_tt
+            if isscalar(n_aprime)
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:),[N_a*N_z*N_e,N_j-1,1]); % aprime index
+            elseif length(n_aprime)==2
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,1]);
+            elseif length(n_aprime)==3
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath_tt(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,1]);
+            elseif length(n_aprime)==4
+                Policyaprime_tt=reshape(PolicyPath_tt(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath_tt(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath_tt(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath_tt(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,1]);
+            end
+            if simoptions.fastOLG==0
+                Policyaprimez_tt=Policyaprime_tt+repmat(repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1),N_e,1);
+                if simoptions.gridinterplayer==1
+                    % Grid interpolation layer: Policyaprimez_tt becomes [N_a*N_z*N_e,N_j-1,2], the lower and upper grid index, with
+                    % PolicyProbs_tt [N_a*N_z*N_e,N_j-1,2] their probabilities (as for fastOLG=1, but along the third dimension)
+                    L2index=reshape(PolicyPath_tt(l_d+l_aprime+1,:,:,1:N_j-1,:),[N_a*N_z*N_e,N_j-1,1,1]);
+                    % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                    L2flag=reshape(PolicyPath_tt(l_d+l_aprime+2,:,:,1:N_j-1,:),[N_a*N_z*N_e,N_j-1,1,1]);
+                    L2index(L2flag==1)=1;
+                    L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+                    Policyaprimez_tt=repmat(reshape(Policyaprimez_tt,[N_a*N_z*N_e,N_j-1,1,1]),1,1,2,1); % lower grid index, and a copy that will be the upper grid index
+                    Policyaprimez_tt(:,:,2,:)=Policyaprimez_tt(:,:,2,:)+1; % upper grid index
+                    PolicyProbs_tt=zeros(N_a*N_z*N_e,N_j-1,2,1,'gpuArray');
+                    PolicyProbs_tt(:,:,2,:)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+                    PolicyProbs_tt(:,:,1,:)=1-PolicyProbs_tt(:,:,2,:); % probability of lower grid point
+                end
+            elseif simoptions.fastOLG==1
+                Policyaprime_tt=reshape(permute(reshape(Policyaprime_tt,[N_a,N_z*N_e,N_j-1,1]),[1,3,2,4]),[N_a*(N_j-1)*N_z*N_e,1]);
+                Policyaprimejz_tt=Policyaprime_tt+repmat(repelem(N_a*gpuArray(0:1:(N_j-1)*N_z-1)',N_a,1),N_e,1);
+                if simoptions.gridinterplayer==1
+                    L2index=reshape(PolicyPath_tt(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_z*N_e,N_j-1,1]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_z,N_e,N_j,T]
+                    L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_z*N_e,1,1]);
+                    % Override L2index at -Inf-neighbour cases (flag is always present under GI)
+                    L2flag=reshape(PolicyPath_tt(l_d+l_aprime+2,:,:,1:N_j-1,:),[1,N_a,N_z*N_e,N_j-1,1]);
+                    L2flag=reshape(permute(L2flag,[2,4,3,1,5]),[N_a*(N_j-1)*N_z*N_e,1,1]);
+                    L2index(L2flag==1)=1;
+                    L2index(L2flag==3)=1+simoptions.ngridinterp+1;
+                    Policyaprimejz_tt=reshape(Policyaprimejz_tt,[N_a*(N_j-1)*N_z*N_e,1,1]); % reinterpret this as lower grid index
+                    Policyaprimejz_tt=repelem(Policyaprimejz_tt,1,2,1); % create copy that will be the upper grid index
+                    Policyaprimejz_tt(:,2,:)=Policyaprimejz_tt(:,2,:)+1; % upper grid index
+                    PolicyProbs_tt(:,2,:)=L2index; % L2 index
+                    PolicyProbs_tt(:,2,:)=(PolicyProbs_tt(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+                    PolicyProbs_tt(:,1,:)=1-PolicyProbs_tt(:,2,:); % probability of lower grid point
+                end
+            end
+            if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
+                if simoptions.fastOLG==0
+                    if simoptions.gridinterplayer==1
+                        Policyaprimez_tt=repmat(Policyaprimez_tt,1,1,2,1)+repelem(N_a1*(a2primeIndexes_tt-1),1,1,2,1);
+                        PolicyProbs_tt=repmat(PolicyProbs_tt,1,1,2,1).*repelem(a2primeProbs_tt,1,1,2,1);
+                    else
+                        Policyaprimez_tt=reshape(Policyaprimez_tt,[N_a*N_z*N_e,(N_j-1),1,1])+N_a1*(a2primeIndexes_tt-1);
+                        PolicyProbs_tt=a2primeProbs_tt;
+                    end
+                elseif simoptions.fastOLG==1
+                    if simoptions.gridinterplayer==1
+                        Policyaprimejz_tt=repmat(Policyaprimejz_tt,1,2,1)+repelem(N_a1*(a2primeIndexes_tt-1),1,2,1);
+                        PolicyProbs_tt=repmat(PolicyProbs_tt,1,2,1).*repelem(a2primeProbs_tt,1,2,1);
+                    else
+                        Policyaprimejz_tt=reshape(Policyaprimejz_tt,[N_a*(N_j-1)*N_z*N_e,1,1])+N_a1*(a2primeIndexes_tt-1);
+                        PolicyProbs_tt=a2primeProbs_tt;
+                    end
+                end
+            end
+        end
+    end
+
+    % Store this period
+    if N_z==0
         if simoptions.fastOLG==0
-            a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a*N_ze,N_j-1,2,T]);
-            a2primeProbsPath=reshape(a2primeProbsPath,[N_a*N_ze,N_j-1,2,T]);
-        elseif simoptions.fastOLG==1
-            a2primeIndexesPath=reshape(permute(a2primeIndexesPath,[1,3,2,4,5]),[N_a*(N_j-1)*N_ze,2,T]);
-            a2primeProbsPath=reshape(permute(a2primeProbsPath,[1,3,2,4,5]),[N_a*(N_j-1)*N_ze,2,T]);
+            if N_probs==1
+                PolicyaprimePath(:,:,tt)=Policyaprime_tt;
+            else
+                PolicyaprimePath(:,:,:,tt)=Policyaprime_tt;
+            end
+        else
+            if N_probs==1
+                PolicyaprimejPath(:,tt)=Policyaprimej_tt;
+            else
+                PolicyaprimejPath(:,:,tt)=Policyaprimej_tt;
+            end
+        end
+    else
+        if simoptions.fastOLG==0
+            if N_probs==1
+                PolicyaprimezPath(:,:,tt)=Policyaprimez_tt;
+            else
+                PolicyaprimezPath(:,:,:,tt)=Policyaprimez_tt;
+            end
+        else
+            if N_probs==1
+                PolicyaprimejzPath(:,tt)=Policyaprimejz_tt;
+            else
+                PolicyaprimejzPath(:,:,tt)=Policyaprimejz_tt;
+            end
+        end
+    end
+    if N_probs>1
+        if simoptions.fastOLG==0
+            PolicyProbsPath(:,:,:,tt)=PolicyProbs_tt;
+        else
+            PolicyProbsPath(:,:,tt)=PolicyProbs_tt;
         end
     end
 end
 
-if N_e==0
-    if N_z==0 % no z, no e
-        % Create version of PolicyPath called PolicyaprimePath, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
-        % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
-        % When using grid interpolation layer also PolicyProbsPath
-        if isscalar(n_aprime)
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:),[N_a,N_j-1,T]); % aprime index
-        elseif length(n_aprime)==2
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,1:N_j-1,:)-1),[N_a,N_j-1,T]);
-        elseif length(n_aprime)==3
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,1:N_j-1,:)-1),[N_a,N_j-1,T]);
-        elseif length(n_aprime)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,1:N_j-1,:)-1),[N_a,N_j-1,T]);
-        end
-        if simoptions.fastOLG==0
-            % PolicyaprimePath=PolicyaprimePath;
-            if simoptions.gridinterplayer==1
-                % Grid interpolation layer: PolicyaprimePath becomes [N_a,N_j-1,2,T], the lower and upper grid index, with
-                % PolicyProbsPath [N_a,N_j-1,2,T] their probabilities (as for fastOLG=1, but along the third dimension)
-                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,1:N_j-1,:),[N_a,N_j-1,1,T]);
-                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
-                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,1:N_j-1,:),[N_a,N_j-1,1,T]);
-                L2index(L2flag==1)=1;
-                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
-                PolicyaprimePath=repmat(reshape(PolicyaprimePath,[N_a,N_j-1,1,T]),1,1,2,1); % lower grid index, and a copy that will be the upper grid index
-                PolicyaprimePath(:,:,2,:)=PolicyaprimePath(:,:,2,:)+1; % upper grid index
-                PolicyProbsPath=zeros(N_a,N_j-1,2,T,'gpuArray');
-                PolicyProbsPath(:,:,2,:)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-                PolicyProbsPath(:,:,1,:)=1-PolicyProbsPath(:,:,2,:); % probability of lower grid point
-            end
-        elseif simoptions.fastOLG==1
-            PolicyaprimePath=reshape(permute(reshape(PolicyaprimePath,[N_a,N_j-1,T]),[1,2,3]),[N_a*(N_j-1),T]);
-            PolicyaprimejPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:(N_j-1)-1)',N_a,1);
-            if simoptions.gridinterplayer==1
-                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,1:N_j-1,:),[1,N_a,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_j,T]
-                L2index=reshape(permute(L2index,[2,3,1,4]),[N_a*(N_j-1),1,T]);
-                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
-                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,1:N_j-1,:),[1,N_a,N_j-1,T]);
-                L2flag=reshape(permute(L2flag,[2,3,1,4]),[N_a*(N_j-1),1,T]);
-                L2index(L2flag==1)=1;
-                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
-                PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1),1,T]); % reinterpret this as lower grid index
-                PolicyaprimejPath=repelem(PolicyaprimejPath,1,2,1); % create copy that will be the upper grid index
-                PolicyaprimejPath(:,2,:)=PolicyaprimejPath(:,2,:)+1; % upper grid index
-                PolicyProbsPath(:,2,:)=L2index; % L2 index
-                PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-                PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
-            end
-        end
-        if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
-            if simoptions.fastOLG==0
-                if simoptions.gridinterplayer==1
-                    PolicyaprimePath=repmat(PolicyaprimePath,1,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,1,2,1);
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,1,2,1).*repelem(a2primeProbsPath,1,1,2,1);
-                else
-                    PolicyaprimePath=reshape(PolicyaprimePath,[N_a,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
-                    PolicyProbsPath=a2primeProbsPath;
-                end
-            elseif simoptions.fastOLG==1
-                if simoptions.gridinterplayer==1
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-                else
-                    PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
-                    PolicyProbsPath=a2primeProbsPath;
-                end
-            end
-        end
-    else % z, no e
-        % Create version of PolicyPath called PolicyaprimePath, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
-        % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
-        % When using grid interpolation layer also PolicyProbsPath
-        if isscalar(n_aprime)
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:),[N_a*N_z,N_j-1,T]); % aprime index
-        elseif length(n_aprime)==2
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T]);
-        elseif length(n_aprime)==3
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T]);
-        elseif length(n_aprime)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T]);
-        end
-        if simoptions.fastOLG==0
-            PolicyaprimezPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
-            if simoptions.gridinterplayer==1
-                % Grid interpolation layer: PolicyaprimezPath becomes [N_a*N_z,N_j-1,2,T], the lower and upper grid index, with
-                % PolicyProbsPath [N_a*N_z,N_j-1,2,T] their probabilities (as for fastOLG=1, but along the third dimension)
-                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[N_a*N_z,N_j-1,1,T]);
-                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
-                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:,1:N_j-1,:),[N_a*N_z,N_j-1,1,T]);
-                L2index(L2flag==1)=1;
-                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
-                PolicyaprimezPath=repmat(reshape(PolicyaprimezPath,[N_a*N_z,N_j-1,1,T]),1,1,2,1); % lower grid index, and a copy that will be the upper grid index
-                PolicyaprimezPath(:,:,2,:)=PolicyaprimezPath(:,:,2,:)+1; % upper grid index
-                PolicyProbsPath=zeros(N_a*N_z,N_j-1,2,T,'gpuArray');
-                PolicyProbsPath(:,:,2,:)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-                PolicyProbsPath(:,:,1,:)=1-PolicyProbsPath(:,:,2,:); % probability of lower grid point
-            end
-        elseif simoptions.fastOLG==1
-            PolicyaprimePath=reshape(permute(reshape(PolicyaprimePath,[N_a,N_z,N_j-1,T]),[1,3,2,4]),[N_a*(N_j-1)*N_z,T]);
-            PolicyaprimejzPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:(N_j-1)*N_z-1)',N_a,1);
-            if simoptions.gridinterplayer==1
-                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_z,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_z,N_j,T]
-                L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_z,1,T]);
-                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
-                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:,1:N_j-1,:),[1,N_a,N_z,N_j-1,T]);
-                L2flag=reshape(permute(L2flag,[2,4,3,1,5]),[N_a*(N_j-1)*N_z,1,T]);
-                L2index(L2flag==1)=1;
-                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
-                PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z,1,T]); % reinterpret this as lower grid index
-                PolicyaprimejzPath=repelem(PolicyaprimejzPath,1,2,1); % create copy that will be the upper grid index
-                PolicyaprimejzPath(:,2,:)=PolicyaprimejzPath(:,2,:)+1; % upper grid index
-                PolicyProbsPath(:,2,:)=L2index; % L2 index
-                PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-                PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
-            end
-        end
-        if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
-            if simoptions.fastOLG==0
-                if simoptions.gridinterplayer==1
-                    PolicyaprimezPath=repmat(PolicyaprimezPath,1,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,1,2,1);
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,1,2,1).*repelem(a2primeProbsPath,1,1,2,1);
-                else
-                    PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
-                    PolicyProbsPath=a2primeProbsPath;
-                end
-            elseif simoptions.fastOLG==1
-                if simoptions.gridinterplayer==1
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-                else
-                    PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z,1,T])+N_a1*(a2primeIndexesPath-1);
-                    PolicyProbsPath=a2primeProbsPath;
-                end
-            end
-        end
-    end
-else
-    if N_z==0 % no z, e
-        % Create version of PolicyPath called PolicyaprimePath, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
-        % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
-        % When using grid interpolation layer also PolicyProbsPath
-        if isscalar(n_aprime)
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:),[N_a*N_e,N_j-1,T]); % aprime index
-        elseif length(n_aprime)==2
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,T]);
-        elseif length(n_aprime)==3
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,T]);
-        elseif length(n_aprime)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,T]);
-        end
-        if simoptions.fastOLG==0
-            % PolicyaprimePath=PolicyaprimePath;
-            if simoptions.gridinterplayer==1
-                % Grid interpolation layer: PolicyaprimePath becomes [N_a*N_e,N_j-1,2,T], the lower and upper grid index, with
-                % PolicyProbsPath [N_a*N_e,N_j-1,2,T] their probabilities (as for fastOLG=1, but along the third dimension)
-                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[N_a*N_e,N_j-1,1,T]);
-                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
-                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:,1:N_j-1,:),[N_a*N_e,N_j-1,1,T]);
-                L2index(L2flag==1)=1;
-                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
-                PolicyaprimePath=repmat(reshape(PolicyaprimePath,[N_a*N_e,N_j-1,1,T]),1,1,2,1); % lower grid index, and a copy that will be the upper grid index
-                PolicyaprimePath(:,:,2,:)=PolicyaprimePath(:,:,2,:)+1; % upper grid index
-                PolicyProbsPath=zeros(N_a*N_e,N_j-1,2,T,'gpuArray');
-                PolicyProbsPath(:,:,2,:)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-                PolicyProbsPath(:,:,1,:)=1-PolicyProbsPath(:,:,2,:); % probability of lower grid point
-            end
-        elseif simoptions.fastOLG==1
-            PolicyaprimePath=reshape(permute(reshape(PolicyaprimePath,[N_a,N_e,N_j-1,T]),[1,3,2,4]),[N_a*(N_j-1)*N_e,T]);
-            PolicyaprimejPath=PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:(N_j-1)-1)',N_a,1),N_e,1);
-            if simoptions.gridinterplayer==1
-                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_e,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_e,N_j,T]
-                L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_e,1,T]);
-                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
-                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:,1:N_j-1,:),[1,N_a,N_e,N_j-1,T]);
-                L2flag=reshape(permute(L2flag,[2,4,3,1,5]),[N_a*(N_j-1)*N_e,1,T]);
-                L2index(L2flag==1)=1;
-                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
-                PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1)*N_e,1,T]); % reinterpret this as lower grid index
-                PolicyaprimejPath=repelem(PolicyaprimejPath,1,2,1); % create copy that will be the upper grid index
-                PolicyaprimejPath(:,2,:)=PolicyaprimejPath(:,2,:)+1; % upper grid index
-                PolicyProbsPath(:,2,:)=L2index; % L2 index
-                PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-                PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
-            end
-        end
-        if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
-            if simoptions.fastOLG==0
-                if simoptions.gridinterplayer==1
-                    PolicyaprimePath=repmat(PolicyaprimePath,1,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,1,2,1);
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,1,2,1).*repelem(a2primeProbsPath,1,1,2,1);
-                else
-                    PolicyaprimePath=reshape(PolicyaprimePath,[N_a*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
-                    PolicyProbsPath=a2primeProbsPath;
-                end
-            elseif simoptions.fastOLG==1
-                if simoptions.gridinterplayer==1
-                    PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-                else
-                    PolicyaprimejPath=reshape(PolicyaprimejPath,[N_a*(N_j-1)*N_e,1,T])+N_a1*(a2primeIndexesPath-1);
-                    PolicyProbsPath=a2primeProbsPath;
-                end
-            end
-        end
-    else % z, e
-        % Create version of PolicyPath called PolicyaprimePath, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
-        % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
-        % When using grid interpolation layer also PolicyProbsPath
-        if isscalar(n_aprime)
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:),[N_a*N_z*N_e,N_j-1,T]); % aprime index
-        elseif length(n_aprime)==2
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
-        elseif length(n_aprime)==3
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
-        elseif length(n_aprime)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
-        end
-        if simoptions.fastOLG==0
-            PolicyaprimezPath=PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1),N_e,1);
-            if simoptions.gridinterplayer==1
-                % Grid interpolation layer: PolicyaprimezPath becomes [N_a*N_z*N_e,N_j-1,2,T], the lower and upper grid index, with
-                % PolicyProbsPath [N_a*N_z*N_e,N_j-1,2,T] their probabilities (as for fastOLG=1, but along the third dimension)
-                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[N_a*N_z*N_e,N_j-1,1,T]);
-                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
-                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:,1:N_j-1,:),[N_a*N_z*N_e,N_j-1,1,T]);
-                L2index(L2flag==1)=1;
-                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
-                PolicyaprimezPath=repmat(reshape(PolicyaprimezPath,[N_a*N_z*N_e,N_j-1,1,T]),1,1,2,1); % lower grid index, and a copy that will be the upper grid index
-                PolicyaprimezPath(:,:,2,:)=PolicyaprimezPath(:,:,2,:)+1; % upper grid index
-                PolicyProbsPath=zeros(N_a*N_z*N_e,N_j-1,2,T,'gpuArray');
-                PolicyProbsPath(:,:,2,:)=(L2index-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-                PolicyProbsPath(:,:,1,:)=1-PolicyProbsPath(:,:,2,:); % probability of lower grid point
-            end
-        elseif simoptions.fastOLG==1
-            PolicyaprimePath=reshape(permute(reshape(PolicyaprimePath,[N_a,N_z*N_e,N_j-1,T]),[1,3,2,4]),[N_a*(N_j-1)*N_z*N_e,T]);
-            PolicyaprimejzPath=PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:(N_j-1)*N_z-1)',N_a,1),N_e,1);
-            if simoptions.gridinterplayer==1
-                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_z*N_e,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_z,N_e,N_j,T]
-                L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_z*N_e,1,T]);
-                % Override L2index at -Inf-neighbour cases (flag is always present under GI)
-                L2flag=reshape(PolicyPath(l_d+l_aprime+2,:,:,1:N_j-1,:),[1,N_a,N_z*N_e,N_j-1,T]);
-                L2flag=reshape(permute(L2flag,[2,4,3,1,5]),[N_a*(N_j-1)*N_z*N_e,1,T]);
-                L2index(L2flag==1)=1;
-                L2index(L2flag==3)=1+simoptions.ngridinterp+1;
-                PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z*N_e,1,T]); % reinterpret this as lower grid index
-                PolicyaprimejzPath=repelem(PolicyaprimejzPath,1,2,1); % create copy that will be the upper grid index
-                PolicyaprimejzPath(:,2,:)=PolicyaprimejzPath(:,2,:)+1; % upper grid index
-                PolicyProbsPath(:,2,:)=L2index; % L2 index
-                PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-                PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
-            end
-        end
-        if simoptions.experienceasset>=1 || simoptions.experienceassetz>=1
-            if simoptions.fastOLG==0
-                if simoptions.gridinterplayer==1
-                    PolicyaprimezPath=repmat(PolicyaprimezPath,1,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,1,2,1);
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,1,2,1).*repelem(a2primeProbsPath,1,1,2,1);
-                else
-                    PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
-                    PolicyProbsPath=a2primeProbsPath;
-                end
-            elseif simoptions.fastOLG==1
-                if simoptions.gridinterplayer==1
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
-                    PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
-                else
-                    PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z*N_e,1,T])+N_a1*(a2primeIndexesPath-1);
-                    PolicyProbsPath=a2primeProbsPath;
-                end
-            end
-        end
-    end
-end
-
-clear a2primeIndexesPath a2primeProbsPath PolicyPath L2index % Free up some memory
+clear a2primeIndexes_tt a2primeProbs_tt PolicyPath PolicyPath_tt L2index L2flag Policyaprime_tt Policyaprimez_tt Policyaprimej_tt Policyaprimejz_tt PolicyProbs_tt % Free up some memory
 
 %% Check if jequalOneDistPath is a path or not (and reshape appropriately)
 jequaloneDist=gpuArray(jequaloneDist);
@@ -1078,19 +1145,43 @@ if N_e==0
         AgentDistPath=reshape(AgentDistPath,[n_a,N_j,T]);
     else
         if simoptions.fastOLG==1
-            AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_z,T]),[1,3,2,4]);
+            % from (a,j,z) to (a,z,j), one period at a time (a single permute of a whole-path gpuArray of 12 GB was seen
+            % to return zeros)
+            AgentDistPath=reshape(AgentDistPath,[N_a,N_j,N_z,T]);
+            AgentDistPathStd=zeros(N_a,N_z,N_j,T,'gpuArray');
+            for tt=1:T
+                AgentDistPathStd(:,:,:,tt)=permute(AgentDistPath(:,:,:,tt),[1,3,2]);
+            end
+            AgentDistPath=AgentDistPathStd;
+            clear AgentDistPathStd
         end
         AgentDistPath=reshape(AgentDistPath,[n_a,n_z,N_j,T]);
     end
 else
     if N_z==0
         if simoptions.fastOLG==1
-            AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_e,T]),[1,3,2,4]);
+            % from (a,j,e) to (a,e,j), one period at a time (a single permute of a whole-path gpuArray of 12 GB was seen
+            % to return zeros)
+            AgentDistPath=reshape(AgentDistPath,[N_a,N_j,N_e,T]);
+            AgentDistPathStd=zeros(N_a,N_e,N_j,T,'gpuArray');
+            for tt=1:T
+                AgentDistPathStd(:,:,:,tt)=permute(AgentDistPath(:,:,:,tt),[1,3,2]);
+            end
+            AgentDistPath=AgentDistPathStd;
+            clear AgentDistPathStd
         end
         AgentDistPath=reshape(AgentDistPath,[n_a,n_e,N_j,T]);
     else
         if simoptions.fastOLG==1
-            AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_z,N_e,T]),[1,3,4,2,5]);
+            % from (a,j,z,e) to (a,z,e,j), one period at a time (a single permute of a whole-path gpuArray of 12 GB was
+            % seen to return zeros)
+            AgentDistPath=reshape(AgentDistPath,[N_a,N_j,N_z,N_e,T]);
+            AgentDistPathStd=zeros(N_a,N_z,N_e,N_j,T,'gpuArray');
+            for tt=1:T
+                AgentDistPathStd(:,:,:,:,tt)=permute(AgentDistPath(:,:,:,:,tt),[1,3,4,2]);
+            end
+            AgentDistPath=AgentDistPathStd;
+            clear AgentDistPathStd
         end
         AgentDistPath=reshape(AgentDistPath,[n_a,n_z,n_e,N_j,T]);
     end
