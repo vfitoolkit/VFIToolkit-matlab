@@ -144,6 +144,18 @@ if isfield(vfoptions,'localsearch')
 end
 
 
+%% transpathoptions.fastOLG=2 (TransitionPath_Case1_FHorz: fastOLG for the local search sweeps, slowOLG for the
+% full sweeps). This command's single pass is a full sweep, so =2 is solved as fastOLG=0; when local search is
+% forced (vfoptions.localsearch=2, now 1) it is a restricted sweep, so =2 is solved as fastOLG=1.
+if transpathoptions.fastOLG==2
+    transpathoptions.fastOLG=0;
+    if isfield(vfoptions,'localsearch')
+        if vfoptions.localsearch==1
+            transpathoptions.fastOLG=1;
+        end
+    end
+end
+
 %% Combinations that are not implemented on a transition path
 % These must error rather than fall through: the dispatches below key off
 % vfoptions.experienceasset/experienceassetz and vfoptions.n_semiz only, so anything

@@ -32,7 +32,9 @@ else
     end
     if ~isfield(simoptions,'fastOLG')
         if isfield(transpathoptions,'fastOLG')
-            simoptions.fastOLG=transpathoptions.fastOLG;
+            % transpathoptions.fastOLG=2 is about the value fn sweeps of TransitionPath_Case1_FHorz (fastOLG for
+            % the local search sweeps, slowOLG for the full ones); for the agent distribution it means fastOLG
+            simoptions.fastOLG=min(transpathoptions.fastOLG,1);
         else
             simoptions.fastOLG=1; % parallel over j, faster but uses more memory
         end

@@ -239,6 +239,25 @@ vfoptions.EVpre=0; % =1 is used by 'Matched Expecations Path', for TPath we want
 
 
 
+%% transpathoptions.fastOLG=2: fastOLG for the local search sweeps, slowOLG for the full sweeps
+% Everything outside the full value fn sweeps works in the fastOLG layout, so =2 is turned here into fastOLG=1
+% plus an internal flag, transpathoptions.fullsweepslowOLG, which only Step1 reads: it runs the full sweeps (the
+% first of a solve, and every seed or verification sweep) age by age, and stores what they produce in the
+% fastOLG layout. The full sweep is the memory peak of fastOLG (every age's whole return matrix at once), while a
+% restricted sweep is 2*nlocalsearch+1 points per age, which is where vectorising over ages pays.
+if transpathoptions.fastOLG==2
+    if ~isfield(vfoptions,'localsearch')
+        error('transpathoptions.fastOLG=2 means fastOLG for the local search sweeps and slowOLG for the full sweeps, so it requires vfoptions.localsearch=1 (without local search use transpathoptions.fastOLG=0 or 1)')
+    elseif vfoptions.localsearch~=1
+        error('transpathoptions.fastOLG=2 means fastOLG for the local search sweeps and slowOLG for the full sweeps, so it requires vfoptions.localsearch=1 (without local search use transpathoptions.fastOLG=0 or 1)')
+    end
+    transpathoptions.fastOLG=1;
+    transpathoptions.fullsweepslowOLG=1;
+else
+    transpathoptions.fullsweepslowOLG=0;
+end
+
+
 %% Check which simoptions have been used, set all others to defaults
 if transpathoptions.fastOLG==1
     simoptions.fastOLG=1;
@@ -525,7 +544,29 @@ end
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
 
 %% Set up exogenous shock processes
+if transpathoptions.fullsweepslowOLG==1
+    % transpathoptions.fastOLG=2: the full sweeps are solved age by age (see Step1), so they need the shocks in
+    % the slowOLG layout too. Set up below on copies, so nothing of the fastOLG setup is overwritten. The copies
+    % are taken BEFORE the fastOLG setup, as ExogShockSetup_FHorz_TPath removes n_e from the options it returns
+    % (copied after it, the slowOLG setup would see no e)
+    transpathoptionsslowOLG=transpathoptions;
+    transpathoptionsslowOLG.fastOLG=0;
+    simoptionsslowOLG=simoptions;
+    simoptionsslowOLG.fastOLG=0;
+end
 [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, simoptions]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,transpathoptions,simoptions,4);
+if transpathoptions.fullsweepslowOLG==1
+    [transpathoptions.fullsweep.z_gridvals_J, transpathoptions.fullsweep.pi_z_J, ~, transpathoptions.fullsweep.e_gridvals_J, transpathoptions.fullsweep.pi_e_J, ~, ~, transpathoptionsslowOLG]=ExogShockSetup_FHorz_TPath(n_z,z_grid,pi_z,N_a,N_j,T,Parameters,PricePathNames,ParamPath,ParamPathNames,ParamPathSizeVec,transpathoptionsslowOLG,simoptionsslowOLG,3);
+    if transpathoptions.zpathtrivial==0
+        transpathoptions.fullsweep.z_gridvals_J_T=transpathoptionsslowOLG.z_gridvals_J_T;
+        transpathoptions.fullsweep.pi_z_J_T=transpathoptionsslowOLG.pi_z_J_T;
+    end
+    if transpathoptions.epathtrivial==0
+        transpathoptions.fullsweep.e_gridvals_J_T=transpathoptionsslowOLG.e_gridvals_J_T;
+        transpathoptions.fullsweep.pi_e_J_T=transpathoptionsslowOLG.pi_e_J_T;
+    end
+    clear transpathoptionsslowOLG simoptionsslowOLG
+end
 % Convert z and e to age-dependent joint-grids and transition matrix
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 

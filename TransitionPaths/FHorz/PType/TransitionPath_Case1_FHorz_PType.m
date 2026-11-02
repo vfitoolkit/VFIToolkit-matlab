@@ -37,6 +37,10 @@ else
     if ~isfield(transpathoptions,'fastOLG')
         transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
     end
+    % fastOLG=2 (fastOLG for the local search sweeps, slowOLG for the full sweeps) needs vfoptions.localsearch
+    if transpathoptions.fastOLG==2
+        error('transpathoptions.fastOLG=2 (fastOLG for the local search sweeps, slowOLG for the full sweeps) requires vfoptions.localsearch, which is not yet implemented on a transition path with permanent types; use transpathoptions.fastOLG=0 or 1')
+    end
     if isfield(transpathoptions,'tolerance')
         error('Old transpathoptions.tolerance, has now been renamed and you should use transpathoptions.toleranceGEcondns instead')
     end

@@ -21,6 +21,14 @@ end
 if ~isfield(vfoptions,'localsearchseed')
     vfoptions.localsearchseed=0;
 end
+% transpathoptions.fullsweepslowOLG is set by TransitionPath_Case1_FHorz for transpathoptions.fastOLG=2 (see the
+% first branch below); the other callers of Step1 never set it, nor necessarily verbose
+if ~isfield(transpathoptions,'fullsweepslowOLG')
+    transpathoptions.fullsweepslowOLG=0;
+end
+if ~isfield(transpathoptions,'verbose')
+    transpathoptions.verbose=0;
+end
 if vfoptions.localsearch==1 && isempty(aprimeReferencePath)
     error('vfoptions.localsearch=1 reached Step1 with no aprimeReferencePath: the first sweep of a solve has to be a standard one, which is what builds it')
 end
@@ -38,7 +46,116 @@ if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     return
 end
 
-if transpathoptions.fastOLG==0
+if transpathoptions.fullsweepslowOLG==1 && vfoptions.localsearch==0
+    %% transpathoptions.fastOLG=2, and this is a FULL sweep (the first of a solve, a seed or a verification sweep)
+    % Everything outside this sweep is in the fastOLG layout (TransitionPath_Case1_FHorz turned fastOLG=2 into
+    % fastOLG=1 plus transpathoptions.fullsweepslowOLG=1), so V_final, PolicyIndexesPath and aprimeReferencePath
+    % all are. This sweep is run age by age, by the slowOLG dispatchers, on the slowOLG shock arrays set up for
+    % it in transpathoptions.fullsweep: V_final is put in the slowOLG layout once, and each period's Policy and
+    % seed reference are put back in the fastOLG layout before they are stored. The full sweep is the memory
+    % peak of fastOLG (every age's whole return matrix at once); the restricted sweeps, a window of
+    % 2*nlocalsearch+1 points per age, are where vectorising over ages pays. divideandconquer and lowmemory
+    % are honoured here, as on any full sweep.
+    % With transpathoptions.verbose>=1 each such sweep says so (lsdiag is left empty, as on any full sweep: the
+    % shooting ratchet reads a non-empty lsdiag as a restricted sweep)
+    if transpathoptions.verbose>=1
+        fprintf('Transition path: a full sweep, solved age by age (transpathoptions.fastOLG=2) \n')
+    end
+    N_a=prod(n_a);
+    N_dref=max(prod(n_d),1);
+    z_gridvals_J=transpathoptions.fullsweep.z_gridvals_J;
+    pi_z_J=transpathoptions.fullsweep.pi_z_J;
+    e_gridvals_J=transpathoptions.fullsweep.e_gridvals_J;
+    pi_e_J=transpathoptions.fullsweep.pi_e_J;
+    if isempty(aprimeReferencePath) && vfoptions.localsearchseed==1
+        if N_z==0 && N_e==0
+            aprimeReferencePath=zeros(N_dref,N_a*N_j,T-1,'uint16','gpuArray');
+        elseif N_e==0
+            aprimeReferencePath=zeros(N_dref,N_a*N_j*N_z,T-1,'uint16','gpuArray');
+        elseif N_z==0
+            aprimeReferencePath=zeros(N_dref,N_a*N_j*N_e,T-1,'uint16','gpuArray');
+        else
+            aprimeReferencePath=zeros(N_dref,N_a*N_j*N_z*N_e,T-1,'uint16','gpuArray');
+        end
+    end
+    if N_z==0 && N_e==0
+        V=V_final; % (a,j) in both layouts
+        for ttr=1:T-1 %so tt=T-ttr
+            for kk=1:length(PricePathNames)
+                Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            end
+            for kk=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            end
+            [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_noz(V,n_d,n_a,N_j,d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+            PolicyIndexesPath(:,:,:,T-ttr)=Policy; % (a,j) in both layouts
+            if vfoptions.localsearchseed==1
+                aprimeReferencePath(:,:,T-ttr)=reshape(aprimeRefNew,[N_dref,N_a*N_j]);
+            end
+        end
+    elseif N_z>0 && N_e==0
+        V=permute(reshape(V_final,[N_a,N_j,N_z]),[1,3,2]); % from (a,j)-by-z to (a,z,j)
+        for ttr=1:T-1 %so tt=T-ttr
+            for kk=1:length(PricePathNames)
+                Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            end
+            for kk=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            end
+            if transpathoptions.zpathtrivial==0
+                z_gridvals_J=transpathoptions.fullsweep.z_gridvals_J_T(:,:,:,T-ttr);
+                pi_z_J=transpathoptions.fullsweep.pi_z_J_T(:,:,:,T-ttr);
+            end
+            [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+            PolicyIndexesPath(:,:,:,:,T-ttr)=permute(Policy,[1,2,4,3]); % from (a,z,j) to (a,j,z)
+            if vfoptions.localsearchseed==1
+                aprimeReferencePath(:,:,T-ttr)=reshape(permute(reshape(aprimeRefNew,[N_dref,N_a,N_z,N_j]),[1,2,4,3]),[N_dref,N_a*N_j*N_z]);
+            end
+        end
+    elseif N_z==0 && N_e>0
+        V=permute(reshape(V_final,[N_a,N_j,N_e]),[1,3,2]); % from (a,j)-by-e to (a,e,j)
+        for ttr=1:T-1 %so tt=T-ttr
+            for kk=1:length(PricePathNames)
+                Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            end
+            for kk=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            end
+            if transpathoptions.epathtrivial==0
+                e_gridvals_J=transpathoptions.fullsweep.e_gridvals_J_T(:,:,:,T-ttr);
+                pi_e_J=transpathoptions.fullsweep.pi_e_J_T(:,:,T-ttr);
+            end
+            [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,N_j,d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+            PolicyIndexesPath(:,:,:,:,T-ttr)=permute(Policy,[1,2,4,3]); % from (a,e,j) to (a,j,e)
+            if vfoptions.localsearchseed==1
+                aprimeReferencePath(:,:,T-ttr)=reshape(permute(reshape(aprimeRefNew,[N_dref,N_a,N_e,N_j]),[1,2,4,3]),[N_dref,N_a*N_j*N_e]);
+            end
+        end
+    else % N_z>0 && N_e>0
+        V=permute(reshape(V_final,[N_a,N_j,N_z,N_e]),[1,3,4,2]); % from (a,j)-by-z-by-e to (a,z,e,j)
+        for ttr=1:T-1 %so tt=T-ttr
+            for kk=1:length(PricePathNames)
+                Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            end
+            for kk=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            end
+            if transpathoptions.zpathtrivial==0
+                z_gridvals_J=transpathoptions.fullsweep.z_gridvals_J_T(:,:,:,T-ttr);
+                pi_z_J=transpathoptions.fullsweep.pi_z_J_T(:,:,:,T-ttr);
+            end
+            if transpathoptions.epathtrivial==0
+                e_gridvals_J=transpathoptions.fullsweep.e_gridvals_J_T(:,:,:,T-ttr);
+                pi_e_J=transpathoptions.fullsweep.pi_e_J_T(:,:,T-ttr);
+            end
+            [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_gridvals, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+            PolicyIndexesPath(:,:,:,:,:,T-ttr)=permute(Policy,[1,2,5,3,4]); % from (a,z,e,j) to (a,j,z,e)
+            if vfoptions.localsearchseed==1
+                aprimeReferencePath(:,:,T-ttr)=reshape(permute(reshape(aprimeRefNew,[N_dref,N_a,N_z,N_e,N_j]),[1,2,5,3,4]),[N_dref,N_a*N_j*N_z*N_e]);
+            end
+        end
+    end
+elseif transpathoptions.fastOLG==0
     if N_z==0 && N_e==0
         % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
         % Since we won't need to keep the value functions for anything later we just store the current one in V
