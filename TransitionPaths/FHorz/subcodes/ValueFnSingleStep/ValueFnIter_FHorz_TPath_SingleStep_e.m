@@ -13,7 +13,7 @@ if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     return % QH variant already un-Krons Policy
 end
 
-%% If get to here then not using exoticpreferences nor StateDependentVariables_z
+%% If get to here then not using QuasiHyperbolic (Epstein-Zin is the first branch below) nor StateDependentVariables_z
 % N_z==0 is handled by a different command
 % Local search: see ValueFnIter_FHorz_TPath_SingleStep, which this mirrors for the model with z and e.
 % The reference holds one aprime index per (d,a,z,e,j), in the raws' own Policy order after the leading N_dref.
@@ -34,7 +34,11 @@ if (vfoptions.localsearch==1 || vfoptions.localsearchseed==1) && ~isscalar(n_a)
 end
 aprimeReferencePolicyNew=[];
 N_dref=max(N_d,1);
-if vfoptions.localsearchseed==1 && vfoptions.localsearch==0
+if strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+    % Epstein-Zin: the router builds this period's Epstein-Zin constants and picks the raw. PolicyKron comes
+    % back in the same Kron form as the standard raws, so the UnKron below applies unchanged.
+    [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_EpsteinZin(VKron,n_d,n_a,n_z,n_e,N_j,d_gridvals,a_grid,z_gridvals_J,e_gridvals_J,pi_z_J,pi_e_J,ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions,0);
+elseif vfoptions.localsearchseed==1 && vfoptions.localsearch==0
     %% The SEED sweep: unrestricted, honouring divideandconquer, returning the coarse argmax per d
     if vfoptions.divideandconquer==0
         if vfoptions.gridinterplayer==0

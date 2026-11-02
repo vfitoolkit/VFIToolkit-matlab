@@ -161,6 +161,89 @@ end
 % The semiz-with-experienceasset and semiz-with-QuasiHyperbolic guards live in their own
 % dispatch blocks further down, beside the call they are protecting.
 
+%% Epstein-Zin preferences
+% The option checks and defaults, done once here. The Epstein-Zin constants depend on each period's
+% parameters (risk aversion, the EIS and the survival probabilities may all move along the path, on the
+% ParamPath) and are rebuilt every period by ValueFnIter_FHorz_TPath_SingleStep_EpsteinZin. See
+% ValueFnIter_FHorz_EpsteinZin for the formulation. V_final is the V of the final stationary solve
+% (ValueFnIter_Case1_FHorz with the same vfoptions).
+if strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+    if prod(vfoptions.n_semiz)>0
+        error('Epstein-Zin preferences together with a semi-exogenous state are not yet implemented on a transition path (email me if you want this)')
+    end
+    if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
+        error('Epstein-Zin preferences together with an experience asset are not yet implemented on a transition path (email me if you want this)')
+    end
+    if ~isscalar(n_a)
+        error('Epstein-Zin preferences with two endogenous states are not yet implemented on a transition path (email me if you want this)')
+    end
+    if ~isfield(vfoptions,'EZriskaversion')
+        error('When using Epstein-Zin preferences you must declare vfoptions.EZriskaversion (coefficient controlling risk aversion)')
+    end
+    if ~isfield(vfoptions,'EZutils')
+        vfoptions.EZutils=1; % Use EZ preferences with general utility function (0 gives traditional EZ with exogenous labor)
+    end
+    if vfoptions.EZutils==1
+        if ~isfield(vfoptions,'EZpositiveutility')
+            warning('Using Epstein-Zin preferences it is assumed the utility/return function is negative valued, if not you need to set vfoptions.EZpositiveutility=1')
+            vfoptions.EZpositiveutility=0; % User did not specify. Guess that it is negative as most common things (like CES) are negative valued.
+        end
+    else
+        % Traditional EZ preferences requires you to specify the EIS parameter
+        if ~isfield(vfoptions,'EZeis')
+            error('When using Epstein-Zin preferences you must declare vfoptions.EZeis (elasticity of intertemporal substitution)')
+        end
+    end
+    if ~isfield(vfoptions,'EZoneminusbeta')
+        vfoptions.EZoneminusbeta=0; % default essentially does nothing
+        %=1 Put a (1-beta)* term on the this period return
+        %=2 Put a (1-sj*beta)* term on the this period return
+    end
+    if vfoptions.EZutils==0
+        % Risk aversion and the EIS, in Parameters and, where they move along the path, on the ParamPath
+        crisk=Parameters.(vfoptions.EZriskaversion);
+        if isfield(ParamPath,vfoptions.EZriskaversion)
+            crisk=[crisk(:); ParamPath.(vfoptions.EZriskaversion)(:)];
+        end
+        ceis=Parameters.(vfoptions.EZeis);
+        if isfield(ParamPath,vfoptions.EZeis)
+            ceis=[ceis(:); ParamPath.(vfoptions.EZeis)(:)];
+        end
+        if any(crisk<1)
+            error('Cannot use EZriskaversion parameter less than one (must be risk averse) with Epstein-Zin preferences')
+        end
+        if any(ceis<=0)
+            error('Cannot use EZeis parameter less than zero with Epstein-Zin preferences')
+        end
+        if any(ceis==1)
+            error('Cannot use EZeis parameter equal to one with Epstein-Zin preferences (look at formula, it would mean having to raise to the power of zero; you can always put 0.99 or 1.01)')
+        end
+    end
+    % Survival probabilities: of length N_j, in Parameters and in every period of the ParamPath
+    if isfield(vfoptions,'survivalprobability')
+        if any(strcmp(DiscountFactorParamNames,vfoptions.survivalprobability))
+            warning('You have set vfoptions.survivalprobability=''%s'' and also put ''%s'' in DiscountFactorParamNames. With Epstein-Zin preferences the conditional survival probability should only be declared via vfoptions.survivalprobability (EZ treats it specially); remove it from DiscountFactorParamNames.',vfoptions.survivalprobability,vfoptions.survivalprobability)
+        end
+        if length(Parameters.(vfoptions.survivalprobability))~=N_j
+            error('Survival probabilities (the parameter named by vfoptions.survivalprobability) must be of the same length as N_j')
+        end
+        if isfield(ParamPath,vfoptions.survivalprobability)
+            if numel(ParamPath.(vfoptions.survivalprobability))~=N_j*T
+                error('Survival probabilities on the ParamPath (the parameter named by vfoptions.survivalprobability) must be N_j-by-T: those of every age, in every period')
+            end
+        end
+    elseif isfield(vfoptions,'WarmGlowBequestsFn')
+        warning('You have used vfoptions.WarmGlowBequestsFn, but have not set vfoptions.survivalprobability, it is assumed you only want to have the warm-glow at the end of the final period')
+    end
+    if isfield(vfoptions,'WarmGlowBequestsFn')
+        temp=getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
+        vfoptions.WarmGlowBequestsFnParamsNames={temp{2:end}}; % the first input is aprime
+    end
+    if prod(n_z)==0 && prod(vfoptions.n_e)==0
+        warning('Epstein-Zin preferences do not make much sense without any shocks (the certainty-equivalent is the identity), unless all you want is a reference for what happens in your model without shocks; solving anyway')
+    end
+end
+
 
 %% Internally PricePath is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.

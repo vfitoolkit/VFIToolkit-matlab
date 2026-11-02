@@ -1,0 +1,238 @@
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_EZ_GI1_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7, ezc8)
+% Epstein-Zin, one period of the FHorz transition path (slowOLG). The V input is next period value fn
+% (across all ages), the V output is this period.
+% The transition-path twin of ValueFnIter_FHorz_EpsteinZin_GI1_noz_raw (whose description follows): identical but
+% for (i) V comes in as next period's value fn, and the continuation of age jj is next period's age jj+1
+% (presaved in Vtemp_j before V(...,jj) is overwritten), and (ii) there is no V_Jplus1: the terminal age
+% has no continuation, only the warm-glow.
+% Grid-interpolation-layer version of ValueFnIter_FHorz_EpsteinZin_noz_raw.
+% Grafts the Epstein-Zin transforms onto ValueFnIter_FHorz_GI1_noz_raw. The
+% interpolation acts on EV=(ezc4*V')^ezc5 (the expectations object, exactly
+% where the vNM GI layer interpolates its EV); the certainty-equivalent power
+% ^ezc6 and the rest of the transform chain are applied pointwise AFTER the
+% interpolation. (Linear interpolation of EV commutes with affine maps, so at
+% gamma=1/phi this reproduces the vNM GI layer exactly.) The warm-glow fn is
+% evaluated exactly on the fine grid (no interpolation needed); the coarse pass
+% uses its strided subset.
+% No shocks, so the certainty-equivalent is just the identity (Epstein-Zin
+% without shocks does not make much sense, but is allowed so that models can
+% be compared with/without shocks without also having to change preferences).
+
+N_d=prod(n_d);
+N_a=prod(n_a);
+
+Policy=zeros(4,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
+Policy(4,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
+% When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
+
+%%
+aind=gpuArray(0:1:N_a-1); % already includes -1
+
+% Grid interpolation
+% vfoptions.ngridinterp=9;
+n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
+n2long=vfoptions.ngridinterp*2+3; % total number of aprime points we end up looking at in second layer
+aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
+n2aprime=length(aprime_grid);
+
+% For debugging, uncomment next two lines, with this 'aprime_grid' you
+% should get exact same value fn as without interpolation (as it doesn't
+% really interpolate, it just repeats points)
+% aprime_grid=repelem(a_grid,1+n2short,1);
+% aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
+
+%% j=N_j
+% Temporarily save the time period of V that is being replaced
+Vtemp_j=V(:,N_j);
+
+% Create a vector containing all the return function parameters (in order)
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
+DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+if vfoptions.EZoneminusbeta==1
+    ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
+elseif vfoptions.EZoneminusbeta==2
+    ezc1=1-sj(N_j)*DiscountFactorParamsVec;
+end
+
+% If there is a warm-glow at end of the final period, evaluate the warmglowfn
+% (evaluated exactly on the fine grid; coarse pass uses the strided subset)
+if warmglow==1
+    WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,N_j);
+    WGmatrixfineraw=CreateWarmGlowFnMatrix_Case1_Disc_Par2(vfoptions.WarmGlowBequestsFn, n2aprime, aprime_grid, WGParamsVec);
+    WGmatrixfine=WGmatrixfineraw;
+    WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(N_j);
+    WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+    WGmatrixfine(WGmatrixfineraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
+    becareful=(WGmatrixfine==0);
+    % The warm-glow enters INSIDE the ^ezc7 root at the terminal age: build the
+    % temp4-analogue of the main loop (with no EV term)
+    WGmatrixfine(isfinite(WGmatrixfine))=((1-sj(N_j))*WGmatrixfine(isfinite(WGmatrixfine)).^ezc8(N_j)).^ezc6(N_j);
+    WGmatrixfine(becareful)=0;
+    WGmatrix=WGmatrixfine(1:(n2short+1):end); % coarse-grid subset
+    WGmatrix=WGmatrix(:); % column over the coarse aprime grid
+else
+    WGmatrixfine=zeros(n2aprime,1,'gpuArray');
+    WGmatrix=zeros(N_a,1,'gpuArray');
+end
+
+ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,1);
+% (d,aprime,a)
+% Modify the Return Function appropriately for Epstein-Zin Preferences
+becareful=isfinite(ReturnMatrix); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
+ReturnMatrix(becareful)=ReturnMatrix(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix now holds what was temp2 (avoids a full-size copy)
+%Calc the max and it's index
+ReturnMatrix=ezc1*ReturnMatrix+ezc3*DiscountFactorParamsVec*shiftdim(WGmatrix,-1); % in-place: ReturnMatrix now holds what was entireRHS
+ReturnMatrix(isnan(ReturnMatrix))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+temp5=~(ReturnMatrix==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
+ReturnMatrix(temp5)=ReturnMatrix(temp5).^ezc7(N_j);
+[~,maxindex]=max(ReturnMatrix,[],2);
+
+% Turn this into the 'midpoint'
+midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+% midpoint is n_d-1-by-n_a
+aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
+% aprime possibilities are n_d-by-n2long-by-n_a
+ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn,n_d, d_gridvals,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec,2);
+% Modify the Return Function appropriately for Epstein-Zin Preferences
+becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
+wasnegInf=(ReturnMatrix_ii==-Inf); % save raw -Inf pattern for the L2 flag (the in-place transform below overwrites ReturnMatrix_ii)
+ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
+ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*reshape(WGmatrixfine(aprimeindexes(:)),[N_d*n2long,N_a]); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
+ReturnMatrix_ii(isnan(ReturnMatrix_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+temp5=~(ReturnMatrix_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
+ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
+[Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
+
+% L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+d_ind = rem(maxindexL2-1,N_d)+1;
+L2offset = ceil(maxindexL2/N_d);
+linidx_lower = d_ind + N_d*n2long*aind;
+linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+isInfLower = wasnegInf(linidx_lower);
+isInfUpper = wasnegInf(linidx_upper);
+inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+Policy(4,:,N_j) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
+V(:,N_j)=shiftdim(Vtempii,1);
+allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
+Policy(1,:,N_j)=d_ind; % d
+Policy(2,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
+Policy(3,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+
+%% Iterate backwards through j.
+for reverse_j=1:N_j-1
+    jj=N_j-reverse_j;
+
+
+    % Create a vector containing all the return function parameters (in order)
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    if vfoptions.EZoneminusbeta==1
+        ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
+    elseif vfoptions.EZoneminusbeta==2
+        ezc1=1-sj(jj)*DiscountFactorParamsVec;
+    end
+
+    % If there is a warm-glow, evaluate the warmglowfn (exactly on the fine grid; coarse pass uses the strided subset)
+    if warmglow==1
+        WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,jj);
+        WGmatrixfineraw=CreateWarmGlowFnMatrix_Case1_Disc_Par2(vfoptions.WarmGlowBequestsFn, n2aprime, aprime_grid, WGParamsVec);
+        WGmatrixfine=WGmatrixfineraw;
+        WGmatrixfine(isfinite(WGmatrixfineraw))=(ezc4*WGmatrixfineraw(isfinite(WGmatrixfineraw))).^ezc5(jj);
+        WGmatrixfine(WGmatrixfineraw==0)=0; % otherwise zero to negative power is set to infinity
+        WGmatrixfine(WGmatrixfineraw==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
+        WGmatrix=WGmatrixfine(1:(n2short+1):end); % coarse-grid subset
+        WGmatrix=WGmatrix(:); % column over the coarse aprime grid
+    end
+
+    VKronNext_j=Vtemp_j; % Has been presaved before it was replaced
+    Vtemp_j=V(:,jj); % Grab this before it is replaced/updated
+    EVpre=VKronNext_j;
+    % Part of Epstein-Zin is before taking expectation
+    temp=EVpre;
+    temp(isfinite(EVpre))=(ezc4*EVpre(isfinite(EVpre))).^ezc5(jj);
+    temp(EVpre==-Inf)=-Inf*ezc4; % a -Inf (dead) continuation must stay infinitely bad: with ezc4=-1 the untouched -Inf would come out of ezc3*beta*(.) as +Inf
+
+    % No shocks, so no expectation to take (the certainty-equivalent is just the identity)
+    EV=temp;
+
+    % Interpolate EV over aprime_grid (BEFORE the certainty-equivalent power ^ezc6)
+    EVinterp=interp1(a_grid,EV,aprime_grid'); % (column, to match WGmatrixfine)
+
+    % Certainty-equivalent (and mortality-risk/warm-glow) transform, pointwise over aprime
+    temp4=EV;
+    temp4interp=EVinterp;
+    if warmglow==1
+        becareful=logical((~(temp4==-Inf)).*isfinite(WGmatrix)); % both are finite
+        temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
+        temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
+        becareful=logical((~(temp4interp==-Inf)).*isfinite(WGmatrixfine)); % both are finite
+        temp4interp(becareful)=(sj(jj)*temp4interp(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrixfine(becareful).^ezc8(jj)).^ezc6(jj);
+        temp4interp((EVinterp==0)&(WGmatrixfine==0))=0; % Is actually zero
+    else % not using warmglow
+        temp4(~(temp4==-Inf))=(sj(jj)*temp4(~(temp4==-Inf)).^ezc8(jj)).^ezc6(jj);
+        temp4(EV==0)=0;
+        temp4interp(~(temp4interp==-Inf))=(sj(jj)*temp4interp(~(temp4interp==-Inf)).^ezc8(jj)).^ezc6(jj);
+        temp4interp(EVinterp==0)=0;
+    end
+
+    ReturnMatrix=CreateReturnFnMatrix_Disc_noz(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,1);
+    % (d,aprime,a)
+    becareful=isfinite(ReturnMatrix); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
+    temp2=ReturnMatrix;
+    temp2(becareful)=ReturnMatrix(becareful).^ezc2(jj);
+    entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*shiftdim(temp4,-1); % [d,aprime,a]
+    entireRHS(isnan(entireRHS))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+    temp5=~(entireRHS==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
+    entireRHS(temp5)=entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
+
+    %Calc the max and it's index
+    [~,maxindex]=max(entireRHS,[],2);
+
+    % Turn this into the 'midpoint'
+    midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+    % midpoint is n_d-1-by-n_a
+    aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
+    % aprime possibilities are n_d-by-n2long-by-n_a
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn,n_d,d_gridvals,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec,2);
+    becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
+    temp2_ii=ReturnMatrix_ii;
+    temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
+    entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4interp(aprimeindexes(:)),[N_d*n2long,N_a]);
+    entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
+    temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
+    entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
+    [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+
+    % L2 flag to later avoid -Inf ReturnFn (1=all to lower, 2=usual, 3=all to upper)
+    d_ind = rem(maxindexL2-1,N_d)+1;
+    L2offset = ceil(maxindexL2/N_d);
+    linidx_lower = d_ind + N_d*n2long*aind;
+    linidx_upper = d_ind + N_d*(n2long-1) + N_d*n2long*aind;
+    isInfLower = (ReturnMatrix_ii(linidx_lower) == -Inf);
+    isInfUpper = (ReturnMatrix_ii(linidx_upper) == -Inf);
+    inLowerStrict = (L2offset >= 2)         & (L2offset <= n2short+1);
+    inUpperStrict = (L2offset >= n2short+3) & (L2offset <= n2long-1);
+    Policy(4,:,jj) = 2 + (inLowerStrict & isInfLower) - (inUpperStrict & isInfUpper);
+
+    V(:,jj)=shiftdim(Vtempii,1);
+    allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
+    Policy(1,:,jj)=d_ind; % d
+    Policy(2,:,jj)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
+    Policy(3,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+end
+
+
+%% Currently Policy(2,:) is the midpoint, and Policy(3,:) the second layer
+% (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
+% we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
+% counting 0:nshort+1 up from this.
+adjust=(Policy(3,:,:)<1+n2short+1); % if second layer is choosing below midpoint
+Policy(2,:,:)=Policy(2,:,:)-adjust; % lower grid point
+Policy(3,:,:)=Policy(3,:,:)-(n2short+1)*(~adjust); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+
+
+end

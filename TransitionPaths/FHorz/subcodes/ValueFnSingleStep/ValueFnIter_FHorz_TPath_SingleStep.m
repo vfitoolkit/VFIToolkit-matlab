@@ -37,9 +37,13 @@ if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     return % QH variant already un-Krons Policy
 end
 
-%% If get to here then not using exoticpreferences nor StateDependentVariables_z
+%% If get to here then not using QuasiHyperbolic (Epstein-Zin is the first branch below) nor StateDependentVariables_z
 % N_z==0 is handled by a different command
-if vfoptions.localsearchseed==1 && vfoptions.localsearch==0
+if strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+    % Epstein-Zin: the router builds this period's Epstein-Zin constants and picks the raw. PolicyKron comes
+    % back in the same Kron form as the standard raws, so the UnKron below applies unchanged.
+    [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_EpsteinZin(VKron,n_d,n_a,n_z,0,N_j,d_gridvals,a_grid,z_gridvals_J,[],pi_z_J,[],ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions,0);
+elseif vfoptions.localsearchseed==1 && vfoptions.localsearch==0
     %% The SEED sweep: unrestricted, but returning a reference for vfoptions.localsearch
     % Set by Step1 on the standard sweeps of a localsearch solve -- iteration 1 and every verification
     % sweep. Every branch returns THE COARSE ARGMAX OF THE UNRESTRICTED SEARCH, per d where there is a
