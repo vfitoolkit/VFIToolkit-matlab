@@ -112,7 +112,7 @@ PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
 
 
 %%
-SimPanelValues=nan(length(FnsToEvaluate),simoptions.simperiods,simoptions.numbersims);
+SimPanelValues=nan(numFnsToEvaluate,simoptions.simperiods,simoptions.numbersims); % numFnsToEvaluate, not length(FnsToEvaluate) (which is 1 for a struct): rows created by growing the array are zero, so a function that does not apply to a ptype got zeros, not NaN, for its simulations
 for ii=1:N_i
     iistr=Names_i{ii};
     % First set up simoptions
@@ -184,7 +184,9 @@ for ii=1:N_i
     l_z_temp=length(n_z_temp);
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
-
+    if sum(FnsAndPTypeIndicator_ii)==0
+        continue % none of the FnsToEvaluate are relevant to this type (its simulations stay NaN)
+    end
 
     simoptions_temp.keepoutputasmatrix=1;
     if simoptions_temp.numbersims>0
@@ -195,10 +197,10 @@ for ii=1:N_i
     end
 
     if ii==1
-        SimPanelValues(WhichFnsForCurrentPType,:,1:sum(PType_numbersims(1:ii)))=SimPanelValues_ii;
+        SimPanelValues(FnsAndPTypeIndicator_ii,:,1:sum(PType_numbersims(1:ii)))=SimPanelValues_ii; % the rows of the functions relevant to this type (WhichFnsForCurrentPType is 0 for the others, so cannot index)
         % I decided to get rid of giving the PType as part of the panel as you can always ask for this using FnsToEvaluate anyway if you actually want it.
     else
-        SimPanelValues(WhichFnsForCurrentPType,:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=SimPanelValues_ii;
+        SimPanelValues(FnsAndPTypeIndicator_ii,:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=SimPanelValues_ii; % the rows of the functions relevant to this type
         % I decided to get rid of giving the PType as part of the panel as you can always ask for this using FnsToEvaluate anyway if you actually want it.
     end
 

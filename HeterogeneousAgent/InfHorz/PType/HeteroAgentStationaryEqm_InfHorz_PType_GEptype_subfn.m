@@ -61,12 +61,14 @@ for ii=1:PTypeStructure.N_i
     [V_ii, Policy_ii]=ValueFnIter_InfHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
     StationaryDist_ii=StationaryDist_InfHorz(Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).Parameters);
     % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
-    AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).simoptions);
+    if any(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii) % a type none of the FnsToEvaluate are relevant to adds nothing to the aggregates
+        AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).simoptions);
 
-    for kk=1:PTypeStructure.numFnsToEvaluate
-        jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
-        if jj>0
-            AggVars_ConditionalOnPType(kk,ii)=AggVars_ii(jj); % weights are applied when aggregating, below
+        for kk=1:PTypeStructure.numFnsToEvaluate
+            jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
+            if jj>0
+                AggVars_ConditionalOnPType(kk,ii)=AggVars_ii(jj); % weights are applied when aggregating, below
+            end
         end
     end
 

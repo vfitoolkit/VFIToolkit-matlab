@@ -619,6 +619,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
 
     % Grouped mean and standard deviation are overwritten on a more direct calculation that does not involve the digests
     SigmaNxi=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
+    MeanVec(ff,gather(FnsAndPTypeIndicator(ff,:))==0)=0; % A ptype this FnToEvaluate does not apply to has a NaN Mean, and 0*NaN is NaN, so the grouped Mean (and the grouped StdDeviation, through its MeanVec differences) would be NaN: its entry is multiplied by a zero FnsAndPTypeIndicator below anyway, so make it zero
 
     % Mean
     if simoptions.whichstats(1)==1

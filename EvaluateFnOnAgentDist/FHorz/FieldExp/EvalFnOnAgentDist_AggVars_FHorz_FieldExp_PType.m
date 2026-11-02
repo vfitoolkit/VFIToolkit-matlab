@@ -159,7 +159,10 @@ for ii=1:N_i
             l_ze_temp=l_z_temp+length(simoptions.n_e);
         end
     end
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_ze_temp,0);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_ze_temp,0);
+    if sum(FnsAndPTypeIndicator_ii)==0
+        continue % none of the FnsToEvaluate are relevant to this type (it adds nothing to the control or treatment aggregates)
+    end
 
     %% Some setup to get just the relevant parts of the parameters and policy for the control group
     % Want to modify just the control parameters

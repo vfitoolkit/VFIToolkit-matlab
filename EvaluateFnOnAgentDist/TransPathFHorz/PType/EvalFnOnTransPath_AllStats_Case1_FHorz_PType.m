@@ -176,7 +176,10 @@ for ii=1:N_i
     transpathoptionsZ_ii.(iistr)=transpathoptionsZ;
 
     % _tminus1 and _tplus1 of this ptype
-    [FnsToEvaluate_temp,~,~,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    if sum(FnsAndPTypeIndicator_ii)==0
+        FnsToEvaluate_temp=struct(); % none of the FnsToEvaluate are relevant to this type, so it has no lags (it still needs its lagsinfo)
+    end
     [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk,use_tplus1price,use_tminus1price,use_tminus1params,use_tminus1AggVars]=inputsFindtplus1tminus1(FnsToEvaluate_temp,struct(),PricePathNames_temp,ParamPathNames_temp,{},transpathoptions);
     lagsinfo_ii.(iistr).tplus1priceNames=tplus1priceNames;
     lagsinfo_ii.(iistr).tminus1priceNames=tminus1priceNames;
