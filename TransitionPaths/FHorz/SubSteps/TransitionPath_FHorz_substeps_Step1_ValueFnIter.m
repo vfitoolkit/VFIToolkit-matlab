@@ -327,7 +327,7 @@ elseif transpathoptions.fastOLG==0
                 Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
             end
 
-            if transpathoptions.zpathtrivial==0
+            if transpathoptions.epathtrivial==0 % with e but no z, only epathtrivial is set when e varies over the path
                 e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                 pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
             end
@@ -634,7 +634,7 @@ elseif transpathoptions.fastOLG==1
                 Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
             end
 
-            if transpathoptions.zpathtrivial==0
+            if transpathoptions.epathtrivial==0 % with e but no z, only epathtrivial is set when e varies over the path
                 e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                 pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr); % fastOLG value function uses (j,z',z)
             end
