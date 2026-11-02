@@ -92,9 +92,14 @@ GEcondnsbase=GEcondnsbase(:);
 Omega=zeros(length(GEeqnNames),nPrices);
 for jj=1:nPrices
     ParametersSSjj=ParametersSS;
-    ParametersSSjj.(PricePathNames{jj})=ParametersSS.(PricePathNames{jj})+transpathoptions.epsprice;
+    % One-sided inward near an upper bound on the price (constraints on the prices, see TransitionPath_Case1_FHorz)
+    epsjj=transpathoptions.epsprice;
+    if isfield(transpathoptions,'useconstraints') && transpathoptions.useconstraints==1 && any(ParametersSS.(PricePathNames{jj})+epsjj>=transpathoptions.pricepathupperbound(jj))
+        epsjj=-epsjj;
+    end
+    ParametersSSjj.(PricePathNames{jj})=ParametersSS.(PricePathNames{jj})+epsjj;
     [~,GEcondnsjj]=HeteroAgentStationaryEqm_Case1_FHorz(jequalOneDistSS,AgeWeightsParamNames,n_d,n_a,n_z,N_j,0,pi_z,d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqnsSS, ParametersSSjj, DiscountFactorParamNames, [], [], [], PricePathNames, heteroagentoptionsW, simoptions, vfoptions);
-    Omega(:,jj)=(GEcondnsjj(:)-GEcondnsbase)/transpathoptions.epsprice;
+    Omega(:,jj)=(GEcondnsjj(:)-GEcondnsbase)/epsjj;
 end
 
 end

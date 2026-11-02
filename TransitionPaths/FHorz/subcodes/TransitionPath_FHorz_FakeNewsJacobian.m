@@ -170,7 +170,12 @@ end
 J_Ap=zeros(nT,nT,nAgg,nP);
 for ip=1:nP
     Pperturb0=Psteady;
-    Pperturb0.(PricePathNames{ip})=Pperturb0.(PricePathNames{ip})+epsprice; % the price change, at the date it happens
+    % One-sided inward near an upper bound on the price (constraints on the prices, see TransitionPath_Case1_FHorz)
+    epsip=epsprice;
+    if isfield(transpathoptions,'useconstraints') && transpathoptions.useconstraints==1 && any(Psteady.(PricePathNames{ip})+epsip>=transpathoptions.pricepathupperbound(ip))
+        epsip=-epsip;
+    end
+    Pperturb0.(PricePathNames{ip})=Pperturb0.(PricePathNames{ip})+epsip; % the price change, at the date it happens
 
     Vb=V_final; % unperturbed continuation value
     Vp=V_final; % perturbed continuation value
@@ -201,13 +206,13 @@ for ip=1:nP
         AggVarsb=TransitionPath_FHorz_substeps_Step4tt_AggVars(D_ss,AgeWeightsSS,PolicyValuesb(:,:,:,:,1),1,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Psteady,N_j,l_d,l_aprime,l_a,0,l_z,0,N_d,N_a,0,N_z,0,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions);
         AggVarsp=TransitionPath_FHorz_substeps_Step4tt_AggVars(D_ss,AgeWeightsSS,PolicyValuesp(:,:,:,:,1),1,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Pp,N_j,l_d,l_aprime,l_a,0,l_z,0,N_d,N_a,0,N_z,0,a_gridvals,semizze_gridvals_J_fastOLG,transpathoptions);
         for oo=1:nAgg
-            curlyY(k,oo)=gather(AggVarsp.(AggVarNames{oo}).Mean-AggVarsb.(AggVarNames{oo}).Mean)/epsprice;
+            curlyY(k,oo)=gather(AggVarsp.(AggVarNames{oo}).Mean-AggVarsb.(AggVarNames{oo}).Mean)/epsip;
         end
 
         % curlyD: the distribution at date 1. The age-1 entries are jequalOneDist in both, so they cancel.
         AgentDistb=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(D_ss,PolicyForDistb,PolicyProbsb,1,N_a,N_z,0,N_j,N_probs,pi_z_J,pi_z_J_sim,[],[],II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDistSS,transpathoptions,simoptions);
         AgentDistp=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(D_ss,PolicyForDistp,PolicyProbsp,1,N_a,N_z,0,N_j,N_probs,pi_z_J,pi_z_J_sim,[],[],II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDistSS,transpathoptions,simoptions);
-        curlyD(:,k)=gather(AgentDistp-AgentDistb)/epsprice;
+        curlyD(:,k)=gather(AgentDistp-AgentDistb)/epsip;
     end
 
     % The fake-news matrix, and the Jacobian from it
@@ -242,9 +247,13 @@ end
 H_p=zeros(nG,nP);
 for ip=1:nP
     Pgeperturb=Pge;
-    Pgeperturb.(PricePathNames{ip})=Pgeperturb.(PricePathNames{ip})+epsprice;
+    epsip=epsprice; % one-sided inward near an upper bound on the price, as above
+    if isfield(transpathoptions,'useconstraints') && transpathoptions.useconstraints==1 && any(Pge.(PricePathNames{ip})+epsip>=transpathoptions.pricepathupperbound(ip))
+        epsip=-epsip;
+    end
+    Pgeperturb.(PricePathNames{ip})=Pgeperturb.(PricePathNames{ip})+epsip;
     for gg=1:nG
-        H_p(gg,ip)=(gather(real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names,Pgeperturb)))-GEbase(gg))/epsprice;
+        H_p(gg,ip)=(gather(real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names,Pgeperturb)))-GEbase(gg))/epsip;
     end
 end
 H_A=zeros(nG,nAgg);

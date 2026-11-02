@@ -78,7 +78,12 @@ for ip=1:nPrices
     for tt=1:T-1
         k=(ip-1)*(T-1)+tt;
         pk=p;
-        pk(k)=pk(k)+transpathoptions.epsprice;
+        % One-sided inward near an upper bound on the price (constraints on the prices, see TransitionPath_Case1_FHorz)
+        epsk=transpathoptions.epsprice;
+        if isfield(transpathoptions,'useconstraints') && transpathoptions.useconstraints==1 && pk(k)+epsk>=transpathoptions.pricepathupperbound(ip)
+            epsk=-epsk;
+        end
+        pk(k)=pk(k)+epsk;
         PricePathk=PricePathOld;
         PricePathk(1:T-1,:)=reshape(pk,T-1,nPrices);
         PolicyIndexesPathk=PolicyIndexesPath; % the baseline, kept at every period after tt
@@ -89,7 +94,7 @@ for ip=1:nPrices
         end
         [~,PolicyIndexesPathk]=TransitionPath_FHorz_substeps_Step1_ValueFnIter(tt+1,PolicyIndexesPathk,[],V_ttplus1,Parameters,PricePathk,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_j,N_z,N_e,d_gridvals, a_grid, z_gridvals_J,e_gridvals_J,pi_z_J,pi_e_J,ReturnFn,DiscountFactorParamNames, ReturnFnParamNames, transpathoptions,vfoptions);
         GEcondnPathk=TransitionPath_FHorz_singlepathiter(PricePathk, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_z,n_e,N_j, N_d,N_a,N_semiz,N_z,N_e, l_d,l_aprime,l_a,l_semiz,l_z,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,semiz_gridvals_J,z_gridvals_J,e_gridvals_J,semizze_gridvals_J_fastOLG, pi_semiz_J, pi_z_J,pi_e_J,pi_e_J_vf,pi_semiz_J_sim,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarInPricePathNames, vfoptions, simoptions, transpathoptionsskip, itercounter, PolicyIndexesPathk, [], N_probs, II1, II2, exceptlastj, exceptfirstj, justfirstj);
-        J(:,k)=(reshape(GEcondnPathk,[],1)-f)/transpathoptions.epsprice;
+        J(:,k)=(reshape(GEcondnPathk,[],1)-f)/epsk;
     end
 end
 
