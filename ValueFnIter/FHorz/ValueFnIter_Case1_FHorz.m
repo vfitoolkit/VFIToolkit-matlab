@@ -118,9 +118,25 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(vfoptions.n_e);
-% vfoptions.lowmemory=2 loops over both z and e, so it is only possible in models with both z and e
-if vfoptions.lowmemory==2 && (N_z==0 || N_e==0)
-    error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+N_semiz=prod(vfoptions.n_semiz);
+% Without semi-exogenous states, vfoptions.lowmemory=2 loops over both z and e, so it needs both z and e (and there is no lowmemory=3)
+% With semi-exogenous states, lowmemory=2 also loops over semiz (jointly with z, or outside e), so it needs z or e
+% and lowmemory=3 is a joint loop over semiz and z with an inner loop over e, so it needs both z and e
+% Exception: Epstein-Zin riskyasset with semiz, whose raws use the most-looped variant they have for every lowmemory above what they distinguish
+if N_semiz>0 && vfoptions.riskyasset==1 && strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+    % no refusal, all lowmemory values work
+elseif N_semiz==0
+    if vfoptions.lowmemory==2 && (N_z==0 || N_e==0)
+        error('vfoptions.lowmemory=2 is only possible in models with both z and e (it loops over both), use vfoptions.lowmemory=1')
+    elseif vfoptions.lowmemory==3
+        error('vfoptions.lowmemory=3 is only possible in models with semi-exogenous states, z and e (joint loop over semiz and z, inner loop over e), use vfoptions.lowmemory=1')
+    end
+else
+    if vfoptions.lowmemory==2 && N_z==0 && N_e==0
+        error('vfoptions.lowmemory=2 with semi-exogenous states is only possible in models with z or e (it loops over semiz together with them), use vfoptions.lowmemory=1 (which already loops over semiz)')
+    elseif vfoptions.lowmemory==3 && (N_z==0 || N_e==0)
+        error('vfoptions.lowmemory=3 with semi-exogenous states is only possible in models with both z and e (joint loop over semiz and z, inner loop over e), use vfoptions.lowmemory=2')
+    end
 end
 
 if ~all(size(d_grid)==[sum(n_d), 1])
