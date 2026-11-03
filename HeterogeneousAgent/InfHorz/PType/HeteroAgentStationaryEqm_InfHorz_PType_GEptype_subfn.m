@@ -177,8 +177,6 @@ if heteroagentoptions.useintermediateEqns==1
 end
 
 %% Evaluate General Eqm Eqns
-% use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-% use of real() has been disabled, see how it goes without
 GeneralEqmConditionsVec=zeros(1,sum(heteroagentoptions.GEptype==0)+PTypeStructure.N_i*sum(heteroagentoptions.GEptype==1));
 % Some general eqm conditions are conditional on ptype, so go through one by one
 gg_c=0;

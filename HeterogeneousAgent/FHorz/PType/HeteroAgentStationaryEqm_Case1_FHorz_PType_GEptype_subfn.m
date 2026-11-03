@@ -164,7 +164,6 @@ if isfield(heteroagentoptions,'intermediateEqns')
     for gg=1:length(intEqnnames)
         if heteroagentoptions.intermediateEqnsptype(gg)==0 % standard intermediateEqn
             gg_c=gg_c+1;
-            % intermediateEqnsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg_c).Names, Parameters));
             intermediateEqnsVec(gg_c)=GeneralEqmConditions_Case1_v3g(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg_c).Names, Parameters);
             Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg_c);
 
@@ -184,7 +183,6 @@ if isfield(heteroagentoptions,'intermediateEqns')
         elseif heteroagentoptions.intermediateEqnsptype(gg)==1 % Do this intermediateEqn condition conditional on ptype
             for ii=1:PTypeStructure.N_i % This General eqm condition has to hold conditional on each ptype
                 gg_c=gg_c+1;
-                % intermediateEqnsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g_ptype(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg_c).Names, Parameters));
                 intermediateEqnsVec(gg_c)=GeneralEqmConditions_Case1_v3g_ptype(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg_c).Names, Parameters);
                 Parameters.(intEqnnames{gg}).(PTypeStructure.Names_i{ii})=intermediateEqnsVec(gg_c);
                 % also, just in case they need to be used again, add the _name version
@@ -196,8 +194,6 @@ end
 
 
 %% Evaluate the General Eqm Eqns
-% use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-% use of real() has been disabled, see how it goes without
 GEeqnnames=fieldnames(GeneralEqmEqns);
 GeneralEqmConditionsVec=zeros(1,sum(heteroagentoptions.GEptype==0)+PTypeStructure.N_i*sum(heteroagentoptions.GEptype==1));
 % Some general eqm conditions are conditional on ptype, so go through one by one
@@ -205,12 +201,10 @@ gg_c=0;
 for gg=1:length(GEeqnnames)
     if heteroagentoptions.GEptype(gg)==0 % Standard general eqm condition
         gg_c=gg_c+1;
-        % GeneralEqmConditionsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg_c).Names, Parameters));
         GeneralEqmConditionsVec(gg_c)=GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg_c).Names, Parameters);
     elseif heteroagentoptions.GEptype(gg)==1 % Do this general eqm condition conditional on ptype
         for ii=1:PTypeStructure.N_i % This General eqm condition has to hold conditional on each ptype
             gg_c=gg_c+1;
-            % GeneralEqmConditionsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g_ptype(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg_c).Names, Parameters));
             GeneralEqmConditionsVec(gg_c)=GeneralEqmConditions_Case1_v3g_ptype(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg_c).Names, Parameters);
         end
     end

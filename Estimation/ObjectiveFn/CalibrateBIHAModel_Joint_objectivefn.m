@@ -98,15 +98,14 @@ end
 %% intermediateEqns
 if heteroagentoptions.useintermediateEqns==1
     for aa=1:heteroagentoptions.nIntermediateEqns
-        Parameters.(heteroagentoptions.intermediateEqnNames{aa})=real(GeneralEqmConditions_Case1_v3(heteroagentoptions.intermediateEqnsCell{aa},heteroagentoptions.intermediateEqnParamNames(aa).Names,Parameters));
+        Parameters.(heteroagentoptions.intermediateEqnNames{aa})=GeneralEqmConditions_Case1_v3(heteroagentoptions.intermediateEqnsCell{aa},heteroagentoptions.intermediateEqnParamNames(aa).Names,Parameters);
     end
 end
 
 %% Evaluate General Eqm Eqns
 GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
 for gg=1:length(GEeqnNames)
-    % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-    GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+    GeneralEqmConditionsVec(gg)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters);
 end
 GEout.prices=zeros(length(GEPriceParamNames),1);
 for pp=1:length(GEPriceParamNames)
