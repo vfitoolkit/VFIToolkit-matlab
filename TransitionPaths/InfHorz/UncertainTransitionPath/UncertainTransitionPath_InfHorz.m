@@ -36,11 +36,25 @@ function [PricePathTree, UncertainTPathSummary]=UncertainTransitionPath_InfHorz(
 % OUTPUTS
 %   PricePathTree.(price) is 1-by-nNodes, the prices on the tree (at convergence, the prices the summary was evaluated at).
 %   UncertainTPathSummary: .Tree (from UncertainTransPathTree), .GEcondnTree.(eqn) (1-by-nNodes), .AggVarsTree,
-%     .VPathTree, .PolicyPathTree, .AgentDistPathTree, .finaleqm.S<k> (p_eqm, GeneralEqmCondnValues, V_final,
+%     .AggVarsGivenChildTree (see EvalFnOnUncertainTransPath_AggVars_InfHorz), .VPathTree, .PolicyPathTree, .AgentDistPathTree, .finaleqm.S<k> (p_eqm, GeneralEqmCondnValues, V_final,
 %     Policy_final), .iterations, .PricePathDist, .GEcondnDist.
 %   The prices of history h are PricePathTree.(price)(UncertainTPathSummary.Tree.histories(h,:)).
 %
-% Not yet: intermediateEqns, _tminus1/_tplus1 in the general eqm conditions, local search, permanent types.
+% _tplus1 AND _tminus1, in GeneralEqmEqns_Transition and FnsToEvaluate (as in TransitionPath_InfHorz: _tplus1 of
+% prices, _tminus1 of prices, parameters and aggregates, with transpathoptions.initialvalues for period 1).
+%   _tminus1 is the value at the parent node.
+%   _tplus1 at a node with one child is the child's price, and at a period T node the node's own (the final eqm). At a
+%     branching node next period's price is not yet known, and a general eqm condition that uses _tplus1 holds IN
+%     EXPECTATION: it is evaluated with the prices of each child c, and the condition at the node is
+%     sum_c Tree.nodecondprob(c)*condition_c. A FnsToEvaluate that uses _tplus1 is the same: its aggregate at the node
+%     given child c is UncertainTPathSummary.AggVarsGivenChildTree.(name)(c), a general eqm condition takes that value
+%     in condition_c, and AggVarsTree.(name).Mean is the expectation over the children.
+%   The expectation is of the condition exactly as written: q-(d_tplus1+q_tplus1)/(1+r_tplus1) and
+%   q*(1+r_tplus1)-(d_tplus1+q_tplus1) are the same condition on a deterministic path, but not in expectation.
+%   Not implemented: _tminus1 of an aggregate whose FnsToEvaluate uses _tplus1 (its value at a branching node depends
+%   on the child), and transpathoptions.stockvars.
+%
+% Not yet: intermediateEqns, stockvars, local search, permanent types.
 
 %% Options
 if ~exist('transpathoptions','var') || isempty(transpathoptions)
@@ -127,17 +141,14 @@ end
 if isfield(transpathoptions,'intermediateEqns')
     error('UncertainTransitionPath_InfHorz: transpathoptions.intermediateEqns is not yet implemented for uncertain transition paths')
 end
+if isfield(transpathoptions,'stockvars') && ~isempty(transpathoptions.stockvars)
+    error('UncertainTransitionPath_InfHorz: transpathoptions.stockvars is not yet implemented for uncertain transition paths')
+end
 GEeqnNames=fieldnames(GeneralEqmEqns_Transition);
 nGEeqns=length(GEeqnNames);
 GeneralEqmEqnsCell=cell(1,nGEeqns);
 for gg=1:nGEeqns
-    temp=getAnonymousFnInputNames(GeneralEqmEqns_Transition.(GEeqnNames{gg}));
-    for ii=1:length(temp)
-        if endsWith(temp{ii},'_tminus1') || endsWith(temp{ii},'_tplus1')
-            error('UncertainTransitionPath_InfHorz: GeneralEqmEqns_Transition.%s uses %s; _tminus1 and _tplus1 are not yet implemented for uncertain transition paths',GEeqnNames{gg},temp{ii})
-        end
-    end
-    GeneralEqmEqnParamNames(gg).Names=temp;
+    GeneralEqmEqnParamNames(gg).Names=getAnonymousFnInputNames(GeneralEqmEqns_Transition.(GEeqnNames{gg}));
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns_Transition.(GEeqnNames{gg});
 end
 
@@ -148,6 +159,44 @@ ParamPathNames=fieldnames(ParamPathNodes);
 PricePathNames=fieldnames(PricePathShaper);
 nPrices=length(PricePathNames);
 transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns_Transition,PricePathNames);
+
+%% _tplus1 and _tminus1
+% _tplus1 (prices only): at a node with one child it is the child's price, and at a period T node the node's own price
+% (the final eqm), exactly as on a deterministic path. At a branching node next period's price is not known, and a
+% general eqm condition that uses _tplus1 is required to hold in expectation over the children: it is evaluated once for
+% each child c, with c's prices, and GEcondn=sum_c nodecondprob(c)*GEcondn_c. A FnsToEvaluate that uses _tplus1 is
+% treated the same way (its aggregate given child c is in AggVarsGivenChildTree, its AggVarsTree is the expectation),
+% and a general eqm condition that uses such an aggregate takes the value given child c in GEcondn_c.
+% _tminus1 (prices, parameters, aggregates): the value at the parent node, and transpathoptions.initialvalues at the
+% period 1 node.
+FnNames=fieldnames(FnsToEvaluate);
+tplus1FnNames={}; % the FnsToEvaluate that use a _tplus1 input
+usetminus1=0;
+for ff=1:length(FnNames)
+    temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{ff}));
+    if any(endsWith(temp,'_tplus1'))
+        tplus1FnNames=[tplus1FnNames,FnNames(ff)];
+    end
+    if any(endsWith(temp,'_tminus1'))
+        usetminus1=1;
+    end
+end
+GEusestplus1=false(1,nGEeqns); % the general eqm conditions that hold in expectation at a branching node
+for gg=1:nGEeqns
+    temp=GeneralEqmEqnParamNames(gg).Names;
+    GEusestplus1(gg)=any(endsWith(temp,'_tplus1')) || any(ismember(temp,tplus1FnNames));
+    if any(endsWith(temp,'_tminus1'))
+        usetminus1=1;
+    end
+end
+if usetminus1==1 && ~isfield(transpathoptions,'initialvalues')
+    error('UncertainTransitionPath_InfHorz: a _tminus1 input is used, so transpathoptions.initialvalues must be given (it supplies the period 1 values)')
+end
+[tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns_Transition,PricePathNames,ParamPathNames,{},transpathoptions);
+temp=intersect(tminus1AggVarsNames,tplus1FnNames);
+if ~isempty(temp)
+    error('UncertainTransitionPath_InfHorz: %s_tminus1 is used, but FnsToEvaluate.%s uses _tplus1, so at a branching node its value depends on which child comes next and its _tminus1 is not defined; not implemented for uncertain transition paths',temp{1},temp{1})
+end
 
 %% The final stationary eqm of each S that a history can be in at period T
 finalS=unique(Tree.nodeS(Tree.nodedate==T))';
@@ -292,36 +341,18 @@ if transpathoptions.GEnewprice==3
 PricePathDist=Inf;
 GEcondnDist=Inf;
 itercounter=1;
+nNL=sum(notlast);
 while itercounter<=transpathoptions.maxiter
-    PricePathStruct=struct();
-    for pp=1:nPrices
-        PricePathStruct.(PricePathNames{pp})=PricePathOld(:,pp)';
-    end
-    [VPathTree,PolicyPathTree]=ValueFnOnUncertainTransPath_InfHorz(PricePathStruct, ParamPath, T, T1, T2, pi_S, S_initial, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
-    AgentDistPathTree=AgentDistOnUncertainTransPath_InfHorz(AgentDist_initial, PricePathStruct, ParamPath, PolicyPathTree, T, T1, T2, pi_S, S_initial, n_d,n_a,n_z,pi_z, Parameters, transpathoptions, simoptions);
-    AggVarsTree=EvalFnOnUncertainTransPath_AggVars_InfHorz(FnsToEvaluate, AgentDistPathTree, PolicyPathTree, PricePathStruct, ParamPath, Parameters, T, T1, T2, pi_S, S_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, transpathoptions, simoptions);
-    AggVarNames=fieldnames(AggVarsTree);
+    % The whole tree at the current prices, and the general eqm conditions at every node
+    [~,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree]=UncertainTransitionPath_InfHorz_evaltree(reshape(PricePathOld,[],1), nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions);
 
-    % The general eqm conditions, and the shooting update, at every node (as the deterministic shooting algorithm does in
-    % each period, with updatePricePathNew_TPath_tt)
+    % The shooting update of the nodes before period T, from the general eqm conditions at each of them. It is the
+    % deterministic one (updatePricePathNew_TPath_T, a per-period formula, so the order of the rows does not matter),
+    % applied to those nodes as if they were the periods 1,...,T-1 of a path; the extra row given to it is the 'period
+    % T' it passes through, and is dropped.
     PricePathNew=PricePathOld;
-    GEcondnTree=zeros(nNodes,nGEeqns);
-    for kk=1:nNodes
-        Parameters_k=Parameters;
-        for pp=1:length(ParamPathNames)
-            Parameters_k.(ParamPathNames{pp})=ParamPathNodes.(ParamPathNames{pp})(kk);
-        end
-        for pp=1:nPrices
-            Parameters_k.(PricePathNames{pp})=PricePathOld(kk,pp);
-        end
-        for ff=1:length(AggVarNames)
-            Parameters_k.(AggVarNames{ff})=AggVarsTree.(AggVarNames{ff}).Mean(kk);
-        end
-        [PricePathNew_k,GEcondnTree(kk,:)]=updatePricePathNew_TPath_tt(Parameters_k,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PricePathOld(kk,:),itercounter,transpathoptions);
-        if notlast(kk)
-            PricePathNew(kk,:)=PricePathNew_k;
-        end
-    end
+    Pnotlastnew=updatePricePathNew_TPath_T(GEcondnTree(notlast,:),[PricePathOld(notlast,:); zeros(1,nPrices)],nNL+1,itercounter,transpathoptions);
+    PricePathNew(notlast,:)=Pnotlastnew(1:nNL,:);
 
     if any(~isfinite(GEcondnTree(notlast,:)),'all')
         error('UncertainTransitionPath_InfHorz: the general eqm conditions are not finite at some node (iteration %i)',itercounter)
@@ -387,7 +418,7 @@ elseif transpathoptions.GEnewprice==2
 % and the shooting map is the deterministic one (updatePricePathNew_TPath_T) applied to those nodes, with the period T
 % nodes (the final eqms) passed through unchanged, as the deterministic shooting map passes period T through.
 nNL=sum(notlast);
-GEcondnsFn=@(p) UncertainTransitionPath_InfHorz_evaltree(p, nNodes, nPrices, PricePathNames, notlast, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions);
+GEcondnsFn=@(p) UncertainTransitionPath_InfHorz_evaltree(p, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions);
 ShootingMapFn=@(p,GEc) UncertainTransitionPath_InfHorz_shootingmap(p,GEc,nNodes,nPrices,nGEeqns,notlast,transpathoptions);
 if transpathoptions.multiGEcriterion==0
     DistanceFn=@(GEc) max(sum(abs(transpathoptions.multiGEweights.*reshape(GEc,nNL,nGEeqns)),2));
@@ -416,7 +447,7 @@ if GEcondnDist>transpathoptions.toleranceGEcondns
     warning('UncertainTransitionPath_InfHorz: Anderson acceleration did not converge; the general eqm conditions are %8.6f from zero, against toleranceGEcondns=%g',GEcondnDist,transpathoptions.toleranceGEcondns)
 end
 % The tree at the returned prices, for the summary (one more evaluation; Anderson keeps only the conditions)
-[~,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree]=GEcondnsFn(reshape(PricePathOld,[],1));
+[~,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree]=GEcondnsFn(reshape(PricePathOld,[],1));
 UncertainTPathSummary.andersonoutput=andersonoutput;
 end
 
@@ -430,6 +461,7 @@ for gg=1:nGEeqns
     UncertainTPathSummary.GEcondnTree.(GEeqnNames{gg})=GEcondnTree(:,gg)';
 end
 UncertainTPathSummary.AggVarsTree=AggVarsTree;
+UncertainTPathSummary.AggVarsGivenChildTree=AggVarsGivenChildTree;
 UncertainTPathSummary.VPathTree=VPathTree;
 UncertainTPathSummary.PolicyPathTree=PolicyPathTree;
 UncertainTPathSummary.AgentDistPathTree=AgentDistPathTree;
