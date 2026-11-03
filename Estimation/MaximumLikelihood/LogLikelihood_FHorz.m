@@ -41,7 +41,10 @@ function [LogL,LogLi,LogLij,PopDist]=LogLikelihood_FHorz(Data,MeasurementError,j
 %         'normal', 't': observed = model value + error ('additive'), or log(observed) = log(model value) + error ('log'; the
 %                        density is then that of the observed value, including the 1/observed Jacobian, and is zero at grid
 %                        states where the model value is not positive)
-%         'exact': the observed value must equal the model value (for discrete-valued observables); emission is one or zero
+%         'exact': the observed value must equal the model value (for discrete-valued observables); emission is one or zero.
+%                  The likelihood is zero (LogL=-Inf) for any individual whose observed path the model cannot produce (e.g., a
+%                  transition out of an absorbing state, or a choice the policy rules out at every state consistent with the
+%                  other observations). With deterministic choices and real data, use 'misclassified' for the choices.
 %         'gridlottery': for a variable observed without error whose model values form a grid (e.g., an endogenous state): the
 %                        observation is put on the two neighbouring values (among the distinct values the FnToEvaluate takes on
 %                        the grid at that age) with linear-interpolation weights, and the emission at a grid state is the weight
