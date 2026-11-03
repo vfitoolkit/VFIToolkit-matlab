@@ -175,29 +175,17 @@ nGeneralEqmEqns=length(GEeqnNames);
 
 GeneralEqmEqnsCell=cell(1,nGeneralEqmEqns);
 for gg=1:nGeneralEqmEqns
-    temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
-    GeneralEqmEqnParamNames(gg).Names=temp;
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
 end
 % Now:
 %  GeneralEqmEqns is still the structure
 %  GeneralEqmEqnsCell is cell
-%  GeneralEqmEqnParamNames(ff).Names contains the names
+%  GeneralEqmEqnParamNames(gg_c).Names contains the names (set up below, once the permanent types are, as they depend on GEptype)
 % Note:
 % joint optimization uses cell and names
 % nested optimization uses structure
 
 nGEParams=length(GEPriceParamNames);
-if caliboptions.jointoptimization==1
-    % The GE prices are added to the calibration parameters (below), so they need transforming
-    GEparamsvec0=zeros(nGEParams,1); % column vector
-    for pp=1:nGEParams
-        GEparamsvec0(pp)=Parameters.(GEPriceParamNames{pp});
-    end
-    % If the parameter is constrained in some way then we need to transform it
-    [GEparamsvec0,heteroagentoptions]=ParameterConstraints_TransformParamsToUnconstrained(GEparamsvec0,0:1:nGEParams,GEPriceParamNames,heteroagentoptions,1);
-    % Also converts the constraints info in heteroagentoptions to be a vector rather than by name.
-end
 
 if isfield(heteroagentoptions,'intermediateEqns')
     heteroagentoptions.useintermediateEqns=1;
@@ -206,10 +194,9 @@ if isfield(heteroagentoptions,'intermediateEqns')
 
     heteroagentoptions.intermediateEqnsCell=cell(1,heteroagentoptions.nIntermediateEqns);
     for gg=1:heteroagentoptions.nIntermediateEqns
-        temp=getAnonymousFnInputNames(heteroagentoptions.intermediateEqns.(heteroagentoptions.intermediateEqnNames{gg}));
-        heteroagentoptions.intermediateEqnParamNames(gg).Names=temp;
         heteroagentoptions.intermediateEqnsCell{gg}=heteroagentoptions.intermediateEqns.(heteroagentoptions.intermediateEqnNames{gg});
     end
+    % (heteroagentoptions.intermediateEqnParamNames(gg_c).Names are set up below, once the permanent types are)
 else
     heteroagentoptions.useintermediateEqns=0;
 end
@@ -345,9 +332,163 @@ end
 [calibparamsvec0,caliboptions]=ParameterConstraints_PType_TransformParamsToUnconstrained(calibparamsvec0,calibparamsvecindex,CalibParamNames,nCalibParamsFinder,caliboptions,1);
 % Also converts the constraints info in caliboptions to be a vector (one entry per (parameter, ptype) block) rather than by name.
 
+
+%% The GE prices, and the general eqm conditions and intermediateEqns, conditional on permanent type
+% As in HeteroAgentStationaryEqm_Case1_FHorz_PType (which nested optimization calls): a GE price can depend on ptype (given as a struct
+% over Names_i, or as a vector with N_i entries), and a GE condition named in heteroagentoptions.GEptype (or an intermediateEqn named in
+% heteroagentoptions.intermediateEqnsptype) holds conditional on each ptype: in it every input that is an AggVar (or a per-ptype
+% intermediateEqn) or a parameter that depends on ptype is read as its '_name' version for that ptype (e.g. N becomes N_typeA). The GE
+% conditions are then a vector with N_i entries for each condition named in GEptype (in the order of the GE eqns, the ptypes in the order
+% of Names_i), and multiGEweights (one per GE eqn) is expanded to match. In joint optimization a GE price that depends on ptype is
+% calibrated as one parameter per ptype.
+GEpriceptype=zeros(nGEParams,1); % 1 if the GE price depends on ptype
+GEprice_PTypeMatrix=zeros(nGEParams,1); % as nCalibParams_PTypeMatrix: 0 a struct, 1 a vector with N_i as first dim, 2 with N_i as second dim (only used to set up the output)
+for pp=1:nGEParams
+    if isstruct(Parameters.(GEPriceParamNames{pp}))
+        GEpriceptype(pp)=1;
+    elseif N_i>1 && numel(Parameters.(GEPriceParamNames{pp}))==N_i % as a vector: convert it to a struct
+        GEpriceptype(pp)=1;
+        temp=Parameters.(GEPriceParamNames{pp});
+        if size(temp,1)==N_i
+            GEprice_PTypeMatrix(pp)=1;
+        else
+            GEprice_PTypeMatrix(pp)=2;
+        end
+        Parameters=rmfield(Parameters,GEPriceParamNames{pp});
+        for ii=1:N_i
+            Parameters.(GEPriceParamNames{pp}).(Names_i{ii})=temp(ii);
+        end
+    end
+end
+
+if ~isfield(heteroagentoptions,'GEptype')
+    heteroagentoptions.GEptype={}; % names of the GE eqns that hold conditional on ptype (gets converted to a binary-valued vector here)
+end
+temp=heteroagentoptions.GEptype;
+heteroagentoptions.GEptype=zeros(1,nGeneralEqmEqns); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+for gg1=1:length(temp)
+    for gg2=1:nGeneralEqmEqns
+        if strcmp(temp{gg1},GEeqnNames{gg2})
+            heteroagentoptions.GEptype(gg2)=1;
+        end
+    end
+end
+temp=heteroagentoptions.multiGEweights; % one per GE eqn: expand to one per GE condition
+heteroagentoptions.multiGEweights=zeros(1,sum(heteroagentoptions.GEptype==0)+N_i*sum(heteroagentoptions.GEptype==1));
+gg_c=0;
+for gg=1:nGeneralEqmEqns
+    if heteroagentoptions.GEptype(gg)==0
+        gg_c=gg_c+1;
+        heteroagentoptions.multiGEweights(gg_c)=temp(gg);
+    else
+        for ii=1:N_i
+            gg_c=gg_c+1;
+            heteroagentoptions.multiGEweights(gg_c)=temp(gg);
+        end
+    end
+end
+
+% The parameters that depend on ptype (as a struct over Names_i, or with N_i as a dimension): in a condition by ptype they are read as
+% their '_name' version (which the objective creates at every evaluation, as calibrated parameters change)
+paramnames=fieldnames(Parameters);
+heteroagentoptions.paramnamesptype={};
+for pp=1:length(paramnames)
+    if isstruct(Parameters.(paramnames{pp}))
+        heteroagentoptions.paramnamesptype{length(heteroagentoptions.paramnamesptype)+1}=paramnames{pp};
+    elseif (isnumeric(Parameters.(paramnames{pp})) || islogical(Parameters.(paramnames{pp}))) && any(size(Parameters.(paramnames{pp}))==N_i)
+        heteroagentoptions.paramnamesptype{length(heteroagentoptions.paramnamesptype)+1}=paramnames{pp};
+    end
+end
+
+AggVarNames_mod=fieldnames(FnsToEvaluate); % the inputs that are read per ptype in a condition by ptype (the AggVars, then the intermediateEqns by ptype)
+if heteroagentoptions.useintermediateEqns==1
+    if isfield(heteroagentoptions,'intermediateEqnsptype')
+        temp=heteroagentoptions.intermediateEqnsptype;
+    else
+        temp={};
+    end
+    heteroagentoptions.intermediateEqnsptype=zeros(1,heteroagentoptions.nIntermediateEqns); % 1 indicates that this intermediate eqn is 'conditional on permanent type'
+    for gg1=1:length(temp)
+        for gg2=1:heteroagentoptions.nIntermediateEqns
+            if strcmp(temp{gg1},heteroagentoptions.intermediateEqnNames{gg2})
+                heteroagentoptions.intermediateEqnsptype(gg2)=1;
+            end
+        end
+    end
+    gg_c=0;
+    for gg=1:heteroagentoptions.nIntermediateEqns
+        intEqnnames_gg=heteroagentoptions.intermediateEqnNames{gg};
+        temp=getAnonymousFnInputNames(heteroagentoptions.intermediateEqns.(intEqnnames_gg));
+        if heteroagentoptions.intermediateEqnsptype(gg)==1
+            AggVarNames_mod{length(AggVarNames_mod)+1}=intEqnnames_gg; % in case it is used as an input later
+            for ii=1:N_i
+                temp_ii=temp;
+                gg_c=gg_c+1;
+                for tt=1:length(temp_ii)
+                    if any(strcmp(AggVarNames_mod,temp_ii{tt})) || any(strcmp(heteroagentoptions.paramnamesptype,temp_ii{tt}))
+                        temp_ii{tt}=[temp_ii{tt},'_',Names_i{ii}]; % use the '_name'
+                    end
+                end
+                heteroagentoptions.intermediateEqnParamNames(gg_c).Names=temp_ii;
+            end
+        else
+            gg_c=gg_c+1;
+            heteroagentoptions.intermediateEqnParamNames(gg_c).Names=temp;
+            % an intermediateEqn named with a '_name' (e.g. x_typeA) is one ptype's value of x: put x in AggVarNames_mod, so a condition
+            % by ptype reads x as x_typeA, x_typeB
+            for ii=1:N_i
+                lname=length(Names_i{ii});
+                if length(intEqnnames_gg)>lname+1
+                    if strcmp(intEqnnames_gg(end-lname:end),['_',Names_i{ii}])
+                        if ~any(strcmp(AggVarNames_mod,intEqnnames_gg(1:end-lname-1)))
+                            AggVarNames_mod{length(AggVarNames_mod)+1}=intEqnnames_gg(1:end-lname-1);
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+gg_c=0;
+for gg=1:nGeneralEqmEqns
+    temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
+    if heteroagentoptions.GEptype(gg)==1
+        for ii=1:N_i
+            temp_ii=temp;
+            gg_c=gg_c+1;
+            for tt=1:length(temp_ii)
+                if any(strcmp(AggVarNames_mod,temp_ii{tt})) || any(strcmp(heteroagentoptions.paramnamesptype,temp_ii{tt}))
+                    temp_ii{tt}=[temp_ii{tt},'_',Names_i{ii}]; % use the '_name'
+                end
+            end
+            GeneralEqmEqnParamNames(gg_c).Names=temp_ii;
+        end
+    else
+        gg_c=gg_c+1;
+        GeneralEqmEqnParamNames(gg_c).Names=temp;
+    end
+end
+
 if caliboptions.jointoptimization==1
-    % Add the General Eqm price params into the list of parameters to be calibrated
+    % Add the General Eqm price params into the list of parameters to be calibrated (a GE price that depends on ptype is one block per ptype)
     nCalibParamNames=length(CalibParamNames); % the GE prices go after the names (not after the (parameter, ptype) blocks: with a parameter that depends on ptype there are more blocks than names, and the names would have gaps)
+    GEparamsvec0=[]; % column vector
+    nGEFinder=zeros(0,2); % rows are the GE blocks, first column is the GE price, second the ptype (0 if it does not depend on ptype)
+    for pp=1:nGEParams
+        if GEpriceptype(pp)==1
+            for ii=1:N_i
+                GEparamsvec0=[GEparamsvec0; Parameters.(GEPriceParamNames{pp}).(Names_i{ii})];
+                nGEFinder=[nGEFinder; pp,ii];
+            end
+        else
+            GEparamsvec0=[GEparamsvec0; Parameters.(GEPriceParamNames{pp})];
+            nGEFinder=[nGEFinder; pp,0];
+        end
+    end
+    nGEblocks=size(nGEFinder,1);
+    % If the parameter is constrained in some way then we need to transform it
+    [GEparamsvec0,heteroagentoptions]=ParameterConstraints_PType_TransformParamsToUnconstrained(GEparamsvec0,(0:1:nGEblocks)',GEPriceParamNames,nGEFinder,heteroagentoptions,1);
+    % Also converts the constraints info in heteroagentoptions to be a vector (one entry per GE block) rather than by name.
     calibparamsvec0=[calibparamsvec0; GEparamsvec0];
     for pp=1:nGEParams
         CalibParamNames{nCalibParamNames+pp}=GEPriceParamNames{pp};
@@ -362,16 +503,16 @@ if caliboptions.jointoptimization==1
         caliboptions.constrainAtoBlimits=zeros(nCalibParams,2);
     end
     if ~isfield(heteroagentoptions,'constrainAtoBlimits')
-        heteroagentoptions.constrainAtoBlimits=zeros(nGEParams,2);
+        heteroagentoptions.constrainAtoBlimits=zeros(nGEblocks,2);
     end
     caliboptions.constrainAtoBlimits=[caliboptions.constrainAtoBlimits; heteroagentoptions.constrainAtoBlimits];
-    calibparamsvecindex=[calibparamsvecindex; calibparamsvecindex(end)+(1:1:nGEParams)'];
-    calibparamssizes=[calibparamssizes; ones(nGEParams,2)];
-    calibomitparams_counter=[calibomitparams_counter; zeros(nGEParams,1)];
-    nCalibParamsFinder(nCalibParams+1:nCalibParams+nGEParams,1)=nCalibParamNames+(1:1:nGEParams)';
-    nCalibParamsFinder(nCalibParams+1:nCalibParams+nGEParams,2)=0;
-    nCalibParams_PTypeMatrix(nCalibParamNames+1:nCalibParamNames+nGEParams,1)=0;
-    nCalibParams=nCalibParams+nGEParams;
+    calibparamsvecindex=[calibparamsvecindex; calibparamsvecindex(end)+(1:1:nGEblocks)'];
+    calibparamssizes=[calibparamssizes; ones(nGEblocks,2)];
+    calibomitparams_counter=[calibomitparams_counter; zeros(nGEblocks,1)];
+    nCalibParamsFinder(nCalibParams+1:nCalibParams+nGEblocks,1)=nCalibParamNames+nGEFinder(:,1);
+    nCalibParamsFinder(nCalibParams+1:nCalibParams+nGEblocks,2)=nGEFinder(:,2);
+    nCalibParams_PTypeMatrix(nCalibParamNames+1:nCalibParamNames+nGEParams,1)=GEprice_PTypeMatrix;
+    nCalibParams=nCalibParams+nGEblocks;
 end
 
 
@@ -859,8 +1000,25 @@ for pp=1:nCalibParams
 end
 if caliboptions.jointoptimization==0
     % Nested: the GE prices are not calibration parameters, they are the general eqm at the calibrated parameters (from the evaluation above)
+    % (GEsummary.prices stacks them, a GE price that depends on ptype as N_i entries in the order of Names_i; it is returned in the form it was given)
+    pp_c=0;
     for pp=1:nGEParams
-        CalibParams.(GEPriceParamNames{pp})=GEsummary.prices(pp);
+        if GEpriceptype(pp)==0
+            pp_c=pp_c+1;
+            CalibParams.(GEPriceParamNames{pp})=GEsummary.prices(pp_c);
+        else
+            temp=GEsummary.prices(pp_c+1:pp_c+N_i);
+            pp_c=pp_c+N_i;
+            if GEprice_PTypeMatrix(pp)==0
+                for ii=1:N_i
+                    CalibParams.(GEPriceParamNames{pp}).(Names_i{ii})=temp(ii);
+                end
+            elseif GEprice_PTypeMatrix(pp)==1
+                CalibParams.(GEPriceParamNames{pp})=reshape(temp,[N_i,1]);
+            else
+                CalibParams.(GEPriceParamNames{pp})=reshape(temp,[1,N_i]);
+            end
+        end
     end
 end
 clear calibparamsvec % I modified it, so want to make sure I don't accidently use it again later

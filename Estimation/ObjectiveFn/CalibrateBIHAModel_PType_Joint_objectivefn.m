@@ -83,6 +83,45 @@ AggVarNames=fieldnames(AggVars);
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars.(AggVarNames{aa}).Mean;
 end
+% General eqm conditions (or intermediateEqns) by ptype (heteroagentoptions.GEptype, intermediateEqnsptype, set up by the calling command;
+% all zeros if not set): they read the AggVars and the parameters that depend on ptype as their '_name' versions, e.g. N_typeA, Tr_typeA
+% (as in HeteroAgentStationaryEqm_InfHorz_PType; here the '_name' parameters are made at every evaluation, as calibrated parameters change)
+if ~isfield(heteroagentoptions,'GEptype')
+    heteroagentoptions.GEptype=zeros(1,length(GEeqnNames));
+end
+if heteroagentoptions.useintermediateEqns==1 && ~isfield(heteroagentoptions,'intermediateEqnsptype')
+    heteroagentoptions.intermediateEqnsptype=zeros(1,heteroagentoptions.nIntermediateEqns);
+end
+useptypeconditions=any(heteroagentoptions.GEptype==1);
+if heteroagentoptions.useintermediateEqns==1
+    useptypeconditions=(useptypeconditions || any(heteroagentoptions.intermediateEqnsptype==1));
+end
+if useptypeconditions
+    N_i=length(Names_i);
+    for aa=1:length(AggVarNames)
+        for ii=1:N_i
+            if isfield(AggVars.(AggVarNames{aa}),Names_i{ii})
+                Parameters.([AggVarNames{aa},'_',Names_i{ii}])=AggVars.(AggVarNames{aa}).(Names_i{ii}).Mean;
+            else
+                Parameters.([AggVarNames{aa},'_',Names_i{ii}])=0; % (as HeteroAgentStationaryEqm does, an AggVar a ptype does not have is zero)
+            end
+        end
+    end
+    for pp=1:length(heteroagentoptions.paramnamesptype)
+        temp=Parameters.(heteroagentoptions.paramnamesptype{pp});
+        for ii=1:N_i
+            if isstruct(temp)
+                if isfield(temp,Names_i{ii})
+                    Parameters.([heteroagentoptions.paramnamesptype{pp},'_',Names_i{ii}])=temp.(Names_i{ii});
+                end
+            elseif size(temp,1)==N_i
+                Parameters.([heteroagentoptions.paramnamesptype{pp},'_',Names_i{ii}])=temp(ii,:);
+            else
+                Parameters.([heteroagentoptions.paramnamesptype{pp},'_',Names_i{ii}])=temp(:,ii);
+            end
+        end
+    end
+end
 
 %% Custom Model Stats
 if usingcustomstats==1
@@ -117,20 +156,57 @@ end
 
 %% intermediateEqns
 if heteroagentoptions.useintermediateEqns==1
+    gg_c=0;
     for aa=1:heteroagentoptions.nIntermediateEqns
-        Parameters.(heteroagentoptions.intermediateEqnNames{aa})=real(GeneralEqmConditions_Case1_v3(heteroagentoptions.intermediateEqnsCell{aa},heteroagentoptions.intermediateEqnParamNames(aa).Names,Parameters));
+        if heteroagentoptions.intermediateEqnsptype(aa)==0
+            gg_c=gg_c+1;
+            Parameters.(heteroagentoptions.intermediateEqnNames{aa})=GeneralEqmConditions_Case1_v3(heteroagentoptions.intermediateEqnsCell{aa},heteroagentoptions.intermediateEqnParamNames(gg_c).Names,Parameters);
+            if useptypeconditions % an intermediateEqn named x_typeA is the typeA value of x
+                intEqnnames_aa=heteroagentoptions.intermediateEqnNames{aa};
+                for ii=1:N_i
+                    lname=length(Names_i{ii});
+                    if length(intEqnnames_aa)>lname+1
+                        if strcmp(intEqnnames_aa(end-lname:end),['_',Names_i{ii}])
+                            Parameters.(intEqnnames_aa(1:end-lname-1)).(Names_i{ii})=Parameters.(intEqnnames_aa);
+                        end
+                    end
+                end
+            end
+        else % this intermediateEqn is conditional on ptype
+            for ii=1:N_i
+                gg_c=gg_c+1;
+                temp=GeneralEqmConditions_Case1_v3g_ptype(heteroagentoptions.intermediateEqnsCell{aa},heteroagentoptions.intermediateEqnParamNames(gg_c).Names,Parameters);
+                Parameters.(heteroagentoptions.intermediateEqnNames{aa}).(Names_i{ii})=temp;
+                Parameters.([heteroagentoptions.intermediateEqnNames{aa},'_',Names_i{ii}])=temp;
+            end
+        end
     end
 end
 
-%% Evaluate General Eqm Eqns
-GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
+%% Evaluate General Eqm Eqns (a condition by ptype gives one value per ptype, in the order of Names_i)
+GeneralEqmConditionsVec=zeros(1,length(GeneralEqmEqnParamNames));
+gg_c=0;
 for gg=1:length(GEeqnNames)
-    % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-    GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+    if heteroagentoptions.GEptype(gg)==0
+        gg_c=gg_c+1;
+        GeneralEqmConditionsVec(gg_c)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg_c).Names, Parameters);
+    else
+        for ii=1:N_i
+            gg_c=gg_c+1;
+            GeneralEqmConditionsVec(gg_c)=GeneralEqmConditions_Case1_v3g_ptype(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg_c).Names, Parameters);
+        end
+    end
 end
-GEout.prices=zeros(length(GEPriceParamNames),1);
+GEout.prices=[]; % stacked: a GE price that depends on ptype is N_i entries, in the order of Names_i
 for pp=1:length(GEPriceParamNames)
-    GEout.prices(pp)=gather(Parameters.(GEPriceParamNames{pp}));
+    temp=Parameters.(GEPriceParamNames{pp});
+    if isstruct(temp)
+        for ii=1:length(Names_i)
+            GEout.prices=[GEout.prices; gather(temp.(Names_i{ii}))];
+        end
+    else
+        GEout.prices=[GEout.prices; gather(temp(:))];
+    end
 end
 GEout.conditions=gather(GeneralEqmConditionsVec');
 
@@ -345,7 +421,13 @@ if caliboptions.verbose==1
     fprintf(' \n')
     fprintf('Current GE prices (this is just repeat of part of current calibration params): \n')
     for ii=1:length(GEPriceParamNames)
-        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},Parameters.(GEPriceParamNames{ii}))
+        if isstruct(Parameters.(GEPriceParamNames{ii})) % a GE price that depends on ptype
+            for jj=1:length(Names_i)
+                fprintf('	%s.%s: %8.4f \n',GEPriceParamNames{ii},Names_i{jj},Parameters.(GEPriceParamNames{ii}).(Names_i{jj}))
+            end
+        else
+            fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},Parameters.(GEPriceParamNames{ii}))
+        end
     end
     fprintf('Current aggregate variables: \n')
     for ii=1:length(AggVarNames)
@@ -358,8 +440,17 @@ if caliboptions.verbose==1
         end
     end
     fprintf('Current GeneralEqmEqns: \n')
+    gg_c=0;
     for ii=1:length(GEeqnNames)
-        fprintf('	%s: %8.4f \n',GEeqnNames{ii},GeneralEqmConditionsVec(ii))
+        if heteroagentoptions.GEptype(ii)==0
+            gg_c=gg_c+1;
+            fprintf('	%s: %8.4f \n',GEeqnNames{ii},GeneralEqmConditionsVec(gg_c))
+        else % one per ptype
+            for jj=1:length(Names_i)
+                gg_c=gg_c+1;
+                fprintf('	%s (%s): %8.4f \n',GEeqnNames{ii},Names_i{jj},GeneralEqmConditionsVec(gg_c))
+            end
+        end
     end
 end
 

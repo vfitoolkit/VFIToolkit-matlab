@@ -66,10 +66,16 @@ end
 %% Solve the general eqm (inner loop)
 [p_eqm,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, 0, GEinner.pi_z, d_grid, a_grid, GEinner.z_grid, jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightParamNames, PTypeDistParamNames, GEPriceParamNames, GEinner.heteroagentoptions, GEinner.simoptions, GEinner.vfoptions);
 
-GEout.prices=zeros(length(GEPriceParamNames),1);
+GEout.prices=[]; % stacked: a GE price that depends on ptype is N_i entries, in the order of Names_i
 for pp=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
-    GEout.prices(pp)=gather(p_eqm.(GEPriceParamNames{pp}));
+    if isstruct(p_eqm.(GEPriceParamNames{pp})) % a GE price that depends on ptype (heteroagentoptions.GEptype)
+        for ii=1:length(Names_i)
+            GEout.prices=[GEout.prices; gather(p_eqm.(GEPriceParamNames{pp}).(Names_i{ii}))];
+        end
+    else
+        GEout.prices=[GEout.prices; reshape(gather(p_eqm.(GEPriceParamNames{pp})),[],1)];
+    end
 end
 GEout.conditions=reshape(gather(GeneralEqmConditionsVec),[],1);
 
@@ -414,12 +420,22 @@ if caliboptions.verbose==1
     end
     fprintf('Current GE prices (from the inner general eqm solve): \n')
     for ii=1:length(GEPriceParamNames)
-        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},Parameters.(GEPriceParamNames{ii}))
+        if isstruct(Parameters.(GEPriceParamNames{ii})) % a GE price that depends on ptype
+            for jj=1:length(Names_i)
+                fprintf('	%s.%s: %8.4f \n',GEPriceParamNames{ii},Names_i{jj},Parameters.(GEPriceParamNames{ii}).(Names_i{jj}))
+            end
+        else
+            fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},Parameters.(GEPriceParamNames{ii}))
+        end
     end
     fprintf('Current GeneralEqmEqns (at those prices): \n')
     GEeqnNames=fieldnames(GeneralEqmEqns);
-    for ii=1:length(GEeqnNames)
-        fprintf('	%s: %8.4f \n',GEeqnNames{ii},GEout.conditions(ii))
+    if length(GEout.conditions)==length(GEeqnNames)
+        for ii=1:length(GEeqnNames)
+            fprintf('	%s: %8.4f \n',GEeqnNames{ii},GEout.conditions(ii))
+        end
+    else % some hold conditional on ptype (heteroagentoptions.GEptype), so there are more conditions than eqns
+        fprintf('	%8.4f \n',GEout.conditions)
     end
 end
 
