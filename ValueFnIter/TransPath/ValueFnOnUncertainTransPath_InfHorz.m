@@ -12,6 +12,13 @@ function [VPathTree,PolicyPathTree]=ValueFnOnUncertainTransPath_InfHorz(PricePat
 % next period is a single node, and the tree is solved one segment (a chain of single-child nodes) at a time, each an
 % ordinary deterministic transition solved by ValueFnOnTransPath_InfHorz.
 %
+% DISCOUNT FACTORS READ AT THE CHILD. A name in DiscountFactorParamNames is read at the node, as on a deterministic
+% path (a parameter that depends on S at the node's own S). A name ending in _tplus1, e.g. 'm_tplus1', is name read at
+% the NEXT node: a stochastic discount factor, such as m=beta*C_tminus1/C, the discount from the parent into the node.
+% name must be a price in PricePath or a parameter in ParamPath (either can depend on S). At a branching node it goes
+% inside the expectation, next period value fn sum_{S'} pi_S(S_t,S') m_{S'} V_{t+1,S'}; at a node with one child it
+% is the child's value, so on a single history it is a deterministic path with m shifted back one period.
+%
 % Outputs are the same shape as those of ValueFnOnTransPath_InfHorz, with the last dimension being the nodes of the
 % tree instead of the periods: e.g. VPathTree is [n_a,n_z,nNodes]. The value fn of history h in period t is
 % VPathTree(:,:,Tree.histories(h,t)), where Tree=UncertainTransPathTree(T,T1,T2,pi_S,S_initial).
@@ -44,6 +51,44 @@ end
 PricePathNames=fieldnames(PricePathNodes);
 ParamPathNames=fieldnames(ParamPathNodes);
 nNodes=Tree.nNodes;
+
+%% Discount factors read at the child (name_tplus1), and their product at each node
+if ischar(DiscountFactorParamNames)
+    DiscountFactorParamNames={DiscountFactorParamNames};
+end
+DFchildNames={}; % the name of each discount factor read at the child, without the _tplus1
+DFnodeNames={}; % the discount factors read at the node
+for DFparam_c=1:length(DiscountFactorParamNames)
+    if endsWith(DiscountFactorParamNames{DFparam_c},'_tplus1')
+        DFchildNames=[DFchildNames,{DiscountFactorParamNames{DFparam_c}(1:end-7)}];
+    else
+        DFnodeNames=[DFnodeNames,DiscountFactorParamNames(DFparam_c)];
+    end
+end
+DFchildvals=ones(1,nNodes); % at each node, the product of the discount factors read at the child, at their values at that node
+for DFparam_c=1:length(DFchildNames)
+    if any(strcmp(DFchildNames{DFparam_c},DFnodeNames))
+        error('ValueFnOnUncertainTransPath_InfHorz: DiscountFactorParamNames contains both %s and %s_tplus1; %s would be applied twice, at the node and at the child',DFchildNames{DFparam_c},DFchildNames{DFparam_c},DFchildNames{DFparam_c})
+    end
+    if any(strcmp(DFchildNames{DFparam_c},PricePathNames))
+        DFchildvals=DFchildvals.*PricePathNodes.(DFchildNames{DFparam_c});
+    elseif any(strcmp(DFchildNames{DFparam_c},ParamPathNames))
+        DFchildvals=DFchildvals.*ParamPathNodes.(DFchildNames{DFparam_c});
+    else
+        error('ValueFnOnUncertainTransPath_InfHorz: DiscountFactorParamNames contains %s_tplus1, but %s is not in PricePath or ParamPath (a discount factor read at the child must take a value at each node)',DFchildNames{DFparam_c},DFchildNames{DFparam_c})
+    end
+end
+if ~isempty(DFchildNames)
+    if isfield(vfoptions,'exoticpreferences') && ~strcmp(vfoptions.exoticpreferences,'None')
+        error('ValueFnOnUncertainTransPath_InfHorz: a discount factor read at the child (_tplus1 in DiscountFactorParamNames) is not implemented with vfoptions.exoticpreferences')
+    end
+    % Within a segment, the discount factors read at the child go in as one extra parameter, in each period the
+    % product at the next node of the segment
+    if any(strcmp('DFtplus1_UncertainTPath',[PricePathNames;ParamPathNames]))
+        error('ValueFnOnUncertainTransPath_InfHorz: DFtplus1_UncertainTPath is a name used internally, please rename your parameter')
+    end
+    DiscountFactorParamNames=[DFnodeNames,{'DFtplus1_UncertainTPath'}];
+end
 
 finalS=unique(Tree.nodeS(Tree.nodedate==T));
 for ii=1:length(finalS)
@@ -79,8 +124,9 @@ for ss=Tree.nSeg:-1:1
         Tseg=L+1;
         segnodes_ext=[segnodes,endnode];
         children=Tree.nodefirstchild(endnode):(Tree.nodefirstchild(endnode)+Tree.nodenchild(endnode)-1);
-        % nodecondprob is the pi_S of each child given this node; pruning means every one is positive, so no 0*(-Inf)
-        V_final_seg=reshape(sum(VPathTree(:,children).*Tree.nodecondprob(children)',2),Vshape);
+        % nodecondprob is the pi_S of each child given this node; pruning means every one is positive, so no 0*(-Inf).
+        % The discount factors read at the child go inside the expectation (all ones when there are none).
+        V_final_seg=reshape(sum(VPathTree(:,children).*(reshape(Tree.nodecondprob(children),1,[]).*DFchildvals(children)),2),Vshape);
         Policy_final_seg=reshape(PolicyPathTree(:,children(1)),Policyshape); % only stored in period Tseg, which is dropped
     end
     PricePath_seg=struct();
@@ -90,6 +136,12 @@ for ss=Tree.nSeg:-1:1
     ParamPath_seg=struct();
     for pp=1:length(ParamPathNames)
         ParamPath_seg.(ParamPathNames{pp})=ParamPathNodes.(ParamPathNames{pp})(segnodes_ext);
+    end
+    if ~isempty(DFchildNames)
+        % Period k of the segment discounts with the value at its next node, segnodes(k+1). At the last node there is
+        % none: a branching node has them inside V_final_seg, and a period T node is V_final (never computed).
+        ParamPath_seg.DFtplus1_UncertainTPath=ones(1,Tseg);
+        ParamPath_seg.DFtplus1_UncertainTPath(1:L-1)=DFchildvals(segnodes(2:L));
     end
 
     [VPath_seg,PolicyPath_seg]=ValueFnOnTransPath_InfHorz(PricePath_seg, ParamPath_seg, Tseg, gpuArray(V_final_seg), Policy_final_seg, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);

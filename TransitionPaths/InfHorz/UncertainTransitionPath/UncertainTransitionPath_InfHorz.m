@@ -54,6 +54,13 @@ function [PricePathTree, UncertainTPathSummary]=UncertainTransitionPath_InfHorz(
 %   Not implemented: _tminus1 of an aggregate whose FnsToEvaluate uses _tplus1 (its value at a branching node depends
 %   on the child), and transpathoptions.stockvars.
 %
+% _tplus1 IN DiscountFactorParamNames: a stochastic discount factor (see ValueFnOnUncertainTransPath_InfHorz).
+%   'name' is read at the node, 'name_tplus1' at the next node, where name is a price or a ParamPath parameter. E.g. a
+%   firm owned by a representative household, with price m and general eqm condition m-beta*C_tminus1/C on the path,
+%   uses DiscountFactorParamNames={'betafirm','m_tplus1'}: at a branching node the next period value fn is
+%   sum_c nodecondprob(c)*m_c*V_c. In the final stationary eqms S is frozen, so the next node's value is the node's
+%   own, and they are solved with the _tplus1 removed ({'betafirm','m'}), with m from GeneralEqmEqns (e.g. m-beta).
+%
 % Not yet: intermediateEqns, stockvars, local search, permanent types.
 
 %% Options
@@ -198,6 +205,33 @@ if ~isempty(temp)
     error('UncertainTransitionPath_InfHorz: %s_tminus1 is used, but FnsToEvaluate.%s uses _tplus1, so at a branching node its value depends on which child comes next and its _tminus1 is not defined; not implemented for uncertain transition paths',temp{1},temp{1})
 end
 
+%% Discount factors: 'name' read at the node, 'name_tplus1' at the next node (a stochastic discount factor)
+% Checked here, before the final eqms are solved; ValueFnOnUncertainTransPath_InfHorz applies them.
+if ischar(DiscountFactorParamNames)
+    DiscountFactorParamNames={DiscountFactorParamNames};
+end
+DiscountFactorParamNames_finaleqm=DiscountFactorParamNames; % S is frozen in a final eqm: the next node's value is the node's own
+for DFparam_c=1:length(DiscountFactorParamNames)
+    DFname=DiscountFactorParamNames{DFparam_c};
+    if endsWith(DFname,'_tplus1')
+        DFname=DFname(1:end-7);
+        DiscountFactorParamNames_finaleqm{DFparam_c}=DFname;
+        if any(strcmp(DFname,DiscountFactorParamNames))
+            error('UncertainTransitionPath_InfHorz: DiscountFactorParamNames contains both %s and %s_tplus1; %s would be applied twice, at the node and at the child',DFname,DFname,DFname)
+        end
+        if ~any(strcmp(DFname,PricePathNames)) && ~any(strcmp(DFname,ParamPathNames))
+            error('UncertainTransitionPath_InfHorz: DiscountFactorParamNames contains %s_tplus1, but %s is not a price in PricePathShaper or a parameter in ParamPath (a discount factor read at the child must take a value at each node)',DFname,DFname)
+        end
+        if isfield(vfoptions,'exoticpreferences') && ~strcmp(vfoptions.exoticpreferences,'None')
+            error('UncertainTransitionPath_InfHorz: a discount factor read at the child (_tplus1 in DiscountFactorParamNames) is not implemented with vfoptions.exoticpreferences')
+        end
+    elseif ~any(strcmp(DFname,PricePathNames)) && ~any(strcmp(DFname,ParamPathNames)) && numel(Parameters.(DFname))>1
+        % The value fn takes the product of all the elements of the discount factors, so a vector would silently become
+        % its product; a discount factor that depends on S is an N_S-by-T ParamPath
+        error('UncertainTransitionPath_InfHorz: Parameters.%s, in DiscountFactorParamNames, is not a scalar (a discount factor that depends on S goes in ParamPath, N_S-by-T)',DFname)
+    end
+end
+
 %% The final stationary eqm of each S that a history can be in at period T
 finalS=unique(Tree.nodeS(Tree.nodedate==T))';
 p_initial=zeros(1,nPrices);
@@ -218,12 +252,12 @@ for SS=finalS
     if transpathoptions.verbose>=1
         fprintf('UncertainTransitionPath_InfHorz: solving the final stationary eqm of S=%i \n',SS)
     end
-    [p_eqm_S,GEcondns_S]=HeteroAgentStationaryEqm_InfHorz(n_d, n_a, n_z, 0, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters_S, DiscountFactorParamNames, [], [], [], PricePathNames, heteroagentoptions, simoptions_finaleqm, vfoptions_finaleqm);
+    [p_eqm_S,GEcondns_S]=HeteroAgentStationaryEqm_InfHorz(n_d, n_a, n_z, 0, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters_S, DiscountFactorParamNames_finaleqm, [], [], [], PricePathNames, heteroagentoptions, simoptions_finaleqm, vfoptions_finaleqm);
     for pp=1:nPrices
         Parameters_S.(PricePathNames{pp})=p_eqm_S.(PricePathNames{pp});
         p_final(SS,pp)=p_eqm_S.(PricePathNames{pp});
     end
-    [V_final.(Sstr),Policy_final.(Sstr)]=ValueFnIter_InfHorz(n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,Parameters_S,DiscountFactorParamNames,[],vfoptions);
+    [V_final.(Sstr),Policy_final.(Sstr)]=ValueFnIter_InfHorz(n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,Parameters_S,DiscountFactorParamNames_finaleqm,[],vfoptions);
     UncertainTPathSummary.finaleqm.(Sstr).p_eqm=p_eqm_S;
     UncertainTPathSummary.finaleqm.(Sstr).GeneralEqmCondnValues=GEcondns_S;
     UncertainTPathSummary.finaleqm.(Sstr).V_final=V_final.(Sstr);
