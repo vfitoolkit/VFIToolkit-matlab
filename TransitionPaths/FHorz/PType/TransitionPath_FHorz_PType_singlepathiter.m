@@ -219,7 +219,7 @@ for tt=1:T-1
     if transpathoptions.useintermediateEqns==1
         intEqnnames=fieldnames(transpathoptions.intermediateEqns);
         for gg=1:length(intEqnnames)
-            temp=real(GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters));
+            temp=GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters);
             Parameters.(intEqnnames{gg})=temp;
             for ii=1:N_i
                 Parameters_ii.(Names_i{ii}).(intEqnnames{gg})=temp;
@@ -234,14 +234,13 @@ for tt=1:T-1
         if transpathoptions.GEptype(gg)==0
             gg_c=gg_c+1;
             % Note: _v3 rather than _v3g, so on CPU rather than GPU
-            GEcondnPath(tt,gg_c)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+            GEcondnPath(tt,gg_c)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters);
         else
             for ii=1:N_i
                 gg_c=gg_c+1;
-                GEcondnPath(tt,gg_c)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(Names_i{ii})));
+                GEcondnPath(tt,gg_c)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(Names_i{ii}));
             end
         end
-        % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
     end
 end
 

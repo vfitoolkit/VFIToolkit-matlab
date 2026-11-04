@@ -153,7 +153,7 @@ for tt=1:T-1
         intermediateEqnsVec=zeros(1,length(intEqnnames));
         % Do the intermediateEqns, in order
         for gg=1:length(intEqnnames)
-            intermediateEqnsVec(gg)=real(GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters));
+            intermediateEqnsVec(gg)=GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters);
             Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
         end
     end
@@ -170,8 +170,7 @@ for tt=1:T-1
         % options need the conditions from every period before they can produce an update.
         for gg=1:length(GeneralEqmEqnsCell)
             % Note: _v3 rather than _v3g, so on CPU rather than GPU
-            GEcondnPath(tt,gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
-            % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+            GEcondnPath(tt,gg)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters);
         end
     end
     

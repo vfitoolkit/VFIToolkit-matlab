@@ -18,16 +18,15 @@ gg_c=0;
 for gg=1:nGeneralEqmEqns
     if transpathoptions.GEptype(gg)==0
         gg_c=gg_c+1;
-        p_i(gg_c)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+        p_i(gg_c)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters);
     elseif transpathoptions.GEptype(gg)==1
         for ii=1:N_i
             iistr=Names_i{ii};
             gg_c=gg_c+1;
-            p_i(gg_c)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr)));
+            p_i(gg_c)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_ii.(iistr));
         end
     end
 end
-% use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 
 if transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
     GEcondnPath_tt=p_i; % Sometimes, want to keep the GE conditions to plot them

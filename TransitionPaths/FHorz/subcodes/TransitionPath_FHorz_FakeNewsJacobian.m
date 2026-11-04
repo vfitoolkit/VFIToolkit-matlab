@@ -242,7 +242,7 @@ for oo=1:nAgg
 end
 GEbase=zeros(nG,1);
 for gg=1:nG
-    GEbase(gg)=gather(real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names,Pge)));
+    GEbase(gg)=gather(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names,Pge));
 end
 H_p=zeros(nG,nP);
 for ip=1:nP
@@ -253,7 +253,7 @@ for ip=1:nP
     end
     Pgeperturb.(PricePathNames{ip})=Pgeperturb.(PricePathNames{ip})+epsip;
     for gg=1:nG
-        H_p(gg,ip)=(gather(real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names,Pgeperturb)))-GEbase(gg))/epsip;
+        H_p(gg,ip)=(gather(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names,Pgeperturb))-GEbase(gg))/epsip;
     end
 end
 H_A=zeros(nG,nAgg);
@@ -261,7 +261,7 @@ for oo=1:nAgg
     Pgeperturb=Pge;
     Pgeperturb.(AggVarNames{oo})=Pgeperturb.(AggVarNames{oo})+epsprice;
     for gg=1:nG
-        H_A(gg,oo)=(gather(real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names,Pgeperturb)))-GEbase(gg))/epsprice;
+        H_A(gg,oo)=(gather(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names,Pgeperturb))-GEbase(gg))/epsprice;
     end
 end
 

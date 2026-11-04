@@ -427,7 +427,7 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
                 intermediateEqnsVec=zeros(1,length(intEqnnames));
                 % Do the intermediateEqns, in order
                 for gg=1:length(intEqnnames)
-                    intermediateEqnsVec(gg)=real(GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters));
+                    intermediateEqnsVec(gg)=GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters);
                     Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
                 end
             end
@@ -648,7 +648,7 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
             if transpathoptions.useintermediateEqns==1
                 intEqnnames=fieldnames(transpathoptions.intermediateEqns);
                 for gg=1:length(intEqnnames)
-                    temp=real(GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters));
+                    temp=GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters);
                     Parameters.(intEqnnames{gg})=temp;
                     for ii=1:N_i
                         Parameters_ii.(PTypeStructure.Names_i{ii}).(intEqnnames{gg})=temp;

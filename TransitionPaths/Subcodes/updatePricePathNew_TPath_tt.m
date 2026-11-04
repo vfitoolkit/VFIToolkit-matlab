@@ -5,8 +5,7 @@ function [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_tt(Parameters
 p_i=zeros(1,length(GeneralEqmEqnsCell));
 for gg=1:length(GeneralEqmEqnsCell)
     % Note: _v3 rather than _v3g, so on CPU rather than GPU
-    p_i(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
-    % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+    p_i(gg)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters);
 end
 
 if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae

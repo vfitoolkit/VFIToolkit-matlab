@@ -62,7 +62,7 @@ for kk=1:nNodes
     end
     % The conditions that do not use _tplus1
     for gg=find(~GEusestplus1)
-        GEcondnTree(kk,gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_k));
+        GEcondnTree(kk,gg)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_k);
     end
     % The conditions that use _tplus1, in expectation over the children. At a node with one child (and at a period T
     % node, which is its own next period) the weight is exactly one, so this is the deterministic condition.
@@ -87,7 +87,7 @@ for kk=1:nNodes
                 end
             end
             for gg=find(GEusestplus1)
-                GEcondnTree(kk,gg)=GEcondnTree(kk,gg)+w(cc)*real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_k));
+                GEcondnTree(kk,gg)=GEcondnTree(kk,gg)+w(cc)*GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_k);
             end
         end
     end
