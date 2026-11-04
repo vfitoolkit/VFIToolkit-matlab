@@ -64,8 +64,9 @@ if vfoptions.lowmemory==0
     V=reshape(Vtemp,[N_a*N_j,N_z,N_e]);
     dstar=reshape(dstar,[1,N_a,N_j,N_z,N_e]);
 
-    % aprime at the chosen d. The lookup must use dstar and not the state index.
-    aprimestar=aprimeReferencePolicyNew(dstar+N_d*reshape(gpuArray(0:1:N_a*N_j*N_z*N_e-1),[1,N_a,N_j,N_z,N_e]));
+    % aprime at the chosen d. The lookup must use dstar and not the state index. Reshaped because with
+    % N_d=1 the source can be a vector, and a vector indexed by a vector takes the SOURCE's orientation.
+    aprimestar=reshape(aprimeReferencePolicyNew(dstar+N_d*reshape(gpuArray(0:1:N_a*N_j*N_z*N_e-1),[1,N_a,N_j,N_z,N_e])),[1,N_a,N_j,N_z,N_e]);
 
     % The folded (d,aprime) index, d fastest, the same form as the folded raw's Policy
     Policy=dstar+N_d*(aprimestar-1);
@@ -91,7 +92,7 @@ elseif vfoptions.lowmemory==1
         V(:,:,e_c)=reshape(Vtemp,[N_a*N_j,N_z]);
         dstar=reshape(dstar,[N_a,N_j,N_z]);
 
-        aprimestar=aprimeRefNew(dstar+N_d*reshape(gpuArray(0:1:N_a*N_j*N_z-1),[N_a,N_j,N_z])); % [N_a,N_j,N_z]
+        aprimestar=reshape(aprimeRefNew(dstar+N_d*reshape(gpuArray(0:1:N_a*N_j*N_z-1),[N_a,N_j,N_z])),[N_a,N_j,N_z]); % [N_a,N_j,N_z]
         Policy(1,:,:,:,e_c)=shiftdim(dstar+N_d*(aprimestar-1),-1);
     end
 
@@ -120,7 +121,7 @@ elseif vfoptions.lowmemory==2
             V(:,z_c,e_c)=reshape(Vtemp,[N_a*N_j,1]);
             dstar=reshape(dstar,[N_a,N_j]);
 
-            aprimestar=aprimeRefNew(dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_j-1)); % [N_a,N_j]
+            aprimestar=reshape(aprimeRefNew(dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_j-1)),[N_a,N_j]); % [N_a,N_j]
             Policy(1,:,:,z_c,e_c)=shiftdim(dstar+N_d*(aprimestar-1),-1);
         end
     end

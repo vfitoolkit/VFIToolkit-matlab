@@ -207,7 +207,7 @@ for reverse_j=1:N_j-1
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_e
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_e, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_gridvals_J(:,:,jj), ReturnFnParamsVec,3);
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1,N_e])); % autoexpand level1iidiff(ii) in 3rd-dim
+                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1,N_e])),[N_d,(maxgap(ii)+1),1,N_e]); % autoexpand level1iidiff(ii) in 3rd-dim
                 [~,maxindex]=max(entireRHS_ii,[],2);
                 midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
             else

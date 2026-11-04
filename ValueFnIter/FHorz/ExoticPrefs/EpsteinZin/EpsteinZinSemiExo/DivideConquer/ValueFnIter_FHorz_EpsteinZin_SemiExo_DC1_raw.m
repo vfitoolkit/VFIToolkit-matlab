@@ -135,7 +135,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and z)
+                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and z)
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
@@ -151,7 +151,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and z)
+                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and z)
                 end
             end
         end
@@ -206,7 +206,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                         V_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*semizind; % loweredge is n_d-by-1-by-1-by-n_semiz
-                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and semiz)
+                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and semiz)
                     else
                         loweredge=maxindex1(:,1,ii,:);
                         % Just use aprime(ii) for everything
@@ -222,7 +222,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                         V_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*semizind; % loweredge is n_d-by-1-by-1-by-n_semiz
-                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and semiz)
+                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and semiz)
                     end
                 end
             end
@@ -385,7 +385,7 @@ else
                     V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and z)
+                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and z)
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
@@ -402,7 +402,7 @@ else
                     V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and z)
+                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and z)
                 end
             end
         end
@@ -478,7 +478,7 @@ else
                         V_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*semizind; % loweredge is n_d-by-1-by-1-by-n_semiz
-                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and semiz)
+                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and semiz)
                     else
                         loweredge=maxindex1(:,1,ii,:);
                         % Just use aprime(ii) for everything
@@ -495,7 +495,7 @@ else
                         V_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*semizind; % loweredge is n_d-by-1-by-1-by-n_semiz
-                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and semiz)
+                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and semiz)
                     end
                 end
             end
@@ -708,7 +708,7 @@ for reverse_j=1:N_j-1
                     V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and z)
+                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and z)
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
@@ -725,7 +725,7 @@ for reverse_j=1:N_j-1
                     V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and z)
+                    Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and z)
                 end
             end
         end
@@ -801,7 +801,7 @@ for reverse_j=1:N_j-1
                         V_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*semizind; % loweredge is n_d-by-1-by-1-by-n_semiz
-                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and semiz)
+                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and semiz)
                     else
                         loweredge=maxindex1(:,1,ii,:);
                         % Just use aprime(ii) for everything
@@ -818,7 +818,7 @@ for reverse_j=1:N_j-1
                         V_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*semizind; % loweredge is n_d-by-1-by-1-by-n_semiz
-                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1)); % loweredge(given the d and semiz)
+                        Policy_ford2_jj(curraindex,semizblock,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1)); % loweredge(given the d and semiz)
                     end
                 end
             end

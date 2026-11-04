@@ -78,7 +78,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             dind=(rem(maxindex-1,N_d)+1);
             zind=shiftdim((0:1:N_z-1),-1); % already includes -1
             allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-            Policy(curraindex,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
 
             % Need to keep Ftemp for Howards policy iteration improvement
             Ftemp(curraindex,:)=ReturnMatrix_ii(shiftdim(maxindex,1)+N_d*(maxgap(ii)+1)*(0:1:level1iidiff(ii)-1)'+N_d*(maxgap(ii)+1)*level1iidiff(ii)*(0:1:N_z-1));
@@ -95,7 +95,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             dind=(rem(maxindex-1,N_d)+1);
             zind=shiftdim((0:1:N_z-1),-1); % already includes -1
             allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-            Policy(curraindex,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
 
             % Need to keep Ftemp for Howards policy iteration improvement
             Ftemp(curraindex,:)=ReturnMatrix_ii(shiftdim(maxindex,1)+N_d*(0:1:level1iidiff(ii)-1)'+N_d*level1iidiff(ii)*(0:1:N_z-1));

@@ -52,8 +52,9 @@ if vfoptions.lowmemory==0
     V=reshape(Vtemp,[N_a*N_j,N_e]);
     dstar=reshape(dstar,[N_a,N_j,N_e]);
 
-    % aprime at the chosen d. The lookup must use dstar and not the state index.
-    aprimestar=aprimeReferencePolicyNew(dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_j-1)+N_d*N_a*N_j*shiftdim(0:1:N_e-1,-1)); % [N_a,N_j,N_e]
+    % aprime at the chosen d. The lookup must use dstar and not the state index. Reshaped because with
+    % N_d=1 the source can be a vector, and a vector indexed by a vector takes the SOURCE's orientation.
+    aprimestar=reshape(aprimeReferencePolicyNew(dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_j-1)+N_d*N_a*N_j*shiftdim(0:1:N_e-1,-1)),[N_a,N_j,N_e]); % [N_a,N_j,N_e]
 
     % The folded (d,aprime) index, d fastest, the same form as the folded raw's Policy. The unrestricted
     % raw squeezes its [1,N_a,N_j,N_e]; squeeze of this reshape gives the same array.
@@ -82,8 +83,9 @@ elseif vfoptions.lowmemory==1
         V(:,e_c)=reshape(Vtemp,[N_a*N_j,1]);
         dstar=reshape(dstar,[N_a,N_j]);
 
-        % aprime at the chosen d. The lookup must use dstar and not the state index.
-        aprimestar=aprimeRefNew_e(dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_j-1)); % [N_a,N_j]
+        % aprime at the chosen d. The lookup must use dstar and not the state index. Reshaped because with
+        % N_d=1 the source can be a vector, and a vector indexed by a vector takes the SOURCE's orientation.
+        aprimestar=reshape(aprimeRefNew_e(dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_j-1)),[N_a,N_j]); % [N_a,N_j]
 
         Policy(:,e_c)=reshape(dstar+N_d*(aprimestar-1),[N_a*N_j,1]);
         aprimeReferencePolicyNew(:,:,:,e_c)=aprimeRefNew_e;

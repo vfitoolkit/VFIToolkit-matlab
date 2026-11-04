@@ -78,7 +78,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     Vtilde_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                 else
                     loweredge=maxindex1(:,1,ii,:,:);
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
@@ -87,7 +87,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     Vtilde_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                 end
             end
         end
@@ -117,7 +117,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                         Vtilde_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*bothzind;
-                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                     else
                         loweredge=maxindex1(:,1,ii,:);
                         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
@@ -126,7 +126,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                         Vtilde_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*bothzind;
-                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                     end
                 end
             end
@@ -160,7 +160,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                             Vtilde_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dind=(rem(maxindex-1,N_d1)+1);
                             allind=dind+N_d1*semizind;
-                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                         else
                             loweredge=maxindex1(:,1,ii,:);
                             ReturnMatrix_iize=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, [n_semiz,special_n_z], special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_valblock, e_val, ReturnFnParamsVec,2);
@@ -169,7 +169,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                             Vtilde_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dind=(rem(maxindex-1,N_d1)+1);
                             allind=dind+N_d1*semizind;
-                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                         end
                     end
                 end
@@ -267,7 +267,7 @@ else
                     V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dindalt=(rem(maxindex2alt-1,N_d1)+1);
                     allindalt=dindalt+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                    Policy_V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                 else
                     loweredge=maxindex1_V(:,1,ii,:,:);
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
@@ -277,7 +277,7 @@ else
                     V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dindalt=(rem(maxindex2alt-1,N_d1)+1);
                     allindalt=dindalt+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                    Policy_V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                 end
             end
 
@@ -300,7 +300,7 @@ else
                     Vtilde_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                 else
                     loweredge=maxindex1(:,1,ii,:,:);
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
@@ -310,7 +310,7 @@ else
                     Vtilde_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                 end
             end
         end
@@ -346,7 +346,7 @@ else
                         V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dindalt=(rem(maxindex2alt-1,N_d1)+1);
                         allindalt=dindalt+N_d1*bothzind;
-                        Policy_V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                        Policy_V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                     else
                         loweredge=maxindex1_V(:,1,ii,:);
                         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
@@ -356,7 +356,7 @@ else
                         V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dindalt=(rem(maxindex2alt-1,N_d1)+1);
                         allindalt=dindalt+N_d1*bothzind;
-                        Policy_V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                        Policy_V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                     end
                 end
 
@@ -379,7 +379,7 @@ else
                         Vtilde_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*bothzind;
-                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                     else
                         loweredge=maxindex1(:,1,ii,:);
                         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
@@ -389,7 +389,7 @@ else
                         Vtilde_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*bothzind;
-                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                     end
                 end
             end
@@ -429,7 +429,7 @@ else
                             V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dindalt=(rem(maxindex2alt-1,N_d1)+1);
                             allindalt=dindalt+N_d1*semizind;
-                            Policy_V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                            Policy_V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                         else
                             loweredge=maxindex1_V(:,1,ii,:);
                             ReturnMatrix_iize=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, [n_semiz,special_n_z], special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_valblock, e_val, ReturnFnParamsVec,2);
@@ -439,7 +439,7 @@ else
                             V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dindalt=(rem(maxindex2alt-1,N_d1)+1);
                             allindalt=dindalt+N_d1*semizind;
-                            Policy_V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                            Policy_V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                         end
                     end
 
@@ -462,7 +462,7 @@ else
                             Vtilde_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dind=(rem(maxindex-1,N_d1)+1);
                             allind=dind+N_d1*semizind;
-                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                         else
                             loweredge=maxindex1(:,1,ii,:);
                             ReturnMatrix_iize=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, [n_semiz,special_n_z], special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_valblock, e_val, ReturnFnParamsVec,2);
@@ -472,7 +472,7 @@ else
                             Vtilde_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dind=(rem(maxindex-1,N_d1)+1);
                             allind=dind+N_d1*semizind;
-                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                         end
                     end
                 end
@@ -622,7 +622,7 @@ for reverse_j=1:N_j-1
                     V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dindalt=(rem(maxindex2alt-1,N_d1)+1);
                     allindalt=dindalt+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                    Policy_V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                 else
                     loweredge=maxindex1_V(:,1,ii,:,:);
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
@@ -632,7 +632,7 @@ for reverse_j=1:N_j-1
                     V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dindalt=(rem(maxindex2alt-1,N_d1)+1);
                     allindalt=dindalt+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                    Policy_V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                 end
             end
 
@@ -655,7 +655,7 @@ for reverse_j=1:N_j-1
                     Vtilde_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                 else
                     loweredge=maxindex1(:,1,ii,:,:);
                     ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
@@ -665,7 +665,7 @@ for reverse_j=1:N_j-1
                     Vtilde_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d1)+1);
                     allind=dind+N_d1*bothzind+N_d1*N_bothz*eind;
-                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                 end
             end
         end
@@ -701,7 +701,7 @@ for reverse_j=1:N_j-1
                         V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dindalt=(rem(maxindex2alt-1,N_d1)+1);
                         allindalt=dindalt+N_d1*bothzind;
-                        Policy_V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                        Policy_V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                     else
                         loweredge=maxindex1_V(:,1,ii,:);
                         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2);
@@ -711,7 +711,7 @@ for reverse_j=1:N_j-1
                         V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dindalt=(rem(maxindex2alt-1,N_d1)+1);
                         allindalt=dindalt+N_d1*bothzind;
-                        Policy_V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                        Policy_V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                     end
                 end
 
@@ -734,7 +734,7 @@ for reverse_j=1:N_j-1
                         Vtilde_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*bothzind;
-                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                     else
                         loweredge=maxindex1(:,1,ii,:);
                         ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, n_bothz, special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2);
@@ -744,7 +744,7 @@ for reverse_j=1:N_j-1
                         Vtilde_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
                         dind=(rem(maxindex-1,N_d1)+1);
                         allind=dind+N_d1*bothzind;
-                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                     end
                 end
             end
@@ -784,7 +784,7 @@ for reverse_j=1:N_j-1
                             V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dindalt=(rem(maxindex2alt-1,N_d1)+1);
                             allindalt=dindalt+N_d1*semizind;
-                            Policy_V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                            Policy_V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                         else
                             loweredge=maxindex1_V(:,1,ii,:);
                             ReturnMatrix_iize=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, [n_semiz,special_n_z], special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_valblock, e_val, ReturnFnParamsVec,2);
@@ -794,7 +794,7 @@ for reverse_j=1:N_j-1
                             V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dindalt=(rem(maxindex2alt-1,N_d1)+1);
                             allindalt=dindalt+N_d1*semizind;
-                            Policy_V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(loweredge(allindalt)-1));
+                            Policy_V_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex2alt+N_d1*(reshape(loweredge(allindalt),size(maxindex2alt))-1));
                         end
                     end
 
@@ -817,7 +817,7 @@ for reverse_j=1:N_j-1
                             Vtilde_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dind=(rem(maxindex-1,N_d1)+1);
                             allind=dind+N_d1*semizind;
-                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                         else
                             loweredge=maxindex1(:,1,ii,:);
                             ReturnMatrix_iize=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, special_n_d, [n_semiz,special_n_z], special_n_e, d12c_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_valblock, e_val, ReturnFnParamsVec,2);
@@ -827,7 +827,7 @@ for reverse_j=1:N_j-1
                             Vtilde_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(Vtempii,1);
                             dind=(rem(maxindex-1,N_d1)+1);
                             allind=dind+N_d1*semizind;
-                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(loweredge(allind)-1));
+                            Policy_ford2_jj(curraindex,semizblock,e_c,d2_c)=shiftdim(maxindex+N_d1*(reshape(loweredge(allind),size(maxindex))-1));
                         end
                     end
                 end

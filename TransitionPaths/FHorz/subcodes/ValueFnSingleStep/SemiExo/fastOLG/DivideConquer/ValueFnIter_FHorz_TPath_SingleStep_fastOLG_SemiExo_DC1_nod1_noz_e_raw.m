@@ -100,7 +100,7 @@ if vfoptions.lowmemory==0
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=shiftdim(Vtempii,1);
             d_ind=rem(maxindex-1,N_d)+1;
             allind=d_ind+N_d*jBind+N_d*N_j*zBind+N_d*N_j*N_bothz*eBind;
-            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1); % loweredge(given the d)
         else
             loweredge=maxindex1(:,1,ii,:,:,:);
             % Just use aprime(ii) for everything
@@ -111,7 +111,7 @@ if vfoptions.lowmemory==0
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=shiftdim(Vtempii,1);
             d_ind=rem(maxindex-1,N_d)+1;
             allind=d_ind+N_d*jBind+N_d*N_j*zBind+N_d*N_j*N_bothz*eBind;
-            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,:)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1); % loweredge(given the d)
         end
     end
 
@@ -155,7 +155,7 @@ elseif vfoptions.lowmemory==1
                 V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=shiftdim(Vtempii,1);
                 d_ind=rem(maxindex-1,N_d)+1;
                 allind=d_ind+N_d*jBind+N_d*N_j*zBind;
-                Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+                Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1); % loweredge(given the d)
             else
                 loweredge=maxindex1(:,1,ii,:,:);
                 % Just use aprime(ii) for everything
@@ -166,7 +166,7 @@ elseif vfoptions.lowmemory==1
                 V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=shiftdim(Vtempii,1);
                 d_ind=rem(maxindex-1,N_d)+1;
                 allind=d_ind+N_d*jBind+N_d*N_j*zBind;
-                Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1); % loweredge(given the d)
+                Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,e_c)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1); % loweredge(given the d)
             end
         end
     end

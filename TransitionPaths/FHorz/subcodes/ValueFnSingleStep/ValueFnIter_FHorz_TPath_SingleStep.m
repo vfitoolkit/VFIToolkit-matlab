@@ -27,8 +27,8 @@ end
 if vfoptions.localsearch~=0 && vfoptions.localsearch~=1
     error('vfoptions.localsearch must be 0 or 1 here; the value 2 is only meaningful to ValueFnOnTransPath_Case1_FHorz, which uses it to force a restricted search it would otherwise ignore')
 end
-if (vfoptions.localsearch==1 || vfoptions.localsearchseed==1) && ~strcmp(vfoptions.exoticpreferences,'None')
-    error('vfoptions.localsearch=1 is not implemented with exoticpreferences')
+if (vfoptions.localsearch==1 || vfoptions.localsearchseed==1) && ~strcmp(vfoptions.exoticpreferences,'None') && ~strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+    error('vfoptions.localsearch=1 is not implemented with exoticpreferences other than EpsteinZin')
 end
 
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
@@ -42,7 +42,7 @@ end
 if strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     % Epstein-Zin: the router builds this period's Epstein-Zin constants and picks the raw. PolicyKron comes
     % back in the same Kron form as the standard raws, so the UnKron below applies unchanged.
-    [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_EpsteinZin(VKron,n_d,n_a,n_z,0,N_j,d_gridvals,a_grid,z_gridvals_J,[],pi_z_J,[],ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions,0);
+    [VKron,PolicyKron,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_EpsteinZin(VKron,n_d,n_a,n_z,0,N_j,d_gridvals,a_grid,z_gridvals_J,[],pi_z_J,[],ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,aprimeReferencePolicy,vfoptions,0);
 elseif vfoptions.localsearchseed==1 && vfoptions.localsearch==0
     %% The SEED sweep: unrestricted, but returning a reference for vfoptions.localsearch
     % Set by Step1 on the standard sweeps of a localsearch solve -- iteration 1 and every verification

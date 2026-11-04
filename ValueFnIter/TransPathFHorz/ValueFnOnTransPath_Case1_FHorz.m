@@ -135,8 +135,8 @@ if isfield(vfoptions,'localsearch')
         if prod(vfoptions.n_semiz)>0
             error('vfoptions.localsearch is not implemented with a semi-exogenous state')
         end
-        if ~strcmp(vfoptions.exoticpreferences,'None')
-            error('vfoptions.localsearch is not implemented with exoticpreferences')
+        if ~strcmp(vfoptions.exoticpreferences,'None') && ~strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+            error('vfoptions.localsearch is not implemented with exoticpreferences other than EpsteinZin')
         end
     elseif vfoptions.localsearch~=0
         error('vfoptions.localsearch must be 0, 1 (ignored here, with a warning) or 2 (forced)')

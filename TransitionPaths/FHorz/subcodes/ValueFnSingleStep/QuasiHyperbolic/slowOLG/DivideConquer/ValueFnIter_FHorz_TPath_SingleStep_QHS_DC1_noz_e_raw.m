@@ -51,7 +51,7 @@ if vfoptions.lowmemory==0
             V(curraindex,:,N_j)=shiftdim(Vtempii,1);
             dind=(rem(maxindex-1,N_d)+1);
             allind=dind+N_d*eind;
-            Policy(curraindex,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
         else
             loweredge=maxindex1(:,1,ii,:);
             ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_e, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
@@ -59,7 +59,7 @@ if vfoptions.lowmemory==0
             V(curraindex,:,N_j)=shiftdim(Vtempii,1);
             dind=(rem(maxindex-1,N_d)+1);
             allind=dind+N_d*eind;
-            Policy(curraindex,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
         end
     end
 elseif vfoptions.lowmemory==1
@@ -132,7 +132,7 @@ for reverse_j=1:N_j-1
                 V(curraindex,:,jj)=shiftdim(Vtempii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*eind;
-                Policy(curraindex,:,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,jj)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             else
                 loweredge=maxindex1(:,1,ii,:);
                 ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_e, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
@@ -141,7 +141,7 @@ for reverse_j=1:N_j-1
                 V(curraindex,:,jj)=shiftdim(Vtempii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*eind;
-                Policy(curraindex,:,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,jj)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             end
         end
         % Vunderbar = Vhat + (beta - beta0*beta)*EV_at_optimal_aprime

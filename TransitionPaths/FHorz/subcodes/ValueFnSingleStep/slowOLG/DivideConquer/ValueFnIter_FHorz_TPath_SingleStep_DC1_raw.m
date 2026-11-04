@@ -69,7 +69,7 @@ if vfoptions.lowmemory==0
             V(curraindex,:,N_j)=shiftdim(Vtempii,1);
             dind=(rem(maxindex-1,N_d)+1);
             allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-            Policy(curraindex,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             if nargout>2
                 [~,aprimeoffset]=max(reshape(ReturnMatrix_ii,[N_d,maxgap(ii)+1,level1iidiff(ii),N_z]),[],2); % per-d max, see top
                 aprimeReferencePolicyNew(:,curraindex,:,N_j)=reshape(loweredge+aprimeoffset-1,[N_d,level1iidiff(ii),N_z]);
@@ -82,7 +82,7 @@ if vfoptions.lowmemory==0
             V(curraindex,:,N_j)=shiftdim(Vtempii,1);
             dind=(rem(maxindex-1,N_d)+1);
             allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-            Policy(curraindex,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             if nargout>2
                 aprimeReferencePolicyNew(:,curraindex,:,N_j)=repmat(reshape(loweredge,[N_d,1,N_z]),1,level1iidiff(ii)); % one aprime per d, see top
             end
@@ -195,7 +195,7 @@ for reverse_j=1:N_j-1
                 V(curraindex,:,jj)=shiftdim(Vtempii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-                Policy(curraindex,:,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,jj)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
                 if nargout>2
                     [~,aprimeoffset]=max(reshape(entireRHS_ii,[N_d,maxgap(ii)+1,level1iidiff(ii),N_z]),[],2); % per-d max, see top
                     aprimeReferencePolicyNew(:,curraindex,:,jj)=reshape(loweredge+aprimeoffset-1,[N_d,level1iidiff(ii),N_z]);
@@ -210,7 +210,7 @@ for reverse_j=1:N_j-1
                 V(curraindex,:,jj)=shiftdim(Vtempii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-                Policy(curraindex,:,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,jj)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
                 if nargout>2
                     aprimeReferencePolicyNew(:,curraindex,:,jj)=repmat(reshape(loweredge,[N_d,1,N_z]),1,level1iidiff(ii)); % one aprime per d, see top
                 end

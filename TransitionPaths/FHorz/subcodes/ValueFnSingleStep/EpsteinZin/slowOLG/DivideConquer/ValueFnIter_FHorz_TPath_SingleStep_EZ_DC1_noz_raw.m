@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_EZ_DC1_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7, ezc8)
+function [V,Policy,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_EZ_DC1_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7, ezc8)
 % Epstein-Zin, one period of the FHorz transition path (slowOLG). The V input is next period value fn
 % (across all ages), the V output is this period.
 % The transition-path twin of ValueFnIter_FHorz_EpsteinZin_DC1_noz_raw (whose description follows): identical but
@@ -20,6 +20,15 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 
 Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+% THE THIRD OUTPUT is for vfoptions.localsearch, on a SEED sweep (vfoptions.localsearchseed, set by
+% Step1): the aprime argmax FOR EACH d, [N_d,N_a,N_j], as LocalSearch/..._LSseed_noz_raw returns it.
+% At the level-1 points that is maxindex1. Between them it is an EXTRA per-d max over the level-2 RHS
+% (fold is d fastest, so reshape to [N_d,maxgap+1,...]); when maxgap==0 it is loweredge. Under DC's own
+% monotonicity this is the unrestricted per-d argmax, as the interval is built over all d. The max that
+% sets V/Policy is NOT changed (its tie-breaking is seen by every bank). Only built when asked for.
+if nargout>2
+    aprimeReferencePolicyNew=zeros(N_d,N_a,N_j,'gpuArray');
+end
 
 
 %%
@@ -80,6 +89,9 @@ ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
 % Store
 V(level1ii,N_j)=shiftdim(Vtempii,1);
 Policy(level1ii,N_j)=shiftdim(maxindex2,1); % d,aprime
+if nargout>2
+    aprimeReferencePolicyNew(:,level1ii,N_j)=reshape(maxindex1,[N_d,vfoptions.level1n]); % seed reference, see top
+end
 
 % Attempt for improved version
 maxgap=max(maxindex1(:,1,2:end)-maxindex1(:,1,1:end-1),[],1);
@@ -90,7 +102,7 @@ for ii=1:(vfoptions.level1n-1)
         % loweredge is n_d-by-1
         aprimeindexes=loweredge+(0:1:maxgap(ii));
         % aprime possibilities are n_d-by-maxgap(ii)+1
-        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn, n_d, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn, n_d, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
         becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
         ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*reshape(WGmatrix(aprimeindexes),[N_d*(maxgap(ii)+1),1]); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
@@ -99,11 +111,15 @@ for ii=1:(vfoptions.level1n-1)
         ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
         [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
         V(curraindex,N_j)=shiftdim(Vtempii,1);
-        Policy(curraindex,N_j)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+        Policy(curraindex,N_j)=shiftdim(maxindex,1)+N_d*(reshape(loweredge(rem(maxindex-1,N_d)+1),[],1)-1); % loweredge(given the d)
+        if nargout>2
+            [~,aprimeoffset]=max(reshape(ReturnMatrix_ii,[N_d,maxgap(ii)+1,length(curraindex)]),[],2); % per-d max, see top
+            aprimeReferencePolicyNew(:,curraindex,N_j)=reshape(loweredge+aprimeoffset-1,[N_d,length(curraindex)]);
+        end
     else
         loweredge=maxindex1(:,1,ii);
         % Just use aprime(ii) for everything
-        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn, n_d, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn, n_d, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
         becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
         ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*reshape(WGmatrix(loweredge),[N_d*1,1]); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
@@ -112,7 +128,10 @@ for ii=1:(vfoptions.level1n-1)
         ReturnMatrix_ii(temp5)=ReturnMatrix_ii(temp5).^ezc7(N_j);
         [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
         V(curraindex,N_j)=shiftdim(Vtempii,1);
-        Policy(curraindex,N_j)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+        Policy(curraindex,N_j)=shiftdim(maxindex,1)+N_d*(reshape(loweredge(rem(maxindex-1,N_d)+1),[],1)-1); % loweredge(given the d)
+        if nargout>2
+            aprimeReferencePolicyNew(:,curraindex,N_j)=repmat(loweredge,1,length(curraindex)); % one aprime per d, see top
+        end
     end
 end
 
@@ -186,6 +205,9 @@ for reverse_j=1:N_j-1
     % Store
     V(level1ii,jj)=shiftdim(Vtempii,1);
     Policy(level1ii,jj)=shiftdim(maxindex2,1); % d,aprime
+    if nargout>2
+        aprimeReferencePolicyNew(:,level1ii,jj)=reshape(maxindex1,[N_d,vfoptions.level1n]); % seed reference, see top
+    end
 
     % Attempt for improved version
     maxgap=max(maxindex1(:,1,2:end)-maxindex1(:,1,1:end-1),[],1);
@@ -196,7 +218,7 @@ for reverse_j=1:N_j-1
             % loweredge is n_d-by-1
             aprimeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1
-            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn, n_d, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn, n_d, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
             becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2_ii=ReturnMatrix_ii;
             temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
@@ -206,21 +228,28 @@ for reverse_j=1:N_j-1
             entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,jj)=shiftdim(Vtempii,1);
-            Policy(curraindex,jj)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+            Policy(curraindex,jj)=shiftdim(maxindex,1)+N_d*(reshape(loweredge(rem(maxindex-1,N_d)+1),[],1)-1); % loweredge(given the d)
+            if nargout>2
+                [~,aprimeoffset]=max(reshape(entireRHS_ii,[N_d,maxgap(ii)+1,length(curraindex)]),[],2); % per-d max, see top
+                aprimeReferencePolicyNew(:,curraindex,jj)=reshape(loweredge+aprimeoffset-1,[N_d,length(curraindex)]);
+            end
         else
             loweredge=maxindex1(:,1,ii);
             % Just use aprime(ii) for everything
-            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn, n_d, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_noz(ReturnFn, n_d, d_gridvals, reshape(a_grid(loweredge),size(loweredge)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
             becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2_ii=ReturnMatrix_ii;
             temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
-            entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*temp4(loweredge); % autoexpand level1iidiff(ii) in 2nd-dim
+            entireRHS_ii=ezc1*temp2_ii+ezc3*DiscountFactorParamsVec*reshape(temp4(loweredge),size(loweredge)); % autoexpand level1iidiff(ii) in 2nd-dim
             entireRHS_ii(isnan(entireRHS_ii))=-Inf; % Inf-Inf (a zero return today with a dead continuation) is infeasible
             temp5=~(entireRHS_ii==-Inf); % apply the power to everything else, +Inf included (Inf^ezc7 is the floor 0 when ezc7<0)
             entireRHS_ii(temp5)=entireRHS_ii(temp5).^ezc7(jj);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,jj)=shiftdim(Vtempii,1);
-            Policy(curraindex,jj)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+            Policy(curraindex,jj)=shiftdim(maxindex,1)+N_d*(reshape(loweredge(rem(maxindex-1,N_d)+1),[],1)-1); % loweredge(given the d)
+            if nargout>2
+                aprimeReferencePolicyNew(:,curraindex,jj)=repmat(loweredge,1,length(curraindex)); % one aprime per d, see top
+            end
         end
     end
 

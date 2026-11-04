@@ -67,8 +67,9 @@ for reverse_j=0:N_j-1
     V(:,:,jj)=reshape(Vtemp,[N_a,N_z]);
     dstar=reshape(dstar,[N_a,N_z]);
 
-    % aprime at the chosen d. The lookup must use dstar and not the state index.
-    aprimestar=aprimeRefNew_j(dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_z-1)); % [N_a,N_z]
+    % aprime at the chosen d. The lookup must use dstar and not the state index. Reshaped because with
+    % N_d=1 the source can be a vector, and a vector indexed by a vector takes the SOURCE's orientation.
+    aprimestar=reshape(aprimeRefNew_j(dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_z-1)),[N_a,N_z]); % [N_a,N_z]
 
     % The folded (d,aprime) index, d fastest, the same form as the folded raw's Policy
     Policy(:,:,jj)=dstar+N_d*(aprimestar-1);

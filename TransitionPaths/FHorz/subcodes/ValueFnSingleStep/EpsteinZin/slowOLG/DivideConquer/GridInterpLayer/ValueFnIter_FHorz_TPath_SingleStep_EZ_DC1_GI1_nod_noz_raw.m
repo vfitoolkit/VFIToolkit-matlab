@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_EZ_DC1_GI1_nod_noz_raw(V,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7, ezc8)
+function [V,Policy,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_EZ_DC1_GI1_nod_noz_raw(V,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7, ezc8)
 % Epstein-Zin, one period of the FHorz transition path (slowOLG). The V input is next period value fn
 % (across all ages), the V output is this period.
 % The transition-path twin of ValueFnIter_FHorz_EpsteinZin_DC1_GI1_nod_noz_raw (whose description follows): identical but
@@ -26,6 +26,12 @@ N_a=prod(n_a);
 Policy=zeros(3,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 Policy(3,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 % When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
+% THE THIRD OUTPUT is for vfoptions.localsearch, on a SEED sweep (vfoptions.localsearchseed, set by
+% Step1): the clamped COARSE midpoint per (a,j), [1,N_a,N_j], as in ../../GridInterpLayer/
+% ValueFnIter_FHorz_TPath_SingleStep_GI1_nod_raw (see it for why). Only built when asked for.
+if nargout>2
+    aprimeReferencePolicyNew=zeros(1,N_a,N_j,'gpuArray');
+end
 
 %%
 % Preallocate
@@ -114,6 +120,9 @@ end
 
 % Turn this into the 'midpoint'
 midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+if nargout>2
+    aprimeReferencePolicyNew(1,:,N_j)=midpoints_jj; % seed reference, see top
+end
 % midpoint is 1-by-n_a
 aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
 % aprime possibilities are n2long-by-n_a
@@ -225,6 +234,9 @@ for reverse_j=1:N_j-1
 
     % Turn this into the 'midpoint'
     midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+    if nargout>2
+        aprimeReferencePolicyNew(1,:,jj)=midpoints_jj; % seed reference, see top
+    end
     % midpoint is 1-by-n_a
     aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n2long-by-n_a

@@ -88,10 +88,11 @@ L2d=reshape(offsetL2,[N_d,N_a,N_j,N_e]);               % 1 to n2long, per d
 V=reshape(Vtemp,[N_a*N_j,N_e]);
 dstar=reshape(dstar,[N_a,N_j,N_e]);
 
-% Everything below is read AT THE CHOSEN d
+% Everything below is read AT THE CHOSEN d. Reshaped because with N_d=1 L2d and midpoint can be
+% vectors and a vector indexed by a vector takes the SOURCE's orientation.
 lin=dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_j-1)+N_d*N_a*N_j*shiftdim(0:1:N_e-1,-1); % [N_a,N_j,N_e], into an [N_d,N_a,N_j,N_e] array
-L2star=L2d(lin);
-midstar=midpoint(lin);
+L2star=reshape(L2d(lin),size(lin));
+midstar=reshape(midpoint(lin),size(lin));
 
 Policy(1,:,:,:)=reshape(dstar,[1,N_a,N_j,N_e]); % d
 Policy(2,:,:,:)=reshape(midstar,[1,N_a,N_j,N_e]); % midpoint

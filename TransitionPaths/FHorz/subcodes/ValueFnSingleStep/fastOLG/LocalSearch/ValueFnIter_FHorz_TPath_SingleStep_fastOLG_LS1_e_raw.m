@@ -73,8 +73,9 @@ aprimeReferencePolicyNew=loweredge+coarseoffset;                   % [N_d,N_a,N_
 V=reshape(Vtemp,[N_a*N_j,N_z,N_e]);
 dstar=reshape(dstar,[1,N_a,N_j,N_z,N_e]);
 
-% aprime at the chosen d. The lookup must use dstar and not the state index.
-aprimestar=aprimeReferencePolicyNew(dstar+N_d*reshape(gpuArray(0:1:N_a*N_j*N_z*N_e-1),[1,N_a,N_j,N_z,N_e])); % [1,N_a,N_j,N_z,N_e]
+% aprime at the chosen d. The lookup must use dstar and not the state index. Reshaped because with
+% N_d=1 the source can be a vector, and a vector indexed by a vector takes the SOURCE's orientation.
+aprimestar=reshape(aprimeReferencePolicyNew(dstar+N_d*reshape(gpuArray(0:1:N_a*N_j*N_z*N_e-1),[1,N_a,N_j,N_z,N_e])),[1,N_a,N_j,N_z,N_e]); % [1,N_a,N_j,N_z,N_e]
 
 %% Output shape for policy, the same as the unrestricted raw: [1,N_a,N_j,N_z,N_e]
 % The folded (d,aprime) index, d fastest, as the unrestricted raw's repelem(DiscountedEV,N_d,...) layout

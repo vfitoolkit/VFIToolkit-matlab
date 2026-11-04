@@ -77,7 +77,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 V(curraindex,:,:,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*zind+N_d*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
-                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             else
                 loweredge=maxindex1(:,1,ii,:,:);
                 % Just use aprime(ii) for everything
@@ -88,7 +88,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 V(curraindex,:,:,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*zind+N_d*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
-                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             end
         end
     elseif vfoptions.lowmemory==1
@@ -130,7 +130,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     V(curraindex,:,e_c,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                     dind=(rem(maxindex-1,N_d)+1);
                     allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
@@ -141,7 +141,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     V(curraindex,:,e_c,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                     dind=(rem(maxindex-1,N_d)+1);
                     allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
                 end
             end
         end
@@ -186,7 +186,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                         V(curraindex,z_c,e_c,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                         dind=(rem(maxindex-1,N_d)+1);
                         allind=dind; % loweredge is n_d-by-1-by-1
-                        Policy(curraindex,z_c,e_c,N_j)=shiftdim(maxindex'+N_d*(loweredge(allind)-1),1);
+                        Policy(curraindex,z_c,e_c,N_j)=shiftdim(maxindex'+N_d*(reshape(loweredge(allind),[],1)-1),1);
                     else
                         loweredge=maxindex1(:,1,ii);
                         % Just use aprime(ii) for everything
@@ -197,7 +197,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                         V(curraindex,z_c,e_c,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                         dind=(rem(maxindex-1,N_d)+1);
                         allind=dind; % loweredge is n_d-by-1-by-1
-                        Policy(curraindex,z_c,e_c,N_j)=shiftdim(maxindex'+N_d*(loweredge(allind)-1),1);
+                        Policy(curraindex,z_c,e_c,N_j)=shiftdim(maxindex'+N_d*(reshape(loweredge(allind),[],1)-1),1);
                     end
                 end
             end
@@ -253,7 +253,7 @@ else
                 V(curraindex,:,:,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*zind+N_d*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
-                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             else
                 loweredge=maxindex1(:,1,ii,:,:);
                 % Just use aprime(ii) for everything
@@ -265,7 +265,7 @@ else
                 V(curraindex,:,:,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*zind+N_d*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
-                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,:,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             end
         end
     elseif vfoptions.lowmemory==1
@@ -308,7 +308,7 @@ else
                     V(curraindex,:,e_c,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                     dind=(rem(maxindex-1,N_d)+1);
                     allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
@@ -320,7 +320,7 @@ else
                     V(curraindex,:,e_c,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                     dind=(rem(maxindex-1,N_d)+1);
                     allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    Policy(curraindex,:,e_c,N_j)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
                 end
             end
         end
@@ -367,7 +367,7 @@ else
                         V(curraindex,z_c,e_c,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                         dind=(rem(maxindex-1,N_d)+1);
                         allind=dind; % loweredge is n_d-by-1-by-1
-                        Policy(curraindex,z_c,e_c,N_j)=shiftdim(maxindex'+N_d*(loweredge(allind)-1),1);
+                        Policy(curraindex,z_c,e_c,N_j)=shiftdim(maxindex'+N_d*(reshape(loweredge(allind),[],1)-1),1);
                     else
                         loweredge=maxindex1(:,1,ii);
                         % Just use aprime(ii) for everything
@@ -378,7 +378,7 @@ else
                         V(curraindex,z_c,e_c,N_j)=shiftdim(Vtempii-MostTempting_ii,1);
                         dind=(rem(maxindex-1,N_d)+1);
                         allind=dind; % loweredge is n_d-by-1-by-1
-                        Policy(curraindex,z_c,e_c,N_j)=shiftdim(maxindex'+N_d*(loweredge(allind)-1),1);
+                        Policy(curraindex,z_c,e_c,N_j)=shiftdim(maxindex'+N_d*(reshape(loweredge(allind),[],1)-1),1);
                     end
                 end
             end
@@ -444,7 +444,7 @@ for reverse_j=1:N_j-1
                 V(curraindex,:,:,jj)=shiftdim(Vtempii-MostTempting_ii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*zind+N_d*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
-                Policy(curraindex,:,:,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,:,jj)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             else
                 loweredge=maxindex1(:,1,ii,:,:);
                 % Just use aprime(ii) for everything
@@ -456,7 +456,7 @@ for reverse_j=1:N_j-1
                 V(curraindex,:,:,jj)=shiftdim(Vtempii-MostTempting_ii,1);
                 dind=(rem(maxindex-1,N_d)+1);
                 allind=dind+N_d*zind+N_d*N_z*eind; % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
-                Policy(curraindex,:,:,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                Policy(curraindex,:,:,jj)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
             end
         end
     elseif vfoptions.lowmemory==1
@@ -498,7 +498,7 @@ for reverse_j=1:N_j-1
                     V(curraindex,:,e_c,jj)=shiftdim(Vtempii-MostTempting_ii,1);
                     dind=(rem(maxindex-1,N_d)+1);
                     allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy(curraindex,:,e_c,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    Policy(curraindex,:,e_c,jj)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
@@ -510,7 +510,7 @@ for reverse_j=1:N_j-1
                     V(curraindex,:,e_c,jj)=shiftdim(Vtempii-MostTempting_ii,1);
                     dind=(rem(maxindex-1,N_d)+1);
                     allind=dind+N_d*zind; % loweredge is n_d-by-1-by-1-by-n_z
-                    Policy(curraindex,:,e_c,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    Policy(curraindex,:,e_c,jj)=shiftdim(maxindex+N_d*(reshape(loweredge(allind),size(maxindex))-1),1);
                 end
             end
         end
@@ -557,7 +557,7 @@ for reverse_j=1:N_j-1
                         V(curraindex,z_c,e_c,jj)=shiftdim(Vtempii-MostTempting_ii,1);
                         dind=(rem(maxindex-1,N_d)+1);
                         allind=dind; % loweredge is n_d-by-1-by-1
-                        Policy(curraindex,z_c,e_c,jj)=shiftdim(maxindex'+N_d*(loweredge(allind)-1),1);
+                        Policy(curraindex,z_c,e_c,jj)=shiftdim(maxindex'+N_d*(reshape(loweredge(allind),[],1)-1),1);
                     else
                         loweredge=maxindex1(:,1,ii);
                         % Just use aprime(ii) for everything
@@ -568,7 +568,7 @@ for reverse_j=1:N_j-1
                         V(curraindex,z_c,e_c,jj)=shiftdim(Vtempii-MostTempting_ii,1);
                         dind=(rem(maxindex-1,N_d)+1);
                         allind=dind; % loweredge is n_d-by-1-by-1
-                        Policy(curraindex,z_c,e_c,jj)=shiftdim(maxindex'+N_d*(loweredge(allind)-1),1);
+                        Policy(curraindex,z_c,e_c,jj)=shiftdim(maxindex'+N_d*(reshape(loweredge(allind),[],1)-1),1);
                     end
                 end
             end

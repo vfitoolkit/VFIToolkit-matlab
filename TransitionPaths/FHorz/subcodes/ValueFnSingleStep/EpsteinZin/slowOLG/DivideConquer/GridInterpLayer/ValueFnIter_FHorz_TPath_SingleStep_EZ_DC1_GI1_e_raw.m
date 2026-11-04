@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_EZ_DC1_GI1_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_gridvals, a_grid, z_gridvals_J, e_gridvals_J,pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7, ezc8)
+function [V,Policy,aprimeReferencePolicyNew]=ValueFnIter_FHorz_TPath_SingleStep_EZ_DC1_GI1_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_gridvals, a_grid, z_gridvals_J, e_gridvals_J,pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7, ezc8)
 % Epstein-Zin, one period of the FHorz transition path (slowOLG). The V input is next period value fn
 % (across all ages), the V output is this period.
 % The transition-path twin of ValueFnIter_FHorz_EpsteinZin_DC1_GI1_e_raw (whose description follows): identical but
@@ -25,6 +25,12 @@ N_e=prod(n_e);
 Policy=zeros(4,N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 Policy(4,:,:,:,:)=2; % 1=all weight to lower coarse pt, 2=usual linear weights, 3=all weight to upper coarse pt
 % When ReturnFn is -Inf on one of the course grid points, we will allow fine index between that and the neighbouring course grid point, but we use L2flag to record this and so later avoid that -Inf point when simulating/iteration
+% THE THIRD OUTPUT is for vfoptions.localsearch, on a SEED sweep (vfoptions.localsearchseed, set by
+% Step1): the COARSE aprime argmax per (d,a,z,e,j), which is this raw's own clamped midpoints_jj (per
+% d), the same thing the GI raw returns. Only built when asked for.
+if nargout>2
+    aprimeReferencePolicyNew=zeros(N_d,N_a,N_z,N_e,N_j,'gpuArray');
+end
 
 %%
 
@@ -128,7 +134,7 @@ if vfoptions.lowmemory==0
             % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
             aprimeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z-by-n_e
-            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,6);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,6);
             becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
             ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*reshape(WGmatrix(aprimeindexes),[N_d,(maxgap(ii)+1),1,N_z,N_e]); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
@@ -145,10 +151,13 @@ if vfoptions.lowmemory==0
 
     % Turn this into the 'midpoint'
     midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+    if nargout>2
+        aprimeReferencePolicyNew(:,:,:,:,N_j)=reshape(midpoints_jj,[N_d,N_a,N_z,N_e]); % seed reference, see top
+    end
     % midpoint is n_d-1-by-n_a-by-n_z-by-n_e
     aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z-by-n_e
-    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,n_z,n_e,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,N_j),e_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,n_z,n_e,d_gridvals,reshape(aprime_grid(aprimeindexes),size(aprimeindexes)),a_grid,z_gridvals_J(:,:,N_j),e_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
     becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
     wasnegInf=(ReturnMatrix_ii==-Inf); % save raw -Inf pattern for the L2 flag (the in-place transform below overwrites ReturnMatrix_ii)
     ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
@@ -202,7 +211,7 @@ elseif vfoptions.lowmemory==1
                 % loweredge is n_d-by-1-by-1-by-n_z
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
-                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,6);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,6);
                 becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
                 ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*reshape(WGmatrix(aprimeindexes),[N_d,(maxgap(ii)+1),1,N_z]); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
@@ -219,10 +228,13 @@ elseif vfoptions.lowmemory==1
 
         % Turn this into the 'midpoint'
         midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        if nargout>2
+            aprimeReferencePolicyNew(:,:,:,e_c,N_j)=reshape(midpoints_jj,[N_d,N_a,N_z]); % seed reference, see top
+        end
         % midpoint is n_d-1-by-n_a-by-n_z
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
-        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,n_z,special_n_e,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,N_j),e_val,ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,n_z,special_n_e,d_gridvals,reshape(aprime_grid(aprimeindexes),size(aprimeindexes)),a_grid,z_gridvals_J(:,:,N_j),e_val,ReturnFnParamsVec,2);
         becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         wasnegInf=(ReturnMatrix_ii==-Inf); % save raw -Inf pattern for the L2 flag (the in-place transform below overwrites ReturnMatrix_ii)
         ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
@@ -278,7 +290,7 @@ elseif vfoptions.lowmemory==2
                     % loweredge is n_d-by-1-by-1
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,6);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,6);
                     becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                     ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
                     ReturnMatrix_ii=ezc1*ReturnMatrix_ii+ezc3*DiscountFactorParamsVec*reshape(WGmatrix(aprimeindexes),[N_d,(maxgap(ii)+1),1]); % in-place: ReturnMatrix_ii now holds what was entireRHS_ii
@@ -295,10 +307,13 @@ elseif vfoptions.lowmemory==2
 
             % Turn this into the 'midpoint'
             midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+            if nargout>2
+                aprimeReferencePolicyNew(:,:,z_c,e_c,N_j)=reshape(midpoints_jj,[N_d,N_a]); % seed reference, see top
+            end
             % midpoint is n_d-1-by-n_a
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a
-            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,special_n_z,special_n_e,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,e_val,ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,special_n_z,special_n_e,d_gridvals,reshape(aprime_grid(aprimeindexes),size(aprimeindexes)),a_grid,z_val,e_val,ReturnFnParamsVec,2);
             becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             wasnegInf=(ReturnMatrix_ii==-Inf); % save raw -Inf pattern for the L2 flag (the in-place transform below overwrites ReturnMatrix_ii)
             ReturnMatrix_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(N_j); % in-place transform: ReturnMatrix_ii now holds what was temp2 (avoids a full-size copy)
@@ -371,7 +386,7 @@ for reverse_j=1:N_j-1
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid (BEFORE the certainty-equivalent power ^ezc6)
-    EVinterp=interp1(a_grid,EV,aprime_grid);
+    EVinterp=interp1(a_grid,EV,aprime_grid');
 
     % Certainty-equivalent (and mortality-risk/warm-glow) transform, pointwise over (aprime,z)
     temp4=EV;
@@ -420,7 +435,7 @@ for reverse_j=1:N_j-1
                 loweredge=min(maxindex1(:,1,ii,:,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
                 % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
                 aprimeindexes=loweredge+(0:1:maxgap(ii)); % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z-by-n_e
-                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,6);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_z, n_e, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,6);
                 becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2_ii=ReturnMatrix_ii;
                 temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
@@ -439,10 +454,13 @@ for reverse_j=1:N_j-1
 
         % Turn this into the 'midpoint'
         midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        if nargout>2
+            aprimeReferencePolicyNew(:,:,:,:,jj)=reshape(midpoints_jj,[N_d,N_a,N_z,N_e]); % seed reference, see top
+        end
         % midpoint is n_d-1-by-n_a-by-n_z-by-n_e
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z-by-n_e
-        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,n_z,n_e,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,jj),e_gridvals_J(:,:,jj),ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,n_z,n_e,d_gridvals,reshape(aprime_grid(aprimeindexes),size(aprimeindexes)),a_grid,z_gridvals_J(:,:,jj),e_gridvals_J(:,:,jj),ReturnFnParamsVec,2);
         becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
         temp2_ii=ReturnMatrix_ii;
         temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
@@ -498,7 +516,7 @@ for reverse_j=1:N_j-1
                     loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
                     % loweredge is n_d-by-1-by-1-by-n_z
                     aprimeindexes=loweredge+(0:1:maxgap(ii)); % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,6);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, n_z, special_n_e, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,6);
                     becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                     temp2_ii=ReturnMatrix_ii;
                     temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
@@ -517,10 +535,13 @@ for reverse_j=1:N_j-1
 
             % Turn this into the 'midpoint'
             midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+            if nargout>2
+                aprimeReferencePolicyNew(:,:,:,e_c,jj)=reshape(midpoints_jj,[N_d,N_a,N_z]); % seed reference, see top
+            end
             % midpoint is n_d-1-by-n_a-by-n_z
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
-            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,n_z,special_n_e,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,jj),e_val,ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,n_z,special_n_e,d_gridvals,reshape(aprime_grid(aprimeindexes),size(aprimeindexes)),a_grid,z_gridvals_J(:,:,jj),e_val,ReturnFnParamsVec,2);
             becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
             temp2_ii=ReturnMatrix_ii;
             temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
@@ -582,7 +603,7 @@ for reverse_j=1:N_j-1
                         loweredge=min(maxindex1(:,1,ii),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
                         % loweredge is n_d-by-1-by-1
                         aprimeindexes=loweredge+(0:1:maxgap(ii)); % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
-                        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,6);
+                        ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn, n_d, special_n_z, special_n_e, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,6);
                         becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                         temp2_ii=ReturnMatrix_ii;
                         temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);
@@ -600,10 +621,13 @@ for reverse_j=1:N_j-1
 
                 % Turn this into the 'midpoint'
                 midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+                if nargout>2
+                    aprimeReferencePolicyNew(:,:,z_c,e_c,jj)=reshape(midpoints_jj,[N_d,N_a]); % seed reference, see top
+                end
                 % midpoint is n_d-1-by-n_a
                 aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a
-                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,special_n_z,special_n_e,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,e_val,ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Disc_DC1_e(ReturnFn,n_d,special_n_z,special_n_e,d_gridvals,reshape(aprime_grid(aprimeindexes),size(aprimeindexes)),a_grid,z_val,e_val,ReturnFnParamsVec,2);
                 becareful=isfinite(ReturnMatrix_ii); % a zero return is a value, not infeasible: 0^ezc2 is Inf when ezc2<0, and Inf^ezc7 is then the floor 0
                 temp2_ii=ReturnMatrix_ii;
                 temp2_ii(becareful)=ReturnMatrix_ii(becareful).^ezc2(jj);

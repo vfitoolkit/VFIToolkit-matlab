@@ -156,7 +156,7 @@ for reverse_j=1:N_j-1
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 ReturnMatrix_ii_dc=CreateReturnFnMatrix_Disc_DC1(ReturnFn, n_d, n_z, d_gridvals, reshape(a_grid(aprimeindexes),size(aprimeindexes)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), ReturnFnParamsVec,3);
                 aprimez=aprimeindexes+N_a*zBind;
-                entireRHS_ii=ReturnMatrix_ii_dc+beta0beta*EV(reshape(aprimez,[N_d,(maxgap(ii)+1),1,N_z]));
+                entireRHS_ii=ReturnMatrix_ii_dc+beta0beta*reshape(EV(reshape(aprimez,[N_d,(maxgap(ii)+1),1,N_z])),[N_d,(maxgap(ii)+1),1,N_z]);
                 [~,maxindex]=max(entireRHS_ii,[],2);
                 midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
             else

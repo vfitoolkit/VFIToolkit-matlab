@@ -102,10 +102,11 @@ for reverse_j=0:N_j-1
     V(:,:,:,jj)=reshape(Vtemp,[N_a,N_z,N_e]);
     dstar=reshape(dstar,[N_a,N_z,N_e]);
 
-    % Everything below is read AT THE CHOSEN d
+    % Everything below is read AT THE CHOSEN d. Reshaped because with N_d=1 L2d and midpoint can be
+    % vectors and a vector indexed by a vector takes the SOURCE's orientation.
     lin=dstar+N_d*(0:1:N_a-1)'+N_d*N_a*(0:1:N_z-1)+N_d*N_a*N_z*shiftdim((0:1:N_e-1),-1); % [N_a,N_z,N_e], into an [N_d,N_a,N_z,N_e] array
-    L2star=L2d(lin);
-    midstar=midpoint(lin);
+    L2star=reshape(L2d(lin),size(lin));
+    midstar=reshape(midpoint(lin),size(lin));
 
     %% L2 flag, for the cell the chosen d landed in
     % The standard GI raw's rule, with the two cell endpoints at window positions 1 and n2long in the
