@@ -384,6 +384,7 @@ elseif caliboptions.vectoroutput==2
         Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
+    Obj=Obj/sqrt(caliboptions.nCalibParamsNonGE); % the square root of the scalar form's divisor, so that the sum of squares of this vector is exactly the scalar objective (vectoroutput=0), penalty aside, as in the joint objective
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
     if penalty>0
         Obj=[Obj; sqrt(penalty)]; % append penalty residual: contributes 'penalty' to lsqnonlin's sum(Obj.^2)

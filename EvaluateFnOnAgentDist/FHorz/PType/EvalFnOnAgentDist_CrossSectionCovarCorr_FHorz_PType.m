@@ -353,6 +353,23 @@ for ii=1:N_i
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii; % (after the whichcombos reduction)
 
     if sum(FnsAndPTypeIndicator_ii)==0
+        if useCondlRest==1
+            % None of the FnsToEvaluate are relevant to this type, but its restricted sample masses are still reported (and count in
+            % .ByPType/.Total), as in LifeCycleProfiles_FHorz_Case1_PType: evaluate with the first restriction as the only function,
+            % single periods and no selection (the grouped stats never pool this type: EvalInd stays zero)
+            FnsToEvaluate_rsm=struct();
+            FnsToEvaluate_rsm.restrictedsamplemassfn=simoptions_temp.conditionalrestrictions.(CondlRestnFnNames{1});
+            simoptions_rsm=simoptions_temp;
+            simoptions_rsm.ntimeperiods=1;
+            if isfield(simoptions_rsm,'whichcombos')
+                simoptions_rsm=rmfield(simoptions_rsm,'whichcombos');
+            end
+            CrossSectionCorr_ii=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_rsm,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_rsm);
+            for rr=1:length(CondlRestnFnNames)
+                MassFactor(ii,1+rr)=gather(CrossSectionCorr_ii.(CondlRestnFnNames{rr}).RestrictedSampleMass);
+                PageOut{1+rr}.RestrictedSampleMass.(iistr)=CrossSectionCorr_ii.(CondlRestnFnNames{rr}).RestrictedSampleMass;
+            end
+        end
         continue % none of the FnsToEvaluate are relevant to this type
     end
 

@@ -13,8 +13,11 @@ function AgeConditionalCrossSectionCorr=EvalFnOnAgentDist_AgeConditionalStats_Cr
 % simoptions fields, FnsToEvaluate fields) or with a trailing dimension of length N_i where
 % that form is accepted. Names_i is the cell of type names, or just the number of types.
 % StationaryDist is the structure output of StationaryDist_Case1_FHorz_PType (it includes
-% StationaryDist.ptweights). N_j and simoptions.agegroupings must be the same for all
-% types (no per-type N_j, no agejshifter).
+% StationaryDist.ptweights). simoptions.agegroupings must be the same for all types (no
+% agejshifter). N_j may differ by type (a structure, as in LifeCycleProfiles_FHorz_Case1_PType):
+% every type starts at age 1, the age groups and the grouped outputs are on the common age axis
+% 1:max(N_j), a type has the age groups that start within its own N_j (its last one ending at its
+% N_j), and a type is in the pool of an age group (a window start age) only where it has it.
 %
 % simoptions.agegroupings can be used to do conditional on 'age bins' rather than age
 % e.g., simoptions.agegroupings=1:10:N_j will divide into 10 year age bins.
@@ -71,8 +74,15 @@ else
     end
 end
 
+% N_j may differ by type: N_j_vec(ii) is the type's own, N_j the common age axis (the longest)
+N_j_vec=zeros(N_i,1);
 if isstruct(N_j)
-    error('EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType: N_j must be the same for all permanent types (N_j cannot be a structure)')
+    for ii=1:N_i
+        N_j_vec(ii)=N_j.(Names_i{ii});
+    end
+    N_j=max(N_j_vec);
+else
+    N_j_vec(:)=N_j;
 end
 
 if ~exist('simoptions','var')
@@ -385,8 +395,13 @@ for ii=1:N_i
     end
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii; % (after the whichcombos reduction)
 
-    % Mass of this type in each age group
-    AgeMasses_ii=gather(sum(reshape(StationaryDist_temp,[numel(StationaryDist_temp)/N_j,N_j]),1));
+    % The type's own ages: its N_j, and the age groups that start within it (the last one ending at its N_j)
+    N_j_temp=N_j_vec(ii);
+    ngroups_ii=sum(simoptions.agegroupings<=N_j_temp);
+    simoptions_temp.agegroupings=simoptions.agegroupings(1:ngroups_ii);
+
+    % Mass of this type in each age group (zero at the ages beyond its N_j)
+    AgeMasses_ii=[gather(sum(reshape(StationaryDist_temp,[numel(StationaryDist_temp)/N_j_temp,N_j_temp]),1)),zeros(1,N_j-N_j_temp)];
     for kk=1:ngroups
         j1=simoptions.agegroupings(kk);
         if kk<ngroups
@@ -398,27 +413,54 @@ for ii=1:N_i
     end
 
     if sum(FnsAndPTypeIndicator_ii)==0
+        if useCondlRest==1
+            % None of the FnsToEvaluate are relevant to this type, but its restricted sample masses are still reported (and count in
+            % .ByAge/.ByPType/.Total), as in LifeCycleProfiles_FHorz_Case1_PType: evaluate with the first restriction as the only
+            % function, single periods and no selection (the grouped stats never pool this type: its indicator is zero)
+            FnsToEvaluate_rsm=struct();
+            FnsToEvaluate_rsm.restrictedsamplemassfn=simoptions_temp.conditionalrestrictions.(CondlRestnFnNames{1});
+            simoptions_rsm=simoptions_temp;
+            simoptions_rsm.ntimeperiods=1;
+            if isfield(simoptions_rsm,'whichcombos')
+                simoptions_rsm=rmfield(simoptions_rsm,'whichcombos');
+            end
+            AgeConditionalCrossSectionCorr_ii=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_rsm,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_rsm);
+            for rr=1:length(CondlRestnFnNames)
+                PageOut{1+rr}.RestrictedSampleMass.(iistr)=AgeConditionalCrossSectionCorr_ii.(CondlRestnFnNames{rr}).RestrictedSampleMass;
+                RestrictedMassByAge(ii,:,rr)=[reshape(gather(AgeConditionalCrossSectionCorr_ii.(CondlRestnFnNames{rr}).RestrictedSampleMass),[1,N_j_temp]),zeros(1,N_j-N_j_temp)]; % (zero beyond the type's N_j)
+                for kk=1:ngroups
+                    j1=simoptions.agegroupings(kk);
+                    if kk<ngroups
+                        jend=simoptions.agegroupings(kk+1)-1;
+                    else
+                        jend=N_j;
+                    end
+                    GroupMasses(ii,kk,1+rr)=sum(RestrictedMassByAge(ii,j1:jend,rr));
+                end
+            end
+        end
         continue % none of the FnsToEvaluate are relevant to this type
     end
 
     %% Compute for this type
     idx_ii=find(FnsAndPTypeIndicator_ii==1); % the functions this type evaluates, in their order
     if nblocks==1 && has1
-        simoptions_temp.whichcombos=whichcombos_ii(idx_ii,idx_ii,:,:); % the per-type command applies the selection itself (unselected entries NaN)
+        simoptions_temp.whichcombos=whichcombos_ii(idx_ii,idx_ii,1:ngroups_ii,:); % the per-type command applies the selection itself (unselected entries NaN); the type's own age groups
     else
-        % block diagonal over the window lengths, in the order of ntimeperiods, over the functions this type evaluates
+        % block diagonal over the window lengths, in the order of ntimeperiods, over the functions this type evaluates (the type's own age groups; windows by start age, only those that fit in its N_j)
         nii=length(idx_ii);
-        wcT=zeros(nblocks*nii,nblocks*nii,ngroups,nwhichpages);
+        wcT=zeros(nblocks*nii,nblocks*nii,ngroups_ii,nwhichpages);
         for bb=1:nblocks
             if ntimeperiods(bb)==1
-                wcT((bb-1)*nii+1:bb*nii,(bb-1)*nii+1:bb*nii,:,:)=whichcombos_ii(idx_ii,idx_ii,:,:);
+                wcT((bb-1)*nii+1:bb*nii,(bb-1)*nii+1:bb*nii,:,:)=whichcombos_ii(idx_ii,idx_ii,1:ngroups_ii,:);
             else
-                wcT((bb-1)*nii+1:bb*nii,(bb-1)*nii+1:bb*nii,:,:)=whichcombosW_ii(idx_ii,idx_ii,:,:,windowM==ntimeperiods(bb));
+                wcT((bb-1)*nii+1:bb*nii,(bb-1)*nii+1:bb*nii,:,:)=whichcombosW_ii(idx_ii,idx_ii,1:ngroups_ii,:,windowM==ntimeperiods(bb));
+                wcT((bb-1)*nii+1:bb*nii,(bb-1)*nii+1:bb*nii,N_j_temp-ntimeperiods(bb)+2:N_j_temp,:)=0; % no window of M periods starts after the type's age N_j-M+1
             end
         end
         simoptions_temp.whichcombos=wcT;
     end
-    AgeConditionalCrossSectionCorr_ii=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
+    AgeConditionalCrossSectionCorr_ii=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
 
     % Store by type, page by page
     relevantfns=find(FnsAndPTypeIndicator_ii==1); % the matrices of the type only cover the functions relevant to it, in their order
@@ -428,7 +470,7 @@ for ii=1:N_i
         else
             Src=AgeConditionalCrossSectionCorr_ii.(CondlRestnFnNames{pp-1});
             PageOut{pp}.RestrictedSampleMass.(iistr)=Src.RestrictedSampleMass;
-            RestrictedMassByAge(ii,:,pp-1)=reshape(gather(Src.RestrictedSampleMass),[1,N_j]);
+            RestrictedMassByAge(ii,:,pp-1)=[reshape(gather(Src.RestrictedSampleMass),[1,N_j_temp]),zeros(1,N_j-N_j_temp)]; % (zero beyond the type's N_j)
             for kk=1:ngroups
                 j1=simoptions.agegroupings(kk);
                 if kk<ngroups
@@ -443,13 +485,13 @@ for ii=1:N_i
             for ff=1:numFnsToEvaluate
                 if FnsAndPTypeIndicator_ii(ff)==1
                     PageOut{pp}.(FnsToEvalNames{ff}).(iistr)=Src.(FnsToEvalNames{ff});
-                    MeanVec(ff,ii,:,pp)=reshape(gather(Src.(FnsToEvalNames{ff}).Mean),[1,1,ngroups]);
-                    StdDevVec(ff,ii,:,pp)=reshape(gather(Src.(FnsToEvalNames{ff}).StdDeviation),[1,1,ngroups]);
+                    MeanVec(ff,ii,1:ngroups_ii,pp)=reshape(gather(Src.(FnsToEvalNames{ff}).Mean),[1,1,ngroups_ii]);
+                    StdDevVec(ff,ii,1:ngroups_ii,pp)=reshape(gather(Src.(FnsToEvalNames{ff}).StdDeviation),[1,1,ngroups_ii]);
                 end
             end
             PageOut{pp}.CovarianceMatrix_ptype.(iistr)=Src.CovarianceMatrix;
             PageOut{pp}.CorrelationMatrix_ptype.(iistr)=Src.CorrelationMatrix;
-            CovarVec(relevantfns,relevantfns,ii,:,pp)=reshape(gather(Src.CovarianceMatrix),[length(relevantfns),length(relevantfns),1,ngroups]);
+            CovarVec(relevantfns,relevantfns,ii,1:ngroups_ii,pp)=reshape(gather(Src.CovarianceMatrix),[length(relevantfns),length(relevantfns),1,ngroups_ii]);
         end
         % The windows of this type (the fields its command created: a function with some selection on the page for that M)
         for lw=1:nW
@@ -461,17 +503,18 @@ for ii=1:N_i
                 wn=[FnsToEvalNames{ff},'_',Mstr];
                 if FnsAndPTypeIndicator_ii(ff)==1 && isfield(Src,wn)
                     PageOut{pp}.(wn).(iistr)=Src.(wn);
-                    WMeanVec(ff,ii,:,pp,lw)=reshape(gather(Src.(wn).Mean),[1,1,N_j]);
+                    WMeanVec(ff,ii,1:N_j_temp,pp,lw)=reshape(gather(Src.(wn).Mean),[1,1,N_j_temp]);
                 end
             end
             PageOut{pp}.(['CovarianceMatrix_',Mstr,'_ptype']).(iistr)=Src.(['CovarianceMatrix_',Mstr]);
             PageOut{pp}.(['CorrelationMatrix_',Mstr,'_ptype']).(iistr)=Src.(['CorrelationMatrix_',Mstr]);
-            WCovVec(relevantfns,relevantfns,ii,:,pp,lw)=reshape(gather(Src.(['CovarianceMatrix_',Mstr])),[length(relevantfns),length(relevantfns),1,N_j]);
+            WCovVec(relevantfns,relevantfns,ii,1:N_j_temp,pp,lw)=reshape(gather(Src.(['CovarianceMatrix_',Mstr])),[length(relevantfns),length(relevantfns),1,N_j_temp]);
             if pp==1
                 WMassVec(ii,:,pp,lw)=AgeMasses_ii; % the window population at a start age is everyone of the type there
+                WMassVec(ii,N_j_temp-windowM(lw)+2:N_j,pp,lw)=0; % (no window of the type starts after its age N_j-M+1)
             else
                 PageOut{pp}.(['RestrictedSampleMass_',Mstr]).(iistr)=Src.(['RestrictedSampleMass_',Mstr]);
-                WMassVec(ii,:,pp,lw)=reshape(gather(Src.(['RestrictedSampleMass_',Mstr])),[1,N_j]);
+                WMassVec(ii,1:N_j_temp,pp,lw)=reshape(gather(Src.(['RestrictedSampleMass_',Mstr])),[1,N_j_temp]);
             end
         end
     end

@@ -1051,7 +1051,6 @@ elseif useptype==1
                 ngroups_i(ii)=N_j;
             end
         end
-        maxngroups=max(ngroups_i);
         ageshift=zeros(N_i,1);
         if isfield(simoptions,'agejshifter')
             if isstruct(simoptions.agejshifter)
@@ -1063,6 +1062,7 @@ elseif useptype==1
             end
             ageshift=ageshift-min(ageshift);
         end
+        maxngroups=max(ngroups_i+ageshift);
     else
         buildselectors=0;
     end
@@ -1425,9 +1425,14 @@ elseif useptype==1
             ACStats_whichstatsArr=zeros(length(ACStats_ntimeperiods)*nFnsL,ngroupsA,1+nRestr,N_i+1,7);
             ACStats_logwhichcombos=zeros(length(ACStats_ntimeperiods)*nFnsL,ngroupsA,1+nRestr);
             ACStats_levelcombos=zeros(length(ACStats_ntimeperiods)*nFnsL,ngroupsA,1+nRestr);
-            ACStatsW_whichstatsArr=zeros(length(ACStatsW_ntimeperiods)*nFnsL,N_j,1+nRestr,N_i+1,7);
-            ACStatsW_logwhichcombos=zeros(length(ACStatsW_ntimeperiods)*nFnsL,N_j,1+nRestr);
-            ACStatsW_levelcombos=zeros(length(ACStatsW_ntimeperiods)*nFnsL,N_j,1+nRestr);
+            if ACStats_split
+                ngroupsW=N_j; % (window targets need the same N_j for every ptype, so N_j is a scalar here)
+            else
+                ngroupsW=0; % no window call (N_j can be per ptype, a structure)
+            end
+            ACStatsW_whichstatsArr=zeros(length(ACStatsW_ntimeperiods)*nFnsL,ngroupsW,1+nRestr,N_i+1,7);
+            ACStatsW_logwhichcombos=zeros(length(ACStatsW_ntimeperiods)*nFnsL,ngroupsW,1+nRestr);
+            ACStatsW_levelcombos=zeros(length(ACStatsW_ntimeperiods)*nFnsL,ngroupsW,1+nRestr);
         end
         for cc=1:nrows
             if rowcall(cc)==1
@@ -1567,15 +1572,26 @@ elseif useptype==1
     % targeted (use CustomModelStats). The selector is [nFns,N_j,1+nRestr,N_i+1]: entry j of a horizon-K target selects start age j
     % (Mean/StdDeviation: age j) in the target's slot, a type's slot or the grouped slot N_i+1 (which makes the command compute every
     % type at that start age, as the grouped output is pooled from them). The horizons (1 for a target without a suffix) are read off
-    % the names and returned in autocorrtimehorizons for simoptions.timehorizons. N_j must be common to the types and there can be no agejshifter (the PType
-    % command does not implement them with simoptions.whichcombos).
+    % the names and returned in autocorrtimehorizons for simoptions.timehorizons. N_j may differ by type: a type's targets are on its own
+    % ages (1 x its N_j-K), the grouped ones and the selector on the common age axis 1:max(N_j). There can be no agejshifter (the PType
+    % command does not implement it).
     if usingautocorr==1
         if buildselectors==0
             error('TargetMoments.AutoCorrTransProbs needs N_j, simoptions and Names_i to be passed to SetupTargetMoments_FHorz (CalibrateLifeCycleModel_PType does; the estimation commands do not yet support these targets)')
         end
-        if isstruct(N_j) || any(ageshift~=0)
-            error('TargetMoments.AutoCorrTransProbs with permanent types needs N_j common to the types and no simoptions.agejshifter (EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType does not implement them with simoptions.whichcombos)')
+        if any(ageshift~=0)
+            error('TargetMoments.AutoCorrTransProbs with permanent types needs no simoptions.agejshifter (EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType does not implement it)')
         end
+        N_jslotAC=zeros(N_i+1,1); % the age axis of each slot: a type's own N_j, the longest for the grouped slot
+        for ii=1:N_i
+            if isstruct(N_j)
+                N_jslotAC(ii)=N_j.(Names_i{ii});
+            else
+                N_jslotAC(ii)=N_j;
+            end
+        end
+        N_jslotAC(N_i+1)=max(N_jslotAC(1:N_i));
+        N_jAC=N_jslotAC(N_i+1);
         autocorrmomentnames=cell(0,4);
         autocorrmomentsizes=[];
         a1vec=fieldnames(TargetMoments.AutoCorrTransProbs);
@@ -1718,9 +1734,9 @@ elseif useptype==1
         autocorrtimehorizons=[];
         % rows in blocks of the window lengths; logwhichcombos has no type dimension (the PType command applies it to every type and
         % the grouped stats), so a log target of one type or the grouped stats makes that combination the log for all of them
-        AutoCorr_whichcombos=zeros(nblocksAC*length(FnNamesAC),N_j,1+nRestr,N_i+1);
-        AutoCorr_logwhichcombos=zeros(nblocksAC*length(FnNamesAC),N_j,1+nRestr);
-        AutoCorr_levelcombos=zeros(nblocksAC*length(FnNamesAC),N_j,1+nRestr);
+        AutoCorr_whichcombos=zeros(nblocksAC*length(FnNamesAC),N_jAC,1+nRestr,N_i+1);
+        AutoCorr_logwhichcombos=zeros(nblocksAC*length(FnNamesAC),N_jAC,1+nRestr);
+        AutoCorr_levelcombos=zeros(nblocksAC*length(FnNamesAC),N_jAC,1+nRestr);
         for cc=1:nrows
             stat=rowstat{cc};
             tk=regexp(stat,'_horizon(\d+)$','tokens','once'); % the horizon suffix
@@ -1745,18 +1761,19 @@ elseif useptype==1
             for kk=1:length(names)
                 temp=temp.(names{kk});
             end
-            if ~(isvector(temp) && numel(temp)==N_j-K)
-                error(['TargetMoments.AutoCorrTransProbs target ',rowfn{cc},' ',stat,' has ',num2str(numel(temp)),' entries, but it is 1 x ',num2str(N_j-K),' (N_j minus the horizon)'])
+            ss_slot=rowslot(cc);
+            N_jss=N_jslotAC(ss_slot); % the slot's own N_j (the longest for the grouped slot)
+            if ~(isvector(temp) && numel(temp)==N_jss-K)
+                error(['TargetMoments.AutoCorrTransProbs target ',rowfn{cc},' ',stat,' has ',num2str(numel(temp)),' entries, but it is 1 x ',num2str(N_jss-K),' (N_j minus the horizon; with per-type N_j, a type''s own N_j, the longest for the grouped stats)'])
             end
             ff=(find(AutoCorr_ntimeperiods==rowM(cc))-1)*length(FnNamesAC)+find(strcmp(FnNamesAC,rowbase{cc})); % the row: the block of its window length
             pp=rowpage(cc);
-            ss_slot=rowslot(cc);
             sel=double(reshape(~isnan(temp),1,[]));
-            AutoCorr_whichcombos(ff,1:N_j-K,pp,ss_slot)=max(AutoCorr_whichcombos(ff,1:N_j-K,pp,ss_slot),sel); % entry j selects start age j
+            AutoCorr_whichcombos(ff,1:N_jss-K,pp,ss_slot)=max(AutoCorr_whichcombos(ff,1:N_jss-K,pp,ss_slot),sel); % entry j selects start age j
             if rowlog(cc)==1
-                AutoCorr_logwhichcombos(ff,1:N_j-K,pp)=max(AutoCorr_logwhichcombos(ff,1:N_j-K,pp),sel);
+                AutoCorr_logwhichcombos(ff,1:N_jss-K,pp)=max(AutoCorr_logwhichcombos(ff,1:N_jss-K,pp),sel);
             else
-                AutoCorr_levelcombos(ff,1:N_j-K,pp)=max(AutoCorr_levelcombos(ff,1:N_j-K,pp),sel);
+                AutoCorr_levelcombos(ff,1:N_jss-K,pp)=max(AutoCorr_levelcombos(ff,1:N_jss-K,pp),sel);
             end
         end
         if any(AutoCorr_logwhichcombos(:) & AutoCorr_levelcombos(:))
@@ -1792,14 +1809,32 @@ elseif useptype==1
         else
             xf='AgeConditionalCrossSectionCovarCorr'; usingx=usingagecrosssec; nage=1;
             if usingx==1 && buildselectors==1
-                if isstruct(N_j) || any(ageshift~=0) || (isfield(simoptions,'agegroupings') && isstruct(simoptions.agegroupings))
-                    error('TargetMoments.AgeConditionalCrossSectionCovarCorr with permanent types needs N_j and simoptions.agegroupings common to the types and no simoptions.agejshifter (EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType does not implement them)')
+                if any(ageshift~=0) || (isfield(simoptions,'agegroupings') && isstruct(simoptions.agegroupings))
+                    error('TargetMoments.AgeConditionalCrossSectionCovarCorr with permanent types needs simoptions.agegroupings common to the types and no simoptions.agejshifter (EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz_PType does not implement them)')
                 end
+                % N_j may differ by type: the common age axis is the longest; a type has the age groups that start within its own N_j (and its own
+                % window start ages), the grouped slot all of them. N_jslotX and ngroupsslotX are per slot (the types, then the grouped stats).
+                N_jslotX=zeros(N_i+1,1);
+                for ii=1:N_i
+                    if isstruct(N_j)
+                        N_jslotX(ii)=N_j.(Names_i{ii});
+                    else
+                        N_jslotX(ii)=N_j;
+                    end
+                end
+                N_jX=max(N_jslotX(1:N_i));
+                N_jslotX(N_i+1)=N_jX;
+                ngroupsslotX=zeros(N_i+1,1);
                 if isfield(simoptions,'agegroupings')
                     nage=length(simoptions.agegroupings);
+                    for ii=1:N_i
+                        ngroupsslotX(ii)=sum(simoptions.agegroupings<=N_jslotX(ii));
+                    end
                 else
-                    nage=N_j;
+                    nage=N_jX;
+                    ngroupsslotX(1:N_i)=N_jslotX(1:N_i);
                 end
+                ngroupsslotX(N_i+1)=nage;
             end
         end
         if usingx==1
@@ -1967,7 +2002,7 @@ elseif useptype==1
             end
             agedefaultX=1;
             if xx==2
-                agedefaultX=(~isfield(simoptions,'agegroupings') || isequal(reshape(simoptions.agegroupings,1,[]),1:1:N_j));
+                agedefaultX=(~isfield(simoptions,'agegroupings') || isequal(reshape(simoptions.agegroupings,1,[]),1:1:N_jX));
             end
             splitX=(xx==2 && any(rowM>1) && any(rowM==1) && ~agedefaultX);
             if splitX
@@ -1980,13 +2015,13 @@ elseif useptype==1
             if xx==1
                 nageMain=1;
             elseif any(ntMain>1)
-                nageMain=N_j; % by start age
+                nageMain=N_jX; % by start age
             else
                 nageMain=nage;
             end
             wcX=zeros(length(ntMain)*nFX,length(ntMain)*nFX,nageMain,1+nRestr,N_i+1);
             if splitX
-                wcXW=zeros(length(ntW)*nFX,length(ntW)*nFX,N_j,1+nRestr,N_i+1);
+                wcXW=zeros(length(ntW)*nFX,length(ntW)*nFX,N_jX,1+nRestr,N_i+1);
             else
                 wcXW=[]; % (N_j may be a structure for the pooled command)
             end
@@ -2001,9 +2036,14 @@ elseif useptype==1
                 ss_slot=rowslot(cc);
                 inW=(splitX && rowM(cc)>1); % (in the second call)
                 if inW
-                    off=(find(ntW==rowM(cc))-1)*nFX; nagecc=N_j;
+                    off=(find(ntW==rowM(cc))-1)*nFX; nagecc=N_jslotX(ss_slot); % the slot's own start ages
                 else
                     off=(find(ntMain==rowM(cc))-1)*nFX; nagecc=nageMain;
+                    if xx==2 && nageMain==nage
+                        nagecc=ngroupsslotX(ss_slot); % the slot's own age groups
+                    elseif xx==2
+                        nagecc=N_jslotX(ss_slot); % the slot's own start ages
+                    end
                 end
                 if rowM(cc)>1
                     agestr='start ages (N_j: a window is by its start age)';
@@ -2018,9 +2058,9 @@ elseif useptype==1
                     on=double(~isnan(temp));
                     on=max(on,permute(on,[2,1,3]));
                     if inW
-                        wcXW(blk,blk,:,pp,ss_slot)=max(wcXW(blk,blk,:,pp,ss_slot),on);
+                        wcXW(blk,blk,1:nagecc,pp,ss_slot)=max(wcXW(blk,blk,1:nagecc,pp,ss_slot),on);
                     else
-                        wcX(blk,blk,:,pp,ss_slot)=max(wcX(blk,blk,:,pp,ss_slot),on);
+                        wcX(blk,blk,1:nagecc,pp,ss_slot)=max(wcX(blk,blk,1:nagecc,pp,ss_slot),on);
                     end
                 else
                     if ~(isvector(temp) && numel(temp)==nagecc)
@@ -2030,11 +2070,11 @@ elseif useptype==1
                     f2=off+find(strcmp(FnNamesX,rowfn2{cc}));
                     on=double(reshape(~isnan(temp),[1,1,nagecc]));
                     if inW
-                        wcXW(f1,f2,:,pp,ss_slot)=max(wcXW(f1,f2,:,pp,ss_slot),on);
-                        wcXW(f2,f1,:,pp,ss_slot)=max(wcXW(f2,f1,:,pp,ss_slot),on);
+                        wcXW(f1,f2,1:nagecc,pp,ss_slot)=max(wcXW(f1,f2,1:nagecc,pp,ss_slot),on);
+                        wcXW(f2,f1,1:nagecc,pp,ss_slot)=max(wcXW(f2,f1,1:nagecc,pp,ss_slot),on);
                     else
-                        wcX(f1,f2,:,pp,ss_slot)=max(wcX(f1,f2,:,pp,ss_slot),on);
-                        wcX(f2,f1,:,pp,ss_slot)=max(wcX(f2,f1,:,pp,ss_slot),on);
+                        wcX(f1,f2,1:nagecc,pp,ss_slot)=max(wcX(f1,f2,1:nagecc,pp,ss_slot),on);
+                        wcX(f2,f1,1:nagecc,pp,ss_slot)=max(wcX(f2,f1,1:nagecc,pp,ss_slot),on);
                     end
                 end
             end
@@ -2048,7 +2088,7 @@ elseif useptype==1
             elseif nRestr==0
                 wcX=reshape(wcX,[length(ntMain)*nFX,length(ntMain)*nFX,nageMain,N_i+1]);
                 if splitX
-                    wcXW=reshape(wcXW,[length(ntW)*nFX,length(ntW)*nFX,N_j,N_i+1]);
+                    wcXW=reshape(wcXW,[length(ntW)*nFX,length(ntW)*nFX,N_jX,N_i+1]);
                 end
             end
         else
@@ -2066,7 +2106,7 @@ elseif useptype==1
             agecrosssecmomentnames=xnames; agecrossseccummomentsizes=xcumsizes; FnsToEvaluate_AgeCrossSec=FnsX; AgeCrossSec_whichcombos=wcX;
             AgeCrossSec_ntimeperiods=ntMain; AgeCrossSec_ntimeperiodstype=Xtype; AgeCrossSec_split=splitX; AgeCrossSecW_whichcombos=wcXW; AgeCrossSecW_ntimeperiods=ntW;
             if any(ntMain>1) && ~agedefaultX
-                AgeCrossSec_agegroupings=1:1:N_j; % window targets only: by start age
+                AgeCrossSec_agegroupings=1:1:N_jX; % window targets only: by start age
             else
                 AgeCrossSec_agegroupings=[];
             end
@@ -2149,7 +2189,7 @@ elseif useptype==1
             selectors.AgeCrossSecW.whichcombos=AgeCrossSecW_whichcombos;
             selectors.AgeCrossSecW.ntimeperiods=AgeCrossSecW_ntimeperiods;
             selectors.AgeCrossSecW.ntimeperiodstype=AgeCrossSec_ntimeperiodstype;
-            selectors.AgeCrossSecW.agegroupings=1:1:N_j;
+            selectors.AgeCrossSecW.agegroupings=1:1:N_jX;
         end
     end
 end

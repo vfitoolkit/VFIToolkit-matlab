@@ -143,7 +143,53 @@ if usinglcp==1
     else % caliboptions.whichcombos=0: every statistic of every targeted function
         simoptions_ACStats.whichstats=ones(1,7);
     end
+    usingacswindowlog=(isfield(caliboptions,'selectors') && isfield(caliboptions.selectors,'ACStats') && isfield(caliboptions.selectors.ACStats,'haswindowlog') && caliboptions.selectors.ACStats.haswindowlog==1);
+    if usingacswindowlog % the window and log rows the targets name: simoptions.ntimeperiods, ntimeperiodstype and logwhichcombos (set whatever caliboptions.whichcombos, as they decide which outputs there are)
+        simoptions_ACStats.ntimeperiods=caliboptions.selectors.ACStats.ntimeperiods;
+        simoptions_ACStats.ntimeperiodstype=caliboptions.selectors.ACStats.ntimeperiodstype;
+        simoptions_ACStats.logwhichcombos=caliboptions.selectors.ACStats.logwhichcombos;
+        if ~isempty(caliboptions.selectors.ACStats.agegroupings)
+            simoptions_ACStats.agegroupings=caliboptions.selectors.ACStats.agegroupings; % only window targets: by start age
+        end
+        if any(simoptions_ACStats.ntimeperiods>1)
+            simoptions_ACStats.pi_z=pi_z_J; % the windows need the z transitions
+        end
+    end
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate_ACStats,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_ACStats);
+    if usingacswindowlog && caliboptions.selectors.ACStats.split==1
+        % the single-period targets are by age groups, so the window targets (by start age) are a second call, merged into the output
+        simoptions_ACStatsW=simoptions;
+        simoptions_ACStatsW.agegroupings=caliboptions.selectors.ACStatsW.agegroupings;
+        if caliboptions.whichcombos==1
+            simoptions_ACStatsW.whichcombos=caliboptions.selectors.ACStatsW.whichcombos;
+            simoptions_ACStatsW.whichstats=caliboptions.selectors.ACStatsW.whichstats;
+        else
+            simoptions_ACStatsW.whichstats=ones(1,7);
+        end
+        simoptions_ACStatsW.ntimeperiods=caliboptions.selectors.ACStatsW.ntimeperiods;
+        simoptions_ACStatsW.ntimeperiodstype=caliboptions.selectors.ACStatsW.ntimeperiodstype;
+        simoptions_ACStatsW.logwhichcombos=caliboptions.selectors.ACStatsW.logwhichcombos;
+        simoptions_ACStatsW.pi_z=pi_z_J;
+        AgeConditionalStatsW=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate_ACStats,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_ACStatsW);
+        if isfield(simoptions,'conditionalrestrictions')
+            restrnamesW=fieldnames(simoptions.conditionalrestrictions);
+        else
+            restrnamesW={};
+        end
+        fW=fieldnames(AgeConditionalStatsW);
+        for kk=1:length(fW)
+            if any(strcmp(restrnamesW,fW{kk}))
+                fR=fieldnames(AgeConditionalStatsW.(fW{kk}));
+                for rr=1:length(fR)
+                    if ~strcmp(fR{rr},'RestrictedSampleMass')
+                        AgeConditionalStats.(fW{kk}).(fR{rr})=AgeConditionalStatsW.(fW{kk}).(fR{rr});
+                    end
+                end
+            else
+                AgeConditionalStats.(fW{kk})=AgeConditionalStatsW.(fW{kk});
+            end
+        end
+    end
 end
 if usingautocorr==1
     simoptions_AutoCorr=simoptions;
@@ -168,16 +214,62 @@ end
 if usingcrosssec==1
     simoptions_CrossSec=simoptions;
     if caliboptions.whichcombos==1
-        simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped, [nFns,nFns,1+nRestr] (the restricted targets are on pages 2:end)
+        simoptions_CrossSec.whichcombos=caliboptions.selectors.CrossSec.whichcombos; % pair-shaped, [nFns,nFns,1+nRestr] (the restricted targets are on pages 2:end); in blocks of ntimeperiods with window targets
+    end
+    if isfield(caliboptions,'selectors') && isfield(caliboptions.selectors,'CrossSec') && isfield(caliboptions.selectors.CrossSec,'ntimeperiods') && any(caliboptions.selectors.CrossSec.ntimeperiods>1)
+        % the windows the targets name (set whatever caliboptions.whichcombos, as they decide which outputs there are)
+        simoptions_CrossSec.ntimeperiods=caliboptions.selectors.CrossSec.ntimeperiods;
+        simoptions_CrossSec.ntimeperiodstype=caliboptions.selectors.CrossSec.ntimeperiodstype;
+        simoptions_CrossSec.pi_z=pi_z_J; % the windows need the z transitions
     end
     CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_FHorz(StationaryDist,Policy,FnsToEvaluate_CrossSec,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_CrossSec);
 end
 if usingagecrosssec==1
     simoptions_AgeCrossSec=simoptions;
     if caliboptions.whichcombos==1
-        simoptions_AgeCrossSec.whichcombos=caliboptions.selectors.AgeCrossSec.whichcombos; % pair-shaped, per age group and page, [nFns,nFns,ngroups,1+nRestr]
+        simoptions_AgeCrossSec.whichcombos=caliboptions.selectors.AgeCrossSec.whichcombos; % pair-shaped, per age group and page, [nFns,nFns,ngroups,1+nRestr]; in blocks of ntimeperiods with window targets
+    end
+    usingagecrosssecW=(isfield(caliboptions,'selectors') && isfield(caliboptions.selectors,'AgeCrossSec') && isfield(caliboptions.selectors.AgeCrossSec,'ntimeperiods'));
+    if usingagecrosssecW && any(caliboptions.selectors.AgeCrossSec.ntimeperiods>1)
+        % the windows the targets name (set whatever caliboptions.whichcombos, as they decide which outputs there are)
+        simoptions_AgeCrossSec.ntimeperiods=caliboptions.selectors.AgeCrossSec.ntimeperiods;
+        simoptions_AgeCrossSec.ntimeperiodstype=caliboptions.selectors.AgeCrossSec.ntimeperiodstype;
+        simoptions_AgeCrossSec.pi_z=pi_z_J; % the windows need the z transitions
+        if ~isempty(caliboptions.selectors.AgeCrossSec.agegroupings)
+            simoptions_AgeCrossSec.agegroupings=caliboptions.selectors.AgeCrossSec.agegroupings; % only window targets: by start age
+        end
     end
     AgeConditionalCrossSectionCorr=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz(StationaryDist,Policy,FnsToEvaluate_AgeCrossSec,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_AgeCrossSec);
+    if usingagecrosssecW && caliboptions.selectors.AgeCrossSec.split==1
+        % the single-period targets are by age groups, so the window targets (by start age) are a second call, merged into the output
+        simoptions_AgeCrossSecW=simoptions;
+        if caliboptions.whichcombos==1
+            simoptions_AgeCrossSecW.whichcombos=caliboptions.selectors.AgeCrossSecW.whichcombos;
+        end
+        simoptions_AgeCrossSecW.ntimeperiods=caliboptions.selectors.AgeCrossSecW.ntimeperiods;
+        simoptions_AgeCrossSecW.ntimeperiodstype=caliboptions.selectors.AgeCrossSecW.ntimeperiodstype;
+        simoptions_AgeCrossSecW.agegroupings=caliboptions.selectors.AgeCrossSecW.agegroupings;
+        simoptions_AgeCrossSecW.pi_z=pi_z_J;
+        AgeConditionalCrossSectionCorrW=EvalFnOnAgentDist_AgeConditionalStats_CrossSectionCovarCorr_FHorz(StationaryDist,Policy,FnsToEvaluate_AgeCrossSec,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions_AgeCrossSecW);
+        if isfield(simoptions,'conditionalrestrictions')
+            restrnamesW=fieldnames(simoptions.conditionalrestrictions);
+        else
+            restrnamesW={};
+        end
+        fW=fieldnames(AgeConditionalCrossSectionCorrW);
+        for kk=1:length(fW)
+            if any(strcmp(restrnamesW,fW{kk}))
+                fR=fieldnames(AgeConditionalCrossSectionCorrW.(fW{kk}));
+                for rr=1:length(fR)
+                    if ~isempty(regexp(fR{rr},'_\d+period(Average|Sum)$','once')) % the window fields (the restriction's single-period fields are those of the first call)
+                        AgeConditionalCrossSectionCorr.(fW{kk}).(fR{rr})=AgeConditionalCrossSectionCorrW.(fW{kk}).(fR{rr});
+                    end
+                end
+            elseif ~isempty(regexp(fW{kk},'_\d+period(Average|Sum)$','once'))
+                AgeConditionalCrossSectionCorr.(fW{kk})=AgeConditionalCrossSectionCorrW.(fW{kk});
+            end
+        end
+    end
 end
 
 

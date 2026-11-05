@@ -11,7 +11,9 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType(Station
 % dimension of length N_i where that form is accepted. Names_i is the cell of type names,
 % or just the number of types. StationaryDist is the structure output of
 % StationaryDist_Case1_FHorz_PType (it includes StationaryDist.ptweights).
-% N_j must be the same for all types (no per-type N_j, no agejshifter).
+% N_j may differ by type (a structure, as in LifeCycleProfiles_FHorz_Case1_PType): every type starts at age 1, the grouped
+% outputs and simoptions.whichcombos are on the common age axis 1:max(N_j), and a type is in the pool at an age (a start age)
+% only where it has that age (and the age of the pair, and a window that fits). No agejshifter.
 %
 % See EvalFnOnAgentDist_AutoCorrTransProbs_FHorz for the simoptions (timehorizons,
 % conditionalrestrictions, transprobs, transprobquantiles) and the outputs.
@@ -94,8 +96,15 @@ else
     end
 end
 
+% N_j may differ by type: N_j_vec(ii) is the type's own, N_j the common age axis of the grouped outputs and of whichcombos (the longest)
+N_j_vec=zeros(N_i,1);
 if isstruct(N_j)
-    error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz_PType: N_j must be the same for all permanent types (N_j cannot be a structure)')
+    for ii=1:N_i
+        N_j_vec(ii)=N_j.(Names_i{ii});
+    end
+    N_j=max(N_j_vec);
+else
+    N_j_vec(:)=N_j;
 end
 if isfield(simoptions,'agejshifter')
     if isstruct(simoptions.agejshifter) || any(simoptions.agejshifter~=0)
@@ -133,11 +142,13 @@ else
     windowstr='periodAverage';
 end
 rowff=zeros(nrowswc,1); % the function of each row
+rowM=zeros(nrowswc,1); % the window length of each row
 RowNames=cell(nrowswc,1); % the output name of each row
 for bb=1:nblocks
     for ff=1:numFnsToEvaluate
         r=(bb-1)*numFnsToEvaluate+ff;
         rowff(r)=ff;
+        rowM(r)=ntimeperiods(bb);
         if ntimeperiods(bb)==1
             RowNames{r}=FnsToEvalNames{ff};
         else
@@ -172,9 +183,6 @@ if ~isfield(simoptions,'whichcombos')
     whichcombosAll=ones(nrowswc,N_j,nwhichpages,N_i+1); % whichcombos here is [nRows, N_j, 1+nRestr, N_i+1]
 else
     whichcombos=simoptions.whichcombos;
-    if isstruct(N_j)
-        error('simoptions.whichcombos is not implemented when N_j differs by permanent type (N_j a structure)')
-    end
     if ~(isnumeric(whichcombos) || islogical(whichcombos)) || any(whichcombos(:)~=0 & whichcombos(:)~=1)
         error('simoptions.whichcombos must contain only zeros and ones')
     end
@@ -231,6 +239,7 @@ else
 end
 nOut=2*nrowswc;
 outff=[rowff;rowff]; % the function of each output row
+outM=[rowM;rowM]; % the window length of each output row
 OutNames=[RowNames;cell(nrowswc,1)]; % the output name of each output row
 for r=1:nrowswc
     OutNames{nrowswc+r}=[RowNames{r},'_log'];
@@ -347,16 +356,37 @@ for ii=1:N_i
     end
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
 
-    AgeMasses(ii,:)=gather(sum(reshape(StationaryDist_temp,[numel(StationaryDist_temp)/N_j,N_j]),1));
+    N_j_temp=N_j_vec(ii);
+    AgeMasses(ii,1:N_j_temp)=gather(sum(reshape(StationaryDist_temp,[numel(StationaryDist_temp)/N_j_temp,N_j_temp]),1)); % (zero at the ages beyond the type's N_j)
 
     if sum(FnsAndPTypeIndicator_ii)==0
+        if useCondlRest==1
+            % None of the FnsToEvaluate are relevant to this type, but its restricted sample masses are still reported (and count in
+            % .ByAge/.ByPType/.Total), as in LifeCycleProfiles_FHorz_Case1_PType: evaluate with the first restriction as the only
+            % function, single periods, horizon one and no selection (the grouped stats never pool this type: its indicator is zero)
+            FnsToEvaluate_rsm=struct();
+            FnsToEvaluate_rsm.restrictedsamplemassfn=simoptions_temp.conditionalrestrictions.(CondlRestnFnNames{1});
+            simoptions_rsm=simoptions_temp;
+            simoptions_rsm.ntimeperiods=1;
+            simoptions_rsm.timehorizons=1;
+            simoptions_rsm.logwhichcombos=0;
+            simoptions_rsm.transprobs=0;
+            simoptions_rsm.transprobquantiles=[];
+            if isfield(simoptions_rsm,'whichcombos')
+                simoptions_rsm=rmfield(simoptions_rsm,'whichcombos');
+            end
+            CorrTransProbs_byType{ii}=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_rsm,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_rsm);
+            for rr=1:length(CondlRestnFnNames)
+                CorrTransProbs.(CondlRestnFnNames{rr}).RestrictedSampleMass.(iistr)=CorrTransProbs_byType{ii}.(CondlRestnFnNames{rr}).RestrictedSampleMass;
+            end
+        end
         continue % none of the FnsToEvaluate are relevant to this type
     end
 
     %% Compute for this type
-    simoptions_temp.whichcombos=whichcombos_ii(repmat(FnsAndPTypeIndicator_ii==1,nblocks,1),:,:); % the selection for the functions this type evaluates, in their order within each block of rows (the per-type command acts on the start-age dimension)
-    simoptions_temp.logwhichcombos=logRows(repmat(FnsAndPTypeIndicator_ii==1,nblocks,1),:,:); % the same rows of logwhichcombos
-    CorrTransProbs_ii=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_temp);
+    simoptions_temp.whichcombos=whichcombos_ii(repmat(FnsAndPTypeIndicator_ii==1,nblocks,1),1:N_j_temp,:); % the selection for the functions this type evaluates, in their order within each block of rows, at the type's own ages (the per-type command acts on the start-age dimension)
+    simoptions_temp.logwhichcombos=logRows(repmat(FnsAndPTypeIndicator_ii==1,nblocks,1),1:N_j_temp,:); % the same rows and ages of logwhichcombos
+    CorrTransProbs_ii=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_temp);
     CorrTransProbs_byType{ii}=CorrTransProbs_ii;
     if simoptions.groupptypesforstats==1 && usequantiles && ~isempty(transprobnames)
         % The grouped TransitionProbs are pooled from the types' transitions between unique values (the quantile bins of the
@@ -379,7 +409,7 @@ for ii=1:N_i
             end
         end
         if ~isempty(fieldnames(FnsToEvaluate_temp_uv))
-            CorrTransProbs_byType_uv{ii}=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp_uv,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_temp_uv);
+            CorrTransProbs_byType_uv{ii}=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp_uv,Parameters_temp,[],n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp,simoptions_temp_uv);
         end
     else
         CorrTransProbs_byType_uv{ii}=CorrTransProbs_ii;
@@ -412,6 +442,7 @@ if simoptions.groupptypesforstats==1
     for r=1:nOut % the output rows: each function for each window length, at its level and at its log (a window or log row pools exactly as a single-period function)
         ff=outff(r);
         fn=OutNames{r};
+        M=outM(r); % the window length of this row (1 for a single period)
         if ~rowwantedOutG(r) % no grouped combination of this row is wanted
             continue
         end
@@ -422,8 +453,8 @@ if simoptions.groupptypesforstats==1
         StdDevVec=nan(N_i,N_j);
         for ii=1:N_i
             if FnsAndPTypeIndicator(ff,ii)==1
-                MeanVec(ii,:)=gather(CorrTransProbs_byType{ii}.(fn).Mean);
-                StdDevVec(ii,:)=gather(CorrTransProbs_byType{ii}.(fn).StdDeviation);
+                MeanVec(ii,1:N_j_vec(ii))=gather(CorrTransProbs_byType{ii}.(fn).Mean); % (NaN beyond the type's N_j)
+                StdDevVec(ii,1:N_j_vec(ii))=gather(CorrTransProbs_byType{ii}.(fn).StdDeviation);
             end
         end
 
@@ -432,6 +463,7 @@ if simoptions.groupptypesforstats==1
         StdDevG=nan(1,N_j);
         for jj=1:N_j
             w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*AgeMasses(:,jj);
+            w(N_j_vec<jj+M-1)=0; % a type whose window starting at jj does not fit in its own N_j is not in the pool
             if sum(w)>0
                 p=w/sum(w);
                 relevant=(w>0); % a type with no weight here may carry NaN, so it is left out explicitly
@@ -452,11 +484,12 @@ if simoptions.groupptypesforstats==1
             AutoCovVec=nan(N_i,N_j-kk);
             for ii=1:N_i
                 if FnsAndPTypeIndicator(ff,ii)==1
-                    AutoCovVec(ii,:)=gather(CorrTransProbs_byType{ii}.(fn).(['AutoCovariance',horizonstr{hh}]));
+                    AutoCovVec(ii,1:N_j_vec(ii)-kk)=gather(CorrTransProbs_byType{ii}.(fn).(['AutoCovariance',horizonstr{hh}]));
                 end
             end
             for j0=1:N_j-kk
                 w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*AgeMasses(:,j0);
+                w(N_j_vec<j0+kk+M-1)=0; % a type without the pair's later window within its own N_j has no pairs at j0
                 if sum(w)>0
                     p=w/sum(w);
                     relevant=(w>0);
@@ -504,7 +537,7 @@ if simoptions.groupptypesforstats==1
                 wnext=FnsAndPTypeIndicator(ff,:)'.*ptweights.*AgeMasses(:,jj+1);
                 inpool=false(N_i,1);
                 for ii=1:N_i
-                    if w(ii)>0
+                    if w(ii)>0 && jj<N_j_vec(ii) % (a type has transitions from its ages 1 to N_j-1 only)
                         inpool(ii)=~isempty(CorrTransProbs_byType_uv{ii}.(fn).TransitionProbs{jj});
                     end
                 end
@@ -586,19 +619,20 @@ if simoptions.groupptypesforstats==1
                 for ii=1:N_i
                     if FnsAndPTypeIndicator(ff,ii)==1
                         if isfield(CorrTransProbs_byType{ii}.(rname).(fn),'RestrictedSampleMass')
-                            RSMVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).RestrictedSampleMass);
+                            RSMVec(ii,1:N_j_vec(ii))=gather(CorrTransProbs_byType{ii}.(rname).(fn).RestrictedSampleMass);
                             windowrow=1;
                         else
-                            RSMVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).RestrictedSampleMass);
+                            RSMVec(ii,1:N_j_vec(ii))=gather(CorrTransProbs_byType{ii}.(rname).RestrictedSampleMass);
                         end
-                        MeanRVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).Mean);
-                        StdDevRVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).StdDeviation);
+                        MeanRVec(ii,1:N_j_vec(ii))=gather(CorrTransProbs_byType{ii}.(rname).(fn).Mean);
+                        StdDevRVec(ii,1:N_j_vec(ii))=gather(CorrTransProbs_byType{ii}.(rname).(fn).StdDeviation);
                     end
                 end
                 MeanRG=nan(1,N_j);
                 StdDevRG=nan(1,N_j);
                 for jj=1:N_j
                     w=FnsAndPTypeIndicator(ff,:)'.*ptweights.*RSMVec(:,jj);
+                    w(N_j_vec<jj+M-1)=0; % a type whose window starting at jj does not fit in its own N_j is not in the pool
                     if sum(w)>0
                         p=w/sum(w);
                         relevant=(w>0);
@@ -615,7 +649,7 @@ if simoptions.groupptypesforstats==1
                 % Pairs at each horizon: pool with weight ptweights(ii)*PairMass_ii(j0), about the pooled pair means
                 for hh=1:nhorizons
                     kk=horizons(hh);
-                    PairMassVec=zeros(N_i,N_j-kk);
+                    PairMassVec=nan(N_i,N_j-kk); % (NaN, no mass, at the start ages beyond a type's N_j-kk)
                     PairMeanxVec=nan(N_i,N_j-kk);
                     PairMeanyVec=nan(N_i,N_j-kk);
                     PairStdxVec=nan(N_i,N_j-kk);
@@ -623,12 +657,12 @@ if simoptions.groupptypesforstats==1
                     AutoCovRVec=nan(N_i,N_j-kk);
                     for ii=1:N_i
                         if FnsAndPTypeIndicator(ff,ii)==1
-                            PairMassVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairMass',horizonstr{hh}]));
-                            PairMeanxVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairMean_j',horizonstr{hh}]));
-                            PairMeanyVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairMean_jplusk',horizonstr{hh}]));
-                            PairStdxVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairStdDeviation_j',horizonstr{hh}]));
-                            PairStdyVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}]));
-                            AutoCovRVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['AutoCovariance',horizonstr{hh}]));
+                            PairMassVec(ii,1:N_j_vec(ii)-kk)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairMass',horizonstr{hh}]));
+                            PairMeanxVec(ii,1:N_j_vec(ii)-kk)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairMean_j',horizonstr{hh}]));
+                            PairMeanyVec(ii,1:N_j_vec(ii)-kk)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairMean_jplusk',horizonstr{hh}]));
+                            PairStdxVec(ii,1:N_j_vec(ii)-kk)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairStdDeviation_j',horizonstr{hh}]));
+                            PairStdyVec(ii,1:N_j_vec(ii)-kk)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['PairStdDeviation_jplusk',horizonstr{hh}]));
+                            AutoCovRVec(ii,1:N_j_vec(ii)-kk)=gather(CorrTransProbs_byType{ii}.(rname).(fn).(['AutoCovariance',horizonstr{hh}]));
                         end
                     end
                     PairMassNaN=isnan(PairMassVec); % NaN where the type has no mass at j0: not in the pool
@@ -687,7 +721,7 @@ if simoptions.groupptypesforstats==1
             RSMVec=zeros(N_i,N_j);
             for ii=1:N_i
                 if ~isempty(CorrTransProbs_byType{ii})
-                    RSMVec(ii,:)=gather(CorrTransProbs_byType{ii}.(rname).RestrictedSampleMass);
+                    RSMVec(ii,1:N_j_vec(ii))=gather(CorrTransProbs_byType{ii}.(rname).RestrictedSampleMass);
                 end
             end
             CorrTransProbs.(rname).RestrictedSampleMass.ByAge=sum(RSMVec.*ptweights,1); % mass at each age that satisfies the restriction, as a share of the whole population
