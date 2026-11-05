@@ -478,8 +478,8 @@ elseif vfoptions.localsearch==1
     if vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1
         error('vfoptions.localsearch=1 is not implemented with an experience asset')
     end
-    if ~strcmp(vfoptions.exoticpreferences,'None')
-        error('vfoptions.localsearch=1 is not implemented with exoticpreferences')
+    if ~strcmp(vfoptions.exoticpreferences,'None') && ~strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+        error('vfoptions.localsearch=1 is not implemented with exoticpreferences other than EpsteinZin')
     end
     if ~isscalar(n_a)
         error('vfoptions.localsearch=1 is currently only implemented for one endogenous state')
