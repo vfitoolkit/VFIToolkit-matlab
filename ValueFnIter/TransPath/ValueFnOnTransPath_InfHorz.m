@@ -1,4 +1,4 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+function [VPath,PolicyPath,aprimeReferencePath,lsdiag]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 % transpathoptions, vfoptions and simoptions are optional inputs
 
 if prod(n_z)>1 && all(size(d_grid)==[prod(n_z),prod(n_z)])
@@ -250,6 +250,40 @@ end
 % The tempting design is to centre period t's window on period t+1's answer, which is defensible
 % within one backward pass because prices move smoothly. It is still uncertified, so it is not done.
 aprimeReferencePolicy=[];
+% THE EXCEPTION, INTERNAL: vfoptions.aprimeReferencePath, set only by ValueFnOnUncertainTransPath_InfHorz for
+% UncertainTransitionPath_InfHorz, which carries a reference per node across its general eqm iterations and certifies
+% the answer with a standard sweep exactly as TransitionPath_InfHorz_shooting does. It is [N_dref*N_a*N_ze,T-1], the
+% reference of each period (N_dref=N_d with a d, else 1); period t's search is centred on column t. The third and
+% fourth outputs are then the reference this pass leaves behind, and lsdiag (the edge counts the ratchet on
+% nlocalsearch reads). vfoptions.localsearchseed=1 (also internal) makes a standard sweep return a reference too.
+if ~isfield(vfoptions,'localsearchseed')
+    vfoptions.localsearchseed=0;
+end
+N_ze=max(N_z,1)*max(N_e,1); % (also below) the one exogenous dimension of the paths
+N_dref=max(N_d,1);
+if N_z>0 && N_e==0
+    refshape=[N_dref,N_a,N_z];
+elseif N_z==0 && N_e==0
+    refshape=[N_dref,N_a];
+elseif N_z==0 && N_e>0
+    refshape=[N_dref,N_a,N_e];
+else
+    refshape=[N_dref,N_a,N_z,N_e];
+end
+userefpath=0;
+if vfoptions.localsearch==1 && isfield(vfoptions,'aprimeReferencePath') && ~isempty(vfoptions.aprimeReferencePath)
+    userefpath=1;
+end
+aprimeReferencePath=[];
+if userefpath==1
+    aprimeReferencePath=vfoptions.aprimeReferencePath;
+elseif vfoptions.localsearchseed==1
+    aprimeReferencePath=zeros(N_dref*N_a*N_ze,T-1,'gpuArray');
+end
+lsdiag=[];
+if userefpath==1
+    lsdiag.movemax=0; lsdiag.nedge=0; lsdiag.ntotal=0;
+end
 
 % Internally the paths keep one exogenous dimension, (z,e) together, which is a singleton when there is
 % neither. V is reshaped to what each single step expects inside the loop.
@@ -302,6 +336,8 @@ PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_ze]
 % that looked like a reference. The reference a restricted sweep produces is only meaningful to a
 % caller that feeds it back, and the only callers that do are TransitionPath_InfHorz_shooting and
 % AndersonAccelerationTPath, which get it from TransitionPath_InfHorz_singlepathiter instead.
+% (2026-11-05: the third and fourth outputs are back, but only for vfoptions.aprimeReferencePath and
+% vfoptions.localsearchseed, the internal options of UncertainTransitionPath_InfHorz above. Otherwise the third is [].)
 
 
 %%
@@ -372,16 +408,37 @@ elseif vfoptions.experienceasset==0
             pi_e=transpathoptions.pi_e_T(:,T-ttr+1);
         end
 
+        if userefpath==1
+            aprimeReferencePolicy=reshape(aprimeReferencePath(:,T-ttr),refshape);
+        end
         if N_z>0 && N_e==0
-            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+            [V, Policy, aprimeRefNew]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         elseif N_z==0 && N_e==0
-            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz(Vnext,n_d,n_a,d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+            [V, Policy, aprimeRefNew]=ValueFnIter_InfHorz_TPath_SingleStep_noz(Vnext,n_d,n_a,d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         elseif N_z==0 && N_e>0
-            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_noz_e(reshape(Vnext,[N_a,N_e]),n_d,n_a,n_e,d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+            [V, Policy, aprimeRefNew]=ValueFnIter_InfHorz_TPath_SingleStep_noz_e(reshape(Vnext,[N_a,N_e]),n_d,n_a,n_e,d_gridvals, a_grid, e_gridvals, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         elseif N_z>0 && N_e>0
-            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_e(reshape(Vnext,[N_a,N_z,N_e]),n_d,n_a,n_z,n_e,d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
+            [V, Policy, aprimeRefNew]=ValueFnIter_InfHorz_TPath_SingleStep_e(reshape(Vnext,[N_a,N_z,N_e]),n_d,n_a,n_z,n_e,d_gridvals, a_grid, z_gridvals, e_gridvals, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeReferencePolicy, vfoptions);
         end
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
+        if userefpath==1
+            % THE EDGE TEST, the lines of TransitionPath_InfHorz_substeps_Step1_ValueFnIter (see its z branch for why it
+            % is on aprimeRefNew, the corner exclusions, and why movemax is censored)
+            nls=vfoptions.nlocalsearch;
+            loweredge=min(max(aprimeReferencePolicy-nls,1),N_a-2*nls);
+            hitbottom=(aprimeRefNew==loweredge);
+            hittop=(aprimeRefNew==loweredge+2*nls);
+            hitbottom=hitbottom & (loweredge>1);
+            hittop=hittop & (loweredge+2*nls<N_a);
+            hitedge=(hitbottom | hittop);
+            lsdiag.nedge=lsdiag.nedge+gather(sum(hitedge,'all'));
+            lsdiag.ntotal=lsdiag.ntotal+numel(aprimeReferencePolicy);
+            lsdiag.movemax=max(lsdiag.movemax,gather(max(abs(aprimeRefNew-aprimeReferencePolicy),[],'all')));
+            aprimeReferencePath(:,T-ttr)=reshape(aprimeRefNew,[],1);
+        elseif vfoptions.localsearch==0 && vfoptions.localsearchseed==1
+            % A SEED SWEEP: unrestricted, but the dispatcher returned a reference for the next restricted sweep
+            aprimeReferencePath(:,T-ttr)=reshape(aprimeRefNew,[],1);
+        end
 
         PolicyIndexesPath(:,:,:,T-ttr)=reshape(Policy,[size(Policy,1),N_a,N_ze]);
 

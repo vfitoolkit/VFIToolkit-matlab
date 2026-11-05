@@ -1,4 +1,4 @@
-function [GEcondnvec,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree]=UncertainTransitionPath_InfHorz_evaltree(p, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions)
+function [GEcondnvec,aprimeReferenceTree,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree,lsdiag]=UncertainTransitionPath_InfHorz_evaltree(p, aprimeReferenceTree, lsmode, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions)
 % One evaluation of the tree of an uncertain transition path at the prices p, for UncertainTransitionPath_InfHorz:
 % the value fn, agent dist and aggregate variables on every node, and the general eqm conditions at every node.
 % The counterpart of TransitionPath_InfHorz_singlepathiter, used by both the shooting algorithm and Anderson acceleration.
@@ -11,16 +11,45 @@ function [GEcondnvec,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistP
 % aggregates given that child (AggVarsGivenChildTree), and the condition at the node is the expectation over the
 % children (see UncertainTransitionPath_InfHorz). At a node with one child that is the child's prices, and at a period
 % T node the node's own prices (the final eqm), as on a deterministic path.
+% INTERMEDIATE EQNS (transpathoptions.intermediateEqns) are evaluated at each node, in order, after the aggregates and
+% before the general eqm conditions, as TransitionPath_InfHorz does in each period. One that uses _tplus1
+% (transpathoptions.intermediateEqnsusetplus1, set by UncertainTransitionPath_InfHorz) depends on the child, so it is
+% evaluated once for each child, with that child's values, inside the loop over the children.
+% LOCAL SEARCH, the reference per node (see ValueFnOnUncertainTransPath_InfHorz), carried in and out:
+%   lsmode=0  the solve does not use local search, aprimeReferenceTree is [] in and out
+%   lsmode=1  a restricted sweep around aprimeReferenceTree; with no reference yet (the first sweep of a solve) a
+%             standard sweep that builds one instead
+%   lsmode=2  a standard sweep that rebuilds the reference (the verification sweep that certifies a converged solve)
+%   lsdiag is the edge counts of a restricted sweep, [] otherwise
+
+if lsmode==1 && ~isempty(aprimeReferenceTree)
+    vfoptions.localsearch=2; % forced: this solve certifies the answer with a standard sweep
+    vfoptions.localsearchseed=0;
+    vfoptions.aprimeReferenceTree=aprimeReferenceTree;
+elseif lsmode>=1
+    vfoptions.localsearch=0;
+    vfoptions.localsearchseed=1;
+else
+    vfoptions.localsearch=0;
+    vfoptions.localsearchseed=0;
+end
 
 PricePathOld=reshape(gather(p),[nNodes,nPrices]);
 PricePathStruct=struct();
 for pp=1:nPrices
     PricePathStruct.(PricePathNames{pp})=PricePathOld(:,pp)';
 end
-[VPathTree,PolicyPathTree]=ValueFnOnUncertainTransPath_InfHorz(PricePathStruct, ParamPath, T, T1, T2, pi_S, S_initial, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
+[VPathTree,PolicyPathTree,aprimeReferenceTree,lsdiag]=ValueFnOnUncertainTransPath_InfHorz(PricePathStruct, ParamPath, T, T1, T2, pi_S, S_initial, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
 AgentDistPathTree=AgentDistOnUncertainTransPath_InfHorz(AgentDist_initial, PricePathStruct, ParamPath, PolicyPathTree, T, T1, T2, pi_S, S_initial, n_d,n_a,n_z,pi_z, Parameters, transpathoptions, simoptions);
 [AggVarsTree,AggVarsGivenChildTree]=EvalFnOnUncertainTransPath_AggVars_InfHorz(FnsToEvaluate, AgentDistPathTree, PolicyPathTree, PricePathStruct, ParamPath, Parameters, T, T1, T2, pi_S, S_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, transpathoptions, simoptions);
 AggVarNames=fieldnames(AggVarsTree);
+
+% The intermediate eqns: those that do not use _tplus1 at the node, those that do once per child
+nIntEqns=0;
+if transpathoptions.useintermediateEqns==1
+    intEqnNames=fieldnames(transpathoptions.intermediateEqns);
+    nIntEqns=length(intEqnNames);
+end
 
 % The general eqm conditions at every node, evaluated as updatePricePathNew_TPath_tt does in each period
 nGEeqns=length(GeneralEqmEqnsCell);
@@ -60,6 +89,12 @@ for kk=1:nNodes
             Parameters_k.([tminus1AggVarsNames{ff},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{ff});
         end
     end
+    % The intermediate eqns that do not use _tplus1, in order
+    for gg=1:nIntEqns
+        if transpathoptions.intermediateEqnsusetplus1(gg)==0
+            Parameters_k.(intEqnNames{gg})=GeneralEqmConditions_Case1_v3(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters_k);
+        end
+    end
     % The conditions that do not use _tplus1
     for gg=find(~GEusestplus1)
         GEcondnTree(kk,gg)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters_k);
@@ -84,6 +119,12 @@ for kk=1:nNodes
             if Tree.nodenchild(kk)>0
                 for ff=1:length(tplus1FnNames)
                     Parameters_k.(tplus1FnNames{ff})=AggVarsGivenChildTree.(tplus1FnNames{ff})(children(cc));
+                end
+            end
+            % The intermediate eqns that use _tplus1, in order, with this child's values
+            for gg=1:nIntEqns
+                if transpathoptions.intermediateEqnsusetplus1(gg)==1
+                    Parameters_k.(intEqnNames{gg})=GeneralEqmConditions_Case1_v3(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters_k);
                 end
             end
             for gg=find(GEusestplus1)
