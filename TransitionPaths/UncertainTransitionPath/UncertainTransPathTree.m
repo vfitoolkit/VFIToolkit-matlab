@@ -230,6 +230,9 @@ if exist('ParamPath','var') && ~isempty(ParamPath)
                     error('UncertainTransPathTree: ParamPath.%s is given per S, but has no field S%i (some node is in S=%i)',ParamPathNames{pp},SS,SS)
                 end
                 temp=gather(ParamPath.(ParamPathNames{pp}).(['S',num2str(SS)]));
+                if size(temp,1)==T && size(temp,2)==T && T>1
+                    warning('VFIToolkit:SquarePathEntry','ParamPath.%s.S%i is %i-by-%i, so it is square; it is being read as k-by-T (rows are, e.g., ages; columns are periods)',ParamPathNames{pp},SS,T,T)
+                end
                 if size(temp,2)~=T && size(temp,1)==T
                     temp=temp'; % T-by-k is read as k-by-T
                 end
@@ -259,6 +262,9 @@ if exist('ParamPath','var') && ~isempty(ParamPath)
             elseif transpathoptions.uncertaintreevectorparams==1 && ismatrix(temp) && (size(temp,2)==T || size(temp,1)==T)
                 % A vector that does not depend on S, k-by-T (or T-by-k), e.g. N_j-by-T. With k=N_S it is read as a
                 % scalar that depends on S, above; give such a vector in the per-S form.
+                if size(temp,1)==T && size(temp,2)==T
+                    warning('VFIToolkit:SquarePathEntry','ParamPath.%s is %i-by-%i, so it is square; it is being read as k-by-T (rows are, e.g., ages; columns are periods)',ParamPathNames{pp},T,T)
+                end
                 if size(temp,2)~=T
                     temp=temp';
                 end

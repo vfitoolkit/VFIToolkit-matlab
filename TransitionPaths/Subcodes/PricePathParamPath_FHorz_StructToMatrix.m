@@ -18,7 +18,14 @@ if ~exist('N_i','var')
     for pp=1:length(PricePathNames)
         temp=PricePathStruct.(PricePathNames{pp});
         tempsize=size(temp);
-        PricePathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
+        if all(tempsize==[N_j,T]) && N_j==T
+            % Square, as N_j==T: read as N_j-by-T, the orientation the error message below asks for (a segment of an
+            % uncertain transition path can be N_j periods long; it used to fail here with an assignment error)
+            PricePathSizeVec(pp)=N_j;
+            warning('VFIToolkit:SquarePathEntry','PricePath.%s is %i-by-%i, and N_j=T=%i, so it is square; it is being read as N_j-by-T (rows are ages, columns are periods)',PricePathNames{pp},tempsize(1),tempsize(2),T)
+        else
+            PricePathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
+        end
         if ~any(PricePathSizeVec(pp)==[1,N_j])
             error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T)'])
         end
@@ -31,9 +38,9 @@ if ~exist('N_i','var')
     end
     PricePath=zeros(T,PricePathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
     for pp=1:length(PricePathNames)
-        if size(PricePathStruct.(PricePathNames{pp}),1)==T
+        if size(PricePathStruct.(PricePathNames{pp}),1)==T && ~(N_j==T && size(PricePathStruct.(PricePathNames{pp}),2)==T)
             PricePath(:,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=PricePathStruct.(PricePathNames{pp});
-        else % Need to transpose
+        else % Need to transpose (a square N_j-by-T, N_j==T, is read as N_j-by-T)
             PricePath(:,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=PricePathStruct.(PricePathNames{pp})';
         end
     end
@@ -44,7 +51,14 @@ if ~exist('N_i','var')
     for pp=1:length(ParamPathNames)
         temp=ParamPathStruct.(ParamPathNames{pp});
         tempsize=size(temp);
-        ParamPathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
+        if all(tempsize==[N_j,T]) && N_j==T
+            % Square, as N_j==T: read as N_j-by-T, the orientation the error message below asks for (a segment of an
+            % uncertain transition path can be N_j periods long; it used to fail here with an assignment error)
+            ParamPathSizeVec(pp)=N_j;
+            warning('VFIToolkit:SquarePathEntry','ParamPath.%s is %i-by-%i, and N_j=T=%i, so it is square; it is being read as N_j-by-T (rows are ages, columns are periods)',ParamPathNames{pp},tempsize(1),tempsize(2),T)
+        else
+            ParamPathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
+        end
         if ~any(ParamPathSizeVec(pp)==[1,N_j])
             error(['ParamPath for ', ParamPathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T)'])
         end
@@ -57,9 +71,9 @@ if ~exist('N_i','var')
     end
     ParamPath=zeros(T,ParamPathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
     for pp=1:length(ParamPathNames)
-        if size(ParamPathStruct.(ParamPathNames{pp}),1)==T
+        if size(ParamPathStruct.(ParamPathNames{pp}),1)==T && ~(N_j==T && size(ParamPathStruct.(ParamPathNames{pp}),2)==T)
             ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp});
-        else % Need to transpose
+        else % Need to transpose (a square N_j-by-T, N_j==T, is read as N_j-by-T)
             ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp})';
         end
     end
