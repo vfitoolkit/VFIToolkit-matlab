@@ -34,7 +34,13 @@ function [Tree,PricePathNodes,ParamPathNodes]=UncertainTransPathTree(T,T1,T2,pi_
 %   N_S-by-T      the value in period t if S_t=s, the same for every history with S_t=s
 %   1-by-T        the value in period t, the same for every history
 % Each entry of ParamPath can be N_S-by-T or 1-by-T (as for PricePath, either orientation). A parameter that depends on
-% S is N_S-by-T. Prices and parameters must be scalars.
+% S is N_S-by-T. It can also be given PER S, as a struct ParamPath.(name).S1, .S2, ..., each field the path when S takes
+% that value (1-by-T, or k-by-T for a vector), which is unambiguous whatever k and N_S are. Prices are scalars.
+% Parameters that are vectors (k-by-T with k~=N_S, or per S with k-by-T fields), e.g. age-dependent ones, are only for
+% the FHorz commands, which set the internal transpathoptions.uncertaintreevectorparams=1; ParamPathNodes.(name) is
+% then k-by-nNodes. (A k-by-T entry with k=N_S is always read as a scalar that depends on S; give such a vector per S.)
+% This file is shared by the InfHorz and FHorz commands (moved from TransitionPaths/InfHorz/UncertainTransitionPath/
+% 2026-11-05).
 
 if ~exist('transpathoptions','var')
     transpathoptions=struct();
@@ -204,17 +210,62 @@ if exist('PricePath','var') && ~isempty(PricePath)
 end
 ParamPathNodes=struct();
 if exist('ParamPath','var') && ~isempty(ParamPath)
+    % transpathoptions.uncertaintreevectorparams is INTERNAL: the FHorz commands set it, because they read a
+    % parameter on the tree as a column per node (k-by-nNodes). The InfHorz commands read a scalar per node, so a
+    % parameter that is not a scalar is refused for them rather than misread.
+    if ~isfield(transpathoptions,'uncertaintreevectorparams')
+        transpathoptions.uncertaintreevectorparams=0;
+    end
     ParamPathNames=fieldnames(ParamPath);
     for pp=1:length(ParamPathNames)
-        temp=gather(ParamPath.(ParamPathNames{pp}));
-        if isvector(temp) && numel(temp)==T
-            ParamPathNodes.(ParamPathNames{pp})=reshape(temp(nodedate),[1,nNodes]);
-        elseif all(size(temp)==[N_S,T])
-            ParamPathNodes.(ParamPathNames{pp})=reshape(temp(nodeS+N_S*(nodedate-1)),[1,nNodes]);
-        elseif all(size(temp)==[T,N_S])
-            ParamPathNodes.(ParamPathNames{pp})=reshape(temp(nodedate+T*(nodeS-1)),[1,nNodes]);
+        if isstruct(ParamPath.(ParamPathNames{pp}))
+            % THE PER-S FORM: ParamPath.(name).S1, .S2, ..., each the path of the parameter when S takes that value, as
+            % 1-by-T (a scalar) or k-by-T (a vector, e.g. N_j-by-T for an age-dependent parameter). Unambiguous
+            % whatever k and N_S are. Only the S that some node is in are needed.
+            Snames=fieldnames(ParamPath.(ParamPathNames{pp}));
+            kk_par=[];
+            ParamPathNodes.(ParamPathNames{pp})=[];
+            for SS=unique(nodeS)'
+                if ~any(strcmp(Snames,['S',num2str(SS)]))
+                    error('UncertainTransPathTree: ParamPath.%s is given per S, but has no field S%i (some node is in S=%i)',ParamPathNames{pp},SS,SS)
+                end
+                temp=gather(ParamPath.(ParamPathNames{pp}).(['S',num2str(SS)]));
+                if size(temp,2)~=T && size(temp,1)==T
+                    temp=temp'; % T-by-k is read as k-by-T
+                end
+                if size(temp,2)~=T || ndims(temp)>2
+                    error('UncertainTransPathTree: ParamPath.%s.S%i must be 1-by-T or k-by-T (it is %s)',ParamPathNames{pp},SS,mat2str(size(temp)))
+                end
+                if isempty(kk_par)
+                    kk_par=size(temp,1);
+                    ParamPathNodes.(ParamPathNames{pp})=zeros(kk_par,nNodes);
+                elseif size(temp,1)~=kk_par
+                    error('UncertainTransPathTree: the fields of ParamPath.%s are not all the same size (S%i has %i rows, an earlier one %i)',ParamPathNames{pp},SS,size(temp,1),kk_par)
+                end
+                nodes_S=find(nodeS==SS);
+                ParamPathNodes.(ParamPathNames{pp})(:,nodes_S)=temp(:,nodedate(nodes_S));
+            end
+            if kk_par>1 && transpathoptions.uncertaintreevectorparams==0
+                error('UncertainTransPathTree: ParamPath.%s is not a scalar (%i values per period); only the FHorz uncertain transition path commands take parameters that are vectors',ParamPathNames{pp},kk_par)
+            end
         else
-            error('UncertainTransPathTree: ParamPath.%s must be N_S-by-T (a parameter that depends on S) or 1-by-T (one that does not)',ParamPathNames{pp})
+            temp=gather(ParamPath.(ParamPathNames{pp}));
+            if isvector(temp) && numel(temp)==T
+                ParamPathNodes.(ParamPathNames{pp})=reshape(temp(nodedate),[1,nNodes]);
+            elseif all(size(temp)==[N_S,T])
+                ParamPathNodes.(ParamPathNames{pp})=reshape(temp(nodeS+N_S*(nodedate-1)),[1,nNodes]);
+            elseif all(size(temp)==[T,N_S])
+                ParamPathNodes.(ParamPathNames{pp})=reshape(temp(nodedate+T*(nodeS-1)),[1,nNodes]);
+            elseif transpathoptions.uncertaintreevectorparams==1 && ismatrix(temp) && (size(temp,2)==T || size(temp,1)==T)
+                % A vector that does not depend on S, k-by-T (or T-by-k), e.g. N_j-by-T. With k=N_S it is read as a
+                % scalar that depends on S, above; give such a vector in the per-S form.
+                if size(temp,2)~=T
+                    temp=temp';
+                end
+                ParamPathNodes.(ParamPathNames{pp})=temp(:,nodedate);
+            else
+                error('UncertainTransPathTree: ParamPath.%s must be N_S-by-T (a parameter that depends on S), 1-by-T (one that does not), or given per S as ParamPath.%s.S1, .S2, ...',ParamPathNames{pp},ParamPathNames{pp})
+            end
         end
     end
 end
