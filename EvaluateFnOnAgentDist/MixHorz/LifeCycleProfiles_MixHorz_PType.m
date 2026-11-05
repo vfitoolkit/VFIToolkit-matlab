@@ -223,7 +223,6 @@ if isstruct(simoptions.agegroupings)
 else
     ngroups=length(simoptions.agegroupings)*ones(N_i,1);
 end
-maxngroups=max(ngroups(isfinite(ngroups)));
 if isstruct(simoptions.agejshifter) % if using agejshifter
     tempagejshifter=simoptions.agejshifter;
     simoptions=rmfield(simoptions,'agejshifter');
@@ -240,11 +239,14 @@ if isstruct(simoptions.agejshifter) % if using agejshifter
                 N_j_max2=max(N_j_max2,simoptions.agejshifter(ii)+N_j.(Names_i{ii}));
             end
         end
+    else
+        N_j_max2=N_j+max(simoptions.agejshifter);
     end
 elseif isscalar(simoptions.agejshifter) % not using agejshifter
     simoptions.agejshifter=zeros(N_i,1);
     N_j_max2=N_j_max;
 else % have inputted as a vector
+    simoptions.agejshifter=reshape(simoptions.agejshifter,[N_i,1]);
     simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
     if isstruct(N_j)
         N_j_max2=0;
@@ -254,9 +256,10 @@ else % have inputted as a vector
             end
         end
     else
-        N_j_max2=N_j_max;
+        N_j_max2=N_j+max(simoptions.agejshifter);
     end
 end
+maxngroups=max(ngroups+simoptions.agejshifter); % the common age axis of the grouped stats: each ptype's age groups sit at positions shifted by its agejshifter
 % You cannot use agejshifter together with any age grouping other than just every period
 if max(simoptions.agejshifter)>0 && defaultagegroupings==0
     error('You cannot use agejshifter together with any age grouping other than the default (each period seperately)')
@@ -395,7 +398,7 @@ if isfield(simoptions,'conditionalrestrictions')
     end
 end
 
-AgeMasses=zeros(N_i,N_j_max,'gpuArray'); % Only ends up used if using simoptions.conditionalrestrictions
+AgeMasses=zeros(N_i,N_j_max2,'gpuArray'); % Only ends up used if using simoptions.conditionalrestrictions
 if useCondlRest==1 && isstruct(N_j)
     error('LifeCycleProfiles: Have not implemented combination of doing conditional restrictions with N_j being a structure (differing across agents)')
 end
@@ -906,6 +909,13 @@ if simoptions.lowmemory==0
             end
         end % end ff over FnsToEvalNames
     end % end ii over N_i
+    if useCondlRest==1
+        % The restricted sample masses on the common age axis of the grouped stats: each ptype's ages shifted by its agejshifter (zero where a ptype has no such age)
+        restrictedsamplemass_shifted=zeros(N_i,N_j_max2,length(CondlRestnFnNames));
+        for ii=1:N_i
+            restrictedsamplemass_shifted(ii,simoptions.agejshifter(ii)+(1:N_j),:)=restrictedsamplemass(ii,:,:); % (N_j is not a structure when there are conditional restrictions)
+        end
+    end
 
 
 
@@ -963,7 +973,7 @@ if simoptions.lowmemory==0
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean=nan(1,N_j_max2,'gpuArray');
                 end
                 if simoptions.whichstats(2)==1
-                    AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Median=nan(1,N_j_max2,'gpuArray');
                     if simoptions.whichstats(1)==1
                         AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,N_j_max2,'gpuArray');
                     end
@@ -1107,22 +1117,28 @@ if simoptions.lowmemory==0
 
                 %% Deal with conditional restrictions
                 if useCondlRest==1
-                    j1=simoptions_temp.agegroupings(jj);
-                    if jj<length(simoptions_temp.agegroupings)
-                        jend=simoptions_temp.agegroupings(jj+1)-1;
+                    % the ages of grouped age group jj on the common age axis (agejshifter needs the default age groupings, each period separately)
+                    if max(simoptions.agejshifter)>0
+                        j1=jj;
+                        jend=jj;
                     else
-                        jend=N_j_temp;
+                        j1=simoptions_temp.agegroupings(jj);
+                        if jj<length(simoptions_temp.agegroupings)
+                            jend=simoptions_temp.agegroupings(jj+1)-1;
+                        else
+                            jend=N_j_temp;
+                        end
                     end
 
                     for rr=1:length(CondlRestnFnNames)
 
-                        if sum(StationaryDist.ptweights.*sum(restrictedsamplemass(:,j1:jend,rr),2,'omitnan'))>0 % the population (not just some ptype) has restricted mass in this agegrouping [a ptype of zero mass can have restricted mass of its own]
+                        if sum(StationaryDist.ptweights.*sum(restrictedsamplemass_shifted(:,j1:jend,rr),2,'omitnan'))>0 % the population (not just some ptype) has restricted mass in this agegrouping [a ptype of zero mass can have restricted mass of its own]
                             % We need to load up each ii, and put them together
                             if simoptions.groupusingtdigest==1 % using t-Digests
                                 error('You should not be able to get here in the code')
                             elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
                                 % [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
-                                AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj})/sum(sum(restrictedsamplemass(:,j1:jend,rr),2)),[],@sum);
+                                AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj})/sum(sum(restrictedsamplemass_shifted(:,j1:jend,rr),2)),[],@sum);
                                 AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj(:));
 
                                 % AllRestrictedWeights_rrffjj will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
@@ -1186,7 +1202,7 @@ if simoptions.lowmemory==0
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
             end
             % Note: restrictedsamplemass(ii,j,rr) is the mass of ptype ii at age j that satisfies the restriction, as a share of ptype ii (so it already includes the age weights)
-            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByAge=sum(restrictedsamplemass(:,:,rr).*StationaryDist.ptweights,1); % Mass at each age that satisfies the restriction, as a share of the whole population (same as RestrictedSampleMass in LifeCycleProfiles_FHorz_Case1)
+            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByAge=sum(restrictedsamplemass_shifted(:,:,rr).*StationaryDist.ptweights,1); % Mass at each age (each ptype's ages shifted by its agejshifter) that satisfies the restriction, as a share of the whole population (same as RestrictedSampleMass in LifeCycleProfiles_FHorz_Case1)
             AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByPType=sum(restrictedsamplemass(:,:,rr),2,'omitnan'); % Conditional on ptype, what fraction satisfy restriction ['omitnan' as ages beyond the N_j of a ptype are NaN]
             AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.Total=sum(StationaryDist.ptweights.*sum(restrictedsamplemass(:,:,rr),2,'omitnan')); % What fraction of the population satisfy restriction
 
