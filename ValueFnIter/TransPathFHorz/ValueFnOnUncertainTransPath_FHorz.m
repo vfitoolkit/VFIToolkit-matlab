@@ -1,4 +1,4 @@
-function [VPathTree,PolicyPathTree]=ValueFnOnUncertainTransPath_FHorz(PricePath, ParamPath, T, T1, T2, pi_S, S_initial, V_final, Policy_final, Parameters, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+function [VPathTree,PolicyPathTree,aprimeReferenceTree,lsdiag]=ValueFnOnUncertainTransPath_FHorz(PricePath, ParamPath, T, T1, T2, pi_S, S_initial, V_final, Policy_final, Parameters, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 % The value fn and policy on every node of the tree of an uncertain transition path of a finite horizon (OLG) model,
 % given the prices. The FHorz counterpart of ValueFnOnUncertainTransPath_InfHorz. See UncertainTransPathTree for the
 % aggregate shock S (pi_S, T1, T2, S_initial), the tree, and the forms PricePath and ParamPath can take: a parameter
@@ -21,7 +21,12 @@ function [VPathTree,PolicyPathTree]=ValueFnOnUncertainTransPath_FHorz(PricePath,
 %
 % LOCAL SEARCH, as in ValueFnOnTransPath_Case1_FHorz: vfoptions.localsearch=1 is ignored here with a warning (a single
 % backward pass has no verification sweep to certify a restricted answer against), and localsearch=2 forces it, each
-% segment's window centred on staying put.
+% segment's window centred on staying put. UncertainTransitionPath_FHorz, which does certify, carries a reference
+% per node across its general eqm iterations in the INTERNAL vfoptions.aprimeReferenceTree ([N_dref,N_rest,nNodes],
+% slot k the reference of node k in the layout of ValueFnOnTransPath_Case1_FHorz's internal aprimeReferencePath; the
+% period T nodes are never read), and vfoptions.localsearchseed=1 (also internal) makes a standard sweep build one. The
+% third and fourth outputs are then the reference this pass leaves behind, and lsdiag (the edge counts over every
+% segment, which the ratchet on nlocalsearch reads).
 %
 % Not implemented (refused): semi-exogenous states, experience assets, vfoptions.exoticpreferences, and z or e grids
 % that vary over the path (age-dependent ones are fine).
@@ -39,6 +44,9 @@ end
 if ~isfield(vfoptions,'localsearch')
     vfoptions.localsearch=0;
 end
+if ~isfield(vfoptions,'localsearchseed')
+    vfoptions.localsearchseed=0;
+end
 if vfoptions.localsearch==1
     warning(['ValueFnOnUncertainTransPath_FHorz: vfoptions.localsearch=1 is IGNORED here and the value and policy ' ...
         'are computed with a full unrestricted search, as in ValueFnOnTransPath_Case1_FHorz. Set vfoptions.localsearch=2 ' ...
@@ -46,6 +54,10 @@ if vfoptions.localsearch==1
     vfoptions.localsearch=0;
 elseif vfoptions.localsearch>2
     error('vfoptions.localsearch must be 0, 1 (ignored here, with a warning) or 2 (forced)')
+end
+userefTree=0;
+if vfoptions.localsearch==2 && isfield(vfoptions,'aprimeReferenceTree') && ~isempty(vfoptions.aprimeReferenceTree)
+    userefTree=1;
 end
 % Not implemented on the tree, refused by name rather than ignored
 if isfield(vfoptions,'n_semiz') && prod(vfoptions.n_semiz)>0
@@ -141,6 +153,14 @@ VPathTree=zeros(NV,nNodes);
 PolicyPathTree=zeros(NPolicy,nNodes);
 Vpershape=[];
 Policypershape=[];
+aprimeReferenceTree=[];
+if userefTree==1
+    aprimeReferenceTree=vfoptions.aprimeReferenceTree; % the period T slots are never read, and stay as given
+end
+lsdiag=[];
+if userefTree==1
+    lsdiag.movemax=0; lsdiag.nedge=0; lsdiag.ntotal=0;
+end
 
 %% A segment N_j periods long makes an age-dependent parameter's segment path square, which
 % PricePathParamPath_FHorz_StructToMatrix reads as N_j-by-T with a warning; here it is built that way on purpose, so that
@@ -187,7 +207,30 @@ for ss=Tree.nSeg:-1:1
         ParamPath_seg.DFtplus1_UncertainTPath(1:L-1)=DFchildvals(segnodes(2:L));
     end
 
-    [VPath_seg,PolicyPath_seg]=ValueFnOnTransPath_Case1_FHorz(PricePath_seg, ParamPath_seg, Tseg, gpuArray(V_final_seg), Policy_final_seg, Parameters, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
+    % The local search reference of the segment's periods 1,...,Tseg-1 (the period Tseg value fn is given): all its
+    % nodes when it ends at a branching node, all but the period T node when it runs to T
+    refnodes=segnodes_ext(1:Tseg-1);
+    vfoptions_seg=vfoptions;
+    if isfield(vfoptions_seg,'aprimeReferenceTree')
+        vfoptions_seg=rmfield(vfoptions_seg,'aprimeReferenceTree');
+    end
+    if userefTree==1
+        vfoptions_seg.aprimeReferencePath=vfoptions.aprimeReferenceTree(:,:,refnodes);
+    end
+
+    [VPath_seg,PolicyPath_seg,aprimeReferencePath_seg,lsdiag_seg]=ValueFnOnTransPath_Case1_FHorz(PricePath_seg, ParamPath_seg, Tseg, gpuArray(V_final_seg), Policy_final_seg, Parameters, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions_seg);
+
+    if ~isempty(aprimeReferencePath_seg)
+        if isempty(aprimeReferenceTree)
+            aprimeReferenceTree=zeros(size(aprimeReferencePath_seg,1),size(aprimeReferencePath_seg,2),nNodes,'uint16','gpuArray');
+        end
+        aprimeReferenceTree(:,:,refnodes)=aprimeReferencePath_seg;
+    end
+    if ~isempty(lsdiag_seg)
+        lsdiag.movemax=max(lsdiag.movemax,lsdiag_seg.movemax);
+        lsdiag.nedge=lsdiag.nedge+lsdiag_seg.nedge;
+        lsdiag.ntotal=lsdiag.ntotal+lsdiag_seg.ntotal;
+    end
 
     if isempty(Vpershape)
         temp=size(VPath_seg);

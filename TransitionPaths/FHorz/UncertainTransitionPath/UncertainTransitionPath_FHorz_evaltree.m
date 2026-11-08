@@ -1,4 +1,4 @@
-function [GEcondnvec,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree]=UncertainTransitionPath_FHorz_evaltree(p, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, jequaloneDist, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions)
+function [GEcondnvec,aprimeReferenceTree,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree,lsdiag]=UncertainTransitionPath_FHorz_evaltree(p, aprimeReferenceTree, lsmode, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, jequaloneDist, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions)
 % One evaluation of the tree of an uncertain transition path of a finite horizon (OLG) model at the prices p, for
 % UncertainTransitionPath_FHorz: the value fn, agent dist and aggregate variables on every node, and the general eqm
 % conditions at every node. The FHorz counterpart of UncertainTransitionPath_InfHorz_evaltree, and of
@@ -18,13 +18,31 @@ function [GEcondnvec,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistP
 % before the general eqm conditions. One that uses _tplus1 (transpathoptions.intermediateEqnsusetplus1, set by
 % UncertainTransitionPath_FHorz) depends on the child, so it is evaluated once for each child, with that child's
 % values, inside the loop over the children.
+% LOCAL SEARCH, the reference per node (see ValueFnOnUncertainTransPath_FHorz), carried in and out:
+%   lsmode=0  the solve does not use local search, aprimeReferenceTree is [] in and out
+%   lsmode=1  a restricted sweep around aprimeReferenceTree; with no reference yet (the first sweep of a solve) a
+%             standard sweep that builds one instead
+%   lsmode=2  a standard sweep that rebuilds the reference (the verification sweep that certifies a converged solve)
+%   lsdiag is the edge counts of a restricted sweep, [] otherwise
+
+if lsmode==1 && ~isempty(aprimeReferenceTree)
+    vfoptions.localsearch=2; % forced: this solve certifies the answer with a standard sweep
+    vfoptions.localsearchseed=0;
+    vfoptions.aprimeReferenceTree=aprimeReferenceTree;
+elseif lsmode>=1
+    vfoptions.localsearch=0;
+    vfoptions.localsearchseed=1;
+else
+    vfoptions.localsearch=0;
+    vfoptions.localsearchseed=0;
+end
 
 PricePathOld=reshape(gather(p),[nNodes,nPrices]);
 PricePathStruct=struct();
 for pp=1:nPrices
     PricePathStruct.(PricePathNames{pp})=PricePathOld(:,pp)';
 end
-[VPathTree,PolicyPathTree]=ValueFnOnUncertainTransPath_FHorz(PricePathStruct, ParamPath, T, T1, T2, pi_S, S_initial, V_final, Policy_final, Parameters, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
+[VPathTree,PolicyPathTree,aprimeReferenceTree,lsdiag]=ValueFnOnUncertainTransPath_FHorz(PricePathStruct, ParamPath, T, T1, T2, pi_S, S_initial, V_final, Policy_final, Parameters, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
 AgentDistPathTree=AgentDistOnUncertainTransPath_FHorz(AgentDist_initial, jequaloneDist, PricePathStruct, ParamPath, PolicyPathTree, AgeWeightsParamNames, T, T1, T2, pi_S, S_initial, n_d,n_a,n_z,N_j,pi_z, Parameters, transpathoptions, simoptions);
 [AggVarsTree,AggVarsGivenChildTree]=EvalFnOnUncertainTransPath_AggVars_FHorz(FnsToEvaluate, AgentDistPathTree, PolicyPathTree, PricePathStruct, ParamPath, Parameters, T, T1, T2, pi_S, S_initial, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, transpathoptions, simoptions);
 AggVarNames=fieldnames(AggVarsTree);

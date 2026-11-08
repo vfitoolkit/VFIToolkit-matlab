@@ -72,8 +72,15 @@ function [PricePathTree, UncertainTPathSummary]=UncertainTransitionPath_FHorz(Pr
 %   branching node, so it is evaluated once per child c with c's values, and a condition that uses it is one that holds
 %   in expectation (above). Intermediate eqns of the final stationary eqms go in heteroagentoptions.intermediateEqns.
 %
-% Not yet: local search, transpathoptions.fastOLG=2, stockvars, semi-exogenous states, experience assets,
-% exoticpreferences, permanent types.
+% LOCAL SEARCH (vfoptions.localsearch=1, with vfoptions.nlocalsearch, nlocalsearchup, nlocalsearchdown), as in
+%   TransitionPath_Case1_FHorz, for both shooting and Anderson, with a reference policy per node (every age): the first
+%   sweep is standard, later ones restrict the aprime search at every node to a window around the previous answer
+%   there, and a converged restricted solve is certified by one standard sweep at the same prices (resuming if that
+%   moves it). So the answer, and everything in the summary, is from a standard sweep. UncertainTPathSummary.localsearch
+%   reports the counts. transpathoptions.fastOLG=2 (which requires local search) is fastOLG for the restricted sweeps
+%   and slowOLG for the standard ones, as in TransitionPath_Case1_FHorz.
+%
+% Not yet: stockvars, semi-exogenous states, experience assets, exoticpreferences, permanent types.
 
 %% Options
 if ~exist('transpathoptions','var') || isempty(transpathoptions)
@@ -153,12 +160,42 @@ end
 if ~isfield(transpathoptions,'fastOLG')
     transpathoptions.fastOLG=0;
 end
-% Not yet implemented for uncertain FHorz transition paths
-if transpathoptions.fastOLG==2
-    error('UncertainTransitionPath_FHorz: transpathoptions.fastOLG=2 is not yet implemented (it needs local search), use =0 or =1')
+if ~isfield(vfoptions,'localsearch')
+    vfoptions.localsearch=0;
 end
-if isfield(vfoptions,'localsearch') && vfoptions.localsearch~=0
-    error('UncertainTransitionPath_FHorz: vfoptions.localsearch is not yet implemented')
+% LOCAL SEARCH, as in TransitionPath_Case1_FHorz (see TransitionPath_FHorz_shooting for the scheme), with a reference per
+% node: only 0 and 1 are meaningful here (2 is ValueFnOnTransPath_Case1_FHorz's 'force it'), and the checks are the same
+if vfoptions.localsearch~=0 && vfoptions.localsearch~=1
+    error('vfoptions.localsearch must be 0 or 1 here; the value 2 is only meaningful to ValueFnOnTransPath_Case1_FHorz and ValueFnOnUncertainTransPath_FHorz, which use it to force a restricted search they would otherwise ignore')
+elseif vfoptions.localsearch==1
+    if ~isfield(vfoptions,'nlocalsearch')
+        error('When using vfoptions.localsearch=1 you must set vfoptions.nlocalsearch')
+    end
+    if vfoptions.nlocalsearch<1
+        error('vfoptions.nlocalsearch must be at least 1')
+    end
+    % nlocalsearch is the STARTING window, ratcheted as in TransitionPath_FHorz_shooting
+    if ~isfield(vfoptions,'nlocalsearchup')
+        vfoptions.nlocalsearchup=2;
+    end
+    if ~isfield(vfoptions,'nlocalsearchdown')
+        vfoptions.nlocalsearchdown=1;
+    end
+    if vfoptions.nlocalsearchup<1 || vfoptions.nlocalsearchdown<1
+        error('vfoptions.nlocalsearchup and vfoptions.nlocalsearchdown must both be at least 1')
+    end
+    if n_a(1)<2*vfoptions.nlocalsearch+1
+        error('vfoptions.nlocalsearch is too large for the grid: need n_a>=2*nlocalsearch+1')
+    end
+    if n_a(1)>65535
+        error('vfoptions.localsearch=1 stores the reference policy as uint16, so needs n_a<=65535')
+    end
+end
+% transpathoptions.fastOLG=2, as in TransitionPath_Case1_FHorz: fastOLG for the local search (restricted) sweeps, slowOLG
+% for the full ones; ValueFnOnTransPath_Case1_FHorz makes that choice sweep by sweep, and the agent dist and AggVars read
+% it as fastOLG
+if transpathoptions.fastOLG==2 && vfoptions.localsearch~=1
+    error('transpathoptions.fastOLG=2 means fastOLG for the local search sweeps and slowOLG for the full sweeps, so it requires vfoptions.localsearch=1 (without local search use transpathoptions.fastOLG=0 or 1)')
 end
 if isfield(transpathoptions,'stockvars') && ~isempty(transpathoptions.stockvars)
     error('UncertainTransitionPath_FHorz: transpathoptions.stockvars is not yet implemented for uncertain transition paths')
@@ -448,9 +485,43 @@ if transpathoptions.GEnewprice==3
 PricePathDist=Inf;
 GEcondnDist=Inf;
 itercounter=1;
+% LOCAL SEARCH, the scheme of TransitionPath_FHorz_shooting with a reference per node: iteration 1 is a standard
+% sweep that builds the reference; later iterations restrict the aprime search of every node (every age) to a window
+% around it, refreshing it as they go, and nlocalsearch ratchets (up by nlocalsearchup when an answer sat on a window
+% edge anywhere on the tree, excluding the grid's own ends, down by nlocalsearchdown otherwise, reset to the input
+% after every standard sweep). When the restricted iterations converge, ONE standard sweep re-evaluates the SAME
+% prices: if they are still converged the answer is certified, else local search resumes from the new reference. So
+% the restriction never changes the answer, only how fast it is reached, and the summary is always of a standard sweep.
+uselocalsearch=vfoptions.localsearch;
+aprimeReferenceTree=[];
+lsmodenow=uselocalsearch; % 0 no local search, 1 restricted (standard while there is no reference), 2 verification
+nverify=0; nrestricted=0; lsnup=0; lsndown=0; lsnedge=0; lsntotal=0; lsmovemax=0;
+if uselocalsearch==1
+    nlocalsearchstart=vfoptions.nlocalsearch;
+    nlocalsearchcap=floor((prod(n_a)-1)/2); % at the cap the window is the whole grid
+    lsnmin=Inf; lsnmax=0;
+end
+wasrestricted=false;
 while itercounter<=transpathoptions.maxiter
     % The whole tree at the current prices, and the general eqm conditions at every node
-    [~,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree]=UncertainTransitionPath_FHorz_evaltree(reshape(PricePathOld,[],1), nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, jequaloneDist, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions);
+    wasrestricted=(lsmodenow==1 && ~isempty(aprimeReferenceTree));
+    [~,aprimeReferenceTree,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree,lsdiag]=UncertainTransitionPath_FHorz_evaltree(reshape(PricePathOld,[],1), aprimeReferenceTree, lsmodenow, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, jequaloneDist, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions);
+    if wasrestricted
+        % The ratchet on nlocalsearch, from the edge counts of this restricted sweep over the whole tree
+        nrestricted=nrestricted+1;
+        lsnmin=min(lsnmin,vfoptions.nlocalsearch);
+        lsnmax=max(lsnmax,vfoptions.nlocalsearch);
+        lsnedge=lsnedge+lsdiag.nedge;
+        lsntotal=lsntotal+lsdiag.ntotal;
+        lsmovemax=max(lsmovemax,lsdiag.movemax);
+        if lsdiag.nedge>0
+            vfoptions.nlocalsearch=min(vfoptions.nlocalsearch+vfoptions.nlocalsearchup,nlocalsearchcap);
+            lsnup=lsnup+1;
+        else
+            vfoptions.nlocalsearch=max(vfoptions.nlocalsearch-vfoptions.nlocalsearchdown,1);
+            lsndown=lsndown+1;
+        end
+    end
 
     % The shooting update of the nodes before period T, from the general eqm conditions at each of them. It is the
     % deterministic one (updatePricePathNew_TPath_T, a per-period formula, so the order of the rows does not matter),
@@ -477,10 +548,27 @@ while itercounter<=transpathoptions.maxiter
 
     % Converged on the prices just evaluated: stop BEFORE the update, so the summary is of the returned prices
     if PricePathDist<=transpathoptions.toleranceGEprices && GEcondnDist<=transpathoptions.toleranceGEcondns
-        break
+        if ~wasrestricted
+            break % converged under a standard sweep, so the answer is certified
+        else
+            % Converged under local search: re-evaluate THESE SAME prices with a standard sweep (not updated, or the
+            % check would be of different prices)
+            lsmodenow=2;
+            nverify=nverify+1;
+            if transpathoptions.verbose>=1
+                fprintf('UncertainTransitionPath_FHorz: local search converged at iteration %i, checking it with a standard sweep \n',itercounter)
+            end
+            itercounter=itercounter+1;
+            continue
+        end
     end
     if itercounter==transpathoptions.maxiter
         break
+    end
+    if uselocalsearch==1 && ~wasrestricted
+        % A reference exists now, so the restricted search starts (again), from the input window
+        lsmodenow=1;
+        vfoptions.nlocalsearch=nlocalsearchstart;
     end
 
     % setupGEnewprice3_shooting makes oldpathweight one weight per price (zero for every shooting row, so this is just the
@@ -516,13 +604,30 @@ if useconstraints==1
         warning('UncertainTransitionPath_FHorz: the constraints on the prices cut back the last update (%i elements), so the prices may be pressing against a bound',nconstraintcuts)
     end
 end
+if uselocalsearch==1
+    % Printed whenever local search was used, as in TransitionPath_FHorz_shooting
+    fprintf('Local search: %i iterations, of which %i restricted and %i standard verification sweep(s) \n',itercounter,nrestricted,nverify)
+    if nrestricted>0
+        fprintf('Local search: nlocalsearch started at %i, ranged %i to %i, ended at %i, with %i ratchet(s) up and %i down \n',nlocalsearchstart,lsnmin,lsnmax,vfoptions.nlocalsearch,lsnup,lsndown)
+        fprintf('Local search: the answer sat on a window edge, excluding the grid ends, at %.2f%% of state-age-nodes; the largest move from a reference was %i grid points, which the window bounds \n',100*lsnedge/max(lsntotal,1),lsmovemax)
+    end
+    UncertainTPathSummary.localsearch.nrestricted=nrestricted;
+    UncertainTPathSummary.localsearch.nverify=nverify;
+    UncertainTPathSummary.localsearch.lastsweeprestricted=wasrestricted;
+end
 
 elseif transpathoptions.GEnewprice==2
 %% Anderson acceleration of the shooting map, on the prices of every node stacked into one vector
 % p is the nNodes-by-nPrices prices, as a column. The general eqm conditions are those of the nodes before period T,
 % and the shooting map is the deterministic one (updatePricePathNew_TPath_T) applied to those nodes, with the period T
 % nodes (the final eqms) passed through unchanged, as the deterministic shooting map passes period T through.
-GEcondnsFn=@(p) UncertainTransitionPath_FHorz_evaltree(p, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, jequaloneDist, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions);
+% lsmode 0: a standard sweep. With local search the residual carries the reference per node, so it goes to
+% AndersonAccelerationTPath (as TransitionPath_FHorz_Anderson does): the restricted residual (lsmode 1, the first
+% evaluation builds the reference) and an unrestricted VerifyFn (lsmode 2) that certifies convergence. The first two
+% outputs of evaltree are the conditions and the reference, which is the two-output form both of them need.
+GEcondnsFn=@(p) UncertainTransitionPath_FHorz_evaltree(p, [], 0, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, jequaloneDist, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions);
+GEcondnsFnLS=@(p,ref) UncertainTransitionPath_FHorz_evaltree(p, ref, 1, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, jequaloneDist, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions);
+VerifyFnLS=@(p) UncertainTransitionPath_FHorz_evaltree(p, [], 2, nNodes, nPrices, PricePathNames, notlast, Tree, ParamPath, ParamPathNodes, ParamPathNames, T, T1, T2, pi_S, S_initial, V_final, Policy_final, AgentDist_initial, jequaloneDist, n_d,n_a,n_z,N_j, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEusestplus1, tplus1priceNames, tplus1pricePathkk, tplus1FnNames, tminus1priceNames, tminus1paramNames, tminus1AggVarsNames, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions);
 ShootingMapFn=@(p,GEc) UncertainTransitionPath_FHorz_shootingmap(p,GEc,nNodes,nPrices,nGEeqns,notlast,transpathoptions);
 if transpathoptions.multiGEcriterion==0
     DistanceFn=@(GEc) max(sum(abs(transpathoptions.multiGEweights.*reshape(GEc,nNL,nGEeqns)),2));
@@ -539,7 +644,13 @@ if useconstraints==1
     andersonoptions.upperbound=reshape(repmat(priceupperbound,nNodes,1),[],1);
     andersonoptions.stepfraction=reshape(repmat(stepfractionvec,nNodes,1),[],1);
 end
-[p,GEcondns,andersonoutput]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,DistanceFn,reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+if vfoptions.localsearch==1
+    [p,GEcondns,andersonoutput]=AndersonAccelerationTPath(GEcondnsFnLS,ShootingMapFn,DistanceFn,VerifyFnLS,[],reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+    fprintf('Local search: %i Anderson iterations, %i unrestricted certification sweep(s), of which %i put the solve back outside tolerance \n',andersonoutput.iterations,andersonoutput.nverify,andersonoutput.nverifyfailed)
+    UncertainTPathSummary.localsearch.nverify=andersonoutput.nverify;
+else
+    [p,GEcondns,andersonoutput]=AndersonAcceleration(GEcondnsFn,ShootingMapFn,DistanceFn,reshape(PricePathOld,[],1),transpathoptions.toleranceGEcondns,andersonoptions);
+end
 PricePathOld=reshape(gather(p),[nNodes,nPrices]);
 GEcondnDist=DistanceFn(GEcondns);
 PricePathDist=NaN; % Anderson is converged on the general eqm conditions only
@@ -550,8 +661,9 @@ end
 if GEcondnDist>transpathoptions.toleranceGEcondns
     warning('UncertainTransitionPath_FHorz: Anderson acceleration did not converge; the general eqm conditions are %8.6f from zero, against toleranceGEcondns=%g',GEcondnDist,transpathoptions.toleranceGEcondns)
 end
-% The tree at the returned prices, for the summary (one more evaluation; Anderson keeps only the conditions)
-[~,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree]=GEcondnsFn(reshape(PricePathOld,[],1));
+% The tree at the returned prices, for the summary (one more evaluation, a standard sweep; Anderson keeps only the
+% conditions)
+[~,~,GEcondnTree,AggVarsTree,VPathTree,PolicyPathTree,AgentDistPathTree,AggVarsGivenChildTree]=GEcondnsFn(reshape(PricePathOld,[],1));
 UncertainTPathSummary.andersonoutput=andersonoutput;
 end
 

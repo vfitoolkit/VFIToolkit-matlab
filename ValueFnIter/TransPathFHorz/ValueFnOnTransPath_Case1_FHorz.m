@@ -147,6 +147,7 @@ end
 %% transpathoptions.fastOLG=2 (TransitionPath_Case1_FHorz: fastOLG for the local search sweeps, slowOLG for the
 % full sweeps). This command's single pass is a full sweep, so =2 is solved as fastOLG=0; when local search is
 % forced (vfoptions.localsearch=2, now 1) it is a restricted sweep, so =2 is solved as fastOLG=1.
+fastOLGwas2=(transpathoptions.fastOLG==2); % the reference of the internal option below is then in the fastOLG layout
 if transpathoptions.fastOLG==2
     transpathoptions.fastOLG=0;
     if isfield(vfoptions,'localsearch')
@@ -368,6 +369,45 @@ else
 end
 
 
+%% INTERNAL: a reference path for local search, carried in and out (ValueFnOnUncertainTransPath_FHorz only)
+% As in ValueFnOnTransPath_InfHorz: this command on its own never carries a reference (see above), but
+% ValueFnOnUncertainTransPath_FHorz, for UncertainTransitionPath_FHorz, carries one per node across its general eqm
+% iterations and certifies the answer with a standard sweep exactly as TransitionPath_FHorz_shooting does.
+%   vfoptions.aprimeReferencePath, with local search forced (vfoptions.localsearch=2): the reference of each period,
+%     [N_dref,N_rest,T-1], N_dref=N_d with a d (else 1), N_rest the (a,z,e,j) of the period FLATTENED in the order of
+%     the single steps' own Policy, as TransitionPath_FHorz_substeps_Step1_ValueFnIter stores it; period t's search is
+%     centred on its slot t. The third output is the reference this sweep leaves behind (the argmax per d in each
+%     window), and the fourth lsdiag, the edge counts the ratchet on nlocalsearch reads.
+%   vfoptions.localsearchseed=1, on a standard sweep: the third output is the reference that sweep builds.
+% The reference is in the layout of the RESTRICTED sweep. With transpathoptions.fastOLG=2 a standard sweep is slowOLG
+% and a restricted one fastOLG (see above), so a seed built by a slowOLG sweep is put in the fastOLG layout before it
+% is stored, as Step1 does under transpathoptions.fullsweepslowOLG.
+if ~isfield(vfoptions,'localsearch')
+    vfoptions.localsearch=0; % read just below, and by the loops, so defaulted here as above every read
+end
+if ~isfield(vfoptions,'localsearchseed')
+    vfoptions.localsearchseed=0;
+end
+aprimeReferencePathIn=[];
+if isfield(vfoptions,'aprimeReferencePath')
+    aprimeReferencePathIn=vfoptions.aprimeReferencePath;
+    vfoptions=rmfield(vfoptions,'aprimeReferencePath');
+end
+if ~isempty(aprimeReferencePathIn) && vfoptions.localsearch~=1
+    error('ValueFnOnTransPath_Case1_FHorz: vfoptions.aprimeReferencePath (internal) is only used by a restricted sweep, vfoptions.localsearch=2')
+end
+userefpath=~isempty(aprimeReferencePathIn);
+if (userefpath || vfoptions.localsearchseed==1) && (strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic') || vfoptions.experienceasset>=1 || vfoptions.experienceassetz>=1 || prod(vfoptions.n_semiz)>0 || ~isscalar(n_a))
+    error('ValueFnOnTransPath_Case1_FHorz: vfoptions.aprimeReferencePath and vfoptions.localsearchseed (internal) are only implemented for the standard endogenous state, with one endogenous state')
+end
+seedtofastOLG=(fastOLGwas2 && transpathoptions.fastOLG==0 && vfoptions.localsearchseed==1); % a slowOLG seed for fastOLG restricted sweeps
+N_dref=max(N_d,1);
+N_rest=N_a*max(N_z,1)*max(N_e,1)*N_j;
+aprimeReferencePath=[];
+if userefpath || vfoptions.localsearchseed==1
+    aprimeReferencePath=zeros(N_dref,N_rest,T-1,'uint16','gpuArray');
+end
+
 %% Top-level dispatch: on the preferences (returns via varargout)
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     if prod(vfoptions.n_semiz)>0
@@ -422,12 +462,20 @@ if N_e==0
                     Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                if userefpath
+                    refslot=double(aprimeReferencePathIn(:,:,T-ttr)); % CAST: uint16 arithmetic saturates
+                else
+                    refslot=[];
+                end
+                [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
                 PolicyPath(:,:,:,T-ttr)=Policy;
                 VPath(:,:,T-ttr)=V;
+                if userefpath || vfoptions.localsearchseed==1
+                    aprimeReferencePath(:,:,T-ttr)=reshape(aprimeRefNew,[N_dref,N_rest]); % (a,j) in both layouts
+                end
             end
         else
             %% fastOLG=1, no z, no e
@@ -448,12 +496,20 @@ if N_e==0
                     Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                if userefpath
+                    refslot=double(aprimeReferencePathIn(:,:,T-ttr)); % CAST: uint16 arithmetic saturates
+                else
+                    refslot=[];
+                end
+                [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
                 PolicyPath(:,:,:,T-ttr)=Policy;
                 VPath(:,:,T-ttr)=V;
+                if userefpath || vfoptions.localsearchseed==1
+                    aprimeReferencePath(:,:,T-ttr)=reshape(aprimeRefNew,[N_dref,N_rest]);
+                end
             end
         end
 
@@ -481,12 +537,24 @@ if N_e==0
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                if userefpath
+                    refslot=double(aprimeReferencePathIn(:,:,T-ttr)); % CAST: uint16 arithmetic saturates
+                else
+                    refslot=[];
+                end
+                [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
                 PolicyPath(:,:,:,:,T-ttr)=Policy;
                 VPath(:,:,:,T-ttr)=V;
+                if userefpath || vfoptions.localsearchseed==1
+                    if seedtofastOLG
+                        aprimeReferencePath(:,:,T-ttr)=reshape(permute(reshape(aprimeRefNew,[N_dref,N_a,N_z,N_j]),[1,2,4,3]),[N_dref,N_rest]); % (a,z,j) to the fastOLG (a,j,z)
+                    else
+                        aprimeReferencePath(:,:,T-ttr)=reshape(aprimeRefNew,[N_dref,N_rest]);
+                    end
+                end
             end
 
         else
@@ -519,12 +587,20 @@ if N_e==0
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                if userefpath
+                    refslot=double(aprimeReferencePathIn(:,:,T-ttr)); % CAST: uint16 arithmetic saturates
+                else
+                    refslot=[];
+                end
+                [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
                 PolicyPath(:,:,:,:,T-ttr)=permute(reshape(Policy,[size(PolicyPath,1),N_a,N_j,N_z]),[1,2,4,3]); % fastOLG (a,j,z) to standard (a,z,j)
                 VPath(:,:,:,T-ttr)=permute(reshape(V,[N_a,N_j,N_z]),[1,3,2]); % fastOLG (a,j)-by-z to standard (a,z,j)
+                if userefpath || vfoptions.localsearchseed==1
+                    aprimeReferencePath(:,:,T-ttr)=reshape(aprimeRefNew,[N_dref,N_rest]); % in the fastOLG layout, (a,j,z)
+                end
             end
         end
     end
@@ -554,12 +630,24 @@ else % N_e
                     e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                if userefpath
+                    refslot=double(aprimeReferencePathIn(:,:,T-ttr)); % CAST: uint16 arithmetic saturates
+                else
+                    refslot=[];
+                end
+                [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
                 PolicyPath(:,:,:,:,T-ttr)=Policy;
                 VPath(:,:,:,T-ttr)=V;
+                if userefpath || vfoptions.localsearchseed==1
+                    if seedtofastOLG
+                        aprimeReferencePath(:,:,T-ttr)=reshape(permute(reshape(aprimeRefNew,[N_dref,N_a,N_e,N_j]),[1,2,4,3]),[N_dref,N_rest]); % (a,e,j) to the fastOLG (a,j,e)
+                    else
+                        aprimeReferencePath(:,:,T-ttr)=reshape(aprimeRefNew,[N_dref,N_rest]);
+                    end
+                end
             end
 
         else
@@ -592,12 +680,20 @@ else % N_e
                     e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                if userefpath
+                    refslot=double(aprimeReferencePathIn(:,:,T-ttr)); % CAST: uint16 arithmetic saturates
+                else
+                    refslot=[];
+                end
+                [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_e] and contains the joint-index for (d,aprime)
 
                 PolicyPath(:,:,:,:,T-ttr)=permute(reshape(Policy,[size(PolicyPath,1),N_a,N_j,N_e]),[1,2,4,3]); % fastOLG (a,j,e) to standard (a,e,j)
                 VPath(:,:,:,T-ttr)=permute(reshape(V,[N_a,N_j,N_e]),[1,3,2]); % fastOLG (a,j)-by-e to standard (a,e,j)
+                if userefpath || vfoptions.localsearchseed==1
+                    aprimeReferencePath(:,:,T-ttr)=reshape(aprimeRefNew,[N_dref,N_rest]); % in the fastOLG layout, (a,j,e)
+                end
             end
         end
     else % N_z>0
@@ -628,12 +724,24 @@ else % N_e
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                if userefpath
+                    refslot=double(aprimeReferencePathIn(:,:,T-ttr)); % CAST: uint16 arithmetic saturates
+                else
+                    refslot=[];
+                end
+                [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
                 PolicyPath(:,:,:,:,:,T-ttr)=Policy;
                 VPath(:,:,:,:,T-ttr)=V;
+                if userefpath || vfoptions.localsearchseed==1
+                    if seedtofastOLG
+                        aprimeReferencePath(:,:,T-ttr)=reshape(permute(reshape(aprimeRefNew,[N_dref,N_a,N_z,N_e,N_j]),[1,2,5,3,4]),[N_dref,N_rest]); % (a,z,e,j) to the fastOLG (a,j,z,e)
+                    else
+                        aprimeReferencePath(:,:,T-ttr)=reshape(aprimeRefNew,[N_dref,N_rest]);
+                    end
+                end
             end
 
         else % transpathoptions.fastOLG==1
@@ -669,14 +777,43 @@ else % N_e
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_e(V,n_d,n_a,n_z,n_e, N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, [], vfoptions);
+                if userefpath
+                    refslot=double(aprimeReferencePathIn(:,:,T-ttr)); % CAST: uint16 arithmetic saturates
+                else
+                    refslot=[];
+                end
+                [V, Policy, aprimeRefNew]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_e(V,n_d,n_a,n_z,n_e, N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, refslot, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z*N_e] and contains the joint-index for (d,aprime)
 
                 PolicyPath(:,:,:,:,:,T-ttr)=permute(reshape(Policy,[size(PolicyPath,1),N_a,N_j,N_z,N_e]),[1,2,4,5,3]); % fastOLG (a,j,z,e) to standard (a,z,e,j)
                 VPath(:,:,:,:,T-ttr)=permute(reshape(V,[N_a,N_j,N_z,N_e]),[1,3,4,2]); % fastOLG (a,j)-by-z-by-e to standard (a,z,e,j)
+                if userefpath || vfoptions.localsearchseed==1
+                    aprimeReferencePath(:,:,T-ttr)=reshape(aprimeRefNew,[N_dref,N_rest]); % in the fastOLG layout, (a,j,z,e)
+                end
             end
         end
+    end
+end
+
+%% INTERNAL: the edge counts of a restricted sweep, for the ratchet on nlocalsearch (see the internal option above)
+% THE EDGE TEST of TransitionPath_FHorz_substeps_Step1_ValueFnIter, once over the whole path: the window is recomputed
+% from the reference this sweep was handed, by the raws' own line, and tested on the new reference (each d's argmax
+% within its own window). An answer at the GRID's own edge is a corner solution, not a too-narrow window, so it does
+% not count. Counted over every d; movemax is bounded by the window, reported, never used to set nlocalsearch.
+lsdiag=[];
+if userefpath
+    lsdiag.movemax=0; lsdiag.nedge=0; lsdiag.ntotal=0;
+    nls=vfoptions.nlocalsearch;
+    for tt=1:T-1
+        refslot=double(aprimeReferencePathIn(:,:,tt)); % CAST: uint16 arithmetic saturates
+        refnew=double(aprimeReferencePath(:,:,tt));
+        loweredge=min(max(refslot-nls,1),N_a-2*nls);
+        hitbottom=(refnew==loweredge) & (loweredge>1);
+        hittop=(refnew==loweredge+2*nls) & (loweredge+2*nls<N_a);
+        lsdiag.nedge=lsdiag.nedge+gather(sum(hitbottom | hittop,'all'));
+        lsdiag.ntotal=lsdiag.ntotal+numel(refslot);
+        lsdiag.movemax=max(lsdiag.movemax,gather(max(abs(refnew-refslot),[],'all')));
     end
 end
 
@@ -704,6 +841,6 @@ else
     end
 end
 
-varargout={VPath,PolicyPath};
+varargout={VPath,PolicyPath,aprimeReferencePath,lsdiag};
 
 end
