@@ -39,7 +39,7 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy
 % With ntimeperiods of length L, simoptions.whichcombos and simoptions.whichstats may have L*numFnsToEvaluate rows, in
 % blocks of numFnsToEvaluate in the order of simoptions.ntimeperiods (row (ll-1)*numFnsToEvaluate+ff is function ff with
 % M=ntimeperiods(ll)); numFnsToEvaluate rows apply to every M.
-% The M>1 windows handle an experience asset (simoptions.experienceasset, with simoptions.aprimeFn): a2'=aprimeFn(d2,a2) is put on the a2 grid by linear interpolation, as the agent distribution does (d_grid and a_grid are the full grids).
+% The M>1 windows handle an experience asset (simoptions.experienceasset, with simoptions.aprimeFn): a2'=aprimeFn(d2,a2) is put on the a2 grid by linear interpolation, as the agent distribution does (d_grid and a_grid are the full grids); and simoptions.experienceassetu (a2'=aprimeFn(d2,a2,u), with simoptions.n_u, u_grid, pi_u: u is iid between periods).
 % Use simoptions.logwhichcombos (zeros and ones, the same shapes as simoptions.whichcombos, or a scalar 0 or 1 for all; default
 % 0) to get the statistics of the log of the function (M=1) or of the log of the M-period sum/average (log of the average,
 % not the average of the logs) at the combinations where it is one: those are reported under [fnname,'_log'] (or
@@ -88,6 +88,8 @@ if ~exist('simoptions','var')
     simoptions.ntimeperiodstype='average'; % 'average' or 'sum' over the M periods
     simoptions.experienceasset=0; % an experience asset (the last simoptions.experienceasset endogenous states, with simoptions.aprimeFn)
     simoptions.l_dexperienceasset=1; % the number of decision variables (the last ones, before any for semiz) that the experience asset depends on
+    simoptions.experienceassetu=0; % an experience asset with an iid shock u (the last simoptions.experienceassetu endogenous states, with simoptions.aprimeFn, n_u, u_grid, pi_u)
+    simoptions.l_dexperienceassetu=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetu depends on
     simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos, or a scalar)
     simoptions.windowmethod='list'; % how the statistics of the M>1 windows are computed: 'list', 'tdigest2' or 'tdigest1'
     simoptions.windowblocksize=2*10^7; % 'tdigest2'/'tdigest1': the most rows of paths held at once
@@ -155,6 +157,12 @@ else
     end
     if ~isfield(simoptions,'l_dexperienceasset')
         simoptions.l_dexperienceasset=1; % the number of decision variables (the last ones, before any for semiz) that the experience asset depends on
+    end
+    if ~isfield(simoptions,'experienceassetu')
+        simoptions.experienceassetu=0; % an experience asset with an iid shock u (the last simoptions.experienceassetu endogenous states, with simoptions.aprimeFn, n_u, u_grid, pi_u)
+    end
+    if ~isfield(simoptions,'l_dexperienceassetu')
+        simoptions.l_dexperienceassetu=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetu depends on
     end
     if ~isfield(simoptions,'logwhichcombos')
         simoptions.logwhichcombos=0; % the combinations whose statistics are of the log (same shapes as whichcombos, or a scalar)
@@ -249,6 +257,9 @@ a_grid=gpuArray(a_grid);
 %% Exogenous shock grids
 % Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
 % (the windows need the transition probabilities of the three separately: keep the shapes and simoptions as given)
+if simoptions.experienceasset>=1 && simoptions.experienceassetu>=1
+    error('LifeCycleProfiles_FHorz_Case1: simoptions.experienceasset and simoptions.experienceassetu cannot both be used')
+end
 n_zW=n_z;
 simoptionsW=simoptions;
 [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
@@ -1028,8 +1039,8 @@ end
 % M-1 extensions the partial sums are W_j with their masses, and every statistic is that of these weighted values. The lists
 % of all start ages and functions in flight are extended age by age, so each age's policy step is built once.
 if nW>0
-    if (isfield(simoptions,'experienceassetu') && simoptions.experienceassetu>=1) || (isfield(simoptions,'experienceassetz') && simoptions.experienceassetz>=1) || (isfield(simoptions,'experienceassete') && simoptions.experienceassete>=1) || (isfield(simoptions,'experienceassetze') && simoptions.experienceassetze>=1) || (isfield(simoptions,'experienceassetsemiz') && simoptions.experienceassetsemiz>=1) || (isfield(simoptions,'riskyasset') && simoptions.riskyasset>=1) || (isfield(simoptions,'inheritanceasset') && simoptions.inheritanceasset==1) || (isfield(simoptions,'residualasset') && simoptions.residualasset>=1)
-        error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 is not yet implemented with experienceassetu, experienceassetz, experienceassete, experienceassetze, experienceassetsemiz, riskyasset, inheritanceasset or residualasset, ask on forum if you need this')
+    if (isfield(simoptions,'experienceassetz') && simoptions.experienceassetz>=1) || (isfield(simoptions,'experienceassete') && simoptions.experienceassete>=1) || (isfield(simoptions,'experienceassetze') && simoptions.experienceassetze>=1) || (isfield(simoptions,'experienceassetsemiz') && simoptions.experienceassetsemiz>=1) || (isfield(simoptions,'riskyasset') && simoptions.riskyasset>=1) || (isfield(simoptions,'inheritanceasset') && simoptions.inheritanceasset==1) || (isfield(simoptions,'residualasset') && simoptions.residualasset>=1)
+        error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 is not yet implemented with experienceassetz, experienceassete, experienceassetze, experienceassetsemiz, riskyasset, inheritanceasset or residualasset, ask on forum if you need this')
     end
     % The wanted combinations: level (whichcombosW) and log (wcLogW), by (function, start age, page, window length)
     wantW=(whichcombosW+wcLogW+windowlists+any(windowexport,5)+any(windowbracketsW,5))>0; % (the internal windowexport and windowbrackets too)
@@ -1149,8 +1160,9 @@ if nW>0
     else
         l_d=length(n_d);
     end
+    expassetbranch=(simoptionsW.experienceasset>=1 || simoptionsW.experienceassetu>=1); % the experience-asset branch of the policy step below
     PolicyW=reshape(Policy,[size(Policy,1),N_a,N_semizr*N_zr*N_er,N_j]);
-    if simoptionsW.experienceasset>=1
+    if expassetbranch==1
         % Experience asset (as StationaryDist_FHorz_ExpAsset, _ExpAsset_noz and _ExpAssetSemiExo): the last simoptions.experienceasset
         % endogenous states are a2, with a2'=aprimeFn(d2,a2), which is in general between two grid points of each a2 dimension. So a
         % state goes to the N_probs=2^l_a2 corners of the a2 grid around a2' (with the a1' of the Policy), with the linear-interpolation
@@ -1159,10 +1171,28 @@ if nW>0
         if ~isfield(simoptionsW,'aprimeFn')
             error('LifeCycleProfiles_FHorz_Case1: to use an experience asset you must define simoptions.aprimeFn')
         end
-        if simoptionsW.experienceasset>2 || l_a<simoptionsW.experienceasset
-            error('LifeCycleProfiles_FHorz_Case1: simoptions.experienceasset must be 1 or 2 (the number of experience assets), and at most length(n_a)')
+        if simoptionsW.experienceasset+simoptionsW.experienceassetu>2 || l_a<simoptionsW.experienceasset+simoptionsW.experienceassetu
+            error('LifeCycleProfiles_FHorz_Case1: simoptions.experienceasset (or experienceassetu) must be 1 or 2 (the number of experience assets), and at most length(n_a)')
         end
-        l_a2=simoptionsW.experienceasset;
+        if simoptionsW.experienceassetu>=1 && ~(isfield(simoptionsW,'n_u') && isfield(simoptionsW,'u_grid') && isfield(simoptionsW,'pi_u'))
+            error('LifeCycleProfiles_FHorz_Case1: to use experienceassetu you must define simoptions.n_u, simoptions.u_grid and simoptions.pi_u')
+        end
+        if simoptionsW.experienceasset>=1
+            l_a2=simoptionsW.experienceasset;
+            l_dexp=simoptionsW.l_dexperienceasset;
+            l_u=0;
+            N_uu=1; % a2'=aprimeFn(d2,a2): one a2' per state
+        else
+            % experienceassetu (as StationaryDist_FHorz_ExpAssetu, _ExpAssetu_noz and _ExpAssetuSemiExo): a2'=aprimeFn(d2,a2,u), with u
+            % iid between periods (the Policy does not depend on u), so a state has an a2' for each u, with probability pi_u
+            l_a2=simoptionsW.experienceassetu;
+            l_dexp=simoptionsW.l_dexperienceassetu;
+            n_u=simoptionsW.n_u;
+            l_u=length(n_u);
+            N_uu=prod(n_u);
+            u_grid=gpuArray(simoptionsW.u_grid(:));
+            pi_u=gpuArray(simoptionsW.pi_u(:));
+        end
         if l_a==l_a2
             n_a1=0; % no standard endogenous state
             l_a1=0;
@@ -1175,42 +1205,50 @@ if nW>0
         n_a2=n_a(end-l_a2+1:end);
         a2_grid=gpuArray(a_grid(sum(n_a1)+1:end)); % on the gpu (as d_grid below), so that the arrayfun of aprimeFn runs on the gpu and expands [N_a,1] a2 values against [N_a,N_semizze] d values
         if N_semiz==0
-            whichisdforexpasset=l_d-simoptionsW.l_dexperienceasset+1:l_d; % the last l_dexperienceasset decision variables
+            whichisdforexpasset=l_d-l_dexp+1:l_d; % the last l_dexp decision variables
         else
-            whichisdforexpasset=l_d-simoptionsW.l_dexperienceasset-simoptionsW.l_dsemiz+1:l_d-simoptionsW.l_dsemiz; % the l_dexperienceasset decision variables before the semiz ones
+            whichisdforexpasset=l_d-l_dexp-simoptionsW.l_dsemiz+1:l_d-simoptionsW.l_dsemiz; % the l_dexp decision variables before the semiz ones
         end
         temp=getAnonymousFnInputNames(simoptionsW.aprimeFn);
-        if length(temp)>(simoptionsW.l_dexperienceasset+l_a2+(l_a2>=2)) % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
-            aprimeFnParamNames={temp{simoptionsW.l_dexperienceasset+l_a2+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2), plus the 'whicha' selector when l_a2>=2
+        if length(temp)>(l_dexp+l_a2+l_u+(l_a2>=2)) % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+            aprimeFnParamNames={temp{l_dexp+l_a2+l_u+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2), then u for experienceassetu, plus the 'whicha' selector when l_a2>=2
         else
             aprimeFnParamNames={};
         end
-        N_probs=2^l_a2;
+        N_probs=N_uu*2^l_a2; % the a2 corners, each for every u (corner cc, u uu is column (cc-1)*N_uu+uu)
         Policy_aprime=zeros(N_states,N_probs,N_j,'gpuArray');
         PolicyProbs=zeros(N_states,N_probs,N_j,'gpuArray');
         for jj=1:N_j
             aprimeFnParamsVec=CreateVectorFromParams(Parameters,aprimeFnParamNames,jj);
-            [aprimeIndexes,aprimeProbs]=CreateaprimePolicyExperienceAsset(gpuArray(PolicyW(:,:,:,jj)),simoptionsW.aprimeFn,whichisdforexpasset,n_d,n_a1,n_a2,N_semizr*N_zr*N_er,gpuArray(d_grid),a2_grid,aprimeFnParamsVec);
-            % l_a2==1: [N_a,N_semizr*N_zr*N_er], the lower a2' grid point and its probability; l_a2==2: [N_a,2,N_semizr*N_zr*N_er], the same for each a2 dimension
+            if simoptionsW.experienceasset>=1
+                [aprimeIndexes,aprimeProbs]=CreateaprimePolicyExperienceAsset(gpuArray(PolicyW(:,:,:,jj)),simoptionsW.aprimeFn,whichisdforexpasset,n_d,n_a1,n_a2,N_semizr*N_zr*N_er,gpuArray(d_grid),a2_grid,aprimeFnParamsVec);
+                piu=1;
+            else
+                [aprimeIndexes,aprimeProbs]=CreateaprimePolicyExperienceAssetu(gpuArray(PolicyW(:,:,:,jj)),simoptionsW.aprimeFn,whichisdforexpasset,n_d,n_a1,n_a2,N_semizr*N_zr*N_er,n_u,gpuArray(d_grid),a2_grid,u_grid,aprimeFnParamsVec);
+                piu=pi_u'; % [1,N_u]
+            end
+            % l_a2==1: [N_a,N_semizr*N_zr*N_er(,N_u)], the lower a2' grid point and its probability; l_a2==2: [N_a,2,N_semizr*N_zr*N_er(,N_u)], the same for each a2 dimension
             % The a1' index of each state, zero-based (the a2' corner adds the rest)
             a1primeoffset=zeros(N_states,1,'gpuArray');
             for ii=1:l_a1
                 a1primeoffset=a1primeoffset+prod(n_a1(1:ii-1))*(reshape(PolicyW(l_d+ii,:,:,jj),[N_states,1])-1);
             end
             if l_a2==1
-                Policy_aprime(:,1,jj)=a1primeoffset+1+N_a1*(reshape(aprimeIndexes,[N_states,1])-1);
-                Policy_aprime(:,2,jj)=Policy_aprime(:,1,jj)+N_a1;
-                PolicyProbs(:,1,jj)=reshape(aprimeProbs,[N_states,1]);
-                PolicyProbs(:,2,jj)=1-PolicyProbs(:,1,jj);
+                loIdx=reshape(aprimeIndexes,[N_states,N_uu]);
+                probLo=reshape(aprimeProbs,[N_states,N_uu]);
+                Policy_aprime(:,1:N_uu,jj)=a1primeoffset+1+N_a1*(loIdx-1);
+                Policy_aprime(:,N_uu+1:2*N_uu,jj)=a1primeoffset+1+N_a1*loIdx;
+                PolicyProbs(:,1:N_uu,jj)=probLo.*piu;
+                PolicyProbs(:,N_uu+1:2*N_uu,jj)=(1-probLo).*piu;
             else % l_a2==2: the four corners of the a2 grid around (a2_1',a2_2')
-                loIdx_1=reshape(aprimeIndexes(:,1,:),[N_states,1]);
-                loIdx_2=reshape(aprimeIndexes(:,2,:),[N_states,1]);
-                prob_1=reshape(aprimeProbs(:,1,:),[N_states,1]);
-                prob_2=reshape(aprimeProbs(:,2,:),[N_states,1]);
+                loIdx_1=reshape(aprimeIndexes(:,1,:,:),[N_states,N_uu]);
+                loIdx_2=reshape(aprimeIndexes(:,2,:,:),[N_states,N_uu]);
+                prob_1=reshape(aprimeProbs(:,1,:,:),[N_states,N_uu]);
+                prob_2=reshape(aprimeProbs(:,2,:,:),[N_states,N_uu]);
                 bits=[0 0; 1 0; 0 1; 1 1];
-                for cc=1:N_probs
+                for cc=1:4
                     a2Kron=(loIdx_1+bits(cc,1))+n_a2(1)*(loIdx_2+bits(cc,2)-1);
-                    Policy_aprime(:,cc,jj)=a1primeoffset+1+N_a1*(a2Kron-1);
+                    Policy_aprime(:,(cc-1)*N_uu+1:cc*N_uu,jj)=a1primeoffset+1+N_a1*(a2Kron-1);
                     if bits(cc,1)==0
                         p1=prob_1;
                     else
@@ -1221,7 +1259,7 @@ if nW>0
                     else
                         p2=1-prob_2;
                     end
-                    PolicyProbs(:,cc,jj)=p1.*p2;
+                    PolicyProbs(:,(cc-1)*N_uu+1:cc*N_uu,jj)=p1.*p2.*piu;
                 end
             end
         end
@@ -1248,7 +1286,7 @@ if nW>0
         error('LifeCycleProfiles_FHorz_Case1: simoptions.ntimeperiods with M>1 cannot handle length(n_a)>4, contact me if you need this')
     end
     % Policy_aprime is [N_a,N_semizr*N_zr*N_er,N_j]
-    if simoptions.gridinterplayer==1 && simoptionsW.experienceasset==0
+    if simoptions.gridinterplayer==1 && expassetbranch==0
         % two a' points per state: the lower grid point and the one above it, with the second-layer weights
         L2index=PolicyW(end-1,:,:,:); % L2 index (end-1 because end is L2flag)
         L2flag=PolicyW(end,:,:,:);
@@ -1258,7 +1296,7 @@ if nW>0
     end
     if N_semiz==0
         % Add the z index of each (z,e) column (z varies first) to get the index into (a',z)
-        if simoptionsW.experienceasset>=1
+        if expassetbranch==1
             % Experience asset: add the z index of each state to each of its N_probs a' points to get the index into (a',z)
             zindex=repmat(repelem(N_a*gpuArray(0:1:N_zr-1)',N_a,1),N_er,1); % [N_states,1]
             Policy_aprimez=Policy_aprime+zindex; % [N_states,N_probs,N_j], index into (a',z)
@@ -1294,10 +1332,10 @@ if nW>0
         idxshort=gather(idx(:,end-N_semizshort+1:end,:,:)); % the semiz' each kept entry belongs to
         semizindexbase=repmat(repelem((1:1:N_semiz)',N_a,1),N_zr*N_er,1)+N_semiz*(0:1:N_semizshort-1); % [N_states,N_semizshort]: the semiz of each state, offset to each column of pi_semiz_J_short
         zprimeoffset=repmat(repelem(N_a*N_semiz*(0:1:N_zr-1)',N_a*N_semiz,1),N_er,1); % [N_states,1]: the z of each state, as an offset into (a',semiz',z)
-        if simoptionsW.experienceasset==0
+        if expassetbranch==0
             Policy_aprime_cpu=gather(reshape(Policy_aprime,[N_states,1,N_j]));
         end
-        if simoptionsW.experienceasset>=1
+        if expassetbranch==1
             % Experience asset: each of the N_probs a' points of a state, each with every semiz' (as StationaryDist_FHorz_Iteration_SemiExo_nProbs_raw)
             Policy_aprime_cpu=gather(Policy_aprime); % [N_states,N_probs,N_j]
             PolicyProbs_cpu=gather(PolicyProbs); % [N_states,N_probs,N_j]
@@ -1501,7 +1539,7 @@ if nW>0
             % (iv) Extend every list in flight from age jj to jj+1
             % The policy step of age jj: maps a measure over the age-jj states (a,semiz,z,e) to a measure over (a',semiz',z) [z kept, e summed out]
             if N_semiz==0
-                if simoptionsW.experienceasset>=1
+                if expassetbranch==1
                     Gammatranspose_jj=sparse(reshape(Policy_aprimez(:,:,jj),[],1),IIind,reshape(PolicyProbs(:,:,jj),[],1),N_a*N_zr,N_states); % sparse gpuArray; sparse() accumulates repeated indexes (corners that coincide)
                 elseif simoptions.gridinterplayer==0
                     Gammatranspose_jj=sparse(reshape(Policy_aprimez(:,:,jj),[],1),IIind,ones(N_states,1,'gpuArray'),N_a*N_zr,N_states); % sparse gpuArray
@@ -1512,7 +1550,7 @@ if nW>0
                 end
             else
                 semizindex_short_jj=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,jj)-1)+(N_semiz*N_semizshort*N_dsemiz)*(jj-1); % linear index into pi_semiz_J_short and idxshort
-                if simoptionsW.experienceasset>=1
+                if expassetbranch==1
                     Policy_aprimesemizz_jj=repelem(Policy_aprime_cpu(:,:,jj),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short_jj)-1),1,N_probs)+zprimeoffset; % [N_states,N_probs*N_semizshort]: the a' points, each with every semiz'
                     PolicyProbs_jj=repelem(PolicyProbs_cpu(:,:,jj),1,N_semizshort).*repmat(pi_semiz_J_short(semizindex_short_jj),1,N_probs);
                     Gammatranspose_jj=sparse(gpuArray(Policy_aprimesemizz_jj),gpuArray(II2),gpuArray(PolicyProbs_jj),N_a*N_semiz*N_zr,N_states); % sparse gpuArray; sparse() accumulates repeated indexes (corners that coincide)
@@ -1703,7 +1741,7 @@ if nW>0
                     end
                     % The policy step of age ja: maps a measure over the age-ja states (a,semiz,z,e) to a measure over (a',semiz',z) [z kept, e summed out]
                     if N_semiz==0
-                        if simoptionsW.experienceasset>=1
+                        if expassetbranch==1
                             Gammatranspose_ja=sparse(reshape(Policy_aprimez(:,:,ja),[],1),IIind,reshape(PolicyProbs(:,:,ja),[],1),N_a*N_zr,N_states); % sparse gpuArray; sparse() accumulates repeated indexes (corners that coincide)
                         elseif simoptions.gridinterplayer==0
                             Gammatranspose_ja=sparse(reshape(Policy_aprimez(:,:,ja),[],1),IIind,ones(N_states,1,'gpuArray'),N_a*N_zr,N_states); % sparse gpuArray
@@ -1714,7 +1752,7 @@ if nW>0
                         end
                     else
                         semizindex_short_ja=semizindexbase+(N_semiz*N_semizshort)*(Policy_dsemiexo(:,1,ja)-1)+(N_semiz*N_semizshort*N_dsemiz)*(ja-1); % linear index into pi_semiz_J_short and idxshort
-                        if simoptionsW.experienceasset>=1
+                        if expassetbranch==1
                             Policy_aprimesemizz_ja=repelem(Policy_aprime_cpu(:,:,ja),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short_ja)-1),1,N_probs)+zprimeoffset; % [N_states,N_probs*N_semizshort]: the a' points, each with every semiz'
                             PolicyProbs_ja=repelem(PolicyProbs_cpu(:,:,ja),1,N_semizshort).*repmat(pi_semiz_J_short(semizindex_short_ja),1,N_probs);
                             Gammatranspose_ja=sparse(gpuArray(Policy_aprimesemizz_ja),gpuArray(II2),gpuArray(PolicyProbs_ja),N_a*N_semiz*N_zr,N_states); % sparse gpuArray; sparse() accumulates repeated indexes (corners that coincide)
