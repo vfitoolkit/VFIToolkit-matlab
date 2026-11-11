@@ -301,7 +301,7 @@ CovarVec=nan(numFnsToEvaluate,numFnsToEvaluate,N_i,ngroups,nwhichpages);
 GroupMasses=zeros(N_i,ngroups,nwhichpages); % mass of each type in each age group (from that type's age weights), and in the restriction for pages 2:end
 RestrictedMassByAge=nan(N_i,N_j,nwhichpages-1); % the per-type restricted sample masses at each age
 if nW>0
-    whichcombosWG=reshape(whichcombosWAll(:,:,:,:,N_i+1,:),[numFnsToEvaluate,numFnsToEvaluate,N_j,nwhichpages,nW]); % the grouped window stats
+    whichcombosWG=reshape(whichcombosWAll(:,:,:,:,N_i+1,:),[numFnsToEvaluate,numFnsToEvaluate,ngroups,nwhichpages,nW]); % the grouped window stats (ngroups=N_j, as windows require one-year agegroupings)
     WMeanVec=nan(numFnsToEvaluate,N_i,N_j,nwhichpages,nW); % the per-type window means, by start age
     WCovVec=nan(numFnsToEvaluate,numFnsToEvaluate,N_i,N_j,nwhichpages,nW); % the per-type window covariances, by start age
     WMassVec=nan(N_i,N_j,nwhichpages,nW); % the mass of the type's window population at each start age (its mass there, or its mass that satisfies the restriction throughout the window)
@@ -344,8 +344,8 @@ for ii=1:N_i
 
     % Exogenous shocks
     if nW>0 % the windows need the z transitions of this type (simoptions.pi_z, which may depend on ptype as pi_z does)
-        if isfield(simoptions_temp,'pi_z')
-            pi_z_in=simoptions_temp.pi_z;
+        if isfield(simoptions,'pi_z') % the user's pi_z: PType_setup_ExogShocks resolves the struct form or slices the trailing dim once (simoptions_temp.pi_z is already this type's, and was sliced again when N_z==N_i)
+            pi_z_in=simoptions.pi_z;
         else
             pi_z_in=[];
         end

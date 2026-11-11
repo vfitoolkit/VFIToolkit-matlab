@@ -344,6 +344,7 @@ if ~isstruct(jequaloneDist)
 end
 
 %%
+usergridsExogShockFn=0; % =1 if some ptype uses ExogShockFn
 for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.Names_i{ii};
@@ -449,10 +450,7 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'z_grid'); % Should not be used, as now have z_gridvals_J
     PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'pi_z'); % Should not be used, as now have pi_z_J
     if isfield(PTypeStructure.(iistr).simoptions,'ExogShockFn') % Note: ExogShockSetup_FHorz(,0) removed ExogShockFn from vfoptions but not from simoptions
-        if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1
-            heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).vfoptions.user_z_grid; % this ptype's own grids, as the user gave them
-            heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).vfoptions.user_pi_z;
-        end
+        usergridsExogShockFn=1; % CustomModelStats_usergrids then gets every ptype's own grids, as a struct over ptypes (set after this loop)
         PTypeStructure.(iistr).simoptions=rmfield(PTypeStructure.(iistr).simoptions,'ExogShockFn');
     end
     % Regardless of whether they are done here of in _subfn, they will be precomputed by the time we get to the value fn, stationary dist, etc. So
@@ -542,6 +540,17 @@ for ii=1:PTypeStructure.N_i
     end
     % Ptype masses
     PTypeStructure.ptweights(ii,1)=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1});
+end
+% CustomModelStats_usergrids=1 with ExogShockFn: give each ptype's own grids, as the user gave them (a struct over ptypes, as the subfns do
+% when the grids depend on GE prices; then the subfns rebuild them every call, so they are not set here)
+if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1 && usergridsExogShockFn==1 && ~any(heteroagentoptions.gridsinGE)
+    heteroagentoptions.CustomModelStatsInputs.z_grid=struct();
+    heteroagentoptions.CustomModelStatsInputs.pi_z=struct();
+    for ii=1:PTypeStructure.N_i
+        iistr=PTypeStructure.Names_i{ii};
+        heteroagentoptions.CustomModelStatsInputs.z_grid.(iistr)=PTypeStructure.(iistr).vfoptions.user_z_grid;
+        heteroagentoptions.CustomModelStatsInputs.pi_z.(iistr)=PTypeStructure.(iistr).vfoptions.user_pi_z;
+    end
 end
 
 

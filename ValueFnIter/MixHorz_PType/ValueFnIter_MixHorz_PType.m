@@ -102,7 +102,7 @@ for ii=1:N_i
         pi_z_temp=pi_z.(iistr);
     else
         nn=size(pi_z,ndims(pi_z));
-        if nn==N_i
+        if nn==N_i && ndims(pi_z)>=3 % a pi_z by ptype has at least 3 dims ([N_z,N_z,N_i] or [N_z,N_z,N_j,N_i]); a 2D pi_z is shared, even when N_z==N_i
             otherdims = repmat({':'},1,ndims(pi_z)-1);
             pi_z_temp=pi_z(otherdims{:},ii);
         else

@@ -97,7 +97,7 @@ end
 zdependsonptype=0;
 if isstruct(z_grid) || isstruct(pi_z)
     zdependsonptype=1;
-elseif size(z_grid,ndims(z_grid))==length(Names_i) || size(pi_z,ndims(pi_z))==length(Names_i) % last dimension of z_grid/pi_z is of length N_i
+elseif size(z_grid,ndims(z_grid))==length(Names_i) || (size(pi_z,ndims(pi_z))==length(Names_i) && ndims(pi_z)>=3) % last dimension of z_grid/pi_z is of length N_i
     zdependsonptype=2;
     N_i=length(Names_i);
 end
@@ -424,7 +424,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     else
                         [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
                     end
-                elseif size(pi_z_temp,ndims(pi_z_temp))==N_i
+                elseif size(pi_z_temp,ndims(pi_z_temp))==N_i && ndims(pi_z_temp)>=3 % a pi_z by ptype is [N_z,N_z,N_i]; a 2D pi_z is shared, even when N_z==N_i
                     otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
                     pi_z_temp=pi_z_temp(otherdims{:},ii);
                 end
@@ -467,7 +467,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     else
                         error('z_grid_temp has unexpected number of dimensions (expected 2 or 3)')
                     end
-                    if size(pi_z_temp,ndims(pi_z_temp))==N_i
+                    if size(pi_z_temp,ndims(pi_z_temp))==N_i && ndims(pi_z_temp)>=3 % a pi_z by ptype is [N_z,N_z,N_i]; a 2D pi_z is shared, even when N_z==N_i
                         otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
                         pi_z_temp=pi_z_temp(otherdims{:},ii);
                     end

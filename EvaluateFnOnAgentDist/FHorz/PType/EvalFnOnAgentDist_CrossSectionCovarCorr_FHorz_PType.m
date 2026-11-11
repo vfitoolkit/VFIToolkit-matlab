@@ -301,8 +301,8 @@ for ii=1:N_i
 
     % Exogenous shocks
     if nW>0 % the windows need the z transitions of this type (simoptions.pi_z, which may depend on ptype as pi_z does)
-        if isfield(simoptions_temp,'pi_z')
-            pi_z_in=simoptions_temp.pi_z;
+        if isfield(simoptions,'pi_z') % the user's pi_z: PType_setup_ExogShocks resolves the struct form or slices the trailing dim once (simoptions_temp.pi_z is already this type's, and was sliced again when N_z==N_i)
+            pi_z_in=simoptions.pi_z;
         else
             pi_z_in=[];
         end

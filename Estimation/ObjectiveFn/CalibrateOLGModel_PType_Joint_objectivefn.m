@@ -567,7 +567,13 @@ if caliboptions.verbose==1
     if heteroagentoptions.useintermediateEqns==1
         fprintf('Current intermediateEqn variables: \n')
         for aa=1:length(heteroagentoptions.intermediateEqnNames)
-            fprintf('	%s: %8.4f \n',heteroagentoptions.intermediateEqnNames{aa},Parameters.(heteroagentoptions.intermediateEqnNames{aa})) % Note, this is done differently here because AggVars itself has been set as a matrix
+            if isstruct(Parameters.(heteroagentoptions.intermediateEqnNames{aa})) % an intermediateEqn that depends on ptype
+                for jj=1:length(Names_i)
+                    fprintf('	%s.%s: %8.4f \n',heteroagentoptions.intermediateEqnNames{aa},Names_i{jj},Parameters.(heteroagentoptions.intermediateEqnNames{aa}).(Names_i{jj}))
+                end
+            else
+                fprintf('	%s: %8.4f \n',heteroagentoptions.intermediateEqnNames{aa},Parameters.(heteroagentoptions.intermediateEqnNames{aa}))
+            end
         end
     end
     fprintf('Current GeneralEqmEqns: \n')

@@ -342,6 +342,7 @@ else
     end
 end
 
+usergridsExogShockFn=0; % =1 if some ptype uses ExogShockFn
 for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.Names_i{ii};
@@ -439,10 +440,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).simoptions.e_gridvals=PTypeStructure.(iistr).vfoptions.e_gridvals; % Note, will be [] if no e
         PTypeStructure.(iistr).simoptions.pi_e=PTypeStructure.(iistr).vfoptions.pi_e; % Note, will be [] if no e
         if isfield(PTypeStructure.(iistr).simoptions,'ExogShockFn') % Note: ExogShockSetup_InfHorz(,0) removed ExogShockFn from vfoptions but not from simoptions
-            if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1
-                heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).vfoptions.user_z_grid; % this ptype's own grids, as the user gave them
-                heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).vfoptions.user_pi_z;
-            end
+            usergridsExogShockFn=1; % CustomModelStats_usergrids then gets every ptype's own grids, as a struct over ptypes (set after this loop)
             PTypeStructure.(iistr).simoptions=rmfield(PTypeStructure.(iistr).simoptions,'ExogShockFn');
         end
     end
@@ -482,6 +480,22 @@ for ii=1:PTypeStructure.N_i
     end
     % Ptype masses
     PTypeStructure.ptweights(ii,1)=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1});
+end
+% CustomModelStats_usergrids=1 with ExogShockFn: give each ptype's own grids, as the user gave them (a struct over ptypes, as the subfns do
+% when the grids depend on GE prices; then the subfns rebuild them every call, so they are not set here)
+if heteroagentoptions.useCustomModelStats==1 && heteroagentoptions.CustomModelStats_usergrids==1 && usergridsExogShockFn==1 && ~any(heteroagentoptions.gridsinGE)
+    heteroagentoptions.CustomModelStatsInputs.z_grid=struct();
+    heteroagentoptions.CustomModelStatsInputs.pi_z=struct();
+    for ii=1:PTypeStructure.N_i
+        iistr=PTypeStructure.Names_i{ii};
+        if isfield(PTypeStructure.(iistr).vfoptions,'user_z_grid')
+            heteroagentoptions.CustomModelStatsInputs.z_grid.(iistr)=PTypeStructure.(iistr).vfoptions.user_z_grid;
+            heteroagentoptions.CustomModelStatsInputs.pi_z.(iistr)=PTypeStructure.(iistr).vfoptions.user_pi_z;
+        else % a ptype without z (ExogShockSetup_InfHorz keeps no grids for it)
+            heteroagentoptions.CustomModelStatsInputs.z_grid.(iistr)=[];
+            heteroagentoptions.CustomModelStatsInputs.pi_z.(iistr)=[];
+        end
+    end
 end
 
 

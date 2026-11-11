@@ -205,7 +205,9 @@ if isstruct(simoptions.agejshifter) % if using agejshifter
     end
     simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
     % Need an alternative version of N_j_max for grouped stats
-    if isstruct(N_j)
+    if max(simoptions.agejshifter)==0 % all shifts zero: same as not using agejshifter (and agegroupings need not be the default, so the grouped stats are length(agegroupings) long)
+        N_j_max2=N_j_max;
+    elseif isstruct(N_j)
         N_j_max2=0;
         for ii=1:N_i
             N_j_max2=max(N_j_max2,simoptions.agejshifter(ii)+N_j.(Names_i{ii}));
@@ -219,7 +221,9 @@ elseif isscalar(simoptions.agejshifter) % not using agejshifter
 else % have inputted as a vector
     simoptions.agejshifter=reshape(simoptions.agejshifter,[N_i,1]);
     simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
-    if isstruct(N_j)
+    if max(simoptions.agejshifter)==0 % all shifts zero: same as not using agejshifter (and agegroupings need not be the default, so the grouped stats are length(agegroupings) long)
+        N_j_max2=N_j_max;
+    elseif isstruct(N_j)
         N_j_max2=0;
         for ii=1:N_i
             N_j_max2=max(N_j_max2,simoptions.agejshifter(ii)+N_j.(Names_i{ii}));
@@ -1301,7 +1305,13 @@ for ff=1:numFnsToEvaluate
         end % end ii over N_i (pass 2)
 
         %% Pool this (ff,jjs) cell across ptypes and compute the grouped stats
-        if simoptions.groupptypesforstats==1 && any(whichcombosG(ff,jjs,:)) % (some grouped stat of this (function, age group) is wanted; nothing was appended to the pooled cell otherwise)
+        % The pooled cell is empty when no ptype that evaluates this function has age group jjs (e.g. a function of one ptype, at an age agejshifter leaves that ptype out of); the grouped stats then stay NaN
+        if simoptions.groupusingtdigest==1
+            poolisempty=(merge_nsofar==0);
+        else
+            poolisempty=isempty(PoolValues);
+        end
+        if simoptions.groupptypesforstats==1 && any(whichcombosG(ff,jjs,:)) && ~poolisempty % (some grouped stat of this (function, age group) is wanted, and some ptype was appended to the pooled cell)
             jj=jjs;
             ws=reshape(whichstatsG(ff,jjs,1,:),[1,7]); % whichstats of the grouped stats for this (fn, age group)
 
@@ -1647,8 +1657,8 @@ if nW>0
                 StationaryDist_temp=StationaryDist.(iistr);
             end
             [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
-            if isfield(simoptions_temp,'pi_z')
-                pi_z_in=simoptions_temp.pi_z;
+            if isfield(simoptions,'pi_z') % the user's pi_z: PType_setup_ExogShocks resolves the struct form or slices the trailing dim once (simoptions_temp.pi_z is already this type's, and was sliced again when N_z==N_i)
+                pi_z_in=simoptions.pi_z;
             else
                 pi_z_in=[];
             end
@@ -2004,8 +2014,8 @@ if nW>0
                         StationaryDist_temp=StationaryDist.(iistr);
                     end
                     [n_d_temp,n_a_temp,d_grid_temp,a_grid_temp]=PType_setup_da(iistr,n_d,n_a,d_grid,a_grid);
-                    if isfield(simoptions_temp,'pi_z')
-                        pi_z_in=simoptions_temp.pi_z;
+                    if isfield(simoptions,'pi_z') % the user's pi_z: PType_setup_ExogShocks resolves the struct form or slices the trailing dim once (simoptions_temp.pi_z is already this type's, and was sliced again when N_z==N_i)
+                        pi_z_in=simoptions.pi_z;
                     else
                         pi_z_in=[];
                     end

@@ -567,8 +567,6 @@ for ff=1:numFnsToEvaluate
         AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,length(simoptions.agegroupings),'gpuArray');
         AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,length(simoptions.agegroupings),'gpuArray');
         AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,length(simoptions.agegroupings),'gpuArray');
-        AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
-        AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
     end
 end
 
@@ -1299,6 +1297,10 @@ if nW>0
                         if (kind==1 && whichcombosW(ff,j0,pg,lw)==0) || (kind==2 && wcLogW(ff,j0,pg,lw)==0)
                             continue
                         end
+                        if pg>1 && gather(sum(Lm{ll}(:,pp)))==0 % every path left the restriction before the window ended: the stats stay NaN
+                            AgeConditionalStats.(CondlRestnFnNames{pg-1}).(WNames{ff,lw,kind}).RestrictedSampleMass(j0)=0;
+                            continue
+                        end
                         w=Lm{ll}(:,pp);
                         pos=(w>0);
                         vals=LS{ll}(pos);
@@ -1405,7 +1407,7 @@ if nW>0
                 elseif simoptions.gridinterplayer==1
                     Policy_aprimesemizz_jj=repelem(Policy_aprime2_cpu(:,:,jj),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short_jj)-1),1,2)+zprimeoffset; % [N_states,2*N_semizshort]: the two grid points, each with every semiz'
                     PolicyProbs_jj=repelem(PolicyProbs_cpu(:,:,jj),1,N_semizshort).*repmat(pi_semiz_J_short(semizindex_short_jj),1,2);
-                    Gammatranspose_jj=sparse(gpuArray(Policy_aprimesemizz_jj),gpuArray(II2),gpuArray(PolicyProbs_jj),N_a*N_semiz*N_zr,N_states); % sparse gpuArray; sparse() accumulates repeated indexes (the two grid points coincide only at the top of the grid)
+                    Gammatranspose_jj=sparse(gpuArray(Policy_aprimesemizz_jj),gpuArray(II2),gpuArray(PolicyProbs_jj),N_a*N_semiz*N_zr,N_states); % sparse gpuArray; sparse() accumulates repeated indexes (the two grid points never coincide, the upper one is the next index)
                 end
             end
             % Its nonzeros, grouped by the age-jj state (src): eG_ptr(s) is the number of nonzeros of the states before s, eG_cnt(s) those of s
@@ -1465,7 +1467,12 @@ if nW>0
                     ie=ie(keep);
                 end
                 newS=LS{ll}(ie)+ValuesW{ff}(D,jj+1);
-                if jj+1-Lj(ll)+1<Mstop(ff,Lj(ll))
+                if isempty(D)
+                    % every path of every page of this list left its restriction: the list stays empty (its windows read zero mass)
+                    Lst{ll}=zeros(0,1,'gpuArray');
+                    LS{ll}=zeros(0,1,'gpuArray');
+                    Lm{ll}=zeros(0,size(newm,2),'gpuArray');
+                elseif jj+1-Lj(ll)+1<Mstop(ff,Lj(ll))
                     % merge the entries with the same state and partial sum (the list is extended again)
                     [B,ord]=sortrows([D,newS]);
                     first=[true;any(B(2:end,:)~=B(1:end-1,:),2)];
@@ -1596,7 +1603,7 @@ if nW>0
                         elseif simoptions.gridinterplayer==1
                             Policy_aprimesemizz_ja=repelem(Policy_aprime2_cpu(:,:,ja),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short_ja)-1),1,2)+zprimeoffset; % [N_states,2*N_semizshort]: the two grid points, each with every semiz'
                             PolicyProbs_ja=repelem(PolicyProbs_cpu(:,:,ja),1,N_semizshort).*repmat(pi_semiz_J_short(semizindex_short_ja),1,2);
-                            Gammatranspose_ja=sparse(gpuArray(Policy_aprimesemizz_ja),gpuArray(II2),gpuArray(PolicyProbs_ja),N_a*N_semiz*N_zr,N_states); % sparse gpuArray; sparse() accumulates repeated indexes (the two grid points coincide only at the top of the grid)
+                            Gammatranspose_ja=sparse(gpuArray(Policy_aprimesemizz_ja),gpuArray(II2),gpuArray(PolicyProbs_ja),N_a*N_semiz*N_zr,N_states); % sparse gpuArray; sparse() accumulates repeated indexes (the two grid points never coincide, the upper one is the next index)
                         end
                     end
                     Gcache{ja}=Gammatranspose_ja;

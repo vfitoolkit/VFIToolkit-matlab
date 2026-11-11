@@ -123,14 +123,14 @@ end
 zdependsonptype=0;
 if isstruct(z_grid) || isstruct(pi_z)
     zdependsonptype=1;
-elseif size(z_grid,ndims(z_grid))==length(Names_i) || size(pi_z,ndims(pi_z))==length(Names_i) % last dimension of z_grid/pi_z is of length N_
+elseif size(z_grid,ndims(z_grid))==length(Names_i) || (size(pi_z,ndims(pi_z))==length(Names_i) && ndims(pi_z)>=3) % last dimension of z_grid/pi_z is of length N_
     zdependsonptype=2;
     N_i=length(Names_i);
     if ~isstruct(N_j)
         if size(z_grid,ndims(z_grid))==N_i && N_i==N_j
             warning('The last dimension of z_grid has length N_i (number of permanent types), but N_i equals N_j, so this shape is ambiguous: interpreting the last dimension of z_grid as permanent type, not age. If you want age-dependence, give z_grid as a struct with one field per permanent type.')
         end
-        if size(pi_z,ndims(pi_z))==N_i && (N_i==N_j || N_i==N_j-1)
+        if size(pi_z,ndims(pi_z))==N_i && ndims(pi_z)==3 && (N_i==N_j || N_i==N_j-1) % [N_z,N_z,N_i] or [N_z,N_z,N_j]; a 4D pi_z is unambiguous
             warning('The last dimension of pi_z has length N_i (number of permanent types), but N_i equals N_j or N_j-1, so this shape is ambiguous: interpreting the last dimension of pi_z as permanent type, not age. If you want age-dependence, give pi_z as a struct with one field per permanent type.')
         end
     end
@@ -750,7 +750,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                         end
                         pi_z_J_temp(:,:,jj)=gpuArray(pi_z_temp);
                     end
-                elseif size(pi_z_temp,ndims(pi_z_temp))==N_i
+                elseif size(pi_z_temp,ndims(pi_z_temp))==N_i && ndims(pi_z_temp)>=3 % a pi_z by ptype has at least 3 dims ([N_z,N_z,N_i] or [N_z,N_z,N_j,N_i]); a 2D pi_z is shared, even when N_z==N_i
                     otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
                     pi_z_temp_ii=pi_z_temp(otherdims{:},ii); % this ptype's slice: [N_z,N_z], [N_z,N_z,N_j] or [N_z,N_z,N_j-1]
                     if ndims(pi_z_temp_ii)==2 % age-independent: broadcast
@@ -843,7 +843,7 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                     else
                         error('z_grid_temp has unexpected number of dimensions (expected 2, 3, or 4)')
                     end
-                    if size(pi_z_temp,ndims(pi_z_temp))==N_i
+                    if size(pi_z_temp,ndims(pi_z_temp))==N_i && ndims(pi_z_temp)>=3 % a pi_z by ptype has at least 3 dims ([N_z,N_z,N_i] or [N_z,N_z,N_j,N_i]); a 2D pi_z is shared, even when N_z==N_i
                         otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
                         pi_z_temp_ii=pi_z_temp(otherdims{:},ii); % this ptype's slice: [N_z,N_z], [N_z,N_z,N_j] or [N_z,N_z,N_j-1]
                         if ndims(pi_z_temp_ii)==2 % age-independent: broadcast
