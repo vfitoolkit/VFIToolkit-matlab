@@ -101,11 +101,24 @@ if transpathoptions.parallel~=2
     error('Sorry but transition paths are not implemented for cpu, you will need a gpu to use them')
 end
 if transpathoptions.GEnewprice==1
-    error('transpathoptions.GEnewprice=1 (quasi-Newton) is not implemented for a mixed-horizon transition path, use =3 (the shooting algorithm)')
-elseif transpathoptions.GEnewprice==2
-    error('transpathoptions.GEnewprice=2 (Anderson acceleration) is not yet implemented for a mixed-horizon transition path, use =3 (the shooting algorithm)')
-elseif transpathoptions.GEnewprice~=3
-    error('transpathoptions.GEnewprice must be 3 (the shooting algorithm) for a mixed-horizon transition path')
+    error('transpathoptions.GEnewprice=1 (quasi-Newton) is not implemented for a mixed-horizon transition path, use =2 (Anderson acceleration) or =3 (the shooting algorithm)')
+elseif transpathoptions.GEnewprice~=2 && transpathoptions.GEnewprice~=3
+    error('transpathoptions.GEnewprice must be 2 (Anderson acceleration) or 3 (the shooting algorithm) for a mixed-horizon transition path')
+end
+
+if transpathoptions.GEnewprice==2
+    if ~isfield(transpathoptions,'GEnewprice2')
+        error('When using transpathoptions.GEnewprice=2 (Anderson acceleration) you must specify transpathoptions.GEnewprice2.howtoupdate')
+    end
+    if ~isfield(transpathoptions,'anderson')
+        transpathoptions.anderson=struct();
+    end
+    if ~isfield(transpathoptions.anderson,'maxiter')
+        transpathoptions.anderson.maxiter=transpathoptions.maxiter;
+    end
+    if ~isfield(transpathoptions.anderson,'verbose')
+        transpathoptions.anderson.verbose=transpathoptions.verbose;
+    end
 end
 
 %% Reformat transpathoptions.GEptype from cell of names into vector of 1s and 0s
@@ -907,62 +920,61 @@ if transpathoptions.verbose>=1
     transpathoptions
 end
 
-%% Shooting algorithm (GEnewprice=3, the only one implemented here; checked above)
-if transpathoptions.GEnewprice==3
+%% Solve the transition path (GEnewprice=2 Anderson acceleration, or GEnewprice=3 shooting)
+if transpathoptions.GEnewprice==2
+    [PricePath,GEcondnPathmatrix]=TransitionPath_MixHorz_PType_Anderson(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, transpathoptions, PTypeStructure);
+elseif transpathoptions.GEnewprice==3
     % For permanent types, there is just one shooting command,
     % because things like z,e, and fastOLG, as well as ExpAsset are handled on a per-PType basis (to permit that they differ across ptype)
     [PricePath,GEcondnPathmatrix]=TransitionPath_MixHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, use_stockvars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tplus1pricePathkk, tminus1AggVarsNames, stockvarsNames, stockvarsInPricePathNames, transpathoptions, PTypeStructure);
+end
 
-    % Switch the solution into structure for output.
-    pp_indexinpricepath=zeros(1,length(PricePathNames));
-    pp_c=0;
-    for pp=1:length(PricePathNames)
-        if PTypeStructure.PricePath_Idependsonptype(pp)==0
-            pp_c=pp_c+1;
-            pp_indexinpricepath(pp)=pp_c;
-        else
-            pp_c=pp_c+1;
-            pp_indexinpricepath(pp)=pp_c;
-            pp_c=pp_c+(PTypeStructure.N_i-1);
-        end
+% Switch the solution into structure for output.
+pp_indexinpricepath=zeros(1,length(PricePathNames));
+pp_c=0;
+for pp=1:length(PricePathNames)
+    if PTypeStructure.PricePath_Idependsonptype(pp)==0
+        pp_c=pp_c+1;
+        pp_indexinpricepath(pp)=pp_c;
+    else
+        pp_c=pp_c+1;
+        pp_indexinpricepath(pp)=pp_c;
+        pp_c=pp_c+(PTypeStructure.N_i-1);
     end
+end
 
-    for pp=1:length(PricePathNames)
-        if PTypeStructure.PricePath_Idependsonptype(pp)==0
-            PricePathStruct.(PricePathNames{pp})=PricePath(:,pp_indexinpricepath(pp));
-        else
-            if transpathoptions.PricePathptype_vectoroutput==1
-                PricePathStruct.(PricePathNames{pp})=PricePath(:,pp_indexinpricepath(pp):pp_indexinpricepath(pp)+PTypeStructure.N_i-1);
-            elseif transpathoptions.PricePathptype_vectoroutput==0
-                for ii=1:N_i
-                    PricePathStruct.(PricePathNames{pp}).(Names_i{ii})=PricePath(:,pp_indexinpricepath(pp)+ii-1);
-                end
-            end
-        end
-    end
-    % GEcondnPath: a general eqm condition that depends on ptype (transpathoptions.GEptype) has N_i columns,
-    % one per ptype, in eqn order, and is output as a structure with one path per ptype
-    gg_c=0;
-    for gg=1:length(GEeqnNames)
-        if transpathoptions.GEptype(gg)==0
-            gg_c=gg_c+1;
-            GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg_c)';
-        else
+for pp=1:length(PricePathNames)
+    if PTypeStructure.PricePath_Idependsonptype(pp)==0
+        PricePathStruct.(PricePathNames{pp})=PricePath(:,pp_indexinpricepath(pp));
+    else
+        if transpathoptions.PricePathptype_vectoroutput==1
+            PricePathStruct.(PricePathNames{pp})=PricePath(:,pp_indexinpricepath(pp):pp_indexinpricepath(pp)+PTypeStructure.N_i-1);
+        elseif transpathoptions.PricePathptype_vectoroutput==0
             for ii=1:N_i
-                gg_c=gg_c+1;
-                GEcondnPath.(GEeqnNames{gg}).(PTypeStructure.Names_i{ii})=GEcondnPathmatrix(:,gg_c)';
+                PricePathStruct.(PricePathNames{pp}).(Names_i{ii})=PricePath(:,pp_indexinpricepath(pp)+ii-1);
             end
         end
     end
-
-
-    if nargout==1
-        varargout={PricePathStruct};
-    elseif nargout==2
-        varargout={PricePathStruct,GEcondnPath};
+end
+% GEcondnPath: a general eqm condition that depends on ptype (transpathoptions.GEptype) has N_i columns,
+% one per ptype, in eqn order, and is output as a structure with one path per ptype
+gg_c=0;
+for gg=1:length(GEeqnNames)
+    if transpathoptions.GEptype(gg)==0
+        gg_c=gg_c+1;
+        GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg_c)';
+    else
+        for ii=1:N_i
+            gg_c=gg_c+1;
+            GEcondnPath.(GEeqnNames{gg}).(PTypeStructure.Names_i{ii})=GEcondnPathmatrix(:,gg_c)';
+        end
     end
+end
 
-    return
+if nargout==1
+    varargout={PricePathStruct};
+elseif nargout==2
+    varargout={PricePathStruct,GEcondnPath};
 end
 
 

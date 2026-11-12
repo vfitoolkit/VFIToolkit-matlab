@@ -338,10 +338,10 @@ while itercounter<=transpathoptions.maxiter % convergence is tested further down
         use_tminus1AggVars=0;
         for ii=1:N_i
             iistr=PTypeStructure.Names_i{ii};
-            AggVarNames{ii}=PTypeStructure.(iistr).AggVarNames;
+            AggVarNames{ii}=reshape(PTypeStructure.(iistr).AggVarNames,[],1);
             if isfield(PTypeStructure.(iistr), 'tminus1AggVarsNames')
                 use_tminus1AggVars=1;
-                tminus1AggVarsNames{ii}=PTypeStructure.(iistr).tminus1AggVarsNames;
+                tminus1AggVarsNames{ii}=reshape(PTypeStructure.(iistr).tminus1AggVarsNames,[],1);
             end
         end
         AggVarNames=vertcat(AggVarNames{:});
