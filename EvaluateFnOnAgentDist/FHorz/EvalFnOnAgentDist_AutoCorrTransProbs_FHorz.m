@@ -79,11 +79,13 @@ function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_FHorz(StationaryDis
 %
 % An experience asset (simoptions.experienceasset, with simoptions.aprimeFn) is handled: a2'=aprimeFn(d2,a2) is put on the
 % a2 grid by linear interpolation, as the agent distribution does (d_grid and a_grid are the full grids). So is
-% simoptions.experienceassetu (a2'=aprimeFn(d2,a2,u), with simoptions.n_u, u_grid, pi_u: u is iid between periods).
+% simoptions.experienceassetu (a2'=aprimeFn(d2,a2,u), with simoptions.n_u, u_grid, pi_u: u is iid between periods), and
+% simoptions.experienceassetz (a2'=aprimeFn(d2,a2,z), with the z of the state), and likewise experienceassete (aprimeFn(d2,a2,e)),
+% experienceassetze (aprimeFn(d2,a2,z,e)) and experienceassetsemiz (aprimeFn(d2,a2,semiz)).
 %
 % Not yet implemented (will error):
 %   simoptions.agegroupings non-default  -- error
-%   experienceassetz, experienceassete, experienceassetze, experienceassetsemiz, riskyasset, residualasset, inheritanceasset -- error
+%   riskyasset, residualasset, inheritanceasset -- error
 %
 % simoptions.whichcombos ([numFnsToEvaluate, N_j, 1+number of conditional restrictions] of zeros/ones) selects which (fn, start age,
 % restriction) combinations are computed; see the whichcombos section below.
@@ -108,6 +110,14 @@ if ~exist('simoptions','var')
     simoptions.l_dexperienceasset=1; % the number of decision variables (the last ones, before any for semiz) that the experience asset depends on
     simoptions.experienceassetu=0; % an experience asset with an iid shock u (the last simoptions.experienceassetu endogenous states, with simoptions.aprimeFn, n_u, u_grid, pi_u)
     simoptions.l_dexperienceassetu=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetu depends on
+    simoptions.experienceassetz=0; % an experience asset that depends on z (the last simoptions.experienceassetz endogenous states, with simoptions.aprimeFn(d2,a2,z))
+    simoptions.l_dexperienceassetz=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetz depends on
+    simoptions.experienceassete=0; % an experience asset that depends on e (the last simoptions.experienceassete endogenous states, with simoptions.aprimeFn(d2,a2,e))
+    simoptions.l_dexperienceassete=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassete depends on
+    simoptions.experienceassetze=0; % an experience asset that depends on z and e (the last simoptions.experienceassetze endogenous states, with simoptions.aprimeFn(d2,a2,z,e))
+    simoptions.l_dexperienceassetze=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetze depends on
+    simoptions.experienceassetsemiz=0; % an experience asset that depends on semiz (the last simoptions.experienceassetsemiz endogenous states, with simoptions.aprimeFn(d2,a2,semiz))
+    simoptions.l_dexperienceassetsemiz=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetsemiz depends on
     simoptions.inheritanceasset=0;
     % Internal options
     simoptions.alreadygridvals=0;
@@ -160,6 +170,30 @@ else
     if ~isfield(simoptions,'l_dexperienceassetu')
         simoptions.l_dexperienceassetu=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetu depends on
     end
+    if ~isfield(simoptions,'experienceassetz')
+        simoptions.experienceassetz=0; % an experience asset that depends on z (the last simoptions.experienceassetz endogenous states, with simoptions.aprimeFn(d2,a2,z))
+    end
+    if ~isfield(simoptions,'l_dexperienceassetz')
+        simoptions.l_dexperienceassetz=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetz depends on
+    end
+    if ~isfield(simoptions,'experienceassete')
+        simoptions.experienceassete=0; % an experience asset that depends on e (the last simoptions.experienceassete endogenous states, with simoptions.aprimeFn(d2,a2,e))
+    end
+    if ~isfield(simoptions,'l_dexperienceassete')
+        simoptions.l_dexperienceassete=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassete depends on
+    end
+    if ~isfield(simoptions,'experienceassetze')
+        simoptions.experienceassetze=0; % an experience asset that depends on z and e (the last simoptions.experienceassetze endogenous states, with simoptions.aprimeFn(d2,a2,z,e))
+    end
+    if ~isfield(simoptions,'l_dexperienceassetze')
+        simoptions.l_dexperienceassetze=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetze depends on
+    end
+    if ~isfield(simoptions,'experienceassetsemiz')
+        simoptions.experienceassetsemiz=0; % an experience asset that depends on semiz (the last simoptions.experienceassetsemiz endogenous states, with simoptions.aprimeFn(d2,a2,semiz))
+    end
+    if ~isfield(simoptions,'l_dexperienceassetsemiz')
+        simoptions.l_dexperienceassetsemiz=1; % the number of decision variables (the last ones, before any for semiz) that the experienceassetsemiz depends on
+    end
     if ~isfield(simoptions,'inheritanceasset')
         simoptions.inheritanceasset=0;
     end
@@ -176,26 +210,32 @@ if ~isequal(simoptions.agegroupings,1:1:N_j)
     error('AutoCorrTransProbs_FHorz: simoptions.agegroupings (age bins) not yet implemented; will implement later')
 end
 % The policy step below takes a' from the Policy rows of the standard endogenous states, and for an experience asset (simoptions.experienceasset or simoptions.experienceassetu) from simoptions.aprimeFn; the other assets whose next-period value comes from an aprimeFn are not yet handled
-if simoptions.experienceasset>=1 && simoptions.experienceassetu>=1
-    error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: simoptions.experienceasset and simoptions.experienceassetu cannot both be used')
+if (simoptions.experienceasset>=1)+(simoptions.experienceassetu>=1)+(simoptions.experienceassetz>=1)+(simoptions.experienceassete>=1)+(simoptions.experienceassetze>=1)+(simoptions.experienceassetsemiz>=1)>1
+    error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: only one of the experience assets (simoptions.experienceasset, experienceassetu, experienceassetz, experienceassete, experienceassetze, experienceassetsemiz) can be used')
 end
-expassetbranch=(simoptions.experienceasset>=1 || simoptions.experienceassetu>=1); % the experience-asset branch of the policy step below
+expassetbranch=(simoptions.experienceasset>=1 || simoptions.experienceassetu>=1 || simoptions.experienceassetz>=1 || simoptions.experienceassete>=1 || simoptions.experienceassetze>=1 || simoptions.experienceassetsemiz>=1); % the experience-asset branch of the policy step below
 if expassetbranch==1
     if ~isfield(simoptions,'aprimeFn')
         error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: to use an experience asset you must define simoptions.aprimeFn')
     end
-    if simoptions.experienceasset+simoptions.experienceassetu>2
-        error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: simoptions.experienceasset (or experienceassetu) can be 1 or 2 (the number of experience assets)')
+    if simoptions.experienceasset+simoptions.experienceassetu+simoptions.experienceassetz+simoptions.experienceassete+simoptions.experienceassetze+simoptions.experienceassetsemiz>2
+        error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: simoptions.experienceasset (or experienceassetu, experienceassetz, experienceassete, experienceassetze, experienceassetsemiz) can be 1 or 2 (the number of experience assets)')
     end
-    if length(n_a)<simoptions.experienceasset+simoptions.experienceassetu
-        error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: simoptions.experienceasset (or experienceassetu) is more than the number of endogenous states, length(n_a)')
+    if length(n_a)<simoptions.experienceasset+simoptions.experienceassetu+simoptions.experienceassetz+simoptions.experienceassete+simoptions.experienceassetze+simoptions.experienceassetsemiz
+        error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: simoptions.experienceasset (or experienceassetu, experienceassetz, experienceassete, experienceassetze, experienceassetsemiz) is more than the number of endogenous states, length(n_a)')
     end
     if simoptions.experienceassetu>=1 && ~(isfield(simoptions,'n_u') && isfield(simoptions,'u_grid') && isfield(simoptions,'pi_u'))
         error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: to use experienceassetu you must define simoptions.n_u, simoptions.u_grid and simoptions.pi_u')
     end
+    if simoptions.experienceassetz>=1 && (isempty(n_z) || prod(n_z)==0)
+        error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: experienceassetz needs a markov exogenous state z (the experience asset depends on z), but n_z is zero')
+    end
+    if (simoptions.experienceassete>=1 && prod(simoptions.n_e)==0) || (simoptions.experienceassetze>=1 && (isempty(n_z) || prod(n_z)==0 || prod(simoptions.n_e)==0)) || (simoptions.experienceassetsemiz>=1 && prod(simoptions.n_semiz)==0)
+        error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: experienceassete needs an iid exogenous state e, experienceassetze needs both z and e, and experienceassetsemiz needs a semi-exogenous state semiz (the experience asset depends on them)')
+    end
 end
-if (isfield(simoptions,'experienceassetz') && simoptions.experienceassetz>=1) || (isfield(simoptions,'experienceassete') && simoptions.experienceassete>=1) || (isfield(simoptions,'experienceassetze') && simoptions.experienceassetze>=1) || (isfield(simoptions,'experienceassetsemiz') && simoptions.experienceassetsemiz>=1) || (isfield(simoptions,'riskyasset') && simoptions.riskyasset>=1) || (isfield(simoptions,'residualasset') && simoptions.residualasset>=1) || simoptions.inheritanceasset==1
-    error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: experienceassetz, experienceassete, experienceassetze, experienceassetsemiz, riskyasset, residualasset and inheritanceasset are not yet implemented, ask on forum if you need this')
+if (isfield(simoptions,'riskyasset') && simoptions.riskyasset>=1) || (isfield(simoptions,'residualasset') && simoptions.residualasset>=1) || simoptions.inheritanceasset==1
+    error('EvalFnOnAgentDist_AutoCorrTransProbs_FHorz: riskyasset, residualasset and inheritanceasset are not yet implemented, ask on forum if you need this')
 end
 
 %% Time horizons: exactly those in simoptions.timehorizons (default 1)
@@ -631,18 +671,43 @@ else
     if simoptions.experienceasset>=1
         l_a2=simoptions.experienceasset;
         l_dexp=simoptions.l_dexperienceasset;
-        l_u=0;
+        l_fnshock=0; % no shock inputs of aprimeFn after (d2,a2)
         N_uu=1; % a2'=aprimeFn(d2,a2): one a2' per state
-    else
+    elseif simoptions.experienceassetu>=1
         % experienceassetu (as StationaryDist_FHorz_ExpAssetu, _ExpAssetu_noz and _ExpAssetuSemiExo): a2'=aprimeFn(d2,a2,u), with u
         % iid between periods (the Policy does not depend on u), so a state has an a2' for each u, with probability pi_u
         l_a2=simoptions.experienceassetu;
         l_dexp=simoptions.l_dexperienceassetu;
         n_u=simoptions.n_u;
-        l_u=length(n_u);
+        l_fnshock=length(n_u); % the u inputs of aprimeFn, after (d2,a2)
         N_uu=prod(n_u);
         u_grid=gpuArray(simoptions.u_grid(:));
         pi_u=gpuArray(simoptions.pi_u(:));
+    elseif simoptions.experienceassetz>=1
+        % experienceassetz (as StationaryDist_FHorz_ExpAssetz and _ExpAssetzSemiExo): a2'=aprimeFn(d2,a2,z), with the z of the state
+        l_a2=simoptions.experienceassetz;
+        l_dexp=simoptions.l_dexperienceassetz;
+        l_fnshock=length(n_z); % the z inputs of aprimeFn, after (d2,a2)
+        N_uu=1; % one a2' per state
+    elseif simoptions.experienceassete>=1
+        % experienceassete (as StationaryDist_FHorz_ExpAssete and _ExpAsseteSemiExo): a2'=aprimeFn(d2,a2,e), with the e of the state
+        l_a2=simoptions.experienceassete;
+        l_dexp=simoptions.l_dexperienceassete;
+        l_fnshock=length(simoptions.n_e); % the e inputs of aprimeFn, after (d2,a2)
+        N_uu=1; % one a2' per state
+    elseif simoptions.experienceassetze>=1
+        % experienceassetze (as StationaryDist_FHorz_ExpAssetze and _ExpAssetzeSemiExo): a2'=aprimeFn(d2,a2,z,e), with the z and e of the state
+        l_a2=simoptions.experienceassetze;
+        l_dexp=simoptions.l_dexperienceassetze;
+        l_fnshock=length(n_z)+length(simoptions.n_e); % the z and e inputs of aprimeFn, after (d2,a2)
+        N_uu=1; % one a2' per state
+    else
+        % experienceassetsemiz (as StationaryDist_FHorz_ExpAssetsemiz): a2'=aprimeFn(d2,a2,semiz), with the semiz of the state (semiz has its own
+        % transition, from the semi-exogenous decision, as for any semiz)
+        l_a2=simoptions.experienceassetsemiz;
+        l_dexp=simoptions.l_dexperienceassetsemiz;
+        l_fnshock=length(simoptions.n_semiz); % the semiz inputs of aprimeFn, after (d2,a2)
+        N_uu=1; % one a2' per state
     end
     if l_a==l_a2
         n_a1=0; % no standard endogenous state
@@ -661,8 +726,8 @@ else
         whichisdforexpasset=l_d-l_dexp-simoptions.l_dsemiz+1:l_d-simoptions.l_dsemiz; % the l_dexp decision variables before the semiz ones
     end
     temp=getAnonymousFnInputNames(simoptions.aprimeFn);
-    if length(temp)>(l_dexp+l_a2+l_u+(l_a2>=2)) % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
-        aprimeFnParamNames={temp{l_dexp+l_a2+l_u+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2), then u for experienceassetu, plus the 'whicha' selector when l_a2>=2
+    if length(temp)>(l_dexp+l_a2+l_fnshock+(l_a2>=2)) % the (l_a2>=2) term is the 'whicha' selector slot, which aprimeFn only takes when there are two experience assets
+        aprimeFnParamNames={temp{l_dexp+l_a2+l_fnshock+(l_a2>=2)+1:end}}; % the first inputs are (d2,a2), then u for experienceassetu, plus the 'whicha' selector when l_a2>=2
     else
         aprimeFnParamNames={};
     end
@@ -674,9 +739,21 @@ else
         if simoptions.experienceasset>=1
             [aprimeIndexes,aprimeProbs]=CreateaprimePolicyExperienceAsset(Policy(:,:,:,jj),simoptions.aprimeFn,whichisdforexpasset,n_d,n_a1,n_a2,N_semizze_reshape,gpuArray(d_grid),a2_grid,aprimeFnParamsVec);
             piu=1;
-        else
+        elseif simoptions.experienceassetu>=1
             [aprimeIndexes,aprimeProbs]=CreateaprimePolicyExperienceAssetu(Policy(:,:,:,jj),simoptions.aprimeFn,whichisdforexpasset,n_d,n_a1,n_a2,N_semizze_reshape,n_u,gpuArray(d_grid),a2_grid,u_grid,aprimeFnParamsVec);
             piu=pi_u'; % [1,N_u]
+        elseif simoptions.experienceassetz>=1
+            [aprimeIndexes,aprimeProbs]=CreateaprimePolicyExperienceAssetz(Policy(:,:,:,jj),simoptions.aprimeFn,whichisdforexpasset,n_d,n_a1,n_a2,n_z,N_semiz,N_z,N_e,gpuArray(d_grid),a2_grid,z_gridvals_J(:,:,jj),aprimeFnParamsVec);
+            piu=1;
+        elseif simoptions.experienceassete>=1
+            [aprimeIndexes,aprimeProbs]=CreateaprimePolicyExperienceAssete(Policy(:,:,:,jj),simoptions.aprimeFn,whichisdforexpasset,n_d,n_a1,n_a2,simoptions.n_e,N_semiz,N_z,N_e,gpuArray(d_grid),a2_grid,simoptions.e_gridvals_J(:,:,jj),aprimeFnParamsVec);
+            piu=1;
+        elseif simoptions.experienceassetze>=1
+            [aprimeIndexes,aprimeProbs]=CreateaprimePolicyExperienceAssetze(Policy(:,:,:,jj),simoptions.aprimeFn,whichisdforexpasset,n_d,n_a1,n_a2,n_z,simoptions.n_e,N_semiz,N_z,N_e,gpuArray(d_grid),a2_grid,z_gridvals_J(:,:,jj),simoptions.e_gridvals_J(:,:,jj),aprimeFnParamsVec);
+            piu=1;
+        else
+            [aprimeIndexes,aprimeProbs]=CreateaprimePolicyExperienceAssetsemiz(Policy(:,:,:,jj),simoptions.aprimeFn,whichisdforexpasset,n_d,n_a1,n_a2,simoptions.n_semiz,N_semiz,max(N_z,1),N_e,gpuArray(d_grid),a2_grid,simoptions.semiz_gridvals_J(:,:,jj),aprimeFnParamsVec); % with no z the builder takes N_z=1 (as StationaryDist_FHorz_ExpAssetsemiz)
+            piu=1;
         end
         % l_a2==1: [N_a,N_semizze_reshape(,N_u)], the lower a2' grid point and its probability; l_a2==2: [N_a,2,N_semizze_reshape(,N_u)], the same for each a2 dimension
         % The a1' index of each state, zero-based (the a2' corner adds the rest)
