@@ -133,9 +133,12 @@ else
             ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_bothz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0); % Level=0, Refine=0
             % (d,aprime,a,z)
 
-            EV=V_Jplus1.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(V_Jplus1==-Inf);
+            EV=V_Jplus1;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             if length(n_a2)==1
@@ -191,9 +194,12 @@ else
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            EV=V_Jplus1.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(V_Jplus1==-Inf);
+            EV=V_Jplus1;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
             if length(n_a2)==1
                 EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]);
                 EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_bothz]);
@@ -365,9 +371,12 @@ for reverse_j=1:N_j-1
             ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_bothz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0); % Level=0, Refine=0
             % (d,aprime,a,z)
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             if length(n_a2)==1
@@ -423,9 +432,12 @@ for reverse_j=1:N_j-1
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz_J(:,:,d3_c,jj));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
             if length(n_a2)==1
                 EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]);
                 EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_bothz]);

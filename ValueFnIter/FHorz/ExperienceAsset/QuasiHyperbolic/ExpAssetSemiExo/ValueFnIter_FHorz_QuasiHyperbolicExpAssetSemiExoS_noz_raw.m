@@ -104,9 +104,12 @@ else
             ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0); % Level=0, Refine=0
             % (d,aprime,a,z)
 
-            EV=V_Jplus1.*shiftdim(pi_semiz_d3',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(V_Jplus1==-Inf);
+            EV=V_Jplus1;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_semiz_d3';
+            EV(EVinf*(pi_semiz_d3'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_semiz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the lower aprime
@@ -228,9 +231,12 @@ for reverse_j=1:N_j-1
             ReturnMatrix_d3=CreateReturnFnMatrix_ExpAsset_Disc(ReturnFn, n_d1,[n_d2,1],n_a1,n_a1,n_a2,n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0); % Level=0, Refine=0
             % (d,aprime,a,z)
 
-            EV=EVpre.*shiftdim(pi_semiz_d3',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_semiz_d3';
+            EV(EVinf*(pi_semiz_d3'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_semiz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_semiz]); % (d2,a1prime,a2,z), the lower aprime

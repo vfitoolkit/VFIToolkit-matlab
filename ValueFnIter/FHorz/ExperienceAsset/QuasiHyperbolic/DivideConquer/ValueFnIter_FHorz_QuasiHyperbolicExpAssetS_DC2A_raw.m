@@ -180,9 +180,11 @@ else
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper;
     EV(aprimeProbs==0)=Vupper(aprimeProbs==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
     EV(aprimeProbs==1)=Vlower(aprimeProbs==1);
-    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-    EV(isnan(EV))=0;
-    EV=squeeze(sum(EV,3));
+    EVinf=(EV==-Inf);
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_z])*pi_z_J(:,:,N_j)';
+    EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_z])*(pi_z_J(:,:,N_j)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_z]));
 
     DiscountedEV_hat=beta0beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_z]);   % QH-perceived (the single max uses this)
     DiscountedEV_under=beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_z]);   % exponential (gathered at that same argmax)
@@ -371,9 +373,11 @@ for reverse_j=1:N_j-1
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper;
     EV(aprimeProbs==0)=Vupper(aprimeProbs==0); % includes the skipinterp positions; a zero weight against an infinite node gives 0*(-Inf)=NaN
     EV(aprimeProbs==1)=Vlower(aprimeProbs==1);
-    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-    EV(isnan(EV))=0;
-    EV=squeeze(sum(EV,3));
+    EVinf=(EV==-Inf);
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_z])*pi_z_J(:,:,jj)';
+    EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_z])*(pi_z_J(:,:,jj)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_z]));
 
     DiscountedEV_hat=beta0beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_z]);   % QH-perceived (the single max uses this)
     DiscountedEV_under=beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_z]);   % exponential (gathered at that same argmax)

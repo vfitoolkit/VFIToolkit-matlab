@@ -175,9 +175,11 @@ else
     EV(aprimeProbs==1)=Vlower(aprimeProbs==1);
     % Already applied the probabilities from interpolating onto grid
 
-    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=squeeze(sum(EV,3)); % sum over z', leaving a singular third dimension
+    EVinf=(EV==-Inf);
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=reshape(EV,[N_d2*N_a1*N_a2,N_z])*pi_z_J(:,:,N_j)';
+    EV(reshape(EVinf,[N_d2*N_a1*N_a2,N_z])*(pi_z_J(:,:,N_j)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=squeeze(reshape(EV,[N_d2*N_a1,N_a2,N_z])); % contract over z'
 
     entireEV=reshape(EV,[N_d2,N_a1,1,N_a2,N_z]); % undiscounted; beta/beta0beta applied at use sites
     % Interpolate EV over aprime_grid
@@ -348,9 +350,11 @@ for reverse_j=1:N_j-1
     EV(aprimeProbs==1)=Vlower(aprimeProbs==1);
     % Already applied the probabilities from interpolating onto grid
 
-    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-    EV=squeeze(sum(EV,3)); % sum over z', leaving a singular third dimension
+    EVinf=(EV==-Inf);
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=reshape(EV,[N_d2*N_a1*N_a2,N_z])*pi_z_J(:,:,jj)';
+    EV(reshape(EVinf,[N_d2*N_a1*N_a2,N_z])*(pi_z_J(:,:,jj)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=squeeze(reshape(EV,[N_d2*N_a1,N_a2,N_z])); % contract over z'
 
     entireEV=reshape(EV,[N_d2,N_a1,1,N_a2,N_z]); % undiscounted; beta/beta0beta applied at use sites
     % Interpolate EV over aprime_grid

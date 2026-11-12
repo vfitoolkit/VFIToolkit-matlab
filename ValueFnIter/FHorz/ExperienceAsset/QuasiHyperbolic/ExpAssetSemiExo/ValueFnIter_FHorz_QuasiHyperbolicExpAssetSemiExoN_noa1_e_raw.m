@@ -113,9 +113,12 @@ else
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
 
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
@@ -144,9 +147,12 @@ else
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
 
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
@@ -178,9 +184,12 @@ else
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
 
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
@@ -217,9 +226,12 @@ else
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
 
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
@@ -298,9 +310,12 @@ for reverse_j=1:N_j-1
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
 
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
@@ -329,9 +344,12 @@ for reverse_j=1:N_j-1
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
 
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
@@ -363,9 +381,12 @@ for reverse_j=1:N_j-1
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
 
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);
@@ -402,9 +423,12 @@ for reverse_j=1:N_j-1
             d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0;
-            EV=sum(EV,2);
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]);
 
             EV1=reshape(EV(aprimeIndex,:),[N_d2,N_a2,N_bothz]);
             EV2=reshape(EV(aprimeplus1Index,:),[N_d2,N_a2,N_bothz]);

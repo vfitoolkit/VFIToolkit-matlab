@@ -380,9 +380,12 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
@@ -475,9 +478,12 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
@@ -574,9 +580,12 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
@@ -680,9 +689,12 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
@@ -827,9 +839,12 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
@@ -922,9 +937,12 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
@@ -1021,9 +1039,12 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
@@ -1127,9 +1148,12 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            EV=EVpre.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilities)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EVinf=(EVpre==-Inf);
+            EV=EVpre;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=EV*pi_bothz';
+            EV(EVinf*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=reshape(EV,[N_a,1,N_bothz]); % contract over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime

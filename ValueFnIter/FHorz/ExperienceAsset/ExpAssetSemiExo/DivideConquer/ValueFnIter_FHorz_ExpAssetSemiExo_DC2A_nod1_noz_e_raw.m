@@ -236,9 +236,12 @@ else
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,d3_grid(d3_c).*ones(N_d2,1)];
             pi_semiz=pi_semiz_J(:,:,d3_c,N_j);
-            EV=EV_aprime.*shiftdim(pi_semiz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_semiz])*pi_semiz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_semiz])*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_semiz]));
             DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_semiz]);
 
             ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_DC2A_e(ReturnFn, 0, [n_d2,1], n_a2, n_a3, n_semiz, n_e, d23_gridvals_val, a1_grid, a2_gridvals, a1_grid(level1ii), a2_gridvals, a3_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec, 1);
@@ -291,9 +294,12 @@ else
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,d3_grid(d3_c).*ones(N_d2,1)];
             pi_semiz=pi_semiz_J(:,:,d3_c,N_j);
-            EV=EV_aprime.*shiftdim(pi_semiz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_semiz])*pi_semiz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_semiz])*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_semiz]));
             DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_semiz]);
 
             for e_c=1:N_e
@@ -349,9 +355,12 @@ else
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,d3_grid(d3_c).*ones(N_d2,1)];
             pi_semiz=pi_semiz_J(:,:,d3_c,N_j);
-            EV=EV_aprime.*shiftdim(pi_semiz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_semiz])*pi_semiz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_semiz])*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_semiz]));
             DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_semiz]);
 
             for z_c=1:N_semiz
@@ -454,9 +463,12 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,d3_grid(d3_c).*ones(N_d2,1)];
             pi_semiz=pi_semiz_J(:,:,d3_c,jj);
-            EV=EV_aprime.*shiftdim(pi_semiz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_semiz])*pi_semiz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_semiz])*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_semiz]));
             DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_semiz]);
 
             ReturnMatrix_ii_d3=CreateReturnFnMatrix_ExpAsset_Disc_DC2A_e(ReturnFn, 0, [n_d2,1], n_a2, n_a3, n_semiz, n_e, d23_gridvals_val, a1_grid, a2_gridvals, a1_grid(level1ii), a2_gridvals, a3_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec, 1);
@@ -509,9 +521,12 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,d3_grid(d3_c).*ones(N_d2,1)];
             pi_semiz=pi_semiz_J(:,:,d3_c,jj);
-            EV=EV_aprime.*shiftdim(pi_semiz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_semiz])*pi_semiz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_semiz])*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_semiz]));
             DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_semiz]);
 
             for e_c=1:N_e
@@ -567,9 +582,12 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,d3_grid(d3_c).*ones(N_d2,1)];
             pi_semiz=pi_semiz_J(:,:,d3_c,jj);
-            EV=EV_aprime.*shiftdim(pi_semiz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_semiz])*pi_semiz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_semiz])*(pi_semiz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_semiz]));
             DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_semiz]);
 
             for z_c=1:N_semiz

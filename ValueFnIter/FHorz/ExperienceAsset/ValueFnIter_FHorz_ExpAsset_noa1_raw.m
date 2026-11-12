@@ -102,9 +102,11 @@ else
         EV=c_lo+c_hi;
     end
 
-    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-    EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-    EV=squeeze(sum(EV,3));
+    EVinf=(EV==-Inf);
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=reshape(EV,[N_d2*N_a2,N_z])*pi_z_J(:,:,N_j)';
+    EV(reshape(EVinf,[N_d2*N_a2,N_z])*(pi_z_J(:,:,N_j)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=squeeze(reshape(EV,[N_d2,N_a2,N_z]));
     % EV is over (d2,a1prime,a2,z)
 
     DiscountedEV=DiscountFactorParamsVec*repelem(EV,N_d1,1);
@@ -208,9 +210,11 @@ for reverse_j=1:N_j-1
         EV=c_lo+c_hi;
     end
 
-    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-    EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-    EV=squeeze(sum(EV,3));
+    EVinf=(EV==-Inf);
+    EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+    EV=reshape(EV,[N_d2*N_a2,N_z])*pi_z_J(:,:,jj)';
+    EV(reshape(EVinf,[N_d2*N_a2,N_z])*(pi_z_J(:,:,jj)'>0)>0)=-Inf; % exact -Inf restoration
+    EV=squeeze(reshape(EV,[N_d2,N_a2,N_z]));
     % EV is over (d2,a1prime,a2,z)
 
     DiscountedEV=DiscountFactorParamsVec*repelem(EV,N_d1,1);

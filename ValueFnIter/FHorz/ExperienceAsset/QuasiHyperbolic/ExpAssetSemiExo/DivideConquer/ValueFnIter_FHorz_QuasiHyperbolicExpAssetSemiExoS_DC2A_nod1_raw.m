@@ -243,9 +243,12 @@ else
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
-            EV=EV_aprime.*shiftdim(pi_bothz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_bothz])*pi_bothz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_bothz])*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_bothz]));
             DiscountedEV_hat=beta0beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % QH-perceived
             DiscountedEV_under=beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % exponential
 
@@ -310,9 +313,12 @@ else
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
-            EV=EV_aprime.*shiftdim(pi_bothz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_bothz])*pi_bothz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_bothz])*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_bothz]));
             DiscountedEV_hat=beta0beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % QH-perceived
             DiscountedEV_under=beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % exponential
 
@@ -383,9 +389,12 @@ else
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
-            EV=EV_aprime.*shiftdim(pi_bothz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_bothz])*pi_bothz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_bothz])*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_bothz]));
             DiscountedEV_hat=beta0beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % QH-perceived
             DiscountedEV_under=beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % exponential
 
@@ -502,9 +511,12 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
-            EV=EV_aprime.*shiftdim(pi_bothz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_bothz])*pi_bothz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_bothz])*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_bothz]));
             DiscountedEV_hat=beta0beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % QH-perceived
             DiscountedEV_under=beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % exponential
 
@@ -569,9 +581,12 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
-            EV=EV_aprime.*shiftdim(pi_bothz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_bothz])*pi_bothz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_bothz])*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_bothz]));
             DiscountedEV_hat=beta0beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % QH-perceived
             DiscountedEV_under=beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % exponential
 
@@ -642,9 +657,12 @@ for reverse_j=1:N_j-1
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
-            EV=EV_aprime.*shiftdim(pi_bothz',-2);
-            EV(isnan(EV))=0;
-            EV=squeeze(sum(EV,3));
+            EVinf=(EV_aprime==-Inf);
+            EV=EV_aprime;
+            EV(EVinf)=-1e250; % stop -Inf*0 -> NaN inside the product
+            EV=reshape(EV,[N_d2*N_a1*N_a2*N_a3,N_bothz])*pi_bothz';
+            EV(reshape(EVinf,[N_d2*N_a1*N_a2*N_a3,N_bothz])*(pi_bothz'>0)>0)=-Inf; % exact -Inf restoration
+            EV=squeeze(reshape(EV,[N_d2*N_a1*N_a2,N_a3,N_bothz]));
             DiscountedEV_hat=beta0beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % QH-perceived
             DiscountedEV_under=beta*reshape(EV,[N_d2,N_a1,N_a2,1,1,N_a3,N_bothz]);   % exponential
 
