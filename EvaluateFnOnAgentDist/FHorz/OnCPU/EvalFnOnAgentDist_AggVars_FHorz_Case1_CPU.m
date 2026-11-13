@@ -59,7 +59,7 @@ for ii=1:length(FnsToEvaluate)
     if l_d==0
         for jj=1:N_j
 
-            [~, aprime_gridvals]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+            [~, aprime_gridvals]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
             if ~isempty(FnsToEvaluateParamNames(ii).Names)
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
             end
@@ -77,7 +77,7 @@ for ii=1:length(FnsToEvaluate)
     else
         for jj=1:N_j
 
-            [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+            [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
             if ~isempty(FnsToEvaluateParamNames(ii).Names)
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
             end

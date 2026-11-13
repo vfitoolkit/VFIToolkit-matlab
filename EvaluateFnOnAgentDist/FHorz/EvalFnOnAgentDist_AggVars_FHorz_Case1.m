@@ -42,7 +42,7 @@ else
     end
 end
 
-if simoptions.parallel==1
+if simoptions.parallel<2
     AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_CPU(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
     return
 end

@@ -77,6 +77,10 @@ end
 
 %% Create a different 'Values' for each of the variable to be evaluated
 
+if N_z==0
+    error('LifeCycleProfiles_FHorz_Case1: the cpu version (simoptions.parallel=1) needs a z variable (n_z>0)')
+end
+
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
 
 ngroups=length(simoptions.agegroupings);
@@ -96,9 +100,13 @@ end
 
 d_grid=gather(d_grid);
 a_grid=gather(a_grid);
-%     z_grid=gather(z_grid);
+z_grid=gather(z_grid);
 
 a_gridvals=CreateGridvals(n_a,a_grid,2);
+% The cpu path has z but no e or semi-exogenous shocks (ValueFnIter and StationaryDist refuse them on the cpu),
+% and the same z_grid at every age (as in EvalFnOnAgentDist_AggVars_FHorz_Case1_CPU), so z_gridvals is set once here
+N_ze=N_z;
+z_gridvals=CreateGridvals(n_z,z_grid,2);
 
 PolicyIndexes=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 for kk=1:length(simoptions.agegroupings)
@@ -116,28 +124,6 @@ for kk=1:length(simoptions.agegroupings)
         [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
         gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
         gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
-
-        if N_z>0
-            if jointzgrid==0
-                z_gridvals=CreateGridvals(n_z,z_grid_J(:,jj),2);
-            else
-                z_gridvals=z_grid_J(:,:,jj);
-            end
-        end
-        if N_e>0
-            if jointegrid==0
-                e_gridvals=CreateGridvals(simoptions.n_e,e_grid_J(:,jj),2);
-            else
-                e_gridvals=e_grid_J(:,:,jj);
-            end
-        end
-        if N_z>0 && N_e>0
-            z_gridvals=[kron(z_gridvals,ones(N_e,1)),kron(ones(N_z,1),e_gridvals)];
-        elseif N_e>0 && N_z==0
-            z_gridvals=e_gridvals;
-            % Note that n_z>0 and n_e=0 we just leave z_gridvals as is
-        end
-
         gridvalsFull(jj-j1+1).z_gridvals=z_gridvals;
     end
 
