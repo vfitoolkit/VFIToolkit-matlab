@@ -317,7 +317,7 @@ end
 % end
 
 if exist('PolicyWhenExiting','var')
-    [d_gridvalsWhenExiting, aprime_gridvalsWhenExiting]=CreateGridvals_Policy(PolicyWhenExiting,n_d,n_a,n_a,n_z,d_grid,a_grid,1,2);
+    [d_gridvalsWhenExiting, aprime_gridvalsWhenExiting]=CreateGridvals_Policy(PolicyWhenExiting,n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1,2);
     if N_d==0
         daprime_gridvalsWhenExiting=aprime_gridvalsWhenExiting;
     else
